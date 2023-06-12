@@ -1,0 +1,4 @@
+{
+  "jupyter.jupyterServerType": "local",
+  "typescript.tsdk": "./node_modules/typescript/lib"
+}

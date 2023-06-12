@@ -1,0 +1,16 @@
+.table-header {
+  padding-left:5px;
+  padding-right:5px;
+}
+
+.top-axis {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.main-image {
+  border-top: 1px dotted #000;
+  border-left: 1px dotted #000;
+  padding: 3px;
+}

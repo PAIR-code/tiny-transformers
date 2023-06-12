@@ -1,0 +1,95 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 200;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+.chart-container {
+  /*max-width: 1280px;*/
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.batch-row{
+  white-space:nowrap;
+  margin-bottom: 20px;
+}
+.batch-row > *{
+  display: inline-block;
+  vertical-align:top 
+}
+.batch, .loss{
+  padding: 10px;
+}
+
+.grid-container > div{
+  display: inline-block;
+  margin-right: 20px;
+}
+
+.grid-container *, .grid-container{
+  vertical-align:top;
+  white-space: nowrap;
+}
+
+.is-dragging .layer{
+  pointer-events: none;
+}
+.is-dragging .tooltip{
+  opacity: 1 !important;
+}
+.layer{
+  user-select: none;
+}
+
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+  width: 500px;
+}
+
+.tooltip .num-block{
+  line-height: 1em;
+  font-size: 8px;
+}
+
+.tooltip-hidden {
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+@media (max-width: 590px) {
+  div.tooltip {
+    bottom: -1px;
+    width: calc(100%);
+    left: -1px !important;
+    right: -1px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+.notes p{
+  padding: 20px;
+  max-width: 600px;
+}

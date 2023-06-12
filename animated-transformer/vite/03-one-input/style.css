@@ -1,0 +1,258 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 200;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+.chart-container, .config {
+  /*max-width: 1280px;*/
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.config textarea{
+  height: 200px;
+  width: 250px;
+}
+
+.button-container{
+  display: inline-block;
+  width: 100px;
+  position: relative;
+  vertical-align: bottom;
+
+}
+.button-container button{
+  width: 80px;
+  margin: 5px;
+  margin-top: 0px;
+  font-family: monospace;
+}
+
+.batch-row{
+  white-space:nowrap;
+  margin-bottom: 20px;
+}
+.batch-row > *{
+  display: inline-block;
+  vertical-align:top 
+}
+.batch, .loss{
+  padding: 10px;
+}
+
+.grid-container > div{
+  display: inline-block;
+  /*margin-right: 20px;*/
+  padding: 5px;
+  padding-right: 0px;
+  border: 1px solid #eee;
+  margin-top: 30px;
+  user-select: none;
+  position: relative;
+}
+.grid-container > div:last-child{
+  border-left-width: 0px;
+}
+.gradient-container > div{
+  margin-top: 0px;
+  border: 1px solid #eee !important;
+  border-top-width: 0px !important;
+}
+
+.grid-container *, .grid-container{
+  vertical-align:top;
+  white-space: nowrap;
+}
+
+.is-dragging .layer{
+  pointer-events: none;
+}
+.is-dragging .tooltip{
+  opacity: 1 !important;
+  display: none;
+}
+.svg-drag{
+  opacity: 0;
+}
+.is-dragging-sel .svg-drag{
+  opacity: 1;
+}
+
+
+.layer{
+  user-select: none;
+  margin-bottom: 20px;
+}
+.layer:last-child{
+  margin-bottom: 0px;
+}
+.layer > div{
+  min-width: 60px;
+}
+
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+  width: 240px;
+}
+
+.tooltip .num-block{
+  line-height: 1em;
+  font-size: 8px;
+}
+
+.tooltip-hidden {
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+@media (max-width: 590px) {
+  div.tooltip {
+    bottom: -1px;
+    width: calc(100%);
+    left: -1px !important;
+    right: -1px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+.notes p{
+  padding: 20px;
+  padding-top: 0px;
+  max-width: 600px;
+}
+.notes{
+  margin-top: 40px;
+}
+
+p{
+  margin: 0px;
+}
+
+.input-container{
+  margin-top: 20px;
+}
+
+.input-container > div{
+  display: inline-block;
+  width: 380px;
+  line-height: 1.8em;
+  cursor: default;
+}
+
+.input-container > div:last-child{
+  display: inline-block;
+  width: 600px;
+  margin-left: 20px;
+}
+
+.batch-input{
+  font-size: 12px;
+  display: inline-block;
+  width: calc(25% - 3px);
+  text-align: center;
+  border: 1px solid #eee;
+  border-right-width:0px;
+  border-bottom-width:0px;
+}
+
+.batch-input:nth-child(4n) {
+  border-right-width:1px;
+}
+.batch-input:nth-last-child(-n+4) {
+  border-bottom-width:1px;
+}
+
+
+.batch-input span{
+  display: inline-block;
+  width: 28%;
+  text-align: center;
+  padding-left: 2px;
+}
+.batch-input span.is-max{
+  font-weight: 600;
+}
+
+.batch-input.active{
+  background: #ddd;
+}
+
+/*input[type=range] {
+  accent-color: #ccc;
+  color-scheme: light !important;
+}
+*/
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 50px;
+  position: relative;
+  top: 5px;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  background: #ccc;
+  height: 5px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+   -webkit-appearance: none; 
+   appearance: none;
+   margin-top: -4px;
+   background-color: #000;
+   height: 13px;
+   width: 5px; 
+   border-radius: 10px;   
+}
+
+.vis-state-control{
+  height: 40px;
+}
+.vis-state-control span{
+  margin-left: 15px;
+  color: #666;
+  font-size: 12px;
+}
+.vis-state-control b{
+  display: inline-block;
+  width: 150px;
+}
+
+input[type=checkbox]{
+  accent-color: #ccc;
+}
+
+.anno-label{
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+  color: #666;
+  font-size: 12px;
+  position: absolute;
+}
+

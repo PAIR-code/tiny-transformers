@@ -1,0 +1,49 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  overflow: auto;
+  // background-color: rgba(0,255,0,.87);
+}
+.full-width {
+  width: 100%;
+}
+
+.smallBtn {
+  transform: scale(0.75);
+  // font-size: 12px;
+  // width: 100%;
+}
+
+.buttonrow .mat-mdc-button-base {
+  margin: 8px 8px 8px 0;
+}
+
+
+.json {
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+// .content {
+//   display: flex;
+//   margin: 0;
+//   margin-top: 60px;
+//   padding: 10px 16px;
+//   // max-width: 960px;
+//   flex-wrap: wrap;
+//   flex-direction: row;
+//   justify-content: flex-start;
+//   align-items: stretch;
+//   flex: 1 1 auto;
+//   overflow: auto;
+
+
+//   // flex-direction: column;
+//   // justify-content: flex-start;
+//   // align-items: stretch;
+//   // background-color: rgba(0,255,0,.87);
+// }

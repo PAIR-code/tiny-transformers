@@ -1,0 +1,59 @@
+<div class="row">
+  <form class="dataset-form">
+    <mat-form-field class="full-width" appearance="fill">
+      <mat-label>Choose Model</mat-label>
+      <input type="text" matInput [formControl]="modelNameControl" [matAutocomplete]="auto" (change)="updateSelectedModel($event)">
+      <mat-autocomplete #auto="matAutocomplete">
+        <mat-option *ngFor="let model of filteredModels$ | async" [value]="model.config.name">
+          {{model.config.name}}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+  </form>
+</div>
+
+<div class="row" *ngIf="currentModel$ | async as model">
+  <div *ngIf="view != 'edit'" class="row">
+    <div class="json">{{modelConfigAsJson(model)}}</div>
+    <div class='buttonrow'>
+      <button mat-icon-button (click)="toggleModelEditor()">
+        <mat-icon>edit</mat-icon>
+      </button>
+
+      <button *ngIf="!model.modelData" mat-flat-button color="warn" (click)="initModelData()">
+        init
+      </button>
+      <button *ngIf="model.modelData" mat-flat-button (click)="initModelData()">
+        re-init
+      </button>
+      <!-- <button *ngIf="model.trainState" mat-flat-button color="primary" (click)="trainStep()">
+        train-step
+      </button>
+      <mat-slide-toggle *ngIf="model.trainState" color="primary" (change)="toggleTraining($event)">Training</mat-slide-toggle> -->
+    </div>
+    <div *ngIf="model.modelData">
+      Model is initialised. Params: <span>{{model.modelData.paramCount}}</span>
+    </div>
+    <div *ngIf="!model.modelData">
+      Model not initialised.
+    </div>
+    <!-- <div *ngIf="model.trainState">
+      <div *ngIf="lossPoints.length > 0">
+        <div>Loss:</div>
+        <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+      </div>
+      <div *ngIf="accPoints.length > 0">
+        <div>Accuracy:</div>
+        <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
+      </div>
+    </div> -->
+  </div>
+  <div *ngIf="view == 'edit'" class="code-full-screen full-width">
+    <app-codemirror-config-editor
+      (update)="modelConfigUpdated($event)"
+      [whatIsBeingEditedName]="model.config.name"
+      [defaultConfig]="model.defaultConfigStr"
+      [config]="model.configStr"></app-codemirror-config-editor>
+  </div>
+
+</div>

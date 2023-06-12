@@ -1,0 +1,54 @@
+<div class="row">
+  <form class="dataset-form">
+    <mat-form-field class="full-width" appearance="fill">
+      <mat-label>Choose Task</mat-label>
+      <input type="text" matInput [formControl]="taskNameControl" [matAutocomplete]="auto" (change)="updateSelectedTask($event)">
+      <mat-autocomplete #auto="matAutocomplete">
+        <mat-option *ngFor="let task of filteredTasks$ | async" [value]="task.config.name">
+          {{task.config.name}}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+  </form>
+</div>
+<div class="row" *ngIf="currentTask$ | async as task">
+  <div *ngIf="view == 'view'">
+    <div class="json">{{taskConfigAsJson(task.config)}}</div>
+    <button mat-icon-button (click)="toggleEditor()">
+      <mat-icon>edit</mat-icon>
+    </button>
+    <button mat-icon-button (click)="showExamples = !showExamples">
+      <mat-icon *ngIf="!showExamples"
+        aria-hidden="false"
+        aria-label="Show Examples"
+        >expand_more</mat-icon>
+      <mat-icon *ngIf="showExamples"
+        aria-hidden="false"
+        aria-label="Hide Examples"
+        >expand_less</mat-icon>
+    </button>
+  </div>
+  <div *ngIf="view == 'edit'" class="code-full-screen full-width">
+    <app-codemirror-config-editor
+      (update)="taskConfigUpdated($event)"
+      [whatIsBeingEditedName]="task.config.name"
+      [defaultConfig]="task.defaultConfigStr"
+      [config]="task.configStr"></app-codemirror-config-editor>
+  </div>
+</div>
+<ng-container *ngIf="showExamples">
+  <div class="row" *ngIf="selectedTaskExamples$ | async as selectedExamples">
+    <table #datasetTable mat-table [dataSource]="selectedExamples" class="mat-elevation-z0">
+      <ng-container matColumnDef="input">
+        <th mat-header-cell *matHeaderCellDef class="table-header"> input </th>
+        <td mat-cell *matCellDef="let element"> {{inputToString(element.input)}} </td>
+      </ng-container>
+      <ng-container matColumnDef="target">
+        <th mat-header-cell *matHeaderCellDef class="table-header"> target </th>
+        <td mat-cell *matCellDef="let element"> {{outputToString(element.output)}} </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="datasetColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: datasetColumns;"></tr>
+    </table>
+  </div>
+</ng-container>

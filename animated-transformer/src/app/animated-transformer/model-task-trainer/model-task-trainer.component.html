@@ -1,0 +1,76 @@
+<div class="row">
+  <form class="dataset-form">
+    <mat-form-field class="full-width" appearance="fill">
+      <mat-label>Choose Trainer</mat-label>
+      <input type="text" matInput [formControl]="trainerNameControl" [matAutocomplete]="auto">
+      <mat-autocomplete #auto="matAutocomplete">
+        <mat-option *ngFor="let trainer of filteredTrainers$ | async" [value]="trainer.config.name">
+          {{trainer.config.name}}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+  </form>
+</div>
+
+<div class="row" *ngIf="currentTrainer$ | async as currentTrainer">
+  <div *ngIf="view != 'edit'">
+    <div>
+      <div *ngIf="taskAndModelWithData$ | async as taskAndModel">
+        <div>Selected task: <span class="json">{{taskAndModel.task.config.name}}</span></div>
+        <div>Selected model: <span class="json">{{taskAndModel.model.config.name}}</span></div>
+      </div>
+      <div *ngIf="trainState$ | async as trainState">
+        <div>state.nExamples: <span class="json">{{trainState.nExamples}}</span></div>
+        <div>state.nSteps: <span class="json">{{trainState.nSteps}}</span></div>
+        <div>state.batchLoss: <span class="json">{{trainState.batchMeanLoss}}</span></div>
+        <div>curMetrics.trainBatchAcc: <span class="json">{{curMetrics.trainBatchAcc}}</span></div>
+        <div>curMetrics.testAcc: <span class="json">{{curMetrics.testAcc}}</span></div>
+        <div>layerNormHeadsProjectionGain: <span class="json">{{layerNormHeadsProjectionGain}}</span></div>
+        <div>layerNormPostFFGain: <span class="json">{{layerNormPostFFGain}}</span></div>
+      </div>
+    </div>
+    <div class="json">{{currentTrainer.configStr}}</div>
+    <div class='buttonrow'>
+      <button mat-icon-button (click)="toggleModelEditor()">
+        <mat-icon>edit</mat-icon>
+      </button>
+
+      <div *ngIf="trainState$ | async as trainState; else noTrainState">
+        <button *ngIf="taskAndModelWithData$ | async" mat-flat-button (click)="initTrainer()">
+          re-init
+        </button>
+        <button  mat-flat-button color="primary" (click)="trainStep()">
+          train-step
+        </button>
+        <mat-slide-toggle color="primary" (change)="toggleTraining($event)">Training</mat-slide-toggle>
+      </div>
+      <ng-template #noTrainState><div>
+        <button *ngIf="taskAndModelWithData$ | async" color="warn" mat-flat-button (click)="initTrainer()">
+          init
+        </button>
+      </div></ng-template>
+    </div>
+    <!-- <div>Memory usage: <span class="json">{{tfjsMemory}}</span></div> -->
+  </div>
+
+  <div *ngIf="view == 'edit'" class="code-full-screen full-width">
+    <app-codemirror-config-editor
+      (update)="trainerConfigUpdated($event)"
+      [whatIsBeingEditedName]="currentTrainer.config.name"
+      [defaultConfig]="currentTrainer.defaultConfigStr"
+      [config]="currentTrainer.configStr"></app-codemirror-config-editor>
+  </div>
+
+  <div *ngIf="trainState$ | async as trainState">
+    <div *ngIf="lossPoints.length > 0">
+      <div>Loss:</div>
+      <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+    </div>
+    <div *ngIf="accPoints.length > 0">
+      <div>Accuracy:</div>
+      <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
+    </div>
+  </div>
+
+</div>
+

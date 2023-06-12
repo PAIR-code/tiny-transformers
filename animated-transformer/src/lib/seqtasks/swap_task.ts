@@ -1,0 +1,118 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+
+/*
+Problem Descriptions:
+
+* What's the pair of number's with the biggest difference, that you can swap
+to improve the ordering of the list.
+
+* Of all pairs that you can swap to improve the ascending ordering of the list,
+what pair have the biggest difference?
+
+*/
+
+import * as tf from '@tensorflow/tfjs';
+import { BasicLmTask, BasicLmTaskConfig, Example, RandomStream } from './util';
+
+export type SwapTaskConfig = BasicLmTaskConfig & {
+  valuesLessThan: number;
+  seed: number;
+}
+
+export type Action = 'l' | 'r' | 'i';
+// l = left swap.
+// r = right swap.
+// i = ignore.
+export const actionsVocab = ['l', 'r', 'i'] as Action[];
+export const inputVocab = ['1', '2', '3', '4', '5'];
+export const baseVocab = [...actionsVocab, ...inputVocab];
+
+export interface Swapable {
+  idx1: number;
+  value1: number;
+  idx2: number;
+  value: number;
+  delta: number;
+}
+
+export function swappables(values: number[]): Swapable[] {
+  const s: Swapable[] = [];
+  values.forEach((x, i) => {
+    values.forEach((x2, i2) => {
+      if (!isNaN(x) && !isNaN(x2) && x2 < x && i2 > i) {
+        s.push(
+          {
+            idx1: i,
+            value1: x,
+            idx2: i2,
+            value: x2,
+            delta: x - x2,
+          });
+      }
+    });
+  });
+  return s.sort((s1, s2) => s2.delta - s1.delta);
+}
+
+// Invaraint: returned list has same size as input.
+export function makeOutput(input: number[]): Action[] {
+  const swaps = swappables(input);
+  const output: Action[] = input.map(_ => 'i');
+  if (swaps.length > 0) {
+    output[swaps[0].idx1] = 'l';
+    output[swaps[0].idx2] = 'r';
+  }
+  return output;
+}
+
+export class SwapTask implements BasicLmTask {
+  // TODO: consider doing programatically in the constructor?
+  public name = 'SwapTask';
+  public baseVocab = baseVocab;
+  public random: RandomStream;
+  private exampleId = 0;
+
+  constructor(public config: SwapTaskConfig) {
+    this.random = new RandomStream(config.seed);
+  }
+
+  // Problem Descriptions:
+  // * What's the pair of number's with the biggest difference, that you can swap
+  // to improve the ordering of the list.
+  // * Of all pairs that you can swap to improve the ascending ordering of the list,
+  // what pair have the biggest difference?
+  genRandExample(): Example {
+    const input =
+      tf.randomUniform([this.config.maxInputLen], 0, this.config.valuesLessThan, 'int32',
+        this.random.random())
+        .arraySync() as number[];
+    for (let i = 0; i < input.length; i++) {
+      input[i] = Math.floor(this.random.random() * this.config.valuesLessThan);
+    }
+    return {
+      id: this.exampleId++,
+      input: input.map(x => String(x)),
+      output: makeOutput(input),
+    };
+  }
+
+  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+    while (true) {
+      yield this.genRandExample();
+    }
+  }
+}

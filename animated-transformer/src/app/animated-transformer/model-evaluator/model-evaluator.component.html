@@ -1,0 +1,27 @@
+<div>Evaluate model on a custom input:</div>
+
+<form class="input-form">
+  <mat-form-field class="short-width" appearance="fill">
+    <mat-label>input</mat-label>
+    <input matInput required jsonStrListValidator
+      maxlength="30" [formControl]="inputControl">
+    <mat-error class="error"
+      *ngIf="
+      inputControl.invalid
+      && (inputControl.dirty || inputControl.touched)
+      && inputControl.errors?.['data']">
+        {{inputControl.errors?.['data'].message}}
+    </mat-error>
+  </mat-form-field>
+</form>
+
+<div *ngIf="modelData$ | async as modelData; else noData">
+  <button mat-flat-button color="primary" (click)="evaluate()">
+    Evalute
+  </button>
+</div>
+<ng-template #noData><div>Model needs to be initialised to evalute it.</div></ng-template>
+
+<div *ngIf="modelOutput">
+  Output: <span>{{modelOutput}}</span>
+</div>

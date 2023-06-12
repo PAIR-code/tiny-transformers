@@ -1,0 +1,66 @@
+<style>
+  :host {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-size: 14px;
+    color: #333;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    margin: 0px;
+    padding: 0px;
+
+    flex-wrap: nowrap;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+</style>
+
+<!-- Toolbar -->
+<div class="toolbar" role="banner">
+  <a class="small-logo" aria-label="Home" [routerLink]="['/']" title="Home">
+    <img src="/assets/pair-logo.svg">
+  </a> <span class="title">The Animated Transformer</span>
+    <div class="spacer"></div>
+</div>
+
+<div class="content" role="main">
+
+  <mat-card class="card">
+    <mat-card-content>
+      <app-seq-task-selector [taskName]="taskName"
+        (taskUpdates)="updateTask($event)"></app-seq-task-selector>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-content>
+      <app-model-selector
+      [modelName]="modelName"
+      [taskUpdate]="lastTaskUpdate"
+      (modelChange)="updateModel($event)"></app-model-selector>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-content>
+      <app-model-task-trainer
+      [model]="lastModelUpdate"
+      [task]="lastTaskUpdate"
+      [trainerName]="trainerName"
+      (modelUpdate)="modelParamsUpdate($event)"
+      (configUpdate)="updateTrainer($event)"></app-model-task-trainer>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <app-model-evaluator
+    [model]="lastModelUpdate"
+    [inputValue]="evalInputStr"
+    (evalInputUpdate)="updateEvalInput($event)"
+    ></app-model-evaluator>
+  </mat-card>
+
+</div>
+

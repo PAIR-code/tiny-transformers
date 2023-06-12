@@ -1,0 +1,26 @@
+
+.dataset-form {
+  min-width: 150px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  overflow: auto;
+  // background-color: rgba(0,255,0,.87);
+}
+
+.json {
+  font-family: monospace;
+  white-space: pre-wrap;
+}
