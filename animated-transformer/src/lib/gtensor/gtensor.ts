@@ -102,69 +102,6 @@ type DotCompatibleDimension<M1 extends string, D1 extends M1, M2 extends string,
 type DisjointDimensions<G2 extends DName, G extends DName> =
   G2 & G extends never ? G2 : ErrorMustNotHaveCommonDimension<G2, G>;
 
-// TODO: consider if this can work?
-// type DotCompatibleDimension<D extends (M1 & M2), M1 extends DName, M2 extends DName> =
-//   D extends never ? DotError_MustHaveCommonDimension<D> :
-//   Exclude<M1 & M2, D> extends never ?
-//     Dimension<M2, D>
-//     : DotError_NotAllowedNameOutsideDot<Exclude<M1 & M2, D>>
-
-// type OnlyDsInterection<D1 extends G1, D2 extends G2, G1 extends string, G2 extends string> =
-//   // D1 = D2, lets call this D
-//   D2 extends D1 ? D1 extends D2 ?
-//   // G intersects G2 only at D
-//   (Exclude<G1 & G2, D2> extends never ? Dimension<G2, D2> : ErrorGTensorsOtherIntersectionNames<Exclude<G1 & G2, D2>>)
-//   : ErrorFirstDimFailsToExtendSecond<D1,D2> : ErrorFirstDimFailsToExtendSecond<D2,D1>;
-
-// TODO: remove and use the richer contract operation.
-export function dot<D1 extends G1, D2 extends G2, G1 extends string, G2 extends string>(
-  d1: Dimension<G1, D1>,
-  maybed2: DotCompatibleDimension<G1, D1, G2, D2>
-): GTensor<Exclude<G1 | G2, D1>> {
-  // TODO: maybe we canmake the type system do more for us... D extends D2 ? (D2
-  //   extends D ? GTensor<Exclude<G1|G2, D>> : never) : never
-  //
-  // TODO: We use `tf.einsum`, and consturct the inputs for it via
-  // strings; this is quite a bit of indirection, and likely we could use an
-  // underlying API directly and it save string construction and parsing.
-  //
-  // TODO: think about if the 'never' below is needed.
-  const d2 = maybed2 as never as Dimension<G2, D2>;
-
-  const FIRST_CHAR_CODE_FOR_D1 = 'A'.charCodeAt(0);
-
-  const d1Names = d1.gtensor.dimNames;
-  const d1CharNames = d1Names.map(
-    (n, i) => String.fromCharCode(FIRST_CHAR_CODE_FOR_D1 + i));
-  const d1CharName = d1CharNames[d1.index];
-
-  const FIRST_CHAR_CODE_FOR_D2 = FIRST_CHAR_CODE_FOR_D1 + d1CharNames.length;
-  const d2Names = d2.gtensor.dimNames;
-  const d2CharNames = d2Names.map(
-    (n, i) => String.fromCharCode(FIRST_CHAR_CODE_FOR_D2 + i));
-  // const d2CharName = d1CharNames[d2.index];
-  d2CharNames.splice(d2.index, 1, d1CharName);
-
-  if ((d2CharNames.length + d1CharNames.length) > 52) {
-    console.warn('too many dimensions for einsum, things may go wrong...');
-  }
-
-  const resultCharNames = d1CharNames.concat(d2CharNames).filter(
-    c => c !== d1CharName);
-
-  const einsumStr = `${d1CharNames.join('')},${d2CharNames.join('')}->${resultCharNames.join('')}`;
-
-  const resultTensor = tf.einsum(
-    einsumStr, d1.gtensor.tensor, d2.gtensor.tensor);
-
-  const newNames =
-    (d1Names.slice(0, d1.index) as DName[])
-      .concat(d1Names.slice(d1.index + 1, d1Names.length))
-      .concat(d2Names.slice(0, d2.index) as DName[])
-      .concat(d2Names.slice(d2.index + 1, d2Names.length));
-  return new GTensor(resultTensor, newNames as (Exclude<G1 | G2, D1>)[]);
-}
-
 interface ErrorLiftDimInInput<D> {
   _LiftError_DimInInput: ['LiftError_DimInInput', D];
 }
@@ -268,24 +205,6 @@ export class Dimension<G extends string, D extends G> implements DimensionData<G
   get isSecondLastDim(): boolean {
     return (this.index === this.gtensor.tensor.shape.length);
   }
-
-  _dot<D2 extends G2, G2 extends string>(
-    d2: DotCompatibleDimension<G, D, G2, D2>
-  ): GTensor<Exclude<G | G2, D>> {
-    return dot(this, d2);
-  }
-
-  dot<D2 extends G2, G2 extends string>(
-    d2: DotCompatibleDimension<G, D, G2, D2>
-  ): Dims<Exclude<G | G2, D>> {
-    return this._dot(d2).dim;
-  }
-
-  // softmax<D2 extends G2, G2 extends DName>(
-  //   d2: DotCompatibleDimension<G,D,G2,D2>
-  // ): Dims<Exclude<G | G2, D>> {
-  //   tf.softmax(this.gtensor.tensor)
-  // }
 
   _rename<T extends string>(newName: T): GTensor<Exclude<G, D> | T> {
     // TODO: shouldn't TS be able to infer that typeod(this.name) extends G? It's specified in the
