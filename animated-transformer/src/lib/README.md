@@ -2,7 +2,7 @@
 
 Author: https://github.com/iislucas (ldixon@google.com)
 
-ML library where Tensors are typed in a parameterized way by a set of strings that correspond to the dimension in the tensor. e.g. `x: GTensor<'pos' | 'inputRep'>` says that `x` is a tensor with two dimensions `pos` and `inputRep`. This means that you can write, and get auto-completion, and error checking. For example, `x.dim.pos`, is a Dimension object for the `pos` dimension. Another example, given `y: GTensor<'hiddenRep' | 'inputRep'>`, you can write `z = contract(x, y, ['inputRep'])` (contract is another name for matrix multiplication) and you get auto-completion and error checking when entering the `'inputRep'` string, and you get type inference for `z`, it must be `z: GTensor<'pos' | 'hiddenRep'>` (because `'inputRep'` was contracted away).
+An ML library where Tensors are typed, parameterized a set of strings, corresponding to their dimensions. e.g. `x: GTensor<'pos' | 'inputRep'>` says that `x` is a tensor with two dimensions `pos` and `inputRep`. This means that you can write, and get auto-completion, and error checking. For example, `x.dim.pos`, is a Dimension object for the `pos` dimension. Another example, given `y: GTensor<'hiddenRep' | 'inputRep'>`, you can write `z = contract(x, y, ['inputRep'])` (contract is another name for matrix multiplication) and you get auto-completion and error checking when entering the `'inputRep'` string, and you get type inference for `z`, it must be `z: GTensor<'pos' | 'hiddenRep'>` (because `'inputRep'` was contracted away).
 
 ML Library:
 
@@ -24,8 +24,8 @@ Generic tool libraries
 
 Abstract libraries
 
-* `tubes/`: Inspired by the paper [http://strictlypositive.org/Holes.pdf](Why walk when you can take the tube?), a library for working with JS-object-array tree structures where the state captures being at a particular location in the tree. This is used to provide the slightly fancy JSON pretty printer in `pretty_json`.
+* `tubes/`: Inspired by the paper [Why walk when you can take the tube?](http://strictlypositive.org/Holes.pdf), a library for working with JS-object-array tree structures where the state captures being at a particular location in the tree. This is used to provide the slightly fancy JSON pretty printer in `pretty_json`.
 
 * `rxjs/`: Misc useful RXJS helpers.
 
-Older documentation that explains the basic concept can be found in the [TFJS RFC](https://github.com/tensorflow/community/blob/master/rfcs/20210731-tfjs-named-tensors.md).
+Older documentation that explains the basic concept can be found in the [TFJS RFC](https://github.com/PAIR-code/tiny-transformers/blob/main/animated-transformer/src/lib/gtensor/20210731-tfjs-named-tensors.md) ([older TFJS version](https://github.com/tensorflow/community/blob/master/rfcs/20210731-tfjs-named-tensors.md)).
