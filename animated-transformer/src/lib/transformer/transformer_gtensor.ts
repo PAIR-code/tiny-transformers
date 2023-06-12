@@ -13,19 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 /**
  * Transformers implemented using GTensor.
  *
- * TODO: encode-decoder.
+ * TODO: encode-decoder. (currently only have decoder models)
  * TODO: dropout.
+ * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
+ * TODO: loss for all tokens (currently just the last token).
+ * TODO: Adam optimiser / others (currently only have SGD).
+ * TODO: backprop to embeddings too.
  */
 import { relu, tanh, tensor, Tensor, oneHot, Scalar } from '@tensorflow/tfjs';
 import * as tf from '@tensorflow/tfjs';
 import { GTensor, DName, makeTruncNormal, makeZeros, makeOnes, makeScalar, GVariable } from '../gtensor/gtensor';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { BatchedRelativePosAttention, initRawRelativePosEncoding, makePosAttentionMatrix } from './relative_pos_encoding';
-import { query } from '@angular/animations';
 import { initLayerNormParams, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { TfvisService } from 'src/app/tfvis.service';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';

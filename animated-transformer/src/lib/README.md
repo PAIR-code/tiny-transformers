@@ -1,86 +1,31 @@
-#
+# A TypeScript Named Tensors Library (and Transformer implementation)
 
-```ts
-interface InputEmbedding {
-  seqLen,  // max length of a sequence.
-  repSize, // representation size of embeddings.
-}
-const input: NamedT<InputEmbedding>;
+Author: https://github.com/iislucas (ldixon@google.com)
 
-interface ProjectQK {
-  nAttnHeads, // Number of attention heads
-  repSize,    // Representation size of input embeddings.
-  kqSize,     // Size of the Key/Query Represention
-}
-const keyProj: NamedT<ProjectQK>;
-const queryProj: NamedT<ProjectQK>;
+ML library where Tensors are typed in a parameterized way by a set of strings that correspond to the dimension in the tensor. e.g. `x: GTensor<'pos' | 'inputRep'>` says that `x` is a tensor with two dimensions `pos` and `inputRep`. This means that you can write, and get auto-completion, and error checking. For example, `x.dim.pos`, is a Dimension object for the `pos` dimension. Another example, given `y: GTensor<'hiddenRep' | 'inputRep'>`, you can write `z = contract(x, y, ['inputRep'])` (contract is another name for matrix multiplication) and you get auto-completion and error checking when entering the `'inputRep'` string, and you get type inference for `z`, it must be `z: GTensor<'pos' | 'hiddenRep'>` (because `'inputRep'` was contracted away).
 
-interface ProjectValues {
-  nAttnHeads, // Attention heads
-  repSize,    // Representation size of input embeddings.
-  valueSize,  // Size of the Value Represention, traditionally = kqSize
-}
-const projectValues: NamedT<ProjectValues>;
+ML Library:
 
-interface QueryKeyOnInput {
-  nAttnHeads,  // Attention heads
-  seqLen,      // Number of attention heads
-  kqSize,      // Representation size of input embeddings.
-}
-const keys: NamedT<QueryKeyOnInput> = tf.mult(
-  input.repSize, keyProj.repSize);
-const queries: NamedT<QueryKeyOnInput> = tf.mult(
-  input.repSize, queryProj.repSize);
+* `gtensor/`: the lowest level named tensor library (numpy like, but where the dimensions are named, so you get nice auto-completion and as-you-type error checking).
 
-interface InputAttention {
-  nAttnHeads,    // Attention heads
-  seqLenKey,     // Each Key
-  seqLenQuery,   // Each Query
-}
-const attention: NamedT<InputAttention> = tf.mult(
-  keys.kqSize, queries.kqSize,
-  { renaming: [{rename: keys.seqLen, to:'seqLenKey'},
-               {rename: queries.seqLen, to:'seqLenQuery'}],
-    external: nAttnHeads,
-  });
+* `tokens/`: An abstraction of Token embeddings, containing a table from strings to vectors, and supporting going from `string[]` to `GTensor<'pos' | 'inputRep'>`.
 
-interface AttentionHeadValues {
-  nAttnHeads,    // Attention heads
-  seqLen,        // Representation size of input embeddings.
-  valueSize,     // Number of attention heads
-}
-const values: NamedT<AttentionHeadValues> = tf.mult(
-  input.repSize, valueProj.repSize);
+* `transformer/`: The implementation of transformers.
 
-const attendedValues:
-tf.mult(
-  values.
+* `trainer/`: Code for training; an abstract concept of a model's training state, and a specific implementation for training transformers.
 
+* `seqtasks/`: various sequence to sequence tasks.
 
-interface QueryKeyAttention {
-  seqLenKeys,     // Number of attention heads
-  seqLenQueries,  // Representation size of input embeddings.
-}
+Generic tool libraries
 
+* `pretty_json/`: a library for pretty printing JSON in a more compact and customizable way than JSON.stringify.
 
+* `js_tree/`: a library for working with JS objects as if they are trees, e.g. flatten them into lists etc. Used to provide convenient way to work with type-checked objects (they have an TS inferface) that act as the object that holds all the parameter for a model, where you can conviently use the names.
 
+Abstract libraries
 
-function attention(inputEmbedding: tf.Tensor<InputEmbedding>) {
+* `tubes/`: Inspired by the paper [http://strictlypositive.org/Holes.pdf](Why walk when you can take the tube?), a library for working with JS-object-array tree structures where the state captures being at a particular location in the tree. This is used to provide the slightly fancy JSON pretty printer in `pretty_json`.
 
+* `rxjs/`: Misc useful RXJS helpers.
 
-
-inputEmbedding = new tf.representation({
-  seqLen,  // max length of a sequence.
-  repSize, // representation size of embeddings.
-});
-
-
-
-/*
-
-
-
-*/
-```
-
-
+Older documentation that explains the basic concept can be found in the [TFJS RFC](https://github.com/tensorflow/community/blob/master/rfcs/20210731-tfjs-named-tensors.md).
