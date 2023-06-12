@@ -28,7 +28,6 @@ import { switchMap } from 'rxjs/operators';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { ModelUpdate } from './model-selector/model-selector.component';
 import { TrainerConfigUpdate, ModelParamsUpdate } from './model-task-trainer/model-task-trainer.component';
-import { json } from 'tmp/foo_node_modules/@types/body-parser';
 
 @Component({
   selector: 'app-animated-transformer',
