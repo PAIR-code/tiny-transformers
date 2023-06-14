@@ -22,12 +22,14 @@ window.initSliders = function(){
     slider.sel.select('input[type="range"]')
       .on('input', function () {
         slider.setVal(this.value)
-        renderSlider()
         renderAll.input()
       })
+    renderAll.inputFns.push(() => {
+      var value = slider.getVal()
+      slider.sel.select('val').text(value)
+      slider.sel.select('input').node().value = value
+    })
 
-    function renderSlider(){ slider.sel.select('val').text(slider.getVal()) }
-    renderSlider()
   })
 }
 
