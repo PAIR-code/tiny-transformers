@@ -25,10 +25,8 @@ window.initCircleInputVis = async function(type){
     renderAll.modelFns.push(render)
 
     function render(){
-      var hiddenW = visState.model.hiddenWT
-      var outW = visState.model.outW
-
-      var max = d3.max(hiddenW.concat(outW).flat().map(Math.abs))
+      var allWs = visState.model.hiddenWT.concat(visState.model.outW).flat()
+      var max = d3.max(allWs.map(Math.abs))
 
       c.svg.selectAll('rect, .axis').remove()
       c.x.domain([-max*1.3, max*1.3])
