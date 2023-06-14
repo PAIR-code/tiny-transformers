@@ -54,7 +54,7 @@ window.initActivationVis = async function(){
       visState.a = Math.max(0, visState.a)
       visState.b = Math.max(0, visState.b)
 
-      renderInput()
+      renderAll.input()
     }
 
     d.hidden = {c, ctx: c.layers[1], hoverSel, valTextSel, i: d.i}
@@ -168,11 +168,11 @@ window.initActivationVis = async function(){
       lineSel.raise()
     })()
 
-    renderInput()
+    renderAll.input()
   }
 
 
-  function renderInput(){
+  renderAll.inputFns.push(() => {
     visState.correct = (visState.a + visState.b) % visState.n_tokens
 
     hiddenData.forEach(({hidden}) => {
@@ -210,9 +210,8 @@ window.initActivationVis = async function(){
         stroke: d => d == visState.correct ? '#f0f' : '#000',
       })
     })()
+  })
 
-
-  }
 }
 
 

@@ -41,7 +41,7 @@ updateModel()
 
 
 window.initRenderAll = function(){
-  var rv = {modelFns: []}
+  var rv = {modelFns: [], inputFns: []}
 
   d3.entries(rv).forEach(({key, value}) => {
     rv[key.replace('Fns', '')] = async () => {
@@ -68,6 +68,9 @@ window.init = function(){
 
   initEmbedVis('hiddenWT')
   initEmbedVis('outW')
+
+  initSliders()
+
 
   initActivationVis()
 
