@@ -1,4 +1,4 @@
-window.initCircleWeightsVis = async function(type){
+window.initCircleInputVis = async function(type, hidden){
   var c = d3.conventions({
     sel: d3.select('.circle-' + type).html(''),
     width:  168,
@@ -8,9 +8,6 @@ window.initCircleWeightsVis = async function(type){
 
   c.yAxis.ticks(3)
   c.xAxis.ticks(3)
-  // d3.drawAxis(c)
-  // c.svg.select('.x').translate([Math.floor(sx/2), c.height])
-  // c.svg.select('.y').translate(Math.floor(sy/2), 1)
 
   c.svg.append('text').text(type)
     .at({y: -5, fontSize: 12})
