@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<div class='container'>
+  <div class='left-rail'>
+    <div class='section row'>
+      <h3>Model Inputs</h3>
+      <div class='input'></div>
+    </div>
+
+    <div class='section row'>
+      <h3>Model Predictions</h3>
+      <div class='predictions'></div>
+    </div>
+
+    <div class='section'>
+      <div class='slider'></div>
+    </div>
+
+    <div class='section'>
+      <h3>Model Sweeps</h3>
+      <p>Mean Adverage Error for each model is listed
+      <div class='model-list'></div>
+    </div>
+
+  </div>
+
+  <div class='main-content'>
+    <h3>Simplified transformer</h3>
+    <p>The 1-d decision boundary problem is mostly solved by a very simple transformer:
+
+    <br>- 1 layer
+    <br>- 1 head
+    <br>- No MLP
+    <br>- No layernorm
+    <br>- No bias terms on weight matrices
+    <br>- No position encoding
+    <br>- Only loss on the final token
+
+    <div class='section'>
+      <h3>KQ Circuit</h3>
+      <p>For every pair of tokens in the vocabulary, how much attention will they pay attention to each other?
+      <div class='kq-circuit'></div>
+    </div>
+
+    <div class='section'>
+      <h3>OV L/R Difference</h3>
+      <p>Given a key token, is outputting a L or R token made more likely?
+      <div class='ov-dif'></div>
+    </div>
+
+
+    <div class='section'>
+      <h3>KQ + OV L/R Difference</h3>
+      <p>If our model model uses linear attention, we can boil everything down to a single matrix.
+      <div class='kqov-circuit'></div>
+    </div>
+
+    <div class='section'>
+      <h3>KQ + OV L/R Difference — Query Slice</h3>
+      <p>Here's what that model looks like for just the token we're predicting.
+      <div class='kqov-dif'></div>
+    </div>
+
+    <h3>Work in progress.....</h3>
+
+    <div class='section'>
+      <h3>OV Circuit</h3>
+      <p>Given a key token, which outputs tokens are made more or less likely?
+      <p>For every pair of tokens in the vocabulary, this chart shows if a key token will move the query embedding closer or further away from outputting a token. 
+      <div class='ov-circuit'></div>
+      <p>Empirically, the model only predicts L/R tokens. Let's ignore most of this chart for now, and take a closer look at the L/R strips on the bottom of this chart. 
+    </div>
+
+    <div class='section'>
+      <h3>OV Simple Circuit</h3>
+      <div class='ov-simple'></div>
+      <div class='lr-color'></div>
+    </div>
+
+    <div class='section'>
+      <h3>OV L/R Difference</h3>
+      <p>We can simplify more — we only care about the difference in L/R direction.
+      <div class='ov-dif'></div>
+      <p>Now the picture is getting clearer! Try adjusting the model inputs and thinking about what should happen to the output as a single token shifts.
+
+      <p>Remember that the OV circuit is multiplied by the attention weights. Let's add the KQ circuit back in along with the residual connection to see the whole network in action.
+    </div>
+
+    <div class='section'>
+      <h3>The whole network</h3>
+      <p> 
+      <div class='kq-circuit-2'></div>
+      <div class='ov-dif-2'></div>
+    </div>
+
+        <h3>Equations</h3>
+
+    <p>Here's what that looks like in math: 
+
+    <p>
+      \(N\) 
+      <br>Number of input tokens
+      <br>
+      <br>
+
+      \(v\) 
+      <br>Vocab size
+      <br>
+      <br>
+      
+      \(d\) 
+      <br>Token embedding size
+      <br>
+      <br>
+
+      
+      \(t\  \in \mathbb{R}^{v \times N}\ \)
+      <br>One hot encoding of input tokens
+      <br>
+      <br>
+
+      \(W_E  \in \mathbb{R}^{v \times d}\ \)
+      <br>Token embedding matrix
+      <br>
+      <br>
+
+      \(x = W_E t \in \mathbb{R}^{N \times d}\ \) 
+      <br>Token embeddings
+      <br>
+      <br>
+
+
+      \(A = \text{softmax}(x W_Q W_K^{\top} x^{\top}) \in \mathbb{R}^{N \times N}\)
+      <br>Attention weights. How much information a given query token should copy from each key token. 
+      <br>
+      <br>
+
+      \(x_{final} = A x W_V W_O + x\)
+      <br>Using the attention weights, we add projected information from the corresponding key tokens back to query's embeddings.
+      <br>
+      <br>
+
+
+
+      \(x_{final} W_E^{\top} \)
+      <br>The final representation is unembedded to vocab logits.
+      <br>
+      <br>
+
+    <h4>Notation</h4>
+
+    <p>
+    After embedding the text, there's two key parts of the computation:
+
+    <br>
+    <br><b>KQ Circuit</b>
+    <br>\(x W_Q W_K^{\top} x^{\top}\)
+    <br>How much attention the query token — the token that we're trying to predict — pays to the other tokens.
+    <br>
+    <br><b>OV Circuit</b>
+    <br>\(x W_V W_O\)
+    <br>What information is copied to the query token from the other tokens.
+    <br>
+    <br>
+    <p>We can look at how these operate over all the tokens in the vocabulary by replacing \(x\) with \(W_E\):
+
+    <br>
+    <br>\(W_E W_Q W_K^{\top} W_E^{\top}\ \in \mathbb{R}^{v \times v}\)
+    <br>For every pair of tokens in the vocabulary, how much attention will they pay attention to each other?
+    <br>
+    <br>\(W_E W_V W_O W_E^{\top}\ \in \mathbb{R}^{v \times v}\)
+    <br>Given a key token, which outputs tokens are made more or less likely?
+    <br>
+    <br>
+    <p>
+     Normally this would intractable to look at — LLMs usually have vocabularies with 10,000+ tokens — but since we only have 100 numbers and 2 classes, these "circuits" can be plotted directly: 
+
+
+
+
+  </div>
+
+</div>
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+<script src='https://roadtolarissa.com/colab/demos/third_party/npyjs.js'></script>
+
+
+
+<script src='util.js'></script>
+
+<script src='init-model-input.js'></script>
+<script src='init-render-all.js'></script>
+<script src='init-prediction-chart.js'></script>
+<script src='init-color.js'></script>
+<script src='init-model.js'></script>
+<script src='init-kq-circuit.js'></script>
+<script src='init-ov-circuit.js'></script>
+<script src='init-ov-simple.js'></script>
+<script src='init-ov-dif.js'></script>
+<script src='init-kqov-circuit.js'></script>
+<script src='init-kqov-dif.js'></script>
+
+<script src='init.js'></script>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<link rel='shortcut icon' href='#'>
+
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+
+<script src='util.js'></script>
+
+
+<h1>No position embeddings + fixed token embeddings <br>→ Low accuracy</h1>
+<div class='sweep_1_layermodels'></div>
+<script src='init__sweep_1_layermodels.js'></script>
+
+
+<h1>Which fixed position embedding to used?</h1>
+<div class='sweep_position_embedding_models'></div>
+<script src='init__sweep_position_embedding_models.js'></script>
+
+
+<h1>Learning rate and step size</h1>
+<p>Training over 200,000 steps with a learning rate of 1e-4 is leaving some free performance on the table. 
+<p>Switching to learning rate decay could also speed things up. 
+<div class='sweep_learning_rate_models'></div>
+<script src='init__sweep_learning_rate_models.js'></script>
+
+
+<h1>Attention only model</h1>
+<p>The MLP step of the <a href='https://docs.google.com/document/d/1zgdOK9kt-fvSJBgWCRyiKnIQ79BEhMK32zy-QbCF7ns/edit?resourcekey=0-9d__l36QBEzPF-CXlo_Nmw#heading=h.i3sihq3cna1f'>internal state vis</a> is hard to read, can we drop it?
+
+<p>- No position embeddings, trained token embeddings
+<p>- MAE of .02 is high, but not that worst — maybe untieing the token embedding matrix would help?
+
+<div class='sweep_no_mlp_models'></div>
+<script src='init__sweep_no_mlp_models.js'></script>
+
+
+
+
+<h1>Untied token embedding</h1>
+
+<p>- No MLP
+
+<div class='sweep_untied_models'></div>
+<script src='init__sweep_untied_models.js'></script>
+
+
+<h1>Untied token embedding — 6,400,000 training steps</h1>
+
+<p>- Do untied token embeddings just need more training?
+
+<div class='sweep_tied_heads_models'></div>
+<script src='init__sweep_tied_heads_models.js'></script>
+
+
+
+<h1>Scratch Model Table</h1>
+
+<div class='sweep_scratch_models'></div>
+<script src='init__sweep_scratch_models.js'></script>
+
+
+<h1>Batch 64 / 1600000 Train Steps</h1>
+
+<div class='batch_64models'></div>
+
+
+
+
+
+<!-- 
+
+ -->
+
+
+<div class='tooltip tooltip-hidden'></div>

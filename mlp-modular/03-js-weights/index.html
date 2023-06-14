@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<p>How does a ReLU do modular addition?
+
+<p>logits = ReLU(a × W_embed × W_hidden + b × W_embed × W_hidden) × W_out × W_embedᵀ
+
+
+<br>
+<br>
+<div class='line-charts'></div>
+
+<br>
+<br>
+<div class='model-charts'>
+  <div class='big-line-chart'></div>
+  <!-- <br> -->
+  <div class='embed'></div>
+  <div class='hiddenW'></div>
+  <div class='outW'></div>
+
+
+  <div class='circle-weights-vis'></div>
+
+  <div class='activation-vis'></div>
+
+</div>
+
+<p>
+<div class='sliders-container'></div>
+<div class='left-col'>
+  <div class='model-grid'></div>
+</div>
+
+<div class='right-col'>
+</div>
+
+<script src='../../third_party/d3_.js'></script>
+<script src='../../third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='../../third_party/tfjsv3.18.0.js'></script>
+<script src='../../third_party/npyjs.js'></script>
+<script src='../../third_party/pca.js'></script>
+ <script src='https://cdn.plot.ly/plotly-2.20.0.min.js' charset='utf-8'></script>
+
+<script src='util.js'></script>
+
+<script src='init-embed-vis.js'></script>
+<script src='init-circle-weights-vis.js'></script>
+<script src='init-activation-vis.js'></script>
+<script src='init.js'></script>

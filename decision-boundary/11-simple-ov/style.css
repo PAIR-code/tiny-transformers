@@ -1,0 +1,118 @@
+body{
+  background: #fff;
+  color: #000;
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, Segoe UI, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  height: 4000px;
+}
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+}
+.tooltip-hidden{
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+@media (max-width: 590px){
+  div.tooltip{
+    bottom: -1px;
+    width: calc(100%);
+    left: -1px !important;
+    right: -1px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+body{
+  font-family: sans-serif;
+  font-size: 12px;
+}
+.axis text{
+  fill: #777;
+  user-select: none;
+}
+.domain{
+  display: none;
+}
+.axis line{
+  stroke: #aaa;
+}
+
+.axis .axis-label{
+  fill: #000;
+}
+
+svg{
+  overflow: visible;
+}
+
+
+h3{
+  margin-top: 40px;
+}
+.section{
+  margin-left: 10px;
+}
+.section.row{
+  display: inline-block;
+  width: 300px;
+  vertical-align: top;
+}
+.section.row h3{
+  text-align: center;
+  margin-bottom: 0px;
+}
+
+circle.is-last{
+  stroke-width: 3;
+  stroke: #f0f;
+}
+
+val{
+  display: inline-block;
+  width: 45px;
+  text-align: center;
+  margin-right: 10px;
+}
+
+path.domain{
+  display: none;
+}
+
+.slider{
+  margin-top: 50px;
+}
+
+.model-button{
+  display: inline-block;
+  outline: 1px solid #ccc;
+  width:20px;
+/*  text-align: center;*/
+  margin-bottom: 10px;
+  cursor: pointer;
+  margin-top: 5px;
+  user-select: none;
+}
+.model-button:hover{
+  background: #ccc;
+}
+.model-button.active{
+  background: #000;
+  color: #fff;
+  z-index: 100;
+  position: relative;
+}
+
+
+
+
+
+
+
+

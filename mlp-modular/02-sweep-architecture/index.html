@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<p>What model architecture is needed to make test lost drop much ealier than training loss?
+
+<p>30% of all possible (a, b) ∈ [0, 112] input pairs are used to train the model; the other 70% are used to calculate test loss.
+
+<br>
+<br>
+
+<p class='slugs'>
+  <!-- <a href='./?slug=xm_gpu_full_l2_architecture_v2&symmetric_input=false'>L2 // full input</a> -->
+  <!-- <a href='./?slug=xm_gpu_full_l2_architecture_v2&symmetric_input=true'>L2 // filtered input</a> -->
+  <!-- <a href='./?slug=xm_gpu_full_l1_architecture&symmetric_input=false'>L1 // full input</a> -->
+  <!-- <a href='./?slug=xm_gpu_full_l1_architecture&symmetric_input=true'>L1 // filtered input</a> -->
+
+  <a href='./?slug=xm_gpu_full_l2_architecture_v2&symmetric_input=false'>L2 Loss</a>
+  <!-- <a href='./?slug=xm_gpu_full_l2_architecture_v2&symmetric_input=true'>L2 // filtered input</a> -->
+  <a href='./?slug=xm_gpu_full_l1_architecture&symmetric_input=false'>L1 Loss</a>
+
+</p>
+
+<!-- <p>Some architecture treat input `a` differently than `b`, others treat them the same.  Full input includes symmetric pair of inputs like [44, 99] and [99, 44] — filtered input only includes [44, 99].  -->
+
+
+<br>
+
+<p><img width=600 src='img/eq-relu.png'></img>
+<p><img width=450 src='img/eq-dim.png'></img>
+<br>
+
+<br>
+<br>
+
+<p style='margin-left: -10px;margin-top:20px; text-align: center;' class='grok-legend'>
+  <span style='padding: 4px; margin-right: 10px; background: #fff'>Never generalized — high test loss</span>
+  <span style='padding: 4px; margin-right: 10px; background: #faec84;'>Train and test loss fell together</span>
+  <span style='padding: 4px; margin-right: 10px; background: green; color: #fff'>Grokked — test loss fell after train loss</span>
+</p>
+
+<br>
+<div class='sliders-container'></div>
+<div class='left-col'>
+  <div class='type-grid'></div>
+  <div class='model-grid'></div>
+</div>
+
+<div class='right-col'>
+  <div class='line-charts'></div>
+  
+  <p style='margin-left: -10px;margin-top:20px; text-align: center;'>
+    <span style='padding: 4px; margin-right: 10px; border-bottom: 2px solid orange'>Train loss</span>
+    <span style='padding: 4px; margin-right: 10px; border-bottom: 2px solid steelblue;'>Test loss</span>
+  </p>
+
+  <div class='line-chart-hyper'></div>
+</div>
+
+<br>
+<br>
+
+
+
+
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+  <script src='https://roadtolarissa.com/colab/demos/third_party/npyjs.js'></script>
+
+<script src='util.js'></script>
+<script src='init.js'></script>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<p>What do the model parameters looks like during training?
+
+
+<br>
+<br>
+<div class='line-charts'></div>
+
+<br>
+<br>
+<div class='model-charts'>
+  <div class='big-line-chart'></div>
+  <!-- <br> -->
+  <div class='embedding'></div>
+  <div class='hidden'></div>
+  <div class='output'></div>
+  <div class='embed-line-vis'></div>
+  <div class='top-prediction'></div>
+  <div class='top-prediction-flat'></div>
+  <div class='embed-pca'></div>
+  <div class='embed-pca-3d' id='embed-pca-3d'></div>
+</div>
+
+<p>
+<div class='sliders-container'></div>
+<div class='left-col'>
+  <div class='model-grid'></div>
+</div>
+
+<div class='right-col'>
+</div>
+
+<script src='../../third_party/d3_.js'></script>
+<script src='../../third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='../../third_party/tfjsv3.18.0.js'></script>
+<script src='../../third_party/npyjs.js'></script>
+<script src='../../third_party/pca.js'></script>
+ <script src='https://cdn.plot.ly/plotly-2.20.0.min.js' charset='utf-8'></script>
+
+<script src='util.js'></script>
+<script src='init-line-chart.js'></script>
+<script src='init-embed-vis.js'></script>
+<script src='init-embed-line-vis.js'></script>
+<script src='init-embed-pca.js'></script>
+<script src='init-embed-pca-3d.js'></script>
+
+<script src='init-top-prediction.js'></script>
+<script src='init-top-prediction-flat.js'></script>
+
+<script src='init.js'></script>

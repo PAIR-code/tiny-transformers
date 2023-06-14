@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Adam Pearce <1wheel@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "fix-esm": "^1.0.1",
+    "npyjs": "https://github.com/1wheel/npyjs",
+    "scrape-stl": "^1.0.3"
+  }
+}

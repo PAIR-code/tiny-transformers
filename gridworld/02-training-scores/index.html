@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+
+<h1>Model</h1>
+<div class='model-picker'></div>
+<div class='model-description'></div>
+
+<h1>Trajectories over training</h1>
+<div class='container'>
+  <div class='scores'>
+    <div>
+      <div style="display: inline-block; position: relative; height: 542px; width: 220px;"></div>
+    </div>
+  </div>
+  <div class='right-rail'>
+    <div>
+      <div class='trajectory-grid'></div>
+      <div class='radio-group'></div>
+    </div>
+  </div>
+</div>
+
+<div class='embedding-wrapper'>
+  <h1>Token embeddings over training</h1>
+  <p>x is training steps, y are the indices of the 64 dim token embedding.
+  <div class='embedding'></div>
+
+  
+  <h1>Token embedding self cosine similarity over training</h1>
+  <p>x and y axis are training steps.
+  <div class='cos-embedding-self'></div>
+  
+  <h1>Token embedding cosine similarity over training</h1>
+  <div class='cos-embedding'></div>
+
+  
+</div>
+
+
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+<script src='https://roadtolarissa.com/colab/demos/third_party/npyjs.js'></script>
+
+
+
+<script src='util.js'></script>
+<script src='init-grid.js'></script>
+<script src='init-scores.js'></script>
+<script src='init-embedding.js'></script>
+
+<script src='init.js'></script>

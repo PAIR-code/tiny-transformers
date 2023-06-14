@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<div class='section'>
+  <h3>Model List</h3>
+  <div class='model-list'></div>
+</div>
+
+<div class='section row'>
+  <h3>Model input</h3>
+  <div class='input'></div>
+</div>
+
+<div class='section row'>
+  <h3>Predictions</h3>
+  <div class='predictions'></div>
+</div>
+
+<div class='section'>
+  <h3>KQ Circuit</h3>
+  <div class='kq-circuit'></div>
+</div>
+
+<div class='section'>
+  <div class='slider'></div>
+</div>
+
+<div class='section'>
+  <h3>OV Simple Circuit</h3>
+  <div class='ov-simple'></div>
+  <div class='lr-color'></div>
+</div>
+
+<div class='section'>
+  <h3>OV Circuit</h3>
+  <div class='ov-circuit'></div>
+</div>
+
+<br><br>
+<p>
+  \(N\) 
+  <br>Number of input tokens
+  <br>
+  <br>
+
+  \(v\) 
+  <br>Vocab size
+  <br>
+  <br>
+  
+  \(d\) 
+  <br>Token embedding size
+  <br>
+  <br>
+
+  
+  \(t\  \in \mathbb{R}^{v \times N}\ \)
+  <br>One hot encoding of input tokens
+  <br>
+  <br>
+
+  \(W_E  \in \mathbb{R}^{v \times d}\ \)
+  <br>Token embedding matrix
+  <br>
+  <br>
+
+  \(x = W_E t \in \mathbb{R}^{N \times d}\ \) 
+  <br>Token embeddings
+  <br>
+  <br>
+
+
+  \(A = \text{softmax}(x W_Q W_K^{\top} x^{\top}) \in \mathbb{R}^{N \times N}\)
+  <br>Attention. How much information a given query token should copy from each key token. 
+  <br>
+  <br>
+
+  \(x_{final} = A W_O W_V x + x\)
+  <br>Using the attention weights, we add projected information from the corresponding key tokens back to query's embeddings.
+  <br>
+  <br>
+
+
+
+  \(x_{final} W_E^{\top} \)
+  <br>The final representation is unembedded to logits in vocab space.
+  <br>
+  <br>
+
+
+
+
+
+  
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+  <br>
+
+
+
+  \(x W_Q\) 
+  <br>Query projection.
+  <br>
+  <br>
+
+  \(x W_K \)
+  <br>
+  Key projection. 
+  <br>
+  <br>
+  
+  \(N\) 
+  <br>Number of input tokens
+  <br>
+  <br>
+
+  
+
+
+ <br>
+ \(W_K X = K\) Value in
+
+<p>
+  Each one of \(Q, K, V\) is split along the columns to \(H\) different \textit{heads} of dimensionality \(\mathbb{R}^{N \times \frac{d}{H}}\),  denoted by \(Q, K, V\) respectively. We then compute \(H\) \textit{attention maps}:
+  \[
+  A^i = \text{softmax}\left(\frac{Q K^{i \top}}{\sqrt{d / H}} + M\right) \in \mathbb{R}^{N \times N},
+  \]
+
+<p>
+  \[
+A = \text{softmax}\left(Q K^{\top} + M\right) \in \mathbb{R}^{N \times N},
+\]
+<p>
+
+
+  \(A = \text{softmax}(Q K^{\top}) \in \mathbb{R}^{N \times N}\)
+
+
+</p>
+
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+<script src='https://roadtolarissa.com/colab/demos/third_party/npyjs.js'></script>
+
+
+
+<script src='util.js'></script>
+<script src='init-model-input.js'></script>
+<script src='init-prediction-chart.js'></script>
+<script src='init-model.js'></script>
+<script src='init-kq-circuit.js'></script>
+<script src='init-ov-circuit.js'></script>
+<script src='init-ov-simple.js'></script>
+
+<script src='init.js'></script>

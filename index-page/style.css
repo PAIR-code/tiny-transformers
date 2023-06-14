@@ -1,0 +1,85 @@
+
+
+body{
+  font-family: 'Google Sans Text', Arial, sans-serif;
+  min-height: 1600px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px;
+
+  /*margin: 0px;*/
+}
+
+
+h1, h2, h3, h4, h5, h6{
+  font-family: 'Google Sans', Arial, sans-serif;
+}
+h2{
+  /*text-align: center;*/
+  font-weight: 300;
+}
+
+h3{
+  margin-top: 40px;
+}
+
+p {
+  margin-bottom: 20px;
+  margin-top: 20px;
+  line-height: 1.5em;
+  max-width: 550px;
+  font-weight: 200;
+}
+
+
+
+
+#posts{
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+#posts .img{
+  outline: 1px solid #ccc;
+}
+
+#posts .post:hover .img{
+  outline: 1px solid #333;
+}
+
+#posts .title{
+  color: #333;
+  /*height: 10px !important;*/
+/*  opacity: 0;*/
+  position: relative;
+  top: -8px;
+  font-size: 10px;
+}
+
+.left-col:hover .title{
+  text-decoration: underline !important;
+}
+
+.post{
+  display: block;
+  line-height: 1.2em;
+  font-size: 15px;
+}
+
+
+.left-col{
+  width: 280px;
+  display: inline-block;
+  text-decoration: none;
+}
+.post .text{
+  display: inline-block;
+  width: 550px;
+  margin-left: 30px;
+  color: #000;
+}
+
+.text{
+}
+
+@import url(//fonts.googleapis.com/css?family=Google+Sans);

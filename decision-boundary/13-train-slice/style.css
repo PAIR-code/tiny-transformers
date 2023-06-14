@@ -1,0 +1,33 @@
+svg{
+  overflow: visible;
+}
+
+.axis text{
+  fill: #777;
+  user-select: none;
+}
+
+.axis .axis-label{
+  fill: #000;
+}
+
+.token-inline{
+  padding: 1px;
+  outline: #ddd solid 1px;
+  margin: 3px;
+  width: 20px;
+  display: inline-block;
+  text-align: center;
+  font-size: 10px;
+  font-family: sans-serif;
+
+}
+
+.token-inline span{
+  color: #777;
+}
+
+.graphic{
+  font-family: sans-serif;
+}
+

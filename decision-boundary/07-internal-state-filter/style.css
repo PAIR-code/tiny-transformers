@@ -1,0 +1,76 @@
+body{
+  background: #fff;
+  color: #000;
+}
+
+body{
+  --colab-primary-text-color: #000;
+}
+
+svg{
+  overflow: visible;
+}
+
+.internal > div{
+  vertical-align: top;
+}
+
+.axis text{
+  fill: #777;
+  user-select: none;
+}
+.axis .axis-label{
+  fill: #000;
+}
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+}
+.tooltip-hidden{
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+@media (max-width: 590px){
+  div.tooltip{
+    bottom: -1px;
+    width: calc(100%);
+    left: -1px !important;
+    right: -1px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100px;
+  position: relative;
+  top: -2px;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  background: #eee;
+  height: 5px;
+  outline: 1px solid #999;
+}
+
+input[type='range']::-webkit-slider-thumb {
+   -webkit-appearance: none; 
+   appearance: none;
+   margin-top: -4px;
+   background-color: #999;
+   height: 13px;
+   width: 5px; 
+   border-radius: 10px;   
+}

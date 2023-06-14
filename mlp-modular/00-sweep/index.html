@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+
+<p>What hyper parameters are needed to make test lost drop much ealier than training loss?
+
+<p>This page shows sweeps over embed_size (e), hidden_size (h), learning_rate and weight weight_decay for a <a href='https://colab.research.google.com/drive/1r7N0pj282EgPNokgMVpfCHms5C74u_vw?resourcekey=0-WlZm7fi75_HQmRJWXtXa6Q#scrollTo=C2zkH8bdgm_v'>1 layer MLP</a> trained on addition mod 113. 
+
+<p>30% of all possible input pairs are used to train the model; the other 70% are used to calculate test loss.
+
+<p>Adjust the sliders to filter out models that don't train or similar train/test loss curves.
+
+<p>I picked embed_size: 32, hidden_size: 64 to look at <a href='../01-train-embedding/'>more closely</a> — this model is small enough to load checkpoints taken every 100 steps into the browser. Smaller models skip memorization or fail to train. 
+
+
+<p>
+<br>
+<div class='sliders-container'></div>
+<div class='left-col'>
+  <div class='model-grid'></div>
+</div>
+
+<div class='right-col'>
+  <div class='line-charts'></div>
+  
+  <p style='margin-left: -10px;margin-top:20px; text-align: center;'>
+    <span style='padding: 4px; margin-right: 10px; background: orange'>Train loss</span>
+    <span style='padding: 4px; margin-right: 10px; background: steelblue;'>Test loss</span>
+  </p>
+
+  <div class='line-chart-hyper'></div>
+</div>
+
+<br>
+<br>
+
+<p>- <a href='https://colab.research.google.com/drive/1r7N0pj282EgPNokgMVpfCHms5C74u_vw?resourcekey=0-WlZm7fi75_HQmRJWXtXa6Q'>MLP modular addition</a>
+<p>- <a href='https://colab.research.google.com/drive/19P8ZMB4FPV5VHCbVWk5RcKDSDHKNPMEZ?resourcekey=0-gXKwaHp-rzHfArgv7pRqmg#scrollTo=ZXkGqJj07QWM'>MLP modular addition sweep</a>
+
+
+<script src='https://pair.withgoogle.com/explorables/third_party/d3_.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/d3-scale-chromatic.v1.min.js'></script>
+<script src='https://pair.withgoogle.com/explorables/third_party/tfjsv3.18.0.js'></script>
+  <script src='https://roadtolarissa.com/colab/demos/third_party/npyjs.js'></script>
+
+<script src='util.js'></script>
+<script src='init.js'></script>

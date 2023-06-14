@@ -1,0 +1,82 @@
+body{
+  background: #fff;
+  color: #000;
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, Segoe UI, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  height: 2000px;
+
+}
+
+svg{
+  overflow: visible;
+}
+
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+  width: 300px;
+  font-size:  12px;
+}
+.tooltip-hidden{
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+
+
+.axis text{
+  fill: #777;
+  user-select: none;
+}
+
+.axis .axis-label{
+  fill: #000;
+}
+
+
+.section{
+  display: inline-block;
+  width: 300px;
+  vertical-align: top;
+}
+.section h3{
+  text-align: center;
+  margin-bottom: 0px;
+}
+
+circle.is-last{
+  stroke-width: 3;
+  stroke: #f0f;
+}
+
+.token-inline{
+  padding: 1px;
+  outline: #ddd solid 1px;
+  margin: 3px;
+  width: 20px;
+  display: inline-block;
+  text-align: center;
+  font-size: 10px;
+}
+
+.token-inline span{
+  color: #777;
+}
+
+div{
+  vertical-align: top;
+}
+
+.is-res-match{
+  stroke: steelblue;
+}
+.is-hidden-match{
+  stroke: orange;
+}
+
+

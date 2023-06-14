@@ -1,0 +1,11 @@
+
+
+.axis text{
+  fill: #777;
+  user-select: none;
+}
+
+.axis .axis-label{
+  fill: #000;
+}
+
