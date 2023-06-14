@@ -21,7 +21,7 @@ window.initCheckpointVis = async function(model){
   window.renderAll.fns.push(rv)
 
   var sweep_slug = model.sweepModels.sweep_slug
-  var {data, shape} = await util.getFile(`../../local-data/decision_boundary/${sweep_slug}models/${model.slug.name}/token_embedding_matrix.npy`)
+  var {data, shape} = await util.getFile(`${sharedUtil.getRoot()}/decision_boundary/${sweep_slug}models/${model.slug.name}/token_embedding_matrix.npy`)
 
   var c = d3.conventions({
     sel: d3.select(this),
