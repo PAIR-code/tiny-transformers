@@ -26,21 +26,21 @@
   <div class='embed'></div>
 </div>
 
-<p>After a bit a training, a 1-layer MLP with a hidden state of 5 will converge to a solution that looks something like this: 
+<p>After a bit of training, a 1-layer MLP with a hidden dimension of 5 converges to a solution with perfect accuracy — with just these 20 parameters! 
 
 <div class='row'>
   <div class='hiddenWT'></div>
   <div class='outW'></div>
 </div>
 
-<p>
-
+<p>We can project and rotate the solution a bit so the first hidden dimension lines up with 0°. Notice that \(\mathbf{W}_{\text{out}}\) wraps around the circle twice as fast as \(\mathbf{W}_{\text{hidden}}\).
 
 <div class='row'>
   <div class='circle-hiddenWT'></div>
   <div class='circle-outW'></div>
 </div>
 
+<p>How, exactly, does this solution work? Like the model does, let's calculate each of the hidden dimensions separately. 
 
 <br>
 <br>
