@@ -2,31 +2,59 @@
 <meta charset='utf-8'>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
-
-<p>How does a ReLU do modular addition?
-
-<p>logits = ReLU(a × W_embed × W_hidden + b × W_embed × W_hidden) × W_out × W_embedᵀ
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 
-<br>
-<br>
-<div class='line-charts'></div>
+<h1>How does a ReLU do modular addition? </h1>
+
+<p>Here's the model we'll use to calculate \(a + b\!\!\!\mod \!41\):
+
+\[
+\text{logits} = \text{ReLU}\left(\mathbf{a}_{\text{one-hot}} \mathbf{W}_{\text{embed}} \mathbf{W}_{\text{hidden}} + \mathbf{b}_{\text{one-hot}} \mathbf{W}_{\text{embed}} \mathbf{W}_{\text{hidden}}\right) \mathbf{W}_{\text{out}} \mathbf{W}_{\text{embed}}^{\top}
+\]
+
+
+<p>When trained from scratch, \(\mathbf{W}_{\text{embed}}\)
+ has periodic patterns. Let's take the simplest version of that — projecting \(a\) and \(b\) around a circle — and give that to the model for "free", freezing \(\mathbf{W}_{\text{embed}}\) to the following: 
+
+<p>
+\[ \left[ \cos\frac{2\pi i}{41}, \; \sin\frac{2\pi i}{41} \right] \]
+
+
+<div class='row'>
+  <div class='circle-embed'></div>
+  <div class='embed'></div>
+</div>
+
+<p>After a bit a training, a 1-layer MLP with a hidden state of 5 will converge to a solution that looks something like this: 
+
+<div class='row'>
+  <div class='hiddenWT'></div>
+  <div class='outW'></div>
+</div>
+
+<p>
+
+
+<div class='row'>
+  <div class='circle-hiddenWT'></div>
+  <div class='circle-outW'></div>
+</div>
+
 
 <br>
 <br>
 <div class='model-charts'>
   <div class='big-line-chart'></div>
   <!-- <br> -->
-  <div class='embed'></div>
-  <div class='hiddenW'></div>
-  <div class='outW'></div>
 
 
   <div class='circle-weights-vis'></div>
 
   <div class='activation-vis'></div>
-
 </div>
+
+<p>TKTK why the norm increases.
 
 <p>
 <div class='sliders-container'></div>

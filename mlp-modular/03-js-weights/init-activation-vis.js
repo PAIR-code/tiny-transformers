@@ -174,7 +174,6 @@ window.initActivationVis = async function(){
 
   function renderInput(){
     visState.correct = (visState.a + visState.b) % visState.n_tokens
-    console.log(visState.correct)
 
     hiddenData.forEach(({hidden}) => {
       var {c, hoverSel, valTextSel, i} = hidden

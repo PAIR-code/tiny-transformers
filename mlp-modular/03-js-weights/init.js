@@ -62,10 +62,13 @@ window.init = function(){
   updateModel()
 
   initEmbedVis('embed')
-  initEmbedVis('hiddenW')
+  initCircleWeightsVis('embed')
+  initCircleWeightsVis('hiddenWT')
+  initCircleWeightsVis('outW')
+
+  initEmbedVis('hiddenWT')
   initEmbedVis('outW')
 
-  initCircleWeightsVis()
   initActivationVis()
 
   renderAll.model()

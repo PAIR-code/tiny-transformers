@@ -6,6 +6,11 @@ body{
   min-height: 2000px;
 }
 
+p{
+  max-width: 600px;
+  line-height: 1.4em;
+}
+
 .left-col, .right-col{
   display: inline-block;
   vertical-align: top;
@@ -48,4 +53,9 @@ svg{
 text{
   text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
   user-select: none;
+}
+
+.row > div{
+  display: inline-block;
+  vertical-align: top;
 }

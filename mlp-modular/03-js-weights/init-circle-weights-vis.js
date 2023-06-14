@@ -1,6 +1,6 @@
-window.initCircleWeightsVis = async function(){
+window.initCircleWeightsVis = async function(type){
   var c = d3.conventions({
-    sel: d3.select('.circle-weights-vis').html(''),
+    sel: d3.select('.circle-' + type).html(''),
     width:  200,
     height: 200,
     layers: 's',
@@ -12,21 +12,21 @@ window.initCircleWeightsVis = async function(){
   // c.svg.select('.x').translate([Math.floor(sx/2), c.height])
   // c.svg.select('.y').translate(Math.floor(sy/2), 1)
 
-  var color = ['purple', 'green']
+  c.svg.append('text').text(type)
+    .at({y: -5, fontSize: 12})
 
-  c.svg.append('text').text('hiddenW')
-    .at({y: -5, fontSize: 12, fill: color[0]})
-  c.svg.append('text').text('outW')
-    .at({y: -5, fontSize: 12, fill: color[1], x: c.width, textAnchor: 'end'})
+  var isEmbed = type == 'embed'
     
+  var pointData = d3.range(type == 'embed' ? visState.n_tokens : visState.hidden_size)
+    .map(i => ({i}))
 
-  var pointData = d3.range(visState.hidden_size)
-    .map(i => [{i, isOut: 0}, {i, isOut: 1}]).flat()
+  var lineSel = c.svg.appendMany('path', pointData)
+    .at({stroke: '#000', opacity: isEmbed ? 0 : 1})
 
   var pointSel = c.svg.appendMany('g', pointData)
 
-  pointSel.append('text').text(d => d.i)
-    .at({fill: d => color[d.isOut], dx: d => d.isOut ? 10 : -10, textAnchor: 'middle'})
+  var textSel = pointSel.append('text').text(d => d.i)
+    .at({textAnchor: 'middle', dy: '.33em', fontSize: isEmbed ? 10 : ''})
     .st({cursor: 'pointer'})
   pointSel.append('circle').at({r: 3, cursor: 'pointer'})
 
@@ -49,13 +49,18 @@ window.initCircleWeightsVis = async function(){
 
     pointSel.raise()
 
-
     pointData.forEach(d => {
-      var w = d.isOut ? visState.model.outW : visState.model.hiddenWT
-      d.pos = w[d.i]
+      d.pos = visState.model[type][d.i]
     })
 
+    lineSel.raise().at({
+      d: d => ['M', c.x(0), c.y(0), 'L', c.x(d.pos[0]), c.y(d.pos[1])].join(' ')
+    })
+
+
     pointSel.translate(d => [c.x(d.pos[0]), c.y(d.pos[1])])
+
+    textSel.translate(d => [d.pos[0]*10, -d.pos[1]*10])
   }
 }
 
