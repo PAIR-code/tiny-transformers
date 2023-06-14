@@ -70,6 +70,8 @@ window.init = function(){
   initEmbedVis('outW')
 
   initSliders()
+  initCircleInputVis('hiddenWT')
+  initCircleInputVis('outW')
 
 
   initActivationVis()

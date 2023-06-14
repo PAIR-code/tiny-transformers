@@ -1,8 +1,8 @@
 window.initCircleWeightsVis = async function(type){
   var c = d3.conventions({
     sel: d3.select('.circle-' + type).html(''),
-    width:  168,
-    height: 168,
+    width:  160,
+    height: 160,
     layers: 's',
   })
 
