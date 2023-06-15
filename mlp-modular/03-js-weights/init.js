@@ -7,8 +7,8 @@ window.visState = window.xvisState || {
   out_r: 1,
   rotation: Math.PI/5*2,
   rotation: 0,
-  a: 0,
-  b: 0,
+  a: 2,
+  b: 9,
   isLocked: false,
 }
 

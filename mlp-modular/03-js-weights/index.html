@@ -34,28 +34,45 @@
   <div class='outW'></div>
 </div>
 
-<p>We can project and rotate the solution a bit so the first hidden dimension lines up with 0°. Notice that \(\mathbf{W}_{\text{out}}\) wraps around the circle twice as fast as \(\mathbf{W}_{\text{hidden}}\).
+<p>The parameters of \(\mathbf{W}_{\text{hidden}}\) are evenly distributed around a circle; we can reorder the hidden dimensions and scale/rotate to cleanly place them on the unit circle.
 
 <div class='row'>
   <div class='circle-hiddenWT'></div>
   <div class='circle-outW'></div>
 </div>
 
+When this transformation is applied, \(\mathbf{W}_{\text{out}}\) wraps around the circle twice as fast as \(\mathbf{W}_{\text{hidden}}\).
+
+<br><br>
+
 <p>How, exactly, does this solution work? Like the model does, let's calculate each of the hidden dimensions separately. 
+
+<p>The dot product of the embeded \(a\) and \(b\) are calculated for each hidden dimension, added together and ReLU'd.  
 
 <div class='sliders'></div>
 
 <div class='circle-input-hiddenWT'></div>
+
+<p>Next those 
+
 <div class='circle-input-outW'></div>
 
-<p>To calculate the final answer, we add up the the cyan points and project them back to the circle.
+<p>To find the final answer, we sum up the cyan points and find the closest point on the embedding circle.
 
-<p>Here's what this looks like across all pairs of inputs.
+<p>TODO: add sum chart
+
+<br><br><br>
+
+<p>Zooming out and dropping the circular projections, here's what this looks like across all pairs of inputs.
 
 <div class='circle-weights-vis'></div>
 <div class='activation-vis'></div>
 
-<p>TKTK why the norm increases.
+<p>TKTK explain norm increase
+
+<p>TKTK explain memorization
+
+<p>TKTK explain constructive interference
 
 <p>
 <div class='sliders-container'></div>

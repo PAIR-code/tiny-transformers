@@ -85,9 +85,9 @@ window.initCircleInputVis = async function(type){
           Math.sin(2*Math.PI*num/n_tokens),
         ]
 
-        var y = visState.model[type][hiddenIndex]
+        var y = visState.model['hiddenWT'][hiddenIndex]
 
-        return x[0]*pos[0] + x[1]*pos[1]
+        return x[0]*y[0] + x[1]*y[1]
       }
 
       var aDot = calcDot(a)
