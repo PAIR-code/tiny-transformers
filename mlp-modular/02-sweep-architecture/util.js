@@ -15,7 +15,8 @@ window.util = (function(){
   }
 
   async function getFile(path, uploadData={}){
-    var [slug, type] = path.split('.')
+    var [slug, ...type] = path.replaceAll('..', '').split('.')
+    type = _.last(type)
 
     var uploadDataStr = JSON.stringify(uploadData)
     slug = path + ' __ ' + uploadDataStr 
