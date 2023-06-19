@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// gtensor.spec.ts
 import { HoleyPrompt, Hole, RegExpHole, makePrompt } from './holey_prompts';
 
 describe('holey_prompts', () => {
