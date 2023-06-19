@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 /*============================================================================*/
 
+import { object } from "underscore";
+
 type HoleyName = string;
 
 type HolesMap<Hs extends HoleyName> = { [Key in Hs]: Hole<Key> };
@@ -33,7 +35,7 @@ export abstract class Hole<H extends HoleyName> {
   //   Forall s, s': if (!x.occurs(s)) then (x.applyFn(s, s') === s)
   //   (x.split(s).length === 1) <=iff=> (x.occurs(s) === false)
   public occurs(s: string): boolean {
-    return this.split(s).length > 1;
+    return Object.values(this.split(s)).length > 1;
   }
 
   // Provides a literal string for the substitution.
