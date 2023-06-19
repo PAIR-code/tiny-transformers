@@ -15,7 +15,12 @@ limitations under the License. */
 
 type HoleyName = string;
 
-export abstract class HoleMatcher {
+type HolesMap<Hs extends HoleyName> = { [Key in Hs]: Hole<Key> };
+
+export abstract class Hole<H extends HoleyName> {
+
+  constructor(public name: H) { };
+
   // Apply the substitution, replacinfg this hole in `s` with the value string.
   public abstract applyFn(s: string, value: string): string;
 
@@ -40,17 +45,17 @@ export abstract class HoleMatcher {
 
 // Assumes that regexp matches /.*literal.*/
 // Required for the HoleMatcher literal/applyFn property.
-interface RegExpMatcherOptions {
+interface RegExpHoleOptions {
   regexp: RegExp,
   literal: string,
 }
 
-export class RegExpMatcher extends HoleMatcher {
+export class RegExpHole<H extends HoleyName> extends Hole<H> {
   regexp: RegExp;
   literal: string;
 
-  constructor(public name: HoleyName, options?: RegExpMatcherOptions) {
-    super();
+  constructor(name: H, options?: RegExpHoleOptions) {
+    super(name);
     if (options) {
       this.regexp = options.regexp;
       this.literal = options.literal
@@ -66,16 +71,13 @@ export class RegExpMatcher extends HoleMatcher {
   public split(s: string): string[] {
     return s.split(this.regexp);
   }
-}
 
-export class Hole<H extends HoleyName> {
-  public matcher: HoleMatcher;
-  constructor(public name: H, matcher?: HoleMatcher) {
-    this.matcher = matcher || new RegExpMatcher(this.name);
+  override toString(): string {
+    return this.literal;
   }
 }
 
-export class HoleyPrompts<Hs extends HoleyName> {
+export class HoleyPrompt<Hs extends HoleyName> {
   public holes: { [Key in Hs]: Hole<Key> };
 
   constructor(public template: string, holes: Hole<Hs>[] | { [Key in Hs]: Hole<Key> }) {
@@ -85,7 +87,7 @@ export class HoleyPrompts<Hs extends HoleyName> {
       this.holes = {} as { [Key in Hs]: Hole<Key> };
       for (const h of holes) {
         this.holes[h.name] = h;
-        if (!h.matcher.occurs(template)) {
+        if (!h.occurs(template)) {
           console.error(`Template is missing a variable,\n` +
             `Variable: ${h.name}\n` +
             `Template: ${template}`)
@@ -97,24 +99,24 @@ export class HoleyPrompts<Hs extends HoleyName> {
   substStr<OldH extends Hs>(
     hole: OldH | Hole<OldH>,
     replacement: string
-  ): HoleyPrompts<Exclude<Hs, OldH>> {
+  ): HoleyPrompt<Exclude<Hs, OldH>> {
     let holeToReplace: Hole<OldH> =
       typeof (hole) === 'string' ? this.holes[hole] : hole;
-    const newTemplate = holeToReplace.matcher.applyFn(this.template, replacement);
+    const newTemplate = holeToReplace.applyFn(this.template, replacement);
     const updatedHoles = ({ ...this.holes });
     delete (updatedHoles[holeToReplace.name])
-    return new HoleyPrompts(newTemplate, updatedHoles);
+    return new HoleyPrompt(newTemplate, updatedHoles);
   }
 
   // TODO: would be better if I could express (NewHs & Hs) = 0.
   // i.e. there is no intersection between NewHs and Hs.
   substPrompt<OldH extends Hs, NewHs extends HoleyName>(
     hole: OldH | Hole<OldH>,
-    replacement: HoleyPrompts<NewHs>
-  ): HoleyPrompts<Exclude<Hs, OldH> | NewHs> {
+    replacement: HoleyPrompt<NewHs>
+  ): HoleyPrompt<Exclude<Hs, OldH> | NewHs> {
     const updatedHoles = ({
       ...this.holes
-    } as never as { [Key in Hs | NewHs]: Hole<Key> });
+    } as never as HolesMap<Hs | NewHs>);
 
     //  [] as HoleName<Exclude<H, OldHs> | NewHs>[];
     let newTemplate = this.template;
@@ -122,38 +124,38 @@ export class HoleyPrompts<Hs extends HoleyName> {
     let holeToReplace: Hole<OldH> =
       typeof (hole) === 'string' ? this.holes[hole] : hole;
 
-    const subTemplate: HoleyPrompts<NewHs> = replacement;
-    newTemplate = holeToReplace.matcher.applyFn(
+    const subTemplate: HoleyPrompt<NewHs> = replacement;
+    newTemplate = holeToReplace.applyFn(
       newTemplate, subTemplate.template)
     delete (updatedHoles[holeToReplace.name]);
     for (const subHole in subTemplate.holes) {
       updatedHoles[subHole] = subTemplate.holes[subHole];
     }
 
-    return new HoleyPrompts(newTemplate, updatedHoles);
+    return new HoleyPrompt(newTemplate, updatedHoles);
   }
 
   // TODO: would be better if I could express H3 is not member of Hs.
   renameHole<H extends Hs, N extends HoleyName>(
     oldHole: H,
     newHole: Hole<N>,
-  ): HoleyPrompts<Exclude<Hs, H> | N> {
-    const newTemplate = this.holes[oldHole].matcher.applyFn(
-      this.template, newHole.matcher.literal);
+  ): HoleyPrompt<Exclude<Hs, H> | N> {
+    const newTemplate = this.holes[oldHole].applyFn(
+      this.template, newHole.literal);
     const newHoles = { ...this.holes } as { [Key in Hs | N]: Hole<Key> };
     delete newHoles[oldHole];
     newHoles[newHole.name] = newHole;
-    return new HoleyPrompts(newTemplate, newHoles);
+    return new HoleyPrompt(newTemplate, newHoles);
   }
 
   // TODO: would be better if I could express M is not member of Hs.
   mergeHoles<H extends Hs, M extends HoleyName>(
     oldHoles: H[],
     newHole: Hole<M>,
-  ): HoleyPrompts<Exclude<Hs, H> | M> {
+  ): HoleyPrompt<Exclude<Hs, H> | M> {
     // TODO: make a more efficient version that does it all at once instead of
     // incrementally.
-    let newPrompt = this as HoleyPrompts<Exclude<Hs, H> | M>;
+    let newPrompt = this as HoleyPrompt<Exclude<Hs, H> | M>;
     for (const h of oldHoles) {
       newPrompt = this.renameHole(h, newHole);
     }
@@ -161,3 +163,33 @@ export class HoleyPrompts<Hs extends HoleyName> {
   }
 }
 
+function mergeHolesMap<H1s extends HoleyName, H2s extends HoleyName>(
+  h1: HolesMap<H1s | H2s>,
+  h2: HolesMap<H2s> | Hole<H2s>[])
+  : { [Key in H1s | H2s]: Hole<Key> } {
+  for (const h of (Object.values(h2) as Hole<H2s>[])) {
+    h1[h.name] = h;
+  }
+  return h1;
+}
+
+export function makePrompt<Hs extends HoleyName>(
+  strings: TemplateStringsArray, ...args: (Hole<Hs> | HoleyPrompt<Hs>)[]
+): HoleyPrompt<Hs> {
+
+  const holes = args.reduce(
+    (holes, a) => {
+      if (a instanceof HoleyPrompt) {
+        return mergeHolesMap(holes, a.holes);
+      } else {
+        holes[a.name] = a;
+        return holes;
+      }
+    }, {} as HolesMap<Hs>);
+
+  return new HoleyPrompt(
+    args.map((a, i) =>
+      strings[i] + (a instanceof HoleyPrompt ? a.template : a.literal)
+    ).join(''),
+    holes);
+}
