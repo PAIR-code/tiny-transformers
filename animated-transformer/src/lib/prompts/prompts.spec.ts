@@ -68,16 +68,16 @@ describe('prompts', () => {
 
     // BUG, the following line produces this error:
     /*
-    Argument of type 'HoleyPrompt<"thing" | "person">' is not assignable to parameter of type 'Hole<"bigThing"> | HoleyPrompt<"bigThing">'.
-  Type 'HoleyPrompt<"thing" | "person">' is not assignable to type 'HoleyPrompt<"bigThing">'.
-    Types of property 'holes' are incompatible.
-      Property 'bigThing' is missing in type '{ thing: Hole<"thing">; person: Hole<"person">; }' but required in type '{ bigThing: Hole<"bigThing">; }'.ts(2345)
+    Argument of type 'Prompt<"thing" | "person">' is not assignable to parameter of type 'Variable<"bigThing"> | Prompt<"bigThing">'.
+  Type 'Prompt<"thing" | "thing2">' is not assignable to type 'Prompt<"bigThing">'.
+    Types of property 'vars' are incompatible.
+      Property 'bigThing' is missing in type '{ thing: Variable<"thing">; person: Variable<"person">; }' but required in type '{ bigThing: Variable<"bigThing">; }'.ts(2345)
     */
     // const p3 = makePrompt`foo ${p2}, bar ${p}`;
     // expect(p3.template).toEqual(
     //   `foo what is {{thing}} to {{person}}, bar {{bigThing}}?`);
-    // expect(p3.holes.bigThing.name).toEqual(bigThingHole.name);
-    // expect(p3.holes.person.name).toEqual(personHole.name);
+    // expect(p3.vars.bigThing.name).toEqual(bigThingHole.name);
+    // expect(p3.vars.person.name).toEqual(personHole.name);
   });
 });
 
