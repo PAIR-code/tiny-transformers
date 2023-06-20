@@ -13,57 +13,58 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { HoleyPrompt, Hole, RegExpHole, makePrompt } from './holey_prompts';
+import { Prompt, RegExpVar, makePrompt } from './prompts';
 
-describe('holey_prompts', () => {
+describe('prompts', () => {
   beforeEach(() => {
   });
 
-  it('Replacing a hole with a string', () => {
-    const thingHole = new RegExpHole('thing');
-    const p = new HoleyPrompt(`what is a ${thingHole}?`,
-      [thingHole]);
+  it('Replacing a var with a string', () => {
+    const thingVar = new RegExpVar('thing');
+    const p = new Prompt(`what is a ${thingVar}?`,
+      [thingVar]);
 
-    const p2 = p.substStr(p.holes.thing, 'bar');
+    const p2 = p.substStr(p.vars.thing, 'bar');
 
     expect(p2.template).toEqual('what is a bar?');
   });
 
-  it('Replacing a hole with a prompt', () => {
-    const thingHole = new RegExpHole('thing');
-    const p = new HoleyPrompt(`what is a ${thingHole}?`,
-      [thingHole]);
+  it('Replacing a var with a prompt', () => {
+    const thingVar = new RegExpVar('thing');
+    const p = new Prompt(`what is a ${thingVar}?`,
+      [thingVar]);
 
-    const bigHole = new RegExpHole('bigThingName')
-    const p2 = new HoleyPrompt(`big ${bigHole}?`, [bigHole]);
+    const bigVar = new RegExpVar('bigThingName')
+    const p2 = new Prompt(`big ${bigVar}?`, [bigVar]);
 
-    const p3 = p.substPrompt(p.holes.thing, p2);
+    const p3 = p.substPrompt(p.vars.thing, p2);
 
     expect(p3.template).toEqual(`what is a big {{bigThingName}}?`);
-    expect(p3.holes.bigThingName.name).toEqual(`bigThingName`);
+    expect(p3.vars.bigThingName.name).toEqual(`bigThingName`);
   });
 
-  it('makePrompt with holes', () => {
-    const thingHole = new RegExpHole('thing');
-    const personHole = new RegExpHole('person')
-    const p = makePrompt`what is a ${thingHole} to ${personHole}?`;
+  it('makePrompt with vars', () => {
+    const thingVar = new RegExpVar('thing');
+    const thing2Var = new RegExpVar('thing2')
+    const p = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
 
-    const bigThingHole = new RegExpHole('bigThing')
-    const p2 = makePrompt`big ${bigThingHole}?`;
+    const bigThingVar = new RegExpVar('bigThing')
+    const p2 = makePrompt`big ${bigThingVar}?`;
 
-    const p3 = p.substPrompt(p.holes.thing, p2);
+    const p3 = p.substPrompt(p.vars.thing, p2);
 
-    expect(p3.template).toEqual(`what is a big {{bigThing}}?`);
-    expect(p3.holes.bigThing.name).toEqual(`bigThing`);
+    expect(p3.template).toEqual(`what is a big {{bigThing}} to {{thing2}}?`);
+    expect(p3.vars.bigThing.name).toEqual(`bigThing`);
   });
 
-  it('makePrompt with prompts', () => {
-    const thingHole = new RegExpHole('thing');
-    const personHole = new RegExpHole('person')
-    const p = makePrompt`what is a ${thingHole} to ${personHole}?`;
+  it('extending prompts by making prompts with prompt-vars', () => {
+    const thingVar = new RegExpVar('thing');
+    const thing2Var = new RegExpVar('thing2')
+    const p = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
 
-    const bigThingHole = new RegExpHole('bigThing')
-    const p2 = makePrompt`big ${bigThingHole}?`;
+    const bigThingVar = new RegExpVar('bigThing')
+    const p2 = makePrompt`big ${bigThingVar}?`;
+    const p4 = makePrompt`foo ${bigThingVar}, bar ${thingVar}, and ${thing2Var}`;
 
     // BUG, the following line produces this error:
     /*
