@@ -13,18 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Prompt, escapeStr, makePrompt } from './prompts';
+import { Prompt, escapeStr, makePrompt, namedVar, unEscapeStr } from './prompts';
 import { RegExpVar } from './variable';
 
-describe('prompts', () => {
+fdescribe('prompts', () => {
   beforeEach(() => {
   });
 
   it('A mini walkthrough of why this is neat...', () => {
     // You can prompts quite vaturally, you define your variables, and then
     // just use them in a string interpretation.
-    const thingVar = new RegExpVar('thing');
-    const thing2Var = new RegExpVar('thing2')
+    const thingVar = namedVar('thing');
+    const thing2Var = namedVar('thing2')
     const whatIsAtoBPrompt = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
 
     // Arguments are auto-completed. e.g. first argument for a variable for
@@ -40,12 +40,13 @@ describe('prompts', () => {
     // type '"thing2" | Variable<"thing2">'
 
     // You can substitute variables for prompts.
-    const bigThingVar = new RegExpVar('bigThing');
+    const bigThingVar = namedVar('bigThing');
     const bigPrompt = makePrompt`big ${bigThingVar}?`;
     const whatIsTabletoBigBPrompt =
       whatIsTabletoBPrompt.vars.thing2.substPrompt(bigPrompt);
 
-    // You can also do this...
+    // You can also reference the var names directly in a prompt substution
+    // call, like so:
     //
     // const whatIsTabletoBigBPrompt =
     //   whatIsTabletoBPrompt.substPrompt('thing2', bigPrompt);
@@ -69,12 +70,12 @@ describe('prompts', () => {
   });
 
   it('Replacing a var with a prompt', () => {
-    const thingVar = new RegExpVar('thing');
+    const thingVar = namedVar('thing');
     const p = new Prompt(`what is a ${thingVar}?`,
       [thingVar]);
 
-    const bigVar = new RegExpVar('bigThingName')
-    const p2 = new Prompt(`big ${bigVar}?`, [bigVar]);
+    const bigVar = namedVar('bigThingName')
+    const p2 = new Prompt(`big ${bigVar}`, [bigVar]);
 
     const p3 = p.vars.thing.substPrompt(p2);
 
@@ -83,12 +84,13 @@ describe('prompts', () => {
   });
 
   it('makePrompt with vars', () => {
-    const thingVar = new RegExpVar('thing');
-    const thing2Var = new RegExpVar('thing2')
+    const thingVar = namedVar('thing');
+    const thing2Var = namedVar('thing2')
     const p = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
+    console.log('p.template', p.template);
 
-    const bigThingVar = new RegExpVar('bigThing')
-    const p2 = makePrompt`big ${bigThingVar}?`;
+    const bigThingVar = namedVar('bigThing')
+    const p2 = makePrompt`big ${bigThingVar}`;
 
     const p3 = p.vars.thing.substPrompt(p2);
 
@@ -97,8 +99,8 @@ describe('prompts', () => {
   });
 
   it('extending prompts by making prompts with prompt-vars', () => {
-    const thingVar = new RegExpVar('thing');
-    const thing2Var = new RegExpVar('thing2')
+    const thingVar = namedVar('thing');
+    const thing2Var = namedVar('thing2')
     const p = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
 
     // Cool thing about this: for the first argument, the variable, is
@@ -110,21 +112,21 @@ describe('prompts', () => {
 
   it('escaping', () => {
     const s = 'blah \\\\ {{foo}}';
-    expect(escapeStr(s)).toEqual('blah \\\\\\\\ \\{\\{foo\\}\\}');
+    expect(escapeStr(s)).toEqual('blah \\\\\\\\ \\{\\{foo}}');
   });
 
   it('unescaping', () => {
-    const s = 'blah \\\\ \\{\\{foo\\}\\}';
-    expect(escapeStr(s)).toEqual('blah \\\\ {{foo}}');
+    const s = 'blah \\\\ \\{\\{foo}}';
+    expect(unEscapeStr(s)).toEqual('blah \\ {{foo}}');
   });
 
   it('TypeScript BUG: ', () => {
-    const thingVar = new RegExpVar('thing');
-    const thing2Var = new RegExpVar('thing2')
+    const thingVar = namedVar('thing');
+    const thing2Var = namedVar('thing2')
     const p = makePrompt`what is a ${thingVar} to ${thing2Var}?`;
 
-    const bigThingVar = new RegExpVar('bigThing')
-    const p2 = makePrompt`big ${bigThingVar}?`;
+    const bigThingVar = namedVar('bigThing')
+    const p2 = makePrompt`big ${bigThingVar}`;
     const p4 = makePrompt`foo ${bigThingVar}, bar ${thingVar}, and ${thing2Var}`;
 
     // BUG, the following line produces this error:

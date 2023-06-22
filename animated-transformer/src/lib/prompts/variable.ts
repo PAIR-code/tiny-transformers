@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 /*============================================================================*/
 
-export abstract class AbstractVar<N extends string> {
+export abstract class NamedVar<N extends string> {
 
   constructor(public name: N) { };
 
@@ -47,7 +47,7 @@ export interface RegExpVarOptions {
   literal: string,
 }
 
-export class RegExpVar<H extends string> extends AbstractVar<H> {
+export class RegExpVar<H extends string> extends NamedVar<H> {
   regexp: RegExp;
   literal: string;
 

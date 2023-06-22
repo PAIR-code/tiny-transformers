@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 /*============================================================================*/
-import { RegExpVar, AbstractVar } from './variable';
+import { RegExpVar, NamedVar } from './variable';
 
 // ----------------------------------------------------------------------------
 // Escaping
@@ -22,21 +22,24 @@ import { RegExpVar, AbstractVar } from './variable';
 // escaping: blah \ {{ foo... ===> blah \\ \{\{ foo...
 // unescaping: blah \\ \{\{ foo... ===> blah \ {{ foo...
 export function escapeStr(s: string): string {
-  return s.replaceAll('{', '\\{').replaceAll('\\', '\\\\');
+  return s.replaceAll('\\', '\\\\').replaceAll('{', '\\{');
   // Can be done in a single pass... TODO: test sure faster...
   // return s.replaceAll(/\\|\{/g, (m:string) => `\\${m}`);
 }
 export function unEscapeStr(s: string): string {
-  return s.replaceAll('\\{', '{').replaceAll('\\\\', '\\');
+  return s.replaceAll('\\\\', '\\').replaceAll('\\{', '{');
 }
 
+export function namedVar<N extends string>(name: N): NamedVar<N> {
+  return new RegExpVar(name);
+}
 
 type NameToVarMap<Ns extends string> = { [Key in Ns]: PromptVar<Ns, Key> };
 
 // Ns = All variable names in the prompt.
 // N = This variable name.
 export class PromptVar<Ns extends string, N extends Ns> {
-  constructor(public prompt: Prompt<Ns>, public rawVariable: AbstractVar<N>) {
+  constructor(public prompt: Prompt<Ns>, public rawVariable: NamedVar<N>) {
     if (!rawVariable.occurs(prompt.template)) {
       console.error(`Template is missing a variable,\n` +
         `Variable: ${this.name}\n` +
@@ -55,7 +58,7 @@ export class PromptVar<Ns extends string, N extends Ns> {
     const newTemplate = this.rawVariable.subst(this.prompt.template, replacement);
     const newVarList = (
       [...this.prompt.varList().filter(v => v.name !== this.name)
-      ] as AbstractVar<Exclude<Ns, N>>[]);
+      ] as NamedVar<Exclude<Ns, N>>[]);
 
     return new Prompt(newTemplate, newVarList);
   }
@@ -70,7 +73,7 @@ export class PromptVar<Ns extends string, N extends Ns> {
       newTemplate, subTemplate.template)
     const newVarList = (
       [...this.prompt.varList().filter(v => v.name !== this.name),
-      ...subTemplate.varList()] as AbstractVar<Exclude<Ns, N> | N2s>[]);
+      ...subTemplate.varList()] as NamedVar<Exclude<Ns, N> | N2s>[]);
     return new Prompt(newTemplate, newVarList);
   }
 
@@ -78,11 +81,11 @@ export class PromptVar<Ns extends string, N extends Ns> {
   renameVar<N2 extends string>(
     newName: Exclude<N2, Ns>, // N2 should not be in Ns! If so, this is never.
   ): Prompt<Exclude<Ns, N> | N2> {
-    const newVar = new RegExpVar<N2>(newName);
+    const newVar = namedVar<N2>(newName);
     const newTemplate = this.rawVariable.subst(this.prompt.template, newVar.literal);
     const newVarList = (
       [...this.prompt.varList().filter(v => v.name !== this.name),
-        newVar] as AbstractVar<Exclude<Ns, N> | N2>[]);
+        newVar] as NamedVar<Exclude<Ns, N> | N2>[]);
     return new Prompt(newTemplate, newVarList);
   }
 
@@ -94,14 +97,14 @@ export class PromptVar<Ns extends string, N extends Ns> {
 export class Prompt<Ns extends string> {
   public vars: NameToVarMap<Ns>;
 
-  constructor(public template: string, vars: AbstractVar<Ns>[]) {
+  constructor(public template: string, vars: NamedVar<Ns>[]) {
     this.vars = {} as NameToVarMap<Ns>;
     for (const v of vars.map(v => new PromptVar(this, v))) {
       this.vars[v.name] = v;
     }
   }
 
-  varList(): AbstractVar<Ns>[] {
+  varList(): NamedVar<Ns>[] {
     return Object.values(this.vars)
       .map(v => (v as PromptVar<Ns, Extract<Ns, string>>).rawVariable);
   }
@@ -140,7 +143,7 @@ export class Prompt<Ns extends string> {
 }
 
 export function makePrompt<Hs extends string>(
-  strings: TemplateStringsArray, ...args: (AbstractVar<Hs> | Prompt<Hs>)[]
+  strings: TemplateStringsArray, ...args: (NamedVar<Hs> | Prompt<Hs>)[]
 ): Prompt<Hs> {
 
   const varSet = new Set<string>;
@@ -159,9 +162,13 @@ export function makePrompt<Hs extends string>(
     });
 
   return new Prompt(
-    args.map((a, i) =>
-      strings[i] + (a instanceof Prompt ? a.template : a.literal)
-    ).join(''),
-    [...varSet].map(n => new RegExpVar(n as Hs)));
+    strings.map((s, i) => {
+      if (i >= args.length) {
+        return s;
+      }
+      const a = args[i];
+      return s + (a instanceof Prompt ? a.template : a.literal);
+    }).join(''),
+    [...varSet].map(n => namedVar(n as Hs)));
 }
 
