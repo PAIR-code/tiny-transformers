@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Prompt, RegExpVar, makePrompt } from './prompts';
+import { Prompt, escapeStr, makePrompt } from './prompts';
+import { RegExpVar } from './variable';
 
 describe('prompts', () => {
   beforeEach(() => {
@@ -29,7 +30,7 @@ describe('prompts', () => {
     // Arguments are auto-completed. e.g. first argument for a variable for
     // string substituion in the prompt `whatIsAtoBPrompt`, it must named
     // 'thing' or 'thing2'; those are the only variables in the prompt.
-    let whatIsTabletoBPrompt = whatIsAtoBPrompt.substStr('thing', 'table');
+    let whatIsTabletoBPrompt = whatIsAtoBPrompt.vars.thing.substStr('table');
 
     // And errors are checked as you type, e.g.
     //
@@ -42,7 +43,12 @@ describe('prompts', () => {
     const bigThingVar = new RegExpVar('bigThing');
     const bigPrompt = makePrompt`big ${bigThingVar}?`;
     const whatIsTabletoBigBPrompt =
-      whatIsTabletoBPrompt.substPrompt('thing2', bigPrompt);
+      whatIsTabletoBPrompt.vars.thing2.substPrompt(bigPrompt);
+
+    // You can also do this...
+    //
+    // const whatIsTabletoBigBPrompt =
+    //   whatIsTabletoBPrompt.substPrompt('thing2', bigPrompt);
 
     // When you make new prompts, you can use other prompts as part of them...
     const foo = makePrompt`foo ${whatIsTabletoBigBPrompt}`;
@@ -57,7 +63,7 @@ describe('prompts', () => {
     const p = new Prompt(`what is a ${thingVar}?`,
       [thingVar]);
 
-    const p2 = p.substStr(p.vars.thing, 'bar');
+    const p2 = p.vars.thing.substStr('bar');
 
     expect(p2.template).toEqual('what is a bar?');
   });
@@ -70,7 +76,7 @@ describe('prompts', () => {
     const bigVar = new RegExpVar('bigThingName')
     const p2 = new Prompt(`big ${bigVar}?`, [bigVar]);
 
-    const p3 = p.substPrompt(p.vars.thing, p2);
+    const p3 = p.vars.thing.substPrompt(p2);
 
     expect(p3.template).toEqual(`what is a big {{bigThingName}}?`);
     expect(p3.vars.bigThingName.name).toEqual(`bigThingName`);
@@ -84,7 +90,7 @@ describe('prompts', () => {
     const bigThingVar = new RegExpVar('bigThing')
     const p2 = makePrompt`big ${bigThingVar}?`;
 
-    const p3 = p.substPrompt(p.vars.thing, p2);
+    const p3 = p.vars.thing.substPrompt(p2);
 
     expect(p3.template).toEqual(`what is a big {{bigThing}} to {{thing2}}?`);
     expect(p3.vars.bigThing.name).toEqual(`bigThing`);
@@ -98,8 +104,18 @@ describe('prompts', () => {
     // Cool thing about this: for the first argument, the variable, is
     // auto-completed, and errors are checked as you type.
     //  e.g. first argument is auto-completed to 'thing' or 'thing2'.
-    const p2 = p.substStr('thing', 'table');
+    const p2 = p.vars.thing.substStr('table');
 
+  });
+
+  it('escaping', () => {
+    const s = 'blah \\\\ {{foo}}';
+    expect(escapeStr(s)).toEqual('blah \\\\\\\\ \\{\\{foo\\}\\}');
+  });
+
+  it('unescaping', () => {
+    const s = 'blah \\\\ \\{\\{foo\\}\\}';
+    expect(escapeStr(s)).toEqual('blah \\\\ {{foo}}');
   });
 
   it('TypeScript BUG: ', () => {
