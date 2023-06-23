@@ -154,7 +154,7 @@ function drawLineCharts(){
       }, 300)
 
       var m = data.models.filter(isHoveredFn)[chartIndex]
-      var root = `../../local-data/mlp_modular/${visState.sweepSlug}`
+      var root = `${sharedUtil.getRoot()}/mlp_modular/${visState.sweepSlug}`
       var metrics = await (await fetch(`${root}/${m.slug}/metrics.json`)).json()
 
       clearTimeout(timeoutId)
