@@ -23,7 +23,7 @@ window.initLineChart = async function({sel, isBig, model}){
   var testPathSel = c.svg.append('path')
     .at({strokeWidth: 1, stroke: 'steelblue', fill: 'none'})
 
-  var root = `../../local-data/mlp_modular/${visState.hyper_shared.sweep_slug}`
+  var root = `${sharedUtil.getRoot()}/mlp_modular/${visState.hyper_shared.sweep_slug}`
   var metrics = await (await fetch(`${root}/${model.slug}/metrics.json`)).json()
 
   trainPathSel.at({d: line.y(d => c.y(d.train_loss))(metrics)})

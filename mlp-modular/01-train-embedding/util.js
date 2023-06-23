@@ -15,7 +15,8 @@ window.util = (function(){
   }
 
   async function getFile(path, uploadData={}){
-    var [slug, type] = path.replaceAll('..', '').split('.')
+    var [slug, ...type] = path.replaceAll('..', '').split('.')
+    type = _.last(type)
 
     var uploadDataStr = JSON.stringify(uploadData)
     slug = path + ' __ ' + uploadDataStr 
@@ -23,7 +24,7 @@ window.util = (function(){
       return data[slug]
     }
 
-    var datadir = `../../local-data/mlp_modular/${visState.hyper_shared.sweep_slug}/`
+    var datadir = `${sharedUtil.getRoot()}/mlp_modular/${visState.hyper_shared.sweep_slug}/`
 
     var res = await fetch(path.includes('..') ? path : datadir + path)
 

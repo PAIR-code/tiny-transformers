@@ -6,7 +6,7 @@ window.color.cosDistNeg = d3.scaleSequential(d3.interpolateRdBu).domain([-1, 1])
 
 
 window.initEmbeddings = async function(){
-  var root = `../../local-data/gridworld/js-data/${visState.slug}`
+  var root = `${sharedUtil.getRoot()}/gridworld/js-data/${visState.slug}`
 
   var embed_og = await util.getFile(`${root}/token_embeddings_orig.json`)
   var embed_ft = await util.getFile(`${root}/token_embeddings_ft.json`)

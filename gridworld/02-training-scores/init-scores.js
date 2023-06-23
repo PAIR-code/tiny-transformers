@@ -41,7 +41,7 @@ window.initScores = async function(){
       return {modelId, seqId, configId, file, isOOD}
     })
 
-  var root = `../../local-data/gridworld/js-data/${visState.slug}`
+  var root = `${sharedUtil.getRoot()}/gridworld/js-data/${visState.slug}`
   for (option of options){
     option.data = await util.getFile(`${root}/${option.file}`)
     option.data = option.data.filter(d => d.seq_index < 512)
