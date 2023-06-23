@@ -16,7 +16,7 @@ limitations under the License.
 window.initModel = async function(){
 
   // Load model weights
-  const modelPath = `../../local-data/decision_boundary/${visState.sweepSlug}/${visState.modelSlug}/`
+  const modelPath = `${sharedUtil.getRoot()}/decision_boundary/${visState.sweepSlug}/${visState.modelSlug}/`
 
   const weights = await util.getFile(modelPath + 'weights.json')
   const hyper   = await util.getFile(modelPath + 'hyper.json')
