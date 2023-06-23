@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+// TODO: add regulariztion methods, e.g. weight decay/L2/L1/Ln regularization.
 
 import { GTensor, GVariable } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
