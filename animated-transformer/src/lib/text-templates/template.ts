@@ -29,7 +29,10 @@ e.g. you might get types T<A,B> s.t. A & B = 0
 That might need much deeper thinking in TS. But I think it would also be quite
 wonderful. See ...
 
-TODO: verify list manipulations are not well supported.
+TODO: verify list manipulations are not well supported by TypeScript typing.
+
+TODO: provide an "noIdent" utility for templates to be more readable in code
+blocks (e.g. s/\n\s+/\n/g).
 */
 
 import { RegExpVar, NamedVar } from './variable';
