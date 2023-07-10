@@ -22,7 +22,6 @@ export abstract class NamedVar<N extends string> {
   public abstract subst(s: string, value: string): string;
 
   // Split the string whereever this variable occurs.
-  //
   public abstract split(s: string): string[];
 
   // Returns true if 's' contains occurances of this variable.

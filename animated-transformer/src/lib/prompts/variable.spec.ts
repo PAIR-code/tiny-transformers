@@ -15,18 +15,18 @@ limitations under the License.
 
 import { RegExpVar } from './variable';
 
-fdescribe('variables', () => {
+describe('named variables', () => {
   beforeEach(() => {
   });
 
-  it('A mini walkthrough of why this is neat...', () => {
+  it('occurs', () => {
     // You can prompts quite vaturally, you define your variables, and then
     // just use them in a string interpretation.
     const thingVar = new RegExpVar('thing');
-    const thing2Var = new RegExpVar('thing2')
     const bigThingVar = new RegExpVar('bigThing');
     // Variables are first class properies, and you can do stuff with them.
     expect(bigThingVar.occurs('blah {{bigThing}}')).toBeTruthy();
+    expect(thingVar.occurs('blah {{bigthing}}')).toBeFalsy();
   });
 
   it('Substituting a var in a string', () => {
