@@ -24,7 +24,6 @@ import { lineNumbers } from "@codemirror/gutter"
 import { bracketMatching } from "@codemirror/matchbrackets"
 import { json as jsonlang } from "@codemirror/lang-json"
 import { oneDarkTheme } from "@codemirror/theme-one-dark"
-import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language"
 import { firstValueFrom, Observable, tap, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
 import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, skip, pairwise } from 'rxjs/operators';
 
@@ -61,7 +60,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
   codemirrorElementRef: ElementRef | undefined;
   codemirrorOptions: {};
 
-  codeMirror: codemirror.EditorView | undefined;
+  codeMirror: EditorView | undefined;
   editorState?: EditorState;
   // codemirror.EditorFromTextArea | undefined;
 
