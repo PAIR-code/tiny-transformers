@@ -1,0 +1,1 @@
+{"task": "modular_addition", "n_tokens": 113, "percent_train": 0.3, "embed_size": 16, "hidden_size": 128, "tied_embedding": true, "learning_rate": 0.003, "weight_decay": 1.0, "b1": 0.9, "b2": 0.98, "log_every": 100, "save_every": 10000, "max_steps": 200000, "seed": 0, "sweep_slug": "xm_gpu_full"}
