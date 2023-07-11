@@ -16,20 +16,21 @@ limitations under the License.
 window.visState = window.visState || {
   maxRatio: 10000000,
   minEvalLoss: .00001,
-  sweepSlug: 'xm_gpu_full_53_no_ckpt_v3',
-  sweepSlug: 'xm_gpu_full_53_no_ckpt_small_h',
-  sweepSlug: 'xm_gpu_full_29_no_ckpt_small_h',
-  sweepSlug: 'xm_gpu_full'
+  sweepSlug: 'xm_gpu_sparse_parity_v2',
+
+  key_row: '',
+  key_col: 'weight_decay',
+  key_x: 'hidden_size',
+  key_y: 'train_size',
 }
 
 
 window.hyper_sweep = {
   "sweep_slug": [visState.sweepSlug],
   "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
-  "learning_rate": [1e-2, 3e-3, 1e-3, 3e-4, 1e-4],
-  "weight_decay": [3, 1, .3, .1, .03],
-  "embed_size": [8, 16, 32, 64, 128],
-  "hidden_size": [64, 128, 256, 512, 1024],
+  "weight_decay": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
+  "hidden_size": [8, 16, 32, 64, 128],
+  "train_size": [250, 500, 1000, 1500, 2000],
 }
 
 window.initRenderAll = function(){
@@ -45,6 +46,7 @@ window.initRenderAll = function(){
 
 d3.loadData(`data__hypers_${visState.sweepSlug}.csv`, 'hyper_shared.json', (err, res) => {
   console.clear()
+
   window.data = {models: res[0], sharedHyper: res[1]}
 
   if (!window.visState.hovered) visState.hovered = data.models[0]
@@ -54,8 +56,8 @@ d3.loadData(`data__hypers_${visState.sweepSlug}.csv`, 'hyper_shared.json', (err,
   drawLineCharts()
 
   d3.select('.model-grid').html('')
-    .appendMany('div.lr-row', d3.nestBy(_.sortBy(data.models, d => +d.embed_size), d => d.embed_size))
-    .appendMany('div.chart-div', d => d3.nestBy(_.sortBy(d, d => +d.hidden_size), d => d.hidden_size))
+    .appendMany('div.lr-row', d3.nestBy(_.sortBy(data.models, d => +d[visState.key_row]), d => d[visState.key_row]))
+    .appendMany('div.chart-div', d => d3.nestBy(_.sortBy(d, d => +d[visState.key_col]), d => d[visState.key_col]))
     .each(drawGridChart)
 
   renderAll.color()
@@ -115,18 +117,18 @@ function drawLineCharts(){
     console.log('hi')
     var h = visState.hovered 
     d3.select('.line-chart-hyper').html(`
-      embed_size: <b>${h.embed_size}</b><br>
-      hidden_size: <b>${h.hidden_size}</b><br>
-      learning_rate: <b>${h.learning_rate}</b><br>
-      weight_decay: <b>${h.weight_decay}</b><br>
+      ${visState.key_x}: <b>${h[visState.key_x]}</b><br>
+      ${visState.key_y}: <b>${h[visState.key_y]}</b><br>
+      ${visState.key_col}: <b>${h[visState.key_col]}</b><br>
+      ${visState.key_row}: <b>${h[visState.key_row]}</b><br>
     `)
   })
 
   function drawChart(chartIndex){
     var c = d3.conventions({
       sel: d3.select(this).append('div'),
-      width: 150,
-      height: 150,
+      width: 80,
+      height: 80,
     })
 
     c.x.domain([0, data.sharedHyper.max_steps])
@@ -154,7 +156,7 @@ function drawLineCharts(){
       }, 300)
 
       var m = data.models.filter(isHoveredFn)[chartIndex]
-      var root = `${sharedUtil.getRoot()}/mlp_modular/${visState.sweepSlug}`
+      var root = `${sharedUtil.getRoot()}/sparse_parity/${visState.sweepSlug}`
       var metrics = await (await fetch(`${root}/${m.slug}/metrics.json`)).json()
 
       clearTimeout(timeoutId)
@@ -173,27 +175,30 @@ function drawGridChart(models){
     height: 100
   })
 
-  c.x = d3.scaleBand().range([0, c.width]) .domain(hyper_sweep.learning_rate)
-  c.y = d3.scaleBand().range([0, c.height]).domain(hyper_sweep.weight_decay)
+  c.x = d3.scaleBand().range([0, c.width]) .domain(hyper_sweep[visState.key_x])
+  c.y = d3.scaleBand().range([0, c.height]).domain(hyper_sweep[visState.key_y])
 
-  c.xAxis = d3.axisBottom(c.x).tickValues(hyper_sweep.learning_rate).tickFormat(d => d3.format('.0e')(d))
-  c.yAxis = d3.axisLeft(c.y).tickValues(hyper_sweep.weight_decay).tickFormat(d => d)
+  c.xAxis = d3.axisBottom(c.x).tickValues(hyper_sweep[visState.key_x])
+    .tickFormat(d => d)
+    // .tickFormat(d => d3.format('.0e')(d))
+  c.yAxis = d3.axisLeft(c.y).tickValues(hyper_sweep[visState.key_y])
+    .tickFormat(d => d)
   d3.drawAxis(c)
 
   c.svg.selectAll('.axis line').remove()
   c.svg.selectAll('.y text').at({x: 0})
   c.svg.selectAll('.x text').at({y: 2})
-  util.addAxisLabel(c, 'learning_rate', 'weight_decay', 18, -20)
+  util.addAxisLabel(c, visState.key_x, visState.key_y, 18, -24)
 
-  c.svg.append('text.axis-label').text('e: ' + models[0].embed_size)
-    .translate([0, -2])
+  // c.svg.append('text.axis-label').text('e: ' + models[0][visState.key_row])
+  //   .translate([0, -2])
 
-  c.svg.append('text.axis-label').text('h: ' + models[0].hidden_size)
+  c.svg.append('text.axis-label').text(visState.key_col + ': ' + models[0][visState.key_col])
     .translate([c.width, -2])
     .at({textAnchor: 'end'})
 
   var circleSel = c.svg.appendMany('circle', models)
-    .at({r: 2.5, stroke: '#333', cx: d => c.x(d.learning_rate), cy: d => c.y(d.weight_decay)})
+    .at({r: 2.5, stroke: '#333', cx: d => c.x(d[visState.key_x]), cy: d => c.y(d[visState.key_y])})
     .call(d3.attachTooltip)
     .translate(d => [5*Math.floor(d.seed/3) + 5, 5*(d.seed % 3) + 5])
     .on('mouseover', d => {
@@ -215,8 +220,8 @@ function drawGridChart(models){
 
 function isHoveredFn(d){
   var h = visState.hovered 
-  return d.embed_size == h.embed_size && 
-    d.hidden_size == h.hidden_size && 
-    d.learning_rate == h.learning_rate && 
-    d.weight_decay == h.weight_decay
+  return d[visState.key_row] == h[visState.key_row] && 
+    d[visState.key_col] == h[visState.key_col] && 
+    d[visState.key_x] == h[visState.key_x] && 
+    d[visState.key_y] == h[visState.key_y]
 }
