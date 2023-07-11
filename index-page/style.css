@@ -82,4 +82,8 @@ p {
 .text{
 }
 
+.post.link-only h3, .post.link-only .img{
+  display: none;
+}
+
 @import url(//fonts.googleapis.com/css?family=Google+Sans);

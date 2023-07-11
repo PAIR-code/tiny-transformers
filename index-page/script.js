@@ -76,12 +76,24 @@ var posts = [
   },
 
   {
+    slug: 'mlp-modular/02-sweep-architecture'
+  },
+  {
+    slug: 'mlp-modular/03-js-weights'
+  },
+  {
+    slug: 'mlp-modular/04-sweep-sparse-parity'
+  },
+
+
+  {
     slug: 'gridworld/02-training-scores',
     title: 'training scores',
     html: `
       Does the model learn to pick up As or avoid Bs first? What happens to the model embeddings when we retrain the model to pick up Bs instead of As?
     `,
   },
+
 
 
 ]
@@ -129,9 +141,8 @@ topicSel.append('h3').text(d => d.key)
 topicSel.append('p').html(d => topicP[d.key]).st({marginBottom: 30})
 
 var postSel = topicSel.appendMany('div.post', d => d)
-  .st({
-    verticalAlign: 'top',
-  })
+  .st({verticalAlign: 'top'})
+  .classed('link-only', d => !d.title)
   
 
 var postLeftSel = postSel.append('a.left-col')

@@ -17,26 +17,17 @@ var {_, cheerio, d3, jp, fs, glob, io, queue, request} = require('scrape-stl')
 var npyjs = require('fix-esm').require('npyjs').default
 
 var sweeps = [
-  'xm_gpu_full',
-  'xm_gpu_full_53_no_ckpt_v3',
-  'xm_gpu_full_53_no_ckpt_small_h',
-  'xm_gpu_full_29_no_ckpt_small_h',
-  'xm_gpu_full_l2_architecture',
-  
-  'xm_dense_checkpoints',
-  'xm_dense_29_n_digts_8_32',
-  'xm_dense_53_n_digts_8_32',
-  'xm_dense_53_n_digts_16_32',
+  'xm_gpu_sparse_parity_v2',
 ]
 
 sweeps.forEach(sweep => {
-  var dir = __dirname + '/../../local-data/mlp_modular/' + sweep
+  var dir = __dirname + '/../../local-data/sparse_parity/' + sweep
   var paths = glob.sync(dir + '/**/*.json')
 
   var hypers = []
   var allMetrics = []
 
-  jp.nestBy(paths, d => d.split(`mlp_modular/${sweep}/`)[1].split('/')[0])
+  jp.nestBy(paths, d => d.split(`sparse_parity/${sweep}/`)[1].split('/')[0])
     // .slice(0, 100)
     .map(d => {
       if (d.length != 2) return console.log(d)
@@ -55,6 +46,11 @@ sweeps.forEach(sweep => {
       delete hyper.save_every
       delete hyper.max_steps
       delete hyper.sweep_slug
+      delete hyper.test_size
+      delete hyper.loss_fn
+      delete hyper.optimizer
+      delete hyper.regularization
+      delete hyper.learning_rate
 
       hyper.maxRatio = d3.max(metrics, d => d.eval_loss/d.train_loss)
       hyper.minTrainLoss = d3.min(metrics, d => d.train_loss)
@@ -63,6 +59,8 @@ sweeps.forEach(sweep => {
       hypers.push(hyper)
       // allMetrics.push(metrics.map(d => [d.train_loss, d.eval_loss]))
     })
+
+    console.log(hypers[0])
 
   // var typedArray = new Float32Array(allMetrics.flat().flat())
   // var out = npyjs.format(typedArray, [allMetrics.length, allMetrics[0].length, 2])
