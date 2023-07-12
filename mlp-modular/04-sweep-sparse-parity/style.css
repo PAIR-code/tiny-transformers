@@ -40,8 +40,8 @@ svg{
 
 
 circle.is-hovered{
-  stroke-width: 2px;
-  stroke: #f0f;
+  stroke-width: 2.5px;
+/*  stroke: #f0f;*/
 }
 
 

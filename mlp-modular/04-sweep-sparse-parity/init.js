@@ -13,15 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-window.visState = window.visState || {
-  maxRatio: 10000000,
+window.visState = window.visStatex || {
+  maxRatio: 50000,
   minEvalLoss: .00001,
+
   sweepSlug: 'xm_gpu_sparse_parity_v2',
   sweepSlug: 'sparse_parity_v3',
-
+  sweepSlug: 'sparse_parity_v4',
   key_row: '',
   key_col: 'weight_decay',
   key_x: 'hidden_size',
+  key_y: 'train_size',
+
+
+  sweepSlug: 'sparse_parity_w_init',
+  key_row: '',
+  key_col: 'weight_decay',
+  key_x: 'w_init_scale',
   key_y: 'train_size',
 }
 
@@ -32,6 +40,18 @@ window.hyper_sweep = {
   "weight_decay": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
   "hidden_size": [8, 16, 32, 64, 128],
   "train_size": [250, 500, 1000, 1500, 2000],
+
+  "sweep_slug": [visState.sweepSlug],
+  "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
+  "hidden_size": [16, 32, 64, 128, 258],
+  "train_size": [750, 1000, 1250, 1500, 1750],
+
+  "sweep_slug": [visState.sweepSlug],
+  "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
+  "w_init_scale": [.1, .3, 1, 3, 10],
+  "train_size": [750, 1000, 1250, 1500, 1750],
 }
 
 window.initRenderAll = function(){
@@ -73,7 +93,7 @@ function drawSliders(){
     {
       scale: d3.scalePow().range([1e-8, 1]).exponent(10),
       sel: sel.append('div.slider'),
-      label: 'Lowest Test Loss',
+      label: 'Min Test Loss',
       getVal: d => visState.minEvalLoss,
       setVal: d => visState.minEvalLoss = d,
       fmt: d3.format('.2e')
@@ -81,7 +101,7 @@ function drawSliders(){
     {
       scale: d3.scalePow().range([1, 1e8]).exponent(10),
       sel: sel.append('div.slider'),
-      label: 'Highest Test/Train Loss Ratio',
+      label: 'Max Test/Train Loss Ratio',
       getVal: d => visState.maxRatio,
       setVal: d => visState.maxRatio = d,
       fmt: d3.format('.2e')
@@ -211,10 +231,7 @@ function drawGridChart(models){
     })
 
   renderAll.colorFns.push(d => {
-    circleSel.at({
-      fill: d => d.maxRatio > visState.maxRatio ? 'green' : '#ccc',
-      r: d => d.minEvalLoss < visState.minEvalLoss ? 2.5 : .5,
-    })
+    circleSel.at({fill: circleFillFn})
   })
 }
 
@@ -225,4 +242,8 @@ function isHoveredFn(d){
     d[visState.key_col] == h[visState.key_col] && 
     d[visState.key_x] == h[visState.key_x] && 
     d[visState.key_y] == h[visState.key_y]
+}
+
+function circleFillFn(d){
+  return d.minEvalLoss > visState.minEvalLoss ? '#fff' : d.maxRatio > visState.maxRatio ? 'green' : '#faec84'
 }

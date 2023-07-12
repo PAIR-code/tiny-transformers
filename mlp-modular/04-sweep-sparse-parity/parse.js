@@ -14,11 +14,12 @@ limitations under the License.
 ==============================================================================*/
 
 var {_, cheerio, d3, jp, fs, glob, io, queue, request} = require('scrape-stl')
-var npyjs = require('fix-esm').require('npyjs').default
 
 var sweeps = [
   // 'xm_gpu_sparse_parity_v2',
-  'sparse_parity_v3',
+  // 'sparse_parity_v3',
+  'sparse_parity_v4',
+  'sparse_parity_w_init',
 ]
 
 sweeps.forEach(sweep => {
@@ -60,13 +61,6 @@ sweeps.forEach(sweep => {
       hypers.push(hyper)
       // allMetrics.push(metrics.map(d => [d.train_loss, d.eval_loss]))
     })
-
-    console.log(hypers[0])
-
-  // var typedArray = new Float32Array(allMetrics.flat().flat())
-  // var out = npyjs.format(typedArray, [allMetrics.length, allMetrics[0].length, 2])
-  // fs.writeFileSync(__dirname + '/data__metrics_'  + sweep + '.npy', out)
-  // io.writeDataSync(__dirname + '/data__metrics_' + sweep + '.csv', allMetrics.flat())
 
   io.writeDataSync(__dirname + '/data__hypers_'  + sweep + '.csv', hypers)
 })
