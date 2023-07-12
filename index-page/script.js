@@ -54,6 +54,7 @@ var posts = [
 
   {
     slug: 'decision-boundary/14-rasp-hand-weights',
+    title: 'RASP Hand Weights',
     html: `
       We wrote out weights by hand for an exact solution in three layers. Unlike the <a href='https://srush.github.io/raspy/'>Thinking Like a Transformer</a> paper, we're unable to train models from scratch that finds exact solution. Maybe the model falls into a local minimum around linear approximation?  
     `,

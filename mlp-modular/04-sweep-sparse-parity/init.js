@@ -130,7 +130,7 @@ function drawSliders(){
 }
 
 function drawLineCharts(){
-  d3.select('.line-charts').html('').st({width: 700})
+  d3.select('.line-charts').html('').st({width: 380, margin: '0px auto'})
     .appendMany('div', d3.range(9)).st({display: 'inline-block'})
     .each(drawChart)
 
@@ -152,10 +152,10 @@ function drawLineCharts(){
     })
 
     c.x.domain([0, data.sharedHyper.max_steps])
-    c.y = d3.scaleLog().domain([1e5, 1e-9]).range([0, c.height])
+    c.y = d3.scaleLog().domain([1e1, 1e-7]).range([0, c.height])
 
     c.xAxis.ticks(3).tickFormat(d => d/1000 + 'k')
-    c.yAxis = d3.axisLeft(c.y).ticks(5)
+    c.yAxis = d3.axisLeft(c.y).ticks(4)
 
     d3.drawAxis(c)
     util.ggPlot(c)
@@ -244,5 +244,9 @@ function isHoveredFn(d){
 }
 
 function circleFillFn(d){
-  return d.minEvalLoss > visState.minEvalLoss ? '#fff' : d.maxRatio > visState.maxRatio ? 'green' : '#faec84'
+  if (d.minTrainLoss > visState.minEvalLoss) return '#aaa'
+  if (d.minEvalLoss > visState.minEvalLoss) return '#fff'
+  if (d.maxRatio > visState.maxRatio) return 'green'
+
+  return '#faec84'
 }

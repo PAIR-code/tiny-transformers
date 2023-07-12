@@ -13,6 +13,8 @@ p{
 .left-col, .right-col{
   display: inline-block;
   vertical-align: top;
+  width: 100%;
+  text-align: center;
 }
 
 svg{
