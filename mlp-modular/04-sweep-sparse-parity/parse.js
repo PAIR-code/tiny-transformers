@@ -19,7 +19,7 @@ var sweeps = [
   // 'xm_gpu_sparse_parity_v2',
   // 'sparse_parity_v3',
   'sparse_parity_v4',
-  'sparse_parity_w_init',
+  // 'sparse_parity_w_init',
 ]
 
 sweeps.forEach(sweep => {
@@ -38,6 +38,8 @@ sweeps.forEach(sweep => {
         .map(io.readDataSync)
 
       hyper.slug = d.key
+      delete hyper.n
+      delete hyper.k
       delete hyper.task
       delete hyper.n_tokens
       delete hyper.percent_train
@@ -53,6 +55,8 @@ sweeps.forEach(sweep => {
       delete hyper.optimizer
       delete hyper.regularization
       delete hyper.learning_rate
+
+      delete hyper.w_init_scale
 
       hyper.maxRatio = d3.max(metrics, d => d.eval_loss/d.train_loss)
       hyper.minTrainLoss = d3.min(metrics, d => d.train_loss)

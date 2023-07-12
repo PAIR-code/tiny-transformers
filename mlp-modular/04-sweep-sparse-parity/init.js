@@ -35,20 +35,17 @@ window.visState = window.visStatex || {
 
 
 window.hyper_sweep = {
-  "sweep_slug": [visState.sweepSlug],
-  "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  "seed": d3.range(9),
   "weight_decay": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
   "hidden_size": [8, 16, 32, 64, 128],
   "train_size": [250, 500, 1000, 1500, 2000],
 
-  "sweep_slug": [visState.sweepSlug],
-  "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
-  "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
+  "seed": d3.range(9),
+  "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0].reverse(),
   "hidden_size": [16, 32, 64, 128, 258],
   "train_size": [750, 1000, 1250, 1500, 1750],
 
-  // "sweep_slug": [visState.sweepSlug],
-  // "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  // "seed": d3.range(9),
   // "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
   // "w_init_scale": [.1, .3, 1, 3, 10],
   // "train_size": [750, 1000, 1250, 1500, 1750],
@@ -72,19 +69,54 @@ d3.loadData(`data__hypers_${visState.sweepSlug}.csv`, 'hyper_shared.json', (err,
 
   if (!window.visState.hovered) visState.hovered = data.models[0]
 
+  d3.select('.parity-sweep').html(`
+    <div class='left-col'>
+      <div class='model-grid'></div>
+      <br>
+      <div class='legend'></div>
+      <div class='sliders-container'></div>
+    </div>
+
+    <div class='right-col'>
+      <div class='line-charts'></div>
+      <div class='line-chart-hyper'></div>
+    </div>
+  `)
+
   window.renderAll = initRenderAll()
   drawSliders()
   drawLineCharts()
+  drawLegend()
 
   d3.select('.model-grid').html('')
     .appendMany('div.lr-row', d3.nestBy(_.sortBy(data.models, d => +d[visState.key_row]), d => d[visState.key_row]))
-    .appendMany('div.chart-div', d => d3.nestBy(_.sortBy(d, d => +d[visState.key_col]), d => d[visState.key_col]))
+    .appendMany('div.chart-div', d => d3.nestBy(_.sortBy(d, d => -+d[visState.key_col]), d => d[visState.key_col]))
     .each(drawGridChart)
 
   renderAll.color()
   renderAll.hover()
 })
 
+
+function drawLegend(){
+  var items = [
+    {text: 'High Test Loss', minTrainLoss: 100},
+    {text: 'High Train Loss', minEvalLoss: 100},
+    {text: 'Train/Test Drop Together', maxRatio: 0},
+    {text: 'Grokking', maxRatio: 1e10},
+  ]
+  
+  var itemSel = d3.select('.legend').html('')
+    .append('div')//.st({width: '100%'})
+    .st({display: 'inline-block', marginBottom: 10})
+    .appendMany('div', items)
+    .st({marginBottom: 10, textAlign: 'left', fontSize: 12})
+
+  itemSel.append('div')
+    .st({outline: '1px solid #000', width: 10, height: 10, borderRadius: 10, background: circleFillFn, marginRight: 3})
+
+  itemSel.append('div').text(d => d.text).st({marginRight: 15})
+}
 
 function drawSliders(){
   var sel = d3.select('.sliders-container').html('')
@@ -110,11 +142,14 @@ function drawSliders(){
 
   sliders.forEach(slider => {
     slider.sel.html(`
-      <div>
-        ${slider.label} <val></val>
+      <div class='axis-label'>
+        ${slider.label} 
       </div>
       <div>
         <input type=range min=0 max=1 step=.0001 value=${slider.scale.invert(slider.getVal())}></input>
+      </div>
+      <div>
+       <val class='axis-label'></val>
       </div>
     `)
     slider.sel.select('input[type="range"]')
@@ -130,7 +165,7 @@ function drawSliders(){
 }
 
 function drawLineCharts(){
-  d3.select('.line-charts').html('').st({width: 380, margin: '0px auto'})
+  d3.select('.line-charts').html('').st({width: 330, margin: '0px auto'})
     .appendMany('div', d3.range(9)).st({display: 'inline-block'})
     .each(drawChart)
 
@@ -148,19 +183,24 @@ function drawLineCharts(){
     var c = d3.conventions({
       sel: d3.select(this).append('div'),
       width: 80,
-      height: 80,
+      height: 40,
+      margin: {right: 0, top: 20, bottom: 10}
     })
 
     c.x.domain([0, data.sharedHyper.max_steps])
-    c.y = d3.scaleLog().domain([1e1, 1e-7]).range([0, c.height])
+    c.y = d3.scaleLog().domain([1e0, 1e-8]).range([0, c.height])
 
     c.xAxis.ticks(3).tickFormat(d => d/1000 + 'k')
-    c.yAxis = d3.axisLeft(c.y).ticks(4)
+    c.yAxis = d3.axisLeft(c.y).ticks(6)
 
     d3.drawAxis(c)
     util.ggPlot(c)
+    c.svg.selectAll('.y text').st({opacity: d => +[1, 1e-4, 1e-8].includes(d)})
+    c.svg.selectAll('.x text').at({y: 4})
 
-    util.addAxisLabel(c, 'steps', 'loss', 25, -24)
+    util.addAxisLabel(c, 'steps', 'loss', 20, -24)
+    if (chartIndex % 3) c.svg.selectAll('.y text').remove()
+
 
     var line = d3.line().x(d => c.x(d.step))
 
@@ -186,13 +226,14 @@ function drawLineCharts(){
   }
 }
 
-function drawGridChart(models){
+function drawGridChart(models, i){
   var sel = d3.select(this)
 
   var c = d3.conventions({
     sel: sel.append('div'),
-    width: 100,
-    height: 100
+    width: 90,
+    height: 90,
+    margin: {left: 10, right: 0}
   })
 
   c.x = d3.scaleBand().range([0, c.width]) .domain(hyper_sweep[visState.key_x])
@@ -209,18 +250,21 @@ function drawGridChart(models){
   c.svg.selectAll('.y text').at({x: 0})
   c.svg.selectAll('.x text').at({y: 2})
   util.addAxisLabel(c, visState.key_x, visState.key_y, 18, -24)
+  if (i) c.svg.select('.y').remove()
 
   // c.svg.append('text.axis-label').text('e: ' + models[0][visState.key_row])
   //   .translate([0, -2])
 
-  c.svg.append('text.axis-label').text(visState.key_col + ': ' + models[0][visState.key_col])
-    .translate([c.width, -2])
-    .at({textAnchor: 'end'})
+  c.svg.append('text.axis-label')
+    .text(visState.key_col.replace('weight_decay', 'Weight Decay') + ': ' + d3.format('.2f')(models[0][visState.key_col]))
+    .translate([c.width/2, -2])
+    .at({textAnchor: 'middle'}).st({fontSize: 10})
 
+  var diam = 5
   var circleSel = c.svg.appendMany('circle', models)
-    .at({r: 2.5, stroke: '#333', cx: d => c.x(d[visState.key_x]), cy: d => c.y(d[visState.key_y])})
+    .at({r: diam/2, stroke: '#333', cx: d => c.x(d[visState.key_x]), cy: d => c.y(d[visState.key_y])})
     .call(d3.attachTooltip)
-    .translate(d => [5*Math.floor(d.seed/3) + 5, 5*(d.seed % 3) + 5])
+    .translate(d => [diam*Math.floor(d.seed/3) + diam, diam*(d.seed % 3) + diam])
     .on('mouseover', d => {
       visState.hovered = d
 
@@ -246,7 +290,7 @@ function isHoveredFn(d){
 function circleFillFn(d){
   if (d.minTrainLoss > visState.minEvalLoss) return '#aaa'
   if (d.minEvalLoss > visState.minEvalLoss) return '#fff'
-  if (d.maxRatio > visState.maxRatio) return 'green'
+  if (d.maxRatio < visState.maxRatio) return '#faec84'
 
-  return '#faec84'
+  return 'green'
 }

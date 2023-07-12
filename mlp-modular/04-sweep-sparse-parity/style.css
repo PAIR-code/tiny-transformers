@@ -13,8 +13,12 @@ p{
 .left-col, .right-col{
   display: inline-block;
   vertical-align: top;
-  width: 100%;
   text-align: center;
+}
+
+.left-col{
+  margin-right: 30px;
+  width: 530px;
 }
 
 svg{
@@ -71,12 +75,16 @@ circle.is-hovered{
   margin-bottom: 20px;
 }
 .slider{
-  width: 300px;
+  width: 200px;
   display: inline-block;
 }
 .slider > *{
   display: block;
   text-align: center;
+}
+
+.legend div{
+  display: inline-block;
 }
 
 
