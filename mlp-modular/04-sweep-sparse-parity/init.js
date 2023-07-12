@@ -17,6 +17,7 @@ window.visState = window.visState || {
   maxRatio: 10000000,
   minEvalLoss: .00001,
   sweepSlug: 'xm_gpu_sparse_parity_v2',
+  sweepSlug: 'sparse_parity_v3',
 
   key_row: '',
   key_col: 'weight_decay',

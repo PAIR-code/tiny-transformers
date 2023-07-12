@@ -17,7 +17,8 @@ var {_, cheerio, d3, jp, fs, glob, io, queue, request} = require('scrape-stl')
 var npyjs = require('fix-esm').require('npyjs').default
 
 var sweeps = [
-  'xm_gpu_sparse_parity_v2',
+  // 'xm_gpu_sparse_parity_v2',
+  'sparse_parity_v3',
 ]
 
 sweeps.forEach(sweep => {
