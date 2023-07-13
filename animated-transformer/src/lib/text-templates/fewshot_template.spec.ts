@@ -134,8 +134,8 @@ If the review is ok, the evaluation should just be "ok".
 
 ${namedVar('fewShotCriticExamples')}
 
-`.concat(movieRecTempl).concat(template`
-Evaluation: "`);
+${movieRecTempl}
+Evaluation: "`;
 
     const criticWithConstitutionAndExamples = criticTempl.substs({
       Constitution: criteriaTempl.escaped,
