@@ -17,39 +17,49 @@ window.visState = window.visStatex || {
   maxRatio: 50000,
   minEvalLoss: .00001,
 
-  sweepSlug: 'xm_gpu_sparse_parity_v2',
-  sweepSlug: 'sparse_parity_v3',
-  sweepSlug: 'sparse_parity_v4',
   key_row: '',
   key_col: 'weight_decay',
   key_x: 'hidden_size',
   key_y: 'train_size',
 
-
-  // sweepSlug: 'sparse_parity_w_init',
-  // key_row: '',
-  // key_col: 'weight_decay',
-  // key_x: 'w_init_scale',
-  // key_y: 'train_size',
+  sweepSlug: 'xm_gpu_sparse_parity_v2',
+  sweepSlug: 'sparse_parity_w_init',
+  sweepSlug: 'sparse_parity_tiny_model',
+  // sweepSlug: 'sparse_parity_v4',
 }
 
 
-window.hyper_sweep = {
-  "seed": d3.range(9),
-  "weight_decay": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
-  "hidden_size": [8, 16, 32, 64, 128],
-  "train_size": [250, 500, 1000, 1500, 2000],
+if (visState.sweepSlug == 'xm_gpu_sparse_parity_v2'){
+  window.hyper_sweep = {
+    "seed": d3.range(9),
+    "weight_decay": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
+    "hidden_size": [8, 16, 32, 64, 128],
+    "train_size": [250, 500, 1000, 1500, 2000],
+  }
+} else if (visState.sweepSlug == 'sparse_parity_w_init'){
+  visState.key_x = 'w_init_scale'
+  window.hyper_sweep = {
+    "seed": d3.range(9),
+    "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
+    "w_init_scale": [.1, .3, 1, 3, 10],
+    "train_size": [750, 1000, 1250, 1500, 1750],
+  }
+} else if (visState.sweepSlug == 'sparse_parity_tiny_model'){
+  window.hyper_sweep = {
+    "seed": d3.range(9),
+    "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0].reverse(),
+    "hidden_size": [4, 8, 12, 16, 20],
+    "train_size": [750, 1000, 1250, 1500, 1750],
+  }
+} else {
+  window.hyper_sweep = {
+    "seed": d3.range(9),
+    "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0].reverse(),
+    "hidden_size": [16, 32, 64, 128, 258],
+    "train_size": [750, 1000, 1250, 1500, 1750],
+  }
+} 
 
-  "seed": d3.range(9),
-  "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0].reverse(),
-  "hidden_size": [16, 32, 64, 128, 258],
-  "train_size": [750, 1000, 1250, 1500, 1750],
-
-  // "seed": d3.range(9),
-  // "weight_decay": [1e-2, 3e-2, 1e-1, 3e-1, 1e-0],
-  // "w_init_scale": [.1, .3, 1, 3, 10],
-  // "train_size": [750, 1000, 1250, 1500, 1750],
-}
 
 window.initRenderAll = function(){
   var rv = {colorFns: [], hoverFns: []}

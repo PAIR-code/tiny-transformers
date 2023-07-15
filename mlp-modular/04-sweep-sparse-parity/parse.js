@@ -19,6 +19,7 @@ var sweeps = [
   // 'xm_gpu_sparse_parity_v2',
   // 'sparse_parity_v3',
   'sparse_parity_v4',
+  'sparse_parity_tiny_model',
   // 'sparse_parity_w_init',
 ]
 
