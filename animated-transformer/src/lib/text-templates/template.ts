@@ -58,6 +58,9 @@ export function namedVar<N extends string>(name: N): NamedVar<N> {
 }
 
 type NameToVarMap<Ns extends string> = { [Key in Ns]: TemplVar<Ns, Key> };
+type SpecificName<Ns extends string> = string extends Ns ? never : Ns;
+type VarNames<Ns extends string> = NamedVar<SpecificName<Ns>>;
+
 
 // Ns = All variable names in the template.
 // N = This variable name.
@@ -199,11 +202,16 @@ export class Template<Ns extends string> {
   //   return newTempl;
   // };
 
-  // RODO: can we make replacenments into templates?
+  // TODO: can we make replacenments into templates?
+  //
+  // declare substs<S extends Ns, N2s extends string>(
+  //   replacements: { [Key in S]: string | NamedVar<N2s> }
+  // ): Template<Exclude<Ns, S> | N2s>;
+
   substs<S extends Ns, N2s extends string>(
     replacements: { [Key in S]: string | NamedVar<N2s> }
-  ): Template<Exclude<Ns, S> | N2s> {
-    type Return = Template<Exclude<Ns, S> | N2s>
+  ): Template<Exclude<Ns, keyof (typeof replacements)> | (string extends N2s ? never : N2s)> {
+    type Return = Template<Exclude<Ns, S> | (string extends N2s ? never : N2s)>
     let newTempl = this as unknown as Return;
     for (const k of (Object.keys(replacements) as S[])) {
       const r = replacements[k]
@@ -212,7 +220,7 @@ export class Template<Ns extends string> {
           .substStr(r) as Return;
       } else {
         newTempl = (newTempl as unknown as Template<Ns>).vars[k]
-          .unsafeRenameVar(r.name);
+          .unsafeRenameVar(r.name) as Return;
       }
     }
     return newTempl;
@@ -236,25 +244,53 @@ export class Template<Ns extends string> {
   // }
 }
 
-export function template<Hs extends string>(
-  strings: TemplateStringsArray, ...args: (NamedVar<Hs> | Template<Hs> | string)[]
-): Template<Hs> {
 
-  const varSet = new Set<string>;
+// type ArrayElementType<T> = T extends (infer Item)[] ? Item : T
+
+// (NamedVar<SpecificName<Hs>> | Template<string> | string)[]
+
+// const TemplateArgument = NamedVar<> | Template<infer Hs> | string
+
+type TemplateArg = NamedVar<string> | Template<string> | string
+
+type TemplateArgName<T> = T extends (NamedVar<infer Hs> | Template<infer Hs> | string) ? Hs : never;
+
+// type TemplateArgNames<T> = T extends (NamedVar<infer Hs> | Template<infer Hs> | string)[] ? Hs : never;
+
+
+// const fruits = ['apple', 'pera', 'sandia'] as const;
+// type Fruits = typeof fruits[number];
+
+// const l = [namedVar('a'), 'b', 'c'] as const;
+
+// type T = typeof l[number];
+
+
+export function template<
+  // Hs extends string
+  Args extends (NamedVar<any> | Template<any> | string)[]
+>(
+  strings: TemplateStringsArray,
+  // ...args: TemplateArg[]
+  ...args: Args
+  // (NamedVar<Hs> | Template<Hs> | string)[]
+): Template<TemplateArgName<typeof args[number]>> {
+  const varSet = new Set<TemplateArgName<typeof args[number]>>;
   args.forEach(
     a => {
       if (a instanceof String || typeof (a) === 'string') {
         return;
       }
       if (a instanceof Template) {
-        a.varList().forEach(v => varSet.add(v.name));
+        a.varList().forEach(v => varSet.add(
+          v.name as TemplateArgName<typeof args[number]>));
       }
       // TODO: support raw strings?
       // else if (typeof a === 'string') {
       //   varSet.add(a)
       // }
-      else {
-        varSet.add(a.name);
+      else if (a instanceof NamedVar) {
+        varSet.add(a.name as TemplateArgName<typeof args[number]>);
       }
     });
 
@@ -267,8 +303,9 @@ export function template<Hs extends string>(
       return escapeStr(s) + (
         a instanceof Template ? a.escaped
           : (a instanceof String || typeof (a) === 'string') ? a
-            : a.literal);
+            : (a as NamedVar<string>).literal);
     }).join(''),
-    [...varSet].map(n => namedVar(n as Hs)));
+    [...varSet].map(n => namedVar(n))
+  );
 }
 

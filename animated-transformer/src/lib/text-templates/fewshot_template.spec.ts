@@ -123,8 +123,7 @@ Evaluation: "{{evaluation}}"`);
       movieRecEvalTempl, '\n\n');
 
     // ----------------------------------------------------------------------------
-    // You might wonder by not include the template directly in the criticTempl
-    // string... sadly I think it's a TS bug.
+    // Tenplates can contain other templates inline also.
     const criticTempl = template
       `Given the following criteria for movie recommendations:
 ${namedVar('Constitution')}
@@ -134,8 +133,8 @@ If the review is ok, the evaluation should just be "ok".
 
 ${namedVar('fewShotCriticExamples')}
 
-`.concat(movieRecTempl).concat(template`
-Evaluation: "`);
+${movieRecTempl}
+Evaluation: "`;
 
     const criticWithConstitutionAndExamples = criticTempl.substs({
       Constitution: criteriaTempl.escaped,
