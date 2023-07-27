@@ -13,11 +13,31 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 /*============================================================================*/
 /*
-Note: the approach taken in this codebase id to treat templates as sets (so you
-can have multiple instances of a variable and not think about it). It is
-probably quite reasonable to think of templates as a list type of strings where
-each string is a variable name. But then you need to do list motifications in
-your types, which is not well supported by typescript.
+An implementation of string-templates in TypeScript. The approach is to create a
+Template clas which has the template types (Template<S>) parameterized by a set
+of string literal types (S). Each string literal in S is the name of a variable
+in the template. The number of instances of a variable in a template does not
+change the type, but the names of variables do.
+
+Various nice compositional utilities are then provided, e.g. substitution,
+string-interpretation with variables and even templates.
+
+To see how this can be used, see the test files (.spec.ts), and specifically the
+fewshot_template.spec.ts for some neat applications.
+
+One quirk of this is that when a template has no variables (it's just a literal
+string), its type is `Template<never>`.
+
+
+Other notes:
+
+TO CONSIDER: provide an "noIdent" utility for templates to be more readable in
+code blocks (e.g. s/\n\s+/\n/g). Maybe something fancy to allow \n. to be used
+for real indent, but the "." gets ignored.
+
+It is probably also quite reasonable to think of templates as a list-type of
+strings where each string is a variable name. But then you need to do list
+motifications in your types, which is not well supported by typescript.
 
 Even set operations are not that well supported. e.g. we can't check if a string
 overlaps in two types and produce a type error when it happens. One challenge
@@ -31,8 +51,10 @@ wonderful. See ...
 
 TODO: verify list manipulations are not well supported by TypeScript typing.
 
-TODO: provide an "noIdent" utility for templates to be more readable in code
-blocks (e.g. s/\n\s+/\n/g).
+TODO: see if there is a different base-type for empty vars that can be used. I
+spent a while looking at this, and I think never is probably the only one that
+can be used.
+
 */
 
 import { RegExpVar, NamedVar } from './variable';
@@ -58,9 +80,8 @@ export function namedVar<N extends string>(name: N): NamedVar<N> {
 }
 
 type NameToVarMap<Ns extends string> = { [Key in Ns]: TemplVar<Ns, Key> };
-type SpecificName<Ns extends string> = string extends Ns ? never : Ns;
-type VarNames<Ns extends string> = NamedVar<SpecificName<Ns>>;
-
+// type SpecificName<Ns extends string> = string extends Ns ? never : Ns;
+// type VarNames<Ns extends string> = NamedVar<SpecificName<Ns>>;
 
 // Ns = All variable names in the template.
 // N = This variable name.

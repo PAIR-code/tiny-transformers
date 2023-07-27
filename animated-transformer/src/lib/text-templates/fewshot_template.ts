@@ -12,6 +12,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+/*
+A few shot template class. This allows separating the template from the list of
+values that get subsituted int it.
+
+The implementation is very simple: few shot templates are treated as templates
+concatendated by a join string.
+
+For example:
+
+const nameDescriptionTempl = new FewShotTempl(template
+  `${namedVar('n')}, can be described in detail by: ${namedVar('d')}`,
+  '\n');
+
+See the test file (.spec) for more detailed examples.
+*/
 
 import { flatten } from 'underscore';
 import { Template, escapeStr, template, namedVar, unEscapeStr } from './template';
