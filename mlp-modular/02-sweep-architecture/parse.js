@@ -19,8 +19,10 @@ var npyjs = require('fix-esm').require('npyjs').default
 var sweeps = [
   // 'xm_gpu_full_l2_architecture',
   // 'xm_gpu_full_l2_architecture_v2',
-  'xm_gpu_full_l1_architecture',
-  // 'AG_l2_sweep',
+  // 'xm_gpu_full_l1_architecture',
+  'xm_gpu_full_l2_architecture_v3',
+  'xm_gpu_full_l1_architecture_v4',
+  // 'AG_l2_sweep',///////////////////
   // 'AG_l1_sweep'
 ]
 
