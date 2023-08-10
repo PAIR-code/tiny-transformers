@@ -77,8 +77,8 @@ window.util = (function(){
       headers: {
         'Content-Type': 'application/json'
       },
-      mode: 'no-cors',
-      credentials: 'include',
+      // mode: 'no-cors',
+      // credentials: 'include',
     })
 
     if (res.status == 500){
