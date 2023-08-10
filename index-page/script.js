@@ -129,7 +129,12 @@ var topicP = {
     <br>
   `,
 
-  'mlp-modular': `Input two numbers and train a model to calculate their sum mod 113. Train on 30% of the possible pairs of inputs; "grokking" happens when training loss drops quickly and test loss only drops much later.`,
+  'mlp-modular': `
+    <b><a href='https://pair.withgoogle.com/explorables/grokking/'>pair.withgoogle.com/explorables/grokking/</a></b>
+    <br><br>
+
+    Input two numbers and train a model to calculate their sum mod 113. Train on 30% of the possible pairs of inputs; "grokking" happens when training loss drops quickly and test loss only drops much later.
+  `,
 
   'decision-boundary': `
     What's the simplest ICL task?
