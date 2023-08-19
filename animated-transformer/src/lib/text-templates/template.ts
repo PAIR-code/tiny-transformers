@@ -55,9 +55,13 @@ TODO: see if there is a different base-type for empty vars that can be used. I
 spent a while looking at this, and I think never is probably the only one that
 can be used.
 
+TODO: Move to using lists, where order is defined by first occurance. This
+allows parsing of outputs from an LLM to be well typed and know what variable
+will come next.
+
 */
 
-import { RegExpVar, NamedVar } from './variable';
+import { RegExpVar, NamedVar, SPLIT_REGEXP } from './variable';
 
 // ----------------------------------------------------------------------------
 // Escaping
@@ -75,7 +79,7 @@ export function unEscapeStr(s: string): string {
   return s.replaceAll('\\\\', '\\').replaceAll('\\{', '{');
 }
 
-export function namedVar<N extends string>(name: N): NamedVar<N> {
+export function nv<N extends string>(name: N): NamedVar<N> {
   return new RegExpVar(name);
 }
 
@@ -131,7 +135,7 @@ export class TemplVar<Ns extends string, N extends Ns> {
   unsafeRenameVar<N2 extends string>(
     newName: N2,
   ): Template<Exclude<Ns, N> | N2> {
-    const newVar = namedVar<N2>(newName);
+    const newVar = nv<N2>(newName);
     const newTemplate = this.rawVariable.subst(this.template.escaped, newVar.literal);
     const newVarList = (
       [...this.template.varList().filter(v => v.name !== this.name),
@@ -247,12 +251,29 @@ export class Template<Ns extends string> {
     return newTempl;
   };
 
-  // CONSIDER: Make conditional type that errors is there is overlap?
+  // CONSIDER: Make conditional type that errors is there is overlap on the
+  // variable names. Ideally this would be supported as a first class thing by
+  // TypeScript.
   concat<N2s extends string>(secondPart: Template<N2s>)
     : Template<Ns | N2s> {
     const vars = [...this.varList(), ...secondPart.varList()
     ] as NamedVar<Ns | N2s>[];
     return new Template(this.escaped.concat(secondPart.escaped), vars);
+  }
+
+  // Maybe templates should actually a list object of string-parts and
+  // variable parts... ?
+  *parts(): Generator<{ prefix: string; variable?: NamedVar<Ns> }, undefined, undefined> {
+    // const isVar = false;
+    const l = this.escaped.split(SPLIT_REGEXP);
+    console.log([...l]);
+    while (l.length > 0) {
+      // prefix is defined because l.length > 0
+      const prefix = unEscapeStr(l.shift()!);
+      const nextVarName = l.shift() as Ns;
+      yield { prefix, variable: nextVarName ? nv(nextVarName) : undefined }
+    }
+    return undefined;
   }
 
   // Can we define a generic subst? that takes a string or template replacement?
@@ -265,26 +286,9 @@ export class Template<Ns extends string> {
   // }
 }
 
-
-// type ArrayElementType<T> = T extends (infer Item)[] ? Item : T
-
-// (NamedVar<SpecificName<Hs>> | Template<string> | string)[]
-
-// const TemplateArgument = NamedVar<> | Template<infer Hs> | string
-
-type TemplateArg = NamedVar<string> | Template<string> | string
+// type TemplateArg = NamedVar<string> | Template<string> | string
 
 type TemplateArgName<T> = T extends (NamedVar<infer Hs> | Template<infer Hs> | string) ? Hs : never;
-
-// type TemplateArgNames<T> = T extends (NamedVar<infer Hs> | Template<infer Hs> | string)[] ? Hs : never;
-
-
-// const fruits = ['apple', 'pera', 'sandia'] as const;
-// type Fruits = typeof fruits[number];
-
-// const l = [namedVar('a'), 'b', 'c'] as const;
-
-// type T = typeof l[number];
 
 
 export function template<
@@ -326,7 +330,7 @@ export function template<
           : (a instanceof String || typeof (a) === 'string') ? a
             : (a as NamedVar<string>).literal);
     }).join(''),
-    [...varSet].map(n => namedVar(n))
+    [...varSet].map(n => nv(n))
   );
 }
 

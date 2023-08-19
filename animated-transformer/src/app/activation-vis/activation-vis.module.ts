@@ -47,10 +47,10 @@ import { ActivationManagerComponent } from './activation-manager/activation-mana
     AxisWrapperComponent,
     NanValidatorDirective,
     BoundedFloatValidatorDirective,
+    ActivationManagerDirective,
     CornerActivationComponent,
     NnActivationComponent,
     CircleActivationComponent,
-    ActivationManagerDirective,
     ActivationManagerComponent,
   ],
   imports: [

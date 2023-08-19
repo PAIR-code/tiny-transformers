@@ -36,6 +36,8 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
 import { NanValidatorDirective } from '../form-validators/nan-validator.directive'
 import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
+import { ActivationManagerDirective } from './activation-manager.directive';
+import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 
 describe('ActivationVisComponent', () => {
   let component: ActivationVisComponent;
@@ -65,6 +67,8 @@ describe('ActivationVisComponent', () => {
       declarations: [
         ActivationVisComponent,
         AxisWrapperComponent,
+        ActivationManagerDirective,
+        CornerActivationComponent,
         NanValidatorDirective,
         BoundedFloatValidatorDirective
       ]
@@ -74,6 +78,7 @@ describe('ActivationVisComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(ActivationVisComponent);
     component = fixture.componentInstance;
+
     fixture.detectChanges();
   });
 

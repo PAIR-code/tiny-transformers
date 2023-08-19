@@ -29,7 +29,7 @@ See the test file (.spec) for more detailed examples.
 */
 
 import { flatten } from 'underscore';
-import { Template, escapeStr, template, namedVar, unEscapeStr } from './template';
+import { Template, escapeStr, template, nv, unEscapeStr } from './template';
 import { NamedVar } from './variable';
 
 // For each example substitution, substitute it into the template, and join it

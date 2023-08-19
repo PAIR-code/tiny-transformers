@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { flatten } from 'underscore';
-import { Template, escapeStr, template, namedVar, unEscapeStr } from './template';
+import { Template, escapeStr, template, nv, unEscapeStr } from './template';
 import { NamedVar } from './variable';
 import { FewShotTempl } from './fewshot_template';
 
@@ -30,7 +30,7 @@ import { FewShotTempl } from './fewshot_template';
 // class entity.
 
 
-fdescribe('fewshot_template', () => {
+describe('fewshot_template', () => {
   beforeEach(() => {
   });
 
@@ -53,7 +53,7 @@ fdescribe('fewshot_template', () => {
       },
     ];
     const nCriteriaTempl = new FewShotTempl(template
-      `(${namedVar('number')}) ${namedVar('name')}: ${namedVar('description')}`,
+      `(${nv('number')}) ${nv('name')}: ${nv('description')}`,
       '\n');
     const numberedCriteriaPoints =
       criteriaPoints.map((e, i) => { return { ...e, number: `${i + 1}` } });
@@ -79,16 +79,16 @@ fdescribe('fewshot_template', () => {
     // joining, e.g. ": " always separates the property from the value, and
     // "\n" always separates different property-vcalue pairs.
     const nPropertyValuePerLineTempl = new FewShotTempl(template
-      `${namedVar('property')}: "${namedVar('value')}"`,
+      `${nv('property')}: "${nv('value')}"`,
       '\n');
     const movieAndRecList = [
       {
         property: 'Movie',
-        value: namedVar('movie'),
+        value: nv('movie'),
       },
       {
         property: 'Recommendation',
-        value: namedVar('recommendation'),
+        value: nv('recommendation'),
       }
     ];
     const movieRecTempl = nPropertyValuePerLineTempl.apply(movieAndRecList);
@@ -97,7 +97,7 @@ fdescribe('fewshot_template', () => {
         [...movieAndRecList,
         {
           property: 'Evaluation',
-          value: namedVar('evaluation'),
+          value: nv('evaluation'),
         }]);
 
     expect(movieRecEvalTempl.escaped).toEqual(
@@ -126,12 +126,12 @@ Evaluation: "{{evaluation}}"`);
     // Tenplates can contain other templates inline also.
     const criticTempl = template
       `Given the following criteria for movie recommendations:
-${namedVar('Constitution')}
+${nv('Constitution')}
 
 Evaluate the following movie recommendations.
 If the review is ok, the evaluation should just be "ok".
 
-${namedVar('fewShotCriticExamples')}
+${nv('fewShotCriticExamples')}
 
 ${movieRecTempl}
 Evaluation: "`;

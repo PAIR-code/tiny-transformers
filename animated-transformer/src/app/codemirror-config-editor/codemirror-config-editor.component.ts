@@ -19,14 +19,8 @@ import * as json5 from 'json5';
 import * as codemirror from 'codemirror';
 import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { lineNumbers } from "@codemirror/gutter"
-import { bracketMatching } from "@codemirror/matchbrackets"
 import { json as jsonlang } from "@codemirror/lang-json"
-import { oneDarkTheme } from "@codemirror/theme-one-dark"
 import { firstValueFrom, Observable, tap, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
-import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, skip, pairwise } from 'rxjs/operators';
-
 
 export interface ConfigUpdate<T> {
   json?: string;
@@ -109,6 +103,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
 
   ngOnInit() {
     const language = new Compartment();
+    console.log('this.editorState.create...')
     this.editorState = EditorState.create(
       {
         doc: this.lastValidConfig,

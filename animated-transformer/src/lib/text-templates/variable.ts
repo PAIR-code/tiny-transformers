@@ -49,11 +49,24 @@ export interface RegExpVarOptions {
   literal: string,
 }
 
-export class RegExpVar<H extends string> extends NamedVar<H> {
+// Example usage:
+//   const r = 'did you know that a {{foo}} is a {{bar}}.'.split(VAR_REGEXP);
+// r = ['did you know that a ', '{{foo}}', ' is a ', '{{bar}}', '.']
+// Property: every other value (the odd indexes) is a variable.
+// We could use `\\{\\{([^(\\}\\})]*)\\}\\}` as our regexp to also remove
+// variable marker parenthesis, but we don't do that because it's good to be
+// able to easily visually inspect what's what. Maybe we'll change it later.
+export const VAR_REGEXP_STR = `(\\{\\{[^(\\}\\})]*\\}\\})`;
+export const SPLIT_REGEXP_STR = `\\{\\{([^(\\}\\})]*)\\}\\}`;
+export const SPLIT_REGEXP = new RegExp(SPLIT_REGEXP_STR, 'g');
+export const VAR_REGEXP = new RegExp(VAR_REGEXP_STR, 'g');
+export const PREFIX_REGEXP = new RegExp(`$([^(\\{\\{)]*)`);
+
+export class RegExpVar<N extends string> extends NamedVar<N> {
   regexp: RegExp;
   literal: string;
 
-  constructor(name: H, options?: RegExpVarOptions) {
+  constructor(name: N, options?: RegExpVarOptions) {
     super(name);
     if (options) {
       this.regexp = options.regexp;
@@ -63,6 +76,10 @@ export class RegExpVar<H extends string> extends NamedVar<H> {
       this.literal = `{{${this.name}}}`;
     }
   }
+
+  // static splitAllVars(s: string): string[] {
+  //   return s.split(VAR_REGEXP);
+  // }
 
   public subst(s: string, value: string): string {
     return s.replace(this.regexp, value);

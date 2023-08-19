@@ -42,6 +42,10 @@ describe('CodemirrorConfigEditorComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodemirrorConfigEditorComponent);
     component = fixture.componentInstance;
+
+    component.whatIsBeingEditedName = '';
+    component.defaultConfig = '';
+    component.lastValidConfig = '';
     fixture.detectChanges();
   });
 

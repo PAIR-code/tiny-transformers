@@ -34,5 +34,15 @@ describe('named variables', () => {
     const s2 = thingVar.subst(`what is a ${thingVar}?`, 'bar');
     expect(s2).toEqual('what is a bar?');
   });
+
+  // Sadly there is no way to override loose equality for classes in JS.
+  // it('equals', () => {
+  //   // You can prompts quite vaturally, you define your variables, and then
+  //   // just use them in a string interpretation.
+  //   const thingVar = new RegExpVar('thing');
+  //   const thingVar2 = new RegExpVar('thing');
+  //   // Variables are first class properies, and you can do stuff with them.
+  //   expect(thingVar == thingVar2).toBeTruthy();
+  // });
 });
 

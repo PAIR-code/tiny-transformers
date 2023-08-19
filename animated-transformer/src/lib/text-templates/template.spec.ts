@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Template, escapeStr, template, namedVar, unEscapeStr } from './template';
+import { Template, escapeStr, template, nv, unEscapeStr } from './template';
 
 describe('template', () => {
   beforeEach(() => {
@@ -22,12 +22,12 @@ describe('template', () => {
   it('A mini walkthrough of why this is neat...', () => {
     // You can make temnplates quite naturally: you can define your variables,
     // and then just use them in a simple interpreted string.
-    const thingVar = namedVar('thing');
-    const thing2Var = namedVar('thing2')
+    const thingVar = nv('thing');
+    const thing2Var = nv('thing2')
     const whatIsAtoB = template`what is a ${thingVar} to ${thing2Var}?`;
 
     // You could also of course just inline define them...
-    template`what is a ${namedVar('thing')} to ${namedVar('thing2')}?`;
+    template`what is a ${nv('thing')} to ${nv('thing2')}?`;
 
     // Arguments can be auto-completed by IDE. e.g. the first you can reference
     // the variables form the 'vars' paramter of a template. e.g. this lets you
@@ -82,7 +82,7 @@ describe('template', () => {
     // You can also substitute variables for templates. New extra variables are
     // corrected added in the newly created template. (whatIsTabletoBigB has the
     // variable 'bigThing' and only that one)
-    const bigThingVar = namedVar('bigThing');
+    const bigThingVar = nv('bigThing');
     const big = template`big ${bigThingVar}`;
     const whatIsTabletoBigB =
       whatIsTabletoB.vars.thing2.substTempl(big);
@@ -100,7 +100,7 @@ describe('template', () => {
   });
 
   it('Replacing a var with a string', () => {
-    const thingVar = namedVar('thing');
+    const thingVar = nv('thing');
     const p = new Template(`what is a ${thingVar}?`,
       [thingVar]);
 
@@ -110,11 +110,11 @@ describe('template', () => {
   });
 
   it('Replacing a var with a template', () => {
-    const thingVar = namedVar('thing');
+    const thingVar = nv('thing');
     const p = new Template(`what is a ${thingVar}?`,
       [thingVar]);
 
-    const bigVar = namedVar('bigThingName')
+    const bigVar = nv('bigThingName')
     const p2 = new Template(`big ${bigVar}`, [bigVar]);
 
     const p3 = p.vars.thing.substTempl(p2);
@@ -124,12 +124,12 @@ describe('template', () => {
   });
 
   it('make a template with vars', () => {
-    const thingVar = namedVar('thing');
-    const thing2Var = namedVar('thing2')
+    const thingVar = nv('thing');
+    const thing2Var = nv('thing2')
     const p = template`what is a ${thingVar} to ${thing2Var}?`;
     console.log('p.template', p.escaped);
 
-    const bigThingVar = namedVar('bigThing')
+    const bigThingVar = nv('bigThing')
     const p2 = template`big ${bigThingVar}`;
 
     const p3 = p.vars.thing.substTempl(p2);
@@ -139,8 +139,8 @@ describe('template', () => {
   });
 
   it('templates substition by the variable parameter', () => {
-    const thingVar = namedVar('thing');
-    const thing2Var = namedVar('thing2')
+    const thingVar = nv('thing');
+    const thing2Var = nv('thing2')
     const p = template`what is a ${thingVar} to ${thing2Var}?`;
 
     // Cool thing about this: for the first argument, the variable, is
@@ -160,12 +160,37 @@ describe('template', () => {
     expect(unEscapeStr(s)).toEqual('blah \\ {{foo}}');
   });
 
+  it('parts', () => {
+    const t = template`what is an ${nv('x')} to a ${nv('y')} anyway?`;
+    const prefixes = [...t.parts()].map(x => x.prefix);
+    const varNames = [...t.parts()].map(x => x.variable ? x.variable.name : undefined);
+    expect(prefixes).toEqual(['what is an ', ' to a ', ' anyway?']);
+    expect(varNames).toEqual(['x', 'y', undefined]);
+
+    // More explicitly...
+    const parts = t.parts();
+    const part1 = parts.next();
+    expect(part1.value).toBeDefined();
+    expect(part1.value?.prefix).toEqual('what is an ');
+    expect(part1.value?.variable?.name).toEqual('x');
+    const part2 = parts.next();
+    expect(part2.value).toBeDefined();
+    expect(part2.value?.prefix).toEqual(' to a ');
+    expect(part2.value?.variable?.name).toEqual('y');
+    const part3 = parts.next();
+    expect(part3.value).toBeDefined();
+    expect(part3.value?.prefix).toEqual(' anyway?');
+    expect(part3.value?.variable).toEqual(undefined);
+    const part4 = parts.next();
+    expect(part4.done).toBe(true);
+  });
+
   it('TypeScript BUG: ', () => {
-    const thingVar = namedVar('thing');
-    const thing2Var = namedVar('thing2')
+    const thingVar = nv('thing');
+    const thing2Var = nv('thing2')
     const p = template`what is a ${thingVar} to ${thing2Var}?`;
 
-    const bigThingVar = namedVar('bigThing')
+    const bigThingVar = nv('bigThing')
     const p2 = template`big ${bigThingVar}`;
     const p4 = template`foo ${bigThingVar}, bar ${thingVar}, and ${thing2Var}`;
 
