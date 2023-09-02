@@ -83,6 +83,72 @@ export function nv<N extends string>(name: N): NamedVar<N> {
   return new RegExpVar(name);
 }
 
+
+export interface TemplatePart<Ns extends string> { variable: NamedVar<Ns>, postfix: string };
+
+export interface TemplateParts<Ns extends string> {
+  prefix: string;
+  variables: TemplatePart<Ns>[]
+};
+
+// Escape a string so that it can be matched literally in a regexp expression.
+// "$&" is the matched string. i.e. the character we need to escape.
+function escapeStringInMatch(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+// $$ is the results in writing out $, so $$$$ ends up as "$$" in the final
+// string. e.g. $ ==> $$
+function escapeStringInReplacement(s: string) {
+  return s.replace(/\$/g, '$$$$');
+}
+
+
+// Given a string, match the string against the template parts filling in the
+// variables, returning the variable substitutions.
+export function matchTemplate<Ns extends string>(
+  parts: TemplateParts<Ns>,
+  s: string
+): { [Key in Ns]: string | null } | null {
+  const substs = {} as { [Key in Ns]: string | null };
+  const prefixMatch = s.match(`^${escapeStringInMatch(parts.prefix)}`);
+  if (prefixMatch) {
+    s = s.slice(prefixMatch[0].length);
+  } else {
+    return null;
+  }
+
+  for (const v of parts.variables) {
+    if (s.length === 0) {
+      substs[v.variable.name] = null;
+    }
+    // If the var is the last thing in the template, then the whole response
+    // is the variable.
+    if (v.postfix === '') {
+      substs[v.variable.name] = s;
+      s = '';
+    }
+    // Otherwise match everything until the post-variable string.
+    const varAndPostfixRegexp = new RegExp(
+      `^(.*?)${escapeStringInMatch(v.postfix)}`);
+    const varAndPostfixMatch = s.match(varAndPostfixRegexp)
+    if (!varAndPostfixMatch) {
+      // if there is no match, then this variable has not been found, and even
+      // though the output is part of the varaible, we don't set the variable
+      // because it's not fully defined.
+      s = '';
+      if (Object.keys(substs).length === 0) {
+        return null;
+      }
+      substs[v.variable.name] = null;
+      continue;
+    }
+    substs[v.variable.name] = varAndPostfixMatch[1];
+    s = s.slice(varAndPostfixMatch[0].length);
+  }
+  return substs;
+}
+
+
 type NameToVarMap<Ns extends string> = { [Key in Ns]: TemplVar<Ns, Key> };
 // type SpecificName<Ns extends string> = string extends Ns ? never : Ns;
 // type VarNames<Ns extends string> = NamedVar<SpecificName<Ns>>;
@@ -261,19 +327,21 @@ export class Template<Ns extends string> {
     return new Template(this.escaped.concat(secondPart.escaped), vars);
   }
 
-  // Maybe templates should actually a list object of string-parts and
-  // variable parts... ?
-  *parts(): Generator<{ prefix: string; variable?: NamedVar<Ns> }, undefined, undefined> {
-    // const isVar = false;
+  // Maybe templates should actually be a list objects where the object is the string-part and
+  // the variable parts, and a final string... (or initial string)?
+  parts(): TemplateParts<Ns> {
     const l = this.escaped.split(SPLIT_REGEXP);
-    console.log([...l]);
+    // Note split using a regexp will result in parts.length > 0; so this is
+    // safe.
+    const prefix = unEscapeStr(l.shift()!);
+    const parts = [] as TemplatePart<Ns>[];
     while (l.length > 0) {
       // prefix is defined because l.length > 0
-      const prefix = unEscapeStr(l.shift()!);
-      const nextVarName = l.shift() as Ns;
-      yield { prefix, variable: nextVarName ? nv(nextVarName) : undefined }
+      const variable = nv(l.shift() as Ns);
+      const postfix = unEscapeStr(l.shift()!);
+      parts.push({ variable, postfix });
     }
-    return undefined;
+    return { prefix, variables: parts };
   }
 
   // Can we define a generic subst? that takes a string or template replacement?

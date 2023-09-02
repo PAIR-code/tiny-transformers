@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Template, escapeStr, template, nv, unEscapeStr } from './template';
+import { Template, escapeStr, template, nv, unEscapeStr, matchTemplate } from './template';
 
 describe('template', () => {
   beforeEach(() => {
@@ -147,7 +147,6 @@ describe('template', () => {
     // auto-completed, and errors are checked as you type.
     //  e.g. first argument is auto-completed to 'thing' or 'thing2'.
     const p2 = p.vars.thing.substStr('table');
-
   });
 
   it('escaping', () => {
@@ -162,28 +161,32 @@ describe('template', () => {
 
   it('parts', () => {
     const t = template`what is an ${nv('x')} to a ${nv('y')} anyway?`;
-    const prefixes = [...t.parts()].map(x => x.prefix);
-    const varNames = [...t.parts()].map(x => x.variable ? x.variable.name : undefined);
-    expect(prefixes).toEqual(['what is an ', ' to a ', ' anyway?']);
-    expect(varNames).toEqual(['x', 'y', undefined]);
-
-    // More explicitly...
     const parts = t.parts();
-    const part1 = parts.next();
-    expect(part1.value).toBeDefined();
-    expect(part1.value?.prefix).toEqual('what is an ');
-    expect(part1.value?.variable?.name).toEqual('x');
-    const part2 = parts.next();
-    expect(part2.value).toBeDefined();
-    expect(part2.value?.prefix).toEqual(' to a ');
-    expect(part2.value?.variable?.name).toEqual('y');
-    const part3 = parts.next();
-    expect(part3.value).toBeDefined();
-    expect(part3.value?.prefix).toEqual(' anyway?');
-    expect(part3.value?.variable).toEqual(undefined);
-    const part4 = parts.next();
-    expect(part4.done).toBe(true);
+    expect(parts.prefix).toEqual('what is an ');
+    expect(parts.variables.map(x => x.postfix)).toEqual([' to a ', ' anyway?']);
+    expect(parts.variables.map(x => x.variable.name)).toEqual(['x', 'y']);
   });
+
+  it('parts template matching', () => {
+    const t = template`what is an ${nv('x')} to a ${nv('y')} anyway?`;
+    const parts = t.parts();
+    const s1 = 'what is an bug to a fly anyway?';
+    const m1 = matchTemplate(parts, s1);
+    expect(m1).toEqual({ x: 'bug', y: 'fly' });
+
+    const s2 = 'what is an bug to a pants!';
+    const m2 = matchTemplate(parts, s2);
+    expect(m2).toEqual({ x: 'bug', y: null });
+
+    const s3 = 'bonkers!'
+    const m3 = matchTemplate(parts, s3);
+    expect(m3).toEqual(null);
+
+    const s4 = 'what is an bugfoo';
+    const m4 = matchTemplate(parts, s4);
+    expect(m4).toEqual(null);
+  });
+
 
   it('TypeScript BUG: ', () => {
     const thingVar = nv('thing');
