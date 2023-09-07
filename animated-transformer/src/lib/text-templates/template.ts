@@ -109,8 +109,8 @@ export function matchTemplate<Ns extends string>(
   parts: TemplateParts<Ns>,
   s: string,
   matchPrefix = true,
-): { [Key in Ns]: string | null } | null {
-  const substs = {} as { [Key in Ns]: string | null };
+): { [Key in Ns]: string } | null {
+  const substs = {} as { [Key in Ns]: string };
 
   if (matchPrefix) {
     const prefixMatch = s.match(`^${escapeStringInMatch(parts.prefix)}`);
@@ -123,7 +123,7 @@ export function matchTemplate<Ns extends string>(
 
   for (const v of parts.variables) {
     if (s.length === 0) {
-      substs[v.variable.name] = null;
+      substs[v.variable.name] = '';
     }
     // If the var is the last thing in the template, then the whole response
     // is the variable.
@@ -144,7 +144,7 @@ export function matchTemplate<Ns extends string>(
       if (Object.keys(substs).length === 0) {
         return null;
       }
-      substs[v.variable.name] = null;
+      substs[v.variable.name] = '';
       // Setting s = '' will make all future vars null.
       s = '';
     } else {

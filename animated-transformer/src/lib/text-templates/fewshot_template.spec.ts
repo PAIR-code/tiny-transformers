@@ -16,7 +16,7 @@ limitations under the License.
 import { flatten } from 'underscore';
 import { Template, escapeStr, template, nv, unEscapeStr } from './template';
 import { NamedVar } from './variable';
-import { FewShotTempl } from './fewshot_template';
+import { FewShotTemplate } from './fewshot_template';
 
 // // ----------------------------------------------------------------------------
 // const movieSuggestionPrompt: Template<never> = template``;
@@ -52,7 +52,7 @@ describe('fewshot_template', () => {
         description: 'not vague (i.e. not "an amazing movie.", "a classic.").'
       },
     ];
-    const nCriteriaTempl = new FewShotTempl(template
+    const nCriteriaTempl = new FewShotTemplate(template
       `(${nv('number')}) ${nv('name')}: ${nv('description')}`,
       '\n');
     const numberedCriteriaPoints =
@@ -78,7 +78,7 @@ describe('fewshot_template', () => {
     // The Motivation to do this is to make sure that you get consistent
     // joining, e.g. ": " always separates the property from the value, and
     // "\n" always separates different property-vcalue pairs.
-    const nPropertyValuePerLineTempl = new FewShotTempl(template
+    const nPropertyValuePerLineTempl = new FewShotTemplate(template
       `${nv('property')}: "${nv('value')}"`,
       '\n');
     const movieAndRecList = [
@@ -119,7 +119,7 @@ Evaluation: "{{evaluation}}"`);
       },
     ];
 
-    const nCriticExamplesTempl = new FewShotTempl(
+    const nCriticExamplesTempl = new FewShotTemplate(
       movieRecEvalTempl, '\n\n');
 
     // ----------------------------------------------------------------------------

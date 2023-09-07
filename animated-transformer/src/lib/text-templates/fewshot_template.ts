@@ -34,11 +34,11 @@ import { NamedVar } from './variable';
 
 // For each example substitution, substitute it into the template, and join it
 // all together with the joinStr, into one big new template.
-export function fewShotSubst<N extends string, N2s extends string>(
+export function fewShotSubst<N extends string, M extends N, N2s extends string>(
   templ: Template<N>,
-  examples: { [Key in N]: string | NamedVar<N2s> }[],
+  examples: { [Key in M]: string | NamedVar<N2s> }[],
   joinStr: string
-): Template<N2s> {
+): Template<Exclude<M, N> | N2s> {
   const vars = flatten(examples.map(e =>
     Object.values<string | NamedVar<N2s>>(e).filter(
       r => typeof r !== 'string'))) as NamedVar<N2s>[];
@@ -47,13 +47,19 @@ export function fewShotSubst<N extends string, N2s extends string>(
 }
 
 // A class representing a few shot template.
-export class FewShotTempl<Ns extends string> {
+export class FewShotTemplate<Ns extends string> {
   constructor(public template: Template<Ns>,
     public joinStr: string) { };
 
-  apply<VarNs extends string>(
-    examples: { [Key in Ns]: string | NamedVar<VarNs> }[]
-  ): Template<VarNs> {
+  apply<Ms extends Ns>(
+    examples: { [Key in Ms]: string }[]
+  ): Template<Exclude<Ms, Ns>>;
+  apply<Ms extends Ns, VarNs extends string>(
+    examples: { [Key in Ms]: string | NamedVar<VarNs> }[]
+  ): Template<Exclude<Ms, Ns> | VarNs>;
+  apply<Ms extends Ns, VarNs extends string>(
+    examples: { [Key in Ms]: string | NamedVar<VarNs> }[]
+  ): Template<Exclude<Ms, Ns> | VarNs> {
     return fewShotSubst(
       this.template, examples, this.joinStr);
   }

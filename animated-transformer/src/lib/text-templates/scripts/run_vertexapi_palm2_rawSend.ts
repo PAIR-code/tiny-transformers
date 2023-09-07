@@ -3,7 +3,7 @@
 Usage:
 
 CLOUD_PROJECT_ID="copy your cloud project id here"
-npx ts-node --esm ./run_test_vertexapi_palm2.ts \
+npx ts-node --esm ./run_vertexapi_palm2_rawSend.ts \
   --project=$CLOUD_PROJECT_ID \
   --accessToken=$(gcloud auth print-access-token)
 */

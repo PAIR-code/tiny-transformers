@@ -17,6 +17,8 @@ Google Cloud Vertex Palm2 API
 (same models as Google Generative AI Developer API but different API)
 */
 
+import { LLM, PredictResponse } from "./llm";
+
 export interface Palm2ApiParams {
   candidateCount: number, // 1 to 8
   maxOutputTokens: number, // 256, 1024
@@ -110,30 +112,73 @@ export async function sendPalm2Request(
   // .catch((err) => console.error(err));
 }
 
-/*
-instances: [
-  {
-    "content": "The fol"lowing are short movie summaries. They are specific, not generic (no movie is  just \\"a classic\\"), and they don\'t contain plot synopsis. They just describe my experience of the movie.
-
-movie: \'Fifth Element\'
-summary: [\'a joyous sci fi that emerses you in a colourful universe\', \'quirky upbeat action\']
-
-movie: \'Seven Samurai\'
-summary: [\'a black and white masterpiece of cinematography\', \'a slow, atmospheric, symbolic fight for all that is just\']
-
-movie: \'The Godfather\'
-summary: [\'"
-        }"
-],
-  "parameters": {
-  "candidateCount": 1,
-    "maxOutputTokens": 256,
-      "stopSequences": [
-        "\']"
-      ],
-        "temperature": 0.2,
-          "topP": 0.8,
-            "topK": 40
+interface Palm2ApiOptions {
+  modelId: string,
+  apiEndpoint: string,
+  requestParameters: Palm2ApiParams
 }
 
-*/
+export class VertexPalm2LLM implements LLM<Palm2ApiOptions> {
+  public name: string;
+  public defaultOptions: Palm2ApiOptions = {
+    modelId: 'text-bison',
+    apiEndpoint: 'us-central1-aiplatform.googleapis.com',
+    requestParameters: {
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      candidateCount: 4,
+      maxOutputTokens: 256,
+      stopSequences: [],
+    }
+  };
+
+  constructor(
+    public projectId: string,
+    public accessToken: string,
+  ) {
+    this.name = `VertexLLM:` + this.defaultOptions.modelId;
+  }
+
+  //
+  async predict(
+    query: string, params?: Palm2ApiOptions
+  ): Promise<PredictResponse> {
+
+    const apiParams = params ? params.requestParameters
+      : this.defaultOptions.requestParameters;
+    const apiRequest: Palm2ApiRequest = {
+      instances: [{ content: query }],
+      parameters: apiParams
+    }
+
+    const apiResponse = await sendPalm2Request(
+      this.projectId,
+      this.accessToken,
+      apiRequest,
+      this.defaultOptions.modelId,
+      this.defaultOptions.apiEndpoint);
+
+    // The API doesn't include the actual stop sequence that it found, so we
+    // can never know the true stop seqeunce, so we just pick the first one,
+    // and image it is that.
+    const imaginedPostfixStopSeq = apiParams.stopSequences.length > 0 ?
+      apiParams.stopSequences[0] : '';
+
+    // TODO: skip this and simplify?
+    const scoredCompletions = apiResponse.predictions.map(p => {
+      return {
+        query: query,
+        completion: p.content + imaginedPostfixStopSeq,
+        score: 1, // TODO: API doesn't provide this, so we fake it as always 1.
+      }
+    });
+
+    return { completions: scoredCompletions.map(c => c.completion) }
+  }
+
+  // TODO: The cloud API doesn't currently support scoring.
+  // async score(request: ScoreRequest): Promise<ScoreResponse> {
+  // }
+
+}

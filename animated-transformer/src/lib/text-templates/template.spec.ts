@@ -184,7 +184,7 @@ describe('template', () => {
 
     const s4 = 'what is an bugfoo';
     const m4 = matchTemplate(parts, s4);
-    expect(m4).toEqual({ x: 'bugfoo', y: null });
+    expect(m4).toEqual({ x: 'bugfoo', y: '' });
   });
 
 

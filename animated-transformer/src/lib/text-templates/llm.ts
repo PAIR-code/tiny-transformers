@@ -18,15 +18,8 @@ An class to wrap, and provide a common interface for LLM behaviour.
 
 import { Template, matchTemplate } from "./template";
 
-export interface PredictRequest {
-  query: string;
-}
-export interface QueryCompletion {
-  query: string;
-  completion: string;
-}
 export interface PredictResponse {
-  queryCompletions: QueryCompletion[];
+  completions: string[];
 }
 
 
@@ -44,11 +37,11 @@ export interface ScoreResponse {
 }
 
 
-export abstract class LLM {
+export abstract class LLM<Params extends {}> {
   public abstract name: string;
 
-  abstract predict(request: PredictRequest): Promise<PredictResponse>;
-  abstract score(request: ScoreRequest): Promise<ScoreResponse>;
+  abstract predict(prompt: string, params?: Params): Promise<PredictResponse>;
+  // abstract score(request: ScoreRequest): Promise<ScoreResponse>;
 }
 
 // A Fake LLM that uses a lookup table of queries to give responses.
@@ -56,20 +49,20 @@ export abstract class LLM {
 // completions.
 //
 // TODO: maybe good to provide a version that takes the same query and gives difference responses each time, e.g. using a random seed at constructor time.
-export class LookupTableFakeLLM {
+export class LookupTableFakeLLM implements LLM<{}> {
   public name: string = 'fake: in memory lookup table';
 
   constructor(public table: { [query: string]: ScoreResponse }) { }
 
-  async predict(request: PredictRequest): Promise<PredictResponse> {
-    const scoreResponse = this.table[request.query]
+  async predict(query: string): Promise<PredictResponse> {
+    const scoreResponse = this.table[query]
     if (scoreResponse) {
       const predictResponse: PredictResponse = {
-        queryCompletions: scoreResponse.scoredCompletions
+        completions: scoreResponse.scoredCompletions.map(c => c.completion)
       };
       return predictResponse;
     }
-    throw new Error(`No matching entry for query: ${request.query}`);
+    throw new Error(`No matching entry for query: ${query}`);
     // return { queryCompletions: [] }
   }
   async score(request: ScoreRequest): Promise<ScoreResponse> {
@@ -83,16 +76,16 @@ export class LookupTableFakeLLM {
 
 
 export async function fillTemplate<Ns extends string>(
-  llm: LLM, template: Template<Ns>
-): Promise<({ [Key in Ns]: string | null } | null)[]> {
-  const substsResponses: ({ [Key in Ns]: string | null } | null)[] = [];
+  llm: LLM<{}>, template: Template<Ns>
+): Promise<({ [Key in Ns]: string } | null)[]> {
+  const substsResponses: ({ [Key in Ns]: string } | null)[] = [];
   const parts = template.parts();
-  const responses = await llm.predict({ query: parts.prefix });
-  console.log('parts.prefix: ', parts.prefix);
-  for (const qcompletion of responses.queryCompletions) {
-    console.log('parts', parts);
-    console.log('qcompletion.completion', qcompletion.completion);
-    const match = matchTemplate(parts, qcompletion.completion, false);
+  const responses = await llm.predict(parts.prefix);
+  // console.log('parts.prefix: ', parts.prefix);
+  for (const completion of responses.completions) {
+    // console.log('parts', parts);
+    // console.log('qcompletion.completion', completion);
+    const match = matchTemplate(parts, completion, false);
     substsResponses.push(match);
   }
   return substsResponses;
