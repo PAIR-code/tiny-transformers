@@ -12,7 +12,7 @@ import { VertexPalm2LLM } from '../llm_vertexapi_palm2';
 import { FewShotTemplate } from '../fewshot_template';
 
 import * as yargs from 'yargs';
-import { nv, template } from '../template';
+import { Template, nv, stringifyTemplate, template } from '../template';
 import { fillTemplate } from '../llm';
 
 interface Params {
@@ -30,8 +30,9 @@ async function run(args: Params): Promise<void> {
       bullets.map(summaryPoint => { return { summaryPoint } })).escaped
   }
 
-  function prettyMovieRec(summaries: string): string {
-    const outputFormat = template`---------
+  function prepareMovieRec(summaries: string): Template<'index'> {
+    const outputFormat = template`
+---- ${nv('index')} ----
 I think you'll find the movie ${nv('movie')}:
 
 ${nv('bullets')}
@@ -40,7 +41,7 @@ Do you like my summary?`;
     return outputFormat.substs({
       movie: args.movie,
       bullets: prettyBullets(summaries.split(`', '`))
-    }).escaped
+    })
   }
 
   const t = template`
@@ -65,7 +66,9 @@ summary: ['${nv('summaries')}']`;
   console.log(`substs: ${JSON.stringify(substs, null, 2)}`);
 
   substs.filter(s => s !== null).forEach(
-    s => console.log(prettyMovieRec(s!.summaries))
+    (s, i) => console.log(
+      stringifyTemplate(
+        prepareMovieRec(s!.summaries).substs({ index: `${i}` })))
   );
 }
 

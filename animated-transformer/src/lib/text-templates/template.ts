@@ -409,3 +409,6 @@ export function template<
   );
 }
 
+export function stringifyTemplate(t: Template<never>) {
+  return unEscapeStr(t.escaped);
+}
