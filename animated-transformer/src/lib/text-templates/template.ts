@@ -107,14 +107,18 @@ function escapeStringInReplacement(s: string) {
 // variables, returning the variable substitutions.
 export function matchTemplate<Ns extends string>(
   parts: TemplateParts<Ns>,
-  s: string
+  s: string,
+  matchPrefix = true,
 ): { [Key in Ns]: string | null } | null {
   const substs = {} as { [Key in Ns]: string | null };
-  const prefixMatch = s.match(`^${escapeStringInMatch(parts.prefix)}`);
-  if (prefixMatch) {
-    s = s.slice(prefixMatch[0].length);
-  } else {
-    return null;
+
+  if (matchPrefix) {
+    const prefixMatch = s.match(`^${escapeStringInMatch(parts.prefix)}`);
+    if (prefixMatch) {
+      s = s.slice(prefixMatch[0].length);
+    } else {
+      return null;
+    }
   }
 
   for (const v of parts.variables) {
@@ -129,21 +133,24 @@ export function matchTemplate<Ns extends string>(
     }
     // Otherwise match everything until the post-variable string.
     const varAndPostfixRegexp = new RegExp(
-      `^(.*?)${escapeStringInMatch(v.postfix)}`);
+      `^(.+?)(${escapeStringInMatch(v.postfix)}|$)`);
     const varAndPostfixMatch = s.match(varAndPostfixRegexp)
     if (!varAndPostfixMatch) {
-      // if there is no match, then this variable has not been found, and even
-      // though the output is part of the varaible, we don't set the variable
-      // because it's not fully defined.
-      s = '';
+      // if there is no match, then this variable has not been found or is the
+      // empty string. We treat that as a failure to fill in the variable.
+      //
+      // If this was the first variable, then no varaibles have been found, and
+      // we can directly fail and say that no variable was matched.
       if (Object.keys(substs).length === 0) {
         return null;
       }
       substs[v.variable.name] = null;
-      continue;
+      // Setting s = '' will make all future vars null.
+      s = '';
+    } else {
+      substs[v.variable.name] = varAndPostfixMatch[1];
+      s = s.slice(varAndPostfixMatch[0].length);
     }
-    substs[v.variable.name] = varAndPostfixMatch[1];
-    s = s.slice(varAndPostfixMatch[0].length);
   }
   return substs;
 }

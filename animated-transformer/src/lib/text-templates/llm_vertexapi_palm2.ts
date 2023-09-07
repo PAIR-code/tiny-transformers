@@ -32,7 +32,30 @@ export interface Palm2ApiRequest {
 }
 export type Palm2RequestOptions = Omit<Partial<Palm2ApiRequest>, 'prompt'>;
 
-export interface Palm2Response { }
+export interface Palm2Response {
+  predictions:
+  {
+    content: string,
+    citationMetadata: {
+      citations: {}[]
+    },
+    safetyAttributes: {
+      blocked: boolean, categories: {}[], scores: {}[]
+    }
+  }[],
+  metadata: {
+    tokenMetadata: {
+      outputTokenCount: {
+        totalBillableCharacters: number,
+        totalTokens: number
+      },
+      inputTokenCount: {
+        totalBillableCharacters: number,
+        totalTokens: number
+      },
+    }
+  }
+}
 
 export function preparePalm2Request(text: string, options?: Palm2ApiParams): Palm2ApiRequest {
   return {

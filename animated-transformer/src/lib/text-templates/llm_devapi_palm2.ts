@@ -94,11 +94,11 @@ async function postDataToLLM(url = '', data: Palm2ApiRequest) {
 
 export async function sendPalm2Request(
   apiKey: string, // e.g. as copied from UI in makerSuite.google.com
-  modelName: string,  // e.g. 'models/text-bison-001';
-  req: Palm2ApiRequest
+  req: Palm2ApiRequest,
+  modelId = 'text-bison-001',  // e.g. 'models/text-bison-001';
 ): Promise<Palm2Response> {
   return postDataToLLM(
-    `https://generativelanguage.googleapis.com/v1beta2/${modelName}:generateText?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta2/models/${modelId}:generateText?key=${apiKey}`,
     req
   );
   // .then((data) => {

@@ -69,7 +69,8 @@ export class LookupTableFakeLLM {
       };
       return predictResponse;
     }
-    return { queryCompletions: [] }
+    throw new Error(`No matching entry for query: ${request.query}`);
+    // return { queryCompletions: [] }
   }
   async score(request: ScoreRequest): Promise<ScoreResponse> {
     const scoreResponse: ScoreResponse = this.table[request.query]
@@ -87,8 +88,12 @@ export async function fillTemplate<Ns extends string>(
   const substsResponses: ({ [Key in Ns]: string | null } | null)[] = [];
   const parts = template.parts();
   const responses = await llm.predict({ query: parts.prefix });
+  console.log('parts.prefix: ', parts.prefix);
   for (const qcompletion of responses.queryCompletions) {
-    substsResponses.push(matchTemplate(parts, qcompletion.completion));
+    console.log('parts', parts);
+    console.log('qcompletion.completion', qcompletion.completion);
+    const match = matchTemplate(parts, qcompletion.completion, false);
+    substsResponses.push(match);
   }
   return substsResponses;
 }
