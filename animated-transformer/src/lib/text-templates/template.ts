@@ -83,6 +83,11 @@ export function nv<N extends string>(name: N): NamedVar<N> {
   return new RegExpVar(name);
 }
 
+export interface Error_CannotStringifyTemplateWithVars<T extends string> {
+  _Error_CannotStringifyTemplateWithVars: T;
+};
+
+export type IfNeverElse<T, IfNeverT, ElseT> = [T] extends [never] ? IfNeverT : ElseT;
 
 export interface TemplatePart<Ns extends string> { variable: NamedVar<Ns>, postfix: string };
 
@@ -102,7 +107,7 @@ function escapeStringInReplacement(s: string) {
   return s.replace(/\$/g, '$$$$');
 }
 
-
+// ----------------------------------------------------------------------------
 // Given a string, match the string against the template parts filling in the
 // variables, returning the variable substitutions.
 export function matchTemplate<Ns extends string>(
@@ -160,6 +165,7 @@ type NameToVarMap<Ns extends string> = { [Key in Ns]: TemplVar<Ns, Key> };
 // type SpecificName<Ns extends string> = string extends Ns ? never : Ns;
 // type VarNames<Ns extends string> = NamedVar<SpecificName<Ns>>;
 
+// ----------------------------------------------------------------------------
 // Ns = All variable names in the template.
 // N = This variable name.
 export class TemplVar<Ns extends string, N extends Ns> {
@@ -225,6 +231,8 @@ export class ExtraVarError extends Error { }
 
 const VAR_REGEXP = /\{\{(?<name>[^(\}\})]*)\}\}/g;
 
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 export class Template<Ns extends string> {
   public vars: NameToVarMap<Ns>;
 
@@ -351,6 +359,10 @@ export class Template<Ns extends string> {
     return { prefix, variables: parts };
   }
 
+  stringify(): IfNeverElse<Ns, string, Error_CannotStringifyTemplateWithVars<Ns>> {
+    return unEscapeStr(this.escaped) as IfNeverElse<Ns, string, Error_CannotStringifyTemplateWithVars<Ns>>;
+  }
+
   // Can we define a generic subst? that takes a string or template replacement?
   // subst<N2s extends string, N extends Ns>(n: N, replacement: Templ<N2s> | string):
   //   Templ<Exclude<Ns, N> | N2s> {
@@ -361,11 +373,15 @@ export class Template<Ns extends string> {
   // }
 }
 
+
 // type TemplateArg = NamedVar<string> | Template<string> | string
 
 type TemplateArgName<T> = T extends (NamedVar<infer Hs> | Template<infer Hs> | string) ? Hs : never;
 
-
+/**
+ * Helper function to make templates. This is intended to be the main way
+ * templates are created.
+ */
 export function template<
   // Hs extends string
   Args extends (NamedVar<any> | Template<any> | string)[]
@@ -407,8 +423,4 @@ export function template<
     }).join(''),
     [...varSet].map(n => nv(n))
   );
-}
-
-export function stringifyTemplate(t: Template<never>) {
-  return unEscapeStr(t.escaped);
 }

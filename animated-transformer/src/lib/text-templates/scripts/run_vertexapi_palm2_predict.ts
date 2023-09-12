@@ -12,7 +12,7 @@ import { VertexPalm2LLM } from '../llm_vertexapi_palm2';
 import { FewShotTemplate } from '../fewshot_template';
 
 import * as yargs from 'yargs';
-import { Template, nv, stringifyTemplate, template } from '../template';
+import { nv, template } from '../template';
 import { fillTemplate } from '../llm';
 
 interface Params {
@@ -21,29 +21,29 @@ interface Params {
   movie: string,
 }
 
-async function run(args: Params): Promise<void> {
-
-  function prettyBullets(bullets: string[]): string {
-    const outputBullets = new FewShotTemplate(
-      template`* ${nv('summaryPoint')}`, '\n\n');
-    return outputBullets.apply(
-      bullets.map(summaryPoint => { return { summaryPoint } })).escaped
-  }
-
-  function prepareMovieRec(summaries: string): Template<'index'> {
-    const outputFormat = template`
+function prettyMovieRec(index: number, movie: string, summaries: string): string {
+  const outputFormat = template`
 ---- ${nv('index')} ----
 I think you'll find the movie ${nv('movie')}:
 
 ${nv('bullets')}
 
 Do you like my summary?`;
-    return outputFormat.substs({
-      movie: args.movie,
-      bullets: prettyBullets(summaries.split(`', '`))
-    })
-  }
+  const splitSummaries = summaries.split(`', '`).map(
+    summaryPoint => { return { summaryPoint } })
+  const outputBullets = new FewShotTemplate(
+    template`* ${nv('summaryPoint')}`, '\n\n');
+  const bullets = outputBullets.apply(splitSummaries).stringify();
+  // Notice the nice type error is I try and and stringify, but forgot to
+  // fill in the template...
+  //   Type 'Error_CannotStringifyTemplateWithVars<"index">' is not assignable
+  //   to type 'string'.
+  // return outputFormat.substs({ movie, bullets }).stringify();
+  return outputFormat.substs({ movie, bullets, index: `${index}` }).stringify();
+}
 
+
+async function run(args: Params): Promise<void> {
   const t = template`
 The following are short movie summaries. They are specific, not generic (no movie is just "a classic"), and they don't contain plot synopsis. They just describe the experience of watching the movie. It tries to tell you the essence of the movie.
 
@@ -60,15 +60,14 @@ summary: ['${nv('summaries')}']`;
     args.project,
     args.accessToken,
   );
-  const substs = await fillTemplate(llm, t.substs({ movie: args.movie }));
+  const templateToFill = t.substs({ movie: args.movie });
+  const substs = await fillTemplate(llm, templateToFill);
   const badlyFormedResponses = substs.filter(s => s === null).length;
   console.log(`badlyFormedResponses count: ${badlyFormedResponses}`);
   console.log(`substs: ${JSON.stringify(substs, null, 2)}`);
 
   substs.filter(s => s !== null).forEach(
-    (s, i) => console.log(
-      stringifyTemplate(
-        prepareMovieRec(s!.summaries).substs({ index: `${i}` })))
+    (s, i) => console.log(prettyMovieRec(i, args.movie, s!.summaries))
   );
 }
 
