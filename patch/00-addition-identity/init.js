@@ -3,7 +3,7 @@ console.clear()
 window.init = async function(){
   var state = window.state = window.visState = window.visState || {
     slug: 'add-v0',
-    filter: {src: {}, dst: {}}
+    filter: {src: {}, dst: {}},
   }
 
   state.render = util.initRender(['filter', 'template', 'experiment'])
@@ -22,20 +22,27 @@ window.init = async function(){
   
   state.render.filter()
 
+  state.template = state.data.bySrc[0]
+  state.render.template()
+
 
   function fmtData(){
     var {data} = state
 
     data.flat = []
-    data.experiments.forEach(e => {
+    data.experiments.forEach((e, i) => {
+      e.src = e.prompt_template
+      e.dst = e.prompt_dst
+      e.experimentIndex = i
+
       e.ranks.forEach((rank, layer) => data.flat.push({e, rank, layer}))
     })
 
     data.byLayer = d3.nestBy(data.flat, d => d.layer)
 
     // filter data set up
-    data.bySrc = d3.nestBy(data.flat, d => d.e.prompt_template)
-    data.byDst = d3.nestBy(data.flat, d => d.e.prompt_dst).reverse()
+    data.bySrc = d3.nestBy(data.flat, d => d.e.src)
+    data.byDst = d3.nestBy(data.flat, d => d.e.dst).reverse()
     data.bySrc.hash = {}
     data.byDst.hash = {}
 
@@ -66,7 +73,7 @@ window.init = async function(){
 
     state.render.filter.fns.push(() => {
       data.flat.forEach(d => {
-        d.isFiltered = state.filter.src[d.e.prompt_template] || state.filter.dst[d.e.prompt_dst]
+        d.isFiltered = state.filter.src[d.e.src] || state.filter.dst[d.e.dst]
       })
 
       function updateRank0Percent(array){
@@ -77,6 +84,10 @@ window.init = async function(){
       data.byLayer.forEach(updateRank0Percent)
       data.bySrc.forEach(d => d.byLayer.forEach(updateRank0Percent))
       data.byDst.forEach(d => d.byLayer.forEach(updateRank0Percent))
+    })
+
+    state.render.template.fns.push(() => {
+
     })
 
   }

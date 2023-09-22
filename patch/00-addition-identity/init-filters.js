@@ -11,11 +11,14 @@ window.initFilters = function({state}){
 
   var groupSel = typeSel.appendMany('div.row', d => d.groups)
     .on('click', group => {
-      console.log(group.key)
       state.filter[group.type][group.key] = !state.filter[group.type][group.key]
 
       state.color[group.type][group.key] = state.filter[group.type][group.key] ? '#eee' : group.color
       state.render.filter()
+    })
+    .on('mouseover', group => {
+      state.template = group
+      state.render.template()
     })
 
   groupSel.append('div')

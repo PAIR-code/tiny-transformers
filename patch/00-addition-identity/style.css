@@ -48,6 +48,10 @@ svg{
   transform: translate(0px, -10px);
   font-weight: 500;
 }
+.chart-title-sm{
+  user-select: none;
+  transform: translate(0px, -5px);
+}
 
 
 .filters > div{
@@ -62,4 +66,8 @@ svg{
   color: #555;
   margin-left: 20px;
   user-select: none;
+}
+
+.template .chart{
+  display: inline-block;
 }
