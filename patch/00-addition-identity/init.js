@@ -1,36 +1,85 @@
 console.clear()
 
 window.init = async function(){
-  var state = window.visState = window.visState || {
+  var state = window.state = window.visState = window.visState || {
     slug: 'add-v0',
+    filter: {src: {}, dst: {}}
   }
-  state.render = util.initRender(['filter', 'template', 'experiment'])
 
-  // load data and format
-  var data = state.data = state.data || {
+  state.render = util.initRender(['filter', 'template', 'experiment'])
+  
+  state.color = {src: {}, dst: {}}
+
+  state.data = state.data || {
     experiments: await util.getFile('experiments.json'),
     vocabList: await util.getFile('vocab_list.json'),
   }
-  console.log(state.data.vocabList[10])
+  fmtData()
 
-  data.flat = []
-  data.experiments.forEach(e => {
-    e.ranks.forEach((rank, layer) => data.flat.push({e, rank, layer}))
-  })
 
-  data.byLayer = d3.nestBy(data.flat, d => d.layer)
-  data.byLayer.forEach(d => d.layer = d[0].layer)
-
-  state.render.filter.fns.push(() => {
-    data.byLayer.forEach(layer => {
-      layer.rank0Percent = d3.mean(layer, d => d.isFiltered ? NaN : d.rank == 0)
-    })
-  })
-
-  window.initOverallPercent({state, sel: d3.select('.overall-percent').html('')})
+  window.initOverallPercent({state})
+  window.initFilters({state})
   
-
   state.render.filter()
+
+
+  function fmtData(){
+    var {data} = state
+
+    data.flat = []
+    data.experiments.forEach(e => {
+      e.ranks.forEach((rank, layer) => data.flat.push({e, rank, layer}))
+    })
+
+    data.byLayer = d3.nestBy(data.flat, d => d.layer)
+
+    // filter data set up
+    data.bySrc = d3.nestBy(data.flat, d => d.e.prompt_template)
+    data.byDst = d3.nestBy(data.flat, d => d.e.prompt_dst).reverse()
+    data.bySrc.hash = {}
+    data.byDst.hash = {}
+
+    data.bySrc.forEach((d, i) => {
+      d.type = 'src'
+
+      d.color = state.color.src[d.key] = d3.schemeTableau10[i]
+      data.bySrc.hash[d.key] = d 
+
+      d.byLayer = d3.nestBy(d, d => d.layer)
+    })
+
+    data.byDst.forEach((d, i) => {
+      d.type = 'dst'
+
+      var templateIndex = ['4', 'h', 'c'].indexOf(d.key[0]) + 3
+      var base = d3.schemeTableau10[templateIndex]
+      d.color = state.color.dst[d.key] = d3.color(base).brighter((d.key.split(' ').length - 5)/6)
+
+      data.byDst.hash[d.key] = d 
+
+      d.byLayer = d3.nestBy(d, d => d.layer)
+    })
+    
+    state.color.srcOg = {...state.color.src}
+    state.color.dstOg = {...state.color.dst}
+
+
+    state.render.filter.fns.push(() => {
+      data.flat.forEach(d => {
+        d.isFiltered = state.filter.src[d.e.prompt_template] || state.filter.dst[d.e.prompt_dst]
+      })
+
+      function updateRank0Percent(array){
+        array.layer = array[0].layer
+        array.rank0Percent = d3.mean(array, d => d.isFiltered ? NaN : d.rank == 0)
+      }
+
+      data.byLayer.forEach(updateRank0Percent)
+      data.bySrc.forEach(d => d.byLayer.forEach(updateRank0Percent))
+      data.byDst.forEach(d => d.byLayer.forEach(updateRank0Percent))
+    })
+
+  }
 }
 
 

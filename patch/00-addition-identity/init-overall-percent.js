@@ -1,12 +1,14 @@
-window.initOverallPercent = function({state, sel}){
+window.initOverallPercent = function({state}){
   var c = d3.conventions({
-    sel: sel.append('div'),
+    sel: d3.select('.overall-percent').html(''),
     height: 100,
-    width: 300
+    width: 300,
+    margin: {bottom: 30},
   })
 
   c.svg.append('text.chart-title')
-    .text('Percent')
+    .text('How often does the destination patching argmax match the source argmax? ')
+    .text('Overall argmax matching frequency')
 
   c.x.domain([0, 26])
   c.yAxis.tickFormat(d3.format('.0%')).tickValues([0, .25, .5, .75, 1])
