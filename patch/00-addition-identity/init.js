@@ -2,6 +2,7 @@ window.init = async function(){
   var state = window.state = window.visState = window.visState || {
     slug: 'add-v0',
     filter: {src: {}, dst: {}},
+    experimentIndex: 100,
   }
 
   state.render = util.initRender(['filter', 'template', 'experiment'])
@@ -18,11 +19,13 @@ window.init = async function(){
   window.initOverallPercent({state})
   window.initFilters({state})
   window.initTemplate({state})
+  window.initLogits({state})
   
   state.render.filter()
 
   state.template = state.data.bySrc[0]
   state.render.template()
+  state.render.experiment()
 
   function fmtData(){
     var {data} = state
@@ -40,7 +43,7 @@ window.init = async function(){
 
     // filter data set up
     data.bySrc = d3.nestBy(data.flat, d => d.e.src)
-    data.byDst = d3.nestBy(data.flat, d => d.e.dst).reverse()
+    data.byDst = d3.nestBy(data.flat, d => d.e.dst)
     data.bySrc.hash = {}
     data.byDst.hash = {}
 

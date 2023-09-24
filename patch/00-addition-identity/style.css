@@ -68,7 +68,28 @@ svg{
   margin-left: 20px;
   user-select: none;
 }
+.filters .row.active > div{
+  text-decoration: underline;
+}
+
+.template{
+  width: 800px;
+}
 
 .template .chart{
+  display: inline-block;
+}
+
+.filters path.active{
+  stroke-width: 4px;
+}
+
+
+
+.logits{
+  width: 1000px;
+}
+
+.logits .chart{
   display: inline-block;
 }

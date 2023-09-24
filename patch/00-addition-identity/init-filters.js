@@ -31,6 +31,10 @@ window.initFilters = function({state}){
     groupSel.st({opacity: d => state.filter[d.type][d.key] ? .2 : 1})
   })
 
+  state.render.template.fns.push(() => {
+    groupSel.classed('active', d => d.key == state.template.key)
+  })
+
 
   function drawLineChart(typeObj){
     var isSrc = typeObj.groups[0].type == 'src'
@@ -63,6 +67,10 @@ window.initFilters = function({state}){
         .at({opacity: 0})
         .filter(d => !state.filter[d.type][d.key])
         .at({opacity: 1, d: d => line(d.byLayer)})
+    })
+
+    state.render.template.fns.push(() => {
+      lineSel.classed('active', d => d.key == state.template.key)
     })
   }
 }

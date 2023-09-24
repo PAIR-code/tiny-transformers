@@ -1,18 +1,13 @@
 console.clear()
 
-window.initTemplate = function({state}){
-  var sel = d3.select('.template').html('')
+window.initLogits = function({state}){
+  var sel = d3.select('.logits').html('')
 
-  state.render.template.fns.push(() => {
+  state.render.experiment.fns.push(async () => {
+    var experiment = state.data.experiments[state.experimentIndex]
+    console.log(state.experimentIndex, experiment)
 
-    var {type, key} = state.template
-    var otherType = type == 'src' ? 'dst' : 'src'
-    var experiments = state.data.experiments.filter(d => d[type] == key)
-    var byKey = d3.nestBy(experiments, d => d[otherType])
-
-    sel.html('').appendMany('div.chart', byKey)
-      .each(drawLineChart)
-      .st({opacity: d => state.filter[otherType][d.key] ? .1 : 1})
+    sel.html('').append('div.chart').text('sdf')
   })
 
   function drawLineChart(array, chartIndex){
