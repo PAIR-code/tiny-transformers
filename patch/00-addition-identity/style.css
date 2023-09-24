@@ -49,6 +49,7 @@ svg{
   font-weight: 500;
 }
 .chart-title-sm{
+  font-size: 12px;
   user-select: none;
   transform: translate(0px, -5px);
 }

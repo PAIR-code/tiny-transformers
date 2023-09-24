@@ -1,5 +1,4 @@
 window.initFilters = function({state}){
-
   var sel = d3.select('.filters').html('')
 
   var typeSel = sel.appendMany('div', [
@@ -35,7 +34,6 @@ window.initFilters = function({state}){
 
   function drawLineChart(typeObj){
     var isSrc = typeObj.groups[0].type == 'src'
-
 
     var c = d3.conventions({
       sel: d3.select(this).append('div'),

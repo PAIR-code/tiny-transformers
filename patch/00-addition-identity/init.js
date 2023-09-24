@@ -1,5 +1,3 @@
-console.clear()
-
 window.init = async function(){
   var state = window.state = window.visState = window.visState || {
     slug: 'add-v0',
@@ -19,12 +17,12 @@ window.init = async function(){
 
   window.initOverallPercent({state})
   window.initFilters({state})
+  window.initTemplate({state})
   
   state.render.filter()
 
   state.template = state.data.bySrc[0]
   state.render.template()
-
 
   function fmtData(){
     var {data} = state
