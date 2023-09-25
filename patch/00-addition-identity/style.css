@@ -6,6 +6,33 @@ body{
   min-height: 2000px;
 }
 
+
+.tooltip {
+  top: -1000px;
+  position: fixed;
+  padding: 10px;
+  background: rgba(255, 255, 255, .90);
+  border: 1px solid lightgray;
+  pointer-events: none;
+}
+.tooltip-hidden{
+  opacity: 0;
+  transition: all .3s;
+  transition-delay: .1s;
+}
+
+@media (max-width: 590px){
+  div.tooltip{
+    bottom: -1px;
+    width: calc(100%);
+    left: -1px !important;
+    right: -1px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+
+
 p{
   max-width: 600px;
   margin-bottom: 40px;
@@ -92,4 +119,22 @@ svg{
 
 .logits .chart{
   display: inline-block;
+}
+
+
+
+path.top-token.active{
+  stroke-width: 3px;
+}
+
+.row div{
+  user-select: none;
+}
+div.top-token.active > div{
+  text-decoration: underline;
+}
+
+.chart-container > div{
+  display: inline-block;
+  vertical-align: top;
 }

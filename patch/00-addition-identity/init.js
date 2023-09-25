@@ -3,6 +3,7 @@ window.init = async function(){
     slug: 'add-v0',
     filter: {src: {}, dst: {}},
     experimentIndex: 100,
+    topN: 4
   }
 
   state.render = util.initRender(['filter', 'template', 'experiment'])
@@ -98,3 +99,4 @@ window.init = async function(){
 
 window.init()
 
+d3.select('body').selectAppend('div.tooltip.tooltip-hidden')
