@@ -15,6 +15,10 @@ window.initTemplate = function({state}){
       .st({opacity: d => state.filter[otherType][d.key] ? .1 : 1})
   })
 
+  state.render.experiment.fns.push(async () => {
+    sel.selectAll('.experiment').classed('active', d => d.experimentIndex == state.experimentIndex)
+  })
+
   function drawLineChart(array, chartIndex){
 
     var c = d3.conventions({
@@ -38,8 +42,13 @@ window.initTemplate = function({state}){
       .x((d, i) => c.x(i))
       .y(d => c.y(d + 1))
 
-    c.svg.appendMany('path', array)
+    c.svg.appendMany('path.experiment', array)
       .at({d: d => line(d.ranks), stroke: '#000', strokeWidth: 1, fill: 'none', opacity: .2})
+      .on('mouseover', d => {
+        state.experimentIndex = d.experimentIndex
+
+        state.render.experiment()
+      })
   }
 }
 

@@ -1,9 +1,11 @@
 
 
 window.initLogits = function({state}){
-  var sel = d3.select('.logits').html('')
+  var sel = d3.select('.logits')
+  var chartSel
 
   state.render.experiment.fns.push(async () => {
+    // sel.html('')
     var experiment = state.data.experiments[state.experimentIndex]
     var topTokens = await calcTopTokens(experiment)
 
@@ -32,16 +34,14 @@ window.initLogits = function({state}){
     sel.append('div').text(experiment.prompt_src)
     sel.append('div').text(experiment.prompt_dst)
 
-    sel = sel.append('div.chart-container')
+    chartSel = sel.append('div.chart-container')
       .st({marginTop: 20})
 
-    drawLogitChart(topTokens)
     drawRankChart(topTokens)
+    drawLogitChart(topTokens)
     drawLegend(topTokens)
 
     setActiveTopToken(topTokens[0])
-
-
   })
 
   async function calcTopTokens(experiment){
@@ -79,7 +79,7 @@ window.initLogits = function({state}){
 
   function drawLogitChart(topTokens){
     var c = d3.conventions({
-      sel: sel.append('div'),
+      sel: chartSel.append('div'),
       height: 200,
       width: 300,
       margin: {right: 30, bottom: 30},
@@ -104,7 +104,7 @@ window.initLogits = function({state}){
 
   function drawRankChart(topTokens){
     var c = d3.conventions({
-      sel: sel.append('div'),
+      sel: chartSel.append('div'),
       height: 200,
       width: 300,
       margin: {right: 30, bottom: 30},
@@ -129,7 +129,7 @@ window.initLogits = function({state}){
   }
 
   function drawLegend(topTokens){
-    var groupSel = sel.append('div').appendMany('div.row.top-token', topTokens)
+    var groupSel = chartSel.append('div').appendMany('div.row.top-token', topTokens)
       .st({display: 'block'})
       .on('mouseover', setActiveTopToken)
 
