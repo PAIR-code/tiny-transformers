@@ -144,3 +144,8 @@ path.experiment.active{
   opacity: 1;
 /*  pointer-events: none;*/
 }
+
+
+.experiment-str.active{
+  outline: 1px solid #f0f !important;
+}

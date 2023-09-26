@@ -31,19 +31,19 @@ window.initLogits = function({state}){
         tmpTop.push(d)
       })
     })
-    topTokens = tmpTop
+    topTokens = tmpTop.reverse()
 
     sel.html('')
     sel.append('div').text(experiment.prompt_src)
     sel.append('div').text(experiment.prompt_dst)
 
     chartSel = sel.append('div.chart-container')
-      .st({marginTop: 20})
+      .st({marginTop: 20, minHeight: 400})
 
     drawRankChart(topTokens)
     drawLogitChart(topTokens)
     drawPercentChart(topTokens)
-    drawLegend(topTokens)
+    drawLegend(topTokens.slice().reverse())
 
     drawToptokens(experiment)
 
@@ -121,18 +121,37 @@ window.initLogits = function({state}){
     var matches = state.data.experiments
       .filter(d => d.src == experiment.src && d.dst == experiment.dst)
     var experimentSel = sel.append('div')
-      .appendMany('div', matches)
-      .st({display: 'inline-block', width: 120})
-      .text(d => d.num_inputs.join(' + ') + ' ' + d.argmax_str.replaceAll('\n', '\\n'))
+      .st({marginTop: 20})
+      .appendMany('div.experiment-str', matches)
+      .st({display: 'inline-block', width: 80, marginRight: 5, marginBottom: 5, padding: 2, fontSize: 12, cursor: 'pointer', outline: '1px solid #ddd'})
+      .on('click', d => {
+        state.experimentIndex = d.experimentIndex
+
+        state.render.experiment()
+      })
+      .classed('active', d => state.experimentIndex == d.experimentIndex)
+
+    experimentSel.append('div')
+      .text(d => d.num_inputs.map(d3.format('02')).join(' + '))
+      .st({width: 60, color: '#999', display: 'inline-block'})
+
+    experimentSel
+      .append('div')
+      .st({display: 'inline-block', textAlign: 'right', width: 20})
+      .text(d => d.argmax_str.replaceAll('\n', '\\n'))
+       // + ' ' + )
 
     console.log(experiment)
   }
 
 
   function drawLegend(topTokens){
-    var groupSel = chartSel.append('div').appendMany('div.row.top-token', topTokens)
+    var groupSel = chartSel.append('div')
+      .st({height: 400})
+      .appendMany('div.row.top-token', topTokens)
       .st({display: 'block'})
       .on('mouseover', setActiveTopToken)
+
 
     groupSel.append('div')
       .st({display: 'inline-block', width: 20, height: '.5em', backgroundColor: d => d.color})
