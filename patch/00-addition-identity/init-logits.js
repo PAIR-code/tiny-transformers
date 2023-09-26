@@ -45,6 +45,8 @@ window.initLogits = function({state}){
     drawPercentChart(topTokens)
     drawLegend(topTokens)
 
+    drawToptokens(experiment)
+
     setActiveTopToken(topTokens[0])
   })
 
@@ -113,6 +115,17 @@ window.initLogits = function({state}){
     c.svg.appendMany('path.top-token', topTokens)
       .at({d: d => line(d), stroke: d => d.color, strokeWidth: 1, fill: 'none', opacity: .9})
       .on('mouseover', setActiveTopToken)
+  }
+
+  function drawToptokens(experiment){
+    var matches = state.data.experiments
+      .filter(d => d.src == experiment.src && d.dst == experiment.dst)
+    var experimentSel = sel.append('div')
+      .appendMany('div', matches)
+      .st({display: 'inline-block', width: 120})
+      .text(d => d.num_inputs.join(' + ') + ' ' + d.argmax_str.replaceAll('\n', '\\n'))
+
+    console.log(experiment)
   }
 
 
