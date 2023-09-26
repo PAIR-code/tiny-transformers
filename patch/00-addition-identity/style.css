@@ -138,3 +138,9 @@ div.top-token.active > div{
   display: inline-block;
   vertical-align: top;
 }
+
+path.experiment.active{
+  stroke: #f0f;
+  opacity: 1;
+/*  pointer-events: none;*/
+}
