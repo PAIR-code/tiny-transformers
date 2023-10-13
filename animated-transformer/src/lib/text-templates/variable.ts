@@ -17,6 +17,7 @@ An implementation of named nariables that can occur in a string template.
 */
 
 export abstract class NamedVar<N extends string> {
+  public abstract contentMatchStr?: string;
 
   constructor(public name: N) { };
 
@@ -45,8 +46,16 @@ export abstract class NamedVar<N extends string> {
 // Assumes that regexp matches /.*${literal}.*/
 // (Required for the RegExpVar literal/applyFn property.
 export interface RegExpVarOptions {
-  regexp: RegExp,
-  literal: string,
+  // A regexp-string that the content of this variable must match.
+  // The reason this is not a full RegExp is that it cannot specify regexp
+  // flags, e.g. /.../g
+  // It also should not include the $ or ^ markers (match end/start of regexp.
+  // This is intented to be part of the regexp used to control generation, or
+  // match the output in a template.
+  match?: string,
+
+  // Optional string that much match right after the variable.
+  postVarMatch?: string;
 }
 
 // Example usage:
@@ -56,25 +65,40 @@ export interface RegExpVarOptions {
 // We could use `\\{\\{([^(\\}\\})]*)\\}\\}` as our regexp to also remove
 // variable marker parenthesis, but we don't do that because it's good to be
 // able to easily visually inspect what's what. Maybe we'll change it later.
+// export const VAR_REGEXP_STR = `(\\{\\{.*?\\}\\})`;
 export const VAR_REGEXP_STR = `(\\{\\{[^(\\}\\})]*\\}\\})`;
+// export const SPLIT_REGEXP_STR = `\\{\\{(.*?)\\}\\}`;
 export const SPLIT_REGEXP_STR = `\\{\\{([^(\\}\\})]*)\\}\\}`;
 export const SPLIT_REGEXP = new RegExp(SPLIT_REGEXP_STR, 'g');
 export const VAR_REGEXP = new RegExp(VAR_REGEXP_STR, 'g');
 export const PREFIX_REGEXP = new RegExp(`$([^(\\{\\{)]*)`);
 
 export class RegExpVar<N extends string> extends NamedVar<N> {
-  regexp: RegExp;
+  // A regexp that the content of this variable must match.
+  // contentRegexp: RegExp;
+
+  // The matcher for the literal in the template.
+  literalRegExp: RegExp;
+
+  // This is the actual string value in the template that the variable has.
+  // The template's escaping must make sure that this cannot occcur as part of
+  // the template, except as this variable.
   literal: string;
+
+  // Regexp as a string to match content.
+  public contentMatchStr?: string;
 
   constructor(name: N, options?: RegExpVarOptions) {
     super(name);
-    if (options) {
-      this.regexp = options.regexp;
-      this.literal = options.literal
-    } else {
-      this.regexp = new RegExp(`\\{\\{${this.name}\\}\\}`, 'g');
-      this.literal = `{{${this.name}}}`;
+    if (options && options.match) {
+      this.contentMatchStr = options.match;
     }
+    // else {
+    //  this.contentMatchStr = '.+?';
+    //}
+    this.literal = `{{${this.name}}}`;
+    // TODO: consider doing this automatically by escaling this.literal
+    this.literalRegExp = new RegExp(`\\{\\{${this.name}\\}\\}`, 'g');
   }
 
   // static splitAllVars(s: string): string[] {
@@ -82,10 +106,10 @@ export class RegExpVar<N extends string> extends NamedVar<N> {
   // }
 
   public subst(s: string, value: string): string {
-    return s.replace(this.regexp, value);
+    return s.replace(this.literalRegExp, value);
   }
   public split(s: string): string[] {
-    return s.split(this.regexp);
+    return s.split(this.literalRegExp);
   }
 
   override toString(): string {

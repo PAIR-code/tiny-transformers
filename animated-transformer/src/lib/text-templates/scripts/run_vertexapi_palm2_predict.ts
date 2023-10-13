@@ -2,11 +2,13 @@
 
 Usage:
 
-CLOUD_PROJECT_ID="copy your cloud project id here"
 npx ts-node --esm ./run_vertexapi_palm2_predict.ts \
-  --project=$CLOUD_PROJECT_ID \
+  --project=$(gcloud config get-value project) \
   --accessToken=$(gcloud auth print-access-token) \
   --movie="The Untouchables"
+
+Assumes that you have run:
+  gcloud config set project ${YOUR_GOOGLE_CLOUD_PROJECT_ID}
 */
 import { VertexPalm2LLM } from '../llm_vertexapi_palm2';
 import { FewShotTemplate } from '../fewshot_template';
@@ -44,30 +46,36 @@ Do you like my summary?`;
 
 
 async function run(args: Params): Promise<void> {
+  // Notice the few-shot prompt doesn't always have a synopsis or rating, but
+  // we want to always generate them.
   const t = template`
 The following are short movie summaries. They are specific, not generic (no movie is just "a classic"), and they don't contain plot synopsis. They just describe the experience of watching the movie. It tries to tell you the essence of the movie.
 
 movie: 'Fifth Element'
 summary: ['joyous sci fi that emerses you in a colourful universe', 'quirky upbeat action']
+synopsis: 'The 23rd century, a New York City cabbie, Korben Dallas (Bruce Willis), finds the fate of the world in his hands when Leeloo (Milla Jovovich) falls into his cab. As the embodiment of the fifth element, Leeloo needs to combine with the other four to keep the approaching Great Evil from destroying the world.'
 
 movie: 'Seven Samurai'
 summary: ['black and white masterpiece of cinematography', 'a slow, atmospheric, symbolic fight for all that is just']
+rating (1 to 5 scale): 5
 
 movie: '${nv('movie')}'
-summary: ['${nv('summaries')}']`;
+summary: ['${nv('summaries')}']
+rating (1 to 5 scale): ${nv('rating', { match: '[12345](.\\d)?' })}
+synopsis: '${nv('synopsis')}'`;
 
   const llm = new VertexPalm2LLM(
     args.project,
     args.accessToken,
   );
   const templateToFill = t.substs({ movie: args.movie });
-  const substs = await fillTemplate(llm, templateToFill);
-  const badlyFormedResponses = substs.filter(s => s === null).length;
-  console.log(`badlyFormedResponses count: ${badlyFormedResponses}`);
-  console.log(`substs: ${JSON.stringify(substs, null, 2)}`);
+  const responses = await fillTemplate(llm, templateToFill);
+  const badlyFormedResponsesCount = responses.filter(r => !r.substs).length;
+  console.log(`badlyFormedResponses count: ${badlyFormedResponsesCount}`);
+  console.log(`responses: ${JSON.stringify(responses, null, 2)} `);
 
-  substs.filter(s => s !== null).forEach(
-    (s, i) => console.log(prettyMovieRec(i, args.movie, s!.summaries))
+  responses.filter(r => r.substs).forEach(
+    (r, i) => console.log(prettyMovieRec(i, args.movie, r.substs!.summaries))
   );
 }
 

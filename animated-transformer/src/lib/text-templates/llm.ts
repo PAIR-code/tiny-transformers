@@ -74,11 +74,15 @@ export class LookupTableFakeLLM implements LLM<{}> {
   }
 }
 
+export interface InterpretedResponse<Ns extends string> {
+  substs?: { [Key in Ns]: string }, responseStr: string
+};
 
 export async function fillTemplate<Ns extends string>(
   llm: LLM<{}>, template: Template<Ns>
-): Promise<({ [Key in Ns]: string } | null)[]> {
-  const substsResponses: ({ [Key in Ns]: string } | null)[] = [];
+): Promise<InterpretedResponse<Ns>[]> {
+  const interpretedResponses = [] as InterpretedResponse<Ns>[];
+  // const substsResponses: ({ [Key in Ns]: string } | null)[] = [];
   const parts = template.parts();
   const responses = await llm.predict(parts.prefix);
   // console.log('parts.prefix: ', parts.prefix);
@@ -86,7 +90,11 @@ export async function fillTemplate<Ns extends string>(
     // console.log('parts', parts);
     // console.log('qcompletion.completion', completion);
     const match = matchTemplate(parts, completion, false);
-    substsResponses.push(match);
+    const interpretedResponse = { responseStr: completion } as InterpretedResponse<Ns>;
+    if (match) {
+      interpretedResponse.substs = match;
+    }
+    interpretedResponses.push(interpretedResponse)
   }
-  return substsResponses;
+  return interpretedResponses;
 }

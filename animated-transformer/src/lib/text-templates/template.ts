@@ -61,7 +61,7 @@ will come next.
 
 */
 
-import { RegExpVar, NamedVar, SPLIT_REGEXP } from './variable';
+import { RegExpVar, NamedVar, SPLIT_REGEXP, RegExpVarOptions } from './variable';
 
 // ----------------------------------------------------------------------------
 // Escaping
@@ -79,8 +79,9 @@ export function unEscapeStr(s: string): string {
   return s.replaceAll('\\\\', '\\').replaceAll('\\{', '{');
 }
 
-export function nv<N extends string>(name: N): NamedVar<N> {
-  return new RegExpVar(name);
+export function nv<N extends string>(name: N, options?: RegExpVarOptions)
+  : NamedVar<N> {
+  return new RegExpVar(name, options);
 }
 
 export interface Error_CannotStringifyTemplateWithVars<T extends string> {
@@ -89,7 +90,10 @@ export interface Error_CannotStringifyTemplateWithVars<T extends string> {
 
 export type IfNeverElse<T, IfNeverT, ElseT> = [T] extends [never] ? IfNeverT : ElseT;
 
-export interface TemplatePart<Ns extends string> { variable: NamedVar<Ns>, postfix: string };
+export interface TemplatePart<Ns extends string> {
+  variable: NamedVar<Ns>,
+  postfix: string
+};
 
 export interface TemplateParts<Ns extends string> {
   prefix: string;
@@ -136,25 +140,59 @@ export function matchTemplate<Ns extends string>(
       substs[v.variable.name] = s;
       s = '';
     }
-    // Otherwise match everything until the post-variable string.
-    const varAndPostfixRegexp = new RegExp(
-      `^(.+?)(${escapeStringInMatch(v.postfix)}|$)`);
-    const varAndPostfixMatch = s.match(varAndPostfixRegexp)
-    if (!varAndPostfixMatch) {
-      // if there is no match, then this variable has not been found or is the
-      // empty string. We treat that as a failure to fill in the variable.
-      //
-      // If this was the first variable, then no varaibles have been found, and
-      // we can directly fail and say that no variable was matched.
-      if (Object.keys(substs).length === 0) {
-        return null;
+
+    if (!v.variable.contentMatchStr) {
+      // Match variable as free text, and require postfix or EOS to indicate
+      // variable end.
+      const varAndPostfixRegexp = new RegExp(
+        `^(.+?)(${escapeStringInMatch(v.postfix)}|$)`);
+      const varAndPostfixMatch = s.match(varAndPostfixRegexp);
+
+      if (!varAndPostfixMatch) {
+        // if there is no match, then this variable has not been found or is the
+        // empty string. We treat that as a failure to fill in the variable.
+        //
+        // If this was the first variable, then no varaibles have been found, and
+        // we can directly fail and say that no variable was matched.
+        if (Object.keys(substs).length === 0) {
+          return null;
+        }
+        substs[v.variable.name] = '';
+        // Setting s = '' will make all future vars null.
+        s = '';
+      } else {
+        substs[v.variable.name] = varAndPostfixMatch[1];
+        s = s.slice(varAndPostfixMatch[0].length);
       }
-      substs[v.variable.name] = '';
-      // Setting s = '' will make all future vars null.
-      s = '';
     } else {
-      substs[v.variable.name] = varAndPostfixMatch[1];
-      s = s.slice(varAndPostfixMatch[0].length);
+      // We have a special variable constraint, so match it first, then postfix.
+      const varRegexp = new RegExp(`^(${v.variable.contentMatchStr})`);
+      const varMatch = s.match(varRegexp);
+      if (!varMatch) {
+
+        // if there is no match, then this variable has not been found or is the
+        // empty string. We treat that as a failure to fill in the variable.
+        //
+        // If this was the first variable, then no varaibles have been found, and
+        // we can directly fail and say that no variable was matched.
+        if (Object.keys(substs).length === 0) {
+          return null;
+        }
+        substs[v.variable.name] = '';
+        // Setting s = '' will make all future vars null.
+        s = '';
+      } else {
+        substs[v.variable.name] = varMatch[1];
+        s = s.slice(varMatch[0].length);
+      }
+
+      const postfixRegexp = new RegExp(escapeStringInMatch(v.postfix));
+      const postfixMatch = s.match(postfixRegexp);
+      if (!postfixMatch) {
+        s = '';
+      } else {
+        s = s.slice(postfixMatch[0].length);
+      }
     }
   }
   return substs;
@@ -168,10 +206,11 @@ type NameToVarMap<Ns extends string> = { [Key in Ns]: TemplVar<Ns, Key> };
 // ----------------------------------------------------------------------------
 // Ns = All variable names in the template.
 // N = This variable name.
+// TODO: consider this being a subclass of NamedVar...
 export class TemplVar<Ns extends string, N extends Ns> {
   constructor(public template: Template<Ns>, public rawVariable: NamedVar<N>) {
     if (!rawVariable.occurs(template.escaped)) {
-      console.error(`Template is missing a variable,\n` +
+      console.error(`Template is missing a variable.\n` +
         `Variable: ${this.name}\n` +
         `Template: ${template.escaped}`)
     }
@@ -257,7 +296,7 @@ export class Template<Ns extends string> {
     // the constructor?
     if (extraVarsNamesInTemplateSet.size > 0) {
       throw new ExtraVarError(`Template has undeclared variables: `
-        + `${[...extraVarsNamesInTemplateSet]}. These should be declared `
+        + `${[...extraVarsNamesInTemplateSet]}.These should be declared`
         + `constructor, or escaped.`);
     }
     if (extraDelcaredVarNameSet.size > 0) {
@@ -342,17 +381,18 @@ export class Template<Ns extends string> {
     return new Template(this.escaped.concat(secondPart.escaped), vars);
   }
 
-  // Maybe templates should actually be a list objects where the object is the string-part and
-  // the variable parts, and a final string... (or initial string)?
+  // Maybe templates should actually be a list objects where the object is the
+  // string-part and the variable parts, and a final string... (or initial
+  // string)?
   parts(): TemplateParts<Ns> {
     const l = this.escaped.split(SPLIT_REGEXP);
-    // Note split using a regexp will result in parts.length > 0; so this is
-    // safe.
+    // Note split using a regexp will result in parts.length > 0; so l.shift
+    // will always be defined.
     const prefix = unEscapeStr(l.shift()!);
     const parts = [] as TemplatePart<Ns>[];
     while (l.length > 0) {
       // prefix is defined because l.length > 0
-      const variable = nv(l.shift() as Ns);
+      const variable = this.vars[l.shift() as Ns].rawVariable;
       const postfix = unEscapeStr(l.shift()!);
       parts.push({ variable, postfix });
     }
@@ -399,14 +439,14 @@ export function template<
       }
       if (a instanceof Template) {
         a.varList().forEach(v => varSet.add(
-          v.name as TemplateArgName<typeof args[number]>));
+          v as TemplateArgName<typeof args[number]>));
       }
       // TODO: support raw strings?
       // else if (typeof a === 'string') {
       //   varSet.add(a)
       // }
       else if (a instanceof NamedVar) {
-        varSet.add(a.name as TemplateArgName<typeof args[number]>);
+        varSet.add(a as TemplateArgName<typeof args[number]>);
       }
     });
 
@@ -421,6 +461,6 @@ export function template<
           : (a instanceof String || typeof (a) === 'string') ? a
             : (a as NamedVar<string>).literal);
     }).join(''),
-    [...varSet].map(n => nv(n))
+    [...varSet]
   );
 }

@@ -165,6 +165,11 @@ export class VertexPalm2LLM implements LLM<Palm2ApiOptions> {
     const imaginedPostfixStopSeq = apiParams.stopSequences.length > 0 ?
       apiParams.stopSequences[0] : '';
 
+    if (!apiResponse.predictions) {
+      throw new Error(`No predictions resturned in api response:` +
+        ` ${JSON.stringify(apiResponse, null, 2)}`);
+    }
+
     // TODO: skip this and simplify?
     const scoredCompletions = apiResponse.predictions.map(p => {
       return {

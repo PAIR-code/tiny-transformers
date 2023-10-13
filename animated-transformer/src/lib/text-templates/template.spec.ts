@@ -104,8 +104,11 @@ describe('template', () => {
     const p = new Template(`what is a ${thingVar}?`,
       [thingVar]);
 
+    expect(p.varList()[0]).toBe(thingVar);
+
     const p2 = p.vars.thing.substStr('bar');
 
+    expect(p2.varList().length).toBe(0);
     expect(p2.escaped).toEqual('what is a bar?');
   });
 
@@ -186,6 +189,70 @@ describe('template', () => {
     const m4 = matchTemplate(parts, s4);
     expect(m4).toEqual({ x: 'bugfoo', y: '' });
   });
+
+  it('parts template matching with match-string', () => {
+    const t = template`what is an ${nv('x', { match: '[12345]' })} to a ${nv('y')} anyway?`;
+
+    const parts = t.parts();
+    const s1 = 'what is an 3 to a fly anyway?';
+    const m1 = matchTemplate(parts, s1);
+    expect(m1).toEqual({ x: '3', y: 'fly' });
+
+    const s2 = 'what is an 2 to a pants!';
+    const m2 = matchTemplate(parts, s2);
+    expect(m2).toEqual({ x: '2', y: 'pants!' });
+
+    const s3 = 'bonkers!'
+    const m3 = matchTemplate(parts, s3);
+    expect(m3).toEqual(null);
+
+    const s4 = 'what is an 4';
+    const m4 = matchTemplate(parts, s4);
+    expect(m4).toEqual({ x: '4', y: '' });
+
+    const s5 = 'what is an foo to a pants!';
+    const m5 = matchTemplate(parts, s5);
+    expect(m5).toEqual(null);
+
+    const s6 = 'what is an 2 and a 3?';
+    const m6 = matchTemplate(parts, s6);
+    expect(m6).toEqual({ x: '2', y: '' });
+  });
+
+
+  // it('parts template matching with match-string', () => {
+  //   const t = template`']\nrating: `;
+
+  //   const parts =
+  //   ` 80s cop drama with an amazing cast', 'stylish and suspenseful']
+  //   rating (1 to 5 scale): 4`
+
+  //   const parts = t.parts();
+  //   const s1 = 'what is an 3 to a fly anyway?';
+  //   const m1 = matchTemplate(parts, s1);
+  //   expect(m1).toEqual({ x: '3', y: 'fly' });
+
+  //   const s2 = 'what is an 2 to a pants!';
+  //   const m2 = matchTemplate(parts, s2);
+  //   expect(m2).toEqual({ x: '2', y: 'pants!' });
+
+  //   const s3 = 'bonkers!'
+  //   const m3 = matchTemplate(parts, s3);
+  //   expect(m3).toEqual(null);
+
+  //   const s4 = 'what is an 4';
+  //   const m4 = matchTemplate(parts, s4);
+  //   expect(m4).toEqual({ x: '4', y: '' });
+
+  //   const s5 = 'what is an foo to a pants!';
+  //   const m5 = matchTemplate(parts, s5);
+  //   expect(m5).toEqual(null);
+
+  //   const s6 = 'what is an 2 and a 3?';
+  //   const m6 = matchTemplate(parts, s6);
+  //   expect(m6).toEqual({ x: '2', y: '' });
+  // });
+
 
 
   it('TypeScript BUG: ', () => {
