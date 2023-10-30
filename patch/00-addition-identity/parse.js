@@ -1,14 +1,14 @@
 var {_, cheerio, d3, jp, fs, glob, io, queue, request} = require('scrape-stl')
 var npy = require('fix-esm').require('npyjs').default
 
-var offset = 5000
+var offset = 0
 
 function updatePatch(experimentIndex){
   experimentIndex = experimentIndex + offset
   console.log(experimentIndex)
 
   var indexStr = d3.format('06')(experimentIndex)
-  var root = __dirname +  `/../../../add/add-patch-v0`
+  var root = __dirname +  `/../../../add/add/add-patch-v1`
   var logits = npy.parse(fs.readFileSync( `${root}/output_dst_logits/${indexStr}.npy`))
 
   var [nLayers, nTokens] = logits.shape
