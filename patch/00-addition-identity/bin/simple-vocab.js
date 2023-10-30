@@ -42,7 +42,3 @@ for (var i = 0; i < 20; i++){
 
 }
 
-
-// _generate('4 added to 5 is 9. 48 added to 11 is 59. 30 added to 88 is 118. 38 added to 93 is')
-// _generate('45 plus 22 is 67\n 30 plus to 28 is')
-// _generate('45 + 21 = 65\n 34 + 28 =')
