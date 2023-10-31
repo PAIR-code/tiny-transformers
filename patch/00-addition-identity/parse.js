@@ -8,7 +8,7 @@ function updatePatch(experimentIndex){
   console.log(experimentIndex)
 
   var indexStr = d3.format('06')(experimentIndex)
-  var root = __dirname +  `/../../../add/add/add-patch-v1`
+  var root = __dirname +  `/../../../add/add-patch-v1`
   var logits = npy.parse(fs.readFileSync( `${root}/output_dst_logits/${indexStr}.npy`))
 
   var [nLayers, nTokens] = logits.shape
