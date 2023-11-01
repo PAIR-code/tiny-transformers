@@ -41,7 +41,7 @@ window.init = async function(){
       } else if (e.template_src == 'Calculate {} + {}.\n'){
         e.src = 'Calculate {} + {}.\n'
       } else{
-        e.src = lines[0]
+        e.src = lines[0] + ' ... '
       }
 
       e.dst = e.prompt_dst
@@ -70,9 +70,10 @@ window.init = async function(){
     data.byDst.forEach((d, i) => {
       d.type = 'dst'
 
-      var templateIndex = ['4', 'h', 'c'].indexOf(d.key[0]) + 3
-      var base = d3.schemeTableau10[templateIndex]
-      d.color = state.color.dst[d.key] = d3.color(base).brighter((d.key.split(' ').length - 5)/6)
+      // var templateIndex = ['4', 'h', 'c'].indexOf(d.key[0]) + 3
+      // var base = d3.schemeTableau10[templateIndex]
+      // d.color = state.color.dst[d.key] = d3.color(base).brighter((d.key.split(' ').length - 5)/6)
+      d.color = state.color.src[d.key] = d3.schemeTableau10[i]
 
       data.byDst.hash[d.key] = d 
 

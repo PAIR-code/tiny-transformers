@@ -47,7 +47,7 @@ window.initLogits = function({state}){
 
     drawToptokens(experiment)
 
-    setActiveTopToken(topTokens[0])
+    setActiveTopToken(topTokens.at(-1))
   })
 
   function makeC(){

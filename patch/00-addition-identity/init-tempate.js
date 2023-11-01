@@ -29,10 +29,10 @@ window.initTemplate = function({state}){
     })
 
     c.svg.append('text.chart-title-sm')
-      .text(array.key)
+      .text(array.key.slice(0, 35))
 
     c.x.domain([0, 26])
-    c.y = d3.scaleLog().domain([1e0, 2e3]).range([0, c.height])
+    c.y = d3.scaleLog().domain([1e0, 1e4]).range([0, c.height])
     c.yAxis = d3.axisLeft(c.y).tickValues([1e0, 1e1, 1e2, 1e3])
     d3.drawAxis(c)
     util.ggPlot(c)
