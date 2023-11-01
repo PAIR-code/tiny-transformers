@@ -31,9 +31,19 @@ window.init = async function(){
   function fmtData(){
     var {data} = state
 
+    console.log(data.experiments[0])
+
     data.flat = []
     data.experiments.forEach((e, i) => {
-      e.src = e.prompt_template
+      var lines = e.prompt_src.replaceAll('.', '\n').split('\n')
+      if (e.template_src == 'What is {} plus {}?\n'){
+        e.src = 'What is {} plus {}?\n'
+      } else if (e.template_src == 'Calculate {} + {}.\n'){
+        e.src = 'Calculate {} + {}.\n'
+      } else{
+        e.src = lines[0]
+      }
+
       e.dst = e.prompt_dst
       e.experimentIndex = i
 
