@@ -37,5 +37,5 @@ function updatePatch(experimentIndex){
 }
 
 // gsutil -m cp -n -r add-patch-v0/output-top/*  gs://uncertainty-over-space/tiny-transformers/patch/add-v0/output-top
-d3.range(1000).forEach(updatePatch)
+d3.range(5000).forEach(updatePatch)
 
