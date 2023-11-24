@@ -824,7 +824,7 @@ export function makeTruncNormal<T extends string>(
 }
 
 export function makeZeros<T extends string>(
-  dims: { [key in T]: number }, dtype?: tf.DataType): GTensor<T> {
+  dims: { [key in T]: number }, dtype: tf.DataType = 'float32'): GTensor<T> {
   return fromInitializer(dims, tf.initializers.zeros(), dtype);
 }
 
@@ -843,14 +843,14 @@ export function identity<T extends string>(
 }
 
 export function makeOnes<T extends string>(
-  dims: { [key in T]: number }, dtype?: tf.DataType): GTensor<T> {
+  dims: { [key in T]: number }, dtype: tf.DataType = 'float32'): GTensor<T> {
   return fromInitializer(dims, tf.initializers.ones(), dtype);
 }
 
 export function makeConstant<T extends string>(
   dims: { [key in T]: number },
   constant: number,
-  dtype?: tf.DataType): GTensor<T> {
+  dtype: tf.DataType = 'float32'): GTensor<T> {
   return fromInitializer(dims, tf.initializers.constant({ value: constant }), dtype);
 }
 
@@ -859,12 +859,15 @@ export function makeRange<T extends DName>(
   start: number,
   end: number,
   step: number,
-  dtype: 'float32' | 'int32'): GTensor<T> {
+  dtype: 'float32' | 'int32' = 'float32'): GTensor<T> {
   return new GTensor<T>(tf.range(start, end, step, dtype), [dname]);
 }
 
 export function makeScalar(
-  n: number, dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string'
+  n: number, dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32'
 ): GTensor<never> {
   return new GTensor(tf.scalar(n, dtype), []);
 }
+
+export const one = makeScalar(1);
+export const zero = makeScalar(0);

@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 
-import { GTensor, DName, GVariable, GTensorOrScalar } from '../gtensor/gtensor';
+import { GTensor, DName, GVariable, GTensorOrScalar, makeScalar, GVariableOrScalar } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, Example, ExampleGenerator, generateBatch } from '../seqtasks/util';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
@@ -59,9 +59,10 @@ export type TrainingBatchGenerator<I extends DName, T extends DName> =
 export type LossFn<
   // SpecKind defines the meta-data for the model specification, e.g.
   // hyper-params for the transformer model itself (dimension size, nLayers,
-  // etc)
+  // etc), as well as any other constants needed to compute the loss.
   SpecKind,
-  // Defines the specific parameter names & values (created by the SpecKind)
+  // A JS object type that holds the parameter updated during training.
+  // This is the only thing needed for computing gradients.
   ParamsKind,
   // The inputed dimension names of the model
   InputDims extends DName,
@@ -75,9 +76,15 @@ export type LossFn<
 
 // Class to hold state, primarily for memory management.
 export class TrainState<
+  // Specifies the kind of model being used, and any extra data used to compute
+  // the loss, but not a parameter that can change during learning.
   SpecKind,
+  // A JS object with GVariable leaf-types that contains all the
+  // models parameters that change during training.
   ParamsKind,
+  // Names of the dimensions in the input tensor.
   InputDims extends DName,
+  // Names of dimensions in the output tensor.
   TargetDims extends DName,
 > {
   // The examples we intended to put in the batch.
@@ -87,6 +94,8 @@ export class TrainState<
   nExamples = 0;
   epochSize = 0;
   grads: GVariableTree<ParamsKind>;
+  // Additional GVariable trees to cleanup when we dispose.
+  // ownedGVarTrees: GVariableTree<unknown>[] = [];
 
   // Initialized within the tf.tidy call, which is synchronous.
   inputsVar!: GVariable<InputDims>;
@@ -103,11 +112,14 @@ export class TrainState<
    */
   constructor(
     // SpecKind defines the meta-data for the model's specification, e.g.
-    // hyper-params for the transformer model itself (dimension size, nLayers,
-    // etc)
+    // what model is it and what hyper-params does it have.
+    // (dimension size, nLayers, etc).
     public spec: SpecKind,
-    // Does not own params.
+    // This is a JS object that contains the actual parameters.
+    // Note: this class, the TrainState, does not own the params tree.
+    // It's caller is responsible for initialization and cleanup.
     public params: GVariableTree<ParamsKind>,
+    // Config is
     public config: TrainStateConfig,
     public lossFn: LossFn<SpecKind, ParamsKind, InputDims, TargetDims>,
     public tokenRep: BasicTaskTokenRep,
@@ -118,13 +130,14 @@ export class TrainState<
 
     // Make a copy of params with GVariables of zero value. init grad = 0
     this.grads = this.params.map(t => new GVariable(t.zero()));
+    // this.ownedGVarTrees.push(this.grads);
 
     // Note: creating the function (gradsFunctor) doesn't create or do any
     // tensor computation, that's why we don't need a tf.tidy here, but when we
     // call this._calculateGradsAndLoss, then we will need to wrap it in
     // tf.tidy.
     //
-    // TODO: Maybe wrap gradients into a special class that by default only
+    // CONSIDER: Maybe wrap gradients into a special class that by default only
     // stores the list of tensors for the params, and only on request re-creates
     // the same shape as the params. Ater all, we only need the shape after the
     // number of training steps when the caller wants to programatically do
@@ -135,6 +148,13 @@ export class TrainState<
 
     this.initInputsAndTargets();
   }
+
+  // makeGVarTree(f: (t: GVariableOrScalar) => GVariable<string>
+  // ): GVariableTree<ParamsKind> {
+  //   const newParamTreeVars = this.params.map(f);
+  //   this.associatedParamVars.push(newParamTreeVars);
+  //   return newParamTreeVars;
+  // }
 
   initInputsAndTargets(): void {
     if (this.inputsVar && !this.inputsVar.tensor.isDisposed) {
@@ -202,6 +222,29 @@ export class TrainState<
 
   // TODO: posible (minor?) optimization: store lr scalar in var and reuse it.
   updateParamsWithGrad(lr: number) {
+    this.updateParamsFn(
+      (paramVar, grad) =>
+        paramVar.pointwiseSub(grad.scalarMul(makeScalar(lr)))
+    );
+    // tf.tidy(() => {
+    //   // TODO treating these as GVariable<string> hides the fact that they can
+    //   // be scalars (GVariable<never>). But when that happens both paramVar and
+    //   // grad will both be scalars. We need a way for the types to capture that
+    //   // in a common zip function. I think we need a type for shapes, and the
+    //   // different shape cases.
+    //   this.params.forEachZip(
+    //     (paramVar: GVariable<string>, grad: GTensor<string>) =>
+    //       paramVar.assign(paramVar.pointwiseSub(grad._tfScalarMul(tf.scalar(lr))))
+    //     ,
+    //     this.grads);
+    // });
+  }
+
+  // TODO: posible (minor?) optimization: store lr scalar in var and reuse it.
+  updateParamsFn(
+    f: (paramVar: GTensor<string>, grad: GTensor<string>, i: number) =>
+      GTensor<string>
+  ) {
     tf.tidy(() => {
       // TODO treating these as GVariable<string> hides the fact that they can
       // be scalars (GVariable<never>). But when that happens both paramVar and
@@ -209,17 +252,21 @@ export class TrainState<
       // in a common zip function. I think we need a type for shapes, and the
       // different shape cases.
       this.params.forEachZip(
-        (paramVar: GVariable<string>, grad: GTensor<string>) =>
-          paramVar.assign(paramVar.pointwiseSub(grad._tfScalarMul(tf.scalar(lr))))
-        ,
+        (paramVar: GVariable<string>, grad: GTensor<string>, i) =>
+          paramVar.assign(f(paramVar, grad, i)),
         this.grads);
     });
   }
+
+
 
   // Memory cleanup.
   dispose() {
     // this.params.forEach(g => g.dispose());
     this.grads.forEach(g => g.dispose());
+    // for (const pt of this.ownedGVarTrees) {
+    //   pt.forEach(p => p.dispose());
+    // }
     this.inputsVar.dispose();
     this.targetsVar.dispose();
   }

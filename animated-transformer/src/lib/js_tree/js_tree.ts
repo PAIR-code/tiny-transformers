@@ -17,8 +17,9 @@ limitations under the License.
 
 /** JsTree: functions for working on raw JS object trees.
  *
- * Represent JS Objects that can have individual leaves, leaves that are lists,
- * as well as keyed JS dictionary objects, or lists of JS dictionary objects.
+ * Represent JS Objects that can have individual leaves, leaves that are lists
+ * of some object type, as well as string-keyed JS dictionary objects, or lists
+ * of JS dictionary objects.
  */
 
 /** DictArrTree and DictTree.
@@ -170,11 +171,12 @@ export class JsTreeLib<LeafT> {
   }
 
   flatten<P extends DictArrTree<LeafT>>(p: P): LeafT[] {
-    const l = [];
-    for (const el of this.iter(p)) {
-      l.push(el);
-    }
-    return l;
+    return [...this.iter(p)]
+    // const l = [];
+    // for (const el of this.iter(p)) {
+    //   l.push(el);
+    // }
+    // return l;
   }
 
   unflatten<P extends DictArrTree<LeafT>>(
@@ -191,11 +193,13 @@ export function isSimpleLeaf(x: unknown): x is number | string | boolean {
 }
 export const SimpleJsTreesLib = new JsTreeLib(isSimpleLeaf);
 
-
+// ObjT is a type that defines the shape of the tree, (and is assumed to have
+// LeafT leaf-nodes).
 export class JsTree<LeafT, ObjT> {
   obj: ObjT;
   tree: DictArrTree<LeafT>;
   treeAndObj: DictArrTree<LeafT> & ObjT;
+  list: LeafT[];
 
   constructor(
     public lib: JsTreeLib<LeafT>,
@@ -203,6 +207,7 @@ export class JsTree<LeafT, ObjT> {
     this.obj = objTree;
     this.tree = objTree;
     this.treeAndObj = objTree
+    this.list = [...this.lib.iter(this.tree)];
   }
 
   iter<T extends LeafT>(): Generator<T, undefined, undefined> {

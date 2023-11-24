@@ -99,6 +99,9 @@ export type JsTreeGTensor = DictArrTree<GTensorOrScalar>;
 //   }
 // }
 
+
+// This defines the type of a JS object that has GVariable or GVariableScalar
+// (aka GVariable<never>) leaves, and is also the shape of the type T.
 export class GVariableTree<T> extends JsTree<GVariableOrScalar, T> {
   constructor(
     init: T & DictArrTree<GVariableOrScalar>
@@ -107,6 +110,8 @@ export class GVariableTree<T> extends JsTree<GVariableOrScalar, T> {
   }
 }
 
+// This defines the type of a JS object that has GTensor or GScalar leaves,
+// and is also the shape of the type T.
 export class GTensorTree<T> extends JsTree<GTensorOrScalar, T> {
   constructor(
     init: T & DictArrTree<GTensorOrScalar>
