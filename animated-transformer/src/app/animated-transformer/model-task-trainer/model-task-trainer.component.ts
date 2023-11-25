@@ -47,7 +47,7 @@ export class TrainerMetaData {
   public defaultConfigStr: string;
 
   public trainState?: TransformerTrainState;
-  public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
+  // public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
   public metrics?: TrainMetrics;
 
   constructor(
