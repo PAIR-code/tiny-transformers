@@ -48,18 +48,19 @@
           Training Dataset
           <mat-form-field class="full-width" appearance="fill">
             <mat-label>Search Dataset</mat-label>
-            <input type="text" matInput [formControl]="datasetNameControl" [matAutocomplete]="auto"
-              (change)="updateSelectedDataset($event)">
-            <mat-autocomplete #auto="matAutocomplete" [displayWith]="datasetDisplayFn">
-              <mat-option *ngFor="let option of filteredDatasets$ | async" [value]="option">
-                {{option.name}}
+            <input type="text" matInput [formControl]="datasetNameControl"
+              [matAutocomplete]="autoCompleteDataset">
+            <mat-autocomplete #autoCompleteDataset="matAutocomplete"
+              (optionSelected)="updateSelectedDataset($event)">
+              <mat-option *ngFor="let ds of filteredDatasets()" [value]="ds.name">
+                {{ds.name}}
               </mat-option>
             </mat-autocomplete>
           </mat-form-field>
         </form>
       </div>
       <div class="row">
-        <div *ngIf="selectedDatasetTable$ | async as selectedDataset">
+        <div *ngIf="selectedDatasetTable() as selectedDataset">
           <table #datasetTable mat-table [dataSource]="selectedDataset" class="mat-elevation-z0">
             <ng-container matColumnDef="input">
               <th mat-header-cell *matHeaderCellDef class="table-header"> [Inputs] </th>
@@ -73,7 +74,7 @@
             <tr mat-row *matRowDef="let row; columns: datasetColumns;"></tr>
           </table>
         </div>
-        <div class="card" *ngIf="datasetVisTensor$ | async as datasetVisTensor">
+        <div class="card" *ngIf="datasetVisTensor() as datasetVisTensor">
           Outputs (black=0, white=1):
           <app-axis-wrapper>
             <app-tensor-image #tensorImg [seenWidth]="100" [seenHeight]="100"

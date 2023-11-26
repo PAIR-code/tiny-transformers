@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 
-import { Component, Input, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal } from '@angular/core';
+import { Component, Input, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked } from '@angular/core';
 import { ConfigUpdate } from '../codemirror-config-editor/codemirror-config-editor.component';
 import { ConfigStoreService } from '../config-store.service';
 import { TfvisService } from '../tfvis.service';
@@ -23,7 +23,7 @@ import * as gtensor from '../../lib/gtensor/gtensor';
 import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
 import * as json5 from 'json5';
-import { AbstractControl, UntypedFormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { AbstractControl, FormControl, UntypedFormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { firstValueFrom, Observable, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
 import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, tap, skip, pairwise } from 'rxjs/operators';
 import { mapNonNull } from '../../lib/rxjs/util';
@@ -40,6 +40,7 @@ import { ActivationManagerDirective } from './activation-manager.directive';
 import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 
 interface DatasetExample {
   input: number[];
@@ -54,7 +55,7 @@ interface DatasetExample {
 export class ActivationVisComponent implements OnInit {
 
   view = signal('vis' as 'edit' | 'vis');
-  dataset!: Signal<TwoVarGTensorDataset | null>;
+  // dataset!: Signal<TwoVarGTensorDataset | null>;
   // signal(null as TwoVarGTensorDataset | null);
 
   @ViewChild(ActivationManagerDirective, { static: true })
@@ -62,62 +63,70 @@ export class ActivationVisComponent implements OnInit {
 
   // componentRef!: ComponentRef<CornerActivationComponent>;
 
-  datasetNameControl = new UntypedFormControl();
+  datasetNameControl = new FormControl<string>('');
   datasetOptions: TwoVarGTensorDataset[] = basicGatesAsGTensor;
-  filteredDatasets$!: Observable<TwoVarGTensorDataset[]>;
+  filteredDatasets: Signal<TwoVarGTensorDataset[]>;
   // modelView: 'vis' | 'edit' = 'vis';
 
   // @ViewChild('datasetName', {static: false}) datasetNameInput!: Input;
-  selectedDataset$!: Observable<TwoVarGTensorDataset | null>;
-  selectedDatasetTable$!: Observable<DatasetExample[] | null>;
-  datasetVisTensor$!: Observable<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
+  selectedDataset!: Signal<TwoVarGTensorDataset | null>;
+  selectedDatasetTable!: Signal<DatasetExample[] | null>;
+  // selectedDatasetTable$!: Observable<DatasetExample[] | null>;
+  datasetVisTensor!: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
+  // datasetVisTensor$!: Observable<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
   @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<gtensor.GTensor<never>>;
   datasetColumns: string[] = ['input', 'output'];
 
-  constructor(private injector: Injector) { };
+  constructor(private injector: Injector) {
+    // TODO: check if injector is still needed now I've moved this to the
+    // constructor.
+    const datasetNameSignal = toSignal(this.datasetNameControl.valueChanges,
+      { injector: this.injector, initialValue: null });
+    this.filteredDatasets = computed(() => {
+      const name = datasetNameSignal();
+      console.log(`filteredDatasets: ${name}`, name);
+      if (!name) { return this.datasetOptions.slice(); }
+      return this._filter(name);
+    });
+
+    this.selectedDataset = computed(() => {
+      const ds = this.filteredDatasets();
+      console.log(`selectedDataset`, ds);
+      if (ds.length !== 1) { return null; }
+      return ds[0];
+    });
+
+    this.selectedDatasetTable = computed(() => {
+      const d = this.selectedDataset();
+      console.log(`selectedDatasetTable`, d);
+      if (!d) { return null; }
+      const inputs = d.inputs.tensor.arraySync() as number[][];
+      const outputs = d.outputs.tensor.arraySync() as number[][];
+      const examples = inputs.map((inp, i) => {
+        return { input: inp, output: outputs[i] };
+      });
+      return examples;
+    });
+
+    this.datasetVisTensor = computed(() => {
+      const d = this.selectedDataset();
+      console.log(`datasetVisTensor`, d);
+      if (!d) { return null; }
+      return mkVisTensor(1,
+        d.outputs.rename('example', 'pointId'),
+        d.inputs.rename('example', 'pointId')
+      );
+    });
+  };
 
   ngOnInit(): void {
-    this.filteredDatasets$ = this.datasetNameControl.valueChanges.pipe(
-      startWith(''),
-      map(value => (typeof value === 'string' ? value : value.name)),
-      map(name => (name ? this._filter(name) : this.datasetOptions.slice())),
-      shareReplay(1));
-    this.selectedDataset$ = this.filteredDatasets$.pipe(
-      map((ds: TwoVarGTensorDataset[]) => {
-        if (ds.length === 1) { return ds[0]; } else { return null; }
-      }), shareReplay(1));
-    this.selectedDatasetTable$ = this.selectedDataset$.pipe(
-      mapNonNull((d: TwoVarGTensorDataset) => {
-        const inputs = d.inputs.tensor.arraySync() as number[][];
-        const outputs = d.outputs.tensor.arraySync() as number[][];
-        const examples = inputs.map((inp, i) => {
-          return { input: inp, output: outputs[i] };
-        });
-        return examples;
-      }), shareReplay(1));
-
-    this.dataset = toSignal(this.selectedDataset$,
-      { injector: this.injector, initialValue: null });
-
-    this.datasetVisTensor$ = this.selectedDataset$.pipe(
-      mapNonNull((d: TwoVarGTensorDataset) => {
-        return mkVisTensor(1,
-          d.outputs.rename('example', 'pointId'),
-          d.inputs.rename('example', 'pointId')
-        );
-      }), shareReplay(1));
-
     // Set the dynamic model sub-component, and connect it to the dataset.
     const viewContainerRef = this.activationManager.viewContainerRef;
     viewContainerRef.clear();
     const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
     componentRef.setInput('view', this.view);
-    componentRef.setInput('dataset', this.dataset);
-  }
-
-  datasetDisplayFn(d: TwoVarGTensorDataset): string {
-    return d && d.name ? d.name : '';
+    componentRef.setInput('dataset', this.selectedDataset);
   }
 
   exampleToString(example: number[]): string {
@@ -130,9 +139,10 @@ export class ActivationVisComponent implements OnInit {
   }
 
   // TODO: think about if we should remove this?
-  updateSelectedDataset(event: unknown): void {
-    console.log(this.datasetNameControl.value);
-    console.log(event);
+  updateSelectedDataset(event: MatAutocompleteSelectedEvent): void {
+    console.log('updateSelectedDataset1', this.datasetNameControl.value);
+    console.log('updateSelectedDataset2', event.option.value);
+    this.datasetNameControl.setValue(event.option.value);
   }
 
   toggleModelConfig(): void {

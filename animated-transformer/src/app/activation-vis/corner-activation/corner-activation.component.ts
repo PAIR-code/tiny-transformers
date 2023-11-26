@@ -91,7 +91,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
   updateParamsFromControlsEffect?: EffectRef;
 
   paramValueControls: WritableSignal<FormControl<string>[]>;
-  controlValuesArr: Signal<(string)[]> = signal([]);
+  controlValuesArr: Signal<string[]> = signal([]);
   controlSubscriptions?: Subscription[];
   learningRateControl: FormControl<string>;
 
@@ -125,8 +125,10 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
   ) {
     super();
 
-    this.currentConfig = signal(makeDefaultActivationVizConfig());
-    // initial positions and values come from the config.
+    this.currentConfig = signal(makeDefaultActivationVizConfig(),
+      { equal: _.isEqual });
+    // initial positions and values come from the config. But they are not the
+    // same as the config: we don't change the config on training.
     this.paramPositionsTensor = signal(
       new gtensor.GTensor(tf.tensor(this.currentConfig().paramPositions),
         ['pointId', 'inputRepSize']));
@@ -151,7 +153,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
       { equal: isSameGTensorValue });
 
     // controls are updated only when dim size changes
-    this.paramValueControls = signal([]);
+    this.paramValueControls = signal([], { equal: _.isEqual });
     effect(() => {
       const values = this.paramsValuesTensor();
       if (this.lastParams
@@ -334,6 +336,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     const curLR = parseFloat(this.learningRateControl.value);
     curConfig.paramValues = curParams.pointwiseSub(
       curGradient._tfScalarMul(tf.scalar(curLR))).tensor.arraySync() as number[][];;
+    console.log(`new curConfig: ${JSON.stringify(curConfig)}`);
     this.currentConfig.set(curConfig);
   }
 
