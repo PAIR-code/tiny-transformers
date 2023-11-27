@@ -8,9 +8,9 @@
   Model Params:
   <mat-form-field *ngFor="let c of paramValueControls(); index as i" class="short-width" appearance="fill">
     <mat-label>i<sub>{{currentConfig().paramPositions[i]}}</sub></mat-label>
-    <input matInput required boundedFloatValidator maxlength="5" [formControl]="c">
-    <mat-error *ngIf="c.invalid && (c.dirty || c.touched) && c.errors?.['data']" class="error">
-      {{c.errors?.['data'].message}}
+    <input matInput required boundedFloatValidator maxlength="6" [formControl]="c">
+    <mat-error *ngIf="c.invalid && (c.dirty || c.touched) && c.errors" class="error">
+      {{paramValueErrorString(c.errors)}};
     </mat-error>
   </mat-form-field>
 </form>

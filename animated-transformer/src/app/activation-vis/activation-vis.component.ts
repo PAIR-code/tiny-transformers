@@ -15,29 +15,14 @@ limitations under the License.
 
 
 import { Component, Input, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked } from '@angular/core';
-import { ConfigUpdate } from '../codemirror-config-editor/codemirror-config-editor.component';
-import { ConfigStoreService } from '../config-store.service';
-import { TfvisService } from '../tfvis.service';
-import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../lib/gtensor/gtensor';
-import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
 import * as json5 from 'json5';
-import { AbstractControl, FormControl, UntypedFormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { firstValueFrom, Observable, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
-import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, tap, skip, pairwise } from 'rxjs/operators';
-import { mapNonNull } from '../../lib/rxjs/util';
-// import { basicGatesAsIoArrays, basicGatesAsGTensor, TwoVarGTensorDataset, TwoVarBoolListDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
+import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { basicGatesAsGTensor, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
-import { stringifyJsonValue } from '../../lib/pretty_json/pretty_json';
-
-// import { pointWiseEval, softVoronoiEval, pointwiseGrad } from '../../lib/gtensor/boolfns';
 import { MatTable } from '@angular/material/table';
-import { boundedFloatValidator, boundedFloatErrorFn } from '../form-validators/bounded-float-validator.directive';
-// import { nanValidator } from '../nan-validator.directive';
-import { JsonValue } from 'src/lib/pretty_json/json';
 import { ActivationManagerDirective } from './activation-manager.directive';
-import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
+// import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
@@ -138,20 +123,12 @@ export class ActivationVisComponent implements OnInit {
     return this.datasetOptions.filter(option => option.name.toLowerCase().includes(filterValue));
   }
 
-  // TODO: think about if we should remove this?
-  updateSelectedDataset(event: MatAutocompleteSelectedEvent): void {
-    console.log('updateSelectedDataset1', this.datasetNameControl.value);
-    console.log('updateSelectedDataset2', event.option.value);
-    this.datasetNameControl.setValue(event.option.value);
-  }
-
   toggleModelConfig(): void {
     if (this.view() === 'edit') {
       this.view.set('vis');
     } else if (this.view() === 'vis') {
       this.view.set('edit');
     }
-    // this.componentRef.instance.view.set(this.modelView);
   }
 
 }  // ActivationVisComponent

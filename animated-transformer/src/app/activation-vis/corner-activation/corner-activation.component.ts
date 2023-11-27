@@ -34,7 +34,7 @@ import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 // import { pointWiseEval, softVoronoiEval, pointwiseGrad } from '../../lib/gtensor/boolfns';
 import { pointWiseEval, pointwiseGrad } from '../../../lib/gtensor/boolfns';
 import { MatTable } from '@angular/material/table';
-import { boundedFloatValidator, boundedFloatErrorFn } from '../../form-validators/bounded-float-validator.directive';
+import { boundedFloatValidator, boundedFloatErrorFn, BoundedFloatError } from '../../form-validators/bounded-float-validator.directive';
 // import { nanValidator } from '../nan-validator.directive';
 import { JsonValue } from 'src/lib/pretty_json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
@@ -235,10 +235,13 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
         // the [0] implies outputRepSize = 1
         //
         // Update the value only when it's sufficiently different
-        const PRECISION = 3;
-        if (valuesArr[i][0].toFixed(PRECISION) !== parseFloat(controls[i].value).toFixed(PRECISION)) {
+        const PRECISION = 4;
+        const newValue = valuesArr[i][0].toFixed(PRECISION);
+        const oldValue = parseFloat(controls[i].value).toFixed(PRECISION);
+        if (newValue !== oldValue) {
+          // console.log(`valuesArr[i][0].toFixed(PRECISION): ${valuesArr[i][0].toFixed(PRECISION)}`);
           const directParamStr = `${valuesArr[i][0]}`;
-          const directParamStrFixed = `${valuesArr[i][0].toFixed(PRECISION)}`
+          const directParamStrFixed = newValue;
           controls[i].setValue(
             directParamStr.length < directParamStrFixed.length ? directParamStr : directParamStrFixed, { emitEvent: true });
         }
@@ -295,6 +298,14 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     this.unsubscribeControls();
   }
 
+  paramValueErrorString(errors: BoundedFloatError | ValidationErrors) {
+    if (errors['data']) {
+      return errors['data'].message;
+    } else {
+      return JSON.stringify(errors);
+    }
+  }
+
   configUpdated(event: unknown): void {
     // When configUpdate has a new object, we assume it to be correct.
     //
@@ -334,10 +345,12 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
       return;
     }
     const curLR = parseFloat(this.learningRateControl.value);
-    curConfig.paramValues = curParams.pointwiseSub(
-      curGradient._tfScalarMul(tf.scalar(curLR))).tensor.arraySync() as number[][];;
-    console.log(`new curConfig: ${JSON.stringify(curConfig)}`);
-    this.currentConfig.set(curConfig);
+    this.paramsValuesTensor.set(
+      curParams.pointwiseSub(curGradient._tfScalarMul(tf.scalar(curLR))));
+    // curConfig.paramValues =
+    // console.log(`new curConfig: ${JSON.stringify(curConfig)}`);
+
+    // this.currentConfig.set(curConfig);
   }
 
 }

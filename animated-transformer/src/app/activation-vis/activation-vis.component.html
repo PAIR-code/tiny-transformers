@@ -50,8 +50,7 @@
             <mat-label>Search Dataset</mat-label>
             <input type="text" matInput [formControl]="datasetNameControl"
               [matAutocomplete]="autoCompleteDataset">
-            <mat-autocomplete #autoCompleteDataset="matAutocomplete"
-              (optionSelected)="updateSelectedDataset($event)">
+            <mat-autocomplete #autoCompleteDataset="matAutocomplete">
               <mat-option *ngFor="let ds of filteredDatasets()" [value]="ds.name">
                 {{ds.name}}
               </mat-option>
