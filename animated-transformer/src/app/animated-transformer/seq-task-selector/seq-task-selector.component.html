@@ -1,17 +1,12 @@
 <div class="row">
-  <form class="dataset-form">
-    <mat-form-field class="full-width" appearance="fill">
-      <mat-label>Choose Task</mat-label>
-      <input type="text" matInput [formControl]="taskNameControl" [matAutocomplete]="auto" (change)="updateSelectedTask($event)">
-      <mat-autocomplete #auto="matAutocomplete">
-        <mat-option *ngFor="let task of filteredTasks$ | async" [value]="task.config.name">
-          {{task.config.name}}
-        </mat-option>
-      </mat-autocomplete>
-    </mat-form-field>
-  </form>
+  <app-auto-completed-text-input class="dataset-form"
+        [label]="'Choose Task'"
+        [selectedName]="currentTaskName()"
+        [itemNames]="taskNames()"
+        (itemSelected)="selectTask($event)">
+        </app-auto-completed-text-input>
 </div>
-<div class="row" *ngIf="currentTask$ | async as task">
+<div class="row" *ngIf="currentTask() as task">
   <div *ngIf="view == 'view'">
     <div class="json">{{taskConfigAsJson(task.config)}}</div>
     <button mat-icon-button (click)="toggleEditor()">
@@ -37,7 +32,7 @@
   </div>
 </div>
 <ng-container *ngIf="showExamples">
-  <div class="row" *ngIf="selectedTaskExamples$ | async as selectedExamples">
+  <div class="row" *ngIf="selectedTaskExamples() as selectedExamples">
     <table #datasetTable mat-table [dataSource]="selectedExamples" class="mat-elevation-z0">
       <ng-container matColumnDef="input">
         <th mat-header-cell *matHeaderCellDef class="table-header"> input </th>

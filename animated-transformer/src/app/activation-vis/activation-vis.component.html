@@ -30,6 +30,10 @@
     <mat-card-header class="row">
       <mat-card-title>
         <span>Model</span>
+        <!-- <app-auto-completed-text-input
+          [itemNames]="modelNames()"
+          (selectedItem)="selectModel($event)">
+        </app-auto-completed-text-input> -->
       </mat-card-title>
       <div class="spacer"></div>
       <button mat-icon-button (click)="toggleModelConfig()">
@@ -44,19 +48,11 @@
   <mat-card class="card">
     <mat-card-content>
       <div class="row">
-        <form class="dataset-form">
-          Training Dataset
-          <mat-form-field class="full-width" appearance="fill">
-            <mat-label>Search Dataset</mat-label>
-            <input type="text" matInput [formControl]="datasetNameControl"
-              [matAutocomplete]="autoCompleteDataset">
-            <mat-autocomplete #autoCompleteDataset="matAutocomplete">
-              <mat-option *ngFor="let ds of filteredDatasets()" [value]="ds.name">
-                {{ds.name}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </form>
+        <app-auto-completed-text-input
+        [label]="'Select Dataset'"
+        [itemNames]="datasetNames()"
+        (itemSelected)="selectDataset($event)">
+        </app-auto-completed-text-input>
       </div>
       <div class="row">
         <div *ngIf="selectedDatasetTable() as selectedDataset">

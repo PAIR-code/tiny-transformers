@@ -17,15 +17,15 @@ limitations under the License.
 import { Component, Input, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked } from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
-import * as json5 from 'json5';
-import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { basicGatesAsGTensor, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
+// import * as json5 from 'json5';
+// import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
 import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
 // import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+// import { toSignal } from '@angular/core/rxjs-interop';
+// import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 
 interface DatasetExample {
   input: number[];
@@ -38,53 +38,26 @@ interface DatasetExample {
   styleUrls: ['./activation-vis.component.scss']
 })
 export class ActivationVisComponent implements OnInit {
-
   view = signal('vis' as 'edit' | 'vis');
-  // dataset!: Signal<TwoVarGTensorDataset | null>;
-  // signal(null as TwoVarGTensorDataset | null);
 
   @ViewChild(ActivationManagerDirective, { static: true })
   activationManager!: ActivationManagerDirective;
 
   // componentRef!: ComponentRef<CornerActivationComponent>;
+  datasetNames = signal(Object.keys(basicGatesMap));
 
-  datasetNameControl = new FormControl<string>('');
-  datasetOptions: TwoVarGTensorDataset[] = basicGatesAsGTensor;
-  filteredDatasets: Signal<TwoVarGTensorDataset[]>;
   // modelView: 'vis' | 'edit' = 'vis';
 
-  // @ViewChild('datasetName', {static: false}) datasetNameInput!: Input;
-  selectedDataset!: Signal<TwoVarGTensorDataset | null>;
+  selectedDataset = signal<TwoVarGTensorDataset | null>(null);
   selectedDatasetTable!: Signal<DatasetExample[] | null>;
-  // selectedDatasetTable$!: Observable<DatasetExample[] | null>;
   datasetVisTensor!: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
-  // datasetVisTensor$!: Observable<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
   @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<gtensor.GTensor<never>>;
   datasetColumns: string[] = ['input', 'output'];
 
-  constructor(private injector: Injector) {
-    // TODO: check if injector is still needed now I've moved this to the
-    // constructor.
-    const datasetNameSignal = toSignal(this.datasetNameControl.valueChanges,
-      { injector: this.injector, initialValue: null });
-    this.filteredDatasets = computed(() => {
-      const name = datasetNameSignal();
-      console.log(`filteredDatasets: ${name}`, name);
-      if (!name) { return this.datasetOptions.slice(); }
-      return this._filter(name);
-    });
-
-    this.selectedDataset = computed(() => {
-      const ds = this.filteredDatasets();
-      console.log(`selectedDataset`, ds);
-      if (ds.length !== 1) { return null; }
-      return ds[0];
-    });
-
+  constructor() {
     this.selectedDatasetTable = computed(() => {
       const d = this.selectedDataset();
-      console.log(`selectedDatasetTable`, d);
       if (!d) { return null; }
       const inputs = d.inputs.tensor.arraySync() as number[][];
       const outputs = d.outputs.tensor.arraySync() as number[][];
@@ -105,6 +78,11 @@ export class ActivationVisComponent implements OnInit {
     });
   };
 
+  selectDataset(datasetName: string | null) {
+    console.log('selectDataset', datasetName);
+    this.selectedDataset.set(datasetName ? basicGatesMap[datasetName] : null);
+  }
+
   ngOnInit(): void {
     // Set the dynamic model sub-component, and connect it to the dataset.
     const viewContainerRef = this.activationManager.viewContainerRef;
@@ -116,11 +94,6 @@ export class ActivationVisComponent implements OnInit {
 
   exampleToString(example: number[]): string {
     return JSON.stringify(example);
-  }
-
-  private _filter(name: string): TwoVarGTensorDataset[] {
-    const filterValue = name.toLowerCase();
-    return this.datasetOptions.filter(option => option.name.toLowerCase().includes(filterValue));
   }
 
   toggleModelConfig(): void {
