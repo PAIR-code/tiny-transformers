@@ -210,7 +210,6 @@ export class ModelTaskTrainerComponent {
     if (newTrainerName in this.trainersMap()) {
       const newTrainer = this.trainersMap()[newTrainerName];
       if (currentTrainerName !== newTrainer.config.name) {
-        console.log(this.currentTrainer);
         this.currentTrainer.set(newTrainer);
         this.configUpdate.emit({ trainer: newTrainer });
       }

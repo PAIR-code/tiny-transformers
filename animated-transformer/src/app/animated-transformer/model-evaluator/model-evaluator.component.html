@@ -2,8 +2,8 @@
 
 <form class="input-form">
   <mat-form-field class="short-width" appearance="fill">
-    <mat-label>input</mat-label>
-    <input matInput required jsonStrListValidator
+    <mat-label>Input</mat-label>
+    <input matInput jsonStrListValidator
       maxlength="30" [formControl]="inputControl">
     <mat-error class="error"
       *ngIf="
