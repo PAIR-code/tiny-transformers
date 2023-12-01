@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, Signal, WritableSignal, computed, signal } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { prepareBasicTaskTokenRep, strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/token_gemb';
@@ -46,9 +46,9 @@ export class TrainerMetaData {
   public configStr: string;
   public defaultConfigStr: string;
 
-  public trainState?: TransformerTrainState;
+  public trainState: WritableSignal<TransformerTrainState | null> = signal(null);
   // public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
-  public metrics?: TrainMetrics;
+  public metrics: WritableSignal<TrainMetrics | null> = signal(null);
 
   constructor(
     public kind: 'transformer',
@@ -102,26 +102,31 @@ const noLayerNormTrainer = new TrainerMetaData('transformer',
     stepDelayInMs: 100,
   });
 
+const initTrainerSet = [noLayerNormTrainer, layerNormTrainer];
+const initTrainersMap = {} as { [name: string]: TrainerMetaData };
+initTrainerSet.forEach(t => initTrainersMap[t.config.name] = t);
+
+// ----------------------------------------------------------------------------
 @Component({
   selector: 'app-model-task-trainer',
   templateUrl: './model-task-trainer.component.html',
   styleUrls: ['./model-task-trainer.component.scss']
 })
-export class ModelTaskTrainerComponent implements OnInit {
+export class ModelTaskTrainerComponent {
   // lastModelUpdate: ModelUpdate = { model: null };
   // lastTaskUpdate: BasicLmTaskUpdate = {}
   view: 'edit' | 'view' = 'view';
   // currentTrainer: TrainerMetaData | null = null;
-  trainersByName: { [name: string]: TrainerMetaData } = {}
-  trainerSet: TrainerMetaData[] = [noLayerNormTrainer, layerNormTrainer];
+  trainersMap = signal(initTrainersMap);
+  trainerNames: Signal<string[]>;
 
-  trainerNameControl = new FormControl<string>('');
-  currentTrainer$: BehaviorSubject<TrainerMetaData | null>;
-  filteredTrainers$!: Observable<TrainerMetaData[]>;
-  currentModel$: BehaviorSubject<ModelSpecAndData | null>;
-  currentTask$: BehaviorSubject<BasicLmTask | null>;
-  trainState$: Observable<TransformerTrainState | null>;
-  taskAndModelWithData$: Observable<{ model: ModelSpecAndData; task: BasicLmTask } | null>;
+  currentTrainer = signal<TrainerMetaData | null>(null);
+  currentModel = signal<ModelSpecAndData | null>(null);
+  currentModelData: Signal<ModelData | null>;
+  currentTask = signal<BasicLmTask | null>(null);
+  currentTrainerName: Signal<string | null>;
+  trainState: Signal<TransformerTrainState | null>;
+
   layerNormHeadsProjectionGain: number = -1;
   layerNormPostFFGain: number = -1;
 
@@ -146,37 +151,39 @@ export class ModelTaskTrainerComponent implements OnInit {
 
   @Input()
   set trainerName(n: string) {
-    this.maybeSetTrainer(n);
+    this.selectTrainer(n);
   }
   @Input()
   set model(modelUpdate: ModelUpdate) {
-    this.currentModel$.next(modelUpdate.model);
+    this.currentModel.set(modelUpdate.model);
   };
   @Input()
   set task(taskUpdate: BasicLmTaskUpdate) {
     // console.log('taskUpdate', taskUpdate.task);
-    this.currentTask$.next(taskUpdate.task || null);
+    this.currentTask.set(taskUpdate.task || null);
   }
 
   constructor() {
-    this.currentTrainer$ = new BehaviorSubject<TrainerMetaData | null>(null);
-    this.currentModel$ = new BehaviorSubject<ModelSpecAndData | null>(null);
-    this.trainState$ = this.currentTrainer$.pipe(
-      mapNonNull(m => m.trainState || null)
-    );
-    this.currentTask$ = new BehaviorSubject<BasicLmTask | null>(null);
-    this.trainersByName = {};
-    this.reCreateTrainerNameIndex();
-    // trainersConfigs.forEach(t => this.trainersByName[t.name.toLocaleLowerCase()] =
-    //   new TrainerMetaData('transformer', t));
-    this.taskAndModelWithData$ = combineLatest([this.currentTask$, this.currentModel$])
-      .pipe(map(combinedTaskAndModel => {
-        const [task, model] = combinedTaskAndModel;
-        if (!task || !model || !model.modelData) {
-          return null;
-        }
-        return { task, model };
-      }));
+    this.currentTrainerName = computed(() => {
+      const task = this.currentTrainer();
+      if (!task) { return null };
+      return task.config.name;
+    });
+
+    this.currentModelData = computed(() => {
+      const model = this.currentModel();
+      if (!model) { return null; }
+      return model.modelData();
+    });
+
+    this.trainState = computed(() => {
+      const trainer = this.currentTrainer();
+      if (!trainer) { return null; }
+      return trainer.trainState() || null;
+    });
+
+    this.trainerNames = computed(() => Object.keys(this.trainersMap()));
+
     this.curMetrics = {
       nExamples: 0,
       nEpochs: 0,
@@ -190,74 +197,36 @@ export class ModelTaskTrainerComponent implements OnInit {
     }
   }
 
-  ngOnInit(): void {
-    this.filteredTrainers$ = this.trainerNameControl.valueChanges.pipe(
-      tap(s => this.maybeSetTrainer(s)),
-      map(name => (name ? this._filterTrainers(name) : this.trainerSet.slice())),
-      startWith(this.trainerSet.slice()),
-      shareReplay(1));
-  }
-
   public get tfjsMemory(): string {
     return JSON.stringify(tf.memory(), null, 2);
   }
 
-  async maybeSetTrainer(maybeName: string | null) {
-    const name = (maybeName || '').toLocaleLowerCase();
-    const currentTrainer = await firstValueFrom(this.currentTrainer$);
-    const currentTrainerName =
-      currentTrainer ? currentTrainer.config.name : '';
-    // console.log('maybeSetTrainer new name:', name);
-    // console.log('maybeSetTrainer currentTrainer name:', currentTrainerName);
-    // console.log('maybeSetTrainer trainerNameControl:', this.trainerNameControl.value);
-    if (name in this.trainersByName) {
-      const newTrainer = this.trainersByName[name];
+  selectTrainer(maybeName: string | null): void {
+    const currentTrainerName = this.currentTrainerName() || '';
+    const newTrainerName = maybeName || '';
+    if (newTrainerName === currentTrainerName) {
+      return;
+    }
+    if (newTrainerName in this.trainersMap()) {
+      const newTrainer = this.trainersMap()[newTrainerName];
       if (currentTrainerName !== newTrainer.config.name) {
-        this.currentTrainer$.next(newTrainer);
-        if (this.trainerNameControl.value !== newTrainer.config.name) {
-          this.trainerNameControl.setValue(newTrainer.config.name);
-        }
+        console.log(this.currentTrainer);
+        this.currentTrainer.set(newTrainer);
         this.configUpdate.emit({ trainer: newTrainer });
       }
     } else {
-      if (maybeName === null) {
-        this.trainerNameControl.setValue('');
-      } else if (this.trainerNameControl.value !== maybeName) {
-        this.trainerNameControl.setValue(maybeName);
-      }
       if (currentTrainerName !== null) {
         this.configUpdate.emit({ trainer: null });
-        this.currentTrainer$.next(null);
+        this.currentTrainer.set(null);
       }
     }
-  }
-
-  private _filterTrainers(name: string): TrainerMetaData[] {
-    const filterValue = name.toLowerCase();
-
-    const filteredTrainers = this.trainerSet.filter(trainer => {
-      return trainer.config.name.toLowerCase().includes(filterValue)
-    });
-
-    if (filteredTrainers.length <= 1
-      //  && filteredTasks[0].config.name.toLowerCase() === filterValue
-    ) {
-      return this.trainerSet;
-    }
-
-    return filteredTrainers;
-  }
-
-  reCreateTrainerNameIndex(): void {
-    this.trainerSet.forEach(t =>
-      this.trainersByName[t.config.name.toLocaleLowerCase()] = t);
   }
 
   toggleModelEditor() {
     this.view = this.view === 'edit' ? 'view' : 'edit';
   }
 
-  async trainerConfigUpdated(configUpdate: ConfigUpdate<TrainerConfig>): Promise<void> {
+  trainerConfigUpdated(configUpdate: ConfigUpdate<TrainerConfig>): void {
     if (configUpdate.close) {
       this.view = 'view';
     }
@@ -267,28 +236,32 @@ export class ModelTaskTrainerComponent implements OnInit {
       return;
     }
 
-    const trainer = await firstValueFrom(this.currentTrainer$);
+    const trainer = this.currentTrainer();
     if (!trainer) {
       console.error(`had null trainer for configUpdated: ${configUpdate}`);
       return;
     }
-    if (trainer.trainState) {
-      trainer.trainState.config = configUpdate.obj.trainState;
-      trainer.trainState.initInputsAndTargets();
+    const trainState = trainer.trainState();
+    if (trainState) {
+      trainState.config = configUpdate.obj.trainState;
+      trainState.initInputsAndTargets();
     }
 
-    trainer.updateFromStr(configUpdate.json);
+    const newTrainer = new TrainerMetaData(trainer.kind, trainer.defaultConfig);
+    newTrainer.updateFromStr(configUpdate.json);
     // Model name was changed.
-    if (trainer.config.name !== this.trainerNameControl.value) {
-      if (!trainer.config.name) {
-        trainer.config.name = 'model without a name'
+    if (trainer.config.name !== newTrainer.config.name) {
+      if (!newTrainer.config.name) {
+        newTrainer.config.name = 'model without a name'
       }
-      // Because the name of the model may have changed, we need to re-create the
-      // index
-      this.reCreateTrainerNameIndex();
-      this.trainerNameControl.setValue(trainer.config.name);
+      // Because the name of the model may have changed, we need to
+      // re-create the index
+      const newTrainersMap = { ... this.trainersMap() };
+      delete newTrainersMap[trainer.config.name];
+      newTrainersMap[newTrainer.config.name] = newTrainer;
+      this.trainersMap.set(newTrainersMap);
     }
-    this.currentTrainer$.next(trainer);
+    this.currentTrainer.set(newTrainer);
   }
 
   addMetricsToGraph(m: TrainMetrics, name: string) {
@@ -303,49 +276,39 @@ export class ModelTaskTrainerComponent implements OnInit {
     ]);
   }
 
-  async getCurrentTrainer(): Promise<TrainerMetaData> {
-    const currentTrainer = await firstValueFrom(this.currentTrainer$);
-    if (!currentTrainer) {
-      throw new Error('no currentTrainer');
-    }
+  getCurrentTrainer(): TrainerMetaData {
+    const currentTrainer = this.currentTrainer();
+    if (!currentTrainer) { throw new Error('no currentTrainer'); }
     return currentTrainer;
   }
 
-  async getTrainState(): Promise<TransformerTrainState> {
-    const trainState = await firstValueFrom(this.trainState$);
-    if (!trainState) {
-      throw new Error('no trainState');
-    }
+  getTrainState(): TransformerTrainState {
+    const trainState = this.trainState();
+    if (!trainState) { throw new Error('no trainState'); }
     return trainState;
   }
 
-  async getCurrentTask(): Promise<BasicLmTask> {
-    const currentTask = await firstValueFrom(this.currentTask$);
-    if (!currentTask) {
-      throw new Error('no currentTask');
-    }
+  getCurrentTask(): BasicLmTask {
+    const currentTask = this.currentTask();
+    if (!currentTask) { throw new Error('no currentTask'); }
     return currentTask;
   }
 
-  async getCurrentModel(): Promise<ModelSpecAndData> {
-    const currentModel = await firstValueFrom(this.currentModel$);
-    if (!currentModel) {
-      throw new Error('no current model');
-    }
+  getCurrentModel(): ModelSpecAndData {
+    const currentModel = this.currentModel();
+    if (!currentModel) { throw new Error('no current model'); }
     return currentModel;
   }
 
-  async getCurrentModelData(): Promise<ModelData> {
-    const currentModel = await this.getCurrentModel();
-    if (!currentModel.modelData) {
-      throw new Error('current model missing data');
-    }
-    return currentModel.modelData;
+  getCurrentModelData(): ModelData {
+    const data = this.currentModelData();
+    if (!data) { throw new Error('current model missing data'); }
+    return data;
   }
 
-  async trainStep() {
-    const trainer = await this.getCurrentTrainer();
-    const trainState = await this.getTrainState();
+  trainStep() {
+    const trainer = this.getCurrentTrainer();
+    const trainState = this.getTrainState();
     this.curMetrics = computeMetrics(trainState);
     if (trySgdTrainStep(trainState)) {
       this.addMetricsToGraph(this.curMetrics, trainer.config.name);
@@ -359,14 +322,15 @@ export class ModelTaskTrainerComponent implements OnInit {
     this.accPoints = [];
   }
 
-  async initTrainer(): Promise<void> {
-    const trainer = await this.getCurrentTrainer();
-    const currentTask = await this.getCurrentTask();
-    const currentModelData = await this.getCurrentModelData();
-    if (trainer.trainState) {
-      trainer.trainState.dispose();
+  initTrainer(): void {
+    const trainer = this.getCurrentTrainer();
+    const currentTask = this.getCurrentTask();
+    const currentModelData = this.getCurrentModelData();
+    const oldTrainState = trainer.trainState();
+    if (oldTrainState) {
+      oldTrainState.dispose();
     }
-    trainer.trainState = initTransformerTrainState(
+    const newState = initTransformerTrainState(
       currentTask,
       currentModelData.tokenRep,
       strSeqPrepFn,
@@ -375,19 +339,18 @@ export class ModelTaskTrainerComponent implements OnInit {
       currentModelData.params,
       trainer.config.trainState,
     );
+    trainer.trainState.set(newState);
 
     this.clearPlots();
-    this.curMetrics = computeMetrics(trainer.trainState);
+    this.curMetrics = computeMetrics(newState);
     this.addMetricsToGraph(this.curMetrics, trainer.config.name);
-
-    // Send an update about the trainer, so others know train state is set.
-    this.currentTrainer$.next(trainer);
   }
 
   // Repeatedly does training steps.
+  // TODO: move into web-worker and remove the timeout.
   async startTraining() {
-    const trainer = await this.getCurrentTrainer();
-    const trainState = await this.getTrainState();
+    const trainer = this.getCurrentTrainer();
+    const trainState = this.getTrainState();
     const self = this;
     async function doTraining() {
       if (self.isTraining) {

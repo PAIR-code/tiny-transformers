@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 
-import { signal, Component, EventEmitter, Input, OnInit, Output, effect } from '@angular/core';
+import { signal, Component, EventEmitter, Input, OnInit, Output, effect, Signal, computed } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { jsonStrListValidator, jsonStrListErrorFn, JsonStrListConfig } from '../../form-validators/json-str-list-validator.directive';
 
@@ -32,9 +32,9 @@ import { mapNonNull } from 'src/lib/rxjs/util';
 export class ModelEvaluatorComponent {
   input = signal([] as string[]);
   inputControl: FormControl<string | null>;
-  currentModel$: BehaviorSubject<ModelSpecAndData | null>;
+  currentModel = signal<ModelSpecAndData | null>(null);
   // currentTask$: BehaviorSubject<BasicLmTask | null>;
-  modelData$: Observable<ModelData | null>;
+  modelData: Signal<ModelData | null>;
   // taskAndModel$: Observable<{ model: ModelMetadata; task: BasicLmTask } | null>;
   validatorConfig = {} as JsonStrListConfig;
   modelOutput: string[] | null = null;
@@ -46,7 +46,7 @@ export class ModelEvaluatorComponent {
   @Input()
   set model(modelUpdate: ModelUpdate) {
     this.modelOutput = null;
-    this.currentModel$.next(modelUpdate.model || null);
+    this.currentModel.set(modelUpdate.model || null);
   };
   @Output() evalInputUpdate = new EventEmitter<string>();
 
@@ -61,12 +61,13 @@ export class ModelEvaluatorComponent {
         }
       });
 
-    this.currentModel$ = new BehaviorSubject<ModelSpecAndData | null>(null);
-    this.modelData$ = this.currentModel$.pipe(
-      mapNonNull(m => m.modelData || null)
-    );
+    this.modelData = computed(() => {
+      const model = this.currentModel();
+      if (!model) { return null; }
+      return model.modelData();
+    });
 
-    effect(() => console.log(`input updated: ${this.input()}`));
+    // effect(() => console.log(`input updated: ${this.input()}`));
   }
 
   setInputValueFromString(s: string | null) {
@@ -75,8 +76,8 @@ export class ModelEvaluatorComponent {
     }
   }
 
-  async evaluate() {
-    const modelData = await firstValueFrom(this.modelData$);
+  evaluate() {
+    const modelData = this.modelData();
     if (!modelData) {
       throw new Error('no current trainState');
     }

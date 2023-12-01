@@ -15,13 +15,18 @@
   </mat-form-field>
 </form>
 
-<div *ngIf="modelData$ | async as modelData; else noData">
-  <button mat-flat-button color="primary" (click)="evaluate()">
-    Evalute
-  </button>
-</div>
-<ng-template #noData><div>Model needs to be initialised to evalute it.</div></ng-template>
+@if (modelData(); as modelData) {
+  <div>
+    <button mat-flat-button color="primary" (click)="evaluate()">
+      Evalute
+    </button>
+  </div>
+} @else {
+  <div>Model needs to be initialised to evalute it.</div>
+}
 
-<div *ngIf="modelOutput">
-  Output: <span>{{modelOutput}}</span>
-</div>
+@if (modelOutput) {
+  <div>
+    Output: <span>{{modelOutput}}</span>
+  </div>
+}

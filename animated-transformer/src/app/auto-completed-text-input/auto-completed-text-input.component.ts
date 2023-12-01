@@ -1,7 +1,29 @@
-import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked } from '@angular/core';
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+/*
+TODO: Once angular supports it, we should activate the current item, and we
+should de-activate when it's not longer selected.
+
+TODO: consider just using mat-menu, it's unclear if auto-complete is actually
+making things harder to easier.
+*/
+
+import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatAutocomplete, MatAutocompleteModule } from '@angular/material/autocomplete';
 // import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
@@ -19,20 +41,22 @@ export class AutoCompletedTextInputComponent {
   itemSelectorControl = new FormControl<string>('');
   itemNamesList = signal([] as string[]);
   filteredNames: Signal<string[]>;
+  suggestedNames: Signal<string[]>;
+  exactMatchName: Signal<string | null>;
   lastEmittedValue: string | null = null;
 
   @Input() label?: string;
 
   @Input()
   set selectedName(n: string | null) {
-    if (n && this.itemSelectorControl.value !== n) {
-      this.itemSelectorControl.setValue(n);
+    if (this.itemSelectorControl.value !== n) {
+      this.itemSelectorControl.setValue(n || '');
     }
   }
 
   @Input()
   set itemNames(ns: string[]) {
-    this.itemNamesList.set(ns.map(n => n.toLocaleLowerCase()));
+    this.itemNamesList.set(ns);
   }
 
   @Output() itemSelected = new EventEmitter<string | null>();
@@ -45,13 +69,26 @@ export class AutoCompletedTextInputComponent {
       if (!name) { return this.itemNamesList(); }
       const filterStringLc = name.toLowerCase();
       return this.itemNamesList().filter(
-        maybeMatchedName => maybeMatchedName.includes(filterStringLc));
+        n => n.toLocaleLowerCase().includes(filterStringLc));;
     });
 
+    this.exactMatchName = computed(() => {
+      const name = datasetNameSignal();
+      const names = this.filteredNames();
+      return names.filter(n => n === name).length > 0 ? name || null : null;
+    });
+
+    // If there is one option only, and that is the current selected item,
+    // show all possible items
+    this.suggestedNames = computed(() =>
+      this.exactMatchName() ? this.itemNamesList() : this.filteredNames());
+
     effect(() => {
-      const ds = this.filteredNames();
-      if (ds.length !== 1) { return this.maybeEmit(null); }
-      this.maybeEmit(ds[0]);
+      if (this.exactMatchName()) {
+        this.maybeEmit(this.exactMatchName());
+      } else {
+        this.maybeEmit(null);
+      }
     }, { allowSignalWrites: true });
   }
 
@@ -60,6 +97,7 @@ export class AutoCompletedTextInputComponent {
     if (value !== this.lastEmittedValue) {
       this.lastEmittedValue = value;
       this.itemSelected.emit(value);
+      // TODO: activate the appropriate option in the auto-complete menu.
     }
   }
 }

@@ -16,13 +16,6 @@ limitations under the License.
 
 import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges, signal, WritableSignal, Signal, computed } from '@angular/core';
 import * as json5 from 'json5';
-import { AbstractControl, UntypedFormControl, ValidationErrors, ValidatorFn, FormControl } from '@angular/forms';
-import { firstValueFrom, Observable, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
-import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, tap, skip, pairwise, distinct } from 'rxjs/operators';
-import { MatTable } from '@angular/material/table';
-// import { nanValidator } from '../nan-validator.directive';
-import { JsonValue } from 'src/lib/pretty_json/json';
-import { mapNonNull } from '../../../lib/rxjs/util';
 import * as swap_task from '../../../lib/seqtasks/swap_task';
 import { DecisionBoundaryTask, baseVocab as dboundaryVocab } from '../../../lib/seqtasks/decision_boundary_task';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
@@ -130,7 +123,7 @@ export class SeqTaskSelectorComponent {
     });
   }
 
-  selectTask(maybeName: string | null) {
+  selectTask(maybeName: string | null): void {
     const oldTask = this.currentTask();
     const taskMap = this.taskMap();
     if (!maybeName || !(maybeName in taskMap)) {
