@@ -1,25 +1,18 @@
 <div class="row">
-  <form class="dataset-form">
-    <mat-form-field class="full-width" appearance="fill">
-      <mat-label>Choose Trainer</mat-label>
-      <input type="text" matInput [formControl]="trainerNameControl" [matAutocomplete]="auto">
-      <mat-autocomplete #auto="matAutocomplete">
-        <mat-option *ngFor="let trainer of filteredTrainers$ | async" [value]="trainer.config.name">
-          {{trainer.config.name}}
-        </mat-option>
-      </mat-autocomplete>
-    </mat-form-field>
-  </form>
+  <app-auto-completed-text-input class="dataset-form"
+        [label]="'Trainer'"
+        [selectedName]="currentTrainerName()"
+        [itemNames]="trainerNames()"
+        (itemSelected)="selectTrainer($event)">
+        </app-auto-completed-text-input>
 </div>
 
-<div class="row" *ngIf="currentTrainer$ | async as currentTrainer">
+<div class="row" *ngIf="currentTrainer() as currentTrainer">
   <div *ngIf="view != 'edit'">
     <div>
-      <div *ngIf="taskAndModelWithData$ | async as taskAndModel">
-        <div>Selected task: <span class="json">{{taskAndModel.task.config.name}}</span></div>
-        <div>Selected model: <span class="json">{{taskAndModel.model.config.name}}</span></div>
-      </div>
-      <div *ngIf="trainState$ | async as trainState">
+      <div *ngIf="currentTask() as task">Selected task: <span class="json">{{task.config.name}}</span></div>
+      <div *ngIf="currentModel() as model">Selected model: <span class="json">{{model.config.name}}</span></div>
+      <div *ngIf="trainState() as trainState">
         <div>state.nExamples: <span class="json">{{trainState.nExamples}}</span></div>
         <div>state.nSteps: <span class="json">{{trainState.nSteps}}</span></div>
         <div>state.batchLoss: <span class="json">{{trainState.batchMeanLoss}}</span></div>
@@ -35,8 +28,8 @@
         <mat-icon>edit</mat-icon>
       </button>
 
-      <div *ngIf="trainState$ | async as trainState; else noTrainState">
-        <button *ngIf="taskAndModelWithData$ | async" mat-flat-button (click)="initTrainer()">
+      <div *ngIf="trainState() as trainState; else noTrainState">
+        <button *ngIf="currentTask() && currentModel()" mat-flat-button (click)="initTrainer()">
           re-init
         </button>
         <button  mat-flat-button color="primary" (click)="trainStep()">
@@ -45,7 +38,7 @@
         <mat-slide-toggle color="primary" (change)="toggleTraining($event)">Training</mat-slide-toggle>
       </div>
       <ng-template #noTrainState><div>
-        <button *ngIf="taskAndModelWithData$ | async" color="warn" mat-flat-button (click)="initTrainer()">
+        <button *ngIf="currentTask() && currentModelData()" color="warn" mat-flat-button (click)="initTrainer()">
           init
         </button>
       </div></ng-template>
@@ -61,7 +54,7 @@
       [config]="currentTrainer.configStr"></app-codemirror-config-editor>
   </div>
 
-  <div *ngIf="trainState$ | async as trainState">
+  <div *ngIf="trainState()">
     <div *ngIf="lossPoints.length > 0">
       <div>Loss:</div>
       <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>

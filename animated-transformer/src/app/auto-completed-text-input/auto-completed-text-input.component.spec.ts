@@ -13,22 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { VegaChartComponent } from './vega-chart.component';
+import { AutoCompletedTextInputComponent } from './auto-completed-text-input.component';
 
-describe('VegaChartComponent', () => {
-  let component: VegaChartComponent;
-  let fixture: ComponentFixture<VegaChartComponent>;
+describe('AutoCompletedTextInputComponent', () => {
+  let component: AutoCompletedTextInputComponent;
+  let fixture: ComponentFixture<AutoCompletedTextInputComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ VegaChartComponent ]
+      imports: [AutoCompletedTextInputComponent]
     })
-    .compileComponents();
+      .compileComponents();
 
-    fixture = TestBed.createComponent(VegaChartComponent);
+    fixture = TestBed.createComponent(AutoCompletedTextInputComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

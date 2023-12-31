@@ -35,11 +35,12 @@ export interface JsonStrListError {
 export function jsonStrListErrorFn(config: JsonStrListConfig, value: string
 ): JsonStrListError | null {
   let parsedValue: Array<string> | unknown;
+  if (!value) { return { data: { value, config, message: `empty` } } }
 
   try {
     parsedValue = json5.parse(value);
   } catch (parseError: unknown) {
-    console.log(`${parseError}`, value);
+    console.warn(`jsonStrListErrorFn: ${parseError}`, value);
     return { data: { value, config, message: `not json` } }
   }
 

@@ -2,8 +2,8 @@
 
 <form class="input-form">
   <mat-form-field class="short-width" appearance="fill">
-    <mat-label>input</mat-label>
-    <input matInput required jsonStrListValidator
+    <mat-label>Input</mat-label>
+    <input matInput jsonStrListValidator
       maxlength="30" [formControl]="inputControl">
     <mat-error class="error"
       *ngIf="
@@ -15,13 +15,18 @@
   </mat-form-field>
 </form>
 
-<div *ngIf="modelData$ | async as modelData; else noData">
-  <button mat-flat-button color="primary" (click)="evaluate()">
-    Evalute
-  </button>
-</div>
-<ng-template #noData><div>Model needs to be initialised to evalute it.</div></ng-template>
+@if (modelData(); as modelData) {
+  <div>
+    <button mat-flat-button color="primary" (click)="evaluate()">
+      Evalute
+    </button>
+  </div>
+} @else {
+  <div>Model needs to be initialised to evalute it.</div>
+}
 
-<div *ngIf="modelOutput">
-  Output: <span>{{modelOutput}}</span>
-</div>
+@if (modelOutput) {
+  <div>
+    Output: <span>{{modelOutput}}</span>
+  </div>
+}

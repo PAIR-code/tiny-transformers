@@ -16,11 +16,9 @@ limitations under the License.
 
 import * as _ from 'underscore';
 
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
 import * as json5 from 'json5';
 import { FormControl } from '@angular/forms';
-import { firstValueFrom, Observable, tap, of, last, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
-import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, skip, pairwise } from 'rxjs/operators';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import { SimpleJsTreesLib, DictTree } from '../../../lib/js_tree/js_tree';
 import { transformerAccuracy, TransformerConfig, TransformerParamLayerSpec, TransformerParams, TransformerParamSpec } from '../../../lib/transformer/transformer_gtensor';
@@ -53,7 +51,7 @@ export class ModelSpecAndData {
   public configStr: string;
   public defaultConfigStr: string;
 
-  public modelData?: ModelData;
+  public modelData: WritableSignal<ModelData | null> = signal(null);
 
   constructor(
     public kind: 'transformer',
@@ -130,6 +128,9 @@ export interface ModelUpdate {
   model: ModelSpecAndData | null;
 }
 
+const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
+const initModelsMap: { [name: string]: ModelSpecAndData } = {};
+initModels.forEach(m => initModelsMap[m.config.name] = m);
 
 // ----------------------------------------------------------------------------
 @Component({
@@ -137,12 +138,11 @@ export interface ModelUpdate {
   templateUrl: './model-selector.component.html',
   styleUrls: ['./model-selector.component.scss']
 })
-export class ModelSelectorComponent implements OnInit {
+export class ModelSelectorComponent {
   task: BasicLmTask | null = null;
 
   @Input()
   set taskUpdate(update: BasicLmTaskUpdate) {
-    console.log('taskUpdate:', update);
     if (update.task) {
       this.task = update.task;
     } else {
@@ -168,84 +168,30 @@ export class ModelSelectorComponent implements OnInit {
   modelNameControl = new FormControl<string>('');
   view: 'edit' | 'view' = 'view';
 
-  modelSet: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
-
-  modelsByName: {
-    [name: string]: ModelSpecAndData
-  } = {}
-  filteredModels$!: Observable<ModelSpecAndData[]>;
-  currentModel$!: BehaviorSubject<ModelSpecAndData | null>;
+  modelsMap = signal(initModelsMap);
+  currentModel = signal<ModelSpecAndData | null>(null);
+  currentModelName: Signal<string>;
+  modelNames: Signal<string[]>;
 
   constructor() {
-    this.reCreateModelNameIndex();
-    this.currentModel$ = new BehaviorSubject<ModelSpecAndData | null>(null);
+    this.currentModelName = computed(() => {
+      const model = this.currentModel();
+      return model ? model.config.name : '';
+    });
 
-    // this.lossGraphVegaSpec = lossSpec(this.lossPoints);
-    // this.accGraphVegaSpec = accSpec(this.accPoints);
-  }
-
-  reCreateModelNameIndex() {
-    this.modelsByName = {};
-    this.modelSet.forEach(m =>
-      this.modelsByName[m.config.name.toLocaleLowerCase()] = m);
+    this.modelNames = computed(() => Object.keys(this.modelsMap()));
   }
 
   toggleModelEditor() {
     this.view = this.view === 'edit' ? 'view' : 'edit';
   }
 
-  async maybeSetModel(maybeName: string | null) {
-    const currentModel = await firstValueFrom(this.currentModel$);
-    const currentModelName = currentModel ? currentModel.config.name : '';
-    const newNameLc = (maybeName || '').toLocaleLowerCase();
-    // console.log('---');
-    // console.log('maybeSetModel maybeName:', maybeName);
-    // console.log('maybeSetModel currentModelName:', currentModelName);
-    // console.log('maybeSetModel modelNameControl:', this.modelNameControl.value);
-    if (newNameLc in this.modelsByName) {
-      const newModel = this.modelsByName[newNameLc];
-      if (currentModelName !== newModel.config.name) {
-        this.currentModel$.next(newModel);
-        if (this.modelNameControl.value !== newModel.config.name) {
-          this.modelNameControl.setValue(newModel.config.name);
-        }
-        this.modelChange.emit({ model: newModel });
-      }
-    } else {
-      if (maybeName === null) {
-        this.modelNameControl.setValue('');
-      } else if (this.modelNameControl.value !== maybeName) {
-        this.modelNameControl.setValue(maybeName);
-      }
-      if (currentModelName !== null) {
-        this.modelChange.emit({ model: null });
-        this.currentModel$.next(null);
-      }
+  maybeSetModel(maybeName: string | null) {
+    const newModel = this.modelsMap()[maybeName || ''] || null;
+    if (newModel !== this.currentModel()) {
+      this.currentModel.set(newModel);
+      this.modelChange.emit({ model: newModel });
     }
-  }
-
-  ngOnInit(): void {
-    this.filteredModels$ = this.modelNameControl.valueChanges.pipe(
-      tap(s => this.maybeSetModel(s)),
-      map(name => (name ? this._filter(name) : this.modelSet.slice())),
-      startWith(this.modelSet.slice()),
-      shareReplay(1));
-  }
-
-  private _filter(name: string): ModelSpecAndData[] {
-    const filterValue = name.toLowerCase();
-
-    const filteredModels = this.modelSet.filter(model => {
-      return model.config.name.toLowerCase().includes(filterValue)
-    });
-
-    if (filteredModels.length <= 1
-      //  && filteredTasks[0].config.name.toLowerCase() === filterValue
-    ) {
-      return this.modelSet;
-    }
-
-    return filteredModels;
   }
 
   modelConfigAsJson(model: ModelSpecAndData): string {
@@ -259,15 +205,13 @@ export class ModelSelectorComponent implements OnInit {
       { arrWrapAt: 60, objWrapAt: 60, curIndent: '', sortObjKeys: true });
   }
 
-  async modelConfigUpdated(event: unknown): Promise<void> {
+  modelConfigUpdated(configUpdate: ConfigUpdate<TransformerParamSpec>): void {
     // When configUpdate has a new object, we assume it to be correct.
     //
     // TODO: provide some runtime value type checking. Right now all that is
     // needed is valid JSON/JSON5, but if you provide valid JSON missing needed
     // values (e.g. encoderConfig is null), it should complain here, but
     // currently does not.
-    const configUpdate = event as ConfigUpdate<TransformerParamSpec>;
-
     if (configUpdate.close) {
       this.view = 'view';
     }
@@ -277,43 +221,38 @@ export class ModelSelectorComponent implements OnInit {
       return;
     }
 
-    const currentModel = await firstValueFrom(this.currentModel$);
+    const currentModel = this.currentModel();
     if (!currentModel) {
       console.error(`had null model for configUpdated: ${configUpdate}`);
       return;
     }
-    currentModel.updateFromStr(configUpdate.json);
+
+    const newModel = new ModelSpecAndData(currentModel.kind, currentModel.defaultConfig);
+    newModel.updateFromStr(configUpdate.json);
     // Model name was changed.
-    if (currentModel.config.name !== this.modelNameControl.value) {
-      if (!currentModel.config.name) {
-        currentModel.config.name = 'model without a name'
-      }
-      // Because the name of the model may have changed, we need to re-create the
-      // index
-      this.reCreateModelNameIndex();
-      this.modelNameControl.setValue(currentModel.config.name);
+    if (newModel.config.name !== currentModel.config.name) {
+      const newModelsMap = { ...this.modelsMap() };
+      delete newModelsMap[currentModel.config.name];
+      newModelsMap[newModel.config.name] = newModel;
+      this.modelsMap.set(newModelsMap);
     }
-    this.currentModel$.next(currentModel);
+    this.currentModel.set(newModel);
+    this.modelChange.emit({ model: newModel });
   }
 
-  // TODO: think about if we should remove this?
-  updateSelectedModel(event: unknown): void {
-    // console.log('this.modelNameControl.value:', this.modelNameControl.value);
-    // console.log('event:', event);
-  }
-
-  async initModelData() {
-    const curModel = await firstValueFrom(this.currentModel$);
+  initModelData() {
+    const curModel = this.currentModel();
     if (!curModel) {
       throw new Error('no model set');
     }
     if (!this.task) {
       throw new Error('no task set');
     }
-    if (curModel?.modelData) {
+    const modelData = curModel.modelData();
+    if (modelData) {
       // Dispose...
       // curModel.modelData.tokenRep
-      curModel.modelData.params.forEach(g => g.dispose());
+      modelData.params.forEach(g => g.dispose());
     }
 
     const config = _.clone(curModel.config);
@@ -322,12 +261,9 @@ export class ModelSelectorComponent implements OnInit {
     const params = transformer.initDecoderParamsTree(config.transformer);
     const paramCount = params.reduce(
       (count, paramObj) => count + paramObj.tensor.size, 0);
-    curModel.modelData = {
+    curModel.modelData.set({
       config, tokenRep, inputPrepFn: strSeqPrepFn, params, paramCount
-    };
-
-    // Make sure downstream consumers know we now have model data...
-    this.modelChange.emit({ model: curModel });
+    });
   }
 
 }

@@ -14,15 +14,8 @@ limitations under the License.
 ==============================================================================*/
 
 
-import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges, signal, WritableSignal, Signal, computed } from '@angular/core';
 import * as json5 from 'json5';
-import { AbstractControl, UntypedFormControl, ValidationErrors, ValidatorFn, FormControl } from '@angular/forms';
-import { firstValueFrom, Observable, of, EMPTY, OperatorFunction, combineLatest, BehaviorSubject, ReplaySubject, Subscription } from 'rxjs';
-import { map, startWith, shareReplay, take, mergeMap, distinctUntilChanged, tap, skip, pairwise, distinct } from 'rxjs/operators';
-import { MatTable } from '@angular/material/table';
-// import { nanValidator } from '../nan-validator.directive';
-import { JsonValue } from 'src/lib/pretty_json/json';
-import { mapNonNull } from '../../../lib/rxjs/util';
 import * as swap_task from '../../../lib/seqtasks/swap_task';
 import { DecisionBoundaryTask, baseVocab as dboundaryVocab } from '../../../lib/seqtasks/decision_boundary_task';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
@@ -56,121 +49,105 @@ class TaskMetadata {
   }
 }
 
+const inittaskSet: TaskMetadata[] = [
+  new TaskMetadata(new swap_task.SwapTask({
+    name: 'a swap task',
+    maxInputLen: 4,
+    maxOutputLen: 1,
+    valuesLessThan: swap_task.baseVocab.length + 1,
+    seed: 47
+  })),
+  new TaskMetadata(new DecisionBoundaryTask({
+    name: 'a boundary task',
+    maxInputLen: 5,
+    maxOutputLen: 1,
+    seed: 0,
+  })),
+  new TaskMetadata(new SecretTokenTask({
+    name: 'mod secret token === 0',
+    maxInputLen: 5,
+    maxOutputLen: 1,
+    seed: 0,
+    randomTokensVocab: ['1', '2', '3', '4', '5'],
+    tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)'
+  }))
+];
+const initTaskMap = {} as { [name: string]: TaskMetadata };
+inittaskSet.forEach(t => initTaskMap[t.config.name] = t);
+
+
 // ----------------------------------------------------------------------------
 @Component({
   selector: 'app-seq-task-selector',
   templateUrl: './seq-task-selector.component.html',
   styleUrls: ['./seq-task-selector.component.scss']
 })
-export class SeqTaskSelectorComponent implements OnInit {
+export class SeqTaskSelectorComponent {
+  // Cached value or the current task name. e.g. updated by url changes.
+  @Input()
+  set taskName(maybeName: string | null) {
+    this.selectTask(maybeName);
+  }
+
   // When this component changes the task... (even if the name has not changed)
   @Output() taskUpdates = new EventEmitter<BasicLmTaskUpdate>();
+
   view: 'edit' | 'view' = 'view';
 
   showExamples = false;
-  taskNameControl = new FormControl<string>('');
   shownNumOfExamples = 6;
   repSize = 8;
 
-  // @Input()
-  taskSet: TaskMetadata[] = [
-    new TaskMetadata(new swap_task.SwapTask({
-      name: 'a swap task',
-      maxInputLen: 4,
-      maxOutputLen: 1,
-      valuesLessThan: swap_task.baseVocab.length + 1,
-      seed: 47
-    })),
-    new TaskMetadata(new DecisionBoundaryTask({
-      name: 'a boundary task',
-      maxInputLen: 5,
-      maxOutputLen: 1,
-      seed: 0,
-    })),
-    new TaskMetadata(new SecretTokenTask({
-      name: 'mod secret token === 0',
-      maxInputLen: 5,
-      maxOutputLen: 1,
-      seed: 0,
-      randomTokensVocab: ['1', '2', '3', '4', '5'],
-      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)'
-    }))
-  ];
-  tasksByName: { [name: string]: TaskMetadata } = {}
+  taskMap: WritableSignal<{ [name: string]: TaskMetadata }> =
+    signal(initTaskMap);
+  taskNames: Signal<string[]>;
 
-  filteredTasks$!: Observable<TaskMetadata[]>;
-  // @ViewChild('datasetName', {static: false}) datasetNameInput!: Input;
-  currentTask$!: BehaviorSubject<TaskMetadata | null>;
-
-  constructor() {
-    this.reCreateTaskNameIndex();
-    this.currentTask$ = new BehaviorSubject<TaskMetadata | null>(null);
-  }
-
-  // Cached value or the current task name. e.g. updated by url changes.
-  @Input()
-  set taskName(n: string) {
-    this.maybeSetTaskByName(n);
-  }
-
-  // selectedTask$!: Observable<BasicLmTask | null>;
-
-  selectedTaskExamples$!: Observable<Example[] | null>;
+  currentTask: WritableSignal<TaskMetadata | null> = signal(null);
+  currentTaskName: Signal<string | null>;
+  selectedTaskExamples!: Signal<Example[] | null>;
   datasetColumns: string[] = ['input', 'target'];
 
-  reCreateTaskNameIndex() {
-    this.taskSet.forEach(
-      t => this.tasksByName[t.config.name.toLocaleLowerCase()] = t);
+  constructor() {
+    this.taskNames = computed(() => Object.keys(this.taskMap()));
+    this.selectedTaskExamples = computed(() => {
+      const taskMetadata = this.currentTask();
+      if (!taskMetadata) { return null };
+      return [...takeNextN(
+        taskMetadata.task.makeExamplesGenerator(),
+        this.shownNumOfExamples)];
+    });
+    this.currentTaskName = computed(() => {
+      const taskMetadata = this.currentTask();
+      if (!taskMetadata) { return null; }
+      return taskMetadata.config.name;
+    });
   }
 
-  ngOnInit(): void {
-    this.filteredTasks$ = this.taskNameControl.valueChanges.pipe(
-      tap(name => this.maybeSetTaskByName(name)),
-      map(name => (name ? this._filter(name) : this.taskSet.slice())),
-      startWith(this.taskSet.slice()),
-      shareReplay(1));
-
-    // When a new task is selected, update the examples.
-    this.selectedTaskExamples$ = this.currentTask$.pipe(
-      mapNonNull(taskMetadata =>
-        [...takeNextN(taskMetadata.task.makeExamplesGenerator(),
-          this.shownNumOfExamples)]), shareReplay(1));
-  }
-
-  async maybeSetTaskByName(maybeName: string | null): Promise<TaskMetadata | null> {
-    const name = (maybeName || '').toLocaleLowerCase();
-    const oldTask = await firstValueFrom(this.currentTask$);
-    // The new name has no associated task...
-    if (!(name in this.tasksByName)) {
-      if (oldTask !== null) {
-        this.currentTask$.next(null);
+  selectTask(maybeName: string | null): void {
+    const oldTask = this.currentTask();
+    const taskMap = this.taskMap();
+    if (!maybeName || !(maybeName in taskMap)) {
+      if (oldTask) {
+        this.currentTask.set(null);
         this.taskUpdates.emit({});
       }
-      return null;
+      return;
     }
-
-    // The new name has an associated task...
-    const newTaskMetadata = this.tasksByName[name];
-    // If new task name = old task name, return old task, no update.
+    const newTaskMetadata = taskMap[maybeName];
     if (oldTask && newTaskMetadata.config.name === oldTask.config.name) {
-      return oldTask;
+      return;
     }
-    // implies: (!oldTask || newTask.config.name !== oldTask.config.name)
-    this.currentTask$.next(newTaskMetadata);
+    this.currentTask.set(newTaskMetadata);
     this.taskUpdates.emit({ task: newTaskMetadata.task });
-    this.taskNameControl.setValue(maybeName);
-    return newTaskMetadata;
   }
 
-  async taskConfigUpdated(event: unknown): Promise<void> {
+  taskConfigUpdated(configUpdate: ConfigUpdate<BasicLmTaskConfig>): void {
     // When configUpdate has a new object, we assume it to be correct.
     //
     // TODO: provide some runtime value type checking. Right now all that is
     // needed is valid JSON/JSON5, but if you provide valid JSON missing needed
     // values (e.g. encoderConfig is null), it should complain here, but
     // currently does not.
-    const configUpdate = event as ConfigUpdate<BasicLmTaskConfig>;
-
     if (configUpdate.close) {
       this.view = 'view';
     }
@@ -180,23 +157,21 @@ export class SeqTaskSelectorComponent implements OnInit {
       return;
     }
 
-    const task = await firstValueFrom(this.currentTask$);
+    const task = this.currentTask();
     if (!task) {
       console.error(`had null task for configUpdated: ${configUpdate}`);
       return;
     }
-    task.updateFromStr(configUpdate.json);
-    // Model name was changed.
-    if (task.config.name !== this.taskNameControl.value) {
-      if (!task.config.name) {
-        task.config.name = 'model without a name'
-      }
-      // Because the name of the model may have changed, we need to re-create the
-      // index
-      this.reCreateTaskNameIndex();
-      this.taskNameControl.setValue(task.config.name);
+
+    if (task.config.name !== configUpdate.obj.name) {
+      const newTaskMap = { ...this.taskMap() };
+      delete newTaskMap[task.config.name];
+      const updatedTask = new TaskMetadata(task.task);
+      updatedTask.updateFromStr(configUpdate.json);
+      newTaskMap[updatedTask.config.name] = updatedTask;
+      this.taskMap.set(newTaskMap);
+      this.currentTask.set(updatedTask);
     }
-    this.currentTask$.next(task);
   }
 
   toggleEditor() {
@@ -215,25 +190,4 @@ export class SeqTaskSelectorComponent implements OnInit {
       { arrWrapAt: 60, objWrapAt: 60, curIndent: '', sortObjKeys: true });
     // json5.stringify(config, null, 2);
   }
-
-  private _filter(name: string): TaskMetadata[] {
-    const filterValue = name.toLowerCase();
-
-    const filteredTasks = this.taskSet.filter(task => {
-      return task.config.name.toLowerCase().includes(filterValue)
-    });
-
-    if (filteredTasks.length <= 1
-      // && filteredTasks[0].config.name.toLowerCase() === filterValue
-    ) {
-      return this.taskSet;
-    }
-
-    return filteredTasks;
-  }
-
-  // TODO: think about if we should remove this?
-  updateSelectedTask(event: unknown): void {
-  }
-
 }

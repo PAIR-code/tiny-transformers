@@ -40,6 +40,7 @@ import { NnActivationComponent } from './nn-activation/nn-activation.component';
 import { CircleActivationComponent } from './circle-activation/circle-activation.component';
 import { ActivationManagerDirective } from './activation-manager.directive';
 import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
+import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
 
 @NgModule({
   declarations: [
@@ -54,6 +55,7 @@ import { ActivationManagerComponent } from './activation-manager/activation-mana
     ActivationManagerComponent,
   ],
   imports: [
+    AutoCompletedTextInputComponent,
     CommonModule,
     FormsModule,
     ReactiveFormsModule,

@@ -29,6 +29,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
 import { D3LineChartModule } from '../../d3-line-chart/d3-line-chart.module';
+import { AutoCompletedTextInputComponent } from '../../auto-completed-text-input/auto-completed-text-input.component';
 
 @NgModule({
   declarations: [
@@ -47,7 +48,8 @@ import { D3LineChartModule } from '../../d3-line-chart/d3-line-chart.module';
     MatMenuModule,
     MatAutocompleteModule,
     CodemirrorConfigEditorModule,
-    D3LineChartModule
+    D3LineChartModule,
+    AutoCompletedTextInputComponent,
   ],
   exports: [
     ModelTaskTrainerComponent

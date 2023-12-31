@@ -7,6 +7,8 @@ import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { TrainState } from './train_state';
 
+// Idea: create a per-layer-scaled adam optimizer. This will use far fewer
+// parameters, saving lots of memory, and maybe working as well.
 
 export class AdamOptimizer<SpecKind, ParamsKind,
   InputDims extends string, TargetDims extends string>
@@ -23,6 +25,8 @@ export class AdamOptimizer<SpecKind, ParamsKind,
   // for bias of 0 initialized gradients.
   public b1t: GVariable<never>;
   public b2t: GVariable<never>;
+  public b1tInv: GVariable<never>;  // 1 - b1t
+  public b2tInv: GVariable<never>;  // 1 - b2t
   // The first moment, per param (~ the running accumulation for the gradient)
   public m: GVariableTree<ParamsKind>;
   // The second moment, per param (~ the running accumulation for gradient^2)
@@ -42,6 +46,8 @@ export class AdamOptimizer<SpecKind, ParamsKind,
     this.epsilon = makeScalar(epsilon);
     this.b1t = new GVariable(this.b1);
     this.b2t = new GVariable(this.b2);
+    this.b1tInv = new GVariable(one.scalarSub(this.b1));
+    this.b2tInv = new GVariable(one.scalarSub(this.b2));
     this.alpha = new GVariable(makeScalar(this.state.config.learningRate));
     this.b1Inv = makeScalar(1 - b1);
     this.b2Inv = makeScalar(1 - b2);
@@ -54,7 +60,9 @@ export class AdamOptimizer<SpecKind, ParamsKind,
 
     tf.tidy(() => {
       this.b1t.assign(this.b1t.scalarMul(this.b1));
+      this.b1tInv.assign(one.scalarSub(this.b1t));
       this.b2t.assign(this.b2t.scalarMul(this.b2));
+      this.b2tInv.assign(one.scalarSub(this.b2t));
     });
 
     this.state.updateParamsFn(
@@ -66,8 +74,8 @@ export class AdamOptimizer<SpecKind, ParamsKind,
           g.pointwiseMul(g).scalarMul(this.b2Inv));
         m.assign(m2);
         v.assign(v2);
-        const mhat = m.scalarDiv(one.scalarSub(this.b1t));
-        const vhat = v.scalarDiv(one.scalarSub(this.b2t));
+        const mhat = m.scalarDiv(this.b1tInv);
+        const vhat = v.scalarDiv(this.b2tInv);
         const delta = mhat.pointwiseDiv(vhat.sqrt().scalarAdd(this.epsilon));
         return p.pointwiseSub(delta.scalarMul(this.alpha));
         // FASTER VERSION:

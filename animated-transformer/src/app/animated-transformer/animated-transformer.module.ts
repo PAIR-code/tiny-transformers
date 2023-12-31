@@ -44,6 +44,7 @@ import { ModelEvaluatorComponent } from './model-evaluator/model-evaluator.compo
 // import { ModelTaskTrainerComponent } from './model-task-trainer/model-task-trainer.component';
 // import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
 // import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
+import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
 
 import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-validator.directive';
 
@@ -78,6 +79,7 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     // VegaChartModule,
     D3LineChartModule,
     ModelTaskTrainerModule,
+    AutoCompletedTextInputComponent,
   ]
 })
 export class AnimatedTransformerModule { }

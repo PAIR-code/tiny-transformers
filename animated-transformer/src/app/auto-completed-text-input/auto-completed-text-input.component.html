@@ -1,0 +1,9 @@
+<mat-form-field class="full-width" appearance="fill">
+  <mat-label *ngIf="label">{{label}}</mat-label>
+  <input #textInput type="text" matInput [formControl]="itemSelectorControl" [matAutocomplete]="itemSelectorAutocomplete">
+  <mat-autocomplete #itemSelectorAutocomplete="matAutocomplete">
+    <mat-option *ngFor="let itemName of suggestedNames()" [value]="itemName">
+      {{itemName}}
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
