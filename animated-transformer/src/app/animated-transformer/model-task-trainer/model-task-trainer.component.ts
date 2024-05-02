@@ -52,7 +52,7 @@ export class TrainerMetaData {
 
   constructor(
     public kind: 'transformer',
-    public defaultConfig: TrainerConfig
+    public defaultConfig: TrainerConfig,
   ) {
     this.config =
       SimpleJsTreesLib.copy<JsonConfigData>(defaultConfig) as TrainerConfig;
@@ -247,6 +247,8 @@ export class ModelTaskTrainerComponent {
     }
 
     const newTrainer = new TrainerMetaData(trainer.kind, trainer.defaultConfig);
+    newTrainer.metrics.set(trainer.metrics());
+    
     newTrainer.updateFromStr(configUpdate.json);
     // Model name was changed.
     if (trainer.config.name !== newTrainer.config.name) {
@@ -316,6 +318,10 @@ export class ModelTaskTrainerComponent {
     }
   }
 
+  hasPlots() {
+    return this.lossPoints.length > 0 || this.accPoints.length > 0;
+  }
+
   clearPlots() {
     this.lossPoints = [];
     this.accPoints = [];
@@ -339,8 +345,6 @@ export class ModelTaskTrainerComponent {
       trainer.config.trainState,
     );
     trainer.trainState.set(newState);
-
-    this.clearPlots();
     this.curMetrics = computeMetrics(newState);
     this.addMetricsToGraph(this.curMetrics, trainer.config.name);
   }

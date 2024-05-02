@@ -39,7 +39,7 @@
       </div>
       <ng-template #noTrainState><div>
         <button *ngIf="currentTask() && currentModelData()" color="warn" mat-flat-button (click)="initTrainer()">
-          init
+          init trainer
         </button>
       </div></ng-template>
     </div>
@@ -54,16 +54,24 @@
       [config]="currentTrainer.configStr"></app-codemirror-config-editor>
   </div>
 
-  <div *ngIf="trainState()">
-    <div *ngIf="lossPoints.length > 0">
-      <div>Loss:</div>
-      <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+  @if (hasPlots()) {
+    <div>
+      <button mat-flat-button (click)="clearPlots()">
+        clear metrics
+      </button>
+      @if(lossPoints.length > 0) {
+        <div>
+          <div>Loss:</div>
+          <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+        </div>
+      }
+      @if(accPoints.length > 0) {
+        <div>
+          <div>Accuracy:</div>
+          <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
+        </div>
+      }
     </div>
-    <div *ngIf="accPoints.length > 0">
-      <div>Accuracy:</div>
-      <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
-    </div>
-  </div>
-
+  }
 </div>
 

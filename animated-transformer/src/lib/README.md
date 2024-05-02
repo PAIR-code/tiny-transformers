@@ -29,3 +29,7 @@ Abstract libraries
 * `rxjs/`: Misc useful RXJS helpers.
 
 Older documentation that explains the basic concept can be found in the [TFJS RFC](https://github.com/PAIR-code/tiny-transformers/blob/main/animated-transformer/src/lib/gtensor/20210731-tfjs-named-tensors.md) ([older TFJS version](https://github.com/tensorflow/community/blob/master/rfcs/20210731-tfjs-named-tensors.md)).
+
+TODO: setup some code and infra to allow GPU code to run in webworkers.
+
+Note: https://webgpu.github.io/webgpu-samples/samples/worker#./worker.ts

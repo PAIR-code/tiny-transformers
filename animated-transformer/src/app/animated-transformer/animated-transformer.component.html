@@ -55,11 +55,13 @@
   </mat-card>
 
   <mat-card class="card">
-    <app-model-evaluator
-    [model]="lastModelUpdate"
-    [inputValue]="evalInputStr"
-    (evalInputUpdate)="updateEvalInput($event)"
-    ></app-model-evaluator>
+    <mat-card-content>
+      <app-model-evaluator
+      [model]="lastModelUpdate"
+      [inputValue]="evalInputStr"
+      (evalInputUpdate)="updateEvalInput($event)"
+      ></app-model-evaluator>
+    </mat-card-content>
   </mat-card>
 
 </div>
