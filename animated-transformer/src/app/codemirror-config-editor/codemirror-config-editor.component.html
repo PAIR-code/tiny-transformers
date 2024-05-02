@@ -5,8 +5,11 @@
 
   <div>
     <button *ngIf="changed$ | async" color="accent" mat-raised-button (click)="tryEmitConfig()">save</button>
-    <button *ngIf="!(changed$ | async)" color="primary" mat-raised-button (click)="justClose()">close</button>
-    <button *ngIf="changed$ | async" color="primary" mat-raised-button (click)="tryEmitConfigAndClose()">save & close</button>
+    <button *ngIf="closable && !(changed$ | async)" color="primary" mat-raised-button
+      (click)="justClose()">close</button>
+    <button *ngIf="(changed$ | async) && closable" color="primary" mat-raised-button
+      (click)="tryEmitConfigAndClose()">save &
+      close</button>
   </div>
 
   <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Options">
@@ -32,5 +35,5 @@
 <div *ngIf="configError" class="hint-error">{{configError}}</div>
 
 <div class="code">
-<div #codemirror></div>
+  <div #codemirror></div>
 </div>

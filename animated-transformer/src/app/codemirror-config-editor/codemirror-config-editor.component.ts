@@ -37,6 +37,7 @@ export interface ConfigUpdate<T> {
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
   @Input() whatIsBeingEditedName: string = '';
   @Input() defaultConfig: string = '';
+  @Input() closable: boolean = true;
   @Output() update = new EventEmitter<ConfigUpdate<any>>();
   @Input()
   set config(value: string) {
