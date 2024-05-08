@@ -13,8 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { TokenEmb } from '../tokens/token_gemb';
+import { embed } from '../tokens/token_gemb';
 import * as tf from '@tensorflow/tfjs';
 
 export interface Example {
@@ -29,16 +28,15 @@ export interface Example {
 // Something that iterates through a dataset.
 export type ExampleGenerator = Generator<Example, undefined, undefined>;
 
-
 export type BasicLmTaskConfig = {
   name: string;
   maxInputLen: number;
   maxOutputLen: number;
-}
+};
 
 export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
   seed: number;
-}
+};
 
 /* Simple interface for classes that provide a task */
 export interface BasicLmTask {
@@ -52,8 +50,6 @@ export interface BasicLmTask {
   // reInitFromConfig(): void;
 }
 
-
-
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
@@ -66,7 +62,6 @@ export interface BasicLmTaskUpdate {
   task?: BasicLmTask;
 }
 
-
 // ----------------------------------------------------------------------------
 // Escaping
 // ----------------------------------------------------------------------------
@@ -77,8 +72,13 @@ export interface BasicLmTaskUpdate {
 // This allows new escape sequences to be added that we know will never occur
 // s', e.g. `${escapeChar}${safeSequence}`.
 // This provides a simple string serialization format for compound objects.
-export function escapeString(token: string, escapeChar = '\\', sepChar = ' '): string {
-  return token.replaceAll(escapeChar, `${escapeChar}${escapeChar}`)
+export function escapeString(
+  token: string,
+  escapeChar = '\\',
+  sepChar = ' '
+): string {
+  return token
+    .replaceAll(escapeChar, `${escapeChar}${escapeChar}`)
     .replaceAll(sepChar, `${escapeChar}${sepChar}`);
 }
 
@@ -90,7 +90,7 @@ export function indexExample(example: Example): string {
   return [
     ...example.input.map(escapeToken),
     '\\-->',
-    ...example.output.map(escapeToken)
+    ...example.output.map(escapeToken),
   ].join(' ');
 }
 
@@ -111,11 +111,11 @@ export class RandomStream implements Iterable<number> {
   // before things go wrong. e.g. in JS:
   // Number.MAX_VALUE + 1 === Number.MAX_VALUE (tested 10 Mar 2023).
   random(): number {
-    this.curSeedVal += 0x6D2B79F5; // === 1831565813
+    this.curSeedVal += 0x6d2b79f5; // === 1831565813
     let x = this.curSeedVal;
-    x = Math.imul(x ^ x >>> 15, x | 1);
-    x ^= x + Math.imul(x ^ x >>> 7, x | 61);  // 61 = prime number.
-    return ((x ^ x >>> 14) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61); // 61 = prime number.
+    return ((x ^ (x >>> 14)) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
   }
 
   fork(): RandomStream {
@@ -132,11 +132,11 @@ export class RandomStream implements Iterable<number> {
 // Random number generator Functor: a mulberry 32 bit implementation.
 export function makeRandFnFromSeed(seed: number): () => number {
   return function () {
-    let x = seed += 0x6D2B79F5; // === 1831565813
-    x = Math.imul(x ^ x >>> 15, x | 1);
-    x ^= x + Math.imul(x ^ x >>> 7, x | 61);  // 61 = prime number.
-    return ((x ^ x >>> 14) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
-  }
+    let x = (seed += 0x6d2b79f5); // === 1831565813
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61); // 61 = prime number.
+    return ((x ^ (x >>> 14)) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
+  };
 }
 
 // TODO: provide seed for deterministic generation.
@@ -144,7 +144,10 @@ export function randOfList<T>(rand: RandomStream, l: Array<T>): T {
   return l[Math.floor(rand.random() * l.length)];
 }
 
-export function generateBatch(exampleGen: ExampleGenerator, batchSize: number): Example[] {
+export function generateBatch(
+  exampleGen: ExampleGenerator,
+  batchSize: number
+): Example[] {
   return [...takeNextN(exampleGen, batchSize)];
   // const examples: Example[] = [];
   // for (let i = 0; i < batchSize; i++) {
@@ -156,7 +159,6 @@ export function generateBatch(exampleGen: ExampleGenerator, batchSize: number): 
   // }
   // return examples;
 }
-
 
 // export function generateBatch<T>(
 //   exampleGenFn: (
@@ -196,51 +198,51 @@ export function generateBatch(exampleGen: ExampleGenerator, batchSize: number): 
 //   return;
 // }
 
+// export function* generateTaskData(
+//   task: BasicLmTask,
+//   tokenEmb: TokenEmb,
+//   numElements?: number
+// ): Iterator<tf.TensorContainerObject> {
+//   let index = 0;
+//   const examplesGen = task.makeExamplesGenerator();
+//   while (numElements && index < numElements) {
+//     index++;
+//     const example = examplesGen.next();
+//     if (example.done) {
+//       return;
+//     }
+//     yield {
+//       xs: embed(example.value.input).tensor, // inputs
+//       ys: embed(example.value.output).tensor, // correct outputs
+//     } as tf.TensorContainerObject;
+//   }
+// }
 
-export function* generateTaskData(
-  task: BasicLmTask,
-  tokenEmb: TokenEmb,
-  numElements?: number
-): Iterator<tf.TensorContainerObject> {
-  let index = 0;
-  const examplesGen = task.makeExamplesGenerator();
-  while (numElements && index < numElements) {
-    index++;
-    const example = examplesGen.next();
-    if (example.done) {
-      return;
-    }
-    yield {
-      xs: tokenEmb.embed(example.value.input).tensor,  // inputs
-      ys: tokenEmb.embed(example.value.output).tensor  // correct outputs
-    } as tf.TensorContainerObject;
-  }
-}
-
-export function* listGen<T>(l: T[])
-  : Generator<T, undefined, undefined> {
+export function* listGen<T>(l: T[]): Generator<T, undefined, undefined> {
   for (const i of l) {
     yield i;
   }
   return;
 }
 
-export function* takeNextN<T, T2>(g: Generator<T, T2, undefined>, n: number)
-  : Generator<T, T2 | undefined, undefined> {
+export function* takeNextN<T, T2>(
+  g: Generator<T, T2, undefined>,
+  n: number
+): Generator<T, T2 | undefined, undefined> {
   while (n-- > 0) {
     // argument to g.next is undefined (would be T3)
     const curVal: IteratorResult<T, T2> = g.next();
     if (curVal.done) {
-      return curVal.value;  // type is T2
+      return curVal.value; // type is T2
     }
-    yield curVal.value;  // type is T1
+    yield curVal.value; // type is T1
   }
   return;
 }
 
 export function* filterGen<T, T2>(
   filterFn: (x: T) => boolean,
-  g: Generator<T, T2, undefined>,
+  g: Generator<T, T2, undefined>
 ): Generator<T, T2, undefined> {
   let curVal: IteratorResult<T, T2>;
   curVal = g.next();
@@ -257,24 +259,23 @@ export function* filterGen<T, T2>(
 //
 // Split off a number of examples to form the test set, and make sure that is
 // never in the set of examples generated after.
-export function splitGenerativeTaskTestSet(firstN: number, task: BasicLmTask)
-  : {
-    testSetExamples: Example[],
-    testSetIndex: Set<string>,
-    testFilteredExampleGenerator: ExampleGenerator
-  } {
-
-  const examplesGenerator = task.makeExamplesGenerator()
+export function splitGenerativeTaskTestSet(
+  firstN: number,
+  task: BasicLmTask
+): {
+  testSetExamples: Example[];
+  testSetIndex: Set<string>;
+  testFilteredExampleGenerator: ExampleGenerator;
+} {
+  const examplesGenerator = task.makeExamplesGenerator();
   const testSetGen = takeNextN(examplesGenerator, firstN);
   const testSetExamples = [...testSetGen];
   const testSetIndex = new Set(testSetExamples.map(indexExample));
 
-  const testFilteredExampleGenerator =
-    filterGen(
-      example => !testSetIndex.has(indexExample(example)),
-      examplesGenerator
-    );
+  const testFilteredExampleGenerator = filterGen(
+    (example) => !testSetIndex.has(indexExample(example)),
+    examplesGenerator
+  );
 
   return { testSetExamples, testSetIndex, testFilteredExampleGenerator };
 }
-

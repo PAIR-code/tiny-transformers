@@ -13,10 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { GTensor, DName, GVariable, GTensorOrScalar, makeScalar, GVariableOrScalar } from '../gtensor/gtensor';
+import {
+  GTensor,
+  DName,
+  GVariable,
+  GTensorOrScalar,
+  makeScalar,
+  GVariableOrScalar,
+} from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, ExampleGenerator, generateBatch } from '../seqtasks/util';
+import {
+  BasicLmTask,
+  Example,
+  ExampleGenerator,
+  generateBatch,
+} from '../seqtasks/util';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
@@ -25,7 +36,7 @@ export type TrainingBatch<InputDims extends DName, TargetDims extends DName> = {
   inputs: GTensor<InputDims>;
   // TODO: this is a special case of predicting only a single next token.
   targets: GTensor<TargetDims>;
-  nExampleBatchDelta: number,
+  nExampleBatchDelta: number;
 };
 
 export type TrainStateConfig = {
@@ -34,17 +45,19 @@ export type TrainStateConfig = {
   maxInputlength: number;
   testSetSize: number;
   trainSetSize: number;
-}
+};
 
 export type TaskDatasetSplit = {
   task: BasicLmTask;
-  testSetIndex: Set<string>,
+  testSetIndex: Set<string>;
   testSetExamples: Example[];
   trainSetGen: ExampleGenerator;
-}
+};
 
-export type TrainingBatchGenerator<I extends DName, T extends DName> =
-  Generator<TrainingBatch<I, T>, undefined, undefined>;
+export type TrainingBatchGenerator<
+  I extends DName,
+  T extends DName
+> = Generator<TrainingBatch<I, T>, undefined, undefined>;
 
 // /**
 //  * Assumes: that the output TrainingBatch may have extra padding examples, or
@@ -54,7 +67,6 @@ export type TrainingBatchGenerator<I extends DName, T extends DName> =
 // export type ExamplePrepFn<InputDims extends DName, TargetDims extends DName> =
 //   (tokenRep: MaskedTaskTokenRep, batch: Example[])
 //     => TrainingBatch<InputDims, TargetDims>;
-
 
 export type LossFn<
   // SpecKind defines the meta-data for the model specification, e.g.
@@ -67,12 +79,13 @@ export type LossFn<
   // The inputed dimension names of the model
   InputDims extends DName,
   // The outputed dimension names of the model
-  TargetDims extends DName> = (
-    spec: SpecKind,
-    params: ParamsKind,
-    inputs: GTensor<InputDims>,
-    targets: GTensor<TargetDims>
-  ) => tf.Scalar;
+  TargetDims extends DName
+> = (
+  spec: SpecKind,
+  params: ParamsKind,
+  inputs: GTensor<InputDims>,
+  targets: GTensor<TargetDims>
+) => tf.Scalar;
 
 // Class to hold state, primarily for memory management.
 export class TrainState<
@@ -85,7 +98,7 @@ export class TrainState<
   // Names of the dimensions in the input tensor.
   InputDims extends DName,
   // Names of dimensions in the output tensor.
-  TargetDims extends DName,
+  TargetDims extends DName
 > {
   // The examples we intended to put in the batch.
   batchExamples: Example[] = [];
@@ -104,7 +117,7 @@ export class TrainState<
   _calculateGradsAndLoss: () => {
     grads: GTensorTree<ParamsKind>;
     loss: tf.Scalar;
-  }
+  };
 
   /**
    * This class takes ownership of params, taking responsibility for
@@ -124,12 +137,14 @@ export class TrainState<
     public lossFn: LossFn<SpecKind, ParamsKind, InputDims, TargetDims>,
     public tokenRep: BasicTaskTokenRep,
     public taskSplit: TaskDatasetSplit,
-    public inputPrepFn: StrSeqPrepFn<InputDims>,
-    public targetPrepFn: StrSeqPrepFn<TargetDims>,
+    public inputPrepFn: StrSeqPrepFn<ParamsKind, InputDims>,
+    public targetPrepFn: (
+      tokenRep: BasicTaskTokenRep,
+      outputSeqs: string[][]
+    ) => GTensor<TargetDims>
   ) {
-
     // Make a copy of params with GVariables of zero value. init grad = 0
-    this.grads = this.params.map(t => new GVariable(t.zero()));
+    this.grads = this.params.map((t) => new GVariable(t.zero()));
     // this.ownedGVarTrees.push(this.grads);
 
     // Note: creating the function (gradsFunctor) doesn't create or do any
@@ -142,9 +157,9 @@ export class TrainState<
     // the same shape as the params. Ater all, we only need the shape after the
     // number of training steps when the caller wants to programatically do
     // stuff with the udpated params.
-    this._calculateGradsAndLoss = gradsVarTreeFunctor(this.params,
-      () => this.lossFn(
-        this.spec, this.params.obj, this.inputsVar, this.targetsVar));
+    this._calculateGradsAndLoss = gradsVarTreeFunctor(this.params, () =>
+      this.lossFn(this.spec, this.params.obj, this.inputsVar, this.targetsVar)
+    );
 
     this.initInputsAndTargets();
   }
@@ -174,9 +189,15 @@ export class TrainState<
     }
     tf.tidy(() => {
       const inputs = this.inputPrepFn(
-        this.tokenRep, this.config.maxInputlength, examples.map(e => e.input));
+        this.tokenRep,
+        this.params,
+        this.config.maxInputlength,
+        examples.map((e) => e.input)
+      );
       const targets = this.targetPrepFn(
-        this.tokenRep, this.config.maxInputlength, examples.map(e => e.output));
+        this.tokenRep,
+        examples.map((e) => e.output)
+      );
       if (this.inputsVar && !this.inputsVar.tensor.isDisposed) {
         this.inputsVar.assign(inputs);
       } else {
@@ -191,7 +212,9 @@ export class TrainState<
   }
 
   prepareNextTrainBatch(): void {
-    this.prepareBatch(generateBatch(this.taskSplit.trainSetGen, this.config.batchSize));
+    this.prepareBatch(
+      generateBatch(this.taskSplit.trainSetGen, this.config.batchSize)
+    );
   }
 
   updateGradsAndLoss() {
@@ -202,7 +225,8 @@ export class TrainState<
       grads.forEachZip(
         (newGrad: GTensorOrScalar, gradVar: GVariable<string>) =>
           gradVar.assign(newGrad),
-        this.grads);
+        this.grads
+      );
 
       // gtensorTrees.forEachZip((newGrad: GTensor<string>, gradVar: GVariable<string>) =>
       //   gradVar.assign(newGrad),
@@ -214,7 +238,11 @@ export class TrainState<
   updateLoss(): number {
     tf.tidy(() => {
       const loss = this.lossFn(
-        this.spec, this.params.obj, this.inputsVar, this.targetsVar)
+        this.spec,
+        this.params.obj,
+        this.inputsVar,
+        this.targetsVar
+      );
       this.batchMeanLoss = loss.dataSync()[0];
     });
     return this.batchMeanLoss;
@@ -222,9 +250,8 @@ export class TrainState<
 
   // TODO: posible (minor?) optimization: store lr scalar in var and reuse it.
   updateParamsWithGrad(lr: number) {
-    this.updateParamsFn(
-      (paramVar, grad) =>
-        paramVar.pointwiseSub(grad.scalarMul(makeScalar(lr)))
+    this.updateParamsFn((paramVar, grad) =>
+      paramVar.pointwiseSub(grad.scalarMul(makeScalar(lr)))
     );
     // tf.tidy(() => {
     //   // TODO treating these as GVariable<string> hides the fact that they can
@@ -242,8 +269,11 @@ export class TrainState<
 
   // TODO: posible (minor?) optimization: store lr scalar in var and reuse it.
   updateParamsFn(
-    f: (paramVar: GTensor<string>, grad: GTensor<string>, i: number) =>
-      GTensor<string>
+    f: (
+      paramVar: GTensor<string>,
+      grad: GTensor<string>,
+      i: number
+    ) => GTensor<string>
   ) {
     tf.tidy(() => {
       // TODO treating these as GVariable<string> hides the fact that they can
@@ -254,16 +284,15 @@ export class TrainState<
       this.params.forEachZip(
         (paramVar: GVariable<string>, grad: GTensor<string>, i) =>
           paramVar.assign(f(paramVar, grad, i)),
-        this.grads);
+        this.grads
+      );
     });
   }
-
-
 
   // Memory cleanup.
   dispose() {
     // this.params.forEach(g => g.dispose());
-    this.grads.forEach(g => g.dispose());
+    this.grads.forEach((g) => g.dispose());
     // for (const pt of this.ownedGVarTrees) {
     //   pt.forEach(p => p.dispose());
     // }
@@ -273,12 +302,15 @@ export class TrainState<
 }
 
 export function trySgdTrainStep<
-  SpecKind, ParamsKind, InputDims extends DName, TargetDims extends DName>(
-    state: TrainState<SpecKind, ParamsKind, InputDims, TargetDims>): boolean {
+  SpecKind,
+  ParamsKind,
+  InputDims extends DName,
+  TargetDims extends DName
+>(state: TrainState<SpecKind, ParamsKind, InputDims, TargetDims>): boolean {
   // The first batch is already prepared, so we update to the next train batch
   // only when nsteps > 0.
   if (state.nSteps > 0) {
-    state.prepareNextTrainBatch()
+    state.prepareNextTrainBatch();
   }
   state.updateParamsWithGrad(state.config.learningRate);
   state.updateGradsAndLoss();

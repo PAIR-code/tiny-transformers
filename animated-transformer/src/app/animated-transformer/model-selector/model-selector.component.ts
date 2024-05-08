@@ -13,21 +13,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as _ from 'underscore';
 
-import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  Signal,
+  WritableSignal,
+  computed,
+  signal,
+} from '@angular/core';
 import * as json5 from 'json5';
 import { FormControl } from '@angular/forms';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import { SimpleJsTreesLib, DictTree } from '../../../lib/js_tree/js_tree';
-import { transformerAccuracy, TransformerConfig, TransformerParamLayerSpec, TransformerParams, TransformerParamSpec } from '../../../lib/transformer/transformer_gtensor';
+import {
+  transformerAccuracy,
+  TransformerConfig,
+  TransformerParamLayerSpec,
+  TransformerParams,
+  TransformerParamSpec,
+} from '../../../lib/transformer/transformer_gtensor';
 import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
 import * as tf from '@tensorflow/tfjs';
-import { BasicTaskTokenRep, StrSeqPrepFn, prepareBasicTaskTokenRep, strSeqPrepFn } from 'src/lib/tokens/token_gemb';
+import {
+  BasicTaskTokenRep,
+  StrSeqPrepFn,
+  prepareBasicTaskTokenRep,
+  strSeqPrepFn,
+} from 'src/lib/tokens/token_gemb';
 import { GVariableTree } from 'src/lib/gtensor/gtensor_tree';
 
 export type JsonConfigData = DictTree<number | string | boolean>;
@@ -35,16 +53,16 @@ export type JsonConfigData = DictTree<number | string | boolean>;
 export type ModelConfig = {
   name: string;
   transformer: TransformerConfig;
-}
+};
 
 export type ModelData = {
   // Locally cached version of the model config.
   config: ModelConfig;
   tokenRep: BasicTaskTokenRep;
-  inputPrepFn: StrSeqPrepFn<'batch' | 'pos' | 'inputRep'>;
+  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>;
   params: GVariableTree<TransformerParams>;
   paramCount: number;
-}
+};
 
 export class ModelSpecAndData {
   public config: ModelConfig;
@@ -53,11 +71,10 @@ export class ModelSpecAndData {
 
   public modelData: WritableSignal<ModelData | null> = signal(null);
 
-  constructor(
-    public kind: 'transformer',
-    public defaultConfig: ModelConfig) {
-    this.config =
-      SimpleJsTreesLib.copy<JsonConfigData>(defaultConfig) as ModelConfig;
+  constructor(public kind: 'transformer', public defaultConfig: ModelConfig) {
+    this.config = SimpleJsTreesLib.copy<JsonConfigData>(
+      defaultConfig
+    ) as ModelConfig;
     this.configStr = stringifyJsonValue(this.config);
     this.defaultConfigStr = this.configStr;
   }
@@ -90,7 +107,7 @@ const defaultConfig: ModelConfig = {
       mean: 0,
       seed: 76,
     },
-  }
+  },
 };
 
 const layerSpecWithNorm: TransformerParamLayerSpec = {
@@ -113,30 +130,34 @@ const transWithLayerNormed: ModelConfig = {
     init: {
       stddev: 0.5,
       mean: 0,
-      seed: 96
+      seed: 96,
     },
-  }
+  },
 };
 
-const simpleTransformer = new ModelSpecAndData(
-  'transformer', defaultConfig);
+const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
 
 const simpleTransformerWithLayerNorm = new ModelSpecAndData(
-  'transformer', transWithLayerNormed);
+  'transformer',
+  transWithLayerNormed
+);
 
 export interface ModelUpdate {
   model: ModelSpecAndData | null;
 }
 
-const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
+const initModels: ModelSpecAndData[] = [
+  simpleTransformer,
+  simpleTransformerWithLayerNorm,
+];
 const initModelsMap: { [name: string]: ModelSpecAndData } = {};
-initModels.forEach(m => initModelsMap[m.config.name] = m);
+initModels.forEach((m) => (initModelsMap[m.config.name] = m));
 
 // ----------------------------------------------------------------------------
 @Component({
   selector: 'app-model-selector',
   templateUrl: './model-selector.component.html',
-  styleUrls: ['./model-selector.component.scss']
+  styleUrls: ['./model-selector.component.scss'],
 })
 export class ModelSelectorComponent {
   task: BasicLmTask | null = null;
@@ -148,7 +169,7 @@ export class ModelSelectorComponent {
     } else {
       this.task = null;
     }
-  };
+  }
 
   @Input()
   set modelName(n: string) {
@@ -201,8 +222,12 @@ export class ModelSelectorComponent {
   }
 
   modelDataAsJson(modelData: TransformerParamSpec): string {
-    return stringifyJsonValue(modelData,
-      { arrWrapAt: 60, objWrapAt: 60, curIndent: '', sortObjKeys: true });
+    return stringifyJsonValue(modelData, {
+      arrWrapAt: 60,
+      objWrapAt: 60,
+      curIndent: '',
+      sortObjKeys: true,
+    });
   }
 
   modelConfigUpdated(configUpdate: ConfigUpdate<TransformerParamSpec>): void {
@@ -227,7 +252,10 @@ export class ModelSelectorComponent {
       return;
     }
 
-    const newModel = new ModelSpecAndData(currentModel.kind, currentModel.defaultConfig);
+    const newModel = new ModelSpecAndData(
+      currentModel.kind,
+      currentModel.defaultConfig
+    );
     newModel.updateFromStr(configUpdate.json);
     // Model name was changed.
     if (newModel.config.name !== currentModel.config.name) {
@@ -252,18 +280,25 @@ export class ModelSelectorComponent {
     if (modelData) {
       // Dispose...
       // curModel.modelData.tokenRep
-      modelData.params.forEach(g => g.dispose());
+      modelData.params.forEach((g) => g.dispose());
     }
 
     const config = _.clone(curModel.config);
-    const tokenRep = prepareBasicTaskTokenRep(
-      this.task.baseVocab, config.transformer.spec.inputRep);
-    const params = transformer.initDecoderParamsTree(config.transformer);
+    const tokenRep = prepareBasicTaskTokenRep(this.task.baseVocab);
+    const params = transformer.initDecoderParamsTree(
+      tokenRep,
+      config.transformer
+    );
     const paramCount = params.reduce(
-      (count, paramObj) => count + paramObj.tensor.size, 0);
+      (count, paramObj) => count + paramObj.tensor.size,
+      0
+    );
     curModel.modelData.set({
-      config, tokenRep, inputPrepFn: strSeqPrepFn, params, paramCount
+      config,
+      tokenRep,
+      inputPrepFn: strSeqPrepFn,
+      params,
+      paramCount,
     });
   }
-
 }

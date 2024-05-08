@@ -18,7 +18,11 @@ limitations under the License.
 import { GTensor, GVariable } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, splitGenerativeTaskTestSet } from '../seqtasks/util';
+import {
+  BasicLmTask,
+  Example,
+  splitGenerativeTaskTestSet,
+} from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { transformerAccuracy } from '../transformer/transformer_gtensor';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
@@ -27,12 +31,15 @@ import { ModelData } from 'src/app/animated-transformer/model-selector/model-sel
 
 export type TransformerTrainState = TrainState<
   transformer.TransformerParamSpec,
-  transformer.TransformerParams, 'batch' | 'pos' | 'inputRep', 'batch'>;
+  transformer.TransformerParams,
+  'batch' | 'pos' | 'inputRep',
+  'batch'
+>;
 
 export interface TrainMetrics {
-  nExamples: number,
-  nEpochs: number,
-  nSteps: number,
+  nExamples: number;
+  nEpochs: number;
+  nSteps: number;
   // loss is per example normalized.
   trainBatchMeanLoss: number;
   testMeanLoss: number;
@@ -41,17 +48,21 @@ export interface TrainMetrics {
   testAcc: number;
 }
 
-
 export function initTransformerTrainState(
   task: BasicLmTask,
   tokenRep: BasicTaskTokenRep,
-  inputPrepFn: StrSeqPrepFn<'batch' | 'pos' | 'inputRep'>,
-  targetPrepFn: StrSeqPrepFn<'batch'>,
+  inputPrepFn: StrSeqPrepFn<
+    transformer.TransformerParams,
+    'batch' | 'pos' | 'inputRep'
+  >,
+  targetPrepFn: (
+    tokenRep: BasicTaskTokenRep,
+    outputSeqs: string[][]
+  ) => GTensor<'batch'>,
   transformerConfig: transformer.TransformerConfig,
   transformerInitParams: GVariableTree<transformer.TransformerParams>,
-  trainStateConfig: TrainStateConfig,
+  trainStateConfig: TrainStateConfig
 ): TransformerTrainState {
-
   function transformerLastTokenLoss(
     spec: transformer.TransformerParamSpec,
     params: transformer.TransformerParams,
@@ -59,9 +70,15 @@ export function initTransformerTrainState(
     targets: GTensor<'batch'>
   ): tf.Scalar {
     const decoderComputation = transformer.computeTransformer(
-      spec, params, inputs);
+      spec,
+      params,
+      inputs
+    );
     const loss = transformer.transformerLastTokenCrossEntropyLoss(
-      decoderComputation, tokenRep.tokenEmb.embeddings, targets);
+      decoderComputation,
+      params.tokenEmbedding,
+      targets
+    );
     return loss as tf.Scalar;
   }
 
@@ -75,8 +92,8 @@ export function initTransformerTrainState(
     trainSetGen: testFilteredExampleGenerator,
   };
 
-  console.log('testSetIndex.size:', testSetIndex.size);
-  console.log('testSetIndex.values:', [...testSetIndex.values()]);
+  // console.log('testSetIndex.size:', testSetIndex.size);
+  // console.log('testSetIndex.values:', [...testSetIndex.values()]);
 
   // We use ! because assignment is inside tf.tidy.
   let state!: TransformerTrainState;
@@ -93,16 +110,17 @@ export function initTransformerTrainState(
     );
   });
   return state;
-};
-
+}
 
 export function computeMetrics(state: TransformerTrainState): TrainMetrics {
   const trainBatchAcc: number = computeStateBatchAccuracy(state);
-  const testLossAndAcc = computeLossAndAccuracy(state,
-    state.taskSplit.testSetExamples);
+  const testLossAndAcc = computeLossAndAccuracy(
+    state,
+    state.taskSplit.testSetExamples
+  );
   return {
     nExamples: state.nExamples,
-    nEpochs: (state.nExamples / state.epochSize) - 1,
+    nEpochs: state.nExamples / state.epochSize - 1,
     nSteps: state.nSteps,
     trainBatchMeanLoss: state.batchMeanLoss,
     trainBatchAcc,
@@ -111,22 +129,29 @@ export function computeMetrics(state: TransformerTrainState): TrainMetrics {
   };
 }
 
-
-export function computeStateBatchAccuracy(state: TransformerTrainState): number {
+export function computeStateBatchAccuracy(
+  state: TransformerTrainState
+): number {
   let meanAcc: number = -1;
   tf.tidy(() => {
     const decoderComputation = transformer.computeTransformer(
-      state.spec, state.params.obj, state.inputsVar);
+      state.spec,
+      state.params.obj,
+      state.inputsVar
+    );
     meanAcc = transformerAccuracy(
-      decoderComputation, state.tokenRep.tokenEmb.embeddings, state.targetsVar)
-      .dataSync()[0];
+      decoderComputation,
+      state.params.obj.tokenEmbedding,
+      state.targetsVar
+    ).dataSync()[0];
   });
   return meanAcc;
 }
 
 export function computeLossAndAccuracy(
-  state: TransformerTrainState, examples: Example[]
-): { meanLoss: number, acc: number } {
+  state: TransformerTrainState,
+  examples: Example[]
+): { meanLoss: number; acc: number } {
   let meanAcc: number = -1;
   let meanLoss: number = -1;
   const meanAccPerBatch: number[] = [];
@@ -134,28 +159,32 @@ export function computeLossAndAccuracy(
   tf.tidy(() => {
     const initBatchExamples = state.batchExamples;
     const initBatchLoss = state.batchMeanLoss;
-    for (
-      let i = 0; i < examples.length;
-      i += state.config.batchSize
-    ) {
+    for (let i = 0; i < examples.length; i += state.config.batchSize) {
       const testSetBatch = examples.slice(i, i + state.config.batchSize);
       state.prepareBatch(testSetBatch);
       const decoderComputation = transformer.computeTransformer(
-        state.spec, state.params.obj, state.inputsVar);
+        state.spec,
+        state.params.obj,
+        state.inputsVar
+      );
       const batchAcc = transformerAccuracy(
-        decoderComputation, state.tokenRep.tokenEmb.embeddings, state.targetsVar)
-        .dataSync()[0];
+        decoderComputation,
+        state.params.obj.tokenEmbedding,
+        state.targetsVar
+      ).dataSync()[0];
       meanAccPerBatch.push(batchAcc);
       meanLossPerBatch.push(state.updateLoss());
     }
-    meanAcc = meanAccPerBatch.reduce((prev, cur) => cur + prev)
-      / meanAccPerBatch.length;
-    meanLoss = meanLossPerBatch.reduce((prev, cur) => cur + prev)
-      / meanLossPerBatch.length;
+    meanAcc =
+      meanAccPerBatch.reduce((prev, cur) => cur + prev) /
+      meanAccPerBatch.length;
+    meanLoss =
+      meanLossPerBatch.reduce((prev, cur) => cur + prev) /
+      meanLossPerBatch.length;
     state.prepareBatch(initBatchExamples);
     state.batchMeanLoss = initBatchLoss;
   });
-  return { acc: meanAcc, meanLoss }
+  return { acc: meanAcc, meanLoss };
 }
 
 // ----------------------------------------------------------------------------

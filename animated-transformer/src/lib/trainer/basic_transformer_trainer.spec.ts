@@ -13,20 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as transformer from '../transformer/transformer_gtensor';
 import * as abtask from '../seqtasks/ab_task';
 import { BasicRandSeededTaskConfig } from '../seqtasks/util';
 import {
   prepareBasicTaskTokenRep,
   strSeqPrepFn,
-  singleNextTokenIdxOutputPrepFn
+  singleNextTokenIdxOutputPrepFn,
 } from '../tokens/token_gemb';
 import { initTransformerTrainState } from './basic_transformer_trainer';
 import { TrainStateConfig, trySgdTrainStep } from './train_state';
 
 describe('basic_transformer_trainer', () => {
-
   it('AorBisMaxTask training', async () => {
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
@@ -36,7 +34,7 @@ describe('basic_transformer_trainer', () => {
       layerNormFF: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
-    }
+    };
     const decoderConfig: transformer.TransformerConfig = {
       spec: {
         inputRep: 4,
@@ -46,8 +44,8 @@ describe('basic_transformer_trainer', () => {
       init: {
         stddev: 0.5,
         mean: 0,
-        seed: 1
-      }
+        seed: 1,
+      },
     };
     const taskConfig: BasicRandSeededTaskConfig = {
       name: 'AorBisMaxTask',
@@ -60,12 +58,14 @@ describe('basic_transformer_trainer', () => {
       batchSize: 64,
       maxInputlength: taskConfig.maxInputLen,
       testSetSize: 0,
-      trainSetSize: 64
-    }
+      trainSetSize: 64,
+    };
     const task = new abtask.AorBisMaxTask(taskConfig);
-    const tokenRep = prepareBasicTaskTokenRep(
-      task.baseVocab, decoderConfig.spec.inputRep);
-    const initParams = transformer.initDecoderParamsTree(decoderConfig);
+    const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
+    const initParams = transformer.initDecoderParamsTree(
+      tokenRep,
+      decoderConfig
+    );
     console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
@@ -74,7 +74,7 @@ describe('basic_transformer_trainer', () => {
       singleNextTokenIdxOutputPrepFn,
       decoderConfig,
       initParams,
-      trainStateConfig,
+      trainStateConfig
     );
     // Taking a couple of steps...
     const initLoss = trainState.batchMeanLoss;
@@ -88,8 +88,7 @@ describe('basic_transformer_trainer', () => {
     expect(newLoss).toBeLessThan(initLoss);
 
     // Memory cleanup
-    initParams.forEach(g => g.dispose());
+    initParams.forEach((g) => g.dispose());
     trainState.dispose();
   });
-
 });
