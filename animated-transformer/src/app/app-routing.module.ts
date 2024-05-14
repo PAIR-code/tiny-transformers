@@ -13,23 +13,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ActivationVisComponent } from './activation-vis/activation-vis.component';
 import { AnimatedTransformerComponent } from './animated-transformer/animated-transformer.component';
 import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
+import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
 
 const routes: Routes = [
   { path: '', component: LandingPageComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
   { path: 'transformers', component: AnimatedTransformerComponent },
+  { path: 'wcolab', component: WebColabComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes, { useHash: true })],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}
