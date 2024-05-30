@@ -1,24 +1,26 @@
 # AnimatedTransformer
 
-This project was generated with
-[Angular CLI](https://github.com/angular/angular-cli) version 11.1.0.
+Recommended dependendies:
+
+- Install node `v20.14.0` usin the [nvm](https://github.com/nvm-sh/nvm) tool: `$ nvm install v20.14.0`
+- Install globally the Angular 18 CLI with `$ npm install -g @angular/cli`
 
 ## Development server
 
 First time setup:
 
-*   Clone this repo: `git clone sso://user/ldixon/animated-transformer`.
-*   Use a supported version of Node.js (v12-v16).
-*   Install dependencies: `npm install`
+- Clone this repo: `git clone https://github.com/PAIR-code/tiny-transformers.git`.
+- Change into the right subdirectory: `cd tiny-transformers/animated-transformer`
+- Install dependencies: `npm install`
 
-Run the sever with `npm start` for a dev server.
-
-NOTE: The dev server listens on interface 127.0.0.1. If you intend to access the
-dev server from another machine, you'll need to tunnel the traffic using `ssh`'s
-`-L` flag.
+Start a dev sever with `npm start`.
 
 Navigate to `http://localhost:4200/`. The app will automatically reload if you
 change any of the source files.
+
+NOTE: The dev server listens on 127.0.0.1. If you intend to access the
+dev server from another machine, you'll need to tunnel the traffic using `ssh`'s
+`-L` flag.
 
 ## Code scaffolding
 

@@ -8,18 +8,19 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch"
   },
+  "node": ">=20.11.1",
   "private": true,
   "dependencies": {
-    "@angular/animations": "^17.0.4",
-    "@angular/cdk": "^17.0.1",
-    "@angular/common": "^17.0.4",
-    "@angular/compiler": "^17.0.4",
-    "@angular/core": "^17.0.4",
-    "@angular/forms": "^17.0.4",
-    "@angular/material": "^17.0.1",
-    "@angular/platform-browser": "^17.0.4",
-    "@angular/platform-browser-dynamic": "^17.0.4",
-    "@angular/router": "^17.0.4",
+    "@angular/animations": "^18.0.1",
+    "@angular/cdk": "^18.0.1",
+    "@angular/common": "^18.0.1",
+    "@angular/compiler": "^18.0.1",
+    "@angular/core": "^18.0.1",
+    "@angular/forms": "^18.0.1",
+    "@angular/material": "^18.0.1",
+    "@angular/platform-browser": "^18.0.1",
+    "@angular/platform-browser-dynamic": "^18.0.1",
+    "@angular/router": "^18.0.1",
     "@codemirror/commands": "^6.2.4",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/language": "^6.9.0",
@@ -36,9 +37,9 @@
     "zone.js": "~0.14.2"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^17.0.3",
-    "@angular/cli": "^17.0.3",
-    "@angular/compiler-cli": "^17.0.4",
+    "@angular-devkit/build-angular": "^18.0.1",
+    "@angular/cli": "^18.0.1",
+    "@angular/compiler-cli": "^18.0.1",
     "@tsconfig/node18": "^18.2.1",
     "@types/d3": "^7.4.0",
     "@types/jasmine": "~4.3.0",
@@ -50,6 +51,6 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.0.0",
-    "typescript": "~5.2.0"
+    "typescript": "~5.4.5"
   }
 }
