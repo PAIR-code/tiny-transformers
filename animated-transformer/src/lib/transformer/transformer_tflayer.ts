@@ -13,9 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import {
   AttentionHead,
@@ -44,7 +42,7 @@ export interface EncoderConfig {
   returnAllParts?: boolean;
 
   // These values actually define weights.
-  inputRepSize: number;  // Can be inferred from what the encoder is applied to.
+  inputRepSize: number; // Can be inferred from what the encoder is applied to.
   // Assumes all attention head have the same parameters.
   // TODO: consider hetrogenious attention heads.
   nAttnHeads: number; // = Number of Values = Number of Keys (= number of Queries).
@@ -62,7 +60,7 @@ export type SymbolicAttentionParts = [
   tf.SymbolicTensor, // Attention
   tf.SymbolicTensor, // Values
   tf.SymbolicTensor, // Keys
-  tf.SymbolicTensor, // Queries
+  tf.SymbolicTensor // Queries
 ];
 
 export type TransformerParts = [
@@ -71,17 +69,16 @@ export type TransformerParts = [
   tf.Tensor3D, // Attention = Queries * Keys
   tf.Tensor3D, // Values = [batchSize, seqLen, valueRepSize]
   tf.Tensor3D, // Keys = [batchSize, seqLen, kqRepSize]
-  tf.Tensor3D, // Queries = [batchSize, seqLen, kqRepSize]
+  tf.Tensor3D // Queries = [batchSize, seqLen, kqRepSize]
 ];
 
 /**
  * An encoder transformer model (without layer or batch normalization).
  */
 export function encoder(config: EncoderConfig): tf.LayersModel {
-
   const inputs = tf.input({
     shape: [config.seqLen, config.inputRepSize],
-    name: 'encoder_input'
+    name: 'encoder_input',
   });
 
   const attentionHeads: AttentionHead[] = [];
@@ -89,32 +86,42 @@ export function encoder(config: EncoderConfig): tf.LayersModel {
     attentionHeads.push(new AttentionHead(config));
   }
 
-  const attentionParts: SymbolicAttentionParts[] =
-    attentionHeads.map(h => h.apply(inputs) as SymbolicAttentionParts);
+  const attentionParts: SymbolicAttentionParts[] = attentionHeads.map(
+    (h) => h.apply(inputs) as SymbolicAttentionParts
+  );
 
-  const attnHeadValues = attentionParts.map(parts => parts[ATTENDED_VALUES_PART_IDX]);
+  const attnHeadValues = attentionParts.map(
+    (parts) => parts[ATTENDED_VALUES_PART_IDX]
+  );
 
-  const attnHeadValuesAsOne = tf.layers.concatenate().apply(attnHeadValues) as tf.SymbolicTensor;
+  const attnHeadValuesAsOne = tf.layers
+    .concatenate()
+    .apply(attnHeadValues) as tf.SymbolicTensor;
 
   // TODO: Residual requires that input dim = value dim. Think about this. For now skipping the
   // attention head residual.
   //
   // const attentionWithResidual = tf.layers.add().apply([inputs, attnHeadValuesAsOne]);
   // const attentionNormalized = tf.layers.layerNormalization().apply(attentionWithResidual);
-  const attentionNormalized = tf.layers.layerNormalization().apply(attnHeadValuesAsOne);
+  const attentionNormalized = tf.layers
+    .layerNormalization()
+    .apply(attnHeadValuesAsOne);
   // console.log((attentionNormalized as tf.Tensor).shape);
 
-  const transformerOutput =
-    tf.layers.dense({
+  const transformerOutput = tf.layers
+    .dense({
       name: 'transformer_ff_output_l2',
       units: config.outputRepSize,
-    }).apply(
-      tf.layers.dense({
-        name: 'transformer_ff_output_l1_w_act',
-        units: config.ffInnerRepSize || config.outputRepSize,
-        activation: 'relu'
-      })
-        .apply(attentionNormalized)) as tf.SymbolicTensor;
+    })
+    .apply(
+      tf.layers
+        .dense({
+          name: 'transformer_ff_output_l1_w_act',
+          units: config.ffInnerRepSize || config.outputRepSize,
+          activation: 'relu',
+        })
+        .apply(attentionNormalized)
+    ) as tf.SymbolicTensor;
   // TODO: rescale 1/ sqrt(output dim size). Or fold it into the initialization.
 
   // TODO: Residual requires that output dim = value dim. Think about this. For now skipping the
@@ -122,21 +129,40 @@ export function encoder(config: EncoderConfig): tf.LayersModel {
   //
   // const transformerOutputWithResidual = tf.layers.add().apply(
   //   transformerOutput, attentionNormalized);
-  const transformerOutputNormalized = tf.layers.layerNormalization().apply(
-    transformerOutput) as tf.SymbolicTensor;
+  const transformerOutputNormalized = tf.layers
+    .layerNormalization()
+    .apply(transformerOutput) as tf.SymbolicTensor;
 
   let outputs = [transformerOutputNormalized];
   if (config.returnAllParts) {
-    const attentionsAsOne = tf.layers.concatenate().apply(attentionParts.map(
-      parts => parts[ATTENTION_PART_IDX])) as tf.SymbolicTensor;
-    const valuesAsOne = tf.layers.concatenate().apply(attentionParts.map(
-      parts => parts[VALUES_PART_IDX])) as tf.SymbolicTensor;
-    const keysAsOne = tf.layers.concatenate().apply(attentionParts.map(
-      parts => parts[KEYS_PART_IDX])) as tf.SymbolicTensor;
-    const queriesAsOne = tf.layers.concatenate().apply(attentionParts.map(
-      parts => parts[QUERIES_PART_IDX])) as tf.SymbolicTensor;
+    const attentionsAsOne = tf.layers
+      .concatenate()
+      .apply(
+        attentionParts.map((parts) => parts[ATTENTION_PART_IDX])
+      ) as tf.SymbolicTensor;
+    const valuesAsOne = tf.layers
+      .concatenate()
+      .apply(
+        attentionParts.map((parts) => parts[VALUES_PART_IDX])
+      ) as tf.SymbolicTensor;
+    const keysAsOne = tf.layers
+      .concatenate()
+      .apply(
+        attentionParts.map((parts) => parts[KEYS_PART_IDX])
+      ) as tf.SymbolicTensor;
+    const queriesAsOne = tf.layers
+      .concatenate()
+      .apply(
+        attentionParts.map((parts) => parts[QUERIES_PART_IDX])
+      ) as tf.SymbolicTensor;
 
-    outputs = outputs.concat([attnHeadValuesAsOne, attentionsAsOne, valuesAsOne, keysAsOne, queriesAsOne]);
+    outputs = outputs.concat([
+      attnHeadValuesAsOne,
+      attentionsAsOne,
+      valuesAsOne,
+      keysAsOne,
+      queriesAsOne,
+    ]);
   }
 
   return tf.model({ inputs, outputs, name: 'transformer-encoder' });

@@ -13,21 +13,49 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { signal, Component, EventEmitter, Input, OnInit, Output, effect, Signal, computed } from '@angular/core';
+import {
+  signal,
+  Component,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  effect,
+  Signal,
+  computed,
+} from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { jsonStrListValidator, jsonStrListErrorFn, JsonStrListConfig } from '../../form-validators/json-str-list-validator.directive';
+import {
+  jsonStrListValidator,
+  jsonStrListErrorFn,
+  JsonStrListConfig,
+} from '../../form-validators/json-str-list-validator.directive';
 
-import { ModelUpdate, ModelSpecAndData, ModelData } from '../model-selector/model-selector.component';
-import * as json5 from 'json5';
-import { BehaviorSubject, combineLatest, filter, firstValueFrom, map, merge, Observable, shareReplay, startWith, tap } from 'rxjs';
+import {
+  ModelUpdate,
+  ModelSpecAndData,
+  ModelData,
+} from '../model-selector/model-selector.component';
+import json5 from 'json5';
+import {
+  BehaviorSubject,
+  combineLatest,
+  filter,
+  firstValueFrom,
+  map,
+  merge,
+  Observable,
+  shareReplay,
+  startWith,
+  tap,
+} from 'rxjs';
 import { computePrediction } from 'src/lib/transformer/transformer_gtensor';
 import { mapNonNull } from 'src/lib/rxjs/util';
 
 @Component({
   selector: 'app-model-evaluator',
   templateUrl: './model-evaluator.component.html',
-  styleUrls: ['./model-evaluator.component.scss']
+  styleUrls: ['./model-evaluator.component.scss'],
 })
 export class ModelEvaluatorComponent {
   input = signal([] as string[]);
@@ -42,28 +70,29 @@ export class ModelEvaluatorComponent {
   @Input()
   set inputValue(inputUpdateStr: string | null) {
     this.inputControl.setValue(inputUpdateStr);
-  };
+  }
   @Input()
   set model(modelUpdate: ModelUpdate) {
     this.modelOutput = null;
     this.currentModel.set(modelUpdate.model || null);
-  };
+  }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
   constructor() {
-    const strListValidator = jsonStrListValidator(this.validatorConfig)
+    const strListValidator = jsonStrListValidator(this.validatorConfig);
     this.inputControl = new FormControl<string | null>('', strListValidator);
-    this.inputControl.valueChanges.forEach(
-      s => {
-        this.setInputValueFromString(s);
-        if (s !== null) {
-          this.evalInputUpdate.emit(s);
-        }
-      });
+    this.inputControl.valueChanges.forEach((s) => {
+      this.setInputValueFromString(s);
+      if (s !== null) {
+        this.evalInputUpdate.emit(s);
+      }
+    });
 
     this.modelData = computed(() => {
       const model = this.currentModel();
-      if (!model) { return null; }
+      if (!model) {
+        return null;
+      }
       return model.modelData();
     });
 
@@ -87,8 +116,8 @@ export class ModelEvaluatorComponent {
       modelData.inputPrepFn,
       modelData.config.transformer.spec,
       modelData.params,
-      [this.input()]);
+      [this.input()]
+    );
     this.modelOutput = outputs[0];
   }
-
 }

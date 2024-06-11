@@ -13,13 +13,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { Component, Input, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  ViewChild,
+  OnDestroy,
+  ComponentRef,
+  signal,
+  Injector,
+  effect,
+  Signal,
+  WritableSignal,
+  computed,
+  untracked,
+} from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
-import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
-// import * as json5 from 'json5';
+import {
+  mkVisTensor,
+  TensorImageComponent,
+} from '../tensor-image/tensor-image.component';
+// import json5 from 'json5';
 // import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
+import {
+  basicGatesMap,
+  TwoVarGTensorDataset,
+} from '../../lib/gtensor/the_16_two_var_bool_fns';
 import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
 // import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
@@ -35,7 +54,7 @@ interface DatasetExample {
 @Component({
   selector: 'app-activation-vis',
   templateUrl: './activation-vis.component.html',
-  styleUrls: ['./activation-vis.component.scss']
+  styleUrls: ['./activation-vis.component.scss'],
 })
 export class ActivationVisComponent implements OnInit {
   view = signal('vis' as 'edit' | 'vis');
@@ -52,13 +71,17 @@ export class ActivationVisComponent implements OnInit {
   selectedDatasetTable!: Signal<DatasetExample[] | null>;
   datasetVisTensor!: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
-  @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<gtensor.GTensor<never>>;
+  @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<
+    gtensor.GTensor<never>
+  >;
   datasetColumns: string[] = ['input', 'output'];
 
   constructor() {
     this.selectedDatasetTable = computed(() => {
       const d = this.selectedDataset();
-      if (!d) { return null; }
+      if (!d) {
+        return null;
+      }
       const inputs = d.inputs.tensor.arraySync() as number[][];
       const outputs = d.outputs.tensor.arraySync() as number[][];
       const examples = inputs.map((inp, i) => {
@@ -70,13 +93,16 @@ export class ActivationVisComponent implements OnInit {
     this.datasetVisTensor = computed(() => {
       const d = this.selectedDataset();
       console.log(`datasetVisTensor`, d);
-      if (!d) { return null; }
-      return mkVisTensor(1,
+      if (!d) {
+        return null;
+      }
+      return mkVisTensor(
+        1,
         d.outputs.rename('example', 'pointId'),
         d.inputs.rename('example', 'pointId')
       );
     });
-  };
+  }
 
   selectDataset(datasetName: string | null) {
     console.log('selectDataset', datasetName);
@@ -87,7 +113,9 @@ export class ActivationVisComponent implements OnInit {
     // Set the dynamic model sub-component, and connect it to the dataset.
     const viewContainerRef = this.activationManager.viewContainerRef;
     viewContainerRef.clear();
-    const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
+    const componentRef = viewContainerRef.createComponent(
+      CornerActivationComponent
+    );
     componentRef.setInput('view', this.view);
     componentRef.setInput('dataset', this.selectedDataset);
   }
@@ -103,5 +131,4 @@ export class ActivationVisComponent implements OnInit {
       this.view.set('edit');
     }
   }
-
-}  // ActivationVisComponent
+} // ActivationVisComponent

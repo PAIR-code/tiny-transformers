@@ -13,10 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Injectable } from '@angular/core';
 
-import * as json5 from 'json5';
+import json5 from 'json5';
 import * as jstree from '../lib/js_tree/js_tree';
 import { GVariable } from '../lib/gtensor/gtensor';
 
@@ -28,13 +27,13 @@ export interface ModelData {
 
 export interface ConfigState<T> {
   str: string; // Most recent string value of user-provided config.
-  obj: T;  // Last Valid condig Object.
-  error?: string;  // Set iff `json.parse(str) !== obj`, and indicates when string is not valid.
+  obj: T; // Last Valid condig Object.
+  error?: string; // Set iff `json.parse(str) !== obj`, and indicates when string is not valid.
 }
 
 export interface TrainingConfig {
   batchSize: number;
-  nExamples: number;  // must be divisible by `batchSize`
+  nExamples: number; // must be divisible by `batchSize`
   epochs: number;
   batchesPerEpoch: number;
 }
@@ -54,29 +53,28 @@ const defaultAppConfig: AppConfig = {
     epochs: 2,
     // Why is this defined when batchSize and nExamples is already defined?
     batchesPerEpoch: 10,
-  }
+  },
 };
 
 export const appConfigStr = JSON.stringify(defaultAppConfig, null, 2);
 
-
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ConfigStoreService {
   public appConfig: ConfigState<AppConfig> = this.newDefaultAppConfig();
   public defaultStr = appConfigStr.slice();
 
-  public modelKindInit: { [kind: string]: jstree.DictArrTree<GVariable<any>> } = {}
+  public modelKindInit: { [kind: string]: jstree.DictArrTree<GVariable<any>> } =
+    {};
 
-  constructor() {
-  }
+  constructor() {}
 
   // Returns a new copy of the default AppConfig.
   newDefaultAppConfig(): ConfigState<AppConfig> {
     return {
       str: appConfigStr.slice(),
-      obj: json5.parse(appConfigStr)
+      obj: json5.parse(appConfigStr),
     };
   }
 
@@ -88,7 +86,8 @@ export class ConfigStoreService {
 
     const str = json5.stringify(this.modelKindInit[kind]);
     return {
-      str, obj: json5.parse(str)
+      str,
+      obj: json5.parse(str),
     };
   }
 

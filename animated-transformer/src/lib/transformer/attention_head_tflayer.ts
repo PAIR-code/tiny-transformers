@@ -13,12 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import { LayerArgs } from '@tensorflow/tfjs-layers/dist/engine/topology';
-import { getExactlyOneShape, getExactlyOneTensor } from '@tensorflow/tfjs-layers/dist/utils/types_utils';
+import {
+  getExactlyOneShape,
+  getExactlyOneTensor,
+} from '@tensorflow/tfjs-layers/dist/utils/types_utils';
 import { ValueError } from '@tensorflow/tfjs-layers/dist/errors';
 
 // Creating custom layers is has very little and sparse documentation, but rather complex
@@ -39,7 +40,7 @@ export interface AttentionHeadParams {
   // The value representation size.
   valueRepSize: number;
 }
-export interface AttentionHeadConfig extends AttentionHeadParams, LayerArgs { }
+export interface AttentionHeadConfig extends AttentionHeadParams, LayerArgs {}
 
 // Use these to reference the parts in the array of returned Tensors from attention head.
 export const ATTENDED_VALUES_PART_IDX = 0;
@@ -77,14 +78,35 @@ export class AttentionHead extends tf.layers.Layer {
 
     this.inputRepSize = inputShape[inputShape.length - 1];
 
-    this.valueM = this.addWeight('valueM', [this.inputRepSize, this.valueRepSize], 'float32',
-      tf.initializers.truncatedNormal({}), undefined, true, undefined);
+    this.valueM = this.addWeight(
+      'valueM',
+      [this.inputRepSize, this.valueRepSize],
+      'float32',
+      tf.initializers.truncatedNormal({}),
+      undefined,
+      true,
+      undefined
+    );
 
-    this.keyM = this.addWeight('keyM', [this.inputRepSize, this.kqRepSize], 'float32',
-      tf.initializers.truncatedNormal({}), undefined, true, undefined);
+    this.keyM = this.addWeight(
+      'keyM',
+      [this.inputRepSize, this.kqRepSize],
+      'float32',
+      tf.initializers.truncatedNormal({}),
+      undefined,
+      true,
+      undefined
+    );
 
-    this.queryM = this.addWeight('queryM', [this.inputRepSize, this.kqRepSize], 'float32',
-      tf.initializers.truncatedNormal({}), undefined, true, undefined);
+    this.queryM = this.addWeight(
+      'queryM',
+      [this.inputRepSize, this.kqRepSize],
+      'float32',
+      tf.initializers.truncatedNormal({}),
+      undefined,
+      true,
+      undefined
+    );
   }
 
   // Note: inputShape, with batches, will be [batchSize, seqLen, repSize]
@@ -92,41 +114,50 @@ export class AttentionHead extends tf.layers.Layer {
   // When batchSize is not yet known, it's value is null.
   //
   // This function needs to work for all cases.
-  override computeOutputShape(inputShape: tf.Shape | tf.Shape[]): tf.Shape | tf.Shape[] {
+  override computeOutputShape(
+    inputShape: tf.Shape | tf.Shape[]
+  ): tf.Shape | tf.Shape[] {
     // console.log('inputShape:', inputShape);
     inputShape = getExactlyOneShape(inputShape);
     // console.log('inputShape:', inputShape);
     if (inputShape.length !== 3) {
       throw new ValueError(
         `AttentionHead.call() expects input tensor to be rank-3 ` +
-        `[batchSize, seqLen, repSize], but ` +
-        `received a tensor of shape ${inputShape}`);
+          `[batchSize, seqLen, repSize], but ` +
+          `received a tensor of shape ${inputShape}`
+      );
     }
     // inputShapeWithoutRepSize = [batchSize, seqLen]
     const inputShapeWithoutRepSize = inputShape.slice(0, inputShape.length - 1);
-    const attendedValueShape = inputShapeWithoutRepSize.concat(this.valueRepSize);
+    const attendedValueShape = inputShapeWithoutRepSize.concat(
+      this.valueRepSize
+    );
     const valueShape = inputShapeWithoutRepSize.concat(this.valueRepSize);
     const attendedKeyShape = inputShapeWithoutRepSize.concat(this.kqRepSize);
     const attendedQueryShape = inputShapeWithoutRepSize.concat(this.kqRepSize);
     const seqLen = inputShape[inputShape.length - 2];
     const attentionShape = inputShapeWithoutRepSize.concat(seqLen);
     // console.log([attendedValueShape, attentionShape, valueShape, attendedKeyShape, attendedQueryShape]);
-    return [attendedValueShape, attentionShape, valueShape, attendedKeyShape, attendedQueryShape];
+    return [
+      attendedValueShape,
+      attentionShape,
+      valueShape,
+      attendedKeyShape,
+      attendedQueryShape,
+    ];
   }
 
   static get className(): string {
     return 'AttentionHead';
   }
 
-  attendOneExample(example: tf.Tensor2D
-  ): {
-    attendedValues: tf.Tensor2D,
-    attention: tf.Tensor2D,
-    values: tf.Tensor2D,
-    keys: tf.Tensor2D,
-    queries: tf.Tensor2D
+  attendOneExample(example: tf.Tensor2D): {
+    attendedValues: tf.Tensor2D;
+    attention: tf.Tensor2D;
+    values: tf.Tensor2D;
+    keys: tf.Tensor2D;
+    queries: tf.Tensor2D;
   } {
-
     // keys.shape == [seqLen, kqRepSize]
     const keys: tf.Tensor2D = tf.matMul(example, this.keyM.read());
     // console.log('keys.shape', keys.shape);
@@ -140,7 +171,8 @@ export class AttentionHead extends tf.layers.Layer {
     //
     // attention.shape == [seqLen (query), seqLen (key)]
     const attention = tf.softmax(
-      tf.div(tf.matMul(queries, keys, false, true), this.kqRepSizeSqrt)) as tf.Tensor2D;
+      tf.div(tf.matMul(queries, keys, false, true), this.kqRepSizeSqrt)
+    ) as tf.Tensor2D;
     // console.log('attention.shape:', attention.shape);
 
     // values.shape == [seqLen, valueRepSize]
@@ -160,30 +192,44 @@ export class AttentionHead extends tf.layers.Layer {
    *
    * inputEmbedding.shape == [batchSize, seqLen, inputRepSize]
    */
-  override call(inputEmbeddings: tf.Tensor3D | tf.Tensor3D[], _kwargs: never): tf.Tensor[] {
+  override call(
+    inputEmbeddings: tf.Tensor3D | tf.Tensor3D[],
+    _kwargs: never
+  ): tf.Tensor[] {
     return tf.tidy(() => {
       const inputEmbedding = getExactlyOneTensor(inputEmbeddings) as tf.Tensor;
       if (inputEmbedding.shape.length !== 3) {
         throw new ValueError(
           `AttentionHead.call() expects input tensor to be rank-3 ` +
-          `[batchSize, seqLen, repSize], but ` +
-          `received a tensor of rank-${inputEmbedding.shape.length}`);
+            `[batchSize, seqLen, repSize], but ` +
+            `received a tensor of rank-${inputEmbedding.shape.length}`
+        );
       }
 
       const examples = tf.unstack(inputEmbedding, 0);
-      const atteendedStuff = examples.map(e => this.attendOneExample(e as tf.Tensor2D));
+      const atteendedStuff = examples.map((e) =>
+        this.attendOneExample(e as tf.Tensor2D)
+      );
       const result = {} as {
-        attendedValues: tf.Tensor3D,
-        attention: tf.Tensor3D,
-        values: tf.Tensor3D,
-        keys: tf.Tensor3D,
-        queries: tf.Tensor3D
+        attendedValues: tf.Tensor3D;
+        attention: tf.Tensor3D;
+        values: tf.Tensor3D;
+        keys: tf.Tensor3D;
+        queries: tf.Tensor3D;
       };
-      result.attendedValues = tf.stack(atteendedStuff.map(m => m.attendedValues)) as tf.Tensor3D;
-      result.attention = tf.stack(atteendedStuff.map(m => m.attention)) as tf.Tensor3D;
-      result.values = tf.stack(atteendedStuff.map(m => m.attendedValues)) as tf.Tensor3D;
-      result.keys = tf.stack(atteendedStuff.map(m => m.keys)) as tf.Tensor3D;
-      result.queries = tf.stack(atteendedStuff.map(m => m.queries)) as tf.Tensor3D;
+      result.attendedValues = tf.stack(
+        atteendedStuff.map((m) => m.attendedValues)
+      ) as tf.Tensor3D;
+      result.attention = tf.stack(
+        atteendedStuff.map((m) => m.attention)
+      ) as tf.Tensor3D;
+      result.values = tf.stack(
+        atteendedStuff.map((m) => m.attendedValues)
+      ) as tf.Tensor3D;
+      result.keys = tf.stack(atteendedStuff.map((m) => m.keys)) as tf.Tensor3D;
+      result.queries = tf.stack(
+        atteendedStuff.map((m) => m.queries)
+      ) as tf.Tensor3D;
 
       // // Old Implementation... overly optimistic about batch handling...
       //
@@ -212,11 +258,15 @@ export class AttentionHead extends tf.layers.Layer {
       // const attendedValues: tf.Tensor3D = tf.matMul(attention, values);
       // console.log('attendedValues.shape:', attendedValues.shape);
 
-      return [result.attendedValues, result.attention, result.values, result.keys, result.queries];
+      return [
+        result.attendedValues,
+        result.attention,
+        result.values,
+        result.keys,
+        result.queries,
+      ];
     });
   }
 }
 
 tf.serialization.registerClass(AttentionHead);
-
-

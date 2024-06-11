@@ -14,7 +14,6 @@ limitations under the License.
 ==============================================================================*/
 
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import { GTensor, DName, makeTruncNormal } from '../gtensor/gtensor';
 import { GVariableTree } from '../gtensor/gtensor_tree';

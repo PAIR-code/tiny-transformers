@@ -13,13 +13,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges, signal, WritableSignal, Signal, computed } from '@angular/core';
-import * as json5 from 'json5';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnChanges,
+  OnDestroy,
+  SimpleChanges,
+  signal,
+  WritableSignal,
+  Signal,
+  computed,
+} from '@angular/core';
+import json5 from 'json5';
 import * as swap_task from '../../../lib/seqtasks/swap_task';
-import { DecisionBoundaryTask, baseVocab as dboundaryVocab } from '../../../lib/seqtasks/decision_boundary_task';
+import {
+  DecisionBoundaryTask,
+  baseVocab as dboundaryVocab,
+} from '../../../lib/seqtasks/decision_boundary_task';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
-import { BasicLmTask, BasicLmTaskConfig, BasicLmTaskUpdate, Example, takeNextN } from 'src/lib/seqtasks/util';
+import {
+  BasicLmTask,
+  BasicLmTaskConfig,
+  BasicLmTaskUpdate,
+  Example,
+  takeNextN,
+} from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { SecretTokenTask } from 'src/lib/seqtasks/secret_token_task';
@@ -50,37 +69,42 @@ class TaskMetadata {
 }
 
 const inittaskSet: TaskMetadata[] = [
-  new TaskMetadata(new swap_task.SwapTask({
-    name: 'a swap task',
-    maxInputLen: 4,
-    maxOutputLen: 1,
-    valuesLessThan: swap_task.baseVocab.length + 1,
-    seed: 47
-  })),
-  new TaskMetadata(new DecisionBoundaryTask({
-    name: 'a boundary task',
-    maxInputLen: 5,
-    maxOutputLen: 1,
-    seed: 0,
-  })),
-  new TaskMetadata(new SecretTokenTask({
-    name: 'mod secret token === 0',
-    maxInputLen: 5,
-    maxOutputLen: 1,
-    seed: 0,
-    randomTokensVocab: ['1', '2', '3', '4', '5'],
-    tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)'
-  }))
+  new TaskMetadata(
+    new swap_task.SwapTask({
+      name: 'a swap task',
+      maxInputLen: 4,
+      maxOutputLen: 1,
+      valuesLessThan: swap_task.baseVocab.length + 1,
+      seed: 47,
+    })
+  ),
+  new TaskMetadata(
+    new DecisionBoundaryTask({
+      name: 'a boundary task',
+      maxInputLen: 5,
+      maxOutputLen: 1,
+      seed: 0,
+    })
+  ),
+  new TaskMetadata(
+    new SecretTokenTask({
+      name: 'mod secret token === 0',
+      maxInputLen: 5,
+      maxOutputLen: 1,
+      seed: 0,
+      randomTokensVocab: ['1', '2', '3', '4', '5'],
+      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
+    })
+  ),
 ];
 const initTaskMap = {} as { [name: string]: TaskMetadata };
-inittaskSet.forEach(t => initTaskMap[t.config.name] = t);
-
+inittaskSet.forEach((t) => (initTaskMap[t.config.name] = t));
 
 // ----------------------------------------------------------------------------
 @Component({
   selector: 'app-seq-task-selector',
   templateUrl: './seq-task-selector.component.html',
-  styleUrls: ['./seq-task-selector.component.scss']
+  styleUrls: ['./seq-task-selector.component.scss'],
 })
 export class SeqTaskSelectorComponent {
   // Cached value or the current task name. e.g. updated by url changes.
@@ -111,14 +135,21 @@ export class SeqTaskSelectorComponent {
     this.taskNames = computed(() => Object.keys(this.taskMap()));
     this.selectedTaskExamples = computed(() => {
       const taskMetadata = this.currentTask();
-      if (!taskMetadata) { return null };
-      return [...takeNextN(
-        taskMetadata.task.makeExamplesGenerator(),
-        this.shownNumOfExamples)];
+      if (!taskMetadata) {
+        return null;
+      }
+      return [
+        ...takeNextN(
+          taskMetadata.task.makeExamplesGenerator(),
+          this.shownNumOfExamples
+        ),
+      ];
     });
     this.currentTaskName = computed(() => {
       const taskMetadata = this.currentTask();
-      if (!taskMetadata) { return null; }
+      if (!taskMetadata) {
+        return null;
+      }
       return taskMetadata.config.name;
     });
   }
@@ -163,15 +194,21 @@ export class SeqTaskSelectorComponent {
       return;
     }
 
+    console.log(
+      'taskConfigUpdated: ',
+      JSON.stringify(configUpdate.json, null, 2)
+    );
+
+    const updatedTask = new TaskMetadata(task.task);
+    updatedTask.updateFromStr(configUpdate.json);
+
     if (task.config.name !== configUpdate.obj.name) {
       const newTaskMap = { ...this.taskMap() };
       delete newTaskMap[task.config.name];
-      const updatedTask = new TaskMetadata(task.task);
-      updatedTask.updateFromStr(configUpdate.json);
       newTaskMap[updatedTask.config.name] = updatedTask;
       this.taskMap.set(newTaskMap);
-      this.currentTask.set(updatedTask);
     }
+    this.currentTask.set(updatedTask);
   }
 
   toggleEditor() {
@@ -186,8 +223,12 @@ export class SeqTaskSelectorComponent {
   }
 
   taskConfigAsJson(config: BasicLmTaskConfig): string {
-    return stringifyJsonValue(config,
-      { arrWrapAt: 60, objWrapAt: 60, curIndent: '', sortObjKeys: true });
+    return stringifyJsonValue(config, {
+      arrWrapAt: 60,
+      objWrapAt: 60,
+      curIndent: '',
+      sortObjKeys: true,
+    });
     // json5.stringify(config, null, 2);
   }
 }
