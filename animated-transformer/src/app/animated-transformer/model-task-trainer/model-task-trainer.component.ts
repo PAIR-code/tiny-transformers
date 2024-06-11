@@ -109,7 +109,7 @@ const layerNormTrainer = new TrainerMetaData('transformer', {
   name: 'layerNormTrainer',
   trainState: {
     batchSize: 64,
-    learningRate: 30,
+    learningRate: 10,
     maxInputlength: 5,
     testSetSize: 64,
     trainSetSize: 64 * 10000,
@@ -122,7 +122,7 @@ const noLayerNormTrainer = new TrainerMetaData('transformer', {
   name: 'noLayerNormTrainer',
   trainState: {
     batchSize: 64,
-    learningRate: 1,
+    learningRate: 0.5,
     maxInputlength: 5,
     testSetSize: 64,
     trainSetSize: 64 * 10000,
@@ -392,6 +392,7 @@ export class ModelTaskTrainerComponent {
       currentModelData.params,
       trainer.config.trainState
     );
+
     trainer.trainState.set(newState);
     this.curMetrics = computeMetrics(newState);
     this.addMetricsToGraph(this.curMetrics, trainer.config.name);

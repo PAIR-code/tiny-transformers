@@ -27,14 +27,18 @@ const onceInputs = new Promise<string>((resolve) => {
   });
 });
 
-const inputs = await onceInputs;
+async function run() {
+  const inputs = await onceInputs;
 
-console.log(inputs);
+  console.log(inputs);
 
-const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-const v = t.contract(t, ['a']).tensor.arraySync() as number;
+  const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
+  const v = t.contract(t, ['a']).tensor.arraySync() as number;
 
-postMessage({
-  t,
-  v,
-});
+  postMessage({
+    t,
+    v,
+  });
+}
+
+run();

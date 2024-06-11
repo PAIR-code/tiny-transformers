@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor } from '../gtensor/gtensor';
+import { GTensor, GVariable, makeTruncNormal } from '../gtensor/gtensor';
 import * as transformer from './transformer_gtensor';
 import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
 // import * as attention_head from './attention_head';
@@ -28,9 +28,9 @@ import { map } from 'rxjs/operators';
 
 import { Example } from '../seqtasks/util';
 import * as abtask from '../seqtasks/ab_task';
-import { prepareBasicTaskTokenRep } from '../tokens/token_gemb';
+import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
 import * as param_map from '../gtensor/gtensor_tree';
-import { gtensorTrees } from '../gtensor/gtensor_tree';
+import { GVariableTree, gtensorTrees } from '../gtensor/gtensor_tree';
 
 describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {
@@ -81,9 +81,11 @@ describe('GTensor Transformers', () => {
       // inputRepSize: inputRep,
     });
     const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-
-    const tokenEmb = tokenRep.tokenEmb;
-    const padTokenId = tokenEmb.tokenToIdx[tokenRep.padToken];
+    const padTokenId = tokenRep.tokenToIdx[tokenRep.padToken];
+    const embeddings = makeTruncNormal({
+      tokenId: tokenRep.tokens.length,
+      inputRep,
+    });
 
     // len = taskConfig.batchSize
     const examples = [
@@ -93,7 +95,9 @@ describe('GTensor Transformers', () => {
       task.genRandExample(),
     ];
 
-    const batchedInputEmb = tokenEmb.embedBatch(
+    const batchedInputEmb = embedBatch(
+      tokenRep.tokenToIdx,
+      embeddings,
       examples.map((example) => example.input.concat(tokenRep.maskToken)),
       { paddingId: padTokenId, padAt: 'start', dtype: 'int32' }
     );

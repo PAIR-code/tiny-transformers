@@ -13,9 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import * as gtensor from '../gtensor/gtensor';
 
@@ -54,7 +52,9 @@ export class TokenEmb {
       (prev: { [s: string]: number }, cur: string, curIdx: number) => {
         prev[cur] = curIdx;
         return prev;
-      }, {});
+      },
+      {}
+    );
 
     this.vocabEmbedding = tf.layers.embedding({
       name: 'vocabEmbed',
@@ -79,27 +79,39 @@ export class TokenEmb {
   }
 
   get vocabRepGTensor(): gtensor.GTensor<'token' | 'inputRep'> {
-    return new gtensor.GTensor(this.vocabEmbedding.getWeights()[0],
-      ['token', 'inputRep']);
+    return new gtensor.GTensor(this.vocabEmbedding.getWeights()[0], [
+      'token',
+      'inputRep',
+    ]);
   }
 
   // Output shape is [input.length, repSize + posRepSize]
   embed1(input: string[]): tf.Tensor2D {
-    const inputIds = tf.tensor1d(input.map(s => this.vocabPosMap[s]));
+    const inputIds = tf.tensor1d(input.map((s) => this.vocabPosMap[s]));
     const inputEmbeddings = this.vocabEmbedding.apply(inputIds) as tf.Tensor2D;
     // TODO: add positions.
     return inputEmbeddings;
   }
   embedBatch(inputs: string[][]): tf.Tensor3D {
-    const batchInputIds = tf.tensor2d(inputs.map(input => input.map(s => this.vocabPosMap[s])));
+    const batchInputIds = tf.tensor2d(
+      inputs.map((input) => input.map((s) => this.vocabPosMap[s]))
+    );
     console.log('batchInputIds', batchInputIds);
-    const batchInputEmbeddings = this.vocabEmbedding.apply(batchInputIds) as tf.Tensor3D;
+    const batchInputEmbeddings = this.vocabEmbedding.apply(
+      batchInputIds
+    ) as tf.Tensor3D;
     // TODO: add positions.
     return batchInputEmbeddings;
   }
 
-  embedBatchGTensor(inputs: string[][]): gtensor.GTensor<'batch' | 'pos' | 'inputRep'> {
-    return new gtensor.GTensor(this.embedBatch(inputs), ['batch', 'pos', 'inputRep']);
+  embedBatchGTensor(
+    inputs: string[][]
+  ): gtensor.GTensor<'batch' | 'pos' | 'inputRep'> {
+    return new gtensor.GTensor(this.embedBatch(inputs), [
+      'batch',
+      'pos',
+      'inputRep',
+    ]);
   }
 
   get repSize(): number {

@@ -38,7 +38,7 @@ export interface TokenEmbConfig {
 // Output shape is [input.length, repSize + posRepSize]
 export function embed(
   tokenToIdx: { [token: string]: number },
-  embeddings: GTensor<'token' | 'inputRep'>,
+  embeddings: GTensor<'tokenId' | 'inputRep'>,
   input: string[]
 ): GTensor<'pos' | 'inputRep'> {
   const inputIds = new GTensor(
@@ -48,7 +48,7 @@ export function embed(
     ),
     ['pos']
   );
-  const embeddedInput = embeddings.gather(inputIds, 'token');
+  const embeddedInput = embeddings.gather(inputIds, 'tokenId');
   return embeddedInput;
 }
 
