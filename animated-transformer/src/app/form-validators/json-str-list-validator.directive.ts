@@ -13,10 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Directive, Input } from '@angular/core';
-import { AbstractControl, NG_VALIDATORS, ValidationErrors, Validator, ValidatorFn } from '@angular/forms';
-import * as json5 from 'json5';
+import {
+  AbstractControl,
+  NG_VALIDATORS,
+  ValidationErrors,
+  Validator,
+  ValidatorFn,
+} from '@angular/forms';
+import json5 from 'json5';
 
 export interface JsonStrListConfig {
   maxListLen?: number;
@@ -29,50 +34,57 @@ export interface JsonStrListError {
     value: string;
     config: JsonStrListConfig;
     message: string;
-  }
+  };
 }
 
-export function jsonStrListErrorFn(config: JsonStrListConfig, value: string
+export function jsonStrListErrorFn(
+  config: JsonStrListConfig,
+  value: string
 ): JsonStrListError | null {
   let parsedValue: Array<string> | unknown;
-  if (!value) { return { data: { value, config, message: `empty` } } }
+  if (!value) {
+    return { data: { value, config, message: `empty` } };
+  }
 
   try {
     parsedValue = json5.parse(value);
   } catch (parseError: unknown) {
     console.warn(`jsonStrListErrorFn: ${parseError}`, value);
-    return { data: { value, config, message: `not json` } }
+    return { data: { value, config, message: `not json` } };
   }
 
   if (!Array.isArray(parsedValue)) {
-    return { data: { value, config, message: `not array` } }
+    return { data: { value, config, message: `not array` } };
   }
 
   if (config.maxListLen && parsedValue.length > config.maxListLen) {
     return {
       data: {
-        value, config,
-        message: `length ${parsedValue.length} > ${config.maxListLen}`
-      }
-    }
+        value,
+        config,
+        message: `length ${parsedValue.length} > ${config.maxListLen}`,
+      },
+    };
   }
 
   if (config.minListLen && parsedValue.length > config.minListLen) {
     return {
       data: {
-        value, config,
-        message: `length ${parsedValue.length} < ${config.minListLen}`
-      }
-    }
+        value,
+        config,
+        message: `length ${parsedValue.length} < ${config.minListLen}`,
+      },
+    };
   }
 
   if (config.minListLen && parsedValue.length > config.minListLen) {
     return {
       data: {
-        value, config,
-        message: `length ${parsedValue.length} < ${config.minListLen}`
-      }
-    }
+        value,
+        config,
+        message: `length ${parsedValue.length} < ${config.minListLen}`,
+      },
+    };
   }
 
   if (config.validStrValues) {
@@ -80,10 +92,11 @@ export function jsonStrListErrorFn(config: JsonStrListConfig, value: string
       if (!config.validStrValues.has(el)) {
         return {
           data: {
-            value, config,
-            message: `invalid: ${el}`
-          }
-        }
+            value,
+            config,
+            message: `invalid: ${el}`,
+          },
+        };
       }
     }
   }
@@ -91,8 +104,7 @@ export function jsonStrListErrorFn(config: JsonStrListConfig, value: string
   return null;
 }
 
-export function jsonStrListValidator(
-  config: JsonStrListConfig): ValidatorFn {
+export function jsonStrListValidator(config: JsonStrListConfig): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     return jsonStrListErrorFn(config, control.value);
   };
@@ -101,10 +113,13 @@ export function jsonStrListValidator(
 @Directive({
   selector: '[appJsonStrListValidator]',
   inputs: ['config'],
-  providers: [{
-    provide: NG_VALIDATORS,
-    useExisting: JsonStrListValidatorDirective, multi: true
-  }]
+  providers: [
+    {
+      provide: NG_VALIDATORS,
+      useExisting: JsonStrListValidatorDirective,
+      multi: true,
+    },
+  ],
 })
 export class JsonStrListValidatorDirective {
   @Input() config: JsonStrListConfig = {};

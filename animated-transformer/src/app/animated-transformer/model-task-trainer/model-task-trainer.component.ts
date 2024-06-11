@@ -13,23 +13,57 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { Component, EventEmitter, Input, OnInit, Output, Signal, WritableSignal, computed, signal } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  Signal,
+  WritableSignal,
+  computed,
+  signal,
+} from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
-import { prepareBasicTaskTokenRep, strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/token_gemb';
-import { ModelUpdate, ModelSpecAndData, ModelData } from '../model-selector/model-selector.component';
-import * as tf from '@tensorflow/tfjs';
+import {
+  ModelUpdate,
+  ModelSpecAndData,
+  ModelData,
+} from '../model-selector/model-selector.component';
+import json5 from 'json5';
+import { FormControl } from '@angular/forms';
+import {
+  BehaviorSubject,
+  combineLatest,
+  filter,
+  firstValueFrom,
+  map,
+  merge,
+  Observable,
+  shareReplay,
+  startWith,
+  tap,
+} from 'rxjs';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
+import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
+
+import {
+  computeMetrics,
+  initTransformerTrainState,
+  TrainMetrics,
+  TransformerTrainState,
+} from 'src/lib/trainer/basic_transformer_trainer';
+import { mapNonNull } from 'src/lib/rxjs/util';
+import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
 import { stringifyJsonValue } from 'src/lib/pretty_json/pretty_json';
 import { DictTree, SimpleJsTreesLib } from 'src/lib/js_tree/js_tree';
-import * as json5 from 'json5';
-import { FormControl } from '@angular/forms';
-import { BehaviorSubject, combineLatest, filter, firstValueFrom, map, merge, Observable, shareReplay, startWith, tap } from 'rxjs';
-import { MatSlideToggleChange } from '@angular/material/slide-toggle';
-import { computeMetrics, initTransformerTrainState, TrainMetrics, TransformerTrainState } from 'src/lib/trainer/basic_transformer_trainer';
-import { mapNonNull } from 'src/lib/rxjs/util';
-import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
-import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
+import * as tf from '@tensorflow/tfjs';
+import {
+  prepareBasicTaskTokenRep,
+  strSeqPrepFn,
+  singleNextTokenIdxOutputPrepFn,
+} from 'src/lib/tokens/token_gemb';
+import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 
 // TODO: update to use JsTree.
 export type JsonConfigData = DictTree<number | string | boolean>;
@@ -39,23 +73,22 @@ export type TrainerConfig = {
   trainState: TrainStateConfig;
   updateGraphEveryNSteps: number;
   stepDelayInMs: number;
-}
+};
 
 export class TrainerMetaData {
-  public config: TrainerConfig
+  public config: TrainerConfig;
   public configStr: string;
   public defaultConfigStr: string;
 
-  public trainState: WritableSignal<TransformerTrainState | null> = signal(null);
+  public trainState: WritableSignal<TransformerTrainState | null> =
+    signal(null);
   // public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
   public metrics: WritableSignal<TrainMetrics | null> = signal(null);
 
-  constructor(
-    public kind: 'transformer',
-    public defaultConfig: TrainerConfig,
-  ) {
-    this.config =
-      SimpleJsTreesLib.copy<JsonConfigData>(defaultConfig) as TrainerConfig;
+  constructor(public kind: 'transformer', public defaultConfig: TrainerConfig) {
+    this.config = SimpleJsTreesLib.copy<JsonConfigData>(
+      defaultConfig
+    ) as TrainerConfig;
     this.configStr = stringifyJsonValue(this.config);
     this.defaultConfigStr = this.configStr;
   }
@@ -70,47 +103,43 @@ export interface TrainerConfigUpdate {
   trainer: TrainerMetaData | null;
 }
 
-export interface ModelParamsUpdate {
-}
+export interface ModelParamsUpdate {}
 
+const layerNormTrainer = new TrainerMetaData('transformer', {
+  name: 'layerNormTrainer',
+  trainState: {
+    batchSize: 64,
+    learningRate: 30,
+    maxInputlength: 5,
+    testSetSize: 64,
+    trainSetSize: 64 * 10000,
+  },
+  updateGraphEveryNSteps: 10,
+  stepDelayInMs: 100,
+});
 
-const layerNormTrainer = new TrainerMetaData('transformer',
-  {
-    name: 'layerNormTrainer',
-    trainState: {
-      batchSize: 64,
-      learningRate: 30,
-      maxInputlength: 5,
-      testSetSize: 64,
-      trainSetSize: 64 * 10000,
-    },
-    updateGraphEveryNSteps: 10,
-    stepDelayInMs: 100,
-  });
-
-const noLayerNormTrainer = new TrainerMetaData('transformer',
-  {
-    name: 'noLayerNormTrainer',
-    trainState: {
-      batchSize: 64,
-      learningRate: 1,
-      maxInputlength: 5,
-      testSetSize: 64,
-      trainSetSize: 64 * 10000,
-    },
-    updateGraphEveryNSteps: 10,
-    stepDelayInMs: 100,
-  });
+const noLayerNormTrainer = new TrainerMetaData('transformer', {
+  name: 'noLayerNormTrainer',
+  trainState: {
+    batchSize: 64,
+    learningRate: 1,
+    maxInputlength: 5,
+    testSetSize: 64,
+    trainSetSize: 64 * 10000,
+  },
+  updateGraphEveryNSteps: 10,
+  stepDelayInMs: 100,
+});
 
 const initTrainerSet = [noLayerNormTrainer, layerNormTrainer];
 const initTrainersMap = {} as { [name: string]: TrainerMetaData };
-initTrainerSet.forEach(t => initTrainersMap[t.config.name] = t);
+initTrainerSet.forEach((t) => (initTrainersMap[t.config.name] = t));
 
 // ----------------------------------------------------------------------------
 @Component({
   selector: 'app-model-task-trainer',
   templateUrl: './model-task-trainer.component.html',
-  styleUrls: ['./model-task-trainer.component.scss']
+  styleUrls: ['./model-task-trainer.component.scss'],
 })
 export class ModelTaskTrainerComponent {
   // lastModelUpdate: ModelUpdate = { model: null };
@@ -156,7 +185,7 @@ export class ModelTaskTrainerComponent {
   @Input()
   set model(modelUpdate: ModelUpdate) {
     this.currentModel.set(modelUpdate.model);
-  };
+  }
   @Input()
   set task(taskUpdate: BasicLmTaskUpdate) {
     // console.log('taskUpdate', taskUpdate.task);
@@ -166,19 +195,25 @@ export class ModelTaskTrainerComponent {
   constructor() {
     this.currentTrainerName = computed(() => {
       const task = this.currentTrainer();
-      if (!task) { return null };
+      if (!task) {
+        return null;
+      }
       return task.config.name;
     });
 
     this.currentModelData = computed(() => {
       const model = this.currentModel();
-      if (!model) { return null; }
+      if (!model) {
+        return null;
+      }
       return model.modelData();
     });
 
     this.trainState = computed(() => {
       const trainer = this.currentTrainer();
-      if (!trainer) { return null; }
+      if (!trainer) {
+        return null;
+      }
       return trainer.trainState() || null;
     });
 
@@ -194,7 +229,7 @@ export class ModelTaskTrainerComponent {
 
       trainBatchMeanLoss: -1,
       testMeanLoss: -1,
-    }
+    };
   }
 
   public get tfjsMemory(): string {
@@ -248,16 +283,17 @@ export class ModelTaskTrainerComponent {
 
     const newTrainer = new TrainerMetaData(trainer.kind, trainer.defaultConfig);
     newTrainer.metrics.set(trainer.metrics());
-    
+
     newTrainer.updateFromStr(configUpdate.json);
     // Model name was changed.
     if (trainer.config.name !== newTrainer.config.name) {
       if (!newTrainer.config.name) {
-        newTrainer.config.name = 'model without a name'
+        newTrainer.config.name = 'model without a name';
       }
+      console.log('updating trainer name');
       // Because the name of the model may have changed, we need to
       // re-create the index
-      const newTrainersMap = { ... this.trainersMap() };
+      const newTrainersMap = { ...this.trainersMap() };
       delete newTrainersMap[trainer.config.name];
       newTrainersMap[newTrainer.config.name] = newTrainer;
       this.trainersMap.set(newTrainersMap);
@@ -269,41 +305,51 @@ export class ModelTaskTrainerComponent {
     const x = m.nSteps;
     this.lossPoints = this.lossPoints.concat([
       { x, y: m.trainBatchMeanLoss, name: `trainBatchLoss(${name})` },
-      { x, y: m.testMeanLoss, name: `testLoss(${name})` }
+      { x, y: m.testMeanLoss, name: `testLoss(${name})` },
     ]);
     this.accPoints = this.accPoints.concat([
       { x, y: m.trainBatchAcc, name: `trainBatchAcc(${name})` },
-      { x, y: m.testAcc, name: `testAcc(${name})` }
+      { x, y: m.testAcc, name: `testAcc(${name})` },
     ]);
   }
 
   getCurrentTrainer(): TrainerMetaData {
     const currentTrainer = this.currentTrainer();
-    if (!currentTrainer) { throw new Error('no currentTrainer'); }
+    if (!currentTrainer) {
+      throw new Error('no currentTrainer');
+    }
     return currentTrainer;
   }
 
   getTrainState(): TransformerTrainState {
     const trainState = this.trainState();
-    if (!trainState) { throw new Error('no trainState'); }
+    if (!trainState) {
+      throw new Error('no trainState');
+    }
     return trainState;
   }
 
   getCurrentTask(): BasicLmTask {
     const currentTask = this.currentTask();
-    if (!currentTask) { throw new Error('no currentTask'); }
+    if (!currentTask) {
+      throw new Error('no currentTask');
+    }
     return currentTask;
   }
 
   getCurrentModel(): ModelSpecAndData {
     const currentModel = this.currentModel();
-    if (!currentModel) { throw new Error('no current model'); }
+    if (!currentModel) {
+      throw new Error('no current model');
+    }
     return currentModel;
   }
 
   getCurrentModelData(): ModelData {
     const data = this.currentModelData();
-    if (!data) { throw new Error('current model missing data'); }
+    if (!data) {
+      throw new Error('current model missing data');
+    }
     return data;
   }
 
@@ -313,8 +359,10 @@ export class ModelTaskTrainerComponent {
     this.curMetrics = computeMetrics(trainState);
     if (trySgdTrainStep(trainState)) {
       this.addMetricsToGraph(this.curMetrics, trainer.config.name);
-      this.layerNormHeadsProjectionGain = trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
-      this.layerNormPostFFGain = trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+      this.layerNormHeadsProjectionGain =
+        trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+      this.layerNormPostFFGain =
+        trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
     }
   }
 
@@ -342,7 +390,7 @@ export class ModelTaskTrainerComponent {
       singleNextTokenIdxOutputPrepFn,
       currentModelData.config.transformer,
       currentModelData.params,
-      trainer.config.trainState,
+      trainer.config.trainState
     );
     trainer.trainState.set(newState);
     this.curMetrics = computeMetrics(newState);
@@ -358,8 +406,11 @@ export class ModelTaskTrainerComponent {
     async function doTraining() {
       if (self.isTraining) {
         let stillTraining = true;
-        for (let i = 0; stillTraining &&
-          i < trainer.config.updateGraphEveryNSteps; i++) {
+        for (
+          let i = 0;
+          stillTraining && i < trainer.config.updateGraphEveryNSteps;
+          i++
+        ) {
           stillTraining = trySgdTrainStep(trainState);
         }
         if (!stillTraining) {
@@ -368,8 +419,10 @@ export class ModelTaskTrainerComponent {
         }
         self.curMetrics = computeMetrics(trainState);
         self.addMetricsToGraph(self.curMetrics, trainer.config.name);
-        self.layerNormHeadsProjectionGain = trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
-        self.layerNormPostFFGain = trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+        self.layerNormHeadsProjectionGain =
+          trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+        self.layerNormPostFFGain =
+          trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
         // await self.trainStep();
         // wait 100ms between training steps.
         // TODO: we don't need to do this if we move to using separate

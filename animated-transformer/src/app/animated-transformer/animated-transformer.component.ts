@@ -13,11 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 
 import * as tf from '@tensorflow/tfjs';
-import { computeTransformer, initDecoderParams } from '../../lib/transformer/transformer_gtensor';
+import {
+  computeTransformer,
+  initDecoderParams,
+} from '../../lib/transformer/transformer_gtensor';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { gtensorTrees } from '../../lib/gtensor/gtensor_tree';
 import { stringifyJsonValue } from '../../lib/pretty_json/pretty_json';
@@ -27,12 +29,15 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { ModelUpdate } from './model-selector/model-selector.component';
-import { TrainerConfigUpdate, ModelParamsUpdate } from './model-task-trainer/model-task-trainer.component';
+import {
+  TrainerConfigUpdate,
+  ModelParamsUpdate,
+} from './model-task-trainer/model-task-trainer.component';
 
 @Component({
   selector: 'app-animated-transformer',
   templateUrl: './animated-transformer.component.html',
-  styleUrls: ['./animated-transformer.component.scss']
+  styleUrls: ['./animated-transformer.component.scss'],
 })
 export class AnimatedTransformerComponent implements OnInit {
   jsonComputation = '';
@@ -44,13 +49,12 @@ export class AnimatedTransformerComponent implements OnInit {
   lastModelUpdate: ModelUpdate = { model: null };
   lastTrainerUpdate: TrainerConfigUpdate = { trainer: null };
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-  ) { }
+  constructor(private route: ActivatedRoute, private router: Router) {
+    console.log(`tf.getBackend: ${tf.getBackend()}`);
+  }
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       this.modelName = params['model'] || '';
       this.taskName = params['task'] || '';
       this.trainerName = params['trainer'] || '';
@@ -87,13 +91,13 @@ export class AnimatedTransformerComponent implements OnInit {
     });
   }
 
-  modelParamsUpdate(modelParamsUpdate: ModelParamsUpdate) {
-
-  }
+  modelParamsUpdate(modelParamsUpdate: ModelParamsUpdate) {}
 
   updateTrainer(trainerUpdate: TrainerConfigUpdate) {
+    console.log('trainer update in top level component.');
     this.trainerName = trainerUpdate.trainer
-      ? trainerUpdate.trainer.config.name : '';
+      ? trainerUpdate.trainer.config.name
+      : '';
     this.lastTrainerUpdate = { ...trainerUpdate };
     const queryParams = { trainer: this.trainerName };
     this.router.navigate([], {

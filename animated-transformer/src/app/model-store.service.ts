@@ -13,20 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Injectable } from '@angular/core';
-import * as json5 from 'json5';
+import json5 from 'json5';
 import { ConfigStoreService, ModelData } from './config-store.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ModelStoreService {
-  public models: { [name: string]: ModelData } = {}
+  public models: { [name: string]: ModelData } = {};
 
-  constructor(
-    private configStore: ConfigStoreService
-  ) {
+  constructor(private configStore: ConfigStoreService) {
     this.loadAllModels();
   }
 

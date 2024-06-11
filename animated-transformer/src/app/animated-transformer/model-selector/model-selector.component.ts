@@ -24,7 +24,7 @@ import {
   computed,
   signal,
 } from '@angular/core';
-import * as json5 from 'json5';
+import json5 from 'json5';
 import { FormControl } from '@angular/forms';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import { SimpleJsTreesLib, DictTree } from '../../../lib/js_tree/js_tree';
