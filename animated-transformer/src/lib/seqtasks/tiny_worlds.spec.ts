@@ -13,7 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { TinyWorldTask, TinyWorldTaskConfig, sepToken } from './tiny_worlds';
+import {
+  TinyWorldTask,
+  TinyWorldTaskConfig,
+  parseRel,
+  parseRule,
+  sepToken,
+} from './tiny_worlds';
 import { Example } from './util';
 
 const exampleRelations = ['is', 'jumps-over', 'runs-away', 'squishes'];
@@ -63,8 +69,6 @@ const relArgs = new Map<ExampleRelations, ExampleObjects[]>([
 const rules = [
   // Monkeys jump over stuff a lot
   'jumps-over _x:monkey _y += 5',
-  // If a monkey just jumped over something, they are not so likely to jump again right away.
-  // '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
   // Monkeys might squish flowers
   'jumps-over _x:monkey _y:flower ==> squishes _x _y += 1',
   // Monkeys might squish cats
@@ -83,88 +87,22 @@ const rules = [
   'runs-away _y:animal ==> squishes _x _y = 0',
   'runs-away _y:animal ==> jumps-over _x _y = 0',
 ];
-
-const impactRegexp = new RegExp(
-  /\s*(?<rel>\S*)\s*(?<op>(\+\=|\=))\s*(?<val>\S*)\s*/
-);
-type ImpactMatches = { rel: string; op: '+=' | '='; val: string };
-
-const relRegexp = new RegExp(/\s*(?<relName>\S*)\s+(?<args>(\_\S*\s+)*)/);
-type RelMatch = { relName: string; args: string[] };
-
-function parseRel(rel: string) {
-  const matches = rel.match(relRegexp);
-  return matches;
-}
-
-function parseRule(rule: string) {
-  const conditionsAndConclusion = rule.split(/\s*\=\=\>\s*/);
-  let conditions = undefined;
-  let conclusion = undefined;
-  if (conditionsAndConclusion.length > 1) {
-    [conditions, conclusion] = conditionsAndConclusion;
-  } else {
-    conclusion = conditionsAndConclusion[0];
-  }
-  const { rel, op, val } = conclusion.match(impactRegexp)!
-    .groups as ImpactMatches;
-}
-
-function ruleParser(rules: string[], context: string) {
-  const observations = context.split(sepToken);
-}
-
-// ('is _x monkey => jumps-over _x _y += 1');
-// ('is _x monkey => jumps-over _x rock += 1');
-// ('is _x monkey => jumps-over _x flower += 1');
-// ('is _x monkey => jumps-over _x tree += 0.1');
-
-// class RVar {
-//   constructor(name: string) {}
-// }
-
-// const rules = [
-//   // some probability is introducing a new object
-//   {
-//     context: {
-//       notPresent: [
-//         {
-//           relation: 'is',
-//           arguments: [{ varbind: 'X' }, { varbind: 'Y' }],
-//         },
-//       ],
-//       present: [],
-//     },
-//     add: {
-//       relation: 'is',
-//       arguments: [
-//         { kind: 'newObjectName', varbind: 'X' },
-//         { kind: 'object', objPostfixMatch: '', varbind: 'Y' },
-//       ],
-//     },
-//     scoreMerge: { addToBaseScore: 1 },
-//   },
-//   // small probability of repeating an observation
-//   {
-//     context: {
-//       notPresent: [],
-//       present: [
-//         {
-//           relation: 'is',
-//           arguments: [{ varbind: 'X' }, { varbind: 'Y' }],
-//         },
-//       ],
-//     },
-//     add: {
-//       relation: 'is',
-//       arguments: [
-//         { kind: 'object', objPostfixMatch: '', varbind: 'X' },
-//         { kind: 'object', objPostfixMatch: '', varbind: 'Y' },
-//       ],
-//     },
-//     scoreMerge: { addToBaseScore: 0.1 },
-//   },
-// ];
+// Ideas for fancier rules/variants
+//
+// If a monkey just jumped over something, they are not so likely to jump again right away.
+// '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
+//
+// Let actions/observations have names too.
+// '_e: (tries_to_jumps_over _x:monkey _y) ==> succeeds(_e) += 1',
+//
+// Should types be observations?, e.g. could we write:
+// '_x:cat ==> runs-away _x += 1'
+// i.e. that would be the same as: 'is _x cat ==> runs-away _x += 1'
+//
+// Should we allow an unbound syntax?
+// 'jumps-over monkey _y += 5' === 'jumps-over _x:monkey _y += 5' ?
+// Maybe this is just syntax, so we skip it? Or maybe this somehow says that one
+// *cannot* bind to the monkey, i.e. is says there was an unknown monkey who jumped over _y?
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
 //   ExampleObjects,
@@ -178,52 +116,112 @@ function ruleParser(rules: string[], context: string) {
 //   relationTokenArgs: relArgs,
 // };
 
-describe('tiny_world_task', () => {
+fdescribe('tiny_world_task', () => {
   beforeEach(() => {});
 
-  it('genRandExample: DecisionBoundaryTask', () => {
-    const rel = parseRel('squishes _x _y:animal');
-    console.log(rel);
-    expect(rel).not.toBeNull();
-
-    // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
-    //   ExampleObjects,
-    //   ExampleRelations
-    // > = {
-    //   name: 'example-tiny-world',
-    //   maxInputLen: 20,
-    //   maxOutputLen: 10,
-    //   seed: 0,
-    //   objectTokens: [...exampleObjects],
-    //   relationTokenArgs: relArgs,
-    // };
-    // const task = new TinyWorldTask(example_TinyWorldTaskConfig);
-
-    // let example: Example;
-    // example = task.genRandExample();
-
-    // expect(example.secret).toEqual(['2']);
-    // expect(example.input).toEqual(['5', 'F', '4', 'F', '3']);
-    // expect(example.output).toEqual(['F']);
-
-    // example = task.genRandExample();
-    // expect(example.secret).toEqual(['2']);
-    // expect(example.input).toEqual(['3', 'F', '2', 'T', '1']);
-    // expect(example.output).toEqual(['T']);
-
-    // example = task.genRandExample();
-    // expect(example.secret).toEqual(['3']);
-    // expect(example.input).toEqual(['3', 'T', '3', 'T', '4']);
-    // expect(example.output).toEqual(['F']);
-
-    // example = task.genRandExample();
-    // expect(example.secret).toEqual(['4']);
-    // expect(example.input).toEqual(['1', 'T', '3', 'T', '4']);
-    // expect(example.output).toEqual(['T']);
-
-    // example = task.genRandExample();
-    // expect(example.secret).toEqual(['3']);
-    // expect(example.input).toEqual(['1', 'T', '4', 'F', '5']);
-    // expect(example.output).toEqual(['F']);
+  it('parseRel', () => {
+    const { relName, args } = parseRel('squishes _x _y:animal');
+    expect(relName).toEqual('squishes');
+    expect(args[0].varName).toEqual('_x');
+    expect(args[0].varType).toEqual('');
+    expect(args[1].varName).toEqual('_y');
+    expect(args[1].varType).toEqual('animal');
   });
+
+  it('parseRule: no conditions', () => {
+    const { rel, op, score, conditions } = parseRule(
+      'squishes _x _y:animal += 1'
+    );
+    expect(rel.relName).toEqual('squishes');
+    expect(rel.args[0].varName).toEqual('_x');
+    expect(rel.args[0].varType).toEqual('');
+    expect(rel.args[1].varName).toEqual('_y');
+    expect(rel.args[1].varType).toEqual('animal');
+    expect(op).toEqual('+=');
+    expect(score).toEqual(1.0);
+    expect(conditions).toEqual([]);
+  });
+
+  it('parseRule: one conditions', () => {
+    const { rel, op, score, conditions } = parseRule(
+      'jumps-over _x:monkey _y:flower ==> squishes _x _y += 1'
+    );
+    expect(rel.relName).toEqual('squishes');
+    expect(rel.args[0].varName).toEqual('_x');
+    expect(rel.args[0].varType).toEqual('');
+    expect(rel.args[1].varName).toEqual('_y');
+    expect(rel.args[1].varType).toEqual('');
+    expect(op).toEqual('+=');
+    expect(score).toEqual(1.0);
+    expect(conditions.length).toEqual(1);
+    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: 'monkey' });
+    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: 'flower' });
+  });
+
+  it('parseRule: 3 conditions', () => {
+    const { rel, op, score, conditions } = parseRule(`
+    jumps-over _x _y,
+    jumps-over _x _y,
+    jumps-over _x _y,
+    ==> squishes _x _y = 0
+    `);
+    expect(rel.relName).toEqual('squishes');
+    expect(rel.args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(rel.args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(op).toEqual('=');
+    expect(score).toEqual(0);
+    expect(conditions.length).toEqual(3);
+    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(conditions[1].relName).toEqual('jumps-over');
+    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(conditions[2].relName).toEqual('jumps-over');
+    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
+  });
+
+  // it('genRandExample: DecisionBoundaryTask', () => {
+  // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
+  //   ExampleObjects,
+  //   ExampleRelations
+  // > = {
+  //   name: 'example-tiny-world',
+  //   maxInputLen: 20,
+  //   maxOutputLen: 10,
+  //   seed: 0,
+  //   objectTokens: [...exampleObjects],
+  //   relationTokenArgs: relArgs,
+  // };
+  // const task = new TinyWorldTask(example_TinyWorldTaskConfig);
+
+  // let example: Example;
+  // example = task.genRandExample();
+
+  // expect(example.secret).toEqual(['2']);
+  // expect(example.input).toEqual(['5', 'F', '4', 'F', '3']);
+  // expect(example.output).toEqual(['F']);
+
+  // example = task.genRandExample();
+  // expect(example.secret).toEqual(['2']);
+  // expect(example.input).toEqual(['3', 'F', '2', 'T', '1']);
+  // expect(example.output).toEqual(['T']);
+
+  // example = task.genRandExample();
+  // expect(example.secret).toEqual(['3']);
+  // expect(example.input).toEqual(['3', 'T', '3', 'T', '4']);
+  // expect(example.output).toEqual(['F']);
+
+  // example = task.genRandExample();
+  // expect(example.secret).toEqual(['4']);
+  // expect(example.input).toEqual(['1', 'T', '3', 'T', '4']);
+  // expect(example.output).toEqual(['T']);
+
+  // example = task.genRandExample();
+  // expect(example.secret).toEqual(['3']);
+  // expect(example.input).toEqual(['1', 'T', '4', 'F', '5']);
+  // expect(example.output).toEqual(['F']);
+  // });
 });
