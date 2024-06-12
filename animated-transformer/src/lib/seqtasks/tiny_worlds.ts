@@ -24,6 +24,92 @@ import {
   RandomStream,
 } from './util';
 
+// ============================================================================== //
+//  Rule Parser
+// ============================================================================== //
+const impactRegexp = new RegExp(
+  /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
+);
+type RuleOp = '+=' | '=';
+type ImpactMatches = { relString: string; op: RuleOp; scoreString: string };
+const relRegexp = new RegExp(/\s*(?<relName>\S*)\s+(?<argsString>(\_\S+\s*)*)/);
+type RelMatch = { relName: string; argsString: string };
+
+const conditionsSplitRegexp = new RegExp(/\s*,\s*/);
+
+const argsSplitRegexp = new RegExp(/\s+/);
+const argumentRegexp = new RegExp(
+  /(?<varName>\_[^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
+);
+type RelArgument = { varName: string; varType: string };
+type Relation = { relName: string; args: RelArgument[] };
+
+type Rule = {
+  rel: Relation;
+  op: RuleOp;
+  score: number;
+  conditions: Relation[];
+};
+// function parseRelArgs(argsString: string): ArgMatch[] {
+
+// }
+
+export function parseRel(relString: string): Relation {
+  const match = relString.match(relRegexp)?.groups as RelMatch;
+  if (!match) {
+    throw new Error(`'${relString}' does not match a relation.`);
+  }
+  const { relName, argsString } = match;
+  const argList = argsString.split(argsSplitRegexp);
+  const args = argList
+    .map((a) => {
+      if (a === '') {
+        return null;
+      }
+      const argMatch = a.match(argumentRegexp)?.groups as RelArgument;
+      if (!argMatch) {
+        console.warn(`'${a}' does not match the argumentRegexp.`);
+        return null;
+      }
+      if (argMatch.varType === undefined) {
+        argMatch.varType = '';
+      }
+      return argMatch;
+    })
+    .filter((a) => a !== null) as RelArgument[];
+  return { relName, args };
+}
+
+export function parseRule(rule: string): Rule {
+  const conditionsAndConclusion = rule.split(/\s*\=\=\>\s*/);
+  let conditionsStr = undefined;
+  let conclusionStr = undefined;
+  let conditions: Relation[] = [];
+  if (conditionsAndConclusion.length > 1) {
+    [conditionsStr, conclusionStr] = conditionsAndConclusion;
+    const conditionRelations = conditionsStr.split(conditionsSplitRegexp);
+    conditions = conditionRelations
+      .filter((s) => s.length > 0)
+      .map((s) => parseRel(s));
+  } else {
+    conclusionStr = conditionsAndConclusion[0];
+  }
+  const conclMatch = conclusionStr.match(impactRegexp);
+  if (!conclMatch) {
+    throw new Error(
+      `conclusionStr:, '${conclusionStr}' isn't a valid conclusion`
+    );
+  }
+  const { relString, op, scoreString } = conclMatch.groups as ImpactMatches;
+  const rel = parseRel(relString);
+  const score = parseFloat(scoreString);
+  return { rel, op, score, conditions };
+}
+
+// ============================================================================== //
+//  Tiny World Task Configs
+// ============================================================================== //
+
 export const sepToken = ', ';
 export type SepToken = typeof sepToken;
 export const sepVocab: SepToken[] = [sepToken];
@@ -35,16 +121,16 @@ export interface TinyWorldTaskConfig<
   // obj vocab used a suffix-type trick: the ':' separated siffix of the object is it's type.
   // FORALL x s.t. objTokens.has(x) && x_type = x.split(':').pop().join(':') ==> objTokens.has(x_type)
   objectTokens: ObjVocab[];
+  taxonomy: Map<ObjVocab, Set<ObjVocab>>;
   // Relation to argument matching is done by suffix matching.
-  relationTokenArgs: Map<RelVocab, ObjVocab[]>;
+  relationArgTypes: Map<RelVocab, ObjVocab[]>;
+  rules: Rule[];
+  baseContext: Relation[];
 }
 
-// export class Rule<ObjVocab extends string, RelVocab extends string> {
-//   public generate(context: string) {
-//     const observations = context.split(sepToken);
-
-//   }
-// }
+// ============================================================================== //
+//  Tiny Worlds Task
+// ============================================================================== //
 
 export class TinyWorldTask<ObjVocab extends string, RelVocab extends string>
   implements BasicLmTask
@@ -62,7 +148,7 @@ export class TinyWorldTask<ObjVocab extends string, RelVocab extends string>
     this.baseVocab = [
       ...sepVocab,
       ...config.objectTokens,
-      ...config.relationTokenArgs.keys(),
+      ...config.relationArgTypes.keys(),
     ];
   }
 
