@@ -38,6 +38,16 @@ import {
   ModelSpecAndData,
   ModelData,
 } from '../model-selector/model-selector.component';
+import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
+
+import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree'; 
+import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree'
+import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
+import {
+  ModelUpdate,
+  ModelSpecAndData,
+  ModelData,
+} from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import {
   BehaviorSubject,
@@ -51,11 +61,7 @@ import {
   startWith,
   tap,
 } from 'rxjs';
-import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
-
-import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree'; 
-import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree'
-import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
+import { mapNonNull } from 'src/lib/rxjs/util';
 
 function typedGetData<N extends string>(params: DictTree<GVariable<N>>)
 : DictArrTree<{shape: number[]; data: number[]}> {
