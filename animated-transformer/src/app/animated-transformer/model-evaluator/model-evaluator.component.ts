@@ -33,11 +33,6 @@ import {
   JsonStrListConfig,
 } from '../../form-validators/json-str-list-validator.directive';
 
-import {
-  ModelUpdate,
-  ModelSpecAndData,
-  ModelData,
-} from '../model-selector/model-selector.component';
 import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
 
 import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree'; 
