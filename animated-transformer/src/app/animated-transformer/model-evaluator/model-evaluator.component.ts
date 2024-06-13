@@ -26,7 +26,6 @@ import {
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
-import { computePrediction, computeDecoder } from 'src/lib/transformer/transformer_gtensor';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import {
   jsonStrListValidator,
@@ -52,7 +51,7 @@ import {
   startWith,
   tap,
 } from 'rxjs';
-import { mapNonNull } from 'src/lib/rxjs/util';
+import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
 
 function getData(tree: any) {
   if (tree.hasOwnProperty('tensor')) {
@@ -93,6 +92,10 @@ export class ModelEvaluatorComponent {
   set model(modelUpdate: ModelUpdate) {
     this.modelOutput = null;
     this.currentModel.set(modelUpdate.model || null);
+  };
+  @Input()
+  set task(taskUpdate: BasicLmTaskUpdate) {
+    this.currentTask.set(taskUpdate.task || null);
   }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
@@ -185,4 +188,39 @@ export class ModelEvaluatorComponent {
     );
     this.modelOutput = outputs[0];
   }
+
+  downloadActivations() {
+    const modelData = this.modelData();
+    if (!modelData) {
+      throw new Error('no current trainState');
+    }
+    const currentTask = this.getCurrentTask();
+    const generator = currentTask.makeExamplesGenerator();
+
+    const trainingData = [];
+    const nExamplesToCollect = 1000;
+    for (let i=0; i<nExamplesToCollect; i++) {
+      const example = generator.next();
+      const input = example.value!.input;
+
+      const decoderOutputs = computeDecoder(
+        modelData.tokenRep,
+        modelData.inputPrepFn,
+        modelData.config.transformer.spec,
+        modelData.params,
+        [input]);
+
+      const output = decoderOutputs.layers[0].seqOuput;
+      trainingData.push({
+        'input': input,
+        'mlpOutputs': {
+          shape: output.tensor.shape,
+          data: Array.from(output.tensor.dataSync())
+        }
+      });
+    }
+
+    this.downloadJSON(trainingData, 'sae_train_data.json');
+  }
+
 }
