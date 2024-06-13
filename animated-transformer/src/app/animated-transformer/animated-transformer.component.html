@@ -58,6 +58,7 @@
     <mat-card-content>
       <app-model-evaluator
       [model]="lastModelUpdate"
+      [task]="lastTaskUpdate"
       [inputValue]="evalInputStr"
       (evalInputUpdate)="updateEvalInput($event)"
       ></app-model-evaluator>

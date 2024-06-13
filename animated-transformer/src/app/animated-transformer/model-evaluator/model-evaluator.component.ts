@@ -16,13 +16,30 @@ limitations under the License.
 
 import { signal, Component, EventEmitter, Input, OnInit, Output, effect, Signal, computed } from '@angular/core';
 import { FormControl } from '@angular/forms';
+import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { jsonStrListValidator, jsonStrListErrorFn, JsonStrListConfig } from '../../form-validators/json-str-list-validator.directive';
 
 import { ModelUpdate, ModelSpecAndData, ModelData } from '../model-selector/model-selector.component';
 import * as json5 from 'json5';
 import { BehaviorSubject, combineLatest, filter, firstValueFrom, map, merge, Observable, shareReplay, startWith, tap } from 'rxjs';
-import { computePrediction } from 'src/lib/transformer/transformer_gtensor';
+import { computePrediction, computeDecoder } from 'src/lib/transformer/transformer_gtensor';
+import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import { mapNonNull } from 'src/lib/rxjs/util';
+
+function getData(tree: any) {
+  if (tree.hasOwnProperty('tensor')) {
+    return {
+      shape: tree.variable.shape,
+      data: Array.from(tree.variable.dataSync())
+    }
+  }
+
+  const newTree: any = {}
+  for (let key in tree) {
+    newTree[key] = getData(tree[key]);
+  }
+  return newTree;
+}
 
 @Component({
   selector: 'app-model-evaluator',
@@ -33,6 +50,7 @@ export class ModelEvaluatorComponent {
   input = signal([] as string[]);
   inputControl: FormControl<string | null>;
   currentModel = signal<ModelSpecAndData | null>(null);
+  currentTask = signal<BasicLmTask | null>(null);
   // currentTask$: BehaviorSubject<BasicLmTask | null>;
   modelData: Signal<ModelData | null>;
   // taskAndModel$: Observable<{ model: ModelMetadata; task: BasicLmTask } | null>;
@@ -48,6 +66,10 @@ export class ModelEvaluatorComponent {
     this.modelOutput = null;
     this.currentModel.set(modelUpdate.model || null);
   };
+  @Input()
+  set task(taskUpdate: BasicLmTaskUpdate) {
+    this.currentTask.set(taskUpdate.task || null);
+  }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
   constructor() {
@@ -70,10 +92,57 @@ export class ModelEvaluatorComponent {
     // effect(() => console.log(`input updated: ${this.input()}`));
   }
 
+  getCurrentTask(): BasicLmTask {
+    const currentTask = this.currentTask();
+    if (!currentTask) { throw new Error('no currentTask'); }
+    return currentTask;
+  }
+
   setInputValueFromString(s: string | null) {
     if (s !== null && !jsonStrListErrorFn(this.validatorConfig, s)) {
       this.input.set(json5.parse(s));
     }
+  }
+
+  downloadModel() {
+    const modelData = this.modelData();
+    if (!modelData) {
+      throw new Error('no current trainState');
+    }
+
+    const spec = stringifyJsonValue(modelData.config.transformer.spec, {
+      arrWrapAt: 60,
+      objWrapAt: 60,
+      curIndent: '',
+      sortObjKeys: true,
+    });
+    const weightsTree = modelData.params.tree;
+    
+    const tokenEmbedding = (weightsTree as any)['tokenEmbedding'].variable;
+    const tokenEmbeddingData = {
+      shape: tokenEmbedding.shape,
+      data: Array.from(tokenEmbedding.dataSync())
+    };
+
+    const layerData: any = [];
+    (weightsTree as any).layers.forEach((layer: any) => {
+      layerData.push(getData(layer));
+    });
+
+    const serialized = {spec, tokenEmbeddingData, layerData};
+    this.downloadJSON(serialized, 'model.json')
+  }
+
+  downloadJSON(data: any, fname: string) {
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fname;
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
   }
 
   evaluate() {
@@ -89,6 +158,40 @@ export class ModelEvaluatorComponent {
       modelData.params,
       [this.input()]);
     this.modelOutput = outputs[0];
+  }
+
+  downloadActivations() {
+    const modelData = this.modelData();
+    if (!modelData) {
+      throw new Error('no current trainState');
+    }
+    const currentTask = this.getCurrentTask();
+    const generator = currentTask.makeExamplesGenerator();
+
+    const trainingData = [];
+    const nExamplesToCollect = 1000;
+    for (let i=0; i<nExamplesToCollect; i++) {
+      const example = generator.next();
+      const input = example.value!.input;
+
+      const decoderOutputs = computeDecoder(
+        modelData.tokenRep,
+        modelData.inputPrepFn,
+        modelData.config.transformer.spec,
+        modelData.params,
+        [input]);
+
+      const output = decoderOutputs.layers[0].seqOuput;
+      trainingData.push({
+        'input': input,
+        'mlpOutputs': {
+          shape: output.tensor.shape,
+          data: Array.from(output.tensor.dataSync())
+        }
+      });
+    }
+
+    this.downloadJSON(trainingData, 'sae_train_data.json');
   }
 
 }
