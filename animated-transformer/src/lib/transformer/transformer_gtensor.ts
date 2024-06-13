@@ -428,6 +428,23 @@ export function transformerAccuracy(
     .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
 }
 
+export function computeDecoder(tokenRep: BasicTaskTokenRep,
+  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
+  spec: TransformerParamSpec,
+  params: GVariableTree<TransformerParams>,
+  inputs: string[][]): TransformerComputation {
+    const maxInputLength = inputs.reduce(
+      (max, curInput) => (max >= curInput.length ? max : curInput.length),
+      0
+    );
+    const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
+    return computeTransformer(
+      spec,
+      params.obj,
+      gtensorInputs
+    );
+  }
+
 export function computePrediction(
   tokenRep: BasicTaskTokenRep,
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
@@ -435,17 +452,8 @@ export function computePrediction(
   params: GVariableTree<TransformerParams>,
   inputs: string[][]
 ): string[][] {
-  const maxInputLength = inputs.reduce(
-    (max, curInput) => (max >= curInput.length ? max : curInput.length),
-    0
-  );
   const examplePredictions = tf.tidy(() => {
-    const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
-    const decoderComputation = computeTransformer(
-      spec,
-      params.obj,
-      gtensorInputs
-    );
+    const decoderComputation = computeDecoder(tokenRep, inputPrepFn, spec, params, inputs);
     const predictions = transformerTopPrediction(
       decoderComputation,
       params.obj.tokenEmbedding

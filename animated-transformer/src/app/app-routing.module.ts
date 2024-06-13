@@ -17,6 +17,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ActivationVisComponent } from './activation-vis/activation-vis.component';
 import { AnimatedTransformerComponent } from './animated-transformer/animated-transformer.component';
+import { SAEComponent } from 'src/app/sae/sae.component';
 import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
@@ -26,6 +27,7 @@ const routes: Routes = [
   { path: 'activations', component: ActivationVisComponent },
   { path: 'transformers', component: AnimatedTransformerComponent },
   { path: 'wcolab', component: WebColabComponent },
+  { path: 'sae', component: SAEComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 

@@ -30,3 +30,18 @@
     Output: <span>{{modelOutput}}</span>
   </div>
 }
+
+@if (modelData(); as modelData) {
+  <div class="button-row">
+    <div>
+      <button mat-flat-button color="primary" (click)="downloadActivations()">
+        Download activations
+      </button>
+    </div>
+    <div>
+      <button mat-flat-button color="primary" (click)="downloadModel()">
+        Download model
+      </button>
+    </div>
+  </div>
+}
