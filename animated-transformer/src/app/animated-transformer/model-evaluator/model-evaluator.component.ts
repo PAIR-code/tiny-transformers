@@ -53,19 +53,16 @@ import {
 } from 'rxjs';
 import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
 
-function getData(tree: any) {
-  if (tree.hasOwnProperty('tensor')) {
-    return {
-      shape: tree.variable.shape,
-      data: Array.from(tree.variable.dataSync())
-    }
-  }
+import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree'; 
+import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree'
+import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
 
-  const newTree: any = {}
-  for (let key in tree) {
-    newTree[key] = getData(tree[key]);
-  }
-  return newTree;
+function typedGetData<N extends string>(params: DictTree<GVariable<N>>)
+: DictArrTree<{shape: number[]; data: number[]}> {
+  return gtensorTrees.map(params, (g: GTensorOrScalar) => ({
+    shape: g.tensor.shape as number[],
+    data: (Array.from(g.tensor.dataSync()) as number[])
+  }));
 }
 
 @Component({
@@ -154,7 +151,7 @@ export class ModelEvaluatorComponent {
 
     const layerData: any = [];
     (weightsTree as any).layers.forEach((layer: any) => {
-      layerData.push(getData(layer));
+      layerData.push(typedGetData(layer));
     });
 
     const serialized = {spec, tokenEmbeddingData, layerData};
