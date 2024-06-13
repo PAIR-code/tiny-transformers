@@ -14,8 +14,11 @@ limitations under the License.
 ==============================================================================*/
 
 import {
+  Context,
+  Relation,
   TinyWorldTask,
   TinyWorldTaskConfig,
+  UnifyState,
   parseRel,
   parseRule,
   sepToken,
@@ -181,6 +184,75 @@ fdescribe('tiny_world_task', () => {
     expect(conditions[2].relName).toEqual('jumps-over');
     expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
     expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
+  });
+
+  fit('unification & contexts', () => {
+    // "& {}" is a trick to get typescript errors to use the type name instead
+    // of the full list of underlying union of string literals.
+    type VarNames = `_${string}`;
+
+    const animalTypes = ['cat', 'monkey', 'elephant'] as const;
+    const inanimateTypes = ['flower', 'rock', 'tree'] as const;
+    const allTypes = [
+      'animal',
+      ...animalTypes,
+      'inanimate',
+      ...inanimateTypes,
+      'squishable',
+      '*',
+    ] as const;
+    // "& {}" is a trick to get typescript errors to use the type name instead
+    // of the full list of underlying union of string literals.
+    type TypeNames = (typeof allTypes)[number] & {};
+
+    const types = new Map<TypeNames, Set<TypeNames>>();
+    types.set('*', new Set(allTypes));
+    types.set('animal', new Set(animalTypes));
+    types.set('inanimate', new Set(inanimateTypes));
+    types.set('squishable', new Set([...animalTypes, 'flower', 'tree']));
+
+    const allRelations = ['jumps-over', 'runs-away', 'squishes'] as const;
+    // "& {}" is a trick to get typescript errors to use the type name instead
+    // of the full list of underlying union of string literals.
+    type RelationNames = (typeof allRelations)[number] & {};
+
+    const relations = new Map<RelationNames, TypeNames[]>();
+    relations.set('jumps-over', ['animal', '*']);
+    relations.set('runs-away', ['animal']);
+    relations.set('squishes', ['animal', 'squishable']);
+
+    const c = new Context(
+      types,
+      relations,
+      new Map<VarNames, TypeNames>(),
+      [] as Relation<TypeNames, VarNames, RelationNames>[]
+    );
+
+    const unifyResult = c.unify(
+      {
+        relName: 'squishes',
+        args: [
+          { varName: '_x', varType: '*' },
+          { varName: '_y', varType: '*' },
+        ],
+      },
+      {
+        relName: 'squishes',
+        args: [
+          { varName: '_a', varType: '*' },
+          { varName: '_b', varType: '*' },
+        ],
+      }
+    );
+
+    expect(unifyResult.kind).toEqual('UnifyState');
+    const unifyState = unifyResult as UnifyState<TypeNames, VarNames>;
+    const varSubsts = unifyState.varSubsts;
+    expect(varSubsts.get('_x')).toEqual('_a');
+    expect(varSubsts.get('_y')).toEqual('_b');
+    const varTypes = unifyState.varTypes;
+    expect(varTypes.get('_x')).toEqual('animal');
+    expect(varTypes.get('_y')).toEqual('squishable');
   });
 
   // it('genRandExample: DecisionBoundaryTask', () => {

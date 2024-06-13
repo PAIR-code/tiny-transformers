@@ -30,7 +30,7 @@ import {
 const impactRegexp = new RegExp(
   /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
 );
-type RuleOp = '+=' | '=';
+export type RuleOp = '+=' | '=';
 type ImpactMatches = { relString: string; op: RuleOp; scoreString: string };
 const relRegexp = new RegExp(/\s*(?<relName>\S*)\s+(?<argsString>(\_\S+\s*)*)/);
 type RelMatch = { relName: string; argsString: string };
@@ -42,20 +42,17 @@ const argumentRegexp = new RegExp(
   /(?<varName>\_[^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
 );
 type RelArgument<Types, Vars> = { varName: Vars; varType: Types };
-type Relation<Types, Vars, Relations> = {
-  relName: Relations;
-  args: RelArgument<Types, Vars>[];
+export type Relation<TypeNames, VarNames, RelNames> = {
+  relName: RelNames;
+  args: RelArgument<TypeNames, VarNames>[];
 };
 
-type Rule<Types, Vars, Relations> = {
+export type Rule<Types, Vars, Relations> = {
   rel: Relation<Types, Vars, Relations>;
   op: RuleOp;
   score: number;
   conditions: Relation<Types, Vars, Relations>[];
 };
-// function parseRelArgs(argsString: string): ArgMatch[] {
-
-// }
 
 export function parseRel<
   Types extends string,
@@ -127,7 +124,7 @@ export function parseRule<
 // TODO: should failurekinds be Enum?
 
 // When relations don't unify, why that might be the case.
-type UnifyFailure =
+export type UnifyFailure =
   // Relations might have different names.
   | { kind: 'UnifyFailure:relNameClash'; relName1: string; relName2: string }
   | { kind: 'UnifyFailure:relNameContextClash'; relName: string }
@@ -146,10 +143,10 @@ type UnifyFailure =
       arg2Type: string;
     };
 
-type UnifyState<Types, Vars> = {
+export type UnifyState<Types, Vars> = {
   kind: 'UnifyState';
   varTypes: Map<Vars, Types>;
-  varRewrites: Map<Vars, Vars>;
+  varSubsts: Map<Vars, Vars>;
 };
 
 // function subtype<Types>(
@@ -195,23 +192,27 @@ export class Context<
   unifyArgumentWithContext(
     a: RelArgument<Types, Vars>,
     unifyState: UnifyState<Types, Vars>,
-    relType = '' as Types, // The type of this argument in the relation
+    relType: Types, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
   ): UnifyFailure | undefined {
-    const prevBoundType = unifyState.varTypes.get(a.varName) || relType;
-
+    const prevBoundType = unifyState.varTypes.get(a.varName);
     if (
+      prevBoundType &&
       // If it's the same type...
-      a.varType === prevBoundType ||
-      // or this relation treats the type as more general,
-      // that's also true, but doesn't change the binding.
-      this.subtypeOf(prevBoundType, a.varType)
+      (a.varType === prevBoundType ||
+        // or this relation treats the type as more general,
+        // that's also true, but doesn't change the binding.
+        this.subtypeOf(prevBoundType, a.varType))
     ) {
       return;
     }
     // If this type is more specific, we can match, and narrow the type.
-    if (this.subtypeOf(a.varType, prevBoundType)) {
-      unifyState.varTypes.set(a.varName, a.varType);
+    if (!prevBoundType || this.subtypeOf(a.varType, prevBoundType)) {
+      let mostSpecificTypeYet = a.varType;
+      if (this.subtypeOf(relType, a.varType)) {
+        mostSpecificTypeYet = relType;
+      }
+      unifyState.varTypes.set(a.varName, mostSpecificTypeYet);
       return;
     } else {
       return {
@@ -267,7 +268,7 @@ export class Context<
     let unifyState: UnifyState<Types, Vars> = {
       kind: 'UnifyState',
       varTypes: new Map(this.varTypes),
-      varRewrites: new Map<Vars, Vars>(),
+      varSubsts: new Map<Vars, Vars>(),
     };
     const unify1Failure = this.unifyRelationWithContext(r1, unifyState);
     if (unify1Failure) {
@@ -280,9 +281,9 @@ export class Context<
 
     for (let i = 0; i < r1.args.length; i++) {
       const v1Name =
-        unifyState.varRewrites.get(r1.args[i].varName) || r1.args[i].varName;
+        unifyState.varSubsts.get(r1.args[i].varName) || r1.args[i].varName;
       const v2Name =
-        unifyState.varRewrites.get(r2.args[i].varName) || r2.args[i].varName;
+        unifyState.varSubsts.get(r2.args[i].varName) || r2.args[i].varName;
 
       // If the names are the same, the types must be. Proof by induction & construction.
       if (v1Name === v2Name) {
@@ -309,9 +310,9 @@ export class Context<
       }
 
       // v1 gets replaced everywhere as v2 now.
-      unifyState.varRewrites.set(v1Name, v2Name);
+      unifyState.varSubsts.set(v1Name, v2Name);
       if (r1.args[i].varName !== v1Name) {
-        unifyState.varRewrites.set(r1.args[i].varName, v2Name);
+        unifyState.varSubsts.set(r1.args[i].varName, v2Name);
       }
     }
 
