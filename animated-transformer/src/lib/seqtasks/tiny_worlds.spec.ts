@@ -189,7 +189,7 @@ fdescribe('tiny_world_task', () => {
   fit('unification & contexts', () => {
     // "& {}" is a trick to get typescript errors to use the type name instead
     // of the full list of underlying union of string literals.
-    type VarNames = `_${string}`;
+    type VarNames = `_${string}` | `?${string}`;
 
     const animalTypes = ['cat', 'monkey', 'elephant'] as const;
     const inanimateTypes = ['flower', 'rock', 'tree'] as const;
@@ -227,32 +227,34 @@ fdescribe('tiny_world_task', () => {
       new Map<VarNames, TypeNames>(),
       [] as Relation<TypeNames, VarNames, RelationNames>[]
     );
-
-    const unifyResult = c.unify(
+    const unifyState = c.newUnifyState();
+    const unifyFailed = c.unify(
       {
         relName: 'squishes',
         args: [
-          { varName: '_x', varType: '*' },
-          { varName: '_y', varType: '*' },
+          { varName: '?x', varType: '*' },
+          { varName: '?y', varType: '*' },
         ],
       },
       {
         relName: 'squishes',
         args: [
-          { varName: '_a', varType: '*' },
+          { varName: '_a', varType: 'cat' },
           { varName: '_b', varType: '*' },
         ],
-      }
+      },
+      unifyState
     );
 
-    expect(unifyResult.kind).toEqual('UnifyState');
-    const unifyState = unifyResult as UnifyState<TypeNames, VarNames>;
+    expect(unifyFailed).toEqual(null);
     const varSubsts = unifyState.varSubsts;
-    expect(varSubsts.get('_x')).toEqual('_a');
-    expect(varSubsts.get('_y')).toEqual('_b');
+    expect(varSubsts.get('?x')).toEqual('_a');
+    expect(varSubsts.get('?y')).toEqual('_b');
     const varTypes = unifyState.varTypes;
-    expect(varTypes.get('_x')).toEqual('animal');
-    expect(varTypes.get('_y')).toEqual('squishable');
+    expect(varTypes.get('?x')).toEqual('cat');
+    expect(varTypes.get('?y')).toEqual('squishable');
+    expect(varTypes.get('_b')).toEqual('cat');
+    expect(varTypes.get('_a')).toEqual('squishable');
   });
 
   // it('genRandExample: DecisionBoundaryTask', () => {

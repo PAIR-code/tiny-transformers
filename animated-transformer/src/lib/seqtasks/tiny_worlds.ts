@@ -25,34 +25,109 @@ import {
 } from './util';
 
 // ============================================================================== //
-//  Rule Parser
+//  Core types
 // ============================================================================== //
-const impactRegexp = new RegExp(
-  /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
-);
 export type RuleOp = '+=' | '=';
-type ImpactMatches = { relString: string; op: RuleOp; scoreString: string };
-const relRegexp = new RegExp(/\s*(?<relName>\S*)\s+(?<argsString>(\_\S+\s*)*)/);
-type RelMatch = { relName: string; argsString: string };
 
-const conditionsSplitRegexp = new RegExp(/\s*,\s*/);
+export type RelArgument<Types, Vars> = { varName: Vars; varType: Types };
 
-const argsSplitRegexp = new RegExp(/\s+/);
-const argumentRegexp = new RegExp(
-  /(?<varName>\_[^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
-);
-type RelArgument<Types, Vars> = { varName: Vars; varType: Types };
 export type Relation<TypeNames, VarNames, RelNames> = {
   relName: RelNames;
   args: RelArgument<TypeNames, VarNames>[];
 };
 
+// An assumption about rules is that the no two conditions are identical.
+// (Such a rule can be reduced to a version where there is only such condition).
 export type Rule<Types, Vars, Relations> = {
   rel: Relation<Types, Vars, Relations>;
   op: RuleOp;
   score: number;
   conditions: Relation<Types, Vars, Relations>[];
 };
+
+// ============================================================================== //
+//  Unification State & Failure
+// ============================================================================== //
+// When relations don't unify, why that might be the case.
+export type UnifyFailure =
+  // Relations might have different names.
+  | { kind: 'UnifyFailure:relNameClash'; relName1: string; relName2: string }
+  | { kind: 'UnifyFailure:relNameContextClash'; relName: string }
+  // A given relation is not consistent with the context
+  | {
+      kind: 'UnifyFailure:argContextTypeClash';
+      argumentNumber: number;
+      contextVarTypes: string;
+      argType: string;
+    }
+  // Or relations might have an argument with a type that does not match.
+  | {
+      kind: 'UnifyFailure:relRelTypeClashArg';
+      argumentNumber: number;
+      arg1Type: string;
+      arg2Type: string;
+    };
+
+export type UnifyState<Types, Vars> = {
+  kind: 'UnifyState';
+  varTypes: Map<Vars, Types>;
+  varSubsts: Map<Vars, Vars>;
+};
+
+export function forkUnifyState<TypeNames, VarNames>(
+  s: UnifyState<TypeNames, VarNames>
+): UnifyState<TypeNames, VarNames> {
+  let unifyState: UnifyState<TypeNames, VarNames> = {
+    kind: 'UnifyState',
+    varTypes: new Map(s.varTypes),
+    varSubsts: new Map<VarNames, VarNames>(s.varSubsts),
+  };
+  return unifyState;
+}
+
+export type RuleMatch<TypeNames, VarNames, RelNames> = {
+  rule: Rule<TypeNames, VarNames, RelNames>;
+  contextBeforeRule: Relation<TypeNames, VarNames, RelNames>[];
+  // Each position in the list corresponds to a condition in the rule.
+  // The number in the list is an index in into the matching relation
+  // in the context to that condition of the rule.
+  condToContextRelIdx: number[];
+  unifState: UnifyState<TypeNames, VarNames>;
+};
+
+export function forkRuleMatch<TypeNames, VarNames, RelNames>(
+  m: RuleMatch<TypeNames, VarNames, RelNames>
+): RuleMatch<TypeNames, VarNames, RelNames> {
+  return {
+    ...m,
+    condToContextRelIdx: [...m.condToContextRelIdx],
+    unifState: forkUnifyState(m.unifState),
+  };
+}
+
+export type RelationToAdd<TypeNames, VarNames, RelNames> = {
+  newRel: Relation<TypeNames, VarNames, RelNames>;
+  rule: Rule<TypeNames, VarNames, RelNames>;
+  match: RuleMatch<TypeNames, VarNames, RelNames>;
+  score: number;
+};
+
+// ============================================================================== //
+//  Rule Parser
+// ============================================================================== //
+const impactRegexp = new RegExp(
+  /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
+);
+type ImpactMatches = { relString: string; op: RuleOp; scoreString: string };
+const relRegexp = new RegExp(
+  /\s*(?<relName>\S*)\s+(?<argsString>((\_|\*)\S+\s*)*)/
+);
+type RelMatch = { relName: string; argsString: string };
+const conditionsSplitRegexp = new RegExp(/\s*,\s*/);
+const argsSplitRegexp = new RegExp(/\s+/);
+const argumentRegexp = new RegExp(
+  /(?<varName>\_[^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
+);
 
 export function parseRel<
   Types extends string,
@@ -79,7 +154,7 @@ export function parseRel<
         return null;
       }
       if (argMatch.varType === undefined) {
-        argMatch.varType = '' as Types; // empty string is the type of all types.
+        argMatch.varType = '*' as Types; // empty string is the type of all types.
       }
       return argMatch;
     })
@@ -123,32 +198,6 @@ export function parseRule<
 
 // TODO: should failurekinds be Enum?
 
-// When relations don't unify, why that might be the case.
-export type UnifyFailure =
-  // Relations might have different names.
-  | { kind: 'UnifyFailure:relNameClash'; relName1: string; relName2: string }
-  | { kind: 'UnifyFailure:relNameContextClash'; relName: string }
-  // A given relation is not consistent with the context
-  | {
-      kind: 'UnifyFailure:argContextTypeClash';
-      argumentNumber: number;
-      contextVarTypes: string;
-      argType: string;
-    }
-  // Or relations might have an argument with a type that does not match.
-  | {
-      kind: 'UnifyFailure:relRelTypeClashArg';
-      argumentNumber: number;
-      arg1Type: string;
-      arg2Type: string;
-    };
-
-export type UnifyState<Types, Vars> = {
-  kind: 'UnifyState';
-  varTypes: Map<Vars, Types>;
-  varSubsts: Map<Vars, Vars>;
-};
-
 // function subtype<Types>(
 //   types: Map<Types, Set<Types>>,
 //   superType: Types,
@@ -162,26 +211,26 @@ export type UnifyState<Types, Vars> = {
 // }
 
 export class Context<
-  Types extends string | '',
-  Vars extends string,
-  Relations extends string
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
 > {
   constructor(
     // The type hierarchy.
-    public types: Map<Types, Set<Types>>,
+    public types: Map<TypeNames, Set<TypeNames>>,
     // Mapping from Relation to the list of most general type for each argument.
-    public relations: Map<Relations, Types[]>,
+    public relations: Map<RelNames, TypeNames[]>,
 
     // TODO: probably we want to generalise bindings and context into a single named set:
     // proof terms of LL.
     //
     // The list of atomic objects (variables)
-    public varTypes: Map<Vars, Types>,
+    public varTypes: Map<VarNames, TypeNames>,
     // The list of relations
-    public context: Relation<Types, Vars, Relations>[]
+    public context: Relation<TypeNames, VarNames, RelNames>[]
   ) {}
 
-  subtypeOf(subType: Types, superType: Types): boolean {
+  subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
     const subtypeSet = this.types.get(superType);
     if (!subtypeSet) {
       throw new Error(`No such subtype: '${subType}' in '${superType}'`);
@@ -190,9 +239,9 @@ export class Context<
   }
 
   unifyArgumentWithContext(
-    a: RelArgument<Types, Vars>,
-    unifyState: UnifyState<Types, Vars>,
-    relType: Types, // The type of this argument in the relation
+    a: RelArgument<TypeNames, VarNames>,
+    unifyState: UnifyState<TypeNames, VarNames>,
+    relType: TypeNames, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
   ): UnifyFailure | undefined {
     const prevBoundType = unifyState.varTypes.get(a.varName);
@@ -225,8 +274,8 @@ export class Context<
   }
 
   unifyRelationWithContext(
-    r: Relation<Types, Vars, Relations>,
-    unifyState: UnifyState<Types, Vars>
+    r: Relation<TypeNames, VarNames, RelNames>,
+    unifyState: UnifyState<TypeNames, VarNames>
   ): UnifyFailure | undefined {
     const relTypes = this.relations.get(r.relName);
 
@@ -249,9 +298,10 @@ export class Context<
   }
 
   unify(
-    r1: Relation<Types, Vars, Relations>,
-    r2: Relation<Types, Vars, Relations>
-  ): UnifyState<Types, Vars> | UnifyFailure {
+    r1: Relation<TypeNames, VarNames, RelNames>,
+    r2: Relation<TypeNames, VarNames, RelNames>,
+    unifyState: UnifyState<TypeNames, VarNames>
+  ): UnifyFailure | null {
     if (r1.relName !== r2.relName) {
       return {
         kind: 'UnifyFailure:relNameClash',
@@ -265,11 +315,6 @@ export class Context<
           ` (${r1.args.length} vs ${r2.args.length})`
       );
     }
-    let unifyState: UnifyState<Types, Vars> = {
-      kind: 'UnifyState',
-      varTypes: new Map(this.varTypes),
-      varSubsts: new Map<Vars, Vars>(),
-    };
     const unify1Failure = this.unifyRelationWithContext(r1, unifyState);
     if (unify1Failure) {
       return unify1Failure;
@@ -316,9 +361,83 @@ export class Context<
       }
     }
 
+    return null;
+  }
+
+  newUnifyState(): UnifyState<TypeNames, VarNames> {
+    let unifyState: UnifyState<TypeNames, VarNames> = {
+      kind: 'UnifyState',
+      varTypes: new Map(this.varTypes),
+      varSubsts: new Map<VarNames, VarNames>(),
+    };
     return unifyState;
   }
+
+  matchRule(
+    rule: Rule<TypeNames, VarNames, RelNames>
+  ): RuleMatch<TypeNames, VarNames, RelNames>[] {
+    const initialMatches = [
+      {
+        rule: rule,
+        contextBeforeRule: this.context,
+        // Each position in the list corresponds to a condition in the rule.
+        // The number in the list is an index in into the matching relation
+        // in the context to that condition of the rule.
+        condToContextRelIdx: [],
+        unifState: this.newUnifyState(),
+      } as RuleMatch<TypeNames, VarNames, RelNames>,
+    ];
+
+    const finalMatches = rule.conditions.reduce<
+      RuleMatch<TypeNames, VarNames, RelNames>[]
+    >((ruleMatches, condRel) => {
+      const nextMatches: RuleMatch<TypeNames, VarNames, RelNames>[] = [];
+      ruleMatches.forEach((match) => {
+        this.context.forEach((contextRel, contextRelIdx) => {
+          // TODO: make more efficient: only fork the unify state when needed.
+          // e.g. fail as much as possible before working.
+          const newMatch = forkRuleMatch(match);
+          const unifyFailure = this.unify(
+            condRel,
+            contextRel,
+            newMatch.unifState
+          );
+          if (!unifyFailure) {
+            newMatch.condToContextRelIdx.push(contextRelIdx);
+            nextMatches.push(newMatch);
+          }
+        });
+      });
+      return nextMatches;
+    }, initialMatches);
+
+    return finalMatches;
+  }
+
+  //   applyRuleMatch(
+  //     match: RuleMatch<TypeNames, VarNames, RelNames>
+  //   ): Context<TypeNames, VarNames, RelNames> {
+
+  //     const newVarTypes = new Map(this.varTypes);
+  //     match.unifState.varTypes.forEach((value,key) => newVarTypes.set(key,value));
+
+  //     match.rule.rel
+
+  //     return new Context(
+  //       this.types,
+  //       this.relations,
+  //       newVarTypes,
+  //       newContext
+  //     );
+
+  //   }
 }
+
+// for(ord('a')
+
+// class FreshNames {
+//   constructor(prefix: string, startId: number, chars = ['a'])
+// }
 
 // ============================================================================== //
 //  Tiny World Task Configs
