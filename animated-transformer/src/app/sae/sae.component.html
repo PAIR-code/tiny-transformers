@@ -14,4 +14,34 @@
             <div class="status">{{status}}</div>
         </div>
     }
+
+    @if (trained) {
+    <div class="results">
+        @if (learnedFeatureActivationFrequencies.length) {
+            <div class="frequencies">
+                <div>Frequencies (avg = {{averageLearnedFeatureActivationFrequency}}):</div>
+                <div *ngFor="let item of learnedFeatureActivationFrequencies; index as i">
+                    {{i}}: {{item}}
+                </div>
+            </div>
+        }
+
+        <div class="interpreter">
+            <div>Interpret a feature</div>
+            <form (ngSubmit)="interpret()">
+                <label for="numberInput">Enter a number:</label>
+                <input type="number" id="numberInput" name="numberInput" [(ngModel)]="userInput" required>
+                <button type="submit">Submit</button>
+            </form>
+            @if (topActivationsForUserInputFeature) {
+                <div class="top-activations">
+                    <div>Top activating data for neuron {{userInput}}:</div>
+                    <div *ngFor="let item of topActivationsForUserInputFeature; index as i">
+                        {{i}}: {{item.value | number:'1.2-2'}} {{item.token}} (Pos {{item.tokenPos}}: {{item.sequence}})
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    }
 </div>
