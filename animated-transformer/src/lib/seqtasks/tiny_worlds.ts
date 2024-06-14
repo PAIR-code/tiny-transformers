@@ -115,10 +115,20 @@ export type RelationToAdd<TypeNames, VarNames, RelNames> = {
 // ============================================================================== //
 //  Rule Parser
 // ============================================================================== //
+
+// Old rule shaped expressions.
+// const impactRegexp = new RegExp(
+//   /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
+// );
+
 const impactRegexp = new RegExp(
-  /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
+  /^\s*S\((?<conclAndConditionsStr>[^\)]+)\)\s*(?<op>(\+\=|\*\=))\s*(?<scoreString>\S+)\s*$/
 );
-type ImpactMatches = { relString: string; op: RuleOp; scoreString: string };
+type ImpactMatches = {
+  conclAndConditionsStr: string;
+  op: RuleOp;
+  scoreString: string;
+};
 const relRegexp = new RegExp(
   /\s*(?<relName>\S*)\s+(?<argsString>((\_|\*)\S+\s*)*)/
 );
@@ -163,31 +173,30 @@ export function parseRel<
 }
 
 export function parseRule<
-  Types extends string,
-  Vars extends string,
-  Relations extends string
->(rule: string): Rule<Types, Vars, Relations> {
-  const conditionsAndConclusion = rule.split(/\s*\=\=\>\s*/);
-  let conditionsStr = undefined;
-  let conclusionStr = undefined;
-  let conditions: Relation<Types, Vars, Relations>[] = [];
-  if (conditionsAndConclusion.length > 1) {
-    [conditionsStr, conclusionStr] = conditionsAndConclusion;
-    const conditionRelations = conditionsStr.split(conditionsSplitRegexp);
-    conditions = conditionRelations
-      .filter((s) => s.length > 0)
-      .map((s) => parseRel(s));
-  } else {
-    conclusionStr = conditionsAndConclusion[0];
-  }
-  const conclMatch = conclusionStr.match(impactRegexp);
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(ruleStr: string): Rule<TypeNames, VarNames, RelNames> {
+  const conclMatch = ruleStr.match(impactRegexp);
   if (!conclMatch) {
+    throw new Error(`rule: '${ruleStr}' isn't valid, it lacks a score.`);
+  }
+  const { conclAndConditionsStr, op, scoreString } =
+    conclMatch.groups as ImpactMatches;
+  const conclAndConditionStr = conclAndConditionsStr.split(/\s*\|\s*/);
+  if (conclAndConditionStr.length <= 1 && conclAndConditionStr.length >= 2) {
     throw new Error(
-      `conclusionStr:, '${conclusionStr}' isn't a valid conclusion`
+      `rule: '${ruleStr}', S(...) must have at most one | to separate conclusions and conditions: '${conclAndConditionStr}'`
     );
   }
-  const { relString, op, scoreString } = conclMatch.groups as ImpactMatches;
-  const rel = parseRel<Types, Vars, Relations>(relString);
+  const rel = parseRel<TypeNames, VarNames, RelNames>(conclAndConditionStr[0]);
+  const conditions =
+    conclAndConditionStr.length === 1
+      ? []
+      : conclAndConditionStr[1]
+          .split(',')
+          .filter((s) => s.length > 0)
+          .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
   const score = parseFloat(scoreString);
   return { rel, op, score, conditions };
 }

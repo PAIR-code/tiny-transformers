@@ -69,27 +69,53 @@ const relArgs = new Map<ExampleRelations, ExampleObjects[]>([
   ['squishes', ['animal', '']],
 ]);
 
+const imaginaryContext = 'jumps-over _x:monkey _y, jumps-over _y _x';
+
+[
+  // Observe absolute probability rules can be inherrently inconsistent... (not sum to 1)
+  'P(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) = 0.5',
+  'P(squishes ?x ?y | jumps-over ?x:animal ?y:flower) = 0.1',
+
+  // Score rules instead of probability ones can work...
+  'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 0.5', // r1
+  'S(squishes ?x ?y | jumps-over ?x:animal ?y:flower) += 0.1', // r2
+
+  // Context:
+  'jumps-over _a:monkey _f:flower, jumps-over _c:cat _f:flower',
+
+  // All application of score rules happen, and common matched rules then
+  // get aggregated.
+  'squishes _a _f', // r1, score: 0.5
+  'squishes _a _f', // r2, score: 0.1
+  'squishes _c _f', // r2, score: 0.1
+
+  // This results in final scores for the events as so...
+  'P(squishes _a _f) = SUM(0.5, 0.1) / SUM(0.5, 0.1, 0.1)',
+  'P(squishes _c _f) = SUM(0.1) / SUM(0.5, 0.1, 0.1)',
+];
+
 const rules = [
   // Monkeys jump over stuff a lot
-  'jumps-over _x:monkey _y += 5',
+  'S(jumps-over ?x:monkey ?y) += 5',
   // Monkeys might squish flowers
-  'jumps-over _x:monkey _y:flower ==> squishes _x _y += 1',
+  'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 1',
   // Monkeys might squish cats
-  'jumps-over _x:monkey _y:cat ==> squishes _x _y += 0.5',
+  'S(squishes ?x ?y | jumps-over ?x:monkey ?y:cat) += 0.5',
   // cats jump over stuff
-  'jumps-over _x:cat _y += 1',
+  'S(jumps-over ?x:cat ?y) += 1',
   // cats very occationally squish flowers
-  'jumps-over _x:cat _y:flower ==> squishes _x _y += 0.1',
+  'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) += 0.1',
   // Elephants occationally jump over animals
-  'jumps-over _x:elephant _y:animal += 0.1',
+  'S(jumps-over ?x:elephant ?y:animal) += 0.1',
   // Cats sometimes run away when jumped over
-  'jumps-over _x _y:cat ==> runs-away _y += 1',
+  'S(runs-away ?y += 1 | jumps-over ?x ?y:cat)',
   // Squished animals can't run away anymore
-  'squishes _x _y:animal ==> runs-away _y = 0',
+  'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
   // Animals that can away can't get squished or be jumped over.
-  'runs-away _y:animal ==> squishes _x _y = 0',
-  'runs-away _y:animal ==> jumps-over _x _y = 0',
+  'S(squishes ?x ?y | runs-away ?y:animal) *= 0',
+  'S(jumps-over ?x ?y | runs-away ?y:animal) *= 0',
 ];
+
 // Ideas for fancier rules/variants
 //
 // If a monkey just jumped over something, they are not so likely to jump again right away.
@@ -126,18 +152,18 @@ fdescribe('tiny_world_task', () => {
     const { relName, args } = parseRel('squishes _x _y:animal');
     expect(relName).toEqual('squishes');
     expect(args[0].varName).toEqual('_x');
-    expect(args[0].varType).toEqual('');
+    expect(args[0].varType).toEqual('*');
     expect(args[1].varName).toEqual('_y');
     expect(args[1].varType).toEqual('animal');
   });
 
   it('parseRule: no conditions', () => {
     const { rel, op, score, conditions } = parseRule(
-      'squishes _x _y:animal += 1'
+      'S(squishes _x _y:animal) += 1'
     );
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual('');
+    expect(rel.args[0].varType).toEqual('*');
     expect(rel.args[1].varName).toEqual('_y');
     expect(rel.args[1].varType).toEqual('animal');
     expect(op).toEqual('+=');
@@ -147,13 +173,13 @@ fdescribe('tiny_world_task', () => {
 
   it('parseRule: one conditions', () => {
     const { rel, op, score, conditions } = parseRule(
-      'jumps-over _x:monkey _y:flower ==> squishes _x _y += 1'
+      'S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1'
     );
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual('');
+    expect(rel.args[0].varType).toEqual('*');
     expect(rel.args[1].varName).toEqual('_y');
-    expect(rel.args[1].varType).toEqual('');
+    expect(rel.args[1].varType).toEqual('*');
     expect(op).toEqual('+=');
     expect(score).toEqual(1.0);
     expect(conditions.length).toEqual(1);
@@ -162,31 +188,30 @@ fdescribe('tiny_world_task', () => {
     expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: 'flower' });
   });
 
+  // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
   it('parseRule: 3 conditions', () => {
     const { rel, op, score, conditions } = parseRule(`
-    jumps-over _x _y,
-    jumps-over _x _y,
-    jumps-over _x _y,
-    ==> squishes _x _y = 0
+    S(squishes _x _y 
+    | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0
     `);
     expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(rel.args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(op).toEqual('=');
+    expect(rel.args[0]).toEqual({ varName: '_x', varType: '*' });
+    expect(rel.args[1]).toEqual({ varName: '_y', varType: '*' });
+    expect(op).toEqual('*=');
     expect(score).toEqual(0);
     expect(conditions.length).toEqual(3);
     expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '*' });
+    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '*' });
     expect(conditions[1].relName).toEqual('jumps-over');
-    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '*' });
+    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '*' });
     expect(conditions[2].relName).toEqual('jumps-over');
-    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
+    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '*' });
+    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '*' });
   });
 
-  fit('unification & contexts', () => {
+  it('unification & contexts', () => {
     // "& {}" is a trick to get typescript errors to use the type name instead
     // of the full list of underlying union of string literals.
     type VarNames = `_${string}` | `?${string}`;
