@@ -130,13 +130,13 @@ type ImpactMatches = {
   scoreString: string;
 };
 const relRegexp = new RegExp(
-  /\s*(?<relName>\S*)\s+(?<argsString>((\_|\*)\S+\s*)*)/
+  /\s*(?<relName>\S*)\s+(?<argsString>((\_|\?)\S+\s*)*)/
 );
 type RelMatch = { relName: string; argsString: string };
 const conditionsSplitRegexp = new RegExp(/\s*,\s*/);
 const argsSplitRegexp = new RegExp(/\s+/);
 const argumentRegexp = new RegExp(
-  /(?<varName>\_[^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
+  /(?<varName>[\_\?][^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
 );
 
 export function parseRel<
@@ -183,18 +183,18 @@ export function parseRule<
   }
   const { conclAndConditionsStr, op, scoreString } =
     conclMatch.groups as ImpactMatches;
-  const conclAndConditionStr = conclAndConditionsStr.split(/\s*\|\s*/);
-  if (conclAndConditionStr.length <= 1 && conclAndConditionStr.length >= 2) {
+  const conclAndConditionStrs = conclAndConditionsStr.split(/\s*\|\s*/);
+  if (conclAndConditionStrs.length <= 1 && conclAndConditionStrs.length >= 2) {
     throw new Error(
-      `rule: '${ruleStr}', S(...) must have at most one | to separate conclusions and conditions: '${conclAndConditionStr}'`
+      `rule: '${ruleStr}', S(...) must have at most one | to separate conclusions and conditions: '${conclAndConditionStrs}'`
     );
   }
-  const rel = parseRel<TypeNames, VarNames, RelNames>(conclAndConditionStr[0]);
+  const rel = parseRel<TypeNames, VarNames, RelNames>(conclAndConditionStrs[0]);
   const conditions =
-    conclAndConditionStr.length === 1
+    conclAndConditionStrs.length === 1
       ? []
-      : conclAndConditionStr[1]
-          .split(',')
+      : conclAndConditionStrs[1]
+          .split(conditionsSplitRegexp)
           .filter((s) => s.length > 0)
           .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
   const score = parseFloat(scoreString);
@@ -242,7 +242,7 @@ export class Context<
   subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
     const subtypeSet = this.types.get(superType);
     if (!subtypeSet) {
-      console.log(this.types);
+      console.warn(this.types);
       throw new Error(
         `No such supertype in the set of types: '${superType}' when trying to check subtypes ('${subType}')`
       );
@@ -324,7 +324,7 @@ export class Context<
     if (r1.args.length !== r2.args.length) {
       throw new Error(
         `match: relation arguments don't have the same number of parameters` +
-          ` (${r1.args.length} vs ${r2.args.length})`
+          ` (${r1.relName}/${r1.args.length} vs ${r2.relName}/${r2.args.length})`
       );
     }
     const unify1Failure = this.unifyRelationWithContext(r1, unifyState);
@@ -409,6 +409,7 @@ export class Context<
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
           const newMatch = forkRuleMatch(match);
+          // console.log(condRel, contextRel);
           const unifyFailure = this.unify(
             condRel,
             contextRel,

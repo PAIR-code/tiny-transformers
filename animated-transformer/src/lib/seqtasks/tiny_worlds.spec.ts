@@ -146,6 +146,45 @@ const rules = [
 // };
 
 fdescribe('tiny_world_task', () => {
+  // "& {}" is a trick to get typescript errors to use the type name instead
+  // of the full list of underlying union of string literals.
+  type VarNames = `_${string}` | `?${string}`;
+
+  const animalTypes = ['cat', 'monkey', 'elephant'] as const;
+  const inanimateTypes = ['flower', 'rock', 'tree'] as const;
+  const allTypes = [
+    'animal',
+    ...animalTypes,
+    'inanimate',
+    ...inanimateTypes,
+    'squishable',
+    '*',
+  ] as const;
+  // "& {}" is a trick to get typescript errors to use the type name instead
+  // of the full list of underlying union of string literals.
+  type TypeNames = (typeof allTypes)[number] & {};
+
+  const types = new Map<TypeNames, Set<TypeNames>>();
+  types.set('*', new Set(allTypes));
+  types.set('animal', new Set(animalTypes));
+  types.set('inanimate', new Set(inanimateTypes));
+  types.set('squishable', new Set([...animalTypes, 'flower', 'tree']));
+  allTypes.forEach((t) => {
+    if (!types.get(t)) {
+      types.set(t, new Set());
+    }
+  });
+
+  const allRelations = ['jumps-over', 'runs-away', 'squishes'] as const;
+  // "& {}" is a trick to get typescript errors to use the type name instead
+  // of the full list of underlying union of string literals.
+  type RelNames = (typeof allRelations)[number] & {};
+
+  const relations = new Map<RelNames, TypeNames[]>();
+  relations.set('jumps-over', ['animal', '*']);
+  relations.set('runs-away', ['animal']);
+  relations.set('squishes', ['animal', 'squishable']);
+
   beforeEach(() => {});
 
   it('parseRel', () => {
@@ -188,6 +227,23 @@ fdescribe('tiny_world_task', () => {
     expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: 'flower' });
   });
 
+  it('parseRule: one conditions, no types', () => {
+    const { rel, op, score, conditions } = parseRule(
+      'S(squishes ?x ?y | jumps-over ?x ?y) += 1'
+    );
+    expect(rel.relName).toEqual('squishes');
+    expect(rel.args[0].varName).toEqual('?x');
+    expect(rel.args[0].varType).toEqual('*');
+    expect(rel.args[1].varName).toEqual('?y');
+    expect(rel.args[1].varType).toEqual('*');
+    expect(op).toEqual('+=');
+    expect(score).toEqual(1.0);
+    expect(conditions.length).toEqual(1);
+    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].args[0]).toEqual({ varName: '?x', varType: '*' });
+    expect(conditions[0].args[1]).toEqual({ varName: '?y', varType: '*' });
+  });
+
   // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
   it('parseRule: 3 conditions', () => {
     const { rel, op, score, conditions } = parseRule(`
@@ -211,51 +267,12 @@ fdescribe('tiny_world_task', () => {
     expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '*' });
   });
 
-  it('unification & contexts', () => {
-    // "& {}" is a trick to get typescript errors to use the type name instead
-    // of the full list of underlying union of string literals.
-    type VarNames = `_${string}` | `?${string}`;
-
-    const animalTypes = ['cat', 'monkey', 'elephant'] as const;
-    const inanimateTypes = ['flower', 'rock', 'tree'] as const;
-    const allTypes = [
-      'animal',
-      ...animalTypes,
-      'inanimate',
-      ...inanimateTypes,
-      'squishable',
-      '*',
-    ] as const;
-    // "& {}" is a trick to get typescript errors to use the type name instead
-    // of the full list of underlying union of string literals.
-    type TypeNames = (typeof allTypes)[number] & {};
-
-    const types = new Map<TypeNames, Set<TypeNames>>();
-    types.set('*', new Set(allTypes));
-    types.set('animal', new Set(animalTypes));
-    types.set('inanimate', new Set(inanimateTypes));
-    types.set('squishable', new Set([...animalTypes, 'flower', 'tree']));
-    allTypes.forEach((t) => {
-      if (!types.get(t)) {
-        types.set(t, new Set());
-      }
-    });
-
-    const allRelations = ['jumps-over', 'runs-away', 'squishes'] as const;
-    // "& {}" is a trick to get typescript errors to use the type name instead
-    // of the full list of underlying union of string literals.
-    type RelationNames = (typeof allRelations)[number] & {};
-
-    const relations = new Map<RelationNames, TypeNames[]>();
-    relations.set('jumps-over', ['animal', '*']);
-    relations.set('runs-away', ['animal']);
-    relations.set('squishes', ['animal', 'squishable']);
-
+  it('Context.unify', () => {
     const c = new Context(
       types,
       relations,
       new Map<VarNames, TypeNames>(),
-      [] as Relation<TypeNames, VarNames, RelationNames>[]
+      [] as Relation<TypeNames, VarNames, RelNames>[]
     );
     const unifyState = c.newUnifyState();
     const unifyFailed = c.unify(
@@ -285,6 +302,40 @@ fdescribe('tiny_world_task', () => {
     expect(varTypes.get('?y')).toEqual('squishable');
     expect(varTypes.get('_a')).toEqual('cat');
     expect(varTypes.get('_b')).toEqual('squishable');
+  });
+
+  it('matchRule: simple match', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new Map<VarNames, TypeNames>(),
+      [rel]
+    );
+    const ruleMatches = c.matchRule(rule);
+    expect(ruleMatches.length).toEqual(1);
+  });
+
+  it('matchRule: no match', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'squishes _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new Map<VarNames, TypeNames>(),
+      [rel]
+    );
+    const ruleMatches = c.matchRule(rule);
+    expect(ruleMatches.length).toEqual(0);
   });
 
   // it('genRandExample: DecisionBoundaryTask', () => {
