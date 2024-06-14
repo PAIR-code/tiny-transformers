@@ -210,6 +210,11 @@ fdescribe('tiny_world_task', () => {
     types.set('animal', new Set(animalTypes));
     types.set('inanimate', new Set(inanimateTypes));
     types.set('squishable', new Set([...animalTypes, 'flower', 'tree']));
+    allTypes.forEach((t) => {
+      if (!types.get(t)) {
+        types.set(t, new Set());
+      }
+    });
 
     const allRelations = ['jumps-over', 'runs-away', 'squishes'] as const;
     // "& {}" is a trick to get typescript errors to use the type name instead
@@ -253,8 +258,8 @@ fdescribe('tiny_world_task', () => {
     const varTypes = unifyState.varTypes;
     expect(varTypes.get('?x')).toEqual('cat');
     expect(varTypes.get('?y')).toEqual('squishable');
-    expect(varTypes.get('_b')).toEqual('cat');
-    expect(varTypes.get('_a')).toEqual('squishable');
+    expect(varTypes.get('_a')).toEqual('cat');
+    expect(varTypes.get('_b')).toEqual('squishable');
   });
 
   // it('genRandExample: DecisionBoundaryTask', () => {

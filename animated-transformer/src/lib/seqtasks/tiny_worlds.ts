@@ -233,7 +233,10 @@ export class Context<
   subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
     const subtypeSet = this.types.get(superType);
     if (!subtypeSet) {
-      throw new Error(`No such subtype: '${subType}' in '${superType}'`);
+      console.log(this.types);
+      throw new Error(
+        `No such supertype in the set of types: '${superType}' when trying to check subtypes ('${subType}')`
+      );
     }
     return subtypeSet.has(subType);
   }
