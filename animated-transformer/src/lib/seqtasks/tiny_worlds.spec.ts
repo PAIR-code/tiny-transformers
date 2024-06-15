@@ -159,6 +159,7 @@ fdescribe('tiny_world_task', () => {
     ...inanimateTypes,
     'squishable',
     '*',
+    '', // unspecified type
   ] as const;
   // "& {}" is a trick to get typescript errors to use the type name instead
   // of the full list of underlying union of string literals.
@@ -191,7 +192,7 @@ fdescribe('tiny_world_task', () => {
     const { relName, args } = parseRel('squishes _x _y:animal');
     expect(relName).toEqual('squishes');
     expect(args[0].varName).toEqual('_x');
-    expect(args[0].varType).toEqual('*');
+    expect(args[0].varType).toEqual('');
     expect(args[1].varName).toEqual('_y');
     expect(args[1].varType).toEqual('animal');
   });
@@ -202,7 +203,7 @@ fdescribe('tiny_world_task', () => {
     );
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual('*');
+    expect(rel.args[0].varType).toEqual(''); // unspecified
     expect(rel.args[1].varName).toEqual('_y');
     expect(rel.args[1].varType).toEqual('animal');
     expect(op).toEqual('+=');
@@ -210,15 +211,15 @@ fdescribe('tiny_world_task', () => {
     expect(conditions).toEqual([]);
   });
 
-  it('parseRule: one conditions', () => {
+  it('parseRule: one condition', () => {
     const { rel, op, score, conditions } = parseRule(
       'S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1'
     );
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual('*');
+    expect(rel.args[0].varType).toEqual('');
     expect(rel.args[1].varName).toEqual('_y');
-    expect(rel.args[1].varType).toEqual('*');
+    expect(rel.args[1].varType).toEqual('');
     expect(op).toEqual('+=');
     expect(score).toEqual(1.0);
     expect(conditions.length).toEqual(1);
@@ -227,21 +228,21 @@ fdescribe('tiny_world_task', () => {
     expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: 'flower' });
   });
 
-  it('parseRule: one conditions, no types', () => {
+  it('parseRule: one condition, no types', () => {
     const { rel, op, score, conditions } = parseRule(
       'S(squishes ?x ?y | jumps-over ?x ?y) += 1'
     );
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('?x');
-    expect(rel.args[0].varType).toEqual('*');
+    expect(rel.args[0].varType).toEqual('');
     expect(rel.args[1].varName).toEqual('?y');
-    expect(rel.args[1].varType).toEqual('*');
+    expect(rel.args[1].varType).toEqual('');
     expect(op).toEqual('+=');
     expect(score).toEqual(1.0);
     expect(conditions.length).toEqual(1);
     expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '?x', varType: '*' });
-    expect(conditions[0].args[1]).toEqual({ varName: '?y', varType: '*' });
+    expect(conditions[0].args[0]).toEqual({ varName: '?x', varType: '' });
+    expect(conditions[0].args[1]).toEqual({ varName: '?y', varType: '' });
   });
 
   // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
@@ -251,20 +252,48 @@ fdescribe('tiny_world_task', () => {
     | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0
     `);
     expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0]).toEqual({ varName: '_x', varType: '*' });
-    expect(rel.args[1]).toEqual({ varName: '_y', varType: '*' });
+    expect(rel.args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(rel.args[1]).toEqual({ varName: '_y', varType: '' });
     expect(op).toEqual('*=');
     expect(score).toEqual(0);
     expect(conditions.length).toEqual(3);
     expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '*' });
-    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '*' });
+    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '' });
     expect(conditions[1].relName).toEqual('jumps-over');
-    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '*' });
-    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '*' });
+    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '' });
     expect(conditions[2].relName).toEqual('jumps-over');
-    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '*' });
-    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '*' });
+    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
+    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
+  });
+
+  it('Context with relations', () => {
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new Map<VarNames, TypeNames>(),
+      [rel]
+    );
+    expect(c.names.config.usedNameSet).toContain('_m');
+    expect(c.names.config.usedNameSet).toContain('_f');
+    expect(c.varTypes.get('_m')).toEqual('monkey');
+    expect(c.varTypes.get('_f')).toEqual('flower');
+  });
+
+  it('Context creation fails, context clash', () => {
+    const rel2 = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:rock _f:flower'
+    );
+    expect(function () {
+      const c = new Context(types, relations, new Map<VarNames, TypeNames>(), [
+        rel2,
+      ]);
+      console.log(c);
+    }).toThrowError(''); // Assert
   });
 
   it('Context.unify', () => {
@@ -279,15 +308,15 @@ fdescribe('tiny_world_task', () => {
       {
         relName: 'squishes',
         args: [
-          { varName: '?x', varType: '*' },
-          { varName: '?y', varType: '*' },
+          { varName: '?x', varType: '' },
+          { varName: '?y', varType: '' },
         ],
       },
       {
         relName: 'squishes',
         args: [
           { varName: '_a', varType: 'cat' },
-          { varName: '_b', varType: '*' },
+          { varName: '_b', varType: '' },
         ],
       },
       unifyState

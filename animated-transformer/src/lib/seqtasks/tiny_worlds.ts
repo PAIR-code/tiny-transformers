@@ -23,6 +23,7 @@ import {
   randOfList,
   RandomStream,
 } from './util';
+import { FreshNames } from '../names/simple_fresh_names';
 
 // ============================================================================== //
 //  Core types
@@ -35,6 +36,15 @@ export type Relation<TypeNames, VarNames, RelNames> = {
   relName: RelNames;
   args: RelArgument<TypeNames, VarNames>[];
 };
+
+export function stringifyRelation<TypeNames, VarNames, RelNames>(
+  r: Relation<TypeNames, VarNames, RelNames>
+) {
+  const argsString = r.args
+    .map((a) => `${a.varName}${a.varType === '*' ? '' : ':' + a.varType}`)
+    .join(' ');
+  return `${r.relName} ${argsString}`;
+}
 
 // An assumption about rules is that the no two conditions are identical.
 // (Such a rule can be reduced to a version where there is only such condition).
@@ -66,6 +76,12 @@ export type UnifyFailure =
       argumentNumber: number;
       arg1Type: string;
       arg2Type: string;
+    }
+  | {
+      kind: 'UnifyFailure:argRelationTypeClash';
+      argumentNumber: number;
+      relationVarType: string;
+      argType: string;
     };
 
 export type UnifyState<Types, Vars> = {
@@ -164,7 +180,7 @@ export function parseRel<
         return null;
       }
       if (argMatch.varType === undefined) {
-        argMatch.varType = '*' as Types; // empty string is the type of all types.
+        argMatch.varType = '' as Types; // empty string is an unspecified type.
       }
       return argMatch;
     })
@@ -224,6 +240,8 @@ export class Context<
   VarNames extends string,
   RelNames extends string
 > {
+  public names: FreshNames;
+
   constructor(
     // The type hierarchy.
     public types: Map<TypeNames, Set<TypeNames>>,
@@ -237,7 +255,28 @@ export class Context<
     public varTypes: Map<VarNames, TypeNames>,
     // The list of relations
     public context: Relation<TypeNames, VarNames, RelNames>[]
-  ) {}
+  ) {
+    this.names = new FreshNames();
+    this.names.addNames(types.keys());
+    this.names.addNames(relations.keys());
+    this.names.addNames(varTypes.keys());
+    const unifyState = this.newUnifyState();
+    context.forEach((r, i) => {
+      const unifyFailed = this.unifyRelationWithContext(r, unifyState);
+      if (unifyFailed) {
+        console.warn(unifyState);
+        console.warn(r);
+        console.warn(unifyFailed);
+        throw new Error(
+          `${unifyFailed.kind} for relation (${i}): '${stringifyRelation(r)}'`
+        );
+      }
+    });
+    unifyState.varTypes.forEach((value, key) => {
+      this.varTypes.set(key, value);
+    });
+    this.names.addNames(unifyState.varTypes.keys());
+  }
 
   subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
     const subtypeSet = this.types.get(superType);
@@ -256,24 +295,36 @@ export class Context<
     relType: TypeNames, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
   ): UnifyFailure | undefined {
+    // Check consistent with Relation...
+    let varType = a.varType;
+    if (varType === '') {
+      varType = relType;
+    } else if (varType !== relType && !this.subtypeOf(varType, relType)) {
+      // Else if the variable type is specificed, and it is not a subtype of what
+      // the relation allows, unification fails.
+      return {
+        kind: 'UnifyFailure:argRelationTypeClash',
+        argumentNumber: argumentNumber,
+        relationVarType: relType,
+        argType: a.varType,
+      };
+    }
+
+    // If this doesn't change the previously known type for this var...
     const prevBoundType = unifyState.varTypes.get(a.varName);
     if (
       prevBoundType &&
-      // If it's the same type...
-      (a.varType === prevBoundType ||
+      (varType === prevBoundType || // same as before
         // or this relation treats the type as more general,
         // that's also true, but doesn't change the binding.
-        this.subtypeOf(prevBoundType, a.varType))
+        this.subtypeOf(prevBoundType, varType))
     ) {
       return;
     }
-    // If this type is more specific, we can match, and narrow the type.
-    if (!prevBoundType || this.subtypeOf(a.varType, prevBoundType)) {
-      let mostSpecificTypeYet = a.varType;
-      if (this.subtypeOf(relType, a.varType)) {
-        mostSpecificTypeYet = relType;
-      }
-      unifyState.varTypes.set(a.varName, mostSpecificTypeYet);
+
+    // If this type is more specific than previously, set the type.
+    if (!prevBoundType || this.subtypeOf(varType, prevBoundType)) {
+      unifyState.varTypes.set(a.varName, varType);
       return;
     } else {
       return {
@@ -444,78 +495,6 @@ export class Context<
   //     );
 
   //   }
-}
-
-const a_to_z_Chars: string[] = [];
-for (let i = 'a'.charCodeAt(0); i <= 'z'.charCodeAt(0); i++) {
-  a_to_z_Chars.push(String.fromCharCode(i));
-}
-// const aPoint = 'a'.codePointAt(0);
-
-// String.fromCodePoint(aPoint+1);
-
-type FreshNamesConfig = {
-  defaultPrefix: string;
-  defaultPostfix: string;
-  nextNameId: number;
-  chars: string[];
-  usedNameSet: Set<string>;
-};
-
-const defaultFreshNamesConfig: FreshNamesConfig = {
-  defaultPrefix: '_',
-  defaultPostfix: '',
-  nextNameId: 0,
-  chars: a_to_z_Chars,
-  usedNameSet: new Set<string>(),
-};
-
-export class FreshNames {
-  constructor(public config: FreshNamesConfig = defaultFreshNamesConfig) {}
-  addNames(names: Iterable<string>) {
-    for (const n of names) {
-      this.config.usedNameSet.add(n);
-    }
-  }
-
-  makeNextName(options: { prefix?: string; postfix?: string } = {}): string {
-    let newName: string | null = null;
-    while (!newName) {
-      newName = this.nameForId(this.config.nextNameId, options);
-      if (this.config.usedNameSet.has(newName)) {
-        newName = null;
-        this.config.nextNameId++;
-      }
-    }
-    return newName;
-  }
-
-  makeAndAddNextName(
-    options: { prefix?: string; postfix?: string } = {}
-  ): string {
-    const newName = this.makeNextName(options);
-    this.config.usedNameSet.add(newName);
-    return newName;
-  }
-
-  nameForId(
-    id: number,
-    options: { prefix?: string; postfix?: string } = {}
-  ): string {
-    const charIdx = id % this.config.chars.length;
-    console.log('charIdx', charIdx);
-    const num = Math.floor(id / this.config.chars.length);
-    let numStr = '';
-    if (num > 0) {
-      numStr = `${num + 1}`;
-    }
-    console.log('num', num);
-    return `${options.prefix ? options.prefix : this.config.defaultPrefix}${
-      this.config.chars[charIdx]
-    }${numStr}${
-      options.postfix ? options.postfix : this.config.defaultPostfix
-    }`;
-  }
 }
 
 // ============================================================================== //
