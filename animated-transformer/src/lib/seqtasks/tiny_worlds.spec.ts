@@ -338,45 +338,20 @@ fdescribe('tiny_world_task', () => {
     expect(ruleMatches.length).toEqual(0);
   });
 
-  // it('genRandExample: DecisionBoundaryTask', () => {
-  // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
-  //   ExampleObjects,
-  //   ExampleRelations
-  // > = {
-  //   name: 'example-tiny-world',
-  //   maxInputLen: 20,
-  //   maxOutputLen: 10,
-  //   seed: 0,
-  //   objectTokens: [...exampleObjects],
-  //   relationTokenArgs: relArgs,
-  // };
-  // const task = new TinyWorldTask(example_TinyWorldTaskConfig);
-
-  // let example: Example;
-  // example = task.genRandExample();
-
-  // expect(example.secret).toEqual(['2']);
-  // expect(example.input).toEqual(['5', 'F', '4', 'F', '3']);
-  // expect(example.output).toEqual(['F']);
-
-  // example = task.genRandExample();
-  // expect(example.secret).toEqual(['2']);
-  // expect(example.input).toEqual(['3', 'F', '2', 'T', '1']);
-  // expect(example.output).toEqual(['T']);
-
-  // example = task.genRandExample();
-  // expect(example.secret).toEqual(['3']);
-  // expect(example.input).toEqual(['3', 'T', '3', 'T', '4']);
-  // expect(example.output).toEqual(['F']);
-
-  // example = task.genRandExample();
-  // expect(example.secret).toEqual(['4']);
-  // expect(example.input).toEqual(['1', 'T', '3', 'T', '4']);
-  // expect(example.output).toEqual(['T']);
-
-  // example = task.genRandExample();
-  // expect(example.secret).toEqual(['3']);
-  // expect(example.input).toEqual(['1', 'T', '4', 'F', '5']);
-  // expect(example.output).toEqual(['F']);
-  // });
+  it('matchRule: simple match', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new Map<VarNames, TypeNames>(),
+      [rel]
+    );
+    const ruleMatches = c.matchRule(rule);
+    expect(ruleMatches.length).toEqual(1);
+  });
 });

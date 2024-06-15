@@ -446,11 +446,77 @@ export class Context<
   //   }
 }
 
-// for(ord('a')
+const a_to_z_Chars: string[] = [];
+for (let i = 'a'.charCodeAt(0); i <= 'z'.charCodeAt(0); i++) {
+  a_to_z_Chars.push(String.fromCharCode(i));
+}
+// const aPoint = 'a'.codePointAt(0);
 
-// class FreshNames {
-//   constructor(prefix: string, startId: number, chars = ['a'])
-// }
+// String.fromCodePoint(aPoint+1);
+
+type FreshNamesConfig = {
+  defaultPrefix: string;
+  defaultPostfix: string;
+  nextNameId: number;
+  chars: string[];
+  usedNameSet: Set<string>;
+};
+
+const defaultFreshNamesConfig: FreshNamesConfig = {
+  defaultPrefix: '_',
+  defaultPostfix: '',
+  nextNameId: 0,
+  chars: a_to_z_Chars,
+  usedNameSet: new Set<string>(),
+};
+
+export class FreshNames {
+  constructor(public config: FreshNamesConfig = defaultFreshNamesConfig) {}
+  addNames(names: Iterable<string>) {
+    for (const n of names) {
+      this.config.usedNameSet.add(n);
+    }
+  }
+
+  makeNextName(options: { prefix?: string; postfix?: string } = {}): string {
+    let newName: string | null = null;
+    while (!newName) {
+      newName = this.nameForId(this.config.nextNameId, options);
+      if (this.config.usedNameSet.has(newName)) {
+        newName = null;
+        this.config.nextNameId++;
+      }
+    }
+    return newName;
+  }
+
+  makeAndAddNextName(
+    options: { prefix?: string; postfix?: string } = {}
+  ): string {
+    const newName = this.makeNextName(options);
+    this.config.usedNameSet.add(newName);
+    return newName;
+  }
+
+  nameForId(
+    id: number,
+    options: { prefix?: string; postfix?: string } = {}
+  ): string {
+    const charIdx = id % this.config.chars.length;
+    console.log('charIdx', charIdx);
+    const num = Math.floor(id / this.config.chars.length);
+    let numStr = '';
+    if (num > 0) {
+      numStr = `${num + 1}`;
+    }
+    console.log('num', num);
+    return `${options.prefix ? options.prefix : this.config.defaultPrefix}${
+      this.config.chars[charIdx]
+    }${numStr}${
+      options.postfix ? options.postfix : this.config.defaultPostfix
+    }`;
+  }
+}
 
 // ============================================================================== //
 //  Tiny World Task Configs
