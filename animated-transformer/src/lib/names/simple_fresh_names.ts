@@ -39,6 +39,14 @@ export const defaultFreshNamesConfig: FreshNamesConfig = {
 
 export class FreshNames {
   constructor(public config: FreshNamesConfig = defaultFreshNamesConfig) {}
+
+  fork(): FreshNames {
+    return new FreshNames({
+      ...this.config,
+      usedNameSet: new Set(this.config.usedNameSet),
+    });
+  }
+
   addNames(names: Iterable<string>) {
     for (const n of names) {
       this.config.usedNameSet.add(n);

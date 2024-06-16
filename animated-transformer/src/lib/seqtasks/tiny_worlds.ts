@@ -217,6 +217,31 @@ export function parseRule<
   return { rel, op, score, conditions };
 }
 
+export function applyUnifSubstToRel<TypeNames, VarNames, RelNames>(
+  unifState: UnifyState<TypeNames, VarNames>,
+  rel: Relation<TypeNames, VarNames, RelNames>
+): Relation<TypeNames, VarNames, RelNames> {
+  const args = rel.args.map((a) => {
+    return {
+      varName: unifState.varSubsts.get(a.varName) || a.varName,
+      varType: unifState.varTypes.get(a.varName) || a.varType,
+    } as RelArgument<TypeNames, VarNames>;
+  });
+  const newRel = { relName: rel.relName, args };
+  return newRel;
+}
+
+export function applyUnifSubstToRule<TypeNames, VarNames, RelNames>(
+  unifState: UnifyState<TypeNames, VarNames>,
+  rule: Rule<TypeNames, VarNames, RelNames>
+): Rule<TypeNames, VarNames, RelNames> {
+  const rel = applyUnifSubstToRel(unifState, rule.rel);
+  const conditions = rule.conditions.map((c) =>
+    applyUnifSubstToRel(unifState, c)
+  );
+  return { rel, conditions, op: rule.op, score: rule.score };
+}
+
 // ============================================================================== //
 // Logic without probabilities.
 // ============================================================================== //
@@ -235,13 +260,18 @@ export function parseRule<
 //   return subtypeSet.has(subType);
 // }
 
+// A note on memory management for Context:
+//
+// We treat Contexts as functional objects, meaning if we want to edit a Context,
+// and guarentee not to edit others, we need to copy the context objects top
+// down to the edited part, and return a new copy.
+//
+// TODO: make a deep-copy function so it's easier to be safe?
 export class Context<
   TypeNames extends string,
   VarNames extends string,
   RelNames extends string
 > {
-  public names: FreshNames;
-
   constructor(
     // The type hierarchy.
     public types: Map<TypeNames, Set<TypeNames>>,
@@ -252,9 +282,15 @@ export class Context<
     // proof terms of LL.
     //
     // The list of atomic objects (variables)
+    public names: FreshNames,
     public varTypes: Map<VarNames, TypeNames>,
     // The list of relations
-    public context: Relation<TypeNames, VarNames, RelNames>[]
+    public context: Relation<TypeNames, VarNames, RelNames>[],
+    // True when the name corresponds to a name in a rule and not to an name in
+    // the context (we use a separate name class for rules to make it faster to do
+    // matching; this avoid needing to rewrite rule-var names before matching).
+    // e.g. ?x = var in a rule. _x = var in a relation in the context.
+    public isUnboundVarName: (v: VarNames) => boolean
   ) {
     this.names = new FreshNames();
     this.names.addNames(types.keys());
@@ -478,23 +514,54 @@ export class Context<
     return finalMatches;
   }
 
-  //   applyRuleMatch(
-  //     match: RuleMatch<TypeNames, VarNames, RelNames>
-  //   ): Context<TypeNames, VarNames, RelNames> {
+  // Top level copy of a context; forking it.
+  fork(): Context<TypeNames, VarNames, RelNames> {
+    return new Context(
+      this.types,
+      this.relations,
+      this.names.fork(),
+      new Map(this.varTypes),
+      [...this.context],
+      this.isUnboundVarName
+    );
+  }
 
-  //     const newVarTypes = new Map(this.varTypes);
-  //     match.unifState.varTypes.forEach((value,key) => newVarTypes.set(key,value));
+  applyRuleMatch(
+    match: RuleMatch<TypeNames, VarNames, RelNames>
+  ): Context<TypeNames, VarNames, RelNames> {
+    const newContext = this.fork();
 
-  //     match.rule.rel
+    // Names of locally introduced variables.
+    const freshNameSubsts = this.newUnifyState();
 
-  //     return new Context(
-  //       this.types,
-  //       this.relations,
-  //       newVarTypes,
-  //       newContext
-  //     );
+    // Apply the type-narrowings, and provide new names for introduced variables,
+    // and also record their types in the new context.
+    match.unifState.varTypes.forEach((vType, vName) => {
+      if (
+        this.isUnboundVarName(vName) &&
+        !match.unifState.varSubsts.has(vName)
+      ) {
+        const newLocalName = newContext.names.makeAndAddNextName() as VarNames;
+        freshNameSubsts.varSubsts.set(vName, newLocalName);
+        freshNameSubsts.varTypes.set(newLocalName, vType);
+        newContext.varTypes.set(newLocalName, vType);
+      } else {
+        newContext.varTypes.set(vName, vType);
+      }
+    });
 
-  //   }
+    const matchedRelation = applyUnifSubstToRel(
+      match.unifState,
+      match.rule.rel
+    );
+    const freshNamesRelation = applyUnifSubstToRel(
+      freshNameSubsts,
+      matchedRelation
+    );
+    newContext.context.push(freshNamesRelation);
+
+    return newContext;
+  }
 }
 
 // ============================================================================== //

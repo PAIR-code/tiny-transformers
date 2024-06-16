@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { FreshNames } from '../names/simple_fresh_names';
 import {
   Context,
   Relation,
@@ -21,7 +22,6 @@ import {
   UnifyState,
   parseRel,
   parseRule,
-  sepToken,
 } from './tiny_worlds';
 import { Example } from './util';
 
@@ -149,6 +149,9 @@ fdescribe('tiny_world_task', () => {
   // "& {}" is a trick to get typescript errors to use the type name instead
   // of the full list of underlying union of string literals.
   type VarNames = `_${string}` | `?${string}`;
+  function isUnboundVarName(v: string): boolean {
+    return v[0] === '?';
+  }
 
   const animalTypes = ['cat', 'monkey', 'elephant'] as const;
   const inanimateTypes = ['flower', 'rock', 'tree'] as const;
@@ -275,8 +278,10 @@ fdescribe('tiny_world_task', () => {
     const c: Context<TypeNames, VarNames, RelNames> = new Context(
       types,
       relations,
+      new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel]
+      [rel],
+      isUnboundVarName
     );
     expect(c.names.config.usedNameSet).toContain('_m');
     expect(c.names.config.usedNameSet).toContain('_f');
@@ -289,9 +294,14 @@ fdescribe('tiny_world_task', () => {
       'jumps-over _m:rock _f:flower'
     );
     expect(function () {
-      const c = new Context(types, relations, new Map<VarNames, TypeNames>(), [
-        rel2,
-      ]);
+      const c = new Context(
+        types,
+        relations,
+        new FreshNames(),
+        new Map<VarNames, TypeNames>(),
+        [rel2],
+        isUnboundVarName
+      );
       console.log(c);
     }).toThrowError(''); // Assert
   });
@@ -300,8 +310,10 @@ fdescribe('tiny_world_task', () => {
     const c = new Context(
       types,
       relations,
+      new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [] as Relation<TypeNames, VarNames, RelNames>[]
+      [] as Relation<TypeNames, VarNames, RelNames>[],
+      isUnboundVarName
     );
     const unifyState = c.newUnifyState();
     const unifyFailed = c.unify(
@@ -343,8 +355,10 @@ fdescribe('tiny_world_task', () => {
     const c: Context<TypeNames, VarNames, RelNames> = new Context(
       types,
       relations,
+      new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel]
+      [rel],
+      isUnboundVarName
     );
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
@@ -360,8 +374,10 @@ fdescribe('tiny_world_task', () => {
     const c: Context<TypeNames, VarNames, RelNames> = new Context(
       types,
       relations,
+      new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel]
+      [rel],
+      isUnboundVarName
     );
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(0);
@@ -377,8 +393,10 @@ fdescribe('tiny_world_task', () => {
     const c: Context<TypeNames, VarNames, RelNames> = new Context(
       types,
       relations,
+      new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel]
+      [rel],
+      isUnboundVarName
     );
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
