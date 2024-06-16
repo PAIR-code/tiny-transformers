@@ -78,13 +78,11 @@ export class FreshNames {
     options: { prefix?: string; postfix?: string } = {}
   ): string {
     const charIdx = id % this.config.chars.length;
-    console.log('charIdx', charIdx);
     const num = Math.floor(id / this.config.chars.length);
     let numStr = '';
     if (num > 0) {
       numStr = `${num + 1}`;
     }
-    console.log('num', num);
     return `${options.prefix ? options.prefix : this.config.defaultPrefix}${
       this.config.chars[charIdx]
     }${numStr}${

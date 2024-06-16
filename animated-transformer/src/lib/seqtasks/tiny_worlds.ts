@@ -90,6 +90,18 @@ export type UnifyState<Types, Vars> = {
   varSubsts: Map<Vars, Vars>;
 };
 
+export function emptyUnifState<TypeNames, VarNames>(): UnifyState<
+  TypeNames,
+  VarNames
+> {
+  let unifyState: UnifyState<TypeNames, VarNames> = {
+    kind: 'UnifyState',
+    varTypes: new Map<VarNames, TypeNames>(),
+    varSubsts: new Map<VarNames, VarNames>(),
+  };
+  return unifyState;
+}
+
 export function forkUnifyState<TypeNames, VarNames>(
   s: UnifyState<TypeNames, VarNames>
 ): UnifyState<TypeNames, VarNames> {
@@ -300,9 +312,11 @@ export class Context<
     context.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithContext(r, unifyState);
       if (unifyFailed) {
-        console.warn(unifyState);
-        console.warn(r);
-        console.warn(unifyFailed);
+        console.warn(
+          `can't create context with the specified relation. Unif state:`,
+          r,
+          unifyFailed
+        );
         throw new Error(
           `${unifyFailed.kind} for relation (${i}): '${stringifyRelation(r)}'`
         );
@@ -475,6 +489,16 @@ export class Context<
   matchRule(
     rule: Rule<TypeNames, VarNames, RelNames>
   ): RuleMatch<TypeNames, VarNames, RelNames>[] {
+    const initMatchUnifState = this.newUnifyState();
+    const unifFailure = this.unifyRelationWithContext(
+      rule.rel,
+      initMatchUnifState
+    );
+    if (unifFailure) {
+      console.warn('surprising unification failure on rule concl', unifFailure);
+      return [];
+    }
+
     const initialMatches = [
       {
         rule: rule,
@@ -483,7 +507,7 @@ export class Context<
         // The number in the list is an index in into the matching relation
         // in the context to that condition of the rule.
         condToContextRelIdx: [],
-        unifState: this.newUnifyState(),
+        unifState: initMatchUnifState,
       } as RuleMatch<TypeNames, VarNames, RelNames>,
     ];
 
@@ -532,7 +556,7 @@ export class Context<
     const newContext = this.fork();
 
     // Names of locally introduced variables.
-    const freshNameSubsts = this.newUnifyState();
+    const freshNameSubsts = emptyUnifState<TypeNames, VarNames>();
 
     // Apply the type-narrowings, and provide new names for introduced variables,
     // and also record their types in the new context.

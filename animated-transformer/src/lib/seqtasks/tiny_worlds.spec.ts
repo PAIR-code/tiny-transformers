@@ -150,6 +150,7 @@ fdescribe('tiny_world_task', () => {
   // of the full list of underlying union of string literals.
   type VarNames = `_${string}` | `?${string}`;
   function isUnboundVarName(v: string): boolean {
+    // console.log(v, v[0] === '?');
     return v[0] === '?';
   }
 
@@ -302,7 +303,7 @@ fdescribe('tiny_world_task', () => {
         [rel2],
         isUnboundVarName
       );
-      console.log(c);
+      // console.log(c);
     }).toThrowError(''); // Assert
   });
 
@@ -400,5 +401,55 @@ fdescribe('tiny_world_task', () => {
     );
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
+  });
+
+  it('applyRuleMatch: simple match', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      [rel],
+      isUnboundVarName
+    );
+    const ruleMatches = c.matchRule(rule);
+    const c2 = c.applyRuleMatch(ruleMatches[0]);
+    expect(c2.context.length).toEqual(2);
+    expect(c2.context[1].relName).toEqual('squishes');
+    expect(c2.context[1].args[0].varName).toEqual('_m');
+    expect(c2.context[1].args[0].varType).toEqual('monkey');
+    expect(c2.context[1].args[1].varName).toEqual('_f');
+    expect(c2.context[1].args[1].varType).toEqual('flower');
+  });
+
+  it('applyRuleMatch: new vars', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?z | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      [rel],
+      isUnboundVarName
+    );
+    const ruleMatches = c.matchRule(rule);
+    const c2 = c.applyRuleMatch(ruleMatches[0]);
+    expect(c2.context.length).toEqual(2);
+    expect(c2.context[1].relName).toEqual('squishes');
+    expect(c2.context[1].args[0].varName).toEqual('_m');
+    expect(c2.context[1].args[0].varType).toEqual('monkey');
+    expect(c2.context[1].args[1].varName).toEqual('_a');
+    expect(c2.context[1].args[1].varType).toEqual('squishable');
   });
 });
