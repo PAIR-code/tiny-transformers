@@ -19,6 +19,7 @@ import {
   UnifyState,
   parseRel,
   parseRule,
+  stringifyRule,
 } from './generative_logic';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
@@ -158,6 +159,14 @@ describe('generative_logic', () => {
     expect(conditions[2].relName).toEqual('jumps-over');
     expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
     expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
+  });
+
+  // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
+  it('print and parseRule symmetry', () => {
+    const initRuleStr = `S(squishes _x _y | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0`;
+    const rule = parseRule(initRuleStr);
+    const parsedRuleStr = stringifyRule(rule);
+    expect(parsedRuleStr).toEqual(initRuleStr);
   });
 
   it('Context with relations', () => {

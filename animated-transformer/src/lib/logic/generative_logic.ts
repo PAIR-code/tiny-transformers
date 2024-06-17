@@ -12,12 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+import { stringify } from 'json5';
 import { FreshNames } from '../names/simple_fresh_names';
 
 // ============================================================================== //
 //  Core types
 // ============================================================================== //
-export type RuleOp = '+=' | '=';
+export type RuleOp = '+=' | '*=';
 
 export type RelArgument<Types, Vars> = { varName: Vars; varType: Types };
 
@@ -30,19 +31,27 @@ export function stringifyRelation<TypeNames, VarNames, RelNames>(
   r: Relation<TypeNames, VarNames, RelNames>
 ) {
   const argsString = r.args
-    .map((a) => `${a.varName}${a.varType === '*' ? '' : ':' + a.varType}`)
+    .map((a) => `${a.varName}${a.varType === '' ? '' : ':' + a.varType}`)
     .join(' ');
   return `${r.relName} ${argsString}`;
 }
 
 // An assumption about rules is that the no two conditions are identical.
 // (Such a rule can be reduced to a version where there is only such condition).
-export type Rule<Types, Vars, Relations> = {
-  rel: Relation<Types, Vars, Relations>;
+export type Rule<TypeNames, VarNames, RelNames> = {
+  rel: Relation<TypeNames, VarNames, RelNames>;
   op: RuleOp;
   score: number;
-  conditions: Relation<Types, Vars, Relations>[];
+  conditions: Relation<TypeNames, VarNames, RelNames>[];
 };
+
+export function stringifyRule<TypeNames, VarNames, RelNames>(
+  r: Rule<TypeNames, VarNames, RelNames>
+): string {
+  return `S(${stringifyRelation(r.rel)} | ${r.conditions
+    .map(stringifyRelation)
+    .join(', ')}) ${r.op} ${r.score}`;
+}
 
 // ============================================================================== //
 //  Unification State & Failure

@@ -24,7 +24,7 @@ import {
   RandomStream,
 } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
-import { Context, Rule } from '../logic/generative_logic';
+import { Context, Rule, stringifyRelation } from '../logic/generative_logic';
 
 // ============================================================================== //
 //  Tiny World Task Configs
@@ -35,12 +35,12 @@ export type SepToken = typeof sepToken;
 export const sepVocab: SepToken[] = [sepToken];
 
 export interface TinyWorldTaskConfig<
-  Vars extends string,
-  Types extends string,
-  Relations extends string
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
 > extends BasicRandSeededTaskConfig {
-  context: Context<Types, Vars, Relations>;
-  rules: Rule<Types, Vars, Relations>[];
+  context: Context<TypeNames, VarNames, RelNames>;
+  rules: Rule<TypeNames, VarNames, RelNames>[];
 }
 
 // try to unify two relations
@@ -49,10 +49,24 @@ export interface TinyWorldTaskConfig<
 //  Tiny Worlds Task
 // ============================================================================== //
 
+type RuleApp<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+> = {
+  rule: Rule<TypeNames, VarNames, RelNames>;
+  context: Context<TypeNames, VarNames, RelNames>;
+};
+
+type RuleScore = {
+  sum: number;
+  mult: number;
+};
+
 export class TinyWorldTask<
-  Types extends string,
-  Vars extends string,
-  Relations extends string
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
 > implements BasicLmTask
 {
   // TODO: consider doing programatically in the constructor?
@@ -61,7 +75,9 @@ export class TinyWorldTask<
   public random: RandomStream;
   private exampleId = 0;
 
-  constructor(public config: TinyWorldTaskConfig<Types, Vars, Relations>) {
+  constructor(
+    public config: TinyWorldTaskConfig<TypeNames, VarNames, RelNames>
+  ) {
     this.name = config.name;
     this.random = new RandomStream(config.seed);
 
@@ -70,6 +86,52 @@ export class TinyWorldTask<
       ...config.context.types.keys(),
       ...config.context.relations.keys(),
     ];
+  }
+
+  nextRelDistr() {
+    const nextRels = new Map<
+      string, // string version of the new relation.
+      RuleApp<TypeNames, VarNames, RelNames>[]
+    >();
+
+    // All possible matchings.
+    this.config.rules.forEach((r) => {
+      const c = this.config.context;
+      c.matchRule(r).map((m) => {
+        const c2 = c.applyRuleMatch(m);
+        const newRel = c2.context[c2.context.length - 1];
+        const newRelStr = stringifyRelation(newRel);
+        const prevRuleApps = nextRels.get(newRelStr) || [];
+        prevRuleApps.push({ context: c2, rule: r });
+        nextRels.set(newRelStr, prevRuleApps);
+      });
+    });
+
+    // Sum scores of all rule application that result in the same
+    // new added relation.
+    const finalDistr = new Map<string, number>();
+    const initRuleScore: RuleScore = { sum: 0, mult: 1 };
+    nextRels.forEach((value, relStrKey) => {
+      const finalCalc = value.reduce<RuleScore>(
+        (scoreCalc: RuleScore, ruleApp) => {
+          let newMult = scoreCalc.mult;
+          let newSum = scoreCalc.sum;
+          if (ruleApp.rule.op === '*=') {
+            newMult = scoreCalc.mult * ruleApp.rule.score;
+          }
+          if (ruleApp.rule.op === '+=') {
+            newSum = scoreCalc.sum + ruleApp.rule.score;
+          }
+          return { sum: newSum, mult: newMult };
+        },
+        initRuleScore
+      );
+
+      // return the final string distribution.
+      finalDistr.set(relStrKey, finalCalc.sum * finalCalc.mult);
+    });
+
+    return finalDistr;
   }
 
   genRandExample(): Example {
