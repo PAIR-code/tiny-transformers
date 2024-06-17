@@ -29,16 +29,18 @@ export type FreshNamesConfig = {
   usedNameSet: Set<string>;
 };
 
-export const defaultFreshNamesConfig: FreshNamesConfig = {
-  defaultPrefix: '_',
-  defaultPostfix: '',
-  nextNameId: 0,
-  chars: a_to_z_Chars,
-  usedNameSet: new Set<string>(),
-};
+function defaultFreshNamesConfig(): FreshNamesConfig {
+  return {
+    defaultPrefix: '_',
+    defaultPostfix: '',
+    nextNameId: 0,
+    chars: a_to_z_Chars,
+    usedNameSet: new Set<string>(),
+  };
+}
 
 export class FreshNames {
-  constructor(public config: FreshNamesConfig = defaultFreshNamesConfig) {}
+  constructor(public config: FreshNamesConfig = defaultFreshNamesConfig()) {}
 
   fork(): FreshNames {
     return new FreshNames({

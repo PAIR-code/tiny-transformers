@@ -16,6 +16,11 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AutoCompletedTextInputComponent } from './auto-completed-text-input.component';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('AutoCompletedTextInputComponent', () => {
   let component: AutoCompletedTextInputComponent;
@@ -23,9 +28,8 @@ describe('AutoCompletedTextInputComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AutoCompletedTextInputComponent]
-    })
-      .compileComponents();
+      imports: [NoopAnimationsModule, AutoCompletedTextInputComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AutoCompletedTextInputComponent);
     component = fixture.componentInstance;
