@@ -25,6 +25,7 @@ import {
 } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import { Context, Rule, stringifyRelation } from '../logic/generative_logic';
+import { SimpleJsTreesLib } from '../js_tree/js_tree';
 
 // Ideas for fancier rules/variants
 //
@@ -51,170 +52,88 @@ export const sepToken = ', ';
 export type SepToken = typeof sepToken;
 export const sepVocab: SepToken[] = [sepToken];
 
-export interface TinyWorldTaskConfig<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
-> extends BasicRandSeededTaskConfig {
-  context: Context<TypeNames, VarNames, RelNames>;
-  rules: Rule<TypeNames, VarNames, RelNames>[];
-}
-
-// try to unify two relations
-
 // ============================================================================== //
-//  Tiny Worlds Task
+//
 // ============================================================================== //
 
-export type RuleApp<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
-> = {
-  rule: Rule<TypeNames, VarNames, RelNames>;
-  context: Context<TypeNames, VarNames, RelNames>;
-};
+type TypeHierarchy = string | { [name: string]: TypeHierarchy }[];
 
-export type ScoreParts = {
-  sum: number;
-  mult: number;
-};
-
-export function nextRelEval<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
->(
-  rules: Rule<TypeNames, VarNames, RelNames>[],
-  context: Context<TypeNames, VarNames, RelNames>
-) {
-  const nextRels = new Map<
-    string, // string version of the new relation.
-    RuleApp<TypeNames, VarNames, RelNames>[]
-  >();
-
-  // All possible matchings.
-  rules.forEach((r) => {
-    context.matchRule(r).map((m) => {
-      const c2 = context.applyRuleMatch(m);
-      const newRel = c2.context[c2.context.length - 1];
-      const newRelStr = stringifyRelation(newRel);
-      const prevRuleApps = nextRels.get(newRelStr) || [];
-      prevRuleApps.push({ context: c2, rule: r });
-      nextRels.set(newRelStr, prevRuleApps);
-    });
-  });
-
-  // Sum scores of all rule application that result in the same
-  // new added relation.
-  const finalDistr = new Map<
-    string, // string form of introduced relation
-    {
-      ruleScore: { sum: number; mult: number };
-      totalScore: number;
-      prob: number;
-      // ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
-    }
-  >();
-
-  const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
-  nextRels.forEach((ruleApps, relStrKey) => {
-    const finalRuleScore = ruleApps.reduce<ScoreParts>(
-      (scoreCalc: ScoreParts, ruleApp) => {
-        let newMult = scoreCalc.mult;
-        let newSum = scoreCalc.sum;
-        if (ruleApp.rule.op === '*=') {
-          newMult = scoreCalc.mult * ruleApp.rule.score;
-        } else if (ruleApp.rule.op === '+=') {
-          newSum = scoreCalc.sum + ruleApp.rule.score;
-        }
-        return { sum: newSum, mult: newMult };
-      },
-      initScoreParts
-    );
-    // return the final string distribution.
-    finalDistr.set(relStrKey, {
-      ruleScore: finalRuleScore,
-      totalScore: finalRuleScore.sum * finalRuleScore.mult,
-      prob: -1,
-      // ruleApps,
-    });
-  });
-
-  const allTotalScores = [...finalDistr.values()].reduce(
-    (sum, v) => v.totalScore + sum,
-    0
-  );
-  finalDistr.forEach((appInfo) => {
-    appInfo.prob = appInfo.totalScore / allTotalScores;
-  });
-
-  return finalDistr;
+export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
+  typeHierarchy: { string: TypeHierarchy }[];
+  relationKinds: { string: string[] };
+  baseContext: string[];
+  rules: string[];
+  maxEntityLimit: number;
 }
 
-export function nextRelDistrStrs<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
->(
-  rules: Rule<TypeNames, VarNames, RelNames>[],
-  context: Context<TypeNames, VarNames, RelNames>
-) {
-  const nextRels = new Map<
-    string, // string version of the new relation.
-    RuleApp<TypeNames, VarNames, RelNames>[]
-  >();
+const defaultTinyWorldTaskConfig = {
+  typeHierarchy: [
+    { animal: ['cat', 'monkey', 'elephant'] },
+    { inanimate: ['rock', 'tree', 'flower'] },
+    { squishable: ['cat', 'monkey', 'flower'] },
+  ],
+  relationKinds: {
+    is: [''],
+    'runs-away': ['animal'],
+    squishes: ['animal', 'squishable'],
+    jumps: ['animal'],
+    'jumps-over': ['animal', ''],
+  },
+  baseContext: '',
+  rules: [
+    // We might want type-variables, save us from enumerating rules
+    // for all of these
+    'S(is ?x:cat) += 1',
+    'S(is ?x:monkey) += 1',
+    'S(is ?x:elephant) += 1',
+    'S(is ?x:rock) += 1',
+    'S(is ?x:tree) += 1',
+    'S(is ?x:flower) += 1',
+    'S(is ?x:animal) += 1',
+    'S(is ?x:inanimate) += 1',
+    'S(is ?x:squishable) += 1',
+    // Monkeys jump over stuff a lot
+    'S(jumps ?x:animals ?y | is ?x) += 2',
+    // Monkeys and cats squish things, but monkeys more often
+    'S(squishes ?x ?y | jumps ?x:monkey) += 2',
+    'S(squishes ?x ?y | jumps ?x:cat) += 1',
+    // Cats run away away when elephants jump
+    'S(runs-away ?c:cat | jumps ?e:elephant ) += 2',
+    // Any animal might run away
+    'S(runs-away ?x) += 1',
+    'S(is ?x | runs-away ?x) += 1',
+    // TODO: nice example of why we should use linear
+    // types for conditions, not past statements...
+    // it saves us from a frame problem!
+    'S(jumps ?a | runs-away ?a:animal) *= 0',
+    'S(squishes ?x ?a | runs-away ?a:animal) *= 0',
+    'S(runs-away ?x ?a | runs-away ?a:animal) *= 0',
+    'S(jumps-over ?x ?a | runs-away ?a:animal) *= 0',
 
-  // All possible matchings.
-  rules.forEach((r) => {
-    context.matchRule(r).map((m) => {
-      const c2 = context.applyRuleMatch(m);
-      const newRel = c2.context[c2.context.length - 1];
-      const newRelStr = stringifyRelation(newRel);
-      const prevRuleApps = nextRels.get(newRelStr) || [];
-      prevRuleApps.push({ context: c2, rule: r });
-      nextRels.set(newRelStr, prevRuleApps);
-    });
-  });
-
-  // Sum scores of all rule application that result in the same
-  // new added relation.
-  const finalDistr = new Map<string, number>();
-  const initRuleScore: ScoreParts = { sum: 0, mult: 1 };
-  nextRels.forEach((value, relStrKey) => {
-    const finalCalc = value.reduce<ScoreParts>(
-      (scoreCalc: ScoreParts, ruleApp) => {
-        let newMult = scoreCalc.mult;
-        let newSum = scoreCalc.sum;
-        if (ruleApp.rule.op === '*=') {
-          newMult = scoreCalc.mult * ruleApp.rule.score;
-        }
-        if (ruleApp.rule.op === '+=') {
-          newSum = scoreCalc.sum + ruleApp.rule.score;
-        }
-        return { sum: newSum, mult: newMult };
-      },
-      initRuleScore
-    );
-
-    // return the final string distribution.
-    finalDistr.set(relStrKey, finalCalc.sum * finalCalc.mult);
-  });
-  const totalScores = [...finalDistr.values()].reduce((sum, v) => v + sum);
-  finalDistr.forEach((value, key) => finalDistr.set(key, value / totalScores));
-
-  return finalDistr;
-}
+    // Monkeys might squish cats, but less likley
+    'S(squishes ?x ?y | jumps-over ?x:monkey ?y:cat) += 1',
+    // cats jump over stuff
+    'S(jumps-over ?x:cat ?y) += 2',
+    // cats only very occationally squish flowers
+    'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) += 1',
+    // Elephants never jump over animals
+    'S(jumps-over ?x:elephant ?y:animal) *= 0',
+    // Squished animals can't run away anymore
+    'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
+    // Animals that ran away can't get squished, be jumped over, or jump-over.
+    'S(squishes ?x ?y | runs-away ?y:animal) *= 0',
+    'S(jumps-over ?x ?y | runs-away ?y:animal) *= 0',
+    'S(jumps-over ?x ?y | runs-away ?x:animal) *= 0',
+  ],
+  maxEntityLimit: 6,
+};
 
 // ============================================================================== //
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export class TinyWorldTask<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
-> implements BasicLmTask
+export class TinyWorldTask<TypeNames extends string, RelNames extends string>
+  implements BasicLmTask
 {
   // TODO: consider doing programatically in the constructor?
   public name: string;
@@ -222,20 +141,20 @@ export class TinyWorldTask<
   public random: RandomStream;
   private exampleId = 0;
 
-  constructor(
-    public config: TinyWorldTaskConfig<TypeNames, VarNames, RelNames>
-  ) {
+  constructor(public config: TinyWorldTaskConfig) {
     this.name = config.name;
     this.random = new RandomStream(config.seed);
 
     this.baseVocab = [
       ...sepVocab,
-      ...config.context.types.keys(),
-      ...config.context.relations.keys(),
+      // ...config.context.types.keys(),
+      // ...config.context.relations.keys(),
     ];
   }
 
   genRandExample(): Example {
+    // this.config.
+
     // const context = [...this.config.baseContext];
     // const bindings = {};
 

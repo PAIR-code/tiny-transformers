@@ -17,6 +17,7 @@ import {
   Context,
   Relation,
   UnifyState,
+  nextRelDistrStats,
   parseRel,
   parseRule,
   stringifyRule,
@@ -349,5 +350,85 @@ describe('generative_logic', () => {
     expect(c2.context[1].args[0].varType).toEqual('monkey');
     expect(c2.context[1].args[1].varName).toEqual('_a');
     expect(c2.context[1].args[1].varType).toEqual('squishable');
+  });
+
+  it('Minimal rule distribution calculation: additive only', () => {
+    const rule1 = 'S(squishes ?x ?y | jumps-over ?x:animal ?y:flower) += 1';
+    const rule2 = 'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 5';
+    const rules = [rule1, rule2].map((r) =>
+      parseRule<TypeNames, VarNames, RelNames>(r)
+    );
+
+    const context = [
+      'jumps-over _m:monkey _f:flower',
+      'jumps-over _c:cat _f:flower',
+    ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      context,
+      isUnboundVarName
+    );
+
+    const nextRelPossibilities = nextRelDistrStats(rules, c);
+    expect([...nextRelPossibilities.keys()].length).toEqual(2);
+
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
+    ).toEqual(6);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
+    ).toEqual(6 / 7);
+    expect(
+      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
+    ).toEqual(1);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
+      1 / 7
+    );
+  });
+
+  it('Minimal rule distribution calculation: additive and multiplicative', () => {
+    const rule1 = 'S(squishes ?x ?y | jumps-over ?x ?y) += 1';
+    const rule2 = 'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) *= 0';
+    const rules = [rule1, rule2].map((r) =>
+      parseRule<TypeNames, VarNames, RelNames>(r)
+    );
+
+    const context = [
+      'jumps-over _m:monkey _f:flower',
+      'jumps-over _c:cat _f:flower',
+    ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      context,
+      isUnboundVarName
+    );
+
+    const nextRelPossibilities = nextRelDistrStats(rules, c);
+    // console.log(
+    //   'nextRelEval',
+    //   JSON.stringify([...nextRelPossibilities], null, 2)
+    // );
+
+    expect([...nextRelPossibilities.keys()].length).toEqual(2);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
+    ).toEqual(1);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
+    ).toEqual(1);
+    expect(
+      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
+    ).toEqual(0);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
+      0
+    );
   });
 });

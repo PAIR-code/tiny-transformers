@@ -585,3 +585,89 @@ export class Context<
     return newContext;
   }
 }
+
+export type RuleApp<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+> = {
+  rule: Rule<TypeNames, VarNames, RelNames>;
+  context: Context<TypeNames, VarNames, RelNames>;
+};
+
+export type ScoreParts = {
+  sum: number;
+  mult: number;
+};
+
+export type RelStats = {
+  ruleScore: { sum: number; mult: number };
+  totalScore: number;
+  prob: number;
+  // ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
+};
+
+export function nextRelDistrStats<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  rules: Rule<TypeNames, VarNames, RelNames>[],
+  context: Context<TypeNames, VarNames, RelNames>
+): Map<string, RelStats> {
+  const nextRels = new Map<
+    string, // string version of the new relation.
+    RuleApp<TypeNames, VarNames, RelNames>[]
+  >();
+
+  // All possible matchings.
+  rules.forEach((r) => {
+    context.matchRule(r).map((m) => {
+      const c2 = context.applyRuleMatch(m);
+      const newRel = c2.context[c2.context.length - 1];
+      const newRelStr = stringifyRelation(newRel);
+      const prevRuleApps = nextRels.get(newRelStr) || [];
+      prevRuleApps.push({ context: c2, rule: r });
+      nextRels.set(newRelStr, prevRuleApps);
+    });
+  });
+
+  // string = string form of introduced relation
+  const finalDistr = new Map<string, RelStats>();
+
+  // Sum scores of all rule application that result in the same
+  // new added relation.
+  const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
+  nextRels.forEach((ruleApps, relStrKey) => {
+    const finalRuleScore = ruleApps.reduce<ScoreParts>(
+      (scoreCalc: ScoreParts, ruleApp) => {
+        let newMult = scoreCalc.mult;
+        let newSum = scoreCalc.sum;
+        if (ruleApp.rule.op === '*=') {
+          newMult = scoreCalc.mult * ruleApp.rule.score;
+        } else if (ruleApp.rule.op === '+=') {
+          newSum = scoreCalc.sum + ruleApp.rule.score;
+        }
+        return { sum: newSum, mult: newMult };
+      },
+      initScoreParts
+    );
+    // return the final string distribution.
+    finalDistr.set(relStrKey, {
+      ruleScore: finalRuleScore,
+      totalScore: finalRuleScore.sum * finalRuleScore.mult,
+      prob: -1,
+      // ruleApps,
+    });
+  });
+
+  const allTotalScores = [...finalDistr.values()].reduce(
+    (sum, v) => v.totalScore + sum,
+    0
+  );
+  finalDistr.forEach((appInfo) => {
+    appInfo.prob = appInfo.totalScore / allTotalScores;
+  });
+
+  return finalDistr;
+}
