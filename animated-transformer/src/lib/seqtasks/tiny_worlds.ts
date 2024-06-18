@@ -49,7 +49,7 @@ export interface TinyWorldTaskConfig<
 //  Tiny Worlds Task
 // ============================================================================== //
 
-type RuleApp<
+export type RuleApp<
   TypeNames extends string,
   VarNames extends string,
   RelNames extends string
@@ -58,10 +58,68 @@ type RuleApp<
   context: Context<TypeNames, VarNames, RelNames>;
 };
 
-type RuleScore = {
+export type RuleScore = {
   sum: number;
   mult: number;
 };
+
+export function nextRelDistr<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  rules: Rule<TypeNames, VarNames, RelNames>[],
+  context: Context<TypeNames, VarNames, RelNames>
+) {
+  const nextRels = new Map<
+    string, // string version of the new relation.
+    RuleApp<TypeNames, VarNames, RelNames>[]
+  >();
+
+  // All possible matchings.
+  rules.forEach((r) => {
+    context.matchRule(r).map((m) => {
+      const c2 = context.applyRuleMatch(m);
+      const newRel = c2.context[c2.context.length - 1];
+      const newRelStr = stringifyRelation(newRel);
+      const prevRuleApps = nextRels.get(newRelStr) || [];
+      prevRuleApps.push({ context: c2, rule: r });
+      nextRels.set(newRelStr, prevRuleApps);
+    });
+  });
+
+  // Sum scores of all rule application that result in the same
+  // new added relation.
+  const finalDistr = new Map<string, number>();
+  const initRuleScore: RuleScore = { sum: 0, mult: 1 };
+  nextRels.forEach((value, relStrKey) => {
+    const finalCalc = value.reduce<RuleScore>(
+      (scoreCalc: RuleScore, ruleApp) => {
+        let newMult = scoreCalc.mult;
+        let newSum = scoreCalc.sum;
+        if (ruleApp.rule.op === '*=') {
+          newMult = scoreCalc.mult * ruleApp.rule.score;
+        }
+        if (ruleApp.rule.op === '+=') {
+          newSum = scoreCalc.sum + ruleApp.rule.score;
+        }
+        return { sum: newSum, mult: newMult };
+      },
+      initRuleScore
+    );
+
+    // return the final string distribution.
+    finalDistr.set(relStrKey, finalCalc.sum * finalCalc.mult);
+  });
+  const totalScores = [...finalDistr.values()].reduce((sum, v) => v + sum);
+  finalDistr.forEach((value, key) => finalDistr.set(key, value / totalScores));
+
+  return finalDistr;
+}
+
+// ============================================================================== //
+//  Tiny World Task Configs
+// ============================================================================== //
 
 export class TinyWorldTask<
   TypeNames extends string,
@@ -86,52 +144,6 @@ export class TinyWorldTask<
       ...config.context.types.keys(),
       ...config.context.relations.keys(),
     ];
-  }
-
-  nextRelDistr() {
-    const nextRels = new Map<
-      string, // string version of the new relation.
-      RuleApp<TypeNames, VarNames, RelNames>[]
-    >();
-
-    // All possible matchings.
-    this.config.rules.forEach((r) => {
-      const c = this.config.context;
-      c.matchRule(r).map((m) => {
-        const c2 = c.applyRuleMatch(m);
-        const newRel = c2.context[c2.context.length - 1];
-        const newRelStr = stringifyRelation(newRel);
-        const prevRuleApps = nextRels.get(newRelStr) || [];
-        prevRuleApps.push({ context: c2, rule: r });
-        nextRels.set(newRelStr, prevRuleApps);
-      });
-    });
-
-    // Sum scores of all rule application that result in the same
-    // new added relation.
-    const finalDistr = new Map<string, number>();
-    const initRuleScore: RuleScore = { sum: 0, mult: 1 };
-    nextRels.forEach((value, relStrKey) => {
-      const finalCalc = value.reduce<RuleScore>(
-        (scoreCalc: RuleScore, ruleApp) => {
-          let newMult = scoreCalc.mult;
-          let newSum = scoreCalc.sum;
-          if (ruleApp.rule.op === '*=') {
-            newMult = scoreCalc.mult * ruleApp.rule.score;
-          }
-          if (ruleApp.rule.op === '+=') {
-            newSum = scoreCalc.sum + ruleApp.rule.score;
-          }
-          return { sum: newSum, mult: newMult };
-        },
-        initRuleScore
-      );
-
-      // return the final string distribution.
-      finalDistr.set(relStrKey, finalCalc.sum * finalCalc.mult);
-    });
-
-    return finalDistr;
   }
 
   genRandExample(): Example {
