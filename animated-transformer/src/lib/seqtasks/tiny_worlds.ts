@@ -26,6 +26,23 @@ import {
 import { FreshNames } from '../names/simple_fresh_names';
 import { Context, Rule, stringifyRelation } from '../logic/generative_logic';
 
+// Ideas for fancier rules/variants
+//
+// If a monkey just jumped over something, they are not so likely to jump again right away.
+// '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
+//
+// Let actions/observations have names too.
+// '_e: (tries_to_jumps_over _x:monkey _y) ==> succeeds(_e) += 1',
+//
+// Should types be observations?, e.g. could we write:
+// '_x:cat ==> runs-away _x += 1'
+// i.e. that would be the same as: 'is _x cat ==> runs-away _x += 1'
+//
+// Should we allow an unbound syntax?
+// 'jumps-over monkey _y += 5' === 'jumps-over _x:monkey _y += 5' ?
+// Maybe this is just syntax, so we skip it? Or maybe this somehow says that one
+// *cannot* bind to the monkey, i.e. is says there was an unknown monkey who jumped over _y?
+
 // ============================================================================== //
 //  Tiny World Task Configs
 // ============================================================================== //
@@ -58,12 +75,84 @@ export type RuleApp<
   context: Context<TypeNames, VarNames, RelNames>;
 };
 
-export type RuleScore = {
+export type ScoreParts = {
   sum: number;
   mult: number;
 };
 
-export function nextRelDistr<
+export function nextRelEval<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  rules: Rule<TypeNames, VarNames, RelNames>[],
+  context: Context<TypeNames, VarNames, RelNames>
+) {
+  const nextRels = new Map<
+    string, // string version of the new relation.
+    RuleApp<TypeNames, VarNames, RelNames>[]
+  >();
+
+  // All possible matchings.
+  rules.forEach((r) => {
+    context.matchRule(r).map((m) => {
+      const c2 = context.applyRuleMatch(m);
+      const newRel = c2.context[c2.context.length - 1];
+      const newRelStr = stringifyRelation(newRel);
+      const prevRuleApps = nextRels.get(newRelStr) || [];
+      prevRuleApps.push({ context: c2, rule: r });
+      nextRels.set(newRelStr, prevRuleApps);
+    });
+  });
+
+  // Sum scores of all rule application that result in the same
+  // new added relation.
+  const finalDistr = new Map<
+    string, // string form of introduced relation
+    {
+      ruleScore: { sum: number; mult: number };
+      totalScore: number;
+      prob: number;
+      // ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
+    }
+  >();
+
+  const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
+  nextRels.forEach((ruleApps, relStrKey) => {
+    const finalRuleScore = ruleApps.reduce<ScoreParts>(
+      (scoreCalc: ScoreParts, ruleApp) => {
+        let newMult = scoreCalc.mult;
+        let newSum = scoreCalc.sum;
+        if (ruleApp.rule.op === '*=') {
+          newMult = scoreCalc.mult * ruleApp.rule.score;
+        } else if (ruleApp.rule.op === '+=') {
+          newSum = scoreCalc.sum + ruleApp.rule.score;
+        }
+        return { sum: newSum, mult: newMult };
+      },
+      initScoreParts
+    );
+    // return the final string distribution.
+    finalDistr.set(relStrKey, {
+      ruleScore: finalRuleScore,
+      totalScore: finalRuleScore.sum * finalRuleScore.mult,
+      prob: -1,
+      // ruleApps,
+    });
+  });
+
+  const allTotalScores = [...finalDistr.values()].reduce(
+    (sum, v) => v.totalScore + sum,
+    0
+  );
+  finalDistr.forEach((appInfo) => {
+    appInfo.prob = appInfo.totalScore / allTotalScores;
+  });
+
+  return finalDistr;
+}
+
+export function nextRelDistrStrs<
   TypeNames extends string,
   VarNames extends string,
   RelNames extends string
@@ -91,10 +180,10 @@ export function nextRelDistr<
   // Sum scores of all rule application that result in the same
   // new added relation.
   const finalDistr = new Map<string, number>();
-  const initRuleScore: RuleScore = { sum: 0, mult: 1 };
+  const initRuleScore: ScoreParts = { sum: 0, mult: 1 };
   nextRels.forEach((value, relStrKey) => {
-    const finalCalc = value.reduce<RuleScore>(
-      (scoreCalc: RuleScore, ruleApp) => {
+    const finalCalc = value.reduce<ScoreParts>(
+      (scoreCalc: ScoreParts, ruleApp) => {
         let newMult = scoreCalc.mult;
         let newSum = scoreCalc.sum;
         if (ruleApp.rule.op === '*=') {

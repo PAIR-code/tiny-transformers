@@ -15,11 +15,7 @@ limitations under the License.
 
 import { Context, parseRel, parseRule } from '../logic/generative_logic';
 import { FreshNames } from '../names/simple_fresh_names';
-import {
-  TinyWorldTask,
-  TinyWorldTaskConfig,
-  nextRelDistr,
-} from './tiny_worlds';
+import { TinyWorldTask, TinyWorldTaskConfig, nextRelEval } from './tiny_worlds';
 import { Example } from './util';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
@@ -80,63 +76,126 @@ describe('tiny_worlds', () => {
 
   beforeEach(() => {});
 
-  // Ideas for fancier rules/variants
-  //
-  // If a monkey just jumped over something, they are not so likely to jump again right away.
-  // '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
-  //
-  // Let actions/observations have names too.
-  // '_e: (tries_to_jumps_over _x:monkey _y) ==> succeeds(_e) += 1',
-  //
-  // Should types be observations?, e.g. could we write:
-  // '_x:cat ==> runs-away _x += 1'
-  // i.e. that would be the same as: 'is _x cat ==> runs-away _x += 1'
-  //
-  // Should we allow an unbound syntax?
-  // 'jumps-over monkey _y += 5' === 'jumps-over _x:monkey _y += 5' ?
-  // Maybe this is just syntax, so we skip it? Or maybe this somehow says that one
-  // *cannot* bind to the monkey, i.e. is says there was an unknown monkey who jumped over _y?
-
-  it('true', () => {
-    const rules = [
-      // Monkeys jump over stuff a lot
-      'S(jumps-over ?x:monkey ?y) += 5',
-      // Monkeys might squish flowers
-      'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 2',
-      // Monkeys might squish cats, but less likley
-      'S(squishes ?x ?y | jumps-over ?x:monkey ?y:cat) += 1',
-      // cats jump over stuff
-      'S(jumps-over ?x:cat ?y) += 2',
-      // cats only very occationally squish flowers
-      'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) += 1',
-      // Elephants never jump over animals
-      'S(jumps-over ?x:elephant ?y:animal) *= 0',
-      // Cats sometimes run away when jumped over
-      'S(runs-away ?y | jumps-over ?x ?y:cat)  += 2',
-      // Squished animals can't run away anymore
-      'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
-      // Animals that ran away can't get squished, be jumped over, or jump-over.
-      'S(squishes ?x ?y | runs-away ?y:animal) *= 0',
-      'S(jumps-over ?x ?y | runs-away ?y:animal) *= 0',
-      'S(jumps-over ?x ?y | runs-away ?x:animal) *= 0',
-    ].map((r) => parseRule<TypeNames, VarNames, RelNames>(r));
-
-    const rel = parseRel<TypeNames, VarNames, RelNames>(
-      'jumps-over _m:monkey _f:flower'
+  it('Minimal rule distribution calculation: additive only', () => {
+    const rule1 = 'S(squishes ?x ?y | jumps-over ?x:animal ?y:flower) += 1';
+    const rule2 = 'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 5';
+    const rules = [rule1, rule2].map((r) =>
+      parseRule<TypeNames, VarNames, RelNames>(r)
     );
+
+    const context = [
+      'jumps-over _m:monkey _f:flower',
+      'jumps-over _c:cat _f:flower',
+    ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
 
     const c: Context<TypeNames, VarNames, RelNames> = new Context(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
+      context,
       isUnboundVarName
     );
 
-    const distr = nextRelDistr(rules, c);
-    console.log(distr);
+    const nextRelPossibilities = nextRelEval(rules, c);
+    expect([...nextRelPossibilities.keys()].length).toEqual(2);
 
-    expect(true).toEqual(true);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
+    ).toEqual(6);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
+    ).toEqual(6 / 7);
+    expect(
+      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
+    ).toEqual(1);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
+      1 / 7
+    );
   });
+
+  it('Minimal rule distribution calculation: additive and multiplicative', () => {
+    const rule1 = 'S(squishes ?x ?y | jumps-over ?x ?y) += 1';
+    const rule2 = 'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) *= 0';
+    const rules = [rule1, rule2].map((r) =>
+      parseRule<TypeNames, VarNames, RelNames>(r)
+    );
+
+    const context = [
+      'jumps-over _m:monkey _f:flower',
+      'jumps-over _c:cat _f:flower',
+    ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      context,
+      isUnboundVarName
+    );
+
+    const nextRelPossibilities = nextRelEval(rules, c);
+    // console.log(
+    //   'nextRelEval',
+    //   JSON.stringify([...nextRelPossibilities], null, 2)
+    // );
+
+    expect([...nextRelPossibilities.keys()].length).toEqual(2);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
+    ).toEqual(1);
+    expect(
+      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
+    ).toEqual(1);
+    expect(
+      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
+    ).toEqual(0);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
+      0
+    );
+  });
+
+  // it('true', () => {
+  //   const rules = [
+  //     // Monkeys jump over stuff a lot
+  //     'S(jumps-over ?x:monkey ?y) += 5',
+  //     // Monkeys might squish flowers
+  //     'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 2',
+  //     // Monkeys might squish cats, but less likley
+  //     'S(squishes ?x ?y | jumps-over ?x:monkey ?y:cat) += 1',
+  //     // cats jump over stuff
+  //     'S(jumps-over ?x:cat ?y) += 2',
+  //     // cats only very occationally squish flowers
+  //     'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) += 1',
+  //     // Elephants never jump over animals
+  //     'S(jumps-over ?x:elephant ?y:animal) *= 0',
+  //     // Cats sometimes run away when jumped over
+  //     'S(runs-away ?y | jumps-over ?x ?y:cat)  += 2',
+  //     // Squished animals can't run away anymore
+  //     'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
+  //     // Animals that ran away can't get squished, be jumped over, or jump-over.
+  //     'S(squishes ?x ?y | runs-away ?y:animal) *= 0',
+  //     'S(jumps-over ?x ?y | runs-away ?y:animal) *= 0',
+  //     'S(jumps-over ?x ?y | runs-away ?x:animal) *= 0',
+  //   ].map((r) => parseRule<TypeNames, VarNames, RelNames>(r));
+
+  //   const rel = parseRel<TypeNames, VarNames, RelNames>(
+  //     'jumps-over _m:monkey _f:flower'
+  //   );
+
+  //   const c: Context<TypeNames, VarNames, RelNames> = new Context(
+  //     types,
+  //     relations,
+  //     new FreshNames(),
+  //     new Map<VarNames, TypeNames>(),
+  //     [rel],
+  //     isUnboundVarName
+  //   );
+
+  //   const distr = nextRelDistr(rules, c);
+  //   console.log(JSON.stringify(distr, null, 2));
+
+  //   expect(true).toEqual(true);
+  // });
 });
