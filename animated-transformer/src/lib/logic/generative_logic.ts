@@ -57,7 +57,7 @@ export function stringifyRule<TypeNames, VarNames, RelNames>(
     r.negConditions.length === 0
       ? ''
       : ', -' + r.negConditions.map(stringifyRelation).join(', -');
-  return `S(${relStr} ${condSep} ${condsStr} ${negCondsStr}) ${r.op} ${r.score}`;
+  return `S(${relStr}${condSep}${condsStr}${negCondsStr}) ${r.op} ${r.score}`;
 }
 
 // ============================================================================== //
@@ -239,7 +239,7 @@ export function parseRule<
     .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
   const negConditions = allConditionStrs
     .filter(isNegativeCondition)
-    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s.slice(1)));
   const score = parseFloat(scoreString);
   return {
     rel,
@@ -320,8 +320,8 @@ export class Context<
     // The list of atomic objects (variables)
     public names: FreshNames,
     public varTypes: Map<VarNames, TypeNames>,
-    // The list of relations
-    public context: Relation<TypeNames, VarNames, RelNames>[],
+    // The list of relations in the scene
+    public scene: Relation<TypeNames, VarNames, RelNames>[],
     // True when the name corresponds to a name in a rule and not to an name in
     // the context (we use a separate name class for rules to make it faster to do
     // matching; this avoid needing to rewrite rule-var names before matching).
@@ -333,7 +333,7 @@ export class Context<
     this.names.addNames(relations.keys());
     this.names.addNames(varTypes.keys());
     const unifyState = this.newUnifyState();
-    context.forEach((r, i) => {
+    scene.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithContext(r, unifyState);
       if (unifyFailed) {
         console.warn(
@@ -526,7 +526,7 @@ export class Context<
     const initialMatches = [
       {
         rule: rule,
-        contextBeforeRule: this.context,
+        contextBeforeRule: this.scene,
         // Each position in the list corresponds to a condition in the rule.
         // The number in the list is an index in into the matching relation
         // in the context to that condition of the rule.
@@ -540,7 +540,7 @@ export class Context<
     >((ruleMatches, condRel) => {
       const nextMatches: RuleMatch<TypeNames, VarNames, RelNames>[] = [];
       ruleMatches.forEach((match) => {
-        this.context.forEach((contextRel, contextRelIdx) => {
+        this.scene.forEach((contextRel, contextRelIdx) => {
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
           const newMatch = forkRuleMatch(match);
@@ -559,14 +559,22 @@ export class Context<
       return nextMatches;
     }, initialMatches);
 
-    initialMatches.filter((match) => {
+    return finalMatches.filter((match) => {
       // every neg condition must fail to match every context rel:
       // = if any neg condition matches any context rel, this rule
       // is not applicable.
-      for (const negRuleRel of rule.posConditions) {
-        for (const contextRel of this.context) {
+      for (const negRuleRel of rule.negConditions) {
+        // let i = 0;
+        for (const contextRel of this.scene) {
+          // i++;
+          // console.log(
+          //   `looking at neg rule match...:\nneg rule: '` +
+          //     stringifyRelation(negRuleRel) +
+          //     `'\ncontextrel (${i}): '` +
+          //     stringifyRelation(contextRel) +
+          //     `'`
+          // );
           const newMatch = forkRuleMatch(match);
-          // console.log(condRel, contextRel);
           const unifyFailure = this.unify(
             negRuleRel,
             contextRel,
@@ -579,8 +587,6 @@ export class Context<
       }
       return true;
     });
-
-    return finalMatches;
   }
 
   // Top level copy of a context; forking it.
@@ -590,7 +596,7 @@ export class Context<
       this.relations,
       this.names.fork(),
       new Map(this.varTypes),
-      [...this.context],
+      [...this.scene],
       this.isUnboundVarName
     );
   }
@@ -627,7 +633,7 @@ export class Context<
       freshNameSubsts,
       matchedRelation
     );
-    newContext.context.push(freshNamesRelation);
+    newContext.scene.push(freshNamesRelation);
 
     return newContext;
   }
@@ -647,45 +653,59 @@ export type ScoreParts = {
   mult: number;
 };
 
-export type RelStats = {
+export type RelRuleApps<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+> = {
   ruleScore: { sum: number; mult: number };
   totalScore: number;
   prob: number;
-  // ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
+  ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
 };
 
-export function nextRelDistrStats<
+export function applyRules<
   TypeNames extends string,
   VarNames extends string,
   RelNames extends string
 >(
   rules: Rule<TypeNames, VarNames, RelNames>[],
   context: Context<TypeNames, VarNames, RelNames>
-): Map<string, RelStats> {
-  const nextRels = new Map<
+): Map<string, RuleApp<TypeNames, VarNames, RelNames>[]> {
+  const nextRuleApps = new Map<
     string, // string version of the new relation.
     RuleApp<TypeNames, VarNames, RelNames>[]
   >();
-
-  // All possible matchings.
-  rules.forEach((r) => {
+  for (const r of rules) {
     context.matchRule(r).map((m) => {
       const c2 = context.applyRuleMatch(m);
-      const newRel = c2.context[c2.context.length - 1];
+      const newRel = c2.scene[c2.scene.length - 1];
       const newRelStr = stringifyRelation(newRel);
-      const prevRuleApps = nextRels.get(newRelStr) || [];
+      const prevRuleApps = nextRuleApps.get(newRelStr) || [];
       prevRuleApps.push({ context: c2, rule: r });
-      nextRels.set(newRelStr, prevRuleApps);
+      nextRuleApps.set(newRelStr, prevRuleApps);
     });
-  });
+  }
+  return nextRuleApps;
+}
 
+export function nextRelDistrStats<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  nextRuleApps: Map<string, RuleApp<TypeNames, VarNames, RelNames>[]>
+): Map<string, RelRuleApps<TypeNames, VarNames, RelNames>> {
   // string = string form of introduced relation
-  const finalDistr = new Map<string, RelStats>();
+  const finalDistr = new Map<
+    string,
+    RelRuleApps<TypeNames, VarNames, RelNames>
+  >();
 
   // Sum scores of all rule application that result in the same
   // new added relation.
   const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
-  nextRels.forEach((ruleApps, relStrKey) => {
+  nextRuleApps.forEach((ruleApps, relStrKey) => {
     const finalRuleScore = ruleApps.reduce<ScoreParts>(
       (scoreCalc: ScoreParts, ruleApp) => {
         let newMult = scoreCalc.mult;
@@ -704,7 +724,7 @@ export function nextRelDistrStats<
       ruleScore: finalRuleScore,
       totalScore: finalRuleScore.sum * finalRuleScore.mult,
       prob: -1,
-      // ruleApps,
+      ruleApps,
     });
   });
 

@@ -84,9 +84,9 @@ const defaultTinyWorldTaskConfig = {
     // TODO: We might want type-variables, save us from enumerating rules
     // for all of these...
     //
-    // We might mention any of these things
+    // We might mention any new kind kind of thing (at any level of abstraction!)
     'S(is ?x:cat) += 1',
-    'S(is ?x:monkey) += 2', // But stories of monkeys are the best
+    'S(is ?x:monkey) += 2', // But stories of monkeys are the best and most common
     'S(is ?x:elephant) += 1',
     'S(is ?x:rock) += 1',
     'S(is ?x:tree) += 1',
@@ -94,26 +94,40 @@ const defaultTinyWorldTaskConfig = {
     'S(is ?x:animal) += 1',
     'S(is ?x:inanimate) += 1',
     'S(is ?x:squishable) += 1',
+
     // A mentioned animal might jump
     'S(jumps ?x | is ?x:animal) += 2',
-    // When the jump, Monkeys and cats sometimes squish things, but monkeys more often
+
+    // When they jump, monkeys and cats sometimes squish things, but monkeys more often
+    //
+    // TODO: we've like to express that you can squish one thing per jump.
     'S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2',
     'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
-    // Cats run away away when elephants jump
+
+    // Cats sometimes run away away when elephants jump
     'S(runs-away ?c | jumps ?e:elephant, is ?c:cat) += 2',
     // Any existing animal might run away at any time
     'S(runs-away ?x | is ?c) += 1',
     // A new never mentioned animal might run away
     'S(runs-away ?x) += 1',
+
     // We might note that an animal that ran away is a cat (if we didn't say it before)
+    //
+    // TODO: I'd like to be able to quantify over the type... e.g. but that means
+    // implicitly defining a distinution over types, which I guess would be some kind of equal split?
+    // And also, how do you manage many level of specificity? t?<..<animal and t?<=..<=animal
+    //   'S(is ?x:?t<animal | runs-away ?x, -is ?x:?t) += 1',
     'S(is ?x:cat | runs-away ?x, -is ?x:cat) += 1',
+
+    // When an animal runs away, it can't squish anything, jump or run-away again.
+    // NOTE: We could also use negative conditions on the positive action...
+    //
     // TODO: below is a nice example of why we should use linear
-    // types for conditions, not past statements (like we do below)...
-    // linear types could saves us from the frame problem!
+    // types for conditions, not depend on past statements
+    // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runs-away ?a:animal) *= 0',
     'S(squishes ?x ?a | runs-away ?a:animal) *= 0',
     'S(runs-away ?x ?a | runs-away ?a:animal) *= 0',
-    'S(jumps-over ?x ?a | runs-away ?a:animal) *= 0',
     // Squished animals can't run away or jump anymore
     'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
     'S(jumps ?y | squishes ?x ?y:animal) *= 0',
