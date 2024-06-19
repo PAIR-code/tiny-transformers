@@ -92,9 +92,12 @@ describe('generative_logic', () => {
   });
 
   it('parseRule: no conditions', () => {
-    const { rel, op, score, conditions } = parseRule(
-      'S(squishes _x _y:animal) += 1'
-    );
+    const {
+      rel,
+      op,
+      score,
+      posConditions: conditions,
+    } = parseRule('S(squishes _x _y:animal) += 1');
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
     expect(rel.args[0].varType).toEqual(''); // unspecified
@@ -106,9 +109,12 @@ describe('generative_logic', () => {
   });
 
   it('parseRule: one condition', () => {
-    const { rel, op, score, conditions } = parseRule(
-      'S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1'
-    );
+    const {
+      rel,
+      op,
+      score,
+      posConditions: conditions,
+    } = parseRule('S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1');
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
     expect(rel.args[0].varType).toEqual('');
@@ -123,9 +129,12 @@ describe('generative_logic', () => {
   });
 
   it('parseRule: one condition, no types', () => {
-    const { rel, op, score, conditions } = parseRule(
-      'S(squishes ?x ?y | jumps-over ?x ?y) += 1'
-    );
+    const {
+      rel,
+      op,
+      score,
+      posConditions: conditions,
+    } = parseRule('S(squishes ?x ?y | jumps-over ?x ?y) += 1');
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('?x');
     expect(rel.args[0].varType).toEqual('');
@@ -141,7 +150,12 @@ describe('generative_logic', () => {
 
   // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
   it('parseRule: 3 conditions', () => {
-    const { rel, op, score, conditions } = parseRule(`
+    const {
+      rel,
+      op,
+      score,
+      posConditions: conditions,
+    } = parseRule(`
     S(squishes _x _y 
     | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0
     `);

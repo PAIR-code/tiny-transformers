@@ -42,15 +42,22 @@ export type Rule<TypeNames, VarNames, RelNames> = {
   rel: Relation<TypeNames, VarNames, RelNames>;
   op: RuleOp;
   score: number;
-  conditions: Relation<TypeNames, VarNames, RelNames>[];
+  posConditions: Relation<TypeNames, VarNames, RelNames>[];
+  negConditions: Relation<TypeNames, VarNames, RelNames>[];
 };
 
 export function stringifyRule<TypeNames, VarNames, RelNames>(
   r: Rule<TypeNames, VarNames, RelNames>
 ): string {
-  return `S(${stringifyRelation(r.rel)} | ${r.conditions
-    .map(stringifyRelation)
-    .join(', ')}) ${r.op} ${r.score}`;
+  const relStr = stringifyRelation(r.rel);
+  const condSep =
+    r.posConditions.length + r.negConditions.length > 0 ? ' | ' : '';
+  const condsStr = r.posConditions.map(stringifyRelation).join(', ');
+  const negCondsStr =
+    r.negConditions.length === 0
+      ? ''
+      : ', -' + r.negConditions.map(stringifyRelation).join(', -');
+  return `S(${relStr} ${condSep} ${condsStr} ${negCondsStr}) ${r.op} ${r.score}`;
 }
 
 // ============================================================================== //
@@ -198,6 +205,10 @@ export function parseRel<
   return { relName, args } as Relation<Types, Vars, Relations>;
 }
 
+function isNegativeCondition(s: string): boolean {
+  return s[0] === '-';
+}
+
 export function parseRule<
   TypeNames extends string,
   VarNames extends string,
@@ -216,15 +227,27 @@ export function parseRule<
     );
   }
   const rel = parseRel<TypeNames, VarNames, RelNames>(conclAndConditionStrs[0]);
-  const conditions =
+  const allConditionStrs =
     conclAndConditionStrs.length === 1
       ? []
       : conclAndConditionStrs[1]
           .split(conditionsSplitRegexp)
-          .filter((s) => s.length > 0)
-          .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+          .filter((s) => s.length > 0);
+
+  const posConditions = allConditionStrs
+    .filter((s) => !isNegativeCondition(s))
+    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+  const negConditions = allConditionStrs
+    .filter(isNegativeCondition)
+    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
   const score = parseFloat(scoreString);
-  return { rel, op, score, conditions };
+  return {
+    rel,
+    op,
+    score,
+    posConditions,
+    negConditions,
+  };
 }
 
 export function applyUnifSubstToRel<TypeNames, VarNames, RelNames>(
@@ -246,10 +269,13 @@ export function applyUnifSubstToRule<TypeNames, VarNames, RelNames>(
   rule: Rule<TypeNames, VarNames, RelNames>
 ): Rule<TypeNames, VarNames, RelNames> {
   const rel = applyUnifSubstToRel(unifState, rule.rel);
-  const conditions = rule.conditions.map((c) =>
+  const posConditions = rule.posConditions.map((c) =>
     applyUnifSubstToRel(unifState, c)
   );
-  return { rel, conditions, op: rule.op, score: rule.score };
+  const negConditions = rule.posConditions.map((c) =>
+    applyUnifSubstToRel(unifState, c)
+  );
+  return { rel, posConditions, negConditions, op: rule.op, score: rule.score };
 }
 
 // ============================================================================== //
@@ -509,7 +535,7 @@ export class Context<
       } as RuleMatch<TypeNames, VarNames, RelNames>,
     ];
 
-    const finalMatches = rule.conditions.reduce<
+    const finalMatches = rule.posConditions.reduce<
       RuleMatch<TypeNames, VarNames, RelNames>[]
     >((ruleMatches, condRel) => {
       const nextMatches: RuleMatch<TypeNames, VarNames, RelNames>[] = [];
@@ -532,6 +558,27 @@ export class Context<
       });
       return nextMatches;
     }, initialMatches);
+
+    initialMatches.filter((match) => {
+      // every neg condition must fail to match every context rel:
+      // = if any neg condition matches any context rel, this rule
+      // is not applicable.
+      for (const negRuleRel of rule.posConditions) {
+        for (const contextRel of this.context) {
+          const newMatch = forkRuleMatch(match);
+          // console.log(condRel, contextRel);
+          const unifyFailure = this.unify(
+            negRuleRel,
+            contextRel,
+            newMatch.unifState
+          );
+          if (!unifyFailure) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
 
     return finalMatches;
   }

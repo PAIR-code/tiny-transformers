@@ -81,10 +81,12 @@ const defaultTinyWorldTaskConfig = {
   },
   baseContext: '',
   rules: [
-    // We might want type-variables, save us from enumerating rules
-    // for all of these
+    // TODO: We might want type-variables, save us from enumerating rules
+    // for all of these...
+    //
+    // We might mention any of these things
     'S(is ?x:cat) += 1',
-    'S(is ?x:monkey) += 1',
+    'S(is ?x:monkey) += 2', // But stories of monkeys are the best
     'S(is ?x:elephant) += 1',
     'S(is ?x:rock) += 1',
     'S(is ?x:tree) += 1',
@@ -92,38 +94,29 @@ const defaultTinyWorldTaskConfig = {
     'S(is ?x:animal) += 1',
     'S(is ?x:inanimate) += 1',
     'S(is ?x:squishable) += 1',
-    // Monkeys jump over stuff a lot
-    'S(jumps ?x:animals ?y | is ?x) += 2',
-    // Monkeys and cats squish things, but monkeys more often
-    'S(squishes ?x ?y | jumps ?x:monkey) += 2',
-    'S(squishes ?x ?y | jumps ?x:cat) += 1',
+    // A mentioned animal might jump
+    'S(jumps ?x | is ?x:animal) += 2',
+    // When the jump, Monkeys and cats sometimes squish things, but monkeys more often
+    'S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2',
+    'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
     // Cats run away away when elephants jump
-    'S(runs-away ?c:cat | jumps ?e:elephant ) += 2',
-    // Any animal might run away
+    'S(runs-away ?c | jumps ?e:elephant, is ?c:cat) += 2',
+    // Any existing animal might run away at any time
+    'S(runs-away ?x | is ?c) += 1',
+    // A new never mentioned animal might run away
     'S(runs-away ?x) += 1',
-    'S(is ?x | runs-away ?x) += 1',
-    // TODO: nice example of why we should use linear
-    // types for conditions, not past statements...
-    // it saves us from a frame problem!
+    // We might note that an animal that ran away is a cat (if we didn't say it before)
+    'S(is ?x:cat | runs-away ?x, -is ?x:cat) += 1',
+    // TODO: below is a nice example of why we should use linear
+    // types for conditions, not past statements (like we do below)...
+    // linear types could saves us from the frame problem!
     'S(jumps ?a | runs-away ?a:animal) *= 0',
     'S(squishes ?x ?a | runs-away ?a:animal) *= 0',
     'S(runs-away ?x ?a | runs-away ?a:animal) *= 0',
     'S(jumps-over ?x ?a | runs-away ?a:animal) *= 0',
-
-    // Monkeys might squish cats, but less likley
-    'S(squishes ?x ?y | jumps-over ?x:monkey ?y:cat) += 1',
-    // cats jump over stuff
-    'S(jumps-over ?x:cat ?y) += 2',
-    // cats only very occationally squish flowers
-    'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) += 1',
-    // Elephants never jump over animals
-    'S(jumps-over ?x:elephant ?y:animal) *= 0',
-    // Squished animals can't run away anymore
+    // Squished animals can't run away or jump anymore
     'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
-    // Animals that ran away can't get squished, be jumped over, or jump-over.
-    'S(squishes ?x ?y | runs-away ?y:animal) *= 0',
-    'S(jumps-over ?x ?y | runs-away ?y:animal) *= 0',
-    'S(jumps-over ?x ?y | runs-away ?x:animal) *= 0',
+    'S(jumps ?y | squishes ?x ?y:animal) *= 0',
   ],
   maxEntityLimit: 6,
 };
