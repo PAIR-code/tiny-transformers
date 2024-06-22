@@ -1,17 +1,58 @@
 <div class="sae-main">
     <div class="title">Train a sparse auto-encoder</div>
-    <div class="uploader">
-        <div class="upload-instructions">Upload training data</div>
-        <input type="file" (change)="uploadTrainingData($event)">
+    <div class="training-data-option" (click)="selectSample()">
+        @if (useSampleTrainingData) {
+            <div class="radio-indicator-on"></div>
+        } @else {
+            <div class="radio-indicator-off"></div>
+        }
+        <div class="description">Use sample training data (boundary task, 100 tokens)</div>
+    </div>
+    <div class="training-data-option" (click)="selectUpload()">
+        @if (useUploadedTrainingData) {
+            <div class="radio-indicator-on"></div>
+        } @else {
+            <div class="radio-indicator-off"></div>
+        }
+        <div class="description">Or, upload training data</div>
+        @if (useUploadedTrainingData) {
+            <div class="uploader">
+                <input type="file" (change)="uploadTrainingData($event)">
+            </div>
+        }
     </div>
     
     @if (trainingData) {
         <div class="trainer">
-            <button mat-flat-button color="primary" (click)="train()">
-                train
-              </button>
+            <div class="controls">
+                <form class="param-form">
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Dict multiplier</mat-label>
+                        <input matInput required [formControl]="dictionaryMultiplier">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>L1 coefficient</mat-label>
+                        <input matInput required [formControl]="l1Coeff">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Batch size</mat-label>
+                        <input matInput required [formControl]="batchSize">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Num epochs</mat-label>
+                        <input matInput required [formControl]="epochs">
+                    </mat-form-field>
+                  </form>
+                <button [disabled]="trained" mat-flat-button color="primary" (click)="train()">
+                    train
+                  </button>
+            </div>
     
-            <div class="status">{{status}}</div>
+            @if (lossPoints.length > 0) {
+                <div>
+                    <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+                </div>
+            }
         </div>
     }
 

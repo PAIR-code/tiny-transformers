@@ -18,33 +18,34 @@ import { AfterViewInit, Component, OnInit } from '@angular/core';
 
 import * as tf from '@tensorflow/tfjs';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Form, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { computeTransformer, initDecoderParams } from '../../lib/transformer/transformer_gtensor';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { gtensorTrees } from '../../lib/gtensor/gtensor_tree';
 import { stringifyJsonValue } from '../../lib/pretty_json/pretty_json';
 import { transformer } from 'src/lib';
+import { FormControl } from '@angular/forms';
 import { Router, ActivatedRoute, ParamMap } from '@angular/router';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
 
 import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
+import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
 
-const MLP_ACT_SIZE = 8;
-const DICTIONARY_MULTIPLIER = 4;
-const D_HIDDEN = MLP_ACT_SIZE * DICTIONARY_MULTIPLIER; // learned feature size
-const L1_COEFF = 0.003;
+import * as sampleData from './sae_sample_data_boundary.json';
 
 @Component({
     selector: 'app-sae',
     standalone: true,
     templateUrl: './sae.component.html',
     styleUrls: ['./sae.component.scss'],
-    imports: [CommonModule, MatButtonModule, FormsModule],
+    imports: [MatFormFieldModule, D3LineChartModule,CommonModule, MatButtonModule, FormsModule, MatInputModule, ReactiveFormsModule],
 })
 export class SAEComponent {
-    status: string = '';
     public saeModel: any;
     public trainingData: any;
     public trainingInputs: any;
@@ -54,11 +55,42 @@ export class SAEComponent {
     predictedDictionaryFeatures: any;
     topActivationsForUserInputFeature: any;
     userInput: any;
+    sampleData = (sampleData as any).default;
+    useUploadedTrainingData = false;
+    useSampleTrainingData = false;
+    lossPoints: NamedChartPoint[] = [];
+
+    mlpActivationSize = 1;
+
+    dictionaryMultiplier: FormControl<string>;
+    l1Coeff: FormControl<string>;
+    batchSize: FormControl<string>;
+    epochs: FormControl<string>;
+
     constructor(
         private route: ActivatedRoute,
         private router: Router,
-      ) { }
-
+      ) { 
+        this.dictionaryMultiplier = new FormControl('4') as FormControl<string>;
+        this.l1Coeff = new FormControl('0.003') as FormControl<string>;
+        this.batchSize = new FormControl('8') as FormControl<string>;
+        this.epochs = new FormControl('3') as FormControl<string>;
+      }
+    getDHidden() {
+        return this.mlpActivationSize * parseInt(this.dictionaryMultiplier.value);
+    }
+    selectSample() {
+        if (this.trained) return;
+        this.trainingData = this.sampleData;
+        this.useSampleTrainingData = true;
+        this.useUploadedTrainingData = false;
+    }
+    selectUpload() {
+        if (this.trained) return;
+        this.useUploadedTrainingData = true;
+        this.useSampleTrainingData = false;
+        this.trainingData = null;
+    }
     uploadTrainingData(event: Event) {
         const file = (event.target as any).files[0];
 
@@ -109,27 +141,31 @@ export class SAEComponent {
                 'tokenPos': i
             })))
             .reduce((acc: any, curr: any) => acc.concat(curr), []); // flatten.
+        
+        const mlpOutputsShape = this.trainingData[0]['mlpOutputs']['shape'];
+        this.mlpActivationSize = mlpOutputsShape[mlpOutputsShape.length - 1];
+        const dHidden = this.getDHidden();
 
         this.trainingData = tf.concat(this.trainingData
             .map((item: any) => tf.tensor(item.mlpOutputs.data, item.mlpOutputs.shape).squeeze()));
         const nTrainingData = this.trainingData.shape[0];
 
         const inputs = tf.input({
-            shape: [MLP_ACT_SIZE],
+            shape: [this.mlpActivationSize],
             name: 'sae_input'
         });
         // const inputBias = tf.input({
-        //     shape: [MLP_ACT_SIZE],
+        //     shape: [this.mlpActivationSize],
         //     name: 'sae_input_bias'
         // });
         // const biasedInput = tf.layers.add().apply([inputs, inputBias]);
         const dictionaryFeatures = tf.layers.dense({
-            units: D_HIDDEN,
+            units: dHidden,
             useBias: true,
             activation: 'relu',
         }).apply(inputs) as any;
         const reconstruction = tf.layers.dense({
-            units: MLP_ACT_SIZE,
+            units: this.mlpActivationSize,
             useBias: true,
         }).apply(dictionaryFeatures) as any;
 
@@ -143,40 +179,40 @@ export class SAEComponent {
         this.saeModel.compile({
             optimizer: tf.train.adam(),
             loss: (yTrue: tf.Tensor, yPred: tf.Tensor) => {
-                const outputDictionaryFeatures = yPred.slice([0, 0], [-1, D_HIDDEN]);
-                const outputReconstruction = yPred.slice([0, D_HIDDEN], [-1, -1]);
-                const trueReconstruction = yTrue.slice([0, D_HIDDEN], [-1, -1]);
+                const outputDictionaryFeatures = yPred.slice([0, 0], [-1, dHidden]);
+                const outputReconstruction = yPred.slice([0, dHidden], [-1, -1]);
+                const trueReconstruction = yTrue.slice([0, dHidden], [-1, -1]);
 
                 const l2Loss = tf.losses.meanSquaredError(trueReconstruction, outputReconstruction);
-                const l1Loss = tf.mul(L1_COEFF, tf.sum(tf.abs(outputDictionaryFeatures)));
+                const l1Loss = tf.mul(parseFloat(this.l1Coeff.value), tf.sum(tf.abs(outputDictionaryFeatures)));
                 return tf.add(l2Loss, l1Loss);
             },
         });
 
-        const epochSize = 8;
         // This tensor is unused - it's just to make yTrue shape match the concatenated output.
-        const placeholderDictionaryFeatures = tf.randomNormal([epochSize, D_HIDDEN]);
-        for (let i=0; i<Math.floor(nTrainingData / epochSize); i++) {
-            const epoch = this.trainingData.slice(i * epochSize, Math.min(epochSize, nTrainingData - i * epochSize));
-            let epochPlaceholderDictionaryFeatures = placeholderDictionaryFeatures;
-            if (epochPlaceholderDictionaryFeatures.shape[0] !== epoch.shape[0]) {
-                epochPlaceholderDictionaryFeatures = tf.randomNormal([epoch.shape[0], D_HIDDEN]);
+        const batchSize = parseInt(this.batchSize.value);
+        const placeholderDictionaryFeatures = tf.randomNormal([batchSize, dHidden]);
+        for (let i=0; i<Math.floor(nTrainingData / batchSize); i++) {
+            const batch = this.trainingData.slice(i * batchSize, Math.min(batchSize, nTrainingData - i * batchSize));
+            let batchPlaceholderDictionaryFeatures = placeholderDictionaryFeatures;
+            if (batchPlaceholderDictionaryFeatures.shape[0] !== batch.shape[0]) {
+                batchPlaceholderDictionaryFeatures = tf.randomNormal([batch.shape[0], dHidden]);
             }
-            const h = await this.saeModel.fit(epoch, tf.concat([epochPlaceholderDictionaryFeatures, epoch], 1), {
-                batchSize: 8,
-                epochs: 3
+            const h = await this.saeModel.fit(batch, tf.concat([batchPlaceholderDictionaryFeatures, batch], 1), {
+                batchSize: batchSize,
+                epochs: parseInt(this.epochs.value)
             });
-            const status = "Loss after Epoch " + i + ": " + h.history['loss'][0];
-            this.status = status;
+            this.lossPoints = this.lossPoints.concat([
+                {x: i, y: h.history['loss'][0], name: 'Loss'}
+            ]);
         }
-        this.status += ' - Done.';
         this.trained = true;
         
         // Print average feature activations.
         const evaluations = this.saeModel.predict(this.trainingData);
-        this.predictedDictionaryFeatures = evaluations.slice([0, 0], [-1, D_HIDDEN]);
+        this.predictedDictionaryFeatures = evaluations.slice([0, 0], [-1, dHidden]);
 
-        let frequencyScores = tf.zeros([D_HIDDEN]);
+        let frequencyScores = tf.zeros([dHidden]);
         for (let i=0; i<nTrainingData; i++) {
             const activations = this.predictedDictionaryFeatures.slice([i, 0], [1, -1]).squeeze();
             const isNonzero = tf.cast(activations.abs().greater(tf.zeros(activations.shape)), 'int32');

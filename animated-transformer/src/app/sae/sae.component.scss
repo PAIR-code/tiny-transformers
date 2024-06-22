@@ -11,6 +11,29 @@
     margin-top: 20px;
 }
 
+.training-data-option {
+    cursor: pointer;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.radio-indicator-on, .radio-indicator-off {
+    border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    border: solid 1px #222;
+}
+
+.radio-indicator-on {
+    background: #673ab7
+}
+
+.radio-indicator-off {
+
+}
+
 .upload-instructions {
     margin-bottom: 5px;
 }
@@ -26,4 +49,9 @@
 .results {
     display: flex;
     gap: 20px;
+}
+
+.short-width {
+    width: 7em;
+    margin-right: 1em;
 }
