@@ -24,7 +24,12 @@ import {
   RandomStream,
 } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
-import { Context, Rule, stringifyRelation } from '../logic/generative_logic';
+import {
+  Context,
+  parseRel,
+  Rule,
+  stringifyRelation,
+} from '../logic/generative_logic';
 import { SimpleJsTreesLib } from '../js_tree/js_tree';
 
 // Ideas for fancier rules/variants
@@ -48,38 +53,37 @@ import { SimpleJsTreesLib } from '../js_tree/js_tree';
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export const sepToken = ', ';
-export type SepToken = typeof sepToken;
-export const sepVocab: SepToken[] = [sepToken];
-
 // ============================================================================== //
 //
 // ============================================================================== //
 
-type TypeHierarchy = string | { [name: string]: TypeHierarchy }[];
+type TypeHierarchy = string[] | { [name: string]: TypeHierarchy };
 
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
-  typeHierarchy: { string: TypeHierarchy }[];
-  relationKinds: { string: string[] };
+  typeHierarchy: TypeHierarchy;
+  relationKinds: { [relName: string]: string[] };
   baseContext: string[];
   rules: string[];
   maxEntityLimit: number;
 }
 
-const defaultTinyWorldTaskConfig = {
-  typeHierarchy: [
-    { animal: ['cat', 'monkey', 'elephant'] },
-    { inanimate: ['rock', 'tree', 'flower'] },
-    { squishable: ['cat', 'monkey', 'flower'] },
-  ],
+const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
+  name: 'tiny synthetic world',
+  seed: 0,
+  maxInputLen: 10,
+  maxOutputLen: 10,
+  typeHierarchy: {
+    animal: ['cat', 'monkey', 'elephant'],
+    inanimate: ['rock', 'tree', 'flower'],
+    squishable: ['cat', 'monkey', 'flower'],
+  },
   relationKinds: {
     is: [''],
     'runs-away': ['animal'],
     squishes: ['animal', 'squishable'],
     jumps: ['animal'],
-    'jumps-over': ['animal', ''],
   },
-  baseContext: '',
+  baseContext: [],
   rules: [
     // TODO: We might want type-variables, save us from enumerating rules
     // for all of these...
@@ -135,28 +139,106 @@ const defaultTinyWorldTaskConfig = {
   maxEntityLimit: 6,
 };
 
+// function makeTypeHierarchyeVocab(h: TypeHierarchy): string[] {
+//   if (Array.isArray(h)) {
+//     return h;
+//   } else {
+//     const subTaxonomy = Object.keys(h);
+//     const subtypes = Object.values(h).flatMap(makeTypeHierarchyeVocab);
+//     return [...subTaxonomy, ...subtypes];
+//   }
+// }
+
+function addToTypeMap(
+  h: TypeHierarchy,
+  m: Map<string, Set<string>>
+): Set<string> {
+  if (Array.isArray(h)) {
+    h.forEach((t) => m.set(t, new Set()));
+    return new Set(h);
+  } else {
+    const subTaxonomy = Object.keys(h);
+    // let allSubTypes: string[] = [];
+    const allSubTypes = new Set<string>();
+    subTaxonomy.forEach((t) => {
+      const subTypes = addToTypeMap(h[t], m);
+      m.set(t, new Set(subTypes));
+      subTypes.forEach((t) => allSubTypes.add(t));
+    });
+    return allSubTypes;
+  }
+}
+
+// function makeConfigVocab(c: TinyWorldTaskConfig): string[] {
+//   const freshNames = new FreshNames();
+//   const varNames: string[] = [];
+//   for (let i = 0; i < c.maxEntityLimit; i++) {
+//     const n = freshNames.makeAndAddNextName();
+//     varNames.push(n);
+//   }
+
+//   return [
+//     ...Object.keys(c.relationKinds),
+//     ...makeTypeHierarchyeVocab(c.typeHierarchy),
+//     ...varNames,
+//   ];
+// }
+
+export const sepToken = ', ';
+export type SepToken = typeof sepToken;
+type VarNames = `_${string}` | `?${string}`;
+function isUnboundVarName(v: string): boolean {
+  // console.log(v, v[0] === '?');
+  return v[0] === '?';
+}
+
 // ============================================================================== //
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export class TinyWorldTask<TypeNames extends string, RelNames extends string>
-  implements BasicLmTask
-{
+export class TinyWorldTask implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
   public name: string;
   public baseVocab: string[];
   public random: RandomStream;
   private exampleId = 0;
+  public initContext: Context<string, string, string>;
 
   constructor(public config: TinyWorldTaskConfig) {
     this.name = config.name;
     this.random = new RandomStream(config.seed);
 
+    const typeMap = new Map<string, Set<string>>();
+    const allTypes = addToTypeMap(this.config.typeHierarchy, typeMap);
+    typeMap.set('', allTypes);
+
+    const relationMap = new Map<string, string[]>();
+    Object.keys(this.config.relationKinds).forEach((r) => {
+      relationMap.set(r, this.config.relationKinds[r]);
+    });
+
+    const freshNames = new FreshNames();
+    const varNames: string[] = [];
+    for (let i = 0; i < this.config.maxEntityLimit; i++) {
+      const n = freshNames.makeAndAddNextName();
+      varNames.push(n);
+    }
+
     this.baseVocab = [
-      ...sepVocab,
-      // ...config.context.types.keys(),
-      // ...config.context.relations.keys(),
+      sepToken,
+      ...Object.keys(relationMap),
+      ...allTypes,
+      ...varNames,
     ];
+
+    this.initContext = new Context(
+      typeMap,
+      relationMap,
+      new FreshNames(),
+      new Map<string, string>(),
+      this.config.baseContext.map((r) => parseRel(r)),
+      isUnboundVarName
+    );
   }
 
   genRandExample(): Example {
