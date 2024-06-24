@@ -1,14 +1,40 @@
 .sae-main {
-    margin: 20px;
+    margin: 30px;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 700px;
 }
 
 .title {
-    margin-bottom: 20px;
-    font-size: 22px;
+    margin-bottom: 30px;
+    font-size: 26px;
 }
 
 .trainer {
     margin-top: 20px;
+}
+
+.training-data-option {
+    cursor: pointer;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.radio-indicator-on, .radio-indicator-off {
+    border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    border: solid 1px #222;
+}
+
+.radio-indicator-on {
+    background: #673ab7
+}
+
+.radio-indicator-off {
+
 }
 
 .upload-instructions {
@@ -24,6 +50,29 @@
 }
 
 .results {
+    border-top: solid 1px #ccc;
+    margin-top: 30px;
+    padding-top: 30px;
     display: flex;
-    gap: 20px;
+    gap: 50px;
+}
+
+.short-width {
+    width: 7em;
+    margin-right: 1em;
+}
+
+.label {
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.neuron {
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.neuron .neuron-index {
+    font-family: 'Courier New', Courier, monospace;
+    margin-right: 10px;
 }

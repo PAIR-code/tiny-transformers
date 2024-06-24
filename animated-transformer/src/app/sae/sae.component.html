@@ -1,17 +1,58 @@
 <div class="sae-main">
     <div class="title">Train a sparse auto-encoder</div>
-    <div class="uploader">
-        <div class="upload-instructions">Upload training data</div>
-        <input type="file" (change)="uploadTrainingData($event)">
+    <div class="training-data-option" (click)="selectSample()">
+        @if (useSampleTrainingData) {
+            <div class="radio-indicator-on"></div>
+        } @else {
+            <div class="radio-indicator-off"></div>
+        }
+        <div class="description">Use sample training data (boundary task, 100 tokens)</div>
+    </div>
+    <div class="training-data-option" (click)="selectUpload()">
+        @if (useUploadedTrainingData) {
+            <div class="radio-indicator-on"></div>
+        } @else {
+            <div class="radio-indicator-off"></div>
+        }
+        <div class="description">Or, upload training data</div>
+        @if (useUploadedTrainingData) {
+            <div class="uploader">
+                <input type="file" (change)="uploadTrainingData($event)">
+            </div>
+        }
     </div>
     
     @if (trainingData) {
         <div class="trainer">
-            <button mat-flat-button color="primary" (click)="train()">
-                train
-              </button>
+            <div class="controls">
+                <form class="param-form">
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Dict multiplier</mat-label>
+                        <input matInput required [formControl]="dictionaryMultiplier">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>L1 coefficient</mat-label>
+                        <input matInput required [formControl]="l1Coeff">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Batch size</mat-label>
+                        <input matInput required [formControl]="batchSize">
+                    </mat-form-field>
+                    <mat-form-field class="short-width" appearance="fill">
+                        <mat-label>Num epochs</mat-label>
+                        <input matInput required [formControl]="epochs">
+                    </mat-form-field>
+                  </form>
+                <button [disabled]="trained" mat-flat-button color="primary" (click)="train()">
+                    train
+                  </button>
+            </div>
     
-            <div class="status">{{status}}</div>
+            @if (lossPoints.length > 0) {
+                <div>
+                    <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+                </div>
+            }
         </div>
     }
 
@@ -19,25 +60,29 @@
     <div class="results">
         @if (learnedFeatureActivationFrequencies.length) {
             <div class="frequencies">
-                <div>Frequencies (avg = {{averageLearnedFeatureActivationFrequency}}):</div>
-                <div *ngFor="let item of learnedFeatureActivationFrequencies; index as i">
-                    {{i}}: {{item}}
+                <div class="label">Neuron activation frequency</div>
+                <div class="neuron" *ngFor="let item of learnedFeatureActivationFrequencies; index as i">
+                    <span class="neuron-index">{{i}}</span><span class="activation-frequency">{{item | number:'1.2-2'}}</span>
                 </div>
             </div>
         }
 
         <div class="interpreter">
-            <div>Interpret a feature</div>
             <form (ngSubmit)="interpret()">
-                <label for="numberInput">Enter a number:</label>
-                <input type="number" id="numberInput" name="numberInput" [(ngModel)]="userInput" required>
-                <button type="submit">Submit</button>
+                <mat-form-field class="short-width" appearance="fill">
+                    <mat-label>Neuron index</mat-label>
+                    <input matInput required [formControl]="neuronIndexToInspect">
+                </mat-form-field>
+                <button mat-flat-button color="primary" (click)="interpret()">
+                    Inspect
+                </button>
             </form>
             @if (topActivationsForUserInputFeature) {
                 <div class="top-activations">
-                    <div>Top activating data for neuron {{userInput}}:</div>
-                    <div *ngFor="let item of topActivationsForUserInputFeature; index as i">
-                        {{i}}: {{item.value | number:'1.2-2'}} {{item.token}} (Pos {{item.tokenPos}}: {{item.sequence}})
+                    <div class="label">Top activating data</div>
+                    <div class="neuron" *ngFor="let item of topActivationsForUserInputFeature; index as i">
+                        <span class="neuron-index">{{i}}</span>
+                        <span>{{item.token}}: {{item.value | number:'1.2-2'}} (Pos {{item.tokenPos}}: {{item.sequence}})</span>
                     </div>
                 </div>
             }
