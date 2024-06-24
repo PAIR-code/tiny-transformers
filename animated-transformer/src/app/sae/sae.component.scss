@@ -1,10 +1,13 @@
 .sae-main {
-    margin: 20px;
+    margin: 30px;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 700px;
 }
 
 .title {
-    margin-bottom: 20px;
-    font-size: 22px;
+    margin-bottom: 30px;
+    font-size: 26px;
 }
 
 .trainer {
@@ -47,11 +50,29 @@
 }
 
 .results {
+    border-top: solid 1px #ccc;
+    margin-top: 30px;
+    padding-top: 30px;
     display: flex;
-    gap: 20px;
+    gap: 50px;
 }
 
 .short-width {
     width: 7em;
     margin-right: 1em;
+}
+
+.label {
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.neuron {
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.neuron .neuron-index {
+    font-family: 'Courier New', Courier, monospace;
+    margin-right: 10px;
 }

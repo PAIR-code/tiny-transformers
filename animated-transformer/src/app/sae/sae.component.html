@@ -60,25 +60,29 @@
     <div class="results">
         @if (learnedFeatureActivationFrequencies.length) {
             <div class="frequencies">
-                <div>Frequencies (avg = {{averageLearnedFeatureActivationFrequency}}):</div>
-                <div *ngFor="let item of learnedFeatureActivationFrequencies; index as i">
-                    {{i}}: {{item}}
+                <div class="label">Neuron activation frequency</div>
+                <div class="neuron" *ngFor="let item of learnedFeatureActivationFrequencies; index as i">
+                    <span class="neuron-index">{{i}}</span><span class="activation-frequency">{{item | number:'1.2-2'}}</span>
                 </div>
             </div>
         }
 
         <div class="interpreter">
-            <div>Interpret a feature</div>
             <form (ngSubmit)="interpret()">
-                <label for="numberInput">Enter a number:</label>
-                <input type="number" id="numberInput" name="numberInput" [(ngModel)]="userInput" required>
-                <button type="submit">Submit</button>
+                <mat-form-field class="short-width" appearance="fill">
+                    <mat-label>Neuron index</mat-label>
+                    <input matInput required [formControl]="neuronIndexToInspect">
+                </mat-form-field>
+                <button mat-flat-button color="primary" (click)="interpret()">
+                    Inspect
+                </button>
             </form>
             @if (topActivationsForUserInputFeature) {
                 <div class="top-activations">
-                    <div>Top activating data for neuron {{userInput}}:</div>
-                    <div *ngFor="let item of topActivationsForUserInputFeature; index as i">
-                        {{i}}: {{item.value | number:'1.2-2'}} {{item.token}} (Pos {{item.tokenPos}}: {{item.sequence}})
+                    <div class="label">Top activating data</div>
+                    <div class="neuron" *ngFor="let item of topActivationsForUserInputFeature; index as i">
+                        <span class="neuron-index">{{i}}</span>
+                        <span>{{item.token}}: {{item.value | number:'1.2-2'}} (Pos {{item.tokenPos}}: {{item.sequence}})</span>
                     </div>
                 </div>
             }

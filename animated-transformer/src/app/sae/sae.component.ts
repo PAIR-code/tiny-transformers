@@ -54,7 +54,6 @@ export class SAEComponent {
     averageLearnedFeatureActivationFrequency: number = 0;
     predictedDictionaryFeatures: any;
     topActivationsForUserInputFeature: any;
-    userInput: any;
     sampleData = (sampleData as any).default;
     useUploadedTrainingData = false;
     useSampleTrainingData = false;
@@ -67,6 +66,8 @@ export class SAEComponent {
     batchSize: FormControl<string>;
     epochs: FormControl<string>;
 
+    neuronIndexToInspect: FormControl<string>;
+
     constructor(
         private route: ActivatedRoute,
         private router: Router,
@@ -75,6 +76,7 @@ export class SAEComponent {
         this.l1Coeff = new FormControl('0.003') as FormControl<string>;
         this.batchSize = new FormControl('8') as FormControl<string>;
         this.epochs = new FormControl('3') as FormControl<string>;
+        this.neuronIndexToInspect = new FormControl('0') as FormControl<string>;
       }
     getDHidden() {
         return this.mlpActivationSize * parseInt(this.dictionaryMultiplier.value);
@@ -110,7 +112,7 @@ export class SAEComponent {
 
     async interpret() {
         const activationsForFeatureToInspect = Array.from(
-            this.predictedDictionaryFeatures.slice([0, this.userInput], [-1, 1]).dataSync());
+            this.predictedDictionaryFeatures.slice([0, parseInt(this.neuronIndexToInspect.value)], [-1, 1]).dataSync());
         const indexedActivations = activationsForFeatureToInspect.map((value, index) => ({ value, index }));
         indexedActivations.sort((a: any, b: any) => {
             if (a.value < b.value) {
