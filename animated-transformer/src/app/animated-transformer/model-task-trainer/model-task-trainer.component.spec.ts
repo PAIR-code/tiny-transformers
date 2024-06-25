@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CommonModule } from '@angular/common';
@@ -30,6 +29,7 @@ import { MatCardModule } from '@angular/material/card';
 import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
 
 import { ModelTaskTrainerComponent } from './model-task-trainer.component';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 
 describe('ModelTaskTrainerComponent', () => {
   let component: ModelTaskTrainerComponent;
@@ -53,10 +53,10 @@ describe('ModelTaskTrainerComponent', () => {
         MatCardModule,
         // ---
         CodemirrorConfigEditorModule,
+        AutoCompletedTextInputComponent,
       ],
-      declarations: [ModelTaskTrainerComponent]
-    })
-      .compileComponents();
+      declarations: [ModelTaskTrainerComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(ModelTaskTrainerComponent);
     component = fixture.componentInstance;

@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CommonModule } from '@angular/common';
@@ -30,6 +29,7 @@ import { MatCardModule } from '@angular/material/card';
 import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
 
 import { ModelSelectorComponent } from './model-selector.component';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 
 describe('ModelSelectorComponent', () => {
   let component: ModelSelectorComponent;
@@ -53,8 +53,9 @@ describe('ModelSelectorComponent', () => {
         MatCardModule,
         // ---
         CodemirrorConfigEditorModule,
+        AutoCompletedTextInputComponent,
       ],
-      declarations: [ModelSelectorComponent]
+      declarations: [ModelSelectorComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ModelSelectorComponent);

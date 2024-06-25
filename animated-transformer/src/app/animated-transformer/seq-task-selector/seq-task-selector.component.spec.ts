@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SeqTaskSelectorComponent } from './seq-task-selector.component';
@@ -30,6 +29,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { RouterTestingModule } from '@angular/router/testing';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 
 describe('SeqTaskSelectorComponent', () => {
   let component: SeqTaskSelectorComponent;
@@ -52,11 +52,11 @@ describe('SeqTaskSelectorComponent', () => {
         MatAutocompleteModule,
         MatTableModule,
         MatCardModule,
+        AutoCompletedTextInputComponent,
         // ---
       ],
-      declarations: [SeqTaskSelectorComponent]
-    })
-      .compileComponents();
+      declarations: [SeqTaskSelectorComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(SeqTaskSelectorComponent);
     component = fixture.componentInstance;

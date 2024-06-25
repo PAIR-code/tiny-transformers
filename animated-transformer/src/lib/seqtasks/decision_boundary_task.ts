@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 /* 1D decision boundary finding task.
 
 Given a sequence of values with an ordering relation, identify where the
@@ -26,7 +25,12 @@ decision boundary is.
 // fastest route to D is left or right.
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example, RandomStream } from './util';
+import {
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+  RandomStream,
+} from './util';
 
 export const numberVocab = ['1', '2', '3', '4', '5'];
 // Given B = decision boundary:
@@ -35,7 +39,6 @@ export const numberVocab = ['1', '2', '3', '4', '5'];
 export type RelPosDecision = 'R' | 'L';
 export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
-
 
 export class DecisionBoundaryTask implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
@@ -55,18 +58,26 @@ export class DecisionBoundaryTask implements BasicLmTask {
 
     // Create number inputs such that we don't go over the max length:
     // Each input numberVocab will be followed by a L or R
-    const inputIndexes = tf.randomUniform(
-      [Math.floor((this.config.maxInputLen + 1) / 2)],
-      0, numberVocab.length, 'int32', this.random.random())
+    const inputIndexes = tf
+      .randomUniform(
+        [Math.floor((this.config.maxInputLen + 1) / 2)],
+        0,
+        numberVocab.length,
+        'int32',
+        this.random.random()
+      )
       .arraySync() as number[];
 
     const finalIndex = inputIndexes.pop();
     if (finalIndex === undefined) {
-      throw new Error(`no input indexes. maxInputLen: ${this.config.maxInputLen}`);
+      throw new Error(
+        `no input indexes. maxInputLen: ${this.config.maxInputLen}`
+      );
     }
 
-    const input = inputIndexes.map(i =>
-      [numberVocab[i], i < boundaryPos ? 'L' : 'R']).flat();
+    const input = inputIndexes
+      .map((i) => [numberVocab[i], i < boundaryPos ? 'L' : 'R'])
+      .flat();
     input.push(numberVocab[finalIndex]);
 
     const output = [finalIndex < boundaryPos ? 'L' : 'R'];
