@@ -25,10 +25,19 @@ import {
 } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import {
+  addToTypeMap,
+  applyRules,
   Context,
+  nextRelDistrStats,
   parseRel,
+  parseRule,
+  Relation,
+  RelRuleApps,
   Rule,
+  RuleApp,
+  sampleNextRel,
   stringifyRelation,
+  TypeHierarchy,
 } from '../logic/generative_logic';
 import { SimpleJsTreesLib } from '../js_tree/js_tree';
 
@@ -57,8 +66,6 @@ import { SimpleJsTreesLib } from '../js_tree/js_tree';
 //
 // ============================================================================== //
 
-type TypeHierarchy = string[] | { [name: string]: TypeHierarchy };
-
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
   typeHierarchy: TypeHierarchy;
   relationKinds: { [relName: string]: string[] };
@@ -67,7 +74,7 @@ export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
   maxEntityLimit: number;
 }
 
-const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
+export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'tiny synthetic world',
   seed: 0,
   maxInputLen: 10,
@@ -90,17 +97,18 @@ const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     //
     // We might mention any new kind kind of thing (at any level of abstraction!)
     'S(is ?x:cat) += 1',
-    'S(is ?x:monkey) += 2', // But stories of monkeys are the best and most common
-    'S(is ?x:elephant) += 1',
-    'S(is ?x:rock) += 1',
-    'S(is ?x:tree) += 1',
-    'S(is ?x:flower) += 1',
-    'S(is ?x:animal) += 1',
-    'S(is ?x:inanimate) += 1',
-    'S(is ?x:squishable) += 1',
+    // 'S(is ?x:monkey) += 2', // But stories of monkeys are the best and most common
+    // 'S(is ?x:elephant) += 1',
+    // 'S(is ?x:rock) += 1',
+    // 'S(is ?x:tree) += 1',
+    // 'S(is ?x:flower) += 1',
+    // 'S(is ?x:animal) += 1',
+    // 'S(is ?x:inanimate) += 1',
+    // 'S(is ?x:squishable) += 1',
+    'S(is ?x | is ?y) *= 0.5',
 
     // A mentioned animal might jump
-    'S(jumps ?x | is ?x:animal) += 2',
+    'S(jumps ?x | is ?x:animal) += 5',
 
     // When they jump, monkeys and cats sometimes squish things, but monkeys more often
     //
@@ -131,7 +139,7 @@ const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runs-away ?a:animal) *= 0',
     'S(squishes ?x ?a | runs-away ?a:animal) *= 0',
-    'S(runs-away ?x ?a | runs-away ?a:animal) *= 0',
+    'S(runs-away ?x ?a | runs-away ?x:animal) *= 0',
     // Squished animals can't run away or jump anymore
     'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
     'S(jumps ?y | squishes ?x ?y:animal) *= 0',
@@ -149,26 +157,6 @@ const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 //   }
 // }
 
-function addToTypeMap(
-  h: TypeHierarchy,
-  m: Map<string, Set<string>>
-): Set<string> {
-  if (Array.isArray(h)) {
-    h.forEach((t) => m.set(t, new Set()));
-    return new Set(h);
-  } else {
-    const subTaxonomy = Object.keys(h);
-    // let allSubTypes: string[] = [];
-    const allSubTypes = new Set<string>();
-    subTaxonomy.forEach((t) => {
-      const subTypes = addToTypeMap(h[t], m);
-      m.set(t, new Set(subTypes));
-      subTypes.forEach((t) => allSubTypes.add(t));
-    });
-    return allSubTypes;
-  }
-}
-
 // function makeConfigVocab(c: TinyWorldTaskConfig): string[] {
 //   const freshNames = new FreshNames();
 //   const varNames: string[] = [];
@@ -185,12 +173,15 @@ function addToTypeMap(
 // }
 
 export const sepToken = ', ';
+export const typeIsToken = ':';
 export type SepToken = typeof sepToken;
 type VarNames = `_${string}` | `?${string}`;
 function isUnboundVarName(v: string): boolean {
   // console.log(v, v[0] === '?');
   return v[0] === '?';
 }
+type TypeNames = string;
+type RelNames = string;
 
 // ============================================================================== //
 //  Tiny World Task Configs
@@ -202,7 +193,8 @@ export class TinyWorldTask implements BasicLmTask {
   public baseVocab: string[];
   public random: RandomStream;
   private exampleId = 0;
-  public initContext: Context<string, string, string>;
+  public initContext: Context<TypeNames, VarNames, RelNames>;
+  public rules: Rule<TypeNames, VarNames, RelNames>[];
 
   constructor(public config: TinyWorldTaskConfig) {
     this.name = config.name;
@@ -226,6 +218,7 @@ export class TinyWorldTask implements BasicLmTask {
 
     this.baseVocab = [
       sepToken,
+      typeIsToken,
       ...Object.keys(relationMap),
       ...allTypes,
       ...varNames,
@@ -235,59 +228,49 @@ export class TinyWorldTask implements BasicLmTask {
       typeMap,
       relationMap,
       new FreshNames(),
-      new Map<string, string>(),
-      this.config.baseContext.map((r) => parseRel(r)),
+      new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
+    this.initContext.extendScene(
+      this.config.baseContext.map((r) => parseRel(r))
+    );
+
+    this.rules = this.config.rules.map((rStr) => parseRule(rStr));
   }
 
   genRandExample(): Example {
-    // this.config.
-
-    // const context = [...this.config.baseContext];
-    // const bindings = {};
-
-    // // The secret token
-    // const secretToken = randOfList(this.random, this.config.objectTokens);
-    // // console.log('secretToken:', secretToken);
-
-    // // Create random tokens such that we don't go over the max length:
-    // // Each random token, t, will be followed by tokenToBoolFn(secretToken, t)
-    // const numberOfRandomTokens = Math.floor((this.config.maxInputLen + 1) / 2);
-    // const randomTokenIds = tf
-    //   .randomUniform(
-    //     [numberOfRandomTokens],
-    //     0,
-    //     this.config.objectTokens.length,
-    //     'int32',
-    //     this.random.random()
-    //   )
-    //   .arraySync() as number[];
-
-    // const finalId = randomTokenIds.pop();
-    // if (finalId === undefined) {
-    //   throw new Error(`no input Id. maxInputLen: ${this.config.maxInputLen}`);
-    // }
-
-    // const input = randomTokenIds
-    //   .map((i) => {
-    //     const thisToken = this.config.objectTokens[i];
-    //     return [
-    //       thisToken,
-    //       this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F',
-    //     ];
-    //   })
-    //   .flat();
-    // const finalToken = this.config.objectTokens[finalId];
-    // input.push(finalToken);
-
-    // const target = [this.tokenToBoolFn(secretToken, finalToken) ? 'T' : 'F'];
-
+    const outputTokens = [] as string[];
+    let curContext = this.initContext;
+    while (outputTokens.length < this.config.maxOutputLen) {
+      const maybeNextContext = sampleNextRel(
+        this.random,
+        curContext,
+        this.rules
+      );
+      if (maybeNextContext) {
+        curContext = maybeNextContext.context;
+        const rel = maybeNextContext.rel;
+        const args = rel.args.flatMap((r) =>
+          r.varType === '' ? [r.varName] : [r.varName, typeIsToken, r.varType]
+        );
+        const extraTokens = [rel.relName, ...args];
+        let nextToken = extraTokens.shift();
+        while (outputTokens.length < this.config.maxOutputLen && nextToken) {
+          outputTokens.push(nextToken);
+          nextToken = extraTokens.shift();
+        }
+      } else {
+        break;
+      }
+    }
     return {
       id: this.exampleId++,
-      input: ['a', 'b'],
-      output: ['a', 'b'],
-      secret: ['secretToken'],
+      input: outputTokens.slice(0, outputTokens.length - 2),
+      output: outputTokens.slice(
+        outputTokens.length - 2,
+        outputTokens.length - 1
+      ),
+      // secret: [],
     };
   }
 

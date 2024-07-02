@@ -13,14 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
+import { RandomStream } from '../seqtasks/util';
 import {
   Context,
   Relation,
   UnifyState,
+  VarNames,
+  addToTypeMap,
   applyRules,
+  initContext,
+  isUnboundVarName,
   nextRelDistrStats,
   parseRel,
   parseRule,
+  sampleNextRel,
   stringifyRule,
 } from './generative_logic';
 
@@ -37,14 +43,6 @@ import {
 // };
 
 describe('generative_logic', () => {
-  // "& {}" is a trick to get typescript errors to use the type name instead
-  // of the full list of underlying union of string literals.
-  type VarNames = `_${string}` | `?${string}`;
-  function isUnboundVarName(v: string): boolean {
-    // console.log(v, v[0] === '?');
-    return v[0] === '?';
-  }
-
   const animalTypes = ['cat', 'monkey', 'elephant'] as const;
   const inanimateTypes = ['flower', 'rock', 'tree'] as const;
   const allTypes = [
@@ -220,9 +218,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
     expect(c.names.config.usedNameSet).toContain('_m');
     expect(c.names.config.usedNameSet).toContain('_f');
     expect(c.varTypes.get('_m')).toEqual('monkey');
@@ -239,9 +237,9 @@ describe('generative_logic', () => {
         relations,
         new FreshNames(),
         new Map<VarNames, TypeNames>(),
-        [rel2],
         isUnboundVarName
       );
+      c.extendScene([rel2]);
       // console.log(c);
     }).toThrowError(''); // Assert
   });
@@ -252,7 +250,6 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [] as Relation<TypeNames, VarNames, RelNames>[],
       isUnboundVarName
     );
     const unifyState = c.newUnifyState();
@@ -285,6 +282,25 @@ describe('generative_logic', () => {
     expect(varTypes.get('_b')).toEqual('squishable');
   });
 
+  it('matchRule: simple match with a more general type in the rule', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x ?y | jumps-over ?x:animal ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      isUnboundVarName
+    );
+    c.extendScene([rel]);
+    const ruleMatches = c.matchRule(rule);
+    expect(ruleMatches.length).toEqual(1);
+  });
+
   it('matchRule: simple match', () => {
     const rule = parseRule<TypeNames, VarNames, RelNames>(`
       S(squishes ?x ?y | jumps-over ?x ?y) *= 1
@@ -297,9 +313,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
   });
@@ -316,9 +332,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(0);
   });
@@ -335,9 +351,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
     const ruleMatches = c.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
   });
@@ -354,9 +370,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
     const ruleMatches = c.matchRule(rule);
     const c2 = c.applyRuleMatch(ruleMatches[0]);
     expect(c2.scene.length).toEqual(2);
@@ -379,9 +395,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      [rel],
       isUnboundVarName
     );
+    c.extendScene([rel]);
 
     const ruleMatches = c.matchRule(rule);
     const c2 = c.applyRuleMatch(ruleMatches[0]);
@@ -400,7 +416,7 @@ describe('generative_logic', () => {
       parseRule<TypeNames, VarNames, RelNames>(r)
     );
 
-    const context = [
+    const scene = [
       'jumps-over _m:monkey _f:flower',
       'jumps-over _c:cat _f:flower',
     ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
@@ -410,9 +426,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      context,
       isUnboundVarName
     );
+    c.extendScene(scene);
 
     const nextRelPossibilities = nextRelDistrStats(applyRules(rules, c));
     expect([...nextRelPossibilities.keys()].length).toEqual(2);
@@ -438,7 +454,7 @@ describe('generative_logic', () => {
       parseRule<TypeNames, VarNames, RelNames>(r)
     );
 
-    const context = [
+    const scene = [
       'jumps-over _m:monkey _f:flower',
       'jumps-over _c:cat _f:flower',
     ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
@@ -448,9 +464,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      context,
       isUnboundVarName
     );
+    c.extendScene(scene);
 
     const nextRelPossibilities = nextRelDistrStats(applyRules(rules, c));
     // console.log(
@@ -479,7 +495,7 @@ describe('generative_logic', () => {
       parseRule<TypeNames, VarNames, RelNames>(r)
     );
 
-    const context = ['runs-away _c:cat'].map((s) =>
+    const scene = ['runs-away _c:cat'].map((s) =>
       parseRel<TypeNames, VarNames, RelNames>(s)
     );
 
@@ -488,9 +504,9 @@ describe('generative_logic', () => {
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
-      context,
       isUnboundVarName
     );
+    c.extendScene(scene);
 
     const ruleApps = applyRules(rules, c);
     expect([...ruleApps.keys()]).toEqual(['is _c:cat']);
@@ -502,5 +518,76 @@ describe('generative_logic', () => {
 
     const ruleApps2 = applyRules(rules, nextContext);
     expect([...ruleApps2.keys()]).toEqual([]);
+  });
+
+  it('addToTypeMap', () => {
+    const typeHierarchy = {
+      animal: ['cat', 'monkey', 'elephant'],
+      inanimate: ['rock', 'tree', 'flower'],
+      squishable: ['cat', 'monkey', 'flower'],
+    };
+    const typeMap = new Map<string, Set<string>>();
+    const allTypes = addToTypeMap(typeHierarchy, typeMap);
+    typeMap.set('', allTypes);
+
+    expect(allTypes.size).toBe(9);
+    expect(typeMap.get('animal')).toContain('cat');
+    expect(typeMap.get('animal')).toContain('monkey');
+    expect(typeMap.get('animal')).toContain('elephant');
+    expect(typeMap.get('animal')?.size).toBe(3);
+  });
+
+  it('Making a new example domain using helpers', () => {
+    const typeHierarchy = {
+      animal: ['cat', 'monkey', 'elephant'],
+      inanimate: ['rock', 'tree', 'flower'],
+      squishable: ['cat', 'monkey', 'flower'],
+    };
+    const relationKinds: { [key: string]: string[] } = {
+      is: [''],
+      'runs-away': ['animal'],
+      squishes: ['animal', 'squishable'],
+      jumps: ['animal'],
+    };
+    const baseContextStrs: string[] = ['is _a:cat'];
+    const ruleStrs: string[] = [
+      'S(is ?x:cat) += 1',
+      'S(is ?x | is ?y) *= 0.5',
+      'S(jumps ?x | is ?x:animal) += 5',
+      'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
+    ];
+
+    const typeMap = new Map<string, Set<string>>();
+    const allTypes = addToTypeMap(typeHierarchy, typeMap);
+    typeMap.set('', allTypes);
+
+    const relationMap = new Map<string, string[]>();
+    Object.keys(relationKinds).forEach((r) => {
+      relationMap.set(r, relationKinds[r]);
+    });
+
+    const context = initContext(typeMap, relationMap);
+    const scene = baseContextStrs.map((rStr) =>
+      parseRel<string, VarNames, string>(rStr)
+    );
+    context.extendScene(scene);
+
+    const rules = ruleStrs.map((rStr) =>
+      parseRule<string, VarNames, string>(rStr)
+    );
+    // const ruleApps = applyRules(rules, context);
+    // const distr = nextRelDistrStats(ruleApps);
+
+    console.log(...context.types);
+    const matches = context.matchRule(rules[2]);
+    console.log(matches);
+    expect(matches.length).toBe(1);
+
+    // console.log(distr);
+    // expect(distr.keys()).toContain('jumps _a');
+
+    // const rnd = new RandomStream(0);
+
+    // const { context, rel } = sampleNextRel(rnd, initContext, rules);
   });
 });

@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { stringify } from 'json5';
 import { FreshNames } from '../names/simple_fresh_names';
+import { RandomStream } from '../seqtasks/util';
 
 // ============================================================================== //
 //  Core types
@@ -308,6 +309,8 @@ export class Context<
   VarNames extends string,
   RelNames extends string
 > {
+  public scene: Relation<TypeNames, VarNames, RelNames>[] = [];
+
   constructor(
     // The type hierarchy.
     public types: Map<TypeNames, Set<TypeNames>>,
@@ -321,7 +324,6 @@ export class Context<
     public names: FreshNames,
     public varTypes: Map<VarNames, TypeNames>,
     // The list of relations in the scene
-    public scene: Relation<TypeNames, VarNames, RelNames>[],
     // True when the name corresponds to a name in a rule and not to an name in
     // the context (we use a separate name class for rules to make it faster to do
     // matching; this avoid needing to rewrite rule-var names before matching).
@@ -332,9 +334,13 @@ export class Context<
     this.names.addNames(types.keys());
     this.names.addNames(relations.keys());
     this.names.addNames(varTypes.keys());
+  }
+
+  // In place update of the current context.
+  extendScene(rels: Relation<TypeNames, VarNames, RelNames>[]) {
     const unifyState = this.newUnifyState();
-    scene.forEach((r, i) => {
-      const unifyFailed = this.unifyRelationWithContext(r, unifyState);
+    rels.forEach((r, i) => {
+      const unifyFailed = this.unifyRelationWithState(r, unifyState);
       if (unifyFailed) {
         console.warn(
           `can't create context with the specified relation. Unif state:`,
@@ -350,6 +356,11 @@ export class Context<
       this.varTypes.set(key, value);
     });
     this.names.addNames(unifyState.varTypes.keys());
+    this.scene = [...this.scene, ...rels];
+  }
+
+  lastSceneRel(): Relation<TypeNames, VarNames, RelNames> | null {
+    return this.scene.length > 1 ? this.scene[this.scene.length] : null;
   }
 
   subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
@@ -410,7 +421,7 @@ export class Context<
     }
   }
 
-  unifyRelationWithContext(
+  unifyRelationWithState(
     r: Relation<TypeNames, VarNames, RelNames>,
     unifyState: UnifyState<TypeNames, VarNames>
   ): UnifyFailure | undefined {
@@ -452,11 +463,11 @@ export class Context<
           ` (${r1.relName}/${r1.args.length} vs ${r2.relName}/${r2.args.length})`
       );
     }
-    const unify1Failure = this.unifyRelationWithContext(r1, unifyState);
+    const unify1Failure = this.unifyRelationWithState(r1, unifyState);
     if (unify1Failure) {
       return unify1Failure;
     }
-    const unify2Failure = this.unifyRelationWithContext(r2, unifyState);
+    const unify2Failure = this.unifyRelationWithState(r2, unifyState);
     if (unify2Failure) {
       return unify2Failure;
     }
@@ -514,7 +525,7 @@ export class Context<
     rule: Rule<TypeNames, VarNames, RelNames>
   ): RuleMatch<TypeNames, VarNames, RelNames>[] {
     const initMatchUnifState = this.newUnifyState();
-    const unifFailure = this.unifyRelationWithContext(
+    const unifFailure = this.unifyRelationWithState(
       rule.rel,
       initMatchUnifState
     );
@@ -534,17 +545,19 @@ export class Context<
         unifState: initMatchUnifState,
       } as RuleMatch<TypeNames, VarNames, RelNames>,
     ];
-
+    // TODO: make more efficient: only fork the unify state when needed.
+    // e.g. fail as much as possible before working.
     const finalMatches = rule.posConditions.reduce<
       RuleMatch<TypeNames, VarNames, RelNames>[]
     >((ruleMatches, condRel) => {
       const nextMatches: RuleMatch<TypeNames, VarNames, RelNames>[] = [];
       ruleMatches.forEach((match) => {
+        // TODO: make more efficient: only fork the unify state when needed.
+        // e.g. fail as much as possible before working.
         this.scene.forEach((contextRel, contextRelIdx) => {
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
           const newMatch = forkRuleMatch(match);
-          // console.log(condRel, contextRel);
           const unifyFailure = this.unify(
             condRel,
             contextRel,
@@ -564,16 +577,7 @@ export class Context<
       // = if any neg condition matches any context rel, this rule
       // is not applicable.
       for (const negRuleRel of rule.negConditions) {
-        // let i = 0;
         for (const contextRel of this.scene) {
-          // i++;
-          // console.log(
-          //   `looking at neg rule match...:\nneg rule: '` +
-          //     stringifyRelation(negRuleRel) +
-          //     `'\ncontextrel (${i}): '` +
-          //     stringifyRelation(contextRel) +
-          //     `'`
-          // );
           const newMatch = forkRuleMatch(match);
           const unifyFailure = this.unify(
             negRuleRel,
@@ -591,14 +595,15 @@ export class Context<
 
   // Top level copy of a context; forking it.
   fork(): Context<TypeNames, VarNames, RelNames> {
-    return new Context(
+    const c = new Context(
       this.types,
       this.relations,
       this.names.fork(),
       new Map(this.varTypes),
-      [...this.scene],
       this.isUnboundVarName
     );
+    c.scene = [...this.scene];
+    return c;
   }
 
   applyRuleMatch(
@@ -646,6 +651,7 @@ export type RuleApp<
 > = {
   rule: Rule<TypeNames, VarNames, RelNames>;
   context: Context<TypeNames, VarNames, RelNames>;
+  newRel: Relation<TypeNames, VarNames, RelNames>;
 };
 
 export type ScoreParts = {
@@ -661,8 +667,28 @@ export type RelRuleApps<
   ruleScore: { sum: number; mult: number };
   totalScore: number;
   prob: number;
+  rel: Relation<TypeNames, VarNames, RelNames>;
   ruleApps: RuleApp<TypeNames, VarNames, RelNames>[];
 };
+
+export function addRuleApps<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  rule: Rule<TypeNames, VarNames, RelNames>,
+  context: Context<TypeNames, VarNames, RelNames>,
+  ruleApps: Map<string, RuleApp<TypeNames, VarNames, RelNames>[]>
+): void {
+  context.matchRule(rule).map((m) => {
+    const c2 = context.applyRuleMatch(m);
+    const newRel = c2.scene[c2.scene.length - 1];
+    const newRelStr = stringifyRelation(newRel);
+    const prevRuleApps = ruleApps.get(newRelStr) || [];
+    prevRuleApps.push({ context: c2, rule, newRel: newRel });
+    ruleApps.set(newRelStr, prevRuleApps);
+  });
+}
 
 export function applyRules<
   TypeNames extends string,
@@ -677,14 +703,7 @@ export function applyRules<
     RuleApp<TypeNames, VarNames, RelNames>[]
   >();
   for (const r of rules) {
-    context.matchRule(r).map((m) => {
-      const c2 = context.applyRuleMatch(m);
-      const newRel = c2.scene[c2.scene.length - 1];
-      const newRelStr = stringifyRelation(newRel);
-      const prevRuleApps = nextRuleApps.get(newRelStr) || [];
-      prevRuleApps.push({ context: c2, rule: r });
-      nextRuleApps.set(newRelStr, prevRuleApps);
-    });
+    addRuleApps(r, context, nextRuleApps);
   }
   return nextRuleApps;
 }
@@ -702,12 +721,15 @@ export function nextRelDistrStats<
     RelRuleApps<TypeNames, VarNames, RelNames>
   >();
 
+  let rel: Relation<TypeNames, VarNames, RelNames>;
+
   // Sum scores of all rule application that result in the same
   // new added relation.
   const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
   nextRuleApps.forEach((ruleApps, relStrKey) => {
     const finalRuleScore = ruleApps.reduce<ScoreParts>(
       (scoreCalc: ScoreParts, ruleApp) => {
+        rel = ruleApp.newRel;
         let newMult = scoreCalc.mult;
         let newSum = scoreCalc.sum;
         if (ruleApp.rule.op === '*=') {
@@ -725,6 +747,7 @@ export function nextRelDistrStats<
       totalScore: finalRuleScore.sum * finalRuleScore.mult,
       prob: -1,
       ruleApps,
+      rel: rel,
     });
   });
 
@@ -737,4 +760,90 @@ export function nextRelDistrStats<
   });
 
   return finalDistr;
+}
+
+// ============================================================================== //
+//  Construction Helpers
+// ============================================================================== //
+export type VarNames = `_${string}` | `?${string}`;
+export function isUnboundVarName(v: string): boolean {
+  // console.log(v, v[0] === '?');
+  return v[0] === '?';
+}
+
+export function initContext<TypeNames extends string, RelNames extends string>(
+  typeMap: Map<TypeNames, Set<TypeNames>>,
+  relationMap: Map<RelNames, TypeNames[]>
+) {
+  return new Context(
+    typeMap,
+    relationMap,
+    new FreshNames(), // Updated by the context updates
+    new Map<VarNames, TypeNames>(), // Updated by the context updates
+    isUnboundVarName // Must match FreshNames.
+  );
+}
+
+export type TypeHierarchy = string[] | { [name: string]: TypeHierarchy };
+
+export function addToTypeMap(
+  h: TypeHierarchy,
+  m: Map<string, Set<string>>
+): Set<string> {
+  if (Array.isArray(h)) {
+    h.forEach((t) => m.set(t, new Set()));
+    return new Set(h);
+  } else {
+    const subTaxonomy = Object.keys(h);
+    // let allSubTypes: string[] = [];
+    const allSubTypes = new Set<string>();
+    subTaxonomy.forEach((t) => {
+      const subTypes = addToTypeMap(h[t], m);
+      m.set(t, new Set(subTypes));
+      subTypes.forEach((t) => allSubTypes.add(t));
+      allSubTypes.add(t);
+    });
+    return allSubTypes;
+  }
+}
+
+export function sampleNextRel<
+  TypeNames extends string,
+  VarNames extends string,
+  RelNames extends string
+>(
+  random: RandomStream,
+  curContext: Context<TypeNames, VarNames, RelNames>,
+  rules: Rule<TypeNames, VarNames, RelNames>[]
+): {
+  context: Context<TypeNames, VarNames, RelNames>;
+  rel: Relation<TypeNames, VarNames, RelNames>;
+} | null {
+  const ruleApps = applyRules(rules, curContext);
+  const distr = nextRelDistrStats(ruleApps);
+  let nextRandValue = random.random();
+
+  // TODO: is there a faster/smarter way to do random sampling...?
+  let relRuleApps: RelRuleApps<TypeNames, VarNames, RelNames> | null = null;
+  for (const v of distr) {
+    relRuleApps = v[1];
+    if (nextRandValue <= relRuleApps.prob) {
+      break;
+    }
+    nextRandValue -= relRuleApps.prob;
+  }
+  // Note: numerical errors/rounding issues might result in
+  // nextRandValue > ruleApp.prob for the last value, even if there
+  // are values.
+  // This should be very very rare, but to avoid strange surprises,
+  // we attribute rounding error parts of the probability space to the
+  // final rule.
+  //
+  // If not rules were present, this is still null, and we have to end
+  // the sequence.
+  if (!relRuleApps) {
+    return null;
+  }
+  const ruleApp = relRuleApps.ruleApps[0];
+  return { context: ruleApp.context, rel: ruleApp.newRel };
 }
