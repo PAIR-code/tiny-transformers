@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 // --------------------------------------------------------------------------
 /* Tubes for JSON objects.
 Based on: http://strictlypositive.org/Holes.pdf
@@ -28,14 +27,14 @@ it is used to support some slightly formatting of JSON (very pretty printing).
 ---------------------------------------------------------------------------- */
 import { quote } from '../pretty_json/json';
 
-
 // ----------------------------------------------------------------------------
 // Abstract Tube type has a parent.
 export abstract class AbsTube {
   // The path up...
-  public parent: null
-    | { idx: number, node: Tube }
-    | { key: string, node: Tube } = null;
+  public parent:
+    | null
+    | { idx: number; node: Tube }
+    | { key: string; node: Tube } = null;
 
   accessorString(): string {
     if (this.parent === null) {
@@ -73,16 +72,16 @@ export class LeafTube extends AbsTube {
 const OBJ_WRAP = '{}';
 const OBJ_WRAP_LEN = OBJ_WRAP.length;
 
-const KEY_OBJ_SEP = ': '
+const KEY_OBJ_SEP = ': ';
 const KEY_OBJ_SEP_LEN = KEY_OBJ_SEP.length;
 
 const OBJ_KEYVAL_SEP = ', ';
 const OBJ_KEYVAL_SEP_LEN = OBJ_KEYVAL_SEP.length;
 
-const ARR_VALUE_SEP = ', '
+const ARR_VALUE_SEP = ', ';
 const ARR_VALUE_SEP_LEN = ARR_VALUE_SEP.length;
 
-const ARR_WRAP = '[]'
+const ARR_WRAP = '[]';
 const ARR_WRAP_LEN = ARR_WRAP.length;
 
 export class ObjTube extends AbsTube {
@@ -122,9 +121,13 @@ export class ObjTube extends AbsTube {
 }
 
 export class ArrTube extends AbsTube {
+  // Length of largest item.
   public maxItemLen = 0;
+  // Total string length if we put it on one line.
   public totalLen = ARR_WRAP_LEN;
+  // True when some child is not leaf.
   public hasCompoundChild = false;
+  // The elements in this array.
   public arr: Tube[] = [];
 
   addArrChild(c: Tube): void {
@@ -134,7 +137,7 @@ export class ArrTube extends AbsTube {
     }
     const cLen = c.totalStrLen();
     if (this.arr.length >= 1) {
-      this.totalLen += cLen + ARR_VALUE_SEP_LEN;
+      this.totalLen += ARR_VALUE_SEP_LEN + cLen;
     } else {
       this.totalLen += cLen;
     }
@@ -160,7 +163,6 @@ function isArr(t: AbsTube): t is ArrTube {
   return t instanceof ArrTube;
 }
 
-
 export interface StringifyConfig {
   curIndent: string;
   arrWrapAt: number;
@@ -182,15 +184,19 @@ export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
   if (isLeaf(t)) {
     return t.str;
   } else if (isArr(t)) {
-    return `[${t.arr.map(c => stringifyOneLine(config, c)).join(', ')}]`;
+    return `[${t.arr.map((c) => stringifyOneLine(config, c)).join(', ')}]`;
   } else {
     let keys = Object.keys(t.obj);
     if (config.sortObjKeys) {
       keys = keys.sort();
     }
-    return '{' + keys.map(k =>
-      `${k}: ${stringifyOneLine(config, t.obj[k])}`).join(', ')
-      + '}';
+    return (
+      '{' +
+      keys
+        .map((k) => `${k}: ${stringifyOneLine(config, t.obj[k])}`)
+        .join(', ') +
+      '}'
+    );
   }
 }
 
@@ -203,37 +209,67 @@ function maxLineStrWidth(s: string): {
   const lines = s.split('\n');
   return {
     maxLineWidth: lines.reduce(
-      (maxWidth, l) => l.length > maxWidth ? l.length : maxWidth,
-      0),
+      (maxWidth, l) => (l.length > maxWidth ? l.length : maxWidth),
+      0
+    ),
     firstLineWidth: lines[0].length,
     lastLineWidth: lines[lines.length - 1].length,
-    nLines: lines.length
+    nLines: lines.length,
   };
 }
 
 // ----------------------------------------------------------------------------
+// Note: Caller is responsible for the adding the indent to the returned string.
 export function stringifyTube(config: StringifyConfig, t: Tube): string {
   if (isLeaf(t)) {
     return t.str;
   } else if (isArr(t)) {
     // fits on one line...
-    if ((t.totalStrLen() + config.curIndent.length) < config.arrWrapAt) {
+    if (t.totalStrLen() + config.curIndent.length < config.arrWrapAt) {
       return stringifyOneLine(config, t);
     } else if (t.hasCompoundChild) {
-      // Break the child notes onto separate lines
+      // Break the child nodes onto separate lines
       const subConfig = { ...config };
       subConfig.curIndent += '  ';
       const joinStr = ',\n' + subConfig.curIndent;
       // IDEA: know the pre-string, to help define line break for first item
       // in list.
-      return `[ ${t.arr.map(c => stringifyTube(subConfig, c)).join(joinStr)} ]`;
+      return `[ ${t.arr
+        .map((c) => stringifyTube(subConfig, c))
+        .join(joinStr)} ]`;
     } else {
+      if (t.arr.length === 0) {
+        return stringifyOneLine(config, t);
+      }
+      let curLine = '[ ';
+      let curStr = '';
+      // All items are atomic values, lets write them out and wrap them...
+      for (const c of t.arr) {
+        const s = stringifyOneLine(config, c);
+        if (
+          curLine.length > 2 &&
+          config.curIndent.length +
+            curLine.length +
+            s.length +
+            ARR_VALUE_SEP_LEN >=
+            config.arrWrapAt
+        ) {
+          curStr += curLine + ',\n';
+          curLine = config.curIndent + '  ' + s;
+          // Wrap this item onto a new line.
+        } else {
+          // add this time to the current line.
+          curLine += ', ' + s;
+        }
+      }
+      curStr += curLine;
+      return curStr;
       // Atomic child greater than wrap, we have no choice but to put it on
       // one line...
-      return stringifyOneLine(config, t);
+      // return stringifyOneLine(config, t);
     }
   } else {
-    if ((t.totalStrLen() + config.curIndent.length) < config.objWrapAt) {
+    if (t.totalStrLen() + config.curIndent.length < config.objWrapAt) {
       return stringifyOneLine(config, t);
     } else {
       let keys = Object.keys(t.obj);
@@ -243,8 +279,9 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       const subConfig = { ...config };
       subConfig.curIndent += '  ';
       let joinStr = ',\n' + subConfig.curIndent;
-      const innerStr = keys.map(k =>
-        `${k}: ${stringifyTube(subConfig, t.obj[k])}`).join(joinStr)
+      const innerStr = keys
+        .map((k) => `${k}: ${stringifyTube(subConfig, t.obj[k])}`)
+        .join(joinStr);
       // TODO:
       let prefix = '{ ';
       const postfix = ' }';
