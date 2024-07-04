@@ -86,7 +86,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   },
   relationKinds: {
     is: [''],
-    'runs-away': ['animal'],
+    runsAway: ['animal'],
     squishes: ['animal', 'squishable'],
     jumps: ['animal'],
   },
@@ -97,14 +97,14 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     //
     // We might mention any new kind kind of thing (at any level of abstraction!)
     'S(is ?x:cat) += 1',
-    // 'S(is ?x:monkey) += 2', // But stories of monkeys are the best and most common
-    // 'S(is ?x:elephant) += 1',
-    // 'S(is ?x:rock) += 1',
-    // 'S(is ?x:tree) += 1',
-    // 'S(is ?x:flower) += 1',
-    // 'S(is ?x:animal) += 1',
-    // 'S(is ?x:inanimate) += 1',
-    // 'S(is ?x:squishable) += 1',
+    'S(is ?x:monkey) += 2', // But stories of monkeys are the best and most common
+    'S(is ?x:elephant) += 1',
+    'S(is ?x:rock) += 1',
+    'S(is ?x:tree) += 1',
+    'S(is ?x:flower) += 1',
+    'S(is ?x:animal) += 1',
+    'S(is ?x:inanimate) += 1',
+    'S(is ?x:squishable) += 1',
     'S(is ?x | is ?y) *= 0.5',
 
     // A mentioned animal might jump
@@ -117,11 +117,11 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
 
     // Cats sometimes run away away when elephants jump
-    'S(runs-away ?c | jumps ?e:elephant, is ?c:cat) += 2',
+    'S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2',
     // Any existing animal might run away at any time
-    'S(runs-away ?x | is ?c) += 1',
+    'S(runsAway ?x | is ?x) += 1',
     // A new never mentioned animal might run away
-    'S(runs-away ?x) += 1',
+    'S(runsAway ?x) += 1',
 
     // We might note that an animal that ran away is a cat (if we didn't say it before)
     //
@@ -129,7 +129,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // implicitly defining a distinution over types, which I guess would be some kind of equal split?
     // And also, how do you manage many level of specificity? t?<..<animal and t?<=..<=animal
     //   'S(is ?x:?t<animal | runs-away ?x, -is ?x:?t) += 1',
-    'S(is ?x:cat | runs-away ?x, -is ?x:cat) += 1',
+    'S(is ?x:cat | runsAway ?x, -is ?x) += 1',
 
     // When an animal runs away, it can't squish anything, jump or run-away again.
     // NOTE: We could also use negative conditions on the positive action...
@@ -137,11 +137,11 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // TODO: below is a nice example of why we should use linear
     // types for conditions, not depend on past statements
     // (like we do below)... linear types could saves us from the frame problem!
-    'S(jumps ?a | runs-away ?a:animal) *= 0',
-    'S(squishes ?x ?a | runs-away ?a:animal) *= 0',
-    'S(runs-away ?x ?a | runs-away ?x:animal) *= 0',
+    'S(jumps ?a | runsAway ?a:animal) *= 0',
+    'S(squishes ?x ?a | runsAway ?a:animal) *= 0',
+    'S(runsAway ?x ?a | runsAway ?x:animal) *= 0',
     // Squished animals can't run away or jump anymore
-    'S(runs-away ?y | squishes ?x ?y:animal) *= 0',
+    'S(runsAway ?y | squishes ?x ?y:animal) *= 0',
     'S(jumps ?y | squishes ?x ?y:animal) *= 0',
   ],
   maxEntityLimit: 6,
@@ -172,9 +172,10 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 //   ];
 // }
 
-export const sepToken = ', ';
+export const spaceSepToken = ' ';
+export const relSepToken = ', ';
 export const typeIsToken = ':';
-export type SepToken = typeof sepToken;
+export type SepToken = typeof relSepToken;
 type VarNames = `_${string}` | `?${string}`;
 function isUnboundVarName(v: string): boolean {
   // console.log(v, v[0] === '?');
@@ -217,7 +218,7 @@ export class TinyWorldTask implements BasicLmTask {
     }
 
     this.baseVocab = [
-      sepToken,
+      relSepToken,
       typeIsToken,
       ...Object.keys(relationMap),
       ...allTypes,
@@ -239,24 +240,30 @@ export class TinyWorldTask implements BasicLmTask {
   }
 
   genRandExample(): Example {
-    const outputTokens = [] as string[];
+    const generatedTokens: string[] = [];
+    const totalTokens = this.config.maxInputLen + this.config.maxOutputLen;
     let curContext = this.initContext;
-    while (outputTokens.length < this.config.maxOutputLen) {
+    while (generatedTokens.length < totalTokens) {
       const maybeNextContext = sampleNextRel(
         this.random,
         curContext,
         this.rules
       );
       if (maybeNextContext) {
-        curContext = maybeNextContext.context;
+        if (generatedTokens.length > 0) {
+          generatedTokens.push(relSepToken);
+        }
         const rel = maybeNextContext.rel;
         const args = rel.args.flatMap((r) =>
-          r.varType === '' ? [r.varName] : [r.varName, typeIsToken, r.varType]
+          r.varType === '' || curContext.varTypes.get(r.varName) === r.varType
+            ? [spaceSepToken, r.varName]
+            : [spaceSepToken, r.varName, typeIsToken, r.varType]
         );
+        curContext = maybeNextContext.context;
         const extraTokens = [rel.relName, ...args];
         let nextToken = extraTokens.shift();
-        while (outputTokens.length < this.config.maxOutputLen && nextToken) {
-          outputTokens.push(nextToken);
+        while (generatedTokens.length < totalTokens && nextToken) {
+          generatedTokens.push(nextToken);
           nextToken = extraTokens.shift();
         }
       } else {
@@ -265,11 +272,8 @@ export class TinyWorldTask implements BasicLmTask {
     }
     return {
       id: this.exampleId++,
-      input: outputTokens.slice(0, outputTokens.length - 2),
-      output: outputTokens.slice(
-        outputTokens.length - 2,
-        outputTokens.length - 1
-      ),
+      input: generatedTokens.slice(0, this.config.maxInputLen),
+      output: generatedTokens.slice(this.config.maxInputLen),
       // secret: [],
     };
   }

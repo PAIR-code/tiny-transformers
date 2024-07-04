@@ -27,55 +27,54 @@ describe('tiny_worlds', () => {
     initConfig.maxOutputLen = 20;
     const tinyWorld = new TinyWorldTask(initConfig);
     const example = tinyWorld.genRandExample();
-    console.log(JSON.stringify(example.input));
-    console.log(example.output);
     expect(example.id).toEqual(0);
+    expect(example.input.length).toEqual(initConfig.maxInputLen);
+    console.log(JSON.stringify(example.input));
     expect(example.input).toEqual([
       'is',
+      ' ',
       '_a',
       ':',
-      'cat',
+      'monkey',
+      ', ',
       'is',
+      ' ',
       '_b',
       ':',
-      'cat',
-      'jumps',
-      '_a',
-      ':',
-      'cat',
-      'jumps',
-      '_a',
-      ':',
-      'cat',
-      'jumps',
-      '_b',
     ]);
-    expect(example.output).toEqual([':']);
-
-    const example2 = tinyWorld.genRandExample();
-    console.log(JSON.stringify(example2.input));
-    console.log(example2.output);
-    expect(example2.id).toEqual(1);
-    expect(example2.input).toEqual([
-      'runs-away',
-      '_a',
-      ':',
-      'animal',
-      'runs-away',
-      '_b',
-      ':',
-      'animal',
-      'is',
-      '_a',
-      ':',
+    expect(example.input.join('')).toEqual('is _a:monkey, is _b:');
+    console.log(JSON.stringify(example.output));
+    expect(example.output).toEqual([
       'cat',
-      'runs-away',
+      ', ',
+      'is',
+      ' ',
       '_c',
       ':',
-      'cat',
-      'runs-away',
+      'tree',
+      ', ',
+      'is',
+      ' ',
       '_d',
+      ':',
+      'elephant',
+      ', ',
+      'jumps',
+      ' ',
+      '_a',
+      ', ',
+      'squishes',
+      ' ',
     ]);
-    expect(example2.output).toEqual([':']);
+    expect(example.output.join('')).toEqual(
+      'cat, is _c:tree, is _d:elephant, jumps _a, squishes '
+    );
+
+    const example2 = tinyWorld.genRandExample();
+    expect(example2.id).toEqual(1);
+    expect(example2.input.join('')).toEqual('is _a:flower, is _b:');
+    expect(example2.output.join('')).toEqual(
+      'animal, is _c:animal, jumps _b, jumps _b, is _d:'
+    );
   });
 });
