@@ -13,9 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-
-
 /*
 Extremely simple generative task where input is a string of 'a's and 'b's,
 and output should be 'a'.
@@ -23,7 +20,13 @@ and output should be 'a'.
 Can we get the loss to 0?
 */
 
-import { BasicLmTask, BasicRandSeededTaskConfig, Example, randOfList, RandomStream } from './util';
+import {
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+  randOfList,
+  RandomStream,
+} from './util';
 
 export const baseVocab = ['a', 'b'];
 
@@ -47,12 +50,12 @@ export class OnlyATask implements BasicLmTask {
       input[i] = randOfList(this.random, ['a', 'b']);
     }
 
-    output[0] = 'a'
+    output[0] = 'a';
 
     return { id: this.exampleId++, input, output };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesIter(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }

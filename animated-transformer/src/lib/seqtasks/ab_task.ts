@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 /*
 Simple generative task where input is a string of 'a's and 'b's, and output
 should be whichever is most frequent in the input.
@@ -29,18 +28,25 @@ Another variant: have to output number of a's and b's to make the count equal.
 
 // import * as tf from '@tensorflow/tfjs';
 // import { TokenEmb } from '../tokens/token_emb';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example, randOfList, RandomStream } from './util';
+import {
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+  randOfList,
+  RandomStream,
+} from './util';
 
 export const baseVocab = ['a', 'b'];
 
 export class AorBisMaxTask implements BasicLmTask {
-  public name = 'AorBisMaxTask';
   public baseVocab = ['a', 'b'];
   public random: RandomStream;
   private exampleId = 0;
+  public exampleIter: Iterable<Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
     this.random = new RandomStream(config.seed);
+    this.exampleIter = this.examplesGen();
   }
 
   // Problem Descriptions:
@@ -75,10 +81,9 @@ export class AorBisMaxTask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesGen(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }
   }
-
 }

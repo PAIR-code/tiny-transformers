@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 /*
 Problem Descriptions:
 
@@ -31,7 +30,7 @@ import { BasicLmTask, BasicLmTaskConfig, Example, RandomStream } from './util';
 export type SwapTaskConfig = BasicLmTaskConfig & {
   valuesLessThan: number;
   seed: number;
-}
+};
 
 export type Action = 'l' | 'r' | 'i';
 // l = left swap.
@@ -54,14 +53,13 @@ export function swappables(values: number[]): Swapable[] {
   values.forEach((x, i) => {
     values.forEach((x2, i2) => {
       if (!isNaN(x) && !isNaN(x2) && x2 < x && i2 > i) {
-        s.push(
-          {
-            idx1: i,
-            value1: x,
-            idx2: i2,
-            value: x2,
-            delta: x - x2,
-          });
+        s.push({
+          idx1: i,
+          value1: x,
+          idx2: i2,
+          value: x2,
+          delta: x - x2,
+        });
       }
     });
   });
@@ -71,7 +69,7 @@ export function swappables(values: number[]): Swapable[] {
 // Invaraint: returned list has same size as input.
 export function makeOutput(input: number[]): Action[] {
   const swaps = swappables(input);
-  const output: Action[] = input.map(_ => 'i');
+  const output: Action[] = input.map((_) => 'i');
   if (swaps.length > 0) {
     output[swaps[0].idx1] = 'l';
     output[swaps[0].idx2] = 'r';
@@ -81,13 +79,19 @@ export function makeOutput(input: number[]): Action[] {
 
 export class SwapTask implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
-  public name = 'SwapTask';
-  public baseVocab = baseVocab;
+  public name: string;
   public random: RandomStream;
-  private exampleId = 0;
+  private exampleId: number;
+  public exampleIter: Iterable<Example>;
+
+  public baseVocab = baseVocab;
+  // ! because initialied in reInitFromConfig.
 
   constructor(public config: SwapTaskConfig) {
-    this.random = new RandomStream(config.seed);
+    this.name = this.config.name;
+    this.random = new RandomStream(this.config.seed);
+    this.exampleId = 0;
+    this.exampleIter = this.exampleIterFactory();
   }
 
   // Problem Descriptions:
@@ -96,21 +100,26 @@ export class SwapTask implements BasicLmTask {
   // * Of all pairs that you can swap to improve the ascending ordering of the list,
   // what pair have the biggest difference?
   genRandExample(): Example {
-    const input =
-      tf.randomUniform([this.config.maxInputLen], 0, this.config.valuesLessThan, 'int32',
-        this.random.random())
-        .arraySync() as number[];
+    const input = tf
+      .randomUniform(
+        [this.config.maxInputLen],
+        0,
+        this.config.valuesLessThan,
+        'int32',
+        this.random.random()
+      )
+      .arraySync() as number[];
     for (let i = 0; i < input.length; i++) {
       input[i] = Math.floor(this.random.random() * this.config.valuesLessThan);
     }
     return {
       id: this.exampleId++,
-      input: input.map(x => String(x)),
+      input: input.map((x) => String(x)),
       output: makeOutput(input),
     };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *exampleIterFactory(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }

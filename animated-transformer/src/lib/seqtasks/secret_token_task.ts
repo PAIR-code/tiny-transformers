@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 /* The Family of Secret Token Tasks.
 
 A next-token prediction task. This file defines the distribtion of sequences.
@@ -43,7 +42,13 @@ Obvoiusly there are many further generalizations:
 */
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example, randOfList, RandomStream } from './util';
+import {
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+  randOfList,
+  RandomStream,
+} from './util';
 
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
@@ -52,29 +57,30 @@ interface SecretTokenTaskConfig<Vocab extends string>
   extends BasicRandSeededTaskConfig {
   // Vocab for the random tokens, and also from which the secret value is
   // chosen.
-  randomTokensVocab: Vocab[],
+  randomTokensVocab: Vocab[];
   // string that evals to a function of the form
   //   (s: Vocab, t: Vocab) => boolean
   //   e.g. 'return s > t'
-  tokenToBoolFnStr: string,
+  tokenToBoolFnStr: string;
 }
 
 export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
-  public name: string;
   public baseVocab: string[];
   public random: RandomStream;
   private exampleId = 0;
   private tokenToBoolFn: (s: Vocab, t: Vocab) => BoolToken;
+  public exampleIter: Iterable<Example>;
 
   constructor(public config: SecretTokenTaskConfig<Vocab>) {
-    this.name = config.name;
     this.random = new RandomStream(config.seed);
-
     this.baseVocab = [...boolVocab, ...config.randomTokensVocab];
     // TODO: sandbox.
-    this.tokenToBoolFn = (new Function('s', 't', config.tokenToBoolFnStr) as (
-      s: Vocab, t: Vocab) => BoolToken);
+    this.tokenToBoolFn = new Function('s', 't', config.tokenToBoolFnStr) as (
+      s: Vocab,
+      t: Vocab
+    ) => BoolToken;
+    this.exampleIter = this.examplesGen();
   }
 
   genRandExample(): Example {
@@ -85,9 +91,14 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
     // Create random tokens such that we don't go over the max length:
     // Each random token, t, will be followed by tokenToBoolFn(secretToken, t)
     const numberOfRandomTokens = Math.floor((this.config.maxInputLen + 1) / 2);
-    const randomTokenIds = tf.randomUniform(
-      [numberOfRandomTokens],
-      0, this.config.randomTokensVocab.length, 'int32', this.random.random())
+    const randomTokenIds = tf
+      .randomUniform(
+        [numberOfRandomTokens],
+        0,
+        this.config.randomTokensVocab.length,
+        'int32',
+        this.random.random()
+      )
       .arraySync() as number[];
 
     const finalId = randomTokenIds.pop();
@@ -95,10 +106,15 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
       throw new Error(`no input Id. maxInputLen: ${this.config.maxInputLen}`);
     }
 
-    const input = randomTokenIds.map(i => {
-      const thisToken = this.config.randomTokensVocab[i];
-      return [thisToken, this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F']
-    }).flat();
+    const input = randomTokenIds
+      .map((i) => {
+        const thisToken = this.config.randomTokensVocab[i];
+        return [
+          thisToken,
+          this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F',
+        ];
+      })
+      .flat();
     const finalToken = this.config.randomTokensVocab[finalId];
     input.push(finalToken);
 
@@ -106,12 +122,13 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
 
     return {
       id: this.exampleId++,
-      input, output: target,
+      input,
+      output: target,
       secret: [secretToken],
     };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesGen(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }

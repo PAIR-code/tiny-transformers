@@ -19,15 +19,9 @@ import {
   GVariable,
   GTensorOrScalar,
   makeScalar,
-  GVariableOrScalar,
 } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicLmTask,
-  Example,
-  ExampleGenerator,
-  generateBatch,
-} from '../seqtasks/util';
+import { BasicLmTask, Example, generateBatch } from '../seqtasks/util';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
@@ -51,7 +45,7 @@ export type TaskDatasetSplit = {
   task: BasicLmTask;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
-  trainSetGen: ExampleGenerator;
+  trainSetIter: Iterable<Example>;
 };
 
 export type TrainingBatchGenerator<
@@ -213,7 +207,7 @@ export class TrainState<
 
   prepareNextTrainBatch(): void {
     this.prepareBatch(
-      generateBatch(this.taskSplit.trainSetGen, this.config.batchSize)
+      generateBatch(this.taskSplit.trainSetIter, this.config.batchSize)
     );
   }
 

@@ -9,7 +9,7 @@
 
 <div class="row" *ngIf="currentModel() as model">
   <div *ngIf="view != 'edit'" class="row">
-    <div class="json">{{modelConfigAsJson(model)}}</div>
+    <!-- <div class="json">{{modelConfigAsJson(model)}}</div> -->
     <div class='buttonrow'>
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>

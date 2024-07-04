@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as swap_task from './swap_task';
 
 describe('swap_task', () => {
@@ -25,19 +24,21 @@ describe('swap_task', () => {
       maxInputLen: 10,
       maxOutputLen: 1,
       valuesLessThan: swap_task.baseVocab.length + 1,
-      seed: 47
+      seed: 47,
     });
   });
 
   it('swappables', () => {
     const swaps = swap_task.swappables([1, 2, 5, 2]);
-    expect(swaps).toEqual([{
-      idx1: 2,
-      value1: 5,
-      idx2: 3,
-      value: 2,
-      delta: 3,
-    }]);
+    expect(swaps).toEqual([
+      {
+        idx1: 2,
+        value1: 5,
+        idx2: 3,
+        value: 2,
+        delta: 3,
+      },
+    ]);
   });
 
   it('makeOutput-simple', () => {
@@ -62,24 +63,25 @@ describe('swap_task', () => {
     //   example.input.map(parseInt)
     // strangely:
     //   example.input.map(parseInt)[1] === NaN
-    const inputsAsNumbers = example.input.map(x => parseInt(x));
+    const inputsAsNumbers = example.input.map((x) => parseInt(x));
     expect(example.input.length).toEqual(swapTask.config.maxInputLen);
     expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan);
+      swapTask.config.valuesLessThan
+    );
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 
   it('genExamples', () => {
-    const examplesGen = swapTask.makeExamplesGenerator();
+    const examplesGen = swapTask.examplesIter();
     const example = examplesGen.next();
     if (example.done) {
       throw new Error('No examples generated');
     }
-    const inputsAsNumbers = example.value.input.map(x => parseInt(x));
+    const inputsAsNumbers = example.value.input.map((x) => parseInt(x));
     expect(example.value.input.length).toEqual(swapTask.config.maxInputLen);
     expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan);
+      swapTask.config.valuesLessThan
+    );
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 });
-

@@ -13,17 +13,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import {
-  Example, ExampleGenerator, generateBatch, makeRandFnFromSeed,
-  escapeToken, randOfList, BasicLmTask, splitGenerativeTaskTestSet, indexExample, takeNextN, listGen, filterGen,
+  Example,
+  generateBatch,
+  makeRandFnFromSeed,
+  escapeToken,
+  randOfList,
+  BasicLmTask,
+  splitGenerativeTaskTestSet,
+  indexExample,
+  takeNextN,
+  listGen,
+  filterGen,
 } from './util';
 
 describe('seqtasks/util', () => {
-  beforeEach(() => { });
+  beforeEach(() => {});
 
   it('escaping', () => {
-    const t = escapeToken('foo bar \\ ugg')
+    const t = escapeToken('foo bar \\ ugg');
     expect(t).toEqual('foo\\ bar\\ \\\\\\ ugg');
   });
 
@@ -40,11 +48,11 @@ describe('seqtasks/util', () => {
           id: i,
           input: [`in${i}`],
           output: [`out${i}`],
-        }
+        };
         i++;
       }
-    };
-    const exampleGen: ExampleGenerator = exampleGenFactory();
+    }
+    const exampleGen: Iterable<Example> = exampleGenFactory();
     const batch = generateBatch(exampleGen, 8);
     expect(batch.length).toEqual(8);
     expect(batch[0].id).toEqual(0);
@@ -56,78 +64,85 @@ describe('seqtasks/util', () => {
   });
 
   it('takeNextN', () => {
-    const g = listGen([1, 2, 3, 4, 5])
+    const g = listGen([1, 2, 3, 4, 5]);
     expect([...takeNextN(g, 2)]).toEqual([1, 2]);
     expect(g.next().value).toEqual(3);
     expect([...takeNextN(g, 2)]).toEqual([4, 5]);
   });
 
   it('filterGen', () => {
-    const takenNums = filterGen(
-      n => (n % 2 !== 0),
-      listGen([1, 2, 3, 4, 5]));
+    const takenNums = filterGen((n) => n % 2 !== 0, listGen([1, 2, 3, 4, 5]));
     expect([...takenNums]).toEqual([1, 3, 5]);
   });
 
   it('takeFirstN of makeExampleGenerator', () => {
-    function* exampleGenFactory(): Generator<Example, undefined, undefined> {
+    function* exampleIterFactory(): Iterable<Example> {
       let i = 0;
       while (true) {
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
-        }
+        };
         i++;
       }
-    };
+    }
     /* Simple interface for classes that provide a task */
     const task: BasicLmTask = {
-      name: 'fooTaskInstance',
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      makeExamplesGenerator: exampleGenFactory,
-    }
-    const examplesGen = task.makeExamplesGenerator();
-
-    expect([...takeNextN(examplesGen, 13)].map(indexExample)).toEqual([
-      '0 0 \\--> 0', '1 1 \\--> 2', '2 2 \\--> 0',
-      '3 0 \\--> 3', '0 1 \\--> 1', '1 2 \\--> 3',
-      '2 0 \\--> 2', '3 1 \\--> 0', '0 2 \\--> 2',
-      '1 0 \\--> 1', '2 1 \\--> 3', '3 2 \\--> 1',
+      exampleIter: exampleIterFactory(),
+    };
+    expect([...takeNextN(task.exampleIter, 13)].map(indexExample)).toEqual([
+      '0 0 \\--> 0',
+      '1 1 \\--> 2',
+      '2 2 \\--> 0',
+      '3 0 \\--> 3',
+      '0 1 \\--> 1',
+      '1 2 \\--> 3',
+      '2 0 \\--> 2',
+      '3 1 \\--> 0',
+      '0 2 \\--> 2',
+      '1 0 \\--> 1',
+      '2 1 \\--> 3',
+      '3 2 \\--> 1',
       '0 0 \\--> 0',
     ]);
   });
 
   it('splitGenerativeTaskTestSet', () => {
-    function* exampleGenFactory(): Generator<Example, undefined, undefined> {
+    function* exampleIterFactory(): Iterable<Example> {
       let i = 0;
       while (true) {
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
-        }
+        };
         i++;
       }
-    };
+    }
     /* Simple interface for classes that provide a task */
     const task: BasicLmTask = {
-      name: 'fooTaskInstance',
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      makeExamplesGenerator: exampleGenFactory,
-    }
-    const examplesGen = task.makeExamplesGenerator();
-
-    expect([...takeNextN(examplesGen, 13)].map(indexExample)).toEqual([
+      exampleIter: exampleIterFactory(),
+    };
+    expect([...takeNextN(task.exampleIter, 13)].map(indexExample)).toEqual([
       // Test set = first 7
-      '0 0 \\--> 0', '1 1 \\--> 2', '2 2 \\--> 0',
-      '3 0 \\--> 3', '0 1 \\--> 1', '1 2 \\--> 3',
+      '0 0 \\--> 0',
+      '1 1 \\--> 2',
+      '2 2 \\--> 0',
+      '3 0 \\--> 3',
+      '0 1 \\--> 1',
+      '1 2 \\--> 3',
       '2 0 \\--> 2',
       // Train set = next 5
-      '3 1 \\--> 0', '0 2 \\--> 2',
-      '1 0 \\--> 1', '2 1 \\--> 3', '3 2 \\--> 1',
+      '3 1 \\--> 0',
+      '0 2 \\--> 2',
+      '1 0 \\--> 1',
+      '2 1 \\--> 3',
+      '3 2 \\--> 1',
       // Back to Test set...
       '0 0 \\--> 0',
     ]);
@@ -135,18 +150,34 @@ describe('seqtasks/util', () => {
     const split = splitGenerativeTaskTestSet(7, task);
     const testValuesIndex = [...split.testSetIndex.values()];
     expect(testValuesIndex).toEqual([
-      '0 0 \\--> 0', '1 1 \\--> 2', '2 2 \\--> 0', '3 0 \\--> 3', '0 1 \\--> 1',
-      '1 2 \\--> 3', '2 0 \\--> 2']);
+      '0 0 \\--> 0',
+      '1 1 \\--> 2',
+      '2 2 \\--> 0',
+      '3 0 \\--> 3',
+      '0 1 \\--> 1',
+      '1 2 \\--> 3',
+      '2 0 \\--> 2',
+    ]);
     const generator = split.testFilteredExampleGenerator;
     const nextExamples1 = generateBatch(generator, 6).map(indexExample);
     expect(nextExamples1).toEqual([
-      '3 1 \\--> 0', '0 2 \\--> 2', '1 0 \\--> 1', '2 1 \\--> 3', '3 2 \\--> 1',
+      '3 1 \\--> 0',
+      '0 2 \\--> 2',
+      '1 0 \\--> 1',
+      '2 1 \\--> 3',
+      '3 2 \\--> 1',
       // Note: the next example is not: '0 0 \\--> 0', because that's in the
       // test set, so we loop back onto the start of the training set now.
-      '3 1 \\--> 0'])
+      '3 1 \\--> 0',
+    ]);
     const nextExamples2 = generateBatch(generator, 6).map(indexExample);
     expect(nextExamples2).toEqual([
-      '0 2 \\--> 2', '1 0 \\--> 1', '2 1 \\--> 3', '3 2 \\--> 1', '3 1 \\--> 0',
-      '0 2 \\--> 2'])
+      '0 2 \\--> 2',
+      '1 0 \\--> 1',
+      '2 1 \\--> 3',
+      '3 2 \\--> 1',
+      '3 1 \\--> 0',
+      '0 2 \\--> 2',
+    ]);
   });
 });

@@ -41,14 +41,15 @@ export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
 
 export class DecisionBoundaryTask implements BasicLmTask {
-  // TODO: consider doing programatically in the constructor?
-  public name = 'DecisionBoundaryTask';
   public baseVocab = baseVocab;
   public random: RandomStream;
-  private exampleId = 0;
+  private exampleId: number;
+  public exampleIter: Iterable<Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
-    this.random = new RandomStream(config.seed);
+    this.random = new RandomStream(this.config.seed);
+    this.exampleId = 0;
+    this.exampleIter = this.examplesGen();
   }
 
   genRandExample(): Example {
@@ -85,7 +86,7 @@ export class DecisionBoundaryTask implements BasicLmTask {
     return { id: this.exampleId++, input, output, secret: [`${boundaryPos}`] };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesGen(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }

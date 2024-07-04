@@ -62,10 +62,6 @@ import { SimpleJsTreesLib } from '../js_tree/js_tree';
 //  Tiny World Task Configs
 // ============================================================================== //
 
-// ============================================================================== //
-//
-// ============================================================================== //
-
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
   typeHierarchy: TypeHierarchy;
   relationKinds: { [relName: string]: string[] };
@@ -147,31 +143,6 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   maxEntityLimit: 6,
 };
 
-// function makeTypeHierarchyeVocab(h: TypeHierarchy): string[] {
-//   if (Array.isArray(h)) {
-//     return h;
-//   } else {
-//     const subTaxonomy = Object.keys(h);
-//     const subtypes = Object.values(h).flatMap(makeTypeHierarchyeVocab);
-//     return [...subTaxonomy, ...subtypes];
-//   }
-// }
-
-// function makeConfigVocab(c: TinyWorldTaskConfig): string[] {
-//   const freshNames = new FreshNames();
-//   const varNames: string[] = [];
-//   for (let i = 0; i < c.maxEntityLimit; i++) {
-//     const n = freshNames.makeAndAddNextName();
-//     varNames.push(n);
-//   }
-
-//   return [
-//     ...Object.keys(c.relationKinds),
-//     ...makeTypeHierarchyeVocab(c.typeHierarchy),
-//     ...varNames,
-//   ];
-// }
-
 export const spaceSepToken = ' ';
 export const relSepToken = ', ';
 export const typeIsToken = ':';
@@ -189,17 +160,16 @@ type RelNames = string;
 // ============================================================================== //
 
 export class TinyWorldTask implements BasicLmTask {
-  // TODO: consider doing programatically in the constructor?
-  public name: string;
-  public baseVocab: string[];
-  public random: RandomStream;
-  private exampleId = 0;
   public initContext: Context<TypeNames, VarNames, RelNames>;
   public rules: Rule<TypeNames, VarNames, RelNames>[];
+  public baseVocab: string[];
+  public random: RandomStream;
+  private exampleId: number;
+  public exampleIter: Iterable<Example>;
 
   constructor(public config: TinyWorldTaskConfig) {
-    this.name = config.name;
     this.random = new RandomStream(config.seed);
+    this.exampleId = 0;
 
     const typeMap = new Map<string, Set<string>>();
     const allTypes = addToTypeMap(this.config.typeHierarchy, typeMap);
@@ -237,6 +207,8 @@ export class TinyWorldTask implements BasicLmTask {
     );
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
+
+    this.exampleIter = this.examplesGen();
   }
 
   genRandExample(): Example {
@@ -278,7 +250,7 @@ export class TinyWorldTask implements BasicLmTask {
     };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesGen(): Iterable<Example> {
     while (true) {
       yield this.genRandExample();
     }
