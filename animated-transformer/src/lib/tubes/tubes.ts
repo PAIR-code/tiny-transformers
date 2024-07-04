@@ -244,7 +244,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       let curLine = '[ ';
       let curStr = '';
       // All items are atomic values, lets write them out and wrap them...
-      for (const c of t.arr) {
+      t.arr.forEach((c, i) => {
         const s = stringifyOneLine(config, c);
         if (
           curLine.length > 2 &&
@@ -259,10 +259,19 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
           // Wrap this item onto a new line.
         } else {
           // add this time to the current line.
-          curLine += ', ' + s;
+          if (i > 0) {
+            curLine += ', ' + s;
+          } else {
+            curLine += s;
+          }
         }
+      });
+      if (curLine.length + 2 < config.arrWrapAt) {
+        curStr += curLine + ' ]';
+      } else {
+        curStr += curLine + '\n' + config.curIndent + ']';
       }
-      curStr += curLine;
+
       return curStr;
       // Atomic child greater than wrap, we have no choice but to put it on
       // one line...
