@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AnimatedTransformerComponent } from './animated-transformer.component';
@@ -47,6 +46,7 @@ import { ModelEvaluatorComponent } from './model-evaluator/model-evaluator.compo
 import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
 
 import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-validator.directive';
+import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display.component';
 
 @NgModule({
   declarations: [
@@ -80,6 +80,7 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     D3LineChartModule,
     ModelTaskTrainerModule,
     AutoCompletedTextInputComponent,
-  ]
+    TokenSeqDisplayComponent,
+  ],
 })
-export class AnimatedTransformerModule { }
+export class AnimatedTransformerModule {}
