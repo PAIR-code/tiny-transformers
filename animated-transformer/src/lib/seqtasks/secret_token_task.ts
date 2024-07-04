@@ -53,7 +53,7 @@ import {
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
 
-interface SecretTokenTaskConfig<Vocab extends string>
+export interface SecretTokenTaskConfig<Vocab extends string>
   extends BasicRandSeededTaskConfig {
   // Vocab for the random tokens, and also from which the secret value is
   // chosen.

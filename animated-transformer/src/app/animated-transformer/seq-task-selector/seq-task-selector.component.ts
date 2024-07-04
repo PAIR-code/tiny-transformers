@@ -36,14 +36,19 @@ import {
   BasicLmTask,
   BasicLmTaskConfig,
   BasicLmTaskUpdate,
+  BasicRandSeededTaskConfig,
   Example,
   takeNextN,
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
-import { SecretTokenTask } from 'src/lib/seqtasks/secret_token_task';
+import {
+  SecretTokenTask,
+  SecretTokenTaskConfig,
+} from 'src/lib/seqtasks/secret_token_task';
 import {
   TinyWorldTask,
+  TinyWorldTaskConfig,
   defaultTinyWorldTaskConfig,
 } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -80,6 +85,30 @@ const inittaskSet: TaskMetadata[] = [
       seed: 47,
     } as swap_task.SwapTaskConfig,
     (c) => new swap_task.SwapTask(c as swap_task.SwapTaskConfig)
+  ),
+  new TaskMetadata(
+    {
+      name: 'a boundary task',
+      maxInputLen: 5,
+      maxOutputLen: 1,
+      seed: 0,
+    } as BasicRandSeededTaskConfig,
+    (c) => new DecisionBoundaryTask(c as BasicRandSeededTaskConfig)
+  ),
+  new TaskMetadata(
+    {
+      name: 'mod secret token === 0',
+      maxInputLen: 5,
+      maxOutputLen: 1,
+      seed: 0,
+      randomTokensVocab: ['1', '2', '3', '4', '5'],
+      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
+    } as SecretTokenTaskConfig<string>,
+    (c) => new SecretTokenTask(c as SecretTokenTaskConfig<string>)
+  ),
+  new TaskMetadata(
+    defaultTinyWorldTaskConfig,
+    (c) => new TinyWorldTask(c as TinyWorldTaskConfig)
   ),
 ];
 const initTaskMap = {} as { [name: string]: TaskMetadata };
