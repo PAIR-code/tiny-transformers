@@ -220,10 +220,10 @@ export class SeqTaskSelectorComponent {
     this.view = this.view === 'edit' ? 'view' : 'edit';
   }
 
-  inputToString(input: string[][]): string {
+  inputToString(input: string[]): string {
     return JSON.stringify(input);
   }
-  outputToString(output: string[][]): string {
+  outputToString(output: string[]): string {
     return JSON.stringify(output);
   }
 
