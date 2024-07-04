@@ -42,6 +42,10 @@ import {
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { SecretTokenTask } from 'src/lib/seqtasks/secret_token_task';
+import {
+  TinyWorldTask,
+  defaultTinyWorldTaskConfig,
+} from 'src/lib/seqtasks/tiny_worlds';
 
 // ----------------------------------------------------------------------------
 
@@ -96,6 +100,7 @@ const inittaskSet: TaskMetadata[] = [
       tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
     })
   ),
+  new TaskMetadata(new TinyWorldTask({ ...defaultTinyWorldTaskConfig })),
 ];
 const initTaskMap = {} as { [name: string]: TaskMetadata };
 inittaskSet.forEach((t) => (initTaskMap[t.config.name] = t));

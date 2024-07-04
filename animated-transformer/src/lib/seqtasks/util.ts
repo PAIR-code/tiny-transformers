@@ -12,9 +12,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
-import { embed } from '../tokens/token_gemb';
-import * as tf from '@tensorflow/tfjs';
+/**
+ * Misc Utility functions...
+ *
+ * - Generative Sequence Exmaples (id, input, output, optional secret)
+ * - Basic Language Model Task Configuration (name, max input len, max output len)
+ * - String escaping to avoid given sequences.
+ * -
+ */
 
 export interface Example {
   id: number;
@@ -97,6 +102,19 @@ export function indexExample(example: Example): string {
 // ----------------------------------------------------------------------------
 // Randomness
 // ----------------------------------------------------------------------------
+/**
+ * A library to create an iterable stream of random numbers from a given seed.
+ * This allows deterministic random processes. Random numbers are floats
+ * between 0 and 1.
+ * e.g.
+ *
+ * const initSeedValue = 42; // a random number seed
+ * const s = new RandomStream(initSeedValue);
+ * console.log(s.random()); // generates the next value in the random sequence.
+ *
+ *
+ * const s2 = s.fork() // creates a parallel set of random numbers from s.
+ */
 // Random number streams; with fork abstraction.
 // mulberry 32 bit implementation.
 export class RandomStream implements Iterable<number> {
