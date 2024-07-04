@@ -13,9 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-
-
 /*
 Simple generative task for stings of the form `a?(ba)*b?`
 (If followed, `a` can only be followed by `b` and b can only be followed by `a`)
@@ -24,7 +21,13 @@ Simple generative task for stings of the form `a?(ba)*b?`
 //   ==>  LSTM + one attention layer makes it learn quickly.
 */
 
-import { BasicLmTask, BasicRandSeededTaskConfig, Example, randOfList, RandomStream } from './util';
+import {
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+  randOfList,
+  RandomStream,
+} from './util';
 
 export const baseVocab = ['a', 'b'];
 
@@ -49,21 +52,20 @@ export class AorBisMaxTask implements BasicLmTask {
     const output = new Array<string>(this.config.maxOutputLen);
     input[0] = randOfList(this.random, ['a', 'b']);
     for (let i = 1; i < input.length; i++) {
-      input[i] = (input[i - 1] === 'a') ? 'b' : 'a';
+      input[i] = input[i - 1] === 'a' ? 'b' : 'a';
     }
     for (let i = 0; i < output.length; i++) {
-      output[i] = (output[i - 1] === 'a') ? 'b' : 'a';
+      output[i] = output[i - 1] === 'a' ? 'b' : 'a';
     }
     return { id: this.exampleId++, input, output };
   }
 
-  *makeExamplesGenerator(): Generator<Example, undefined, undefined> {
+  *examplesIter(): Generator<Example, undefined, undefined> {
     while (true) {
       yield this.genRandExample();
     }
   }
 }
-
 
 // Issue: need to make sure that input size is consistent.
 // CONSIDER: maybe tasks should be purely string => string?

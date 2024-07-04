@@ -25,7 +25,11 @@ import {
   computed,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import {
+  BasicLmTask,
+  BasicLmTaskUpdate,
+  takeNextN,
+} from 'src/lib/seqtasks/util';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import {
   jsonStrListValidator,
@@ -33,10 +37,13 @@ import {
   JsonStrListConfig,
 } from '../../form-validators/json-str-list-validator.directive';
 
-import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
+import {
+  computeDecoder,
+  computePrediction,
+} from 'src/lib/transformer/transformer_gtensor';
 
-import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree'; 
-import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree'
+import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree';
+import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree';
 import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
 import {
   ModelUpdate,
@@ -58,11 +65,12 @@ import {
 } from 'rxjs';
 import { mapNonNull } from 'src/lib/rxjs/util';
 
-function typedGetData<N extends string>(params: DictTree<GVariable<N>>)
-: DictArrTree<{shape: number[]; data: number[]}> {
+function typedGetData<N extends string>(
+  params: DictTree<GVariable<N>>
+): DictArrTree<{ shape: number[]; data: number[] }> {
   return gtensorTrees.map(params, (g: GTensorOrScalar) => ({
     shape: g.tensor.shape as number[],
-    data: (Array.from(g.tensor.dataSync()) as number[])
+    data: Array.from(g.tensor.dataSync()) as number[],
   }));
 }
 
@@ -90,7 +98,7 @@ export class ModelEvaluatorComponent {
   set model(modelUpdate: ModelUpdate) {
     this.modelOutput = null;
     this.currentModel.set(modelUpdate.model || null);
-  };
+  }
   @Input()
   set task(taskUpdate: BasicLmTaskUpdate) {
     this.currentTask.set(taskUpdate.task || null);
@@ -120,7 +128,9 @@ export class ModelEvaluatorComponent {
 
   getCurrentTask(): BasicLmTask {
     const currentTask = this.currentTask();
-    if (!currentTask) { throw new Error('no currentTask'); }
+    if (!currentTask) {
+      throw new Error('no currentTask');
+    }
     return currentTask;
   }
 
@@ -143,11 +153,11 @@ export class ModelEvaluatorComponent {
       sortObjKeys: true,
     });
     const weightsTree = modelData.params.tree;
-    
+
     const tokenEmbedding = (weightsTree as any)['tokenEmbedding'].variable;
     const tokenEmbeddingData = {
       shape: tokenEmbedding.shape,
-      data: Array.from(tokenEmbedding.dataSync())
+      data: Array.from(tokenEmbedding.dataSync()),
     };
 
     const layerData: any = [];
@@ -155,12 +165,12 @@ export class ModelEvaluatorComponent {
       layerData.push(typedGetData(layer));
     });
 
-    const serialized = {spec, tokenEmbeddingData, layerData};
-    this.downloadJSON(serialized, 'model.json')
+    const serialized = { spec, tokenEmbeddingData, layerData };
+    this.downloadJSON(serialized, 'model.json');
   }
 
   downloadJSON(data: any, fname: string) {
-    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -193,32 +203,29 @@ export class ModelEvaluatorComponent {
       throw new Error('no current trainState');
     }
     const currentTask = this.getCurrentTask();
-    const generator = currentTask.makeExamplesGenerator();
 
     const trainingData = [];
-    const nExamplesToCollect = 1000;
-    for (let i=0; i<nExamplesToCollect; i++) {
-      const example = generator.next();
-      const input = example.value!.input;
+    for (const example of [...takeNextN(currentTask.exampleIter, 1000)]) {
+      const input = example.input;
 
       const decoderOutputs = computeDecoder(
         modelData.tokenRep,
         modelData.inputPrepFn,
         modelData.config.transformer.spec,
         modelData.params,
-        [input]);
+        [input]
+      );
 
       const output = decoderOutputs.layers[0].seqOuput;
       trainingData.push({
-        'input': input,
-        'mlpOutputs': {
+        input: input,
+        mlpOutputs: {
           shape: output.tensor.shape,
-          data: Array.from(output.tensor.dataSync())
-        }
+          data: Array.from(output.tensor.dataSync()),
+        },
       });
     }
 
     this.downloadJSON(trainingData, 'sae_train_data.json');
   }
-
 }

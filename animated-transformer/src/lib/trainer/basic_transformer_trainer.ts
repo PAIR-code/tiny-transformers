@@ -89,7 +89,7 @@ export function initTransformerTrainState(
     task,
     testSetIndex,
     testSetExamples,
-    trainSetGen: testFilteredExampleGenerator,
+    trainSetIter: testFilteredExampleGenerator,
   };
 
   // console.log('testSetIndex.size:', testSetIndex.size);

@@ -31,7 +31,8 @@ export interface Example {
 }
 
 // Something that iterates through a dataset.
-export type ExampleGenerator = Generator<Example, undefined, undefined>;
+// export type ExampleIter = ;
+// Generator<Example, undefined, undefined>;
 
 export type BasicLmTaskConfig = {
   name: string;
@@ -44,16 +45,15 @@ export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
 };
 
 /* Simple interface for classes that provide a task */
-export interface BasicLmTask {
-  name: string;
-  baseVocab: string[];
+export type BasicLmTask = {
   config: BasicLmTaskConfig;
-  makeExamplesGenerator(): ExampleGenerator;
+  baseVocab: string[];
+  exampleIter: Iterable<Example>;
   // tokenRep: MaskedTaskTokenRep;
   // genRandExample(): Example;
   // Called after a config change to re-init.
   // reInitFromConfig(): void;
-}
+};
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -163,7 +163,7 @@ export function randOfList<T>(rand: RandomStream, l: Array<T>): T {
 }
 
 export function generateBatch(
-  exampleGen: ExampleGenerator,
+  exampleGen: Iterable<Example>,
   batchSize: number
 ): Example[] {
   return [...takeNextN(exampleGen, batchSize)];
@@ -243,7 +243,20 @@ export function* listGen<T>(l: T[]): Generator<T, undefined, undefined> {
   return;
 }
 
-export function* takeNextN<T, T2>(
+export function* takeNextN<T>(iter: Iterable<T>, n: number): Iterable<T> {
+  const g = iter[Symbol.iterator]();
+  while (n-- > 0) {
+    // argument to g.next is undefined (would be T3)
+    const curVal: IteratorResult<T, unknown> = g.next();
+    if (curVal.done) {
+      return curVal.value; // type is T2
+    }
+    yield curVal.value; // type is T1
+  }
+  return;
+}
+
+export function* takeNextNgen<T, T2>(
   g: Generator<T, T2, undefined>,
   n: number
 ): Generator<T, T2 | undefined, undefined> {
@@ -254,6 +267,18 @@ export function* takeNextN<T, T2>(
       return curVal.value; // type is T2
     }
     yield curVal.value; // type is T1
+  }
+  return;
+}
+
+export function* filterIter<T>(
+  filterFn: (x: T) => boolean,
+  iter: Iterable<T>
+): Iterable<T> {
+  for (const i of iter) {
+    if (filterFn(i)) {
+      yield i;
+    }
   }
   return;
 }
@@ -283,16 +308,15 @@ export function splitGenerativeTaskTestSet(
 ): {
   testSetExamples: Example[];
   testSetIndex: Set<string>;
-  testFilteredExampleGenerator: ExampleGenerator;
+  testFilteredExampleGenerator: Iterable<Example>;
 } {
-  const examplesGenerator = task.makeExamplesGenerator();
-  const testSetGen = takeNextN(examplesGenerator, firstN);
+  const testSetGen = takeNextN(task.exampleIter, firstN);
   const testSetExamples = [...testSetGen];
   const testSetIndex = new Set(testSetExamples.map(indexExample));
 
-  const testFilteredExampleGenerator = filterGen(
+  const testFilteredExampleGenerator = filterIter(
     (example) => !testSetIndex.has(indexExample(example)),
-    examplesGenerator
+    task.exampleIter
   );
 
   return { testSetExamples, testSetIndex, testFilteredExampleGenerator };
