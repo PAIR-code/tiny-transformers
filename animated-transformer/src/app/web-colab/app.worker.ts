@@ -21,6 +21,8 @@ import { GTensor } from 'src/lib/gtensor/gtensor';
 
 // interface Input {}
 
+console.log('app.worker', self.location);
+
 const onceInputs = new Promise<string>((resolve) => {
   addEventListener('message', ({ data }) => {
     resolve(data);
