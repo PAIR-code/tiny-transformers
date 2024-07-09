@@ -1,19 +1,19 @@
 import { SignalSpace, ValueSignal } from './signalspace';
 
-fdescribe('signalspace', () => {
-  it('Simple singal compute', () => {
+describe('signalspace', () => {
+  fit('Simple singal compute', () => {
     const s = new SignalSpace();
 
-    const b = new ValueSignal(s, true);
+    const b = new ValueSignal(s, 'b');
 
-    const notb = s.makeComputedSignal(() => {
-      return !b.get();
+    const c = s.makeComputedSignal(() => {
+      return b.get() + 'c';
     });
 
     // Notice: c gets placeds on a single line, top level does not, and nothing
     // silly about wrapping d.
-    expect(notb.get()).toEqual(false);
-    b.set(!b.get());
-    expect(notb.get()).toEqual(true);
+    expect(c.get()).toEqual('bc');
+    b.set('a');
+    expect(c.get()).toEqual('ac');
   });
 });

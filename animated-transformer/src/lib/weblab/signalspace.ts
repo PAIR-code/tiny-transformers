@@ -8,7 +8,7 @@ export class SignalSpace {
 
   public signalSet: Set<Signal<unknown>> = new Set();
 
-  public touchedSignals?: Set<Signal<unknown>>;
+  public needUpdating?: Set<ComputedSignal<unknown>>;
 
   constructor() {}
 
@@ -25,17 +25,16 @@ export class SignalSpace {
 
   makeComputedSignal<T>(f: () => T): ComputedSignal<T> {
     const thisComputeSignal = new ComputedSignal<T>(this, f);
-    this.computeStack.push(thisComputeSignal);
     return thisComputeSignal;
   }
 
-  noteUpdate(s: ValueSignal<unknown>) {
-    if (!this.touchedSignals) {
-      this.touchedSignals = new Set();
+  noteUpdate(toUpdate: Iterable<ComputedSignal<unknown>>) {
+    if (!this.needUpdating) {
+      this.needUpdating = new Set();
       // Next tick, we will actually do the update.
       setTimeout(() => {
         // Assumes no one deletes signalsNeedingUpdates
-        for (const touched of this.touchedSignals!) {
+        for (const touched of this.needUpdating!) {
           for (const dep of touched.dependants) {
             if (dep.data.needsUpdating) {
               dep.updateValue();
@@ -44,7 +43,10 @@ export class SignalSpace {
         }
       }, 0);
     }
-    this.touchedSignals.add(s);
+    for (const c of toUpdate) {
+      c.data.needsUpdating = true;
+      this.needUpdating.add(c);
+    }
   }
 }
 
@@ -101,9 +103,10 @@ export class ValueSignal<T> implements Signal<T> {
     return this.data.value;
   }
   set(v: T, options?: SignalSetOptions) {
+    console.log('noteUpdate...', v, this.data.value, this.dependants);
     this.data.value = v;
-    if (options && !options.withoutUpdating) {
-      this.signalSpace.noteUpdate(this);
+    if (!options || !options.withoutUpdating) {
+      this.signalSpace.noteUpdate(this.dependants);
     }
   }
 
@@ -119,7 +122,7 @@ export class ValueSignal<T> implements Signal<T> {
   // }
 }
 
-export class ComputedSignal<T> extends Function implements Signal<T> {
+export class ComputedSignal<T> implements Signal<T> {
   dependants: Set<ComputedSignal<unknown>> = new Set();
   data: ComputedSignalData<T>;
 
@@ -127,8 +130,8 @@ export class ComputedSignal<T> extends Function implements Signal<T> {
     public signalSpace: SignalSpace,
     public computeFunction: () => T
   ) {
-    super('options', 'return this.get(options)');
     signalSpace.signalSet.add(this);
+    this.signalSpace.computeStack.push(this);
     this.data = {
       kind: 'computedSignal',
       dependsOnComputing: new Set<ComputedSignal<unknown>>(),
@@ -136,6 +139,7 @@ export class ComputedSignal<T> extends Function implements Signal<T> {
       needsUpdating: false,
       lastValue: computeFunction(),
     };
+    this.signalSpace.computeStack.pop();
   }
 
   updateValue() {

@@ -71,14 +71,10 @@ describe('swap_task', () => {
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 
-  it('genExamples', () => {
-    const examplesGen = swapTask.examplesIter();
-    const example = examplesGen.next();
-    if (example.done) {
-      throw new Error('No examples generated');
-    }
-    const inputsAsNumbers = example.value.input.map((x) => parseInt(x));
-    expect(example.value.input.length).toEqual(swapTask.config.maxInputLen);
+  fit('genExamples', () => {
+    const [example] = swapTask.exampleIter;
+    const inputsAsNumbers = example.input.map((x) => parseInt(x));
+    expect(example.input.length).toEqual(swapTask.config.maxInputLen);
     expect(Math.max(...inputsAsNumbers)).toBeLessThan(
       swapTask.config.valuesLessThan
     );
