@@ -13,6 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+// TODO: add equality function checks for signal change needed propegation.
+// Also: not all downstream things are necessarily needing updated, we should
+// follow the equality path checks.
+
 export class SignalSpace {
   // Stack of actively being defined computation signals;
   // a "get()" call is assumed to be in the last entry here.
