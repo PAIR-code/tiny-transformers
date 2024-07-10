@@ -12,13 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { makeRandomStream, nextRandom } from './random';
+import { makeRandomState, makeRandomStream, nextRandom } from './random';
 
 describe('random', () => {
   beforeEach(() => {});
 
   it('state iteration on random numbers', () => {
-    const rng = makeRandomStream({ curSeedVal: 42 });
+    const rng = makeRandomStream(42);
     const rng2 = rng.copy();
     expect(rng.takeOutN(5)).toEqual([
       0.6011037519201636, 0.44829055899754167, 0.8524657934904099,
@@ -36,7 +36,7 @@ describe('random', () => {
   });
 
   it('nextRandom', () => {
-    const rand = nextRandom({ curSeedVal: 1 });
+    const rand = nextRandom(makeRandomState(1));
     expect(rand).toEqual(0.6270739405881613);
   });
 });

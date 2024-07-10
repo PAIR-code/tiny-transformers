@@ -60,9 +60,7 @@ export interface SecretTokenTaskConfig<Vocab extends string>
   tokenToBoolFnStr: string;
 }
 
-export class SecretTokenTask<Vocab extends string>
-  implements BasicLmTask<RandomStream>
-{
+export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
   public baseVocab: string[];
   private exampleId = 0;
@@ -76,9 +74,8 @@ export class SecretTokenTask<Vocab extends string>
       s: Vocab,
       t: Vocab
     ) => BoolToken;
-    this.exampleIter = new StateIter(
-      makeRandomStream({ curSeedVal: config.seed }),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
     );
   }
 

@@ -58,7 +58,7 @@ describe('swap_task', () => {
   });
 
   it('genRandExample', () => {
-    const rng = makeRandomStream({ curSeedVal: 0 });
+    const rng = makeRandomStream(0);
     const example = swapTask.genRandExample(rng);
     // Strange bug:
     //   example.input.map(x => parseInt(x)) !==

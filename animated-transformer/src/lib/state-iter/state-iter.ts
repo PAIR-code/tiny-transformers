@@ -13,20 +13,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { boolean, number, string } from 'yargs';
+import { DictArrTree } from '../js_tree/js_tree';
+
 // Determistic stateful iterables. The assumption is that the state contains
 // all the information used by the iterator, and the iterator updates the state.
 // Copying the state, effectively enables
 
+export interface Copyable<S> {
+  copy(): S;
+}
+
+export type UnknownCopyable = {
+  copy(): UnknownCopyable;
+};
+
+export class CopyableData<T> implements Copyable<CopyableData<T>> {
+  constructor(public data: T) {}
+  copy(): CopyableData<T> {
+    return new CopyableData(structuredClone(this.data));
+  }
+}
+
 // Class wrapper so we have convenience functions handy.
-export class StateIter<S, T> implements Iterable<T>, Iterator<T> {
-  constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {}
+export class StateIter<S extends Copyable<S>, T>
+  implements Iterable<T>, Iterator<T>, Copyable<StateIter<S, T>>
+{
+  constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {
+    this.state;
+  }
 
   copy(): StateIter<S, T> {
-    return new StateIter(structuredClone(this.state), this.iterFn);
+    return new StateIter(this.state.copy(), this.iterFn);
   }
 
   filter(filterKeepFn: (i: T) => boolean): void {
-    this.iterFn = (state) => filterGen(filterKeepFn, this.iterFn(state));
+    const originalIterFn = this.iterFn;
+    const newIterFn = (state: S) =>
+      filterGen(filterKeepFn, originalIterFn(state));
+    this.iterFn = newIterFn;
   }
 
   map<T2>(fn: (x: T) => T2): StateIter<S, T2> {
@@ -116,16 +141,6 @@ export function* listGen<T>(l: T[]): Iterator<T> {
     yield i;
   }
   return;
-}
-
-export function* iterToItor<T>(iter: Iterable<T>): Iterator<T> {
-  yield* iter;
-}
-
-export function* itorToIter<T>(iter: Iterator<T>): Iterable<T> {
-  return {
-    [Symbol.iterator]: () => iter,
-  };
 }
 
 // export function splitStatefulIterAtFirstN<T>(

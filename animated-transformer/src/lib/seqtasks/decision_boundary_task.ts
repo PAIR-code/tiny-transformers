@@ -37,16 +37,15 @@ export type RelPosDecision = 'R' | 'L';
 export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
 
-export class DecisionBoundaryTask implements BasicLmTask<RandomStream> {
+export class DecisionBoundaryTask implements BasicLmTask {
   public baseVocab = baseVocab;
   private exampleId: number;
   public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
     this.exampleId = 0;
-    this.exampleIter = new StateIter(
-      makeRandomStream({ curSeedVal: config.seed }),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
     );
   }
 

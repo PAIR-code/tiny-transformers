@@ -56,11 +56,11 @@ import {
 class TaskMetadata {
   public configStr: string;
   public defaultConfigStr: string;
-  public task: BasicLmTask<unknown>;
+  public task: BasicLmTask;
 
   constructor(
     public config: BasicLmTaskConfig,
-    public factory: (c: BasicLmTaskConfig) => BasicLmTask<any>
+    public factory: (c: BasicLmTaskConfig) => BasicLmTask
   ) {
     this.configStr = stringifyJsonValue(config);
     this.defaultConfigStr = this.configStr;

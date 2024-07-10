@@ -159,7 +159,7 @@ type RelNames = string;
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export class TinyWorldTask implements BasicLmTask<RandomStream> {
+export class TinyWorldTask implements BasicLmTask {
   public initContext: Context<TypeNames, VarNames, RelNames>;
   public rules: Rule<TypeNames, VarNames, RelNames>[];
   public baseVocab: string[];
@@ -206,9 +206,8 @@ export class TinyWorldTask implements BasicLmTask<RandomStream> {
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
-    this.exampleIter = new StateIter(
-      makeRandomStream({ curSeedVal: config.seed }),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
     );
   }
 

@@ -49,7 +49,7 @@ export interface TrainMetrics {
 }
 
 export function initTransformerTrainState(
-  task: BasicLmTask<any>,
+  task: BasicLmTask,
   tokenRep: BasicTaskTokenRep,
   inputPrepFn: StrSeqPrepFn<
     transformer.TransformerParams,
@@ -88,7 +88,7 @@ export function initTransformerTrainState(
     testSetFilteredExamples: testFilteredExampleGenerator,
   } = splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
 
-  const taskDatasetSplit: TaskDatasetSplit<{}> = {
+  const taskDatasetSplit: TaskDatasetSplit = {
     task,
     testSetIndex,
     testSetExamples,

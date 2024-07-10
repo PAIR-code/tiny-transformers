@@ -14,9 +14,9 @@ limitations under the License.
 ==============================================================================*/
 
 import {
+  CopyableData,
+  StateIter,
   filterGen,
-  iterToItor,
-  itorToIter,
   listGen,
   takeNextN,
   takeNextNgen,
@@ -24,12 +24,6 @@ import {
 
 describe('state-iter', () => {
   beforeEach(() => {});
-
-  it('iterToGen', () => {
-    const g = iterToItor([1, 2, 3, 4, 5]);
-    g.next();
-    expect([...itorToIter(g)]).toEqual([2, 3, 4, 5]);
-  });
 
   it('takeNextN', () => {
     const l = [1, 2, 3, 4, 5];
@@ -47,5 +41,18 @@ describe('state-iter', () => {
   it('filterGen', () => {
     const takenNums = filterGen((n) => n % 2 !== 0, listGen([1, 2, 3, 4, 5]));
     expect([...takenNums]).toEqual([1, 3, 5]);
+  });
+
+  it('simple StateIter.takeOutN', () => {
+    function* listPopIter<T>(l: CopyableData<T[]>) {
+      while (l.data.length > 0) {
+        yield l.data.pop();
+      }
+    }
+    const iter = new StateIter(new CopyableData([1, 2, 3, 4, 5]), listPopIter);
+
+    expect(iter.takeOutN(2)).toEqual([5, 4]);
+    expect(iter.takeOutN(2)).toEqual([3, 2]);
+    expect(iter.takeOutN(2)).toEqual([1]);
   });
 });

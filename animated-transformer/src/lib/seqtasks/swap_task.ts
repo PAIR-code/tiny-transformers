@@ -79,7 +79,7 @@ export function makeOutput(input: number[]): Action[] {
   return output;
 }
 
-export class SwapTask implements BasicLmTask<RandomStream> {
+export class SwapTask implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
   public name: string;
   private exampleId: number;
@@ -91,9 +91,8 @@ export class SwapTask implements BasicLmTask<RandomStream> {
   constructor(public config: SwapTaskConfig) {
     this.name = this.config.name;
     this.exampleId = 0;
-    this.exampleIter = new StateIter(
-      makeRandomStream({ curSeedVal: config.seed }),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
     );
   }
 

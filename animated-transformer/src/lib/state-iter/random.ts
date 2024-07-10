@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { StateIter } from './state-iter';
 
 // ----------------------------------------------------------------------------
 // Randomness
@@ -32,26 +31,7 @@ import { StateIter } from './state-iter';
  * const s2 = s.copy() // creates a parallel set of random numbers from s.
  */
 
-export type RandomState = { curSeedVal: number };
-// export type RandomStream = StateIter<RandomState, number>;
-
-export class RandomStream extends StateIter<RandomState, number> {
-  random(): number {
-    return nextRandom(this.state);
-  }
-  uniformFloatInRange(min: number, max: number): number {
-    return asFloatInRange(this.random(), min, max);
-  }
-  uniformIntInRange(min: number, max: number): number {
-    return asIntInRange(this.random(), min, max);
-  }
-  randomEntryFromList<T>(l: T[]): T {
-    return asEntryFromList(this.random(), l);
-  }
-  substream() {
-    new RandomStream(substream(this.state), this.iterFn);
-  }
-}
+import { StateIter } from './state-iter';
 
 export function asFloatInRange(
   zeroToOneNumber: number,
@@ -85,8 +65,8 @@ export function nextRandom(state: RandomState): number {
   return ((x ^ (x >>> 14)) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
 }
 
-export function substream(state: RandomState) {
-  return { curSeedVal: nextRandom(state) };
+export function makeSubstream(state: RandomState): RandomState {
+  return { curSeedVal: nextRandom(state), copy: () => copyRandomState(state) };
 }
 
 export function* randomItor(state: RandomState): Iterator<number> {
@@ -95,8 +75,43 @@ export function* randomItor(state: RandomState): Iterator<number> {
   }
 }
 
-export function makeRandomStream(initState: {
-  curSeedVal: number;
-}): RandomStream {
-  return new RandomStream(initState, randomItor);
+export type RandomState = { curSeedVal: number; copy(): RandomState };
+// export type RandomStream = StateIter<RandomState, number>;
+
+export class RandomStream extends StateIter<RandomState, number> {
+  random(): number {
+    return nextRandom(this.state);
+  }
+  uniformFloatInRange(min: number, max: number): number {
+    return asFloatInRange(this.random(), min, max);
+  }
+  uniformIntInRange(min: number, max: number): number {
+    return asIntInRange(this.random(), min, max);
+  }
+  randomEntryFromList<T>(l: T[]): T {
+    return asEntryFromList(this.random(), l);
+  }
+  substream(): RandomStream {
+    return new RandomStream(makeSubstream(this.state), this.iterFn);
+  }
+
+  override copy(): RandomStream {
+    return new RandomStream(this.state.copy(), this.iterFn);
+  }
+}
+
+// slightly sneakily used as both constructor and copier.
+function copyRandomState(state: { curSeedVal: number }): RandomState {
+  return {
+    curSeedVal: state.curSeedVal,
+    copy: () => copyRandomState(state),
+  };
+}
+
+export function makeRandomState(seed: number): RandomState {
+  return copyRandomState({ curSeedVal: seed });
+}
+
+export function makeRandomStream(curSeedVal: number): RandomStream {
+  return new RandomStream(copyRandomState({ curSeedVal }), randomItor);
 }

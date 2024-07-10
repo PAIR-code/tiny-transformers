@@ -21,7 +21,7 @@ limitations under the License.
  * -
  */
 
-import { StateIter } from '../state-iter/state-iter';
+import { Copyable, StateIter, UnknownCopyable } from '../state-iter/state-iter';
 
 export interface Example {
   id: number;
@@ -47,10 +47,10 @@ export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
 };
 
 /* Simple interface for classes that provide a task */
-export type BasicLmTask<S> = {
+export type BasicLmTask = {
   config: BasicLmTaskConfig;
   baseVocab: string[];
-  exampleIter: StateIter<S, Example>;
+  exampleIter: StateIter<any, Example>;
   // tokenRep: MaskedTaskTokenRep;
   // genRandExample(): Example;
   // Called after a config change to re-init.
@@ -66,7 +66,7 @@ export type BasicLmTask<S> = {
 // that when we emit task changes, they always have a new top-level object so
 // that change detection sees that it's something new.
 export interface BasicLmTaskUpdate {
-  task?: BasicLmTask<unknown>;
+  task?: BasicLmTask;
 }
 
 // ----------------------------------------------------------------------------
@@ -121,13 +121,13 @@ export function generateBatch(
 //
 // Split off a number of examples to form the test set, and make sure that is
 // never in the set of examples generated after.
-export function splitGenerativeTaskTestSet<T>(
+export function splitGenerativeTaskTestSet(
   firstN: number,
-  task: BasicLmTask<T>
+  task: BasicLmTask
 ): {
   testSetExamples: Example[];
   testSetIndex: Set<string>;
-  testSetFilteredExamples: StateIter<T, Example>;
+  testSetFilteredExamples: StateIter<UnknownCopyable, Example>;
 } {
   const examplesIter = task.exampleIter.copy();
   const testSetExamples = examplesIter.takeOutN(firstN);

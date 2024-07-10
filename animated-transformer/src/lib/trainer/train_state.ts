@@ -41,8 +41,8 @@ export type TrainStateConfig = {
   trainSetSize: number;
 };
 
-export type TaskDatasetSplit<T> = {
-  task: BasicLmTask<T>;
+export type TaskDatasetSplit = {
+  task: BasicLmTask;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
   trainSetIter: Iterator<Example>;
@@ -129,7 +129,7 @@ export class TrainState<
     public config: TrainStateConfig,
     public lossFn: LossFn<SpecKind, ParamsKind, InputDims, TargetDims>,
     public tokenRep: BasicTaskTokenRep,
-    public taskSplit: TaskDatasetSplit<{}>,
+    public taskSplit: TaskDatasetSplit,
     public inputPrepFn: StrSeqPrepFn<ParamsKind, InputDims>,
     public targetPrepFn: (
       tokenRep: BasicTaskTokenRep,

@@ -79,7 +79,7 @@ export class ModelEvaluatorComponent {
   input = signal([] as string[]);
   inputControl: FormControl<string | null>;
   currentModel = signal<ModelSpecAndData | null>(null);
-  currentTask = signal<BasicLmTask<unknown> | null>(null);
+  currentTask = signal<BasicLmTask | null>(null);
   // currentTask$: BehaviorSubject<BasicLmTask | null>;
   modelData: Signal<ModelData | null>;
   // taskAndModel$: Observable<{ model: ModelMetadata; task: BasicLmTask } | null>;
@@ -122,7 +122,7 @@ export class ModelEvaluatorComponent {
     // effect(() => console.log(`input updated: ${this.input()}`));
   }
 
-  getCurrentTask(): BasicLmTask<unknown> {
+  getCurrentTask(): BasicLmTask {
     const currentTask = this.currentTask();
     if (!currentTask) {
       throw new Error('no currentTask');
