@@ -42,13 +42,9 @@ Obvoiusly there are many further generalizations:
 */
 
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-  randOfList,
-  RandomStream,
-} from './util';
+import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { StateIter } from '../state-iter/state-iter';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
 
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
@@ -64,28 +60,31 @@ export interface SecretTokenTaskConfig<Vocab extends string>
   tokenToBoolFnStr: string;
 }
 
-export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
+export class SecretTokenTask<Vocab extends string>
+  implements BasicLmTask<RandomStream>
+{
   // TODO: consider doing programatically in the constructor?
   public baseVocab: string[];
-  public random: RandomStream;
   private exampleId = 0;
   private tokenToBoolFn: (s: Vocab, t: Vocab) => BoolToken;
-  public exampleIter: Iterable<Example>;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: SecretTokenTaskConfig<Vocab>) {
-    this.random = new RandomStream(config.seed);
     this.baseVocab = [...boolVocab, ...config.randomTokensVocab];
     // TODO: sandbox.
     this.tokenToBoolFn = new Function('s', 't', config.tokenToBoolFnStr) as (
       s: Vocab,
       t: Vocab
     ) => BoolToken;
-    this.exampleIter = this.examplesGen();
+    this.exampleIter = new StateIter(
+      makeRandomStream({ curSeedVal: config.seed }),
+      (rng) => this.examplesGen(rng)
+    );
   }
 
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     // The secret token
-    const secretToken = randOfList(this.random, this.config.randomTokensVocab);
+    const secretToken = rng.randomEntryFromList(this.config.randomTokensVocab);
     // console.log('secretToken:', secretToken);
 
     // Create random tokens such that we don't go over the max length:
@@ -97,7 +96,7 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
         0,
         this.config.randomTokensVocab.length,
         'int32',
-        this.random.random()
+        rng.random()
       )
       .arraySync() as number[];
 
@@ -128,9 +127,9 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
     };
   }
 
-  *examplesGen(): Generator<Example, undefined, undefined> {
+  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }

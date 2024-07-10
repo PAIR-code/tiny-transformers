@@ -160,7 +160,7 @@ initModels.forEach((m) => (initModelsMap[m.config.name] = m));
   styleUrls: ['./model-selector.component.scss'],
 })
 export class ModelSelectorComponent {
-  task: BasicLmTask | null = null;
+  task: BasicLmTask<unknown> | null = null;
 
   @Input()
   set taskUpdate(update: BasicLmTaskUpdate) {

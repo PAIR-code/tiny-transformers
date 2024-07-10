@@ -38,7 +38,6 @@ import {
   BasicLmTaskUpdate,
   BasicRandSeededTaskConfig,
   Example,
-  takeNextN,
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
@@ -57,11 +56,11 @@ import {
 class TaskMetadata {
   public configStr: string;
   public defaultConfigStr: string;
-  public task: BasicLmTask;
+  public task: BasicLmTask<unknown>;
 
   constructor(
     public config: BasicLmTaskConfig,
-    public factory: (c: BasicLmTaskConfig) => BasicLmTask
+    public factory: (c: BasicLmTaskConfig) => BasicLmTask<any>
   ) {
     this.configStr = stringifyJsonValue(config);
     this.defaultConfigStr = this.configStr;
@@ -152,9 +151,7 @@ export class SeqTaskSelectorComponent {
       if (!taskMetadata) {
         return null;
       }
-      return [
-        ...takeNextN(taskMetadata.task.exampleIter, this.shownNumOfExamples),
-      ];
+      return taskMetadata.task.exampleIter.takeOutN(this.shownNumOfExamples);
     });
     this.currentTaskName = computed(() => {
       const taskMetadata = this.currentTask();

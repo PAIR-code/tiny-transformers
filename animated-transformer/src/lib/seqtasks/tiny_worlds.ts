@@ -16,13 +16,7 @@ limitations under the License.
 /* Tiny Worlds */
 
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-  randOfList,
-  RandomStream,
-} from './util';
+import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import {
   addToTypeMap,
@@ -40,6 +34,12 @@ import {
   TypeHierarchy,
 } from '../logic/generative_logic';
 import { SimpleJsTreesLib } from '../js_tree/js_tree';
+import {
+  RandomState,
+  RandomStream,
+  makeRandomStream,
+} from '../state-iter/random';
+import { StateIter } from '../state-iter/state-iter';
 
 // Ideas for fancier rules/variants
 //
@@ -159,16 +159,14 @@ type RelNames = string;
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export class TinyWorldTask implements BasicLmTask {
+export class TinyWorldTask implements BasicLmTask<RandomStream> {
   public initContext: Context<TypeNames, VarNames, RelNames>;
   public rules: Rule<TypeNames, VarNames, RelNames>[];
   public baseVocab: string[];
-  public random: RandomStream;
   private exampleId: number;
-  public exampleIter: Iterable<Example>;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: TinyWorldTaskConfig) {
-    this.random = new RandomStream(config.seed);
     this.exampleId = 0;
 
     const typeMap = new Map<string, Set<string>>();
@@ -208,19 +206,18 @@ export class TinyWorldTask implements BasicLmTask {
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
-    this.exampleIter = this.examplesGen();
+    this.exampleIter = new StateIter(
+      makeRandomStream({ curSeedVal: config.seed }),
+      (rng) => this.examplesGen(rng)
+    );
   }
 
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     const generatedTokens: string[] = [];
     const totalTokens = this.config.maxInputLen + this.config.maxOutputLen;
     let curContext = this.initContext;
     while (generatedTokens.length < totalTokens) {
-      const maybeNextContext = sampleNextRel(
-        this.random,
-        curContext,
-        this.rules
-      );
+      const maybeNextContext = sampleNextRel(rng, curContext, this.rules);
       if (maybeNextContext) {
         if (generatedTokens.length > 0) {
           generatedTokens.push(relSepToken);
@@ -250,9 +247,9 @@ export class TinyWorldTask implements BasicLmTask {
     };
   }
 
-  *examplesGen(): Iterable<Example> {
+  *examplesGen(rng: RandomStream): Iterator<Example> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }

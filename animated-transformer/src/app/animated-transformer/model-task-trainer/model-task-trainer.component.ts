@@ -152,7 +152,7 @@ export class ModelTaskTrainerComponent {
   currentTrainer = signal<TrainerMetaData | null>(null);
   currentModel = signal<ModelSpecAndData | null>(null);
   currentModelData: Signal<ModelData | null>;
-  currentTask = signal<BasicLmTask | null>(null);
+  currentTask = signal<BasicLmTask<unknown> | null>(null);
   currentTrainerName: Signal<string | null>;
   trainState: Signal<TransformerTrainState | null>;
 
@@ -329,7 +329,7 @@ export class ModelTaskTrainerComponent {
     return trainState;
   }
 
-  getCurrentTask(): BasicLmTask {
+  getCurrentTask(): BasicLmTask<unknown> {
     const currentTask = this.currentTask();
     if (!currentTask) {
       throw new Error('no currentTask');

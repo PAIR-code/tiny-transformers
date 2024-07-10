@@ -49,7 +49,7 @@ export interface TrainMetrics {
 }
 
 export function initTransformerTrainState(
-  task: BasicLmTask,
+  task: BasicLmTask<any>,
   tokenRep: BasicTaskTokenRep,
   inputPrepFn: StrSeqPrepFn<
     transformer.TransformerParams,
@@ -82,10 +82,13 @@ export function initTransformerTrainState(
     return loss as tf.Scalar;
   }
 
-  const { testSetExamples, testSetIndex, testFilteredExampleGenerator } =
-    splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
+  const {
+    testSetExamples,
+    testSetIndex,
+    testSetFilteredExamples: testFilteredExampleGenerator,
+  } = splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
 
-  const taskDatasetSplit: TaskDatasetSplit = {
+  const taskDatasetSplit: TaskDatasetSplit<{}> = {
     task,
     testSetIndex,
     testSetExamples,

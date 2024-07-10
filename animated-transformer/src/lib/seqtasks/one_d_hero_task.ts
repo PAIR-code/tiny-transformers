@@ -17,12 +17,9 @@ limitations under the License.
 
 */
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-  RandomStream,
-} from './util';
+import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { StateIter } from '../state-iter/state-iter';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
 
 export const numberVocab = ['1', '2', '3', '4', '5'];
 // Given B = decision boundary:
@@ -32,21 +29,22 @@ export type RelPosDecision = 'R' | 'L';
 export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
 
-export class DecisionBoundaryTask implements BasicLmTask {
+export class DecisionBoundaryTask implements BasicLmTask<RandomStream> {
   public baseVocab = baseVocab;
-  public random: RandomStream;
   private exampleId = 0;
-  public exampleIter: Iterable<Example>;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
-    this.random = new RandomStream(config.seed);
-    this.exampleIter = this.examplesGen();
+    this.exampleIter = new StateIter(
+      makeRandomStream({ curSeedVal: config.seed }),
+      (rng) => this.examplesGen(rng)
+    );
   }
 
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     // Boundary position is one of [-.05, 0.5, 1.5, ... (N+0.5)]
     const boundaryPos =
-      Math.floor(this.random.random() * (numberVocab.length + 1)) - 0.5;
+      Math.floor(rng.random() * (numberVocab.length + 1)) - 0.5;
 
     // Create number inputs such that we don't go over the max length:
     // Each input numberVocab will be followed by a L or R
@@ -56,7 +54,7 @@ export class DecisionBoundaryTask implements BasicLmTask {
         0,
         numberVocab.length,
         'int32',
-        this.random.random()
+        rng.random()
       )
       .arraySync() as number[];
 
@@ -77,9 +75,9 @@ export class DecisionBoundaryTask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *examplesGen(): Generator<Example, undefined, undefined> {
+  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }

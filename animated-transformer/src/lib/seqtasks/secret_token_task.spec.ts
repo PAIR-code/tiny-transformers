@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { SecretTokenTask } from './secret_token_task';
 import { Example } from './util';
 
@@ -22,8 +21,7 @@ type RandomVocab = '1' | '2' | '3' | '4' | '5';
 describe('secret_token_task', () => {
   let task: SecretTokenTask<RandomVocab>;
 
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('genRandExample: DecisionBoundaryTask', () => {
     task = new SecretTokenTask({
@@ -32,37 +30,35 @@ describe('secret_token_task', () => {
       maxOutputLen: 1,
       seed: 0,
       randomTokensVocab: ['1', '2', '3', '4', '5'],
-      tokenToBoolFnStr: 'return s >= t'
+      tokenToBoolFnStr: 'return s >= t',
     });
 
     let example: Example;
-    example = task.genRandExample();
-
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['2']);
     expect(example.input).toEqual(['5', 'F', '4', 'F', '3']);
     expect(example.output).toEqual(['F']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['2']);
     expect(example.input).toEqual(['3', 'F', '2', 'T', '1']);
     expect(example.output).toEqual(['T']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['3']);
     expect(example.input).toEqual(['3', 'T', '3', 'T', '4']);
     expect(example.output).toEqual(['F']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['4']);
     expect(example.input).toEqual(['1', 'T', '3', 'T', '4']);
     expect(example.output).toEqual(['T']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['3']);
     expect(example.input).toEqual(['1', 'T', '4', 'F', '5']);
     expect(example.output).toEqual(['F']);
   });
-
 
   it('genRandExample: ModIsZero', () => {
     task = new SecretTokenTask({
@@ -71,36 +67,35 @@ describe('secret_token_task', () => {
       maxOutputLen: 1,
       seed: 0,
       randomTokensVocab: ['1', '2', '3', '4', '5'],
-      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)'
+      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
       // tokenToBoolFnStr: 'return String(parseInt(t) % parseInt(s))'
     });
 
     let example: Example;
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
 
     expect(example.secret).toEqual(['2']);
     expect(example.input).toEqual(['5', 'F', '4', 'T', '3']);
     expect(example.output).toEqual(['F']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['2']);
     expect(example.input).toEqual(['3', 'F', '2', 'T', '1']);
     expect(example.output).toEqual(['F']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['3']);
     expect(example.input).toEqual(['3', 'T', '3', 'T', '4']);
     expect(example.output).toEqual(['F']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['4']);
     expect(example.input).toEqual(['1', 'F', '3', 'F', '4']);
     expect(example.output).toEqual(['T']);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.secret).toEqual(['3']);
     expect(example.input).toEqual(['1', 'F', '4', 'F', '5']);
     expect(example.output).toEqual(['F']);
   });
 });
-

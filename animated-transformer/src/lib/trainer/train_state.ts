@@ -41,17 +41,16 @@ export type TrainStateConfig = {
   trainSetSize: number;
 };
 
-export type TaskDatasetSplit = {
-  task: BasicLmTask;
+export type TaskDatasetSplit<T> = {
+  task: BasicLmTask<T>;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
-  trainSetIter: Iterable<Example>;
+  trainSetIter: Iterator<Example>;
 };
 
-export type TrainingBatchGenerator<
-  I extends DName,
-  T extends DName
-> = Generator<TrainingBatch<I, T>, undefined, undefined>;
+// export type TrainingBatchGenerator<I extends DName, T extends DName> = Iterator<
+//   TrainingBatch<I, T>
+// >;
 
 // /**
 //  * Assumes: that the output TrainingBatch may have extra padding examples, or
@@ -130,7 +129,7 @@ export class TrainState<
     public config: TrainStateConfig,
     public lossFn: LossFn<SpecKind, ParamsKind, InputDims, TargetDims>,
     public tokenRep: BasicTaskTokenRep,
-    public taskSplit: TaskDatasetSplit,
+    public taskSplit: TaskDatasetSplit<{}>,
     public inputPrepFn: StrSeqPrepFn<ParamsKind, InputDims>,
     public targetPrepFn: (
       tokenRep: BasicTaskTokenRep,
