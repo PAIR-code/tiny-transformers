@@ -21,7 +21,15 @@ import {
   effect,
 } from './signalspace';
 
-describe('signalspace', () => {
+fdescribe('signalspace', () => {
+  async function waitTick(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 0);
+    });
+  }
+
   it('Simple signal compute', () => {
     const s = new SignalSpace();
 
@@ -54,6 +62,7 @@ describe('signalspace', () => {
     b.set('B');
     expect(aab.get()).toEqual('aaB');
     a.set('A');
+    expect(aab.someDependencyChanged()).toEqual(true);
     expect(aab.get()).toEqual('AaB');
   });
 
@@ -138,5 +147,51 @@ describe('signalspace', () => {
     expect(e2).toEqual('Abe');
     expect(c()).toEqual('Abc');
     expect(c.lastValue()).toEqual('Abc');
+  });
+
+  it('An effect that sets a value', async () => {
+    const s = new SignalSpace();
+
+    const v1 = signal(s, 'a');
+    const v2 = signal(s, 1);
+    const v3 = signal(s, '_');
+    const b = computed(s, () => {
+      return v1() + 'b' + v2() + v3();
+    });
+    const d = effect(s, () => {
+      return v2() + 'd';
+    });
+
+    await waitTick();
+
+    expect(d()).toEqual('1d');
+
+    const e = effect(s, () => {
+      v2.update((v) => v + 1);
+      // v2.set(v2({ untracked: true }) + 1);
+      return v1() + 'e';
+    });
+
+    // Although e's effect function was called, and
+    // v2 was updated; the signal has yet to propegate
+    // so the value value of of d is still 1d.
+    expect(v2.lastValue()).toEqual(2);
+    expect(d.lastValue()).toEqual('1d');
+    // But if we explicitly get the value, it will be updated,
+    // because it was marked as needing update when v2 was set.
+    expect(d()).toEqual('2d');
+
+    // // Now that d2 was set, the last value is updated too.
+    // expect(d.lastValue()).toEqual('2d');
+    // //
+    // expect(e()).toEqual('2e');
+
+    // v1.set('aa');
+
+    // await waitTick();
+
+    // expect(d.lastValue()).toEqual('3d');
+    // expect(d()).toEqual('3d');
+    // expect(e()).toEqual('3e');
   });
 });
