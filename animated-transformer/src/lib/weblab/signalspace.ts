@@ -46,6 +46,31 @@ limitations under the License.
 // Also: not all downstream things are necessarily needing updated, we should
 // follow the equality path checks.
 
+export interface AbstractSignal<T> {
+  // The get signal value function. If this is a computed signal that
+  // needs updating, it will compute the updated value.
+  (options?: SignalGetOptions): T;
+  // The last value the signal had (doesn't compute updates, even if
+  // the signal needs updating).
+  lastValue(): T;
+}
+
+export interface WritableSignal<T> extends AbstractSignal<T> {
+  kind: 'value';
+  // Sets the value of the signal.
+  set(newValue: T, options?: SignalSetOptions): void;
+  update(f: (oldValue: T) => T, options?: SignalSetOptions): void;
+  rawComputation: ComputedSignal<T>;
+  rawValue: ValueSignal<T>;
+}
+
+export interface ReadonlySignal<T> extends AbstractSignal<T> {
+  kind: 'computed';
+  rawComputation: ComputedSignal<T>;
+}
+
+export type Signal<T> = WritableSignal<T> | ReadonlySignal<T>;
+
 // Manages a single update pass through the signalspace.
 type SignalSpaceUpdate = {
   // Values touched in this update.
@@ -112,17 +137,21 @@ export class SignalSpace {
   // your computation).
   // This might flip dep management, and have comutation know the
   // set of all (trans closure w.r.t. compute dep) value dependencies.
-  noteUpdate(valueSignal: ValueSignal<unknown>) {
+  noteUpdate(valueSignal: ValueSignal<unknown>, skipTimeout: boolean = false) {
     if (!this.update) {
       this.update = {
         valuesUpdated: new Set(),
         effectsTouched: new Set(),
         pendingEffects: new Set(),
         computedValuesChanges: new Set(),
-        updateFn: setTimeout(() => this.updatePendingEffects(), 0),
         counter: this.updateCounts++,
       };
     }
+
+    if (!skipTimeout) {
+      this.update.updateFn = setTimeout(() => this.updatePendingEffects(), 0);
+    }
+
     this.update.valuesUpdated.add(valueSignal);
     // Make sure that we know dependencies may need updating,
     // in case they are called in a c.get() in the same JS
@@ -172,6 +201,58 @@ export class SignalSpace {
     }
 
     delete this.update;
+  }
+
+  pipeFromIter<T>(iter: Iterable<T>, signal: WritableSignal<T>) {
+    for (const i of iter) {
+      signal.set(i);
+      this.noteUpdate(signal.rawValue as ValueSignal<unknown>, true);
+      this.updatePendingEffects();
+    }
+  }
+
+  // TODO: T must not be undefined.
+  async *toIter<T>(s: Signal<T>): AsyncIterable<T> {
+    // const self = this;
+    const buffer = [] as Promise<T>[];
+    let resolveFn: (v: T) => void;
+    let curPromise: Promise<T> = new Promise<T>((resolve) => {
+      resolveFn = resolve;
+    });
+    this.effect(() => {
+      buffer.push(curPromise);
+      resolveFn(s());
+      curPromise = new Promise<T>((resolve) => {
+        resolveFn = resolve;
+      });
+    });
+
+    return {
+      [Symbol.asyncIterator]: () => {
+        return {
+          async next(): Promise<IteratorResult<T, void>> {
+            if (buffer.length > 0) {
+              const p = buffer.shift()!;
+              const value = await p;
+              return { value };
+            } else {
+              const value = await curPromise;
+              return { value };
+            }
+          },
+        };
+      },
+    };
+  }
+
+  writable<T>(defaultValue: T): WritableSignal<T> {
+    return signal(this, defaultValue);
+  }
+  computed<T>(f: () => T): Signal<T> {
+    return computed(this, f);
+  }
+  effect<T>(f: () => T): Signal<T> {
+    return effect(this, f);
   }
 }
 
@@ -281,7 +362,7 @@ export class ValueSignal<T> {
   }
 
   update(f: (v: T) => T, setOptions?: SignalSetOptions) {
-    this.set(f(this.value));
+    this.set(f(this.value), setOptions);
   }
 
   set(v: T, setOptions?: SignalSetOptions) {
@@ -291,6 +372,15 @@ export class ValueSignal<T> {
     if (this.shouldCauseUpdates(setOptions)) {
       if (this.errorForLoopySet(v)) {
         return;
+      }
+      // If we try and set an already set value, we have to update all effects
+      // before we set the new value.
+      if (
+        this.dependsOnMeEffects.size > 0 &&
+        this.signalSpace.update &&
+        this.signalSpace.update.valuesUpdated.has(this as ValueSignal<unknown>)
+      ) {
+        this.signalSpace.updatePendingEffects();
       }
       this.value = v;
       this.signalSpace.noteUpdate(this as ValueSignal<unknown>);
@@ -402,21 +492,8 @@ export class ComputedSignal<T> {
 
 export type SomeSignal = ComputedSignal<unknown> | ValueSignal<unknown>;
 
-export interface Signal<T> {
-  // The get signal value function. If this is a computed signal that
-  // needs updating, it will compute the updated value.
-  (options?: SignalGetOptions): T;
-  // The last value the signal had (doesn't compute updates, even if
-  // the signal needs updating).
-  lastValue(): T;
-}
-
-export interface WritableSignal<T> extends Signal<T> {
-  // Sets the value of the signal.
-  set(newValue: T, options?: SignalSetOptions): void;
-  update(f: (oldValue: T) => T, options?: SignalSetOptions): void;
-}
-
+// TODO: is there a writing style that catching errors/missing values?
+// Maybe ... { function, ...objectproperties }
 export function signal<T>(space: SignalSpace, value: T): WritableSignal<T> {
   const valueSignal = space.makeSignal(value);
   function getFunction() {
@@ -424,11 +501,13 @@ export function signal<T>(space: SignalSpace, value: T): WritableSignal<T> {
   }
   const writableSignal: WritableSignal<T> =
     getFunction as unknown as WritableSignal<T>;
+  // const foo = {...writableSignal, { lastValue: 'foo' } };
   writableSignal.lastValue = () => valueSignal.value;
   writableSignal.set = (value: T, options?: SignalSetOptions) =>
     valueSignal.set(value, options);
   writableSignal.update = (f: (v: T) => T, options?: SignalSetOptions) =>
     valueSignal.update(f, options);
+  writableSignal.kind = 'value';
   return writableSignal;
 }
 
@@ -436,13 +515,15 @@ export function computed<T>(
   space: SignalSpace,
   f: () => T,
   options?: ComputeOptions<T>
-): Signal<T> {
+): ReadonlySignal<T> {
   const computedSignal = space.makeComputedSignal(f, options);
   function getFunction() {
     return computedSignal.get();
   }
-  const signal: WritableSignal<T> = getFunction as unknown as WritableSignal<T>;
+  const signal: ReadonlySignal<T> = getFunction as unknown as ReadonlySignal<T>;
   signal.lastValue = () => computedSignal.lastValue;
+  signal.rawComputation = computedSignal;
+  signal.kind = 'computed';
   return signal;
 }
 
@@ -450,7 +531,7 @@ export function effect<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<ComputeOptions<T>>
-): Signal<T> {
+): ReadonlySignal<T> {
   const computedSignal = space.makeComputedSignal(
     f,
     Object.assign({ ...options, isEffect: true })
@@ -458,7 +539,9 @@ export function effect<T>(
   function getFunction() {
     return computedSignal.get();
   }
-  const signal: WritableSignal<T> = getFunction as unknown as WritableSignal<T>;
+  const signal: ReadonlySignal<T> = getFunction as unknown as ReadonlySignal<T>;
   signal.lastValue = () => computedSignal.lastValue;
+  signal.rawComputation = computedSignal;
+  signal.kind = 'computed';
   return signal;
 }

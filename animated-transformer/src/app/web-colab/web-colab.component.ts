@@ -27,7 +27,7 @@ export class WebColabComponent {
 
   constructor() {
     this.worker = new Worker(new URL('./app.worker', import.meta.url));
-    this.foo();
+    // this.foo();
   }
 
   async foo() {

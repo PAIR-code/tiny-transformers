@@ -1,4 +1,4 @@
-// /// <reference lib="webworker" />
+/// <reference lib="webworker" />
 
 // import { inputting, outputting } from '../../lib/weblab/signalspace';
 
@@ -16,3 +16,5 @@
 // }
 
 // run();
+
+console.log('foo');
