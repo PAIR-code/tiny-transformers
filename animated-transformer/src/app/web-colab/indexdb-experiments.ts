@@ -17,6 +17,7 @@ export async function setupDb(): Promise<IDBDatabase> {
     request.onerror = (event) => {
       // console.error(`Database error: ${event.target.errorCode}`);
       console.warn(event);
+      reject(event);
     };
     // This event is only implemented in recent browsers
     request.onupgradeneeded = () => {

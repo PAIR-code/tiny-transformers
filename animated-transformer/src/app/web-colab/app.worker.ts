@@ -13,19 +13,14 @@ type OutputKind = {
   v: number;
 } | null;
 
-const input = lab.inputting('name', '' as InputKind);
+const input = await lab.onceGetInput<InputKind>('name');
 
-const output = lab.outputting('tensor', null as OutputKind);
+console.log(`webworker got input! ${input}`);
 
-lab.space.effect(() => {
-  const inputName = input();
-  console.log(`webworker got input! ${inputName}`);
+const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
+const v = t.contract(t, ['a']).tensor.arraySync() as number;
 
-  const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-  const v = t.contract(t, ['a']).tensor.arraySync() as number;
-
-  output.set({
-    t: t.toSerialised(),
-    v,
-  });
+lab.output('tensor', {
+  t: t.toSerialised(),
+  v,
 });
