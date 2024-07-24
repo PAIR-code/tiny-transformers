@@ -17,6 +17,7 @@ import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import * as json5 from 'json5';
 import { WorkerOp } from './worker-op';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
+import { WorkerState } from './web-colab-state';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -31,28 +32,7 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
   state: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
 
-  constructor(public workingDir: FileSystemDirectoryHandle) {}
-
-  // having to add string here to avoid Typescript bug.
-  async loadValueFromFile<Key extends keyof Globals & string>(
-    inputFileName: Key
-  ): Promise<Globals[Key]> {
-    const fileHandle = await this.workingDir.getFileHandle(inputFileName);
-    const file = await fileHandle.getFile();
-    const dec = new TextDecoder('utf-8');
-    const json = dec.decode(await file.arrayBuffer());
-    let obj: Globals[Key];
-    try {
-      obj = json5.parse(json);
-    } catch (e: unknown) {
-      // Remark: Why don't errors come in trees, so one can provide
-      // context in try/catch blocks?
-      console.error(`Failed to parse ${inputFileName}.`);
-      throw e;
-    }
-    // TODO: introduce concept of escaping & object registry.
-    return obj;
-  }
+  constructor(public workerState: WorkerState<Globals>) {}
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
     op: WorkerOp<I, O>
@@ -61,8 +41,13 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
     // Ensure inputs in memory.
     for (const inputName of op.api.inputs) {
       if (this.state[inputName] === undefined) {
-        const inputValue = await this.loadValueFromFile(inputName);
-        this.state[inputName] = inputValue;
+        const inputValue = await this.workerState.loadValue(inputName);
+        if (!inputValue) {
+          throw new Error(
+            `No state for op (${op.workerPath}) for input: ${inputName}`
+          );
+        }
+        this.state[inputName] = inputValue.data;
       }
     }
 
