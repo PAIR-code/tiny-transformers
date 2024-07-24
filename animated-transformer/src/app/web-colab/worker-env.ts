@@ -1,40 +1,29 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import * as json5 from 'json5';
-
-// TODO: maybe define a special type of serializable
-// object that includes things with a toSerialise function?
-
-export type Name = string;
-export type TensorValue = {
-  t: SerializedGTensor<'a'>;
-  v: number;
-} | null;
-
-export type Globals = {
-  name: Name;
-  t: TensorValue;
-};
+import { WorkerOp } from './worker-op';
+import { FromWorkerMessage } from 'src/lib/weblab/messages';
 
 export type ItemMetaData = {
   timestamp: Date;
 };
 
-type ObjMap<G> = {
-  [name in keyof G]: G[keyof G];
-};
-type ObjFileMap = { [name: string]: FileSystemFileHandle };
-
-type Foo<G extends { [key: string]: any }> = keyof ObjMap<G>;
-
-type Test = keyof { [key: string]: any };
-
-// type Foo = keyof Globals;
-// type Value = Globals[Foo];
-// type Bar = { [key in Foo]: Globals[Foo]  }
-
-export const initGlobals: Partial<Globals> = {
-  name: 'init foo name',
-};
+// TODO: maybe define a special type of serializable
+// object that includes things with a toSerialise function?
 
 export class WorkerEnv<Globals extends { [key: string]: any }> {
   inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
@@ -70,7 +59,7 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
   ): Promise<{ [key in O]: Globals[O] }> {
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
-    for (const inputName of op.inputs) {
+    for (const inputName of op.api.inputs) {
       if (this.state[inputName] === undefined) {
         const inputValue = await this.loadValueFromFile(inputName);
         this.state[inputName] = inputValue;
@@ -78,46 +67,24 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
     }
 
     const worker = new Worker(new URL(op.workerPath, import.meta.url));
+    worker.onmessage = ({ data }) => {
+      const messageFromWorker = data as FromWorkerMessage;
+      switch (messageFromWorker.kind) {
+        case 'finished':
+          worker.terminate();
+          break;
+        case 'requestInput':
+          break;
+        case 'providingOutput':
+          break;
+        default:
+          console.error('unknown worker message: ', data);
+          break;
+      }
+    };
+
+    // worker.onmessage(() => {});
 
     return outputs;
   }
 }
-
-export class WorkerOp<
-  Inputs extends string | number | symbol,
-  Outputs extends string | number | symbol
-> {
-  constructor(
-    public workerPath: string,
-    public inputs: Inputs[],
-    public outputs: Outputs[]
-  ) {}
-
-  // async run(
-  //   workerEnv: WorkerEnv,
-  //   inputs: ObjMap<Inputs, Globals>
-  // ): Promise<ObjMap<Outputs, Globals>> {
-  //   const outputs = {} as ObjMap<Outputs, Globals>;
-
-  //   const inputFiles = {} as ObjFileMap;
-
-  //   // start worker,
-  //   // send all inputs
-  //   // wait for outputs
-  //   return outputs;
-  // }
-}
-
-type OpKind = {
-  workerpath: string;
-  inputs: (keyof Globals)[];
-  outputs: (keyof Globals)[];
-};
-
-export const ops: OpKind[] = [
-  {
-    workerpath: './app.worker',
-    inputs: ['name'],
-    outputs: ['t'],
-  },
-];
