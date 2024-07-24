@@ -22,7 +22,9 @@ import * as json5 from 'json5';
 //   outputs: Outputs[];
 // };
 
-// Using a class allows correct type inference to happen for the inputs and outputs params;
+// Using a class instead of a type allows correct type inference to
+// happen for the inputs and outputs params; Maybe a constructor
+// function for a type instance would work as well?
 export class WorkerOp<Inputs extends string, Outputs extends string> {
   constructor(
     public workerPath: string,
@@ -31,8 +33,6 @@ export class WorkerOp<Inputs extends string, Outputs extends string> {
       outputs: Outputs[];
     }
   ) {}
-
-  onceGetInputs() {}
 }
 
 // type ObjMap<G> = {

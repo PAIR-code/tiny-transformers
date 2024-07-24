@@ -622,6 +622,19 @@ describe('gtensor', () => {
     tf.test_util.expectArraysClose(rSumAB.tensor.dataSync(), [2, 2]);
   });
 
+  it('serialisation', () => {
+    const g = new gtensor.GTensor(
+      tf.tensor([
+        [1, 0],
+        [2, 1],
+        [3, 1],
+      ]),
+      ['point_id', 'inputRepSize']
+    );
+    const g2 = GTensor.fromSerialised(g.toSerialised());
+    expect(g.tensor.arraySync()).toEqual(g2.tensor.arraySync());
+  });
+
   it('squaredDiff', async () => {
     const paramPositions = new gtensor.GTensor(
       tf.tensor([

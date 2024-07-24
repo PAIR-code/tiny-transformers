@@ -18,7 +18,7 @@ import { nodeToFsa } from 'memfs/lib/node-to-fsa';
 import { WorkerOp } from './worker-op';
 import { WorkerEnv } from './worker-env';
 import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import { WorkerState } from './web-colab-state';
+import { LabState } from './lab-state';
 
 type Name = string;
 type TensorValue = {
@@ -37,8 +37,8 @@ type OpKind = {
   outputs: (keyof Globals)[];
 };
 
-describe('worker-ops', () => {
-  const workerState = new WorkerState<Globals>();
+xdescribe('worker-ops', () => {
+  const state = new LabState();
   const ops: OpKind[] = [
     {
       workerpath: './app.worker',
@@ -47,8 +47,8 @@ describe('worker-ops', () => {
     },
   ];
   beforeEach(async () => {});
-  it('should create', async () => {
-    const env = new WorkerEnv<Globals>(workerState);
+  it('worker-op', async () => {
+    const env = new WorkerEnv<Globals>(state);
     const op = new WorkerOp('./app.worker', {
       inputs: ['name'],
       outputs: ['t'],

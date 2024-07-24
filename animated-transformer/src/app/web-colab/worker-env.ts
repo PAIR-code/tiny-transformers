@@ -17,7 +17,7 @@ import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import * as json5 from 'json5';
 import { WorkerOp } from './worker-op';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
-import { WorkerState } from './web-colab-state';
+import { LabState } from './lab-state';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -32,7 +32,7 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
   state: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
 
-  constructor(public workerState: WorkerState<Globals>) {}
+  constructor(public workerState: LabState) {}
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
     op: WorkerOp<I, O>
@@ -41,7 +41,9 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
     // Ensure inputs in memory.
     for (const inputName of op.api.inputs) {
       if (this.state[inputName] === undefined) {
-        const inputValue = await this.workerState.loadValue(inputName);
+        const inputValue = await this.workerState.loadValue<Globals[O]>(
+          inputName
+        );
         if (!inputValue) {
           throw new Error(
             `No state for op (${op.workerPath}) for input: ${inputName}`

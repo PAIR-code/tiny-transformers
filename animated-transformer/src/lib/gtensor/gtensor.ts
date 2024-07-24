@@ -317,7 +317,7 @@ export function stack<G extends string, NewD extends string>(
 }
 
 export type SerializedGTensor<G extends DName> = {
-  buffer: ArrayBuffer;
+  buffer: Uint8Array;
   shape: number[];
   dimNames: G[];
   dtype: keyof tf.DataTypeMap;
@@ -375,7 +375,7 @@ export class GTensor<G extends DName> {
 
   toSerialised(): SerializedGTensor<G> {
     return {
-      buffer: this.tensor.bufferSync().values as ArrayBuffer,
+      buffer: new Uint8Array(this.tensor.bufferSync().values),
       shape: this.tensor.shape,
       dimNames: this.dimNames,
       dtype: this.tensor.dtype,
