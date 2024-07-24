@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { stringifyJsonValue } from './pretty_json';
 
 describe('stringify', () => {
@@ -22,7 +21,7 @@ describe('stringify', () => {
       b: [1, 2, 3],
       a: 'fat',
       c: { x: 1, y: [4, 5, true] },
-      d: 'very wfklj sdfkjl sdfklj asdflkj asdf very  usdhlkaf asdkl fdslkj fdsklj fdsakljafds ljkadfs fat'
+      d: 'very wfklj sdfkjl sdfklj asdflkj asdf very  usdhlkaf asdkl fdslkj fdsklj fdsakljafds ljkadfs fat',
     };
 
     // Notice: c gets placeds on a single line, top level does not, and nothing
@@ -30,18 +29,23 @@ describe('stringify', () => {
     expect(stringifyJsonValue(obj)).toEqual(`{ a: "fat",
   b: [1, 2, 3],
   c: {x: 1, y: [4, 5, true]},
-  d: "very wfklj sdfkjl sdfklj asdflkj asdf very  usdhlkaf asdkl fdslkj fdsklj fdsakljafds ljkadfs fat" }`
-    );
+  d: "very wfklj sdfkjl sdfklj asdflkj asdf very  usdhlkaf asdkl fdslkj fdsklj fdsakljafds ljkadfs fat" }`);
   });
 
   it('basic stringifyJson of number list configs', () => {
     const obj = {
       paramValues: [[0], [1], [1], [0]],
-      paramPositions: [[0, 0], [1, 0], [0, 1], [1, 1]],
+      paramPositions: [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+      ],
       paramVisResolution: 2,
     };
     // Notice top level objects on own lines, but values fit into the wrap window.
-    expect(stringifyJsonValue(obj)).toEqual(`{ paramPositions: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    expect(stringifyJsonValue(obj))
+      .toEqual(`{ paramPositions: [[0, 0], [1, 0], [0, 1], [1, 1]],
   paramValues: [[0], [1], [1], [0]],
   paramVisResolution: 2 }`);
   });

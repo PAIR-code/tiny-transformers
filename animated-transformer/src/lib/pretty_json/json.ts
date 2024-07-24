@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-
 // ----------------------------------------------------------------------------
 // JSON specifics...
 const jsonStrCharReplacements: { [s: string]: string } = {
@@ -24,11 +22,14 @@ const jsonStrCharReplacements: { [s: string]: string } = {
   '\f': '\\f',
   '\r': '\\r',
   '"': '\\"',
-  '\\': '\\\\'
+  '\\': '\\\\',
 };
 
-const rxEscapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+const rxEscapable =
+  /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
 
+// Quoting string representations, so they camn be values in JSON outputs,
+// and when they get parsed, they come back to the original string.
 export function quote(s: string): string {
   // If the string contains no control characters, no quote characters, and no
   // backslash characters, then we can safely slap some quotes around it.
@@ -36,20 +37,19 @@ export function quote(s: string): string {
   // sequences.
   rxEscapable.lastIndex = 0;
   return rxEscapable.test(s)
-    ? '"' + s.replace(rxEscapable, (a) => {
-      const c = jsonStrCharReplacements[a];
-      return typeof c === 'string'
-        ? c
-        : '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
-    }) + '"'
+    ? '"' +
+        s.replace(rxEscapable, (a) => {
+          const c = jsonStrCharReplacements[a];
+          return typeof c === 'string'
+            ? c
+            : '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
+        }) +
+        '"'
     : '"' + s + '"';
 }
-
 
 // ----------------------------------------------------------------------------
 // A type for JSON-stringifiable objects.
 export type JsonLeaf = string | number | boolean | null;
-export type JsonValue = JsonLeaf
-  | JsonObj
-  | Array<JsonValue>;
+export type JsonValue = JsonLeaf | JsonObj | Array<JsonValue>;
 export type JsonObj = { [x: string]: JsonValue };

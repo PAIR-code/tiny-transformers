@@ -26,7 +26,7 @@ describe('tiny_worlds', () => {
     const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
     initConfig.maxOutputLen = 20;
     const tinyWorld = new TinyWorldTask(initConfig);
-    const example = tinyWorld.genRandExample();
+    const [example] = tinyWorld.exampleIter.takeOutN(1);
     expect(example.id).toEqual(0);
     expect(example.input.length).toEqual(initConfig.maxInputLen);
     console.log(JSON.stringify(example.input));
@@ -70,7 +70,7 @@ describe('tiny_worlds', () => {
       'cat, is _c:tree, is _d:elephant, jumps _a, squishes '
     );
 
-    const example2 = tinyWorld.genRandExample();
+    const [example2] = tinyWorld.exampleIter.takeOutN(1);
     expect(example2.id).toEqual(1);
     expect(example2.input.join('')).toEqual('is _a:flower, is _b:');
     expect(example2.output.join('')).toEqual(

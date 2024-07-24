@@ -13,25 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+/// <reference lib="webworker" />
 
-import { WebColabComponent } from './web-colab.component';
+// import { inputting, outputting } from '../../lib/weblab/signalspace';
 
-describe('WebColabComponent', () => {
-  let component: WebColabComponent;
-  let fixture: ComponentFixture<WebColabComponent>;
+// console.log('foo.worker', self.location, 'worker-F6UCLSRB.js');
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [WebColabComponent],
-    }).compileComponents();
+// const onceInputs = new Promise<string>((resolve) => {
+//   addEventListener('message', ({ data }) => {
+//     resolve(data);
+//   });
+// });
 
-    fixture = TestBed.createComponent(WebColabComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+// async function run() {
+//   const inputs = await onceInputs;
+//   postMessage('foo');
+// }
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-});
+// run();
+
+console.log('foo');

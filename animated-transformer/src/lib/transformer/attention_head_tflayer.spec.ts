@@ -13,21 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import * as attention_head from './attention_head_tflayer';
-import { TokenEmbConfig } from '../tokens/token_emb';
 import * as tf from '@tensorflow/tfjs';
 
 describe('attention_head', () => {
   const config: attention_head.AttentionHeadConfig = {
     // inputRepSize: 2,
     kqRepSize: 3,
-    valueRepSize: 4
+    valueRepSize: 4,
   };
 
-  beforeEach(() => {
-
-  });
+  beforeEach(() => {});
 
   // it('AttentionHead.attendSeq has the right output shapes', () => {
   //   const attn = new attention_head.AttentionHead(config);
@@ -53,22 +49,40 @@ describe('attention_head', () => {
   it('new attention_head.AttentionHead', () => {
     const attn = new attention_head.AttentionHead(config);
 
-    const inputExample = [[1, 2], [3, 4], [5, 6]];
+    const inputExample = [
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ];
     const inputBatch = [inputExample];
     const inputTensor = tf.tensor3d(inputBatch);
     const batchSize = inputBatch.length;
     const outputs = attn.apply(inputTensor) as tf.Tensor[];
 
-    expect(outputs[attention_head.ATTENDED_VALUES_PART_IDX].shape).toEqual(
-      [batchSize, inputExample.length, config.valueRepSize]);
-    expect(outputs[attention_head.ATTENTION_PART_IDX].shape).toEqual(
-      [batchSize, inputExample.length, inputExample.length]);
-    expect(outputs[attention_head.VALUES_PART_IDX].shape).toEqual(
-      [batchSize, inputExample.length, config.valueRepSize]);
-    expect(outputs[attention_head.KEYS_PART_IDX].shape).toEqual(
-      [batchSize, inputExample.length, config.kqRepSize]);
-    expect(outputs[attention_head.QUERIES_PART_IDX].shape).toEqual(
-      [batchSize, inputExample.length, config.kqRepSize]);
+    expect(outputs[attention_head.ATTENDED_VALUES_PART_IDX].shape).toEqual([
+      batchSize,
+      inputExample.length,
+      config.valueRepSize,
+    ]);
+    expect(outputs[attention_head.ATTENTION_PART_IDX].shape).toEqual([
+      batchSize,
+      inputExample.length,
+      inputExample.length,
+    ]);
+    expect(outputs[attention_head.VALUES_PART_IDX].shape).toEqual([
+      batchSize,
+      inputExample.length,
+      config.valueRepSize,
+    ]);
+    expect(outputs[attention_head.KEYS_PART_IDX].shape).toEqual([
+      batchSize,
+      inputExample.length,
+      config.kqRepSize,
+    ]);
+    expect(outputs[attention_head.QUERIES_PART_IDX].shape).toEqual([
+      batchSize,
+      inputExample.length,
+      config.kqRepSize,
+    ]);
   });
 });
-

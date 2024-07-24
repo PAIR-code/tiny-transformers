@@ -25,11 +25,7 @@ import {
   computed,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import {
-  BasicLmTask,
-  BasicLmTaskUpdate,
-  takeNextN,
-} from 'src/lib/seqtasks/util';
+import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
 import {
   jsonStrListValidator,
@@ -205,7 +201,7 @@ export class ModelEvaluatorComponent {
     const currentTask = this.getCurrentTask();
 
     const trainingData = [];
-    for (const example of [...takeNextN(currentTask.exampleIter, 1000)]) {
+    for (const example of currentTask.exampleIter.takeOutN(1000)) {
       const input = example.input;
 
       const decoderOutputs = computeDecoder(

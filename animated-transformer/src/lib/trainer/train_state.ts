@@ -45,13 +45,12 @@ export type TaskDatasetSplit = {
   task: BasicLmTask;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
-  trainSetIter: Iterable<Example>;
+  trainSetIter: Iterator<Example>;
 };
 
-export type TrainingBatchGenerator<
-  I extends DName,
-  T extends DName
-> = Generator<TrainingBatch<I, T>, undefined, undefined>;
+// export type TrainingBatchGenerator<I extends DName, T extends DName> = Iterator<
+//   TrainingBatch<I, T>
+// >;
 
 // /**
 //  * Assumes: that the output TrainingBatch may have extra padding examples, or

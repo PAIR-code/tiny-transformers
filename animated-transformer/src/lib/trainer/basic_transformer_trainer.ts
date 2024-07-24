@@ -82,8 +82,11 @@ export function initTransformerTrainState(
     return loss as tf.Scalar;
   }
 
-  const { testSetExamples, testSetIndex, testFilteredExampleGenerator } =
-    splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
+  const {
+    testSetExamples,
+    testSetIndex,
+    testSetFilteredExamples: testFilteredExampleGenerator,
+  } = splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
 
   const taskDatasetSplit: TaskDatasetSplit = {
     task,

@@ -20,34 +20,33 @@ and output should be 'a'.
 Can we get the loss to 0?
 */
 
-import {
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-  randOfList,
-  RandomStream,
-} from './util';
+import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+
+import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { StateIter } from '../state-iter/state-iter';
 
 export const baseVocab = ['a', 'b'];
 
 export class OnlyATask implements BasicLmTask {
   public name = 'onlyATask';
   public baseVocab = baseVocab;
-  public random: RandomStream;
   private exampleId = 0;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
-    this.random = new RandomStream(config.seed);
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
+    );
   }
 
   // Problem Descriptions:
   // * Return 'a'
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     const input = new Array<string>(this.config.maxInputLen);
     const output = new Array<string>(1);
 
     for (let i = 0; i < input.length; i++) {
-      input[i] = randOfList(this.random, ['a', 'b']);
+      input[i] = rng.randomEntryFromList(['a', 'b']);
     }
 
     output[0] = 'a';
@@ -55,9 +54,9 @@ export class OnlyATask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *examplesIter(): Generator<Example, undefined, undefined> {
+  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }

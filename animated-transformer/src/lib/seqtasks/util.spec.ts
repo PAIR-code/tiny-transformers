@@ -13,18 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { CopyableData, StateIter } from '../state-iter/state-iter';
 import {
   Example,
   generateBatch,
-  makeRandFnFromSeed,
   escapeToken,
-  randOfList,
   BasicLmTask,
   splitGenerativeTaskTestSet,
   indexExample,
-  takeNextN,
-  listGen,
-  filterGen,
 } from './util';
 
 describe('seqtasks/util', () => {
@@ -33,11 +29,6 @@ describe('seqtasks/util', () => {
   it('escaping', () => {
     const t = escapeToken('foo bar \\ ugg');
     expect(t).toEqual('foo\\ bar\\ \\\\\\ ugg');
-  });
-
-  it('randFn', () => {
-    const rand = makeRandFnFromSeed(1);
-    expect(rand()).toEqual(0.6270739405881613);
   });
 
   it('generateBatch', () => {
@@ -52,7 +43,7 @@ describe('seqtasks/util', () => {
         i++;
       }
     }
-    const exampleGen: Iterable<Example> = exampleGenFactory();
+    const exampleGen: Iterator<Example> = exampleGenFactory();
     const batch = generateBatch(exampleGen, 8);
     expect(batch.length).toEqual(8);
     expect(batch[0].id).toEqual(0);
@@ -63,37 +54,25 @@ describe('seqtasks/util', () => {
     expect(batch[7].output).toEqual(['out7']);
   });
 
-  it('takeNextN', () => {
-    const g = listGen([1, 2, 3, 4, 5]);
-    expect([...takeNextN(g, 2)]).toEqual([1, 2]);
-    expect(g.next().value).toEqual(3);
-    expect([...takeNextN(g, 2)]).toEqual([4, 5]);
-  });
-
-  it('filterGen', () => {
-    const takenNums = filterGen((n) => n % 2 !== 0, listGen([1, 2, 3, 4, 5]));
-    expect([...takenNums]).toEqual([1, 3, 5]);
-  });
-
   it('takeFirstN of makeExampleGenerator', () => {
-    function* exampleIterFactory(): Iterable<Example> {
-      let i = 0;
+    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
       while (true) {
+        const i = state.data;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
-        i++;
+        state.data++;
       }
     }
     /* Simple interface for classes that provide a task */
     const task: BasicLmTask = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: exampleIterFactory(),
+      exampleIter: new StateIter(new CopyableData(0), iterateExample),
     };
-    expect([...takeNextN(task.exampleIter, 13)].map(indexExample)).toEqual([
+    expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       '0 0 \\--> 0',
       '1 1 \\--> 2',
       '2 2 \\--> 0',
@@ -111,24 +90,23 @@ describe('seqtasks/util', () => {
   });
 
   it('splitGenerativeTaskTestSet', () => {
-    function* exampleIterFactory(): Iterable<Example> {
-      let i = 0;
+    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
       while (true) {
+        const i = state.data++;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
-        i++;
       }
     }
     /* Simple interface for classes that provide a task */
     const task: BasicLmTask = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: exampleIterFactory(),
+      exampleIter: new StateIter(new CopyableData(0), iterateExample),
     };
-    expect([...takeNextN(task.exampleIter, 13)].map(indexExample)).toEqual([
+    expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       // Test set = first 7
       '0 0 \\--> 0',
       '1 1 \\--> 2',
@@ -146,7 +124,6 @@ describe('seqtasks/util', () => {
       // Back to Test set...
       '0 0 \\--> 0',
     ]);
-
     const split = splitGenerativeTaskTestSet(7, task);
     const testValuesIndex = [...split.testSetIndex.values()];
     expect(testValuesIndex).toEqual([
@@ -158,8 +135,10 @@ describe('seqtasks/util', () => {
       '1 2 \\--> 3',
       '2 0 \\--> 2',
     ]);
-    const generator = split.testFilteredExampleGenerator;
-    const nextExamples1 = generateBatch(generator, 6).map(indexExample);
+
+    const nextExamples1 = split.testSetFilteredExamples
+      .takeOutN(6)
+      .map(indexExample);
     expect(nextExamples1).toEqual([
       '3 1 \\--> 0',
       '0 2 \\--> 2',
@@ -170,7 +149,9 @@ describe('seqtasks/util', () => {
       // test set, so we loop back onto the start of the training set now.
       '3 1 \\--> 0',
     ]);
-    const nextExamples2 = generateBatch(generator, 6).map(indexExample);
+    const nextExamples2 = split.testSetFilteredExamples
+      .takeOutN(6)
+      .map(indexExample);
     expect(nextExamples2).toEqual([
       '0 2 \\--> 2',
       '1 0 \\--> 1',

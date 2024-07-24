@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { stringify } from 'json5';
 import { FreshNames } from '../names/simple_fresh_names';
-import { RandomStream } from '../seqtasks/util';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
 
 // ============================================================================== //
 //  Core types

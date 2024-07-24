@@ -13,15 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { DecisionBoundaryTask } from './decision_boundary_task';
 import { Example } from './util';
 
 describe('decision_boundary_task', () => {
   let task: DecisionBoundaryTask;
 
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('genRandExample', () => {
     task = new DecisionBoundaryTask({
@@ -32,25 +30,24 @@ describe('decision_boundary_task', () => {
     });
 
     let example: Example;
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.input.length).toEqual(5);
     expect(example.output.length).toEqual(1);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.input.length).toEqual(5);
     expect(example.output.length).toEqual(1);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.input.length).toEqual(5);
     expect(example.output.length).toEqual(1);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.input.length).toEqual(5);
     expect(example.output.length).toEqual(1);
 
-    example = task.genRandExample();
+    [example] = task.exampleIter.takeOutN(1);
     expect(example.input.length).toEqual(5);
     expect(example.output.length).toEqual(1);
   });
 });
-

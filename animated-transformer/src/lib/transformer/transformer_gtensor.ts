@@ -45,9 +45,7 @@ import {
   layerNorm,
   LayerNormParams,
 } from '../gtensor/layer_norm';
-import { TfvisService } from 'src/app/tfvis.service';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
-import { RandomStream } from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 
 // ---------------------------------------------------------------------------
@@ -428,22 +426,20 @@ export function transformerAccuracy(
     .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
 }
 
-export function computeDecoder(tokenRep: BasicTaskTokenRep,
+export function computeDecoder(
+  tokenRep: BasicTaskTokenRep,
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
   spec: TransformerParamSpec,
   params: GVariableTree<TransformerParams>,
-  inputs: string[][]): TransformerComputation {
-    const maxInputLength = inputs.reduce(
-      (max, curInput) => (max >= curInput.length ? max : curInput.length),
-      0
-    );
-    const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
-    return computeTransformer(
-      spec,
-      params.obj,
-      gtensorInputs
-    );
-  }
+  inputs: string[][]
+): TransformerComputation {
+  const maxInputLength = inputs.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0
+  );
+  const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
+  return computeTransformer(spec, params.obj, gtensorInputs);
+}
 
 export function computePrediction(
   tokenRep: BasicTaskTokenRep,
@@ -453,7 +449,13 @@ export function computePrediction(
   inputs: string[][]
 ): string[][] {
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(tokenRep, inputPrepFn, spec, params, inputs);
+    const decoderComputation = computeDecoder(
+      tokenRep,
+      inputPrepFn,
+      spec,
+      params,
+      inputs
+    );
     const predictions = transformerTopPrediction(
       decoderComputation,
       params.obj.tokenEmbedding

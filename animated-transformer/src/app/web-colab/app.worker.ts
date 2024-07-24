@@ -1,42 +1,45 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 /// <reference lib="webworker" />
 
-import {
-  computeMetrics,
-  initTransformerTrainState,
-  TrainMetrics,
-  TransformerTrainState,
-} from 'src/lib/trainer/basic_transformer_trainer';
-import { mapNonNull } from 'src/lib/rxjs/util';
-import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
-import { stringifyJsonValue } from 'src/lib/pretty_json/pretty_json';
-import { DictTree, SimpleJsTreesLib } from 'src/lib/js_tree/js_tree';
 import * as tf from '@tensorflow/tfjs';
-import {
-  prepareBasicTaskTokenRep,
-  strSeqPrepFn,
-  singleNextTokenIdxOutputPrepFn,
-} from 'src/lib/tokens/token_gemb';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
-import { GTensor } from 'src/lib/gtensor/gtensor';
+import { GTensor, SerializedGTensor } from 'src/lib/gtensor/gtensor';
+import * as lab from '../../lib/weblab/workerlab';
+import { exampleWorkerOp } from './example.ailab';
 
-// interface Input {}
+console.log('app.worker', self.location);
 
-const onceInputs = new Promise<string>((resolve) => {
-  addEventListener('message', ({ data }) => {
-    resolve(data);
-  });
-});
+type InputKind = string;
+type OutputKind = {
+  t: SerializedGTensor<'a'>;
+  v: number;
+} | null;
+
+// exampleWorkerOp;
 
 async function run() {
-  const inputs = await onceInputs;
+  const input = await lab.onceGetInput<InputKind>('name');
 
-  console.log(inputs);
+  console.log(`webworker got input! ${input}`);
 
   const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
   const v = t.contract(t, ['a']).tensor.arraySync() as number;
 
-  postMessage({
-    t,
+  lab.output('tensor', {
+    t: t.toSerialised(),
     v,
   });
 }

@@ -88,12 +88,7 @@ describe('GTensor Transformers', () => {
     });
 
     // len = taskConfig.batchSize
-    const examples = [
-      task.genRandExample(),
-      task.genRandExample(),
-      task.genRandExample(),
-      task.genRandExample(),
-    ];
+    const examples = task.exampleIter.takeOutN(4);
 
     const batchedInputEmb = embedBatch(
       tokenRep.tokenToIdx,

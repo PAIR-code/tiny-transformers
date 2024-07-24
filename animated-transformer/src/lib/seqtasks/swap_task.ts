@@ -25,7 +25,9 @@ what pair have the biggest difference?
 */
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicLmTaskConfig, Example, RandomStream } from './util';
+import { BasicLmTask, BasicLmTaskConfig, Example } from './util';
+import { StateIter } from '../state-iter/state-iter';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
 
 export type SwapTaskConfig = BasicLmTaskConfig & {
   valuesLessThan: number;
@@ -80,18 +82,18 @@ export function makeOutput(input: number[]): Action[] {
 export class SwapTask implements BasicLmTask {
   // TODO: consider doing programatically in the constructor?
   public name: string;
-  public random: RandomStream;
   private exampleId: number;
-  public exampleIter: Iterable<Example>;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   public baseVocab = baseVocab;
   // ! because initialied in reInitFromConfig.
 
   constructor(public config: SwapTaskConfig) {
     this.name = this.config.name;
-    this.random = new RandomStream(this.config.seed);
     this.exampleId = 0;
-    this.exampleIter = this.exampleIterFactory();
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
+    );
   }
 
   // Problem Descriptions:
@@ -99,18 +101,18 @@ export class SwapTask implements BasicLmTask {
   // to improve the ordering of the list.
   // * Of all pairs that you can swap to improve the ascending ordering of the list,
   // what pair have the biggest difference?
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     const input = tf
       .randomUniform(
         [this.config.maxInputLen],
         0,
         this.config.valuesLessThan,
         'int32',
-        this.random.random()
+        rng.random()
       )
       .arraySync() as number[];
     for (let i = 0; i < input.length; i++) {
-      input[i] = Math.floor(this.random.random() * this.config.valuesLessThan);
+      input[i] = Math.floor(rng.random() * this.config.valuesLessThan);
     }
     return {
       id: this.exampleId++,
@@ -119,9 +121,9 @@ export class SwapTask implements BasicLmTask {
     };
   }
 
-  *exampleIterFactory(): Generator<Example, undefined, undefined> {
+  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }

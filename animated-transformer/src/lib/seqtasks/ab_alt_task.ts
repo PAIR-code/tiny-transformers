@@ -21,25 +21,22 @@ Simple generative task for stings of the form `a?(ba)*b?`
 //   ==>  LSTM + one attention layer makes it learn quickly.
 */
 
-import {
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-  randOfList,
-  RandomStream,
-} from './util';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { StateIter } from '../state-iter/state-iter';
+import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 
 export const baseVocab = ['a', 'b'];
 
 export class AorBisMaxTask implements BasicLmTask {
   public name = 'AorBisMaxTask';
   public baseVocab = baseVocab;
-
-  public random: RandomStream;
   private exampleId = 0;
+  public exampleIter: StateIter<RandomStream, Example>;
 
   constructor(public config: BasicRandSeededTaskConfig) {
-    this.random = new RandomStream(config.seed);
+    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
+      this.examplesGen(rng)
+    );
   }
 
   // Problem Descriptions:
@@ -47,10 +44,10 @@ export class AorBisMaxTask implements BasicLmTask {
   // to improve the ordering of the list.
   // * Of all pairs that you can swap to improve the ascending ordering of the list,
   // what pair have the biggest difference?
-  genRandExample(): Example {
+  genRandExample(rng: RandomStream): Example {
     const input = new Array<string>(this.config.maxInputLen);
     const output = new Array<string>(this.config.maxOutputLen);
-    input[0] = randOfList(this.random, ['a', 'b']);
+    input[0] = rng.randomEntryFromList(['a', 'b']);
     for (let i = 1; i < input.length; i++) {
       input[i] = input[i - 1] === 'a' ? 'b' : 'a';
     }
@@ -60,9 +57,9 @@ export class AorBisMaxTask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *examplesIter(): Generator<Example, undefined, undefined> {
+  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample();
+      yield this.genRandExample(rng);
     }
   }
 }
