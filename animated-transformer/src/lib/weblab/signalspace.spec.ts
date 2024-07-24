@@ -21,7 +21,7 @@ import {
   effect,
 } from './signalspace';
 
-fdescribe('signalspace', () => {
+describe('signalspace', () => {
   async function waitTick(): Promise<void> {
     return new Promise<void>((resolve) => {
       setTimeout(() => {
