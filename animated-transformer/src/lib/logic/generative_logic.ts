@@ -530,7 +530,8 @@ export class Context<
       initMatchUnifState
     );
     if (unifFailure) {
-      console.warn('surprising unification failure on rule concl', unifFailure);
+      // The types not longer match
+      // console.warn('surprising unification failure on rule concl', unifFailure);
       return [];
     }
 
