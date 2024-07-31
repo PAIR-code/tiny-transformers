@@ -25,6 +25,7 @@ import {
 {
   const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
   console.log('config uses: defaultTinyWorldTaskConfig');
+  initConfig.maxInputLen = 1;
   initConfig.maxOutputLen = 20;
   const tinyWorld = new TinyWorldTask(initConfig);
   const [example] = tinyWorld.exampleIter.takeOutN(1);

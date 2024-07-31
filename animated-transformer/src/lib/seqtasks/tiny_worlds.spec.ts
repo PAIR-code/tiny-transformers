@@ -43,24 +43,27 @@ describe('tiny_worlds', () => {
       eps = 0.05; // eps is determined by len
     expect(input_count_ratio).toBeGreaterThanOrEqual(mean - eps);
     expect(input_count_ratio).toBeLessThanOrEqual(mean + eps);
-
-    console.log('first 100 elems of input is ', example.input.slice(0, 100));
   });
 
-  it('genRandExampleWithDifferentSeeds', () => {
-    const initConfig_1: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
-    initConfig_1.maxInputLen = 100;
-    initConfig_1.seed = 0;
-    const initConfig_2: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
-    initConfig_2.maxInputLen = 100;
-    initConfig_2.seed = 0;
+  fit('genRandExampleWithSameAndDifferentSeeds', () => {
+    const commonConfig: TinyWorldTaskConfig = {
+      ...defaultTinyWorldTaskConfig,
+      maxInputLen: 100,
+      maxOutputLen: 1,
+    };
+    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
+    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
+    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, seed: 1 };
 
     const tinyWorld_1 = new TinyWorldTask(initConfig_1);
     const tinyWorld_2 = new TinyWorldTask(initConfig_2);
+    const tinyWorld_3 = new TinyWorldTask(initConfig_3);
     const [example_1] = tinyWorld_1.exampleIter.takeOutN(1);
     const [example_2] = tinyWorld_2.exampleIter.takeOutN(1);
+    const [example_3] = tinyWorld_3.exampleIter.takeOutN(1);
 
-    expect(example_1.input.join('')).not.toEqual(example_2.input.join(''));
+    expect(example_1.input.join('')).toEqual(example_2.input.join(''));
+    expect(example_1.input.join('')).not.toEqual(example_3.input.join(''));
   });
 
   it('genRandExample', () => {
