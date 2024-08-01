@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import * as json5 from 'json5';
 import { WorkerOp } from './worker-op';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
@@ -29,7 +27,7 @@ export type ItemMetaData = {
 export class WorkerEnv<Globals extends { [key: string]: any }> {
   inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
-  state: Partial<Globals> = {};
+  stateVars: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
 
   constructor(public workerState: LabState) {}
@@ -40,7 +38,7 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
     for (const inputName of op.api.inputs) {
-      if (this.state[inputName] === undefined) {
+      if (this.stateVars[inputName] === undefined) {
         const inputValue = await this.workerState.loadValue<Globals[O]>(
           inputName
         );
@@ -49,7 +47,7 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
             `No state for op (${op.workerPath}) for input: ${inputName}`
           );
         }
-        this.state[inputName] = inputValue.data;
+        this.stateVars[inputName] = inputValue.data;
       }
     }
 
@@ -61,8 +59,11 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
           worker.terminate();
           break;
         case 'requestInput':
+          worker.postMessage(this.stateVars[messageFromWorker.name]);
           break;
         case 'providingOutput':
+          const outputName = messageFromWorker.name as O;
+          outputs[outputName] = messageFromWorker.outputData as Globals[O];
           break;
         default:
           console.error('unknown worker message: ', data);

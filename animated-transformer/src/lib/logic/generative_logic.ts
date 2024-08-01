@@ -21,7 +21,10 @@ import { RandomStream, makeRandomStream } from '../state-iter/random';
 // ============================================================================== //
 export type RuleOp = '+=' | '*=';
 
-export type RelArgument<Types, Vars> = { varName: Vars; varType: Types };
+export type RelArgument<TypeNames, VarNames> = {
+  varName: VarNames;
+  varType: TypeNames;
+};
 
 export type Relation<TypeNames, VarNames, RelNames> = {
   relName: RelNames;
@@ -68,7 +71,13 @@ export function stringifyRule<TypeNames, VarNames, RelNames>(
 export type UnifyFailure =
   // Relations might have different names.
   | { kind: 'UnifyFailure:relNameClash'; relName1: string; relName2: string }
-  | { kind: 'UnifyFailure:relNameContextClash'; relName: string }
+  | { kind: 'UnifyFailure:relNameMissingFromContext'; relName: string }
+  | {
+      kind: 'UnifyFailure:relNameContextArityMismatch';
+      relName: string;
+      contextArity: number;
+      instanceArity: number;
+    }
   // A given relation is not consistent with the context
   | {
       kind: 'UnifyFailure:argContextTypeClash';
@@ -356,7 +365,10 @@ export class Context<
       this.varTypes.set(key, value);
     });
     this.names.addNames(unifyState.varTypes.keys());
-    this.scene = [...this.scene, ...rels];
+    const instantiatedRels = rels.map((rel) =>
+      applyUnifSubstToRel(unifyState, rel)
+    );
+    this.scene = [...this.scene, ...instantiatedRels];
   }
 
   lastSceneRel(): Relation<TypeNames, VarNames, RelNames> | null {
@@ -374,13 +386,13 @@ export class Context<
     return subtypeSet.has(subType);
   }
 
-  unifyArgumentWithContext(
+  unifyRelationArgumentWithState(
     a: RelArgument<TypeNames, VarNames>,
     unifyState: UnifyState<TypeNames, VarNames>,
     relType: TypeNames, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
   ): UnifyFailure | undefined {
-    // Check consistent with Relation...
+    // Check the argument consistent with Relation's corresponding argument type...
     let varType = a.varType;
     if (varType === '') {
       varType = relType;
@@ -428,11 +440,23 @@ export class Context<
     const relTypes = this.relations.get(r.relName);
 
     if (!relTypes) {
-      return { kind: 'UnifyFailure:relNameContextClash', relName: r.relName };
+      return {
+        kind: 'UnifyFailure:relNameMissingFromContext',
+        relName: r.relName,
+      };
+    }
+
+    if (relTypes.length !== r.args.length) {
+      return {
+        kind: 'UnifyFailure:relNameContextArityMismatch',
+        relName: r.relName,
+        contextArity: relTypes.length,
+        instanceArity: r.args.length,
+      };
     }
 
     for (let i = 0; i < r.args.length; i++) {
-      const unifyFailure = this.unifyArgumentWithContext(
+      const unifyFailure = this.unifyRelationArgumentWithState(
         r.args[i],
         unifyState,
         relTypes[i],
@@ -691,6 +715,7 @@ export function addRuleApps<
   });
 }
 
+// Output map is added-relation-string to rule application
 export function applyRules<
   TypeNames extends string,
   VarNames extends string,

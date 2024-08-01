@@ -22,14 +22,15 @@ import {
 } from './tiny_worlds';
 
 const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
-initConfig.maxOutputLen = 20;
+initConfig.maxInputLen = 0;
+initConfig.maxOutputLen = 60;
 const tinyWorld = new TinyWorldTask(initConfig);
+console.log(`* Example 1: (rns.state: ${tinyWorld.rns.state.curSeedVal})`);
 const [example] = tinyWorld.exampleIter.takeOutN(1);
-console.log('Example 1');
-console.log('input: ', JSON.stringify(example.input.join('')));
-console.log('output: ', JSON.stringify(example.output.join('')));
+console.log(' - input: ', JSON.stringify(example.input.join('')));
+console.log(' - output: ', JSON.stringify(example.output.join('')));
 
+console.log(`* Example 2: (rns.state: ${tinyWorld.rns.state.curSeedVal})`);
 const [example2] = tinyWorld.exampleIter.takeOutN(1);
-console.log('Example 2');
-console.log('input: ', JSON.stringify(example.input.join('')));
-console.log('output: ', JSON.stringify(example.output.join('')));
+console.log(' - input: ', JSON.stringify(example2.input.join('')));
+console.log(' - output: ', JSON.stringify(example2.output.join('')));

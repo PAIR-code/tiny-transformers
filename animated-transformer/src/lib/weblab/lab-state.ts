@@ -15,7 +15,7 @@ limitations under the License.
 
 import { unpack, pack } from 'msgpackr';
 import { addExtension, Packr } from 'msgpackr';
-import { GTensor } from '../../lib/gtensor/gtensor';
+import { GTensor } from '../gtensor/gtensor';
 
 declare let localStorage: {
   getItem: (key: string) => string | null;

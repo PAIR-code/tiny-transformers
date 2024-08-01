@@ -13,9 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import * as json5 from 'json5';
-
 // export type WorkerOp<Inputs, Outputs> = {
 //   workerPath: string;
 //   inputs: Inputs[];
@@ -34,6 +31,15 @@ export class WorkerOp<Inputs extends string, Outputs extends string> {
     }
   ) {}
 }
+
+export type OpInputs<Op> = Op extends WorkerOp<infer I, any> ? I : never;
+export type OpOutputs<Op> = Op extends WorkerOp<any, infer O> ? O : never;
+
+// type ExampleInput = OpInputs<typeof exampleWorkerOp>;
+
+// type ExampleInput2 = typeof exampleWorkerOp extends WorkerOp<infer I, any>
+//   ? I
+//   : never;
 
 // type ObjMap<G> = {
 //   [name in keyof G]: G[keyof G];

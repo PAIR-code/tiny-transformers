@@ -105,12 +105,14 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 
     // A mentioned animal might jump
     'S(jumps ?x | is ?x:animal) += 5',
+    'S(jumps ?x | jumps ?x) += 0.2',
 
     // When they jump, monkeys and cats sometimes squish things, but monkeys more often
     //
     // TODO: we've like to express that you can squish one thing per jump.
     'S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2',
     'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
+    'S(squishes ?x ?x | is ?x) *= 0',
 
     // Cats sometimes run away away when elephants jump
     'S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2',
@@ -135,7 +137,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runsAway ?a:animal) *= 0',
     'S(squishes ?x ?a | runsAway ?a:animal) *= 0',
-    'S(runsAway ?x ?a | runsAway ?x:animal) *= 0',
+    'S(runsAway ?x ? a | runsAway ?x) *= 0',
     // Squished animals can't run away or jump anymore
     'S(runsAway ?y | squishes ?x ?y:animal) *= 0',
     'S(jumps ?y | squishes ?x ?y:animal) *= 0',
@@ -165,6 +167,7 @@ export class TinyWorldTask implements BasicLmTask {
   public baseVocab: string[];
   private exampleId: number;
   public exampleIter: StateIter<RandomStream, Example>;
+  public rns: RandomStream;
 
   constructor(public config: TinyWorldTaskConfig) {
     this.exampleId = 0;
@@ -206,9 +209,9 @@ export class TinyWorldTask implements BasicLmTask {
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
-    );
+    this.rns = makeRandomStream(config.seed);
+
+    this.exampleIter = new StateIter(this.rns, (rns) => this.examplesGen(rns));
   }
 
   genRandExample(rng: RandomStream): Example {
