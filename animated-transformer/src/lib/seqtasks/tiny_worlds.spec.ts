@@ -45,7 +45,7 @@ describe('tiny_worlds', () => {
     expect(input_count_ratio).toBeLessThanOrEqual(mean + eps);
   });
 
-  fit('genRandExampleWithSameAndDifferentSeeds', () => {
+  it('genRandExampleWithSameAndDifferentSeeds', () => {
     const commonConfig: TinyWorldTaskConfig = {
       ...defaultTinyWorldTaskConfig,
       maxInputLen: 100,
