@@ -14,20 +14,16 @@ limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
 import {
-  Context,
-  Relation,
-  UnifyState,
+  Story,
   VarNames,
   addToTypeMap,
   applyRules,
-  initContext,
+  initStory,
   isUnboundVarName,
   nextRelDistrStats,
-  parseRel,
-  parseRule,
-  sampleNextRel,
-  stringifyRule,
-} from './generative_logic';
+} from './stories';
+import { parseRel } from './relations';
+import { parseRule } from './rules';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
 //   ExampleObjects,
@@ -41,7 +37,7 @@ import {
 //   relationTokenArgs: relArgs,
 // };
 
-describe('generative_logic', () => {
+describe('stories', () => {
   const animalTypes = ['cat', 'monkey', 'elephant'] as const;
   const inanimateTypes = ['flower', 'rock', 'tree'] as const;
   const allTypes = [
@@ -80,158 +76,30 @@ describe('generative_logic', () => {
 
   beforeEach(() => {});
 
-  it('parseRel', () => {
-    const { relName, args } = parseRel('squishes _x _y:animal');
-    expect(relName).toEqual('squishes');
-    expect(args[0].varName).toEqual('_x');
-    expect(args[0].varType).toEqual('');
-    expect(args[1].varName).toEqual('_y');
-    expect(args[1].varType).toEqual('animal');
-  });
-
-  it('parseRule: no conditions', () => {
-    const {
-      rel,
-      op,
-      score,
-      posConditions: conditions,
-    } = parseRule('S(squishes _x _y:animal) += 1');
-    expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual(''); // unspecified
-    expect(rel.args[1].varName).toEqual('_y');
-    expect(rel.args[1].varType).toEqual('animal');
-    expect(op).toEqual('+=');
-    expect(score).toEqual(1.0);
-    expect(conditions).toEqual([]);
-  });
-
-  it('parseRule: one condition', () => {
-    const {
-      rel,
-      op,
-      score,
-      posConditions: conditions,
-    } = parseRule('S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1');
-    expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0].varName).toEqual('_x');
-    expect(rel.args[0].varType).toEqual('');
-    expect(rel.args[1].varName).toEqual('_y');
-    expect(rel.args[1].varType).toEqual('');
-    expect(op).toEqual('+=');
-    expect(score).toEqual(1.0);
-    expect(conditions.length).toEqual(1);
-    expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: 'monkey' });
-    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: 'flower' });
-  });
-
-  it('parseRule: one condition, no types', () => {
-    const {
-      rel,
-      op,
-      score,
-      posConditions: conditions,
-    } = parseRule('S(squishes ?x ?y | jumps-over ?x ?y) += 1');
-    expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0].varName).toEqual('?x');
-    expect(rel.args[0].varType).toEqual('');
-    expect(rel.args[1].varName).toEqual('?y');
-    expect(rel.args[1].varType).toEqual('');
-    expect(op).toEqual('+=');
-    expect(score).toEqual(1.0);
-    expect(conditions.length).toEqual(1);
-    expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '?x', varType: '' });
-    expect(conditions[0].args[1]).toEqual({ varName: '?y', varType: '' });
-  });
-
-  // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
-  it('parseRule: 3 conditions', () => {
-    const {
-      rel,
-      op,
-      score,
-      posConditions: conditions,
-    } = parseRule(`
-    S(squishes _x _y 
-    | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0
-    `);
-    expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(rel.args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(op).toEqual('*=');
-    expect(score).toEqual(0);
-    expect(conditions.length).toEqual(3);
-    expect(conditions[0].relName).toEqual('jumps-over');
-    expect(conditions[0].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[0].args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(conditions[1].relName).toEqual('jumps-over');
-    expect(conditions[1].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[1].args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(conditions[2].relName).toEqual('jumps-over');
-    expect(conditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(conditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
-  });
-
-  // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
-  it('parseRule: 3 conditions and one neg', () => {
-    const { rel, op, score, posConditions, negConditions } = parseRule(`
-    S(squishes _x _y 
-    | jumps-over _x _y, jumps-over _x _y, -is _y, jumps-over _x _y) *= 0
-    `);
-    expect(rel.relName).toEqual('squishes');
-    expect(rel.args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(rel.args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(op).toEqual('*=');
-    expect(score).toEqual(0);
-    expect(posConditions.length).toEqual(3);
-    expect(posConditions[0].relName).toEqual('jumps-over');
-    expect(posConditions[0].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(posConditions[0].args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(posConditions[1].relName).toEqual('jumps-over');
-    expect(posConditions[1].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(posConditions[1].args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(posConditions[2].relName).toEqual('jumps-over');
-    expect(posConditions[2].args[0]).toEqual({ varName: '_x', varType: '' });
-    expect(posConditions[2].args[1]).toEqual({ varName: '_y', varType: '' });
-    expect(negConditions.length).toEqual(1);
-    expect(negConditions[0].relName).toEqual('is');
-    expect(negConditions[0].args[0]).toEqual({ varName: '_y', varType: '' });
-  });
-
-  // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
-  it('print and parseRule symmetry', () => {
-    const initRuleStr = `S(squishes _x _y | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0`;
-    const rule = parseRule(initRuleStr);
-    const parsedRuleStr = stringifyRule(rule);
-    expect(parsedRuleStr).toEqual(initRuleStr);
-  });
-
-  it('Context with relations', () => {
+  it('Story with relations', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    expect(c.names.config.usedNameSet).toContain('_m');
-    expect(c.names.config.usedNameSet).toContain('_f');
-    expect(c.varTypes.get('_m')).toEqual('monkey');
-    expect(c.varTypes.get('_f')).toEqual('flower');
+    s.extendScene([rel]);
+    expect(s.names.config.usedNameSet).toContain('_m');
+    expect(s.names.config.usedNameSet).toContain('_f');
+    expect(s.varTypes.get('_m')).toEqual('monkey');
+    expect(s.varTypes.get('_f')).toEqual('flower');
   });
 
-  it('Context creation fails, context clash', () => {
+  it('Story creation fails, story clash', () => {
     const rel2 = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:rock _f:flower'
     );
     expect(function () {
-      const c = new Context(
+      const c = new Story(
         types,
         relations,
         new FreshNames(),
@@ -243,8 +111,8 @@ describe('generative_logic', () => {
     }).toThrowError(''); // Assert
   });
 
-  it('Context.unify', () => {
-    const c = new Context(
+  it('Story.unify', () => {
+    const c = new Story(
       types,
       relations,
       new FreshNames(),
@@ -288,15 +156,15 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    const ruleMatches = c.matchRule(rule);
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
   });
 
@@ -307,15 +175,15 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    const ruleMatches = c.matchRule(rule);
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
   });
 
@@ -326,15 +194,15 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'squishes _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    const ruleMatches = c.matchRule(rule);
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
     expect(ruleMatches.length).toEqual(0);
   });
 
@@ -345,15 +213,15 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    const ruleMatches = c.matchRule(rule);
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
     expect(ruleMatches.length).toEqual(1);
   });
 
@@ -364,22 +232,87 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
-    const ruleMatches = c.matchRule(rule);
-    const c2 = c.applyRuleMatch(ruleMatches[0]);
-    expect(c2.scene.length).toEqual(2);
-    expect(c2.scene[1].relName).toEqual('squishes');
-    expect(c2.scene[1].args[0].varName).toEqual('_m');
-    expect(c2.scene[1].args[0].varType).toEqual('monkey');
-    expect(c2.scene[1].args[1].varName).toEqual('_f');
-    expect(c2.scene[1].args[1].varType).toEqual('flower');
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
+    const s2 = s.applyRuleMatch(ruleMatches[0]);
+    expect(s2.scene.length).toEqual(2);
+    expect(s2.scene[1].relName).toEqual('squishes');
+    expect(s2.scene[1].args[0].varName).toEqual('_m');
+    expect(s2.scene[1].args[0].varType).toEqual('monkey');
+    expect(s2.scene[1].args[1].varName).toEqual('_f');
+    expect(s2.scene[1].args[1].varType).toEqual('flower');
+  });
+
+  it('matchRule: bad new real: no such relation', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(foosquishes ?x ?y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      isUnboundVarName
+    );
+    s.extendScene([rel]);
+    expect(() => {
+      s.matchRule(rule);
+    }).toThrowError('UnifyFailure:relNameMissingFromStory');
+    // expect(ruleMatches.length).toEqual(1);
+  });
+
+  it('matchRule: bad new real: wrong arg count', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(squishes ?x v y | jumps-over ?x ?y) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>(
+      'jumps-over _m:monkey _f:flower'
+    );
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      isUnboundVarName
+    );
+    s.extendScene([rel]);
+    expect(() => {
+      s.matchRule(rule);
+    }).toThrowError('UnifyFailure:relNameStoryArityMismatch');
+    // expect(ruleMatches.length).toEqual(1);
+  });
+
+  it('matchRule and applyRuleMatch: new var introduced, no conditions', () => {
+    const rule = parseRule<TypeNames, VarNames, RelNames>(`
+      S(is ?x) *= 1
+    `);
+    const rel = parseRel<TypeNames, VarNames, RelNames>('is _a:monkey');
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
+      types,
+      relations,
+      new FreshNames(),
+      new Map<VarNames, TypeNames>(),
+      isUnboundVarName
+    );
+    s.extendScene([rel]);
+    const ruleMatches = s.matchRule(rule);
+    expect(ruleMatches.length).toEqual(1);
+    console.log(ruleMatches);
+    const s2 = s.applyRuleMatch(ruleMatches[0]);
+    expect(s2.scene.length).toEqual(2);
+    expect(s2.scene[1].relName).toEqual('is');
+    expect(s2.scene[1].args[0].varName).toEqual('_b');
+    expect(s2.scene[1].args[0].varType).toEqual('');
   });
 
   it('applyRuleMatch: new vars', () => {
@@ -389,17 +322,17 @@ describe('generative_logic', () => {
     const rel = parseRel<TypeNames, VarNames, RelNames>(
       'jumps-over _m:monkey _f:flower'
     );
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene([rel]);
+    s.extendScene([rel]);
 
-    const ruleMatches = c.matchRule(rule);
-    const c2 = c.applyRuleMatch(ruleMatches[0]);
+    const ruleMatches = s.matchRule(rule);
+    const c2 = s.applyRuleMatch(ruleMatches[0]);
     expect(c2.scene.length).toEqual(2);
     expect(c2.scene[1].relName).toEqual('squishes');
     expect(c2.scene[1].args[0].varName).toEqual('_m');
@@ -420,16 +353,16 @@ describe('generative_logic', () => {
       'jumps-over _c:cat _f:flower',
     ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
 
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene(scene);
+    s.extendScene(scene);
 
-    const nextRelPossibilities = nextRelDistrStats(applyRules(rules, c));
+    const nextRelPossibilities = nextRelDistrStats(applyRules(rules, s));
     expect([...nextRelPossibilities.keys()].length).toEqual(2);
 
     expect(
@@ -446,6 +379,45 @@ describe('generative_logic', () => {
     );
   });
 
+  // it('Rule distribution calculation: additive and multiplicative', () => {
+  //   const rule1 = 'S(runs-away ?x | jumps-over ?x ?y) += 1';
+  //   const rule2 = 'S(runs-away ?x | jumps-over ?y ?x) *= 0';
+  //   const rule3 = 'S(runs-away ?x | runs-away ?x) *= 0';
+  //   const rules = [rule1, rule2, rule3].map((r) =>
+  //     parseRule<TypeNames, VarNames, RelNames>(r)
+  //   );
+
+  //   const scene = [
+  //     'jumps-over _m:monkey _f:flower',
+  //     'jumps-over _c:cat _f:flower',
+  //   ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
+
+  //   const s: Story<TypeNames, VarNames, RelNames> = new Story(
+  //     types,
+  //     relations,
+  //     new FreshNames(),
+  //     new Map<VarNames, TypeNames>(),
+  //     isUnboundVarName
+  //   );
+  //   s.extendScene(scene);
+
+  //   const nextRelPossibilities = nextRelDistrStats(applyRules(rules, s));
+
+  //   expect([...nextRelPossibilities.keys()].length).toEqual(2);
+  //   expect(
+  //     nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
+  //   ).toEqual(1);
+  //   expect(
+  //     nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
+  //   ).toEqual(1);
+  //   expect(
+  //     nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
+  //   ).toEqual(0);
+  //   expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
+  //     0
+  //   );
+  // });
+
   it('Minimal rule distribution calculation: additive and multiplicative', () => {
     const rule1 = 'S(squishes ?x ?y | jumps-over ?x ?y) += 1';
     const rule2 = 'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) *= 0';
@@ -458,16 +430,16 @@ describe('generative_logic', () => {
       'jumps-over _c:cat _f:flower',
     ].map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
 
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene(scene);
+    s.extendScene(scene);
 
-    const nextRelPossibilities = nextRelDistrStats(applyRules(rules, c));
+    const nextRelPossibilities = nextRelDistrStats(applyRules(rules, s));
     // console.log(
     //   'nextRelEval',
     //   JSON.stringify([...nextRelPossibilities], null, 2)
@@ -498,24 +470,24 @@ describe('generative_logic', () => {
       parseRel<TypeNames, VarNames, RelNames>(s)
     );
 
-    const c: Context<TypeNames, VarNames, RelNames> = new Context(
+    const s: Story<TypeNames, VarNames, RelNames> = new Story(
       types,
       relations,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    c.extendScene(scene);
+    s.extendScene(scene);
 
-    const ruleApps = applyRules(rules, c);
+    const ruleApps = applyRules(rules, s);
     expect([...ruleApps.keys()]).toEqual(['is _c:cat']);
-    const nextContext = [...ruleApps.values()][0][0].context;
-    const newRel = nextContext.scene[1];
+    const nextStory = [...ruleApps.values()][0][0].story;
+    const newRel = nextStory.scene[1];
     expect(newRel.relName).toEqual('is');
     expect(newRel.args[0].varName).toEqual('_c');
     expect(newRel.args[0].varType).toEqual('cat');
 
-    const ruleApps2 = applyRules(rules, nextContext);
+    const ruleApps2 = applyRules(rules, nextStory);
     expect([...ruleApps2.keys()]).toEqual([]);
   });
 
@@ -548,7 +520,7 @@ describe('generative_logic', () => {
       squishes: ['animal', 'squishable'],
       jumps: ['animal'],
     };
-    const baseContextStrs: string[] = ['is _a:cat'];
+    const baseStoryStrs: string[] = ['is _a:cat'];
     const ruleStrs: string[] = [
       'S(is ?x:cat) += 1',
       'S(is ?x | is ?y) *= 0.5',
@@ -565,20 +537,20 @@ describe('generative_logic', () => {
       relationMap.set(r, relationKinds[r]);
     });
 
-    const context = initContext(typeMap, relationMap);
-    const scene = baseContextStrs.map((rStr) =>
+    const story = initStory(typeMap, relationMap);
+    const scene = baseStoryStrs.map((rStr) =>
       parseRel<string, VarNames, string>(rStr)
     );
-    context.extendScene(scene);
+    story.extendScene(scene);
 
     const rules = ruleStrs.map((rStr) =>
       parseRule<string, VarNames, string>(rStr)
     );
-    // const ruleApps = applyRules(rules, context);
+    // const ruleApps = applyRules(rules, story);
     // const distr = nextRelDistrStats(ruleApps);
 
-    console.log(...context.types);
-    const matches = context.matchRule(rules[2]);
+    console.log(...story.types);
+    const matches = story.matchRule(rules[2]);
     console.log(matches);
     expect(matches.length).toBe(1);
 
@@ -587,6 +559,6 @@ describe('generative_logic', () => {
 
     // const rnd = new RandomStream(0);
 
-    // const { context, rel } = sampleNextRel(rnd, initContext, rules);
+    // const { story, rel } = sampleNextRel(rnd, initStory, rules);
   });
 });

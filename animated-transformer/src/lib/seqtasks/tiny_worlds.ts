@@ -15,31 +15,22 @@ limitations under the License.
 
 /* Tiny Worlds */
 
-import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import {
   addToTypeMap,
-  applyRules,
-  Context,
-  nextRelDistrStats,
-  parseRel,
-  parseRule,
-  Relation,
-  RelRuleApps,
-  Rule,
-  RuleApp,
+  Story,
   sampleNextRel,
-  stringifyRelation,
   TypeHierarchy,
-} from '../logic/generative_logic';
-import { SimpleJsTreesLib } from '../js_tree/js_tree';
+} from '../logic/stories';
 import {
   RandomState,
   RandomStream,
   makeRandomStream,
 } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
+import { parseRule, Rule } from '../logic/rules';
+import { parseRel, Relation } from '../logic/relations';
 
 // Ideas for fancier rules/variants
 //
@@ -65,7 +56,8 @@ import { StateIter } from '../state-iter/state-iter';
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
   typeHierarchy: TypeHierarchy;
   relationKinds: { [relName: string]: string[] };
-  baseContext: string[];
+  // List of string representations of relations
+  baseStory: string[];
   rules: string[];
   maxEntityLimit: number;
 }
@@ -86,7 +78,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     squishes: ['animal', 'squishable'],
     jumps: ['animal'],
   },
-  baseContext: [],
+  baseStory: [],
   rules: [
     // TODO: We might want type-variables, save us from enumerating rules
     // for all of these...
@@ -137,7 +129,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runsAway ?a:animal) *= 0',
     'S(squishes ?x ?a | runsAway ?a:animal) *= 0',
-    'S(runsAway ?x ? a | runsAway ?x) *= 0',
+    'S(runsAway ?x | runsAway ?x) *= 0',
     // Squished animals can't run away or jump anymore
     'S(runsAway ?y | squishes ?x ?y:animal) *= 0',
     'S(jumps ?y | squishes ?x ?y:animal) *= 0',
@@ -162,7 +154,7 @@ type RelNames = string;
 // ============================================================================== //
 
 export class TinyWorldTask implements BasicLmTask {
-  public initContext: Context<TypeNames, VarNames, RelNames>;
+  public initStory: Story<TypeNames, VarNames, RelNames>;
   public rules: Rule<TypeNames, VarNames, RelNames>[];
   public baseVocab: string[];
   private exampleId: number;
@@ -196,16 +188,14 @@ export class TinyWorldTask implements BasicLmTask {
       ...varNames,
     ];
 
-    this.initContext = new Context(
+    this.initStory = new Story(
       typeMap,
       relationMap,
       new FreshNames(),
       new Map<VarNames, TypeNames>(),
       isUnboundVarName
     );
-    this.initContext.extendScene(
-      this.config.baseContext.map((r) => parseRel(r))
-    );
+    this.initStory.extendScene(this.config.baseStory.map((r) => parseRel(r)));
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
@@ -214,29 +204,47 @@ export class TinyWorldTask implements BasicLmTask {
     this.exampleIter = new StateIter(this.rns, (rns) => this.examplesGen(rns));
   }
 
-  genRandExample(rng: RandomStream): Example {
+  nextRelTokens(
+    curStory: Story<TypeNames, VarNames, RelNames>,
+    rel: Relation<TypeNames, VarNames, RelNames>
+  ) {
+    const args = rel.args.flatMap((r) =>
+      r.varType === '' || curStory.varTypes.get(r.varName) === r.varType
+        ? [spaceSepToken, r.varName]
+        : [spaceSepToken, r.varName, typeIsToken, r.varType]
+    );
+    return [rel.relName, ...args];
+  }
+
+  addNextRelTokens(
+    maxTokens: number,
+    generatedTokens: string[],
+    extraTokens: string[]
+  ) {
+    if (generatedTokens.length > 0) {
+      generatedTokens.push(relSepToken);
+    }
+    let nextToken = extraTokens.shift();
+    while (generatedTokens.length < maxTokens && nextToken) {
+      generatedTokens.push(nextToken);
+      nextToken = extraTokens.shift();
+    }
+  }
+
+  genRandExample(rns: RandomStream): Example {
     const generatedTokens: string[] = [];
-    const totalTokens = this.config.maxInputLen + this.config.maxOutputLen;
-    let curContext = this.initContext;
-    while (generatedTokens.length < totalTokens) {
-      const maybeNextContext = sampleNextRel(rng, curContext, this.rules);
-      if (maybeNextContext) {
-        if (generatedTokens.length > 0) {
-          generatedTokens.push(relSepToken);
-        }
-        const rel = maybeNextContext.rel;
-        const args = rel.args.flatMap((r) =>
-          r.varType === '' || curContext.varTypes.get(r.varName) === r.varType
-            ? [spaceSepToken, r.varName]
-            : [spaceSepToken, r.varName, typeIsToken, r.varType]
-        );
-        curContext = maybeNextContext.context;
-        const extraTokens = [rel.relName, ...args];
-        let nextToken = extraTokens.shift();
-        while (generatedTokens.length < totalTokens && nextToken) {
-          generatedTokens.push(nextToken);
-          nextToken = extraTokens.shift();
-        }
+    const maxTokens = this.config.maxInputLen + this.config.maxOutputLen;
+    let curStory = this.initStory;
+    while (generatedTokens.length < maxTokens) {
+      console.log('rns.state.curSeedVal', rns.state.curSeedVal);
+      const maybeNextStory = sampleNextRel(rns, curStory, this.rules);
+      if (maybeNextStory) {
+        const extraTokens = this.nextRelTokens(curStory, maybeNextStory.rel);
+        console.log('extraTokens', extraTokens.join(' '));
+        this.addNextRelTokens(maxTokens, generatedTokens, extraTokens);
+        curStory = maybeNextStory.story;
+        console.log('scene', curStory.scene);
+        console.log('varTypes', curStory.varTypes);
       } else {
         break;
       }

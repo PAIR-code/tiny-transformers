@@ -5,7 +5,7 @@ const exampleRelations = ["is", "jumps-over", "runs-away", "squishes"];
 type ExampleRelations = (typeof exampleRelations)[number];
 
 // TODO: can we skip individual instances, e.g. c0, c1, etc, and just have the kinds?
-// (instances being defined in the context?)
+// (instances being defined in the story?)
 const exampleObjects = [
   //   'c0:cat:animal',
   //   'c1:cat:animal',
@@ -45,7 +45,7 @@ const relArgs = new Map<ExampleRelations, ExampleObjects[]>([
   ["squishes", ["animal", ""]],
 ]);
 
-const imaginaryContext = "jumps-over _x:monkey _y, jumps-over _y _x";
+const imaginaryStory = "jumps-over _x:monkey _y, jumps-over _y _x";
 
 [
   // Observe absolute probability rules can be inherrently inconsistent... (not sum to 1)
@@ -56,7 +56,7 @@ const imaginaryContext = "jumps-over _x:monkey _y, jumps-over _y _x";
   "S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 0.5", // r1
   "S(squishes ?x ?y | jumps-over ?x:animal ?y:flower) += 0.1", // r2
 
-  // Context:
+  // Story:
   "jumps-over _a:monkey _f:flower, jumps-over _c:cat _f:flower",
 
   // All application of score rules happen, and common matched rules then

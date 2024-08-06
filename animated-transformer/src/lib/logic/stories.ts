@@ -15,54 +15,21 @@ limitations under the License.
 import { stringify } from 'json5';
 import { FreshNames } from '../names/simple_fresh_names';
 import { RandomStream, makeRandomStream } from '../state-iter/random';
-
-// ============================================================================== //
-//  Core types
-// ============================================================================== //
-export type RuleOp = '+=' | '*=';
-
-export type RelArgument<TypeNames, VarNames> = {
-  varName: VarNames;
-  varType: TypeNames;
-};
-
-export type Relation<TypeNames, VarNames, RelNames> = {
-  relName: RelNames;
-  args: RelArgument<TypeNames, VarNames>[];
-};
-
-export function stringifyRelation<TypeNames, VarNames, RelNames>(
-  r: Relation<TypeNames, VarNames, RelNames>
-) {
-  const argsString = r.args
-    .map((a) => `${a.varName}${a.varType === '' ? '' : ':' + a.varType}`)
-    .join(' ');
-  return `${r.relName} ${argsString}`;
-}
-
-// An assumption about rules is that the no two conditions are identical.
-// (Such a rule can be reduced to a version where there is only such condition).
-export type Rule<TypeNames, VarNames, RelNames> = {
-  rel: Relation<TypeNames, VarNames, RelNames>;
-  op: RuleOp;
-  score: number;
-  posConditions: Relation<TypeNames, VarNames, RelNames>[];
-  negConditions: Relation<TypeNames, VarNames, RelNames>[];
-};
-
-export function stringifyRule<TypeNames, VarNames, RelNames>(
-  r: Rule<TypeNames, VarNames, RelNames>
-): string {
-  const relStr = stringifyRelation(r.rel);
-  const condSep =
-    r.posConditions.length + r.negConditions.length > 0 ? ' | ' : '';
-  const condsStr = r.posConditions.map(stringifyRelation).join(', ');
-  const negCondsStr =
-    r.negConditions.length === 0
-      ? ''
-      : ', -' + r.negConditions.map(stringifyRelation).join(', -');
-  return `S(${relStr}${condSep}${condsStr}${negCondsStr}) ${r.op} ${r.score}`;
-}
+import {
+  applyUnifSubstToRel,
+  emptyUnifState,
+  forkUnifyState,
+  UnifyState,
+  forkRuleMatch,
+  RuleMatch,
+} from './unif_state';
+import {
+  parseRel,
+  RelArgument,
+  Relation,
+  stringifyRelation,
+} from './relations';
+import { Rule } from './rules';
 
 // ============================================================================== //
 //  Unification State & Failure
@@ -71,18 +38,18 @@ export function stringifyRule<TypeNames, VarNames, RelNames>(
 export type UnifyFailure =
   // Relations might have different names.
   | { kind: 'UnifyFailure:relNameClash'; relName1: string; relName2: string }
-  | { kind: 'UnifyFailure:relNameMissingFromContext'; relName: string }
+  | { kind: 'UnifyFailure:relNameMissingFromStory'; relName: string }
   | {
-      kind: 'UnifyFailure:relNameContextArityMismatch';
+      kind: 'UnifyFailure:relNameStoryArityMismatch';
       relName: string;
-      contextArity: number;
+      storyArity: number;
       instanceArity: number;
     }
-  // A given relation is not consistent with the context
+  // A given relation is not consistent with the story
   | {
-      kind: 'UnifyFailure:argContextTypeClash';
+      kind: 'UnifyFailure:argStoryTypeClash';
       argumentNumber: number;
-      contextVarTypes: string;
+      storyVarTypes: string;
       argType: string;
     }
   // Or relations might have an argument with a type that does not match.
@@ -99,194 +66,12 @@ export type UnifyFailure =
       argType: string;
     };
 
-export type UnifyState<Types, Vars> = {
-  kind: 'UnifyState';
-  varTypes: Map<Vars, Types>;
-  varSubsts: Map<Vars, Vars>;
-};
-
-export function emptyUnifState<TypeNames, VarNames>(): UnifyState<
-  TypeNames,
-  VarNames
-> {
-  let unifyState: UnifyState<TypeNames, VarNames> = {
-    kind: 'UnifyState',
-    varTypes: new Map<VarNames, TypeNames>(),
-    varSubsts: new Map<VarNames, VarNames>(),
-  };
-  return unifyState;
-}
-
-export function forkUnifyState<TypeNames, VarNames>(
-  s: UnifyState<TypeNames, VarNames>
-): UnifyState<TypeNames, VarNames> {
-  let unifyState: UnifyState<TypeNames, VarNames> = {
-    kind: 'UnifyState',
-    varTypes: new Map(s.varTypes),
-    varSubsts: new Map<VarNames, VarNames>(s.varSubsts),
-  };
-  return unifyState;
-}
-
-export type RuleMatch<TypeNames, VarNames, RelNames> = {
-  rule: Rule<TypeNames, VarNames, RelNames>;
-  contextBeforeRule: Relation<TypeNames, VarNames, RelNames>[];
-  // Each position in the list corresponds to a condition in the rule.
-  // The number in the list is an index in into the matching relation
-  // in the context to that condition of the rule.
-  condToContextRelIdx: number[];
-  unifState: UnifyState<TypeNames, VarNames>;
-};
-
-export function forkRuleMatch<TypeNames, VarNames, RelNames>(
-  m: RuleMatch<TypeNames, VarNames, RelNames>
-): RuleMatch<TypeNames, VarNames, RelNames> {
-  return {
-    ...m,
-    condToContextRelIdx: [...m.condToContextRelIdx],
-    unifState: forkUnifyState(m.unifState),
-  };
-}
-
 export type RelationToAdd<TypeNames, VarNames, RelNames> = {
   newRel: Relation<TypeNames, VarNames, RelNames>;
   rule: Rule<TypeNames, VarNames, RelNames>;
   match: RuleMatch<TypeNames, VarNames, RelNames>;
   score: number;
 };
-
-// ============================================================================== //
-//  Rule Parser
-// ============================================================================== //
-
-// Old rule shaped expressions.
-// const impactRegexp = new RegExp(
-//   /\s*(?<relString>[^\+\=]*)\s*(?<op>(\+\=|\=))\s*(?<scoreString>\S+)\s*/
-// );
-
-const impactRegexp = new RegExp(
-  /^\s*S\((?<conclAndConditionsStr>[^\)]+)\)\s*(?<op>(\+\=|\*\=))\s*(?<scoreString>\S+)\s*$/
-);
-type ImpactMatches = {
-  conclAndConditionsStr: string;
-  op: RuleOp;
-  scoreString: string;
-};
-const relRegexp = new RegExp(
-  /\s*(?<relName>\S*)\s+(?<argsString>((\_|\?)\S+\s*)*)/
-);
-type RelMatch = { relName: string; argsString: string };
-const conditionsSplitRegexp = new RegExp(/\s*,\s*/);
-const argsSplitRegexp = new RegExp(/\s+/);
-const argumentRegexp = new RegExp(
-  /(?<varName>[\_\?][^ \t\r\n\f\:]+)(\:(?<varType>\S+))?/
-);
-
-export function parseRel<
-  Types extends string,
-  Vars extends string,
-  Relations extends string
->(relString: string): Relation<Types, Vars, Relations> {
-  const match = relString.match(relRegexp)?.groups as RelMatch;
-  if (!match) {
-    throw new Error(`'${relString}' does not match a relation.`);
-  }
-  const { relName, argsString } = match;
-  const argList = argsString.split(argsSplitRegexp);
-  const args = argList
-    .map((a) => {
-      if (a === '') {
-        return null;
-      }
-      const argMatch = a.match(argumentRegexp)?.groups as RelArgument<
-        Types,
-        Vars
-      >;
-      if (!argMatch) {
-        console.warn(`'${a}' does not match the argumentRegexp.`);
-        return null;
-      }
-      if (argMatch.varType === undefined) {
-        argMatch.varType = '' as Types; // empty string is an unspecified type.
-      }
-      return argMatch;
-    })
-    .filter((a) => a !== null) as RelArgument<Types, Vars>[];
-  return { relName, args } as Relation<Types, Vars, Relations>;
-}
-
-function isNegativeCondition(s: string): boolean {
-  return s[0] === '-';
-}
-
-export function parseRule<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
->(ruleStr: string): Rule<TypeNames, VarNames, RelNames> {
-  const conclMatch = ruleStr.match(impactRegexp);
-  if (!conclMatch) {
-    throw new Error(`rule: '${ruleStr}' isn't valid, it lacks a score.`);
-  }
-  const { conclAndConditionsStr, op, scoreString } =
-    conclMatch.groups as ImpactMatches;
-  const conclAndConditionStrs = conclAndConditionsStr.split(/\s*\|\s*/);
-  if (conclAndConditionStrs.length <= 1 && conclAndConditionStrs.length >= 2) {
-    throw new Error(
-      `rule: '${ruleStr}', S(...) must have at most one | to separate conclusions and conditions: '${conclAndConditionStrs}'`
-    );
-  }
-  const rel = parseRel<TypeNames, VarNames, RelNames>(conclAndConditionStrs[0]);
-  const allConditionStrs =
-    conclAndConditionStrs.length === 1
-      ? []
-      : conclAndConditionStrs[1]
-          .split(conditionsSplitRegexp)
-          .filter((s) => s.length > 0);
-
-  const posConditions = allConditionStrs
-    .filter((s) => !isNegativeCondition(s))
-    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s));
-  const negConditions = allConditionStrs
-    .filter(isNegativeCondition)
-    .map((s) => parseRel<TypeNames, VarNames, RelNames>(s.slice(1)));
-  const score = parseFloat(scoreString);
-  return {
-    rel,
-    op,
-    score,
-    posConditions,
-    negConditions,
-  };
-}
-
-export function applyUnifSubstToRel<TypeNames, VarNames, RelNames>(
-  unifState: UnifyState<TypeNames, VarNames>,
-  rel: Relation<TypeNames, VarNames, RelNames>
-): Relation<TypeNames, VarNames, RelNames> {
-  const args = rel.args.map((a) => {
-    return {
-      varName: unifState.varSubsts.get(a.varName) || a.varName,
-      varType: unifState.varTypes.get(a.varName) || a.varType,
-    } as RelArgument<TypeNames, VarNames>;
-  });
-  const newRel = { relName: rel.relName, args };
-  return newRel;
-}
-
-export function applyUnifSubstToRule<TypeNames, VarNames, RelNames>(
-  unifState: UnifyState<TypeNames, VarNames>,
-  rule: Rule<TypeNames, VarNames, RelNames>
-): Rule<TypeNames, VarNames, RelNames> {
-  const rel = applyUnifSubstToRel(unifState, rule.rel);
-  const posConditions = rule.posConditions.map((c) =>
-    applyUnifSubstToRel(unifState, c)
-  );
-  const negConditions = rule.posConditions.map((c) =>
-    applyUnifSubstToRel(unifState, c)
-  );
-  return { rel, posConditions, negConditions, op: rule.op, score: rule.score };
-}
 
 // ============================================================================== //
 // Logic without probabilities.
@@ -306,14 +91,14 @@ export function applyUnifSubstToRule<TypeNames, VarNames, RelNames>(
 //   return subtypeSet.has(subType);
 // }
 
-// A note on memory management for Context:
+// A note on memory management for Story:
 //
-// We treat Contexts as functional objects, meaning if we want to edit a Context,
-// and guarentee not to edit others, we need to copy the context objects top
+// We treat Stories as functional objects, meaning if we want to edit a Story,
+// and guarentee not to edit others, we need to copy the Story objects top
 // down to the edited part, and return a new copy.
 //
 // TODO: make a deep-copy function so it's easier to be safe?
-export class Context<
+export class Story<
   TypeNames extends string,
   VarNames extends string,
   RelNames extends string
@@ -326,7 +111,7 @@ export class Context<
     // Mapping from Relation to the list of most general type for each argument.
     public relations: Map<RelNames, TypeNames[]>,
 
-    // TODO: probably we want to generalise bindings and context into a single named set:
+    // TODO: probably we want to generalise bindings and story into a single named set:
     // proof terms of LL.
     //
     // The list of atomic objects (variables)
@@ -334,9 +119,9 @@ export class Context<
     public varTypes: Map<VarNames, TypeNames>,
     // The list of relations in the scene
     // True when the name corresponds to a name in a rule and not to an name in
-    // the context (we use a separate name class for rules to make it faster to do
+    // the story (we use a separate name class for rules to make it faster to do
     // matching; this avoid needing to rewrite rule-var names before matching).
-    // e.g. ?x = var in a rule. _x = var in a relation in the context.
+    // e.g. ?x = var in a rule. _x = var in a relation in the story.
     public isUnboundVarName: (v: VarNames) => boolean
   ) {
     this.names = new FreshNames();
@@ -345,14 +130,14 @@ export class Context<
     this.names.addNames(varTypes.keys());
   }
 
-  // In place update of the current context.
+  // In place update of the current story.
   extendScene(rels: Relation<TypeNames, VarNames, RelNames>[]) {
     const unifyState = this.newUnifyState();
     rels.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithState(r, unifyState);
       if (unifyFailed) {
         console.warn(
-          `can't create context with the specified relation. Unif state:`,
+          `can't create Story with the specified relation. Unif state:`,
           r,
           unifyFailed
         );
@@ -425,9 +210,9 @@ export class Context<
       return;
     } else {
       return {
-        kind: 'UnifyFailure:argContextTypeClash',
+        kind: 'UnifyFailure:argStoryTypeClash',
         argumentNumber: argumentNumber,
-        contextVarTypes: prevBoundType,
+        storyVarTypes: prevBoundType,
         argType: a.varType,
       };
     }
@@ -440,19 +225,21 @@ export class Context<
     const relTypes = this.relations.get(r.relName);
 
     if (!relTypes) {
-      return {
-        kind: 'UnifyFailure:relNameMissingFromContext',
-        relName: r.relName,
-      };
+      throw new Error('UnifyFailure:relNameMissingFromStory');
+      // return {
+      //   kind: 'UnifyFailure:relNameMissingFromStory',
+      //   relName: r.relName,
+      // };
     }
 
     if (relTypes.length !== r.args.length) {
-      return {
-        kind: 'UnifyFailure:relNameContextArityMismatch',
-        relName: r.relName,
-        contextArity: relTypes.length,
-        instanceArity: r.args.length,
-      };
+      throw new Error('UnifyFailure:relNameStoryArityMismatch');
+      // return {
+      //   kind: 'UnifyFailure:relNameStoryArityMismatch',
+      //   relName: r.relName,
+      //   storyArity: relTypes.length,
+      //   instanceArity: r.args.length,
+      // };
     }
 
     for (let i = 0; i < r.args.length; i++) {
@@ -562,14 +349,20 @@ export class Context<
     const initialMatches = [
       {
         rule: rule,
-        contextBeforeRule: this.scene,
-        // Each position in the list corresponds to a condition in the rule.
+        sceneBeforeRule: this.scene,
+        // Each position in the list corresponds to a positive condition of
+        // the rule.
         // The number in the list is an index in into the matching relation
-        // in the context to that condition of the rule.
-        condToContextRelIdx: [],
+        // in the story to that condition of the rule.
+        condToStoryRelIdx: [],
         unifState: initMatchUnifState,
       } as RuleMatch<TypeNames, VarNames, RelNames>,
     ];
+    // Always match positive conditions first. (Negative filter these down,
+    // and it would not be the same if you match negative first: the negative
+    // condition might fail universally, but succeed after a positive condition
+    // is matched).
+    //
     // TODO: make more efficient: only fork the unify state when needed.
     // e.g. fail as much as possible before working.
     const finalMatches = rule.posConditions.reduce<
@@ -579,17 +372,17 @@ export class Context<
       ruleMatches.forEach((match) => {
         // TODO: make more efficient: only fork the unify state when needed.
         // e.g. fail as much as possible before working.
-        this.scene.forEach((contextRel, contextRelIdx) => {
+        this.scene.forEach((storyRel, storyRelIdx) => {
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
           const newMatch = forkRuleMatch(match);
           const unifyFailure = this.unify(
             condRel,
-            contextRel,
+            storyRel,
             newMatch.unifState
           );
           if (!unifyFailure) {
-            newMatch.condToContextRelIdx.push(contextRelIdx);
+            newMatch.condToStoryRelIdx.push(storyRelIdx);
             nextMatches.push(newMatch);
           }
         });
@@ -598,15 +391,15 @@ export class Context<
     }, initialMatches);
 
     return finalMatches.filter((match) => {
-      // every neg condition must fail to match every context rel:
-      // = if any neg condition matches any context rel, this rule
+      // every neg condition must fail to match every story rel:
+      // = if any neg condition matches any story rel, this rule
       // is not applicable.
       for (const negRuleRel of rule.negConditions) {
-        for (const contextRel of this.scene) {
+        for (const storyRel of this.scene) {
           const newMatch = forkRuleMatch(match);
           const unifyFailure = this.unify(
             negRuleRel,
-            contextRel,
+            storyRel,
             newMatch.unifState
           );
           if (!unifyFailure) {
@@ -618,9 +411,9 @@ export class Context<
     });
   }
 
-  // Top level copy of a context; forking it.
-  fork(): Context<TypeNames, VarNames, RelNames> {
-    const c = new Context(
+  // Top level copy of a story; forking it.
+  fork(): Story<TypeNames, VarNames, RelNames> {
+    const c = new Story(
       this.types,
       this.relations,
       this.names.fork(),
@@ -631,41 +424,38 @@ export class Context<
     return c;
   }
 
+  applySubstToVarTypes() {}
+
   applyRuleMatch(
     match: RuleMatch<TypeNames, VarNames, RelNames>
-  ): Context<TypeNames, VarNames, RelNames> {
-    const newContext = this.fork();
+  ): Story<TypeNames, VarNames, RelNames> {
+    const newStory = this.fork();
 
     // Names of locally introduced variables.
-    const freshNameSubsts = emptyUnifState<TypeNames, VarNames>();
+    // Note: match.unifState us assumed to be initialised from the current story.
+    const freshNameUnif = forkUnifyState(match.unifState);
 
     // Apply the type-narrowings, and provide new names for introduced variables,
-    // and also record their types in the new context.
+    // and also record their types in the new story.
     match.unifState.varTypes.forEach((vType, vName) => {
-      if (
-        this.isUnboundVarName(vName) &&
-        !match.unifState.varSubsts.has(vName)
-      ) {
-        const newLocalName = newContext.names.makeAndAddNextName() as VarNames;
-        freshNameSubsts.varSubsts.set(vName, newLocalName);
-        freshNameSubsts.varTypes.set(newLocalName, vType);
-        newContext.varTypes.set(newLocalName, vType);
+      if (this.isUnboundVarName(vName)) {
+        if (!match.unifState.varSubsts.has(vName)) {
+          const newLocalName = newStory.names.makeAndAddNextName() as VarNames;
+          freshNameUnif.varSubsts.set(vName, newLocalName);
+          freshNameUnif.varTypes.set(newLocalName, vType);
+          newStory.varTypes.set(newLocalName, vType);
+        }
+        // Else the variable is substituted for an exsiting known name.
       } else {
-        newContext.varTypes.set(vName, vType);
+        // The name is not a var, but it may have a narrower type.
+        newStory.varTypes.set(vName, vType);
       }
     });
 
-    const matchedRelation = applyUnifSubstToRel(
-      match.unifState,
-      match.rule.rel
-    );
-    const freshNamesRelation = applyUnifSubstToRel(
-      freshNameSubsts,
-      matchedRelation
-    );
-    newContext.scene.push(freshNamesRelation);
+    const matchedRelation = applyUnifSubstToRel(freshNameUnif, match.rule.rel);
+    newStory.scene.push(matchedRelation);
 
-    return newContext;
+    return newStory;
   }
 }
 
@@ -675,7 +465,7 @@ export type RuleApp<
   RelNames extends string
 > = {
   rule: Rule<TypeNames, VarNames, RelNames>;
-  context: Context<TypeNames, VarNames, RelNames>;
+  story: Story<TypeNames, VarNames, RelNames>;
   newRel: Relation<TypeNames, VarNames, RelNames>;
 };
 
@@ -702,15 +492,15 @@ export function addRuleApps<
   RelNames extends string
 >(
   rule: Rule<TypeNames, VarNames, RelNames>,
-  context: Context<TypeNames, VarNames, RelNames>,
+  story: Story<TypeNames, VarNames, RelNames>,
   ruleApps: Map<string, RuleApp<TypeNames, VarNames, RelNames>[]>
 ): void {
-  context.matchRule(rule).map((m) => {
-    const c2 = context.applyRuleMatch(m);
-    const newRel = c2.scene[c2.scene.length - 1];
+  story.matchRule(rule).map((m) => {
+    const newStory = story.applyRuleMatch(m);
+    const newRel = newStory.scene[newStory.scene.length - 1];
     const newRelStr = stringifyRelation(newRel);
     const prevRuleApps = ruleApps.get(newRelStr) || [];
-    prevRuleApps.push({ context: c2, rule, newRel: newRel });
+    prevRuleApps.push({ story: newStory, rule, newRel: newRel });
     ruleApps.set(newRelStr, prevRuleApps);
   });
 }
@@ -722,14 +512,14 @@ export function applyRules<
   RelNames extends string
 >(
   rules: Rule<TypeNames, VarNames, RelNames>[],
-  context: Context<TypeNames, VarNames, RelNames>
+  story: Story<TypeNames, VarNames, RelNames>
 ): Map<string, RuleApp<TypeNames, VarNames, RelNames>[]> {
   const nextRuleApps = new Map<
     string, // string version of the new relation.
     RuleApp<TypeNames, VarNames, RelNames>[]
   >();
   for (const r of rules) {
-    addRuleApps(r, context, nextRuleApps);
+    addRuleApps(r, story, nextRuleApps);
   }
   return nextRuleApps;
 }
@@ -793,19 +583,18 @@ export function nextRelDistrStats<
 // ============================================================================== //
 export type VarNames = `_${string}` | `?${string}`;
 export function isUnboundVarName(v: string): boolean {
-  // console.log(v, v[0] === '?');
   return v[0] === '?';
 }
 
-export function initContext<TypeNames extends string, RelNames extends string>(
+export function initStory<TypeNames extends string, RelNames extends string>(
   typeMap: Map<TypeNames, Set<TypeNames>>,
   relationMap: Map<RelNames, TypeNames[]>
 ) {
-  return new Context(
+  return new Story(
     typeMap,
     relationMap,
-    new FreshNames(), // Updated by the context updates
-    new Map<VarNames, TypeNames>(), // Updated by the context updates
+    new FreshNames(), // Updated by the story updates
+    new Map<VarNames, TypeNames>(), // Updated by the story updates
     isUnboundVarName // Must match FreshNames.
   );
 }
@@ -839,13 +628,13 @@ export function sampleNextRel<
   RelNames extends string
 >(
   random: RandomStream,
-  curContext: Context<TypeNames, VarNames, RelNames>,
+  curStory: Story<TypeNames, VarNames, RelNames>,
   rules: Rule<TypeNames, VarNames, RelNames>[]
 ): {
-  context: Context<TypeNames, VarNames, RelNames>;
+  story: Story<TypeNames, VarNames, RelNames>;
   rel: Relation<TypeNames, VarNames, RelNames>;
 } | null {
-  const ruleApps = applyRules(rules, curContext);
+  const ruleApps = applyRules(rules, curStory);
   const distr = nextRelDistrStats(ruleApps);
   let nextRandValue = random.random();
 
@@ -871,5 +660,5 @@ export function sampleNextRel<
     return null;
   }
   const ruleApp = relRuleApps.ruleApps[0];
-  return { context: ruleApp.context, rel: ruleApp.newRel };
+  return { story: ruleApp.story, rel: ruleApp.newRel };
 }
