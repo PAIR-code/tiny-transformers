@@ -14,7 +14,13 @@ limitations under the License.
 ==============================================================================*/
 
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
+// import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
+/*
+Not needed anymore. See
+"Note: If you are using @tensorflow/tfjs or @tensorflow/tfjs-layers or any of the
+other higher level packages, this is done for you automatically." in
+https://www.tensorflow.org/js/tutorials/upgrading_to_3_0
+*/
 import { GTensor, DName, makeTruncNormal } from '../gtensor/gtensor';
 import { GVariableTree } from '../gtensor/gtensor_tree';
 
