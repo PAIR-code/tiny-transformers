@@ -208,7 +208,9 @@ export class TinyWorldTask implements BasicLmTask {
     this.baseVocab = [
       relSepToken,
       typeIsToken,
-      ...Object.keys(relationMap),
+      ...relationMap.keys(),
+      // Here relationMap is a Map rather than a plain object,
+      // so use Map.prototype.keys() for its keys.
       ...allTypes,
       ...varNames,
     ];

@@ -151,21 +151,21 @@ function unbindedLossFn(
 
 {
   // define task
-  let taskConfig = getTaskConfig();
-  const task = new TinyWorldTask(taskConfig);
+  const trainTaskConfig = getTaskConfig();
+  const trainTask = new TinyWorldTask(trainTaskConfig);
 
   // define vocab & decoder
-  let tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-  let transformerConfig = getTransformerConfig();
-  let decoderParamsTree = initDecoderParamsTree(tokenRep, transformerConfig);
+  const tokenRep = prepareBasicTaskTokenRep(trainTask.baseVocab);
+  const transformerConfig = getTransformerConfig();
+  const decoderParamsTree = initDecoderParamsTree(tokenRep, transformerConfig);
 
   // train with optimiztaion
-  let batchNum: number = 2000;
-  let batchSize: number = 32;
+  const batchNum: number = 2000;
+  const batchSize: number = 32;
 
   let optimizer = tf.train.adam();
   let batchId = 0;
-  for (let batch of dataGenerator(task, batchNum, batchSize)) {
+  for (let batch of dataGenerator(trainTask, batchNum, batchSize)) {
     console.log('batchId', batchId);
     batchId += 1;
 
@@ -179,5 +179,66 @@ function unbindedLossFn(
         decoderParamsTree
       );
     optimizer.minimize(bindedLossFn);
+  }
+
+  // infer
+  const inferSteps = 20;
+  const inferTaskConfig = { ...getTaskConfig(), maxOutputLen: inferSteps };
+  const inferTask = new TinyWorldTask(inferTaskConfig);
+
+  let batchOriginal = inferTask.exampleIter.takeOutN(1);
+  let batchInputAll = batchOriginal.map((example) => example.input);
+  let batchOutputAll = batchOriginal.map((example) => example.output);
+  let batchInput = batchInputAll;
+  let batchOutput = batchOutputAll.map((subarr) => subarr.slice(0, 1));
+  for (let inferStep = 0; inferStep < inferSteps; inferStep += 1) {
+    let spec = transformerConfig.spec;
+    let computation: TransformerComputation = computeDecoder(
+      tokenRep,
+      strSeqPrepFn,
+      spec,
+      decoderParamsTree,
+      batchInput
+    );
+    let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(
+      tokenRep,
+      batchOutput
+    );
+    let singleNextTokenIdxArrayData =
+      singleNextTokenIdx.tensor.arraySync() as number[];
+    let logits = transformerLastTokenLogits(
+      computation,
+      decoderParamsTree.obj.tokenEmbedding
+    );
+    let probs = logits.softmax('tokenId');
+    let probsArrayData = probs.tensor.arraySync() as number[][];
+
+    console.log('Inference Step:', inferStep);
+    console.log('Context:', batchInput[0]);
+    console.log('Target:', batchOutput[0][0]);
+    console.log('Prediction:');
+    for (let tokenId = 0; tokenId < tokenRep.tokens.length; tokenId += 1) {
+      let mark = '';
+      if (tokenId == singleNextTokenIdxArrayData[0]) {
+        mark = ' <- Target';
+      }
+      console.log(
+        '   ',
+        tokenRep.tokens[tokenId].padEnd(10),
+        ' ',
+        probsArrayData[0][tokenId].toFixed(8),
+        ' ',
+        mark
+      );
+      //
+      probsArrayData[0];
+    }
+
+    batchInput = batchInput.map((subArray, batchIndex) =>
+      subArray.slice(1).concat(batchOutput[batchIndex])
+    );
+    batchOutput = batchOutputAll.map((subArray) =>
+      subArray.slice(inferStep, inferStep + 1)
+    );
   }
 }
