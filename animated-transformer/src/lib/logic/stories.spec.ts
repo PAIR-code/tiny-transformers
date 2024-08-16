@@ -16,13 +16,12 @@ import { FreshNames } from '../names/simple_fresh_names';
 import {
   Story,
   VarNames,
-  addToTypeMap,
   applyRules,
   initStory,
   isUnboundVarName,
   nextRelDistrStats,
 } from './stories';
-import { parseRel } from './relations';
+import { parseRel, addToTypeMap, makeTypeDef } from './relations';
 import { parseRule } from './rules';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
@@ -492,16 +491,12 @@ describe('stories', () => {
   });
 
   it('addToTypeMap', () => {
-    const typeHierarchy = {
+    const typeMap = makeTypeDef({
       animal: ['cat', 'monkey', 'elephant'],
       inanimate: ['rock', 'tree', 'flower'],
       squishable: ['cat', 'monkey', 'flower'],
-    };
-    const typeMap = new Map<string, Set<string>>();
-    const allTypes = addToTypeMap(typeHierarchy, typeMap);
-    typeMap.set('', allTypes);
-
-    expect(allTypes.size).toBe(9);
+    });
+    expect(typeMap.get('')!.size).toBe(9);
     expect(typeMap.get('animal')).toContain('cat');
     expect(typeMap.get('animal')).toContain('monkey');
     expect(typeMap.get('animal')).toContain('elephant');
@@ -509,11 +504,6 @@ describe('stories', () => {
   });
 
   it('Making a new example domain using helpers', () => {
-    const typeHierarchy = {
-      animal: ['cat', 'monkey', 'elephant'],
-      inanimate: ['rock', 'tree', 'flower'],
-      squishable: ['cat', 'monkey', 'flower'],
-    };
     const relationKinds: { [key: string]: string[] } = {
       is: [''],
       'runs-away': ['animal'],
@@ -527,10 +517,11 @@ describe('stories', () => {
       'S(jumps ?x | is ?x:animal) += 5',
       'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
     ];
-
-    const typeMap = new Map<string, Set<string>>();
-    const allTypes = addToTypeMap(typeHierarchy, typeMap);
-    typeMap.set('', allTypes);
+    const typeMap = makeTypeDef({
+      animal: ['cat', 'monkey', 'elephant'],
+      inanimate: ['rock', 'tree', 'flower'],
+      squishable: ['cat', 'monkey', 'flower'],
+    });
 
     const relationMap = new Map<string, string[]>();
     Object.keys(relationKinds).forEach((r) => {
