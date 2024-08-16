@@ -3,7 +3,9 @@ import { Rule } from './rules';
 
 export type UnifyState<Types, Vars> = {
   kind: 'UnifyState';
-  varTypes: Map<Vars, Types>;
+  // Maps a variable name to the set of alternative possible valid types for that variable.
+  varTypes: Map<Vars, Set<Types>>;
+  // Substitutions for variable names.
   varSubsts: Map<Vars, Vars>;
 };
 
@@ -13,7 +15,7 @@ export function emptyUnifState<TypeNames, VarNames>(): UnifyState<
 > {
   let unifyState: UnifyState<TypeNames, VarNames> = {
     kind: 'UnifyState',
-    varTypes: new Map<VarNames, TypeNames>(),
+    varTypes: new Map<VarNames, Set<TypeNames>>(),
     varSubsts: new Map<VarNames, VarNames>(),
   };
   return unifyState;

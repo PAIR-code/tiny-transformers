@@ -29,7 +29,7 @@ import {
   Relation,
   stringifyRelation,
 } from './relations';
-import { Rule } from './rules';
+import { Rule, stringifyRule } from './rules';
 
 // ============================================================================== //
 //  Unification State & Failure
@@ -134,7 +134,7 @@ export class Story<
   extendScene(rels: Relation<TypeNames, VarNames, RelNames>[]) {
     const unifyState = this.newUnifyState();
     rels.forEach((r, i) => {
-      const unifyFailed = this.unifyRelationWithState(r, unifyState);
+      const unifyFailed = this.unifyRelationWithContext(r, unifyState);
       if (unifyFailed) {
         console.warn(
           `can't create Story with the specified relation. Unif state:`,
@@ -160,7 +160,7 @@ export class Story<
     return this.scene.length > 1 ? this.scene[this.scene.length] : null;
   }
 
-  subtypeOf(subType: TypeNames, superType: TypeNames): boolean {
+  subtypeOfSuperType(subType: TypeNames, superType: TypeNames): boolean {
     const subtypeSet = this.types.get(superType);
     if (!subtypeSet) {
       console.warn(this.types);
@@ -171,19 +171,58 @@ export class Story<
     return subtypeSet.has(subType);
   }
 
-  unifyRelationArgumentWithState(
+  typeIntersection(ty1: TypeNames, ty2: TypeNames): Set<TypeNames> {
+    if (ty1 === ty2) {
+      return new Set([ty1]);
+    }
+    const ty1Subset = this.types.get(ty1);
+    if (!ty1Subset) {
+      console.warn(this.types);
+      throw new Error(`No such type in the set of types: '${ty1}'.`);
+    }
+    if (ty1Subset.has(ty2)) {
+      return new Set([ty2]);
+    }
+    const ty2Subset = this.types.get(ty2);
+    if (!ty2Subset) {
+      console.warn(this.types);
+      throw new Error(`No such type in the set of types: '${ty2}'.`);
+    }
+    if (ty2Subset.has(ty1)) {
+      return new Set([ty1]);
+    }
+    return ty1Subset.intersection(ty2Subset);
+  }
+
+  unifyRelationArgumentWithContext(
     a: RelArgument<TypeNames, VarNames>,
     unifyState: UnifyState<TypeNames, VarNames>,
     relType: TypeNames, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
   ): UnifyFailure | undefined {
-    // Check the argument consistent with Relation's corresponding argument type...
+    console.log(
+      'unifyRelationArgumentWithState: init varTypes',
+      unifyState.varTypes,
+      a
+    );
+
+    // Check the argument is consistent with Relation's corresponding argument type...
     let varType = a.varType;
     if (varType === '') {
       varType = relType;
-    } else if (varType !== relType && !this.subtypeOf(varType, relType)) {
+    } else if (
+      varType !== relType &&
+      !this.subtypeOfSuperType(varType, relType)
+    ) {
       // Else if the variable type is specificed, and it is not a subtype of what
       // the relation allows, unification fails.
+      // console.error({
+      //   kind: 'UnifyFailure:argRelationTypeClash',
+      //   argumentNumber: argumentNumber,
+      //   relationVarType: relType,
+      //   argType: a.varType,
+      // });
+      // throw new Error('UnifyFailure:argRelationTypeClash');
       return {
         kind: 'UnifyFailure:argRelationTypeClash',
         argumentNumber: argumentNumber,
@@ -194,31 +233,58 @@ export class Story<
 
     // If this doesn't change the previously known type for this var...
     const prevBoundType = unifyState.varTypes.get(a.varName);
+
+    // If not previously bound, this is a new binding...
+    if (!prevBoundType) {
+      unifyState.varTypes.set(a.varName, varType);
+      return;
+    }
+
+    // If current binding is the same, or tighter already...
     if (
-      prevBoundType &&
-      (varType === prevBoundType || // same as before
-        // or this relation treats the type as more general,
-        // that's also true, but doesn't change the binding.
-        this.subtypeOf(prevBoundType, varType))
+      varType === prevBoundType || // same as before
+      // or this relation treats the type as more general,
+      // that's also true, but doesn't change the binding.
+      this.subtypeOfSuperType(prevBoundType, varType)
     ) {
       return;
     }
 
     // If this type is more specific than previously, set the type.
-    if (!prevBoundType || this.subtypeOf(varType, prevBoundType)) {
+    // Note: adding `!prevBoundType || ` to start of the condition
+    if (this.subtypeOfSuperType(varType, prevBoundType)) {
       unifyState.varTypes.set(a.varName, varType);
       return;
-    } else {
-      return {
-        kind: 'UnifyFailure:argStoryTypeClash',
-        argumentNumber: argumentNumber,
-        storyVarTypes: prevBoundType,
-        argType: a.varType,
-      };
     }
+
+    // console.log({
+    //   kind: 'UnifyFailure:argStoryTypeClash',
+    //   argumentNumber: argumentNumber,
+    //   storyVarTypes: prevBoundType,
+    //   argType: a.varType,
+    // });
+
+    return {
+      kind: 'UnifyFailure:argStoryTypeClash',
+      argumentNumber: argumentNumber,
+      storyVarTypes: prevBoundType,
+      argType: a.varType,
+    };
+
+    // else if (!prevBoundType) {
+    //   unifyState.varTypes.set(a.varName, varType);
+    //   return;
+    // } else {
+    //   return {
+    //     kind: 'UnifyFailure:argStoryTypeClash',
+    //     argumentNumber: argumentNumber,
+    //     storyVarTypes: prevBoundType,
+    //     argType: a.varType,
+    //   };
+    // }
   }
 
-  unifyRelationWithState(
+  unifyRelationWithContext(
     r: Relation<TypeNames, VarNames, RelNames>,
     unifyState: UnifyState<TypeNames, VarNames>
   ): UnifyFailure | undefined {
@@ -243,7 +309,7 @@ export class Story<
     }
 
     for (let i = 0; i < r.args.length; i++) {
-      const unifyFailure = this.unifyRelationArgumentWithState(
+      const unifyFailure = this.unifyRelationArgumentWithContext(
         r.args[i],
         unifyState,
         relTypes[i],
@@ -274,12 +340,16 @@ export class Story<
           ` (${r1.relName}/${r1.args.length} vs ${r2.relName}/${r2.args.length})`
       );
     }
-    const unify1Failure = this.unifyRelationWithState(r1, unifyState);
+    const unify1Failure = this.unifyRelationWithContext(r1, unifyState);
     if (unify1Failure) {
+      // console.log('unify1Failure: r1', r1);
+      // console.log('unify1Failure: unifState', unify1Failure);
       return unify1Failure;
     }
-    const unify2Failure = this.unifyRelationWithState(r2, unifyState);
+    const unify2Failure = this.unifyRelationWithContext(r2, unifyState);
     if (unify2Failure) {
+      // console.log('unify1Failure: r2', r2);
+      // console.log('unify1Failure: unifState', unify1Failure);
       return unify2Failure;
     }
 
@@ -299,9 +369,9 @@ export class Story<
       const v2Type = unifyState.varTypes.get(v2Name) || r2.args[i].varType;
       if (v1Type !== v2Type) {
         // Make both have the narrower type, or if incompatible, fail.
-        if (this.subtypeOf(v1Type, v2Type)) {
+        if (this.subtypeOfSuperType(v1Type, v2Type)) {
           unifyState.varTypes.set(v2Name, v1Type);
-        } else if (this.subtypeOf(v2Type, v1Type)) {
+        } else if (this.subtypeOfSuperType(v2Type, v1Type)) {
           unifyState.varTypes.set(v1Name, v2Type);
         } else {
           return {
@@ -332,18 +402,60 @@ export class Story<
     return unifyState;
   }
 
-  matchRule(
+  // Make sure the rule's relation match the types and argument-counts of the story's context.
+  // Return an initial unification state with the rule's variables having appropriately general types.
+  unifyRuleWithContext(
     rule: Rule<TypeNames, VarNames, RelNames>
-  ): RuleMatch<TypeNames, VarNames, RelNames>[] {
+  ): UnifyState<TypeNames, VarNames> | null {
     const initMatchUnifState = this.newUnifyState();
-    const unifFailure = this.unifyRelationWithState(
+    const unifFailure = this.unifyRelationWithContext(
       rule.rel,
       initMatchUnifState
     );
     if (unifFailure) {
+      console.warn(unifFailure);
+      return null;
+    }
+    for (const posCondition of rule.posConditions) {
+      const unifFailure = this.unifyRelationWithContext(
+        posCondition,
+        initMatchUnifState
+      );
+      if (unifFailure) {
+        console.warn(unifFailure);
+        // The types not longer match
+        // console.warn('surprising unification failure on rule concl', unifFailure);
+        return null;
+      }
+    }
+
+    for (const negCondition of rule.negConditions) {
+      const unifFailure = this.unifyRelationWithContext(
+        negCondition,
+        initMatchUnifState
+      );
+      if (unifFailure) {
+        console.warn(unifFailure);
+        // The types not longer match
+        // console.warn('surprising unification failure on rule concl', unifFailure);
+        return null;
+      }
+    }
+    return initMatchUnifState;
+  }
+
+  matchRule(
+    rule: Rule<TypeNames, VarNames, RelNames>
+  ): RuleMatch<TypeNames, VarNames, RelNames>[] {
+    const maybeInitMatchUnifState = this.unifyRuleWithContext(rule);
+    if (!maybeInitMatchUnifState) {
+      // console.error(`Rule's relations are malformed for this context ${stringifyRule(rule)}`);
+      throw new Error(
+        `Rule's relations are malformed for this context ${stringifyRule(rule)}`
+      );
       // The types not longer match
       // console.warn('surprising unification failure on rule concl', unifFailure);
-      return [];
+      // return [];
     }
 
     const initialMatches = [
@@ -355,9 +467,10 @@ export class Story<
         // The number in the list is an index in into the matching relation
         // in the story to that condition of the rule.
         condToStoryRelIdx: [],
-        unifState: initMatchUnifState,
+        unifState: maybeInitMatchUnifState,
       } as RuleMatch<TypeNames, VarNames, RelNames>,
     ];
+
     // Always match positive conditions first. (Negative filter these down,
     // and it would not be the same if you match negative first: the negative
     // condition might fail universally, but succeed after a positive condition
@@ -384,6 +497,12 @@ export class Story<
           if (!unifyFailure) {
             newMatch.condToStoryRelIdx.push(storyRelIdx);
             nextMatches.push(newMatch);
+          } else {
+            console.log('matchRule: unifFailure', {
+              condRel,
+              storyRel,
+              unifState: newMatch.unifState,
+            });
           }
         });
       });
@@ -423,8 +542,6 @@ export class Story<
     c.scene = [...this.scene];
     return c;
   }
-
-  applySubstToVarTypes() {}
 
   applyRuleMatch(
     match: RuleMatch<TypeNames, VarNames, RelNames>

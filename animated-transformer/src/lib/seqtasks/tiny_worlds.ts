@@ -128,11 +128,11 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // types for conditions, not depend on past statements
     // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runsAway ?a:animal) *= 0',
-    'S(squishes ?x ?a | runsAway ?a:animal) *= 0',
+    'S(squishes ?x ?a | runsAway ?a) *= 0',
     'S(runsAway ?x | runsAway ?x) *= 0',
     // Squished animals can't run away or jump anymore
-    'S(runsAway ?y | squishes ?x ?y:animal) *= 0',
-    'S(jumps ?y | squishes ?x ?y:animal) *= 0',
+    'S(runsAway ?y | squishes ?x ?y) *= 0',
+    'S(jumps ?y | squishes ?x ?y) *= 0',
   ],
   maxEntityLimit: 6,
 };
@@ -141,13 +141,13 @@ export const spaceSepToken = ' ';
 export const relSepToken = ', ';
 export const typeIsToken = ':';
 export type SepToken = typeof relSepToken;
-type VarNames = `_${string}` | `?${string}`;
+export type VarNames = `_${string}` | `?${string}`;
 function isUnboundVarName(v: string): boolean {
   // console.log(v, v[0] === '?');
   return v[0] === '?';
 }
-type TypeNames = string;
-type RelNames = string;
+export type TypeNames = string;
+export type RelNames = string;
 
 // ============================================================================== //
 //  Tiny World Task Configs
