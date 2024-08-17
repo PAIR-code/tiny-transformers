@@ -28,6 +28,7 @@ import {
   RelArgument,
   Relation,
   stringifyRelation,
+  typesetIntersection,
 } from './relations';
 import { Rule, stringifyRule } from './rules';
 
@@ -56,14 +57,14 @@ export type UnifyFailure =
   | {
       kind: 'UnifyFailure:relRelTypeClashArg';
       argumentNumber: number;
-      arg1Type: string;
-      arg2Type: string;
+      arg1Types: string[];
+      arg2Types: string[];
     }
   | {
       kind: 'UnifyFailure:argRelationTypeClash';
       argumentNumber: number;
-      relationVarType: string;
-      argType: string;
+      relationVarTypes: string[];
+      argTypes: string[];
     };
 
 export type RelationToAdd<TypeNames, VarNames, RelNames> = {
@@ -99,30 +100,30 @@ export type RelationToAdd<TypeNames, VarNames, RelNames> = {
 //
 // TODO: make a deep-copy function so it's easier to be safe?
 export class Story<
-  TypeNames extends string,
-  VarNames extends string,
+  TypeName extends string,
+  VarName extends string,
   RelNames extends string
 > {
-  public scene: Relation<TypeNames, VarNames, RelNames>[] = [];
+  public scene: Relation<TypeName, VarName, RelNames>[] = [];
 
   constructor(
     // The type hierarchy.
-    public types: Map<TypeNames, Set<TypeNames>>,
+    public types: Map<TypeName, Set<TypeName>>,
     // Mapping from Relation to the list of most general type for each argument.
-    public relations: Map<RelNames, TypeNames[]>,
+    public relations: Map<RelNames, Set<TypeName>[]>,
 
     // TODO: probably we want to generalise bindings and story into a single named set:
     // proof terms of LL.
     //
     // The list of atomic objects (variables)
     public names: FreshNames,
-    public varTypes: Map<VarNames, TypeNames>,
+    public varTypes: Map<VarName, Set<TypeName>>,
     // The list of relations in the scene
     // True when the name corresponds to a name in a rule and not to an name in
     // the story (we use a separate name class for rules to make it faster to do
     // matching; this avoid needing to rewrite rule-var names before matching).
     // e.g. ?x = var in a rule. _x = var in a relation in the story.
-    public isUnboundVarName: (v: VarNames) => boolean
+    public isUnboundVarName: (v: VarName) => boolean
   ) {
     this.names = new FreshNames();
     this.names.addNames(types.keys());
@@ -131,7 +132,7 @@ export class Story<
   }
 
   // In place update of the current story.
-  extendScene(rels: Relation<TypeNames, VarNames, RelNames>[]) {
+  extendScene(rels: Relation<TypeName, VarName, RelNames>[]) {
     const unifyState = this.newUnifyState();
     rels.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithContext(r, unifyState);
@@ -146,8 +147,8 @@ export class Story<
         );
       }
     });
-    unifyState.varTypes.forEach((value, key) => {
-      this.varTypes.set(key, value);
+    unifyState.varTypes.forEach((varTypes, varName) => {
+      this.varTypes.set(varName, varTypes);
     });
     this.names.addNames(unifyState.varTypes.keys());
     const instantiatedRels = rels.map((rel) =>
@@ -156,156 +157,41 @@ export class Story<
     this.scene = [...this.scene, ...instantiatedRels];
   }
 
-  lastSceneRel(): Relation<TypeNames, VarNames, RelNames> | null {
+  lastSceneRel(): Relation<TypeName, VarName, RelNames> | null {
     return this.scene.length > 1 ? this.scene[this.scene.length] : null;
   }
 
-  subtypeOfSuperType(subType: TypeNames, superType: TypeNames): boolean {
-    const subtypeSet = this.types.get(superType);
-    if (!subtypeSet) {
-      console.warn(this.types);
-      throw new Error(
-        `No such supertype in the set of types: '${superType}' when trying to check subtypes ('${subType}')`
-      );
-    }
-    return subtypeSet.has(subType);
-  }
-
-  typeIntersection(ty1: TypeNames, ty2: TypeNames): Set<TypeNames> {
-    if (ty1 === ty2) {
-      return new Set([ty1]);
-    }
-    const ty1Subset = this.types.get(ty1);
-    if (!ty1Subset) {
-      console.warn(this.types);
-      throw new Error(`No such type in the set of types: '${ty1}'.`);
-    }
-    if (ty1Subset.has(ty2)) {
-      return new Set([ty2]);
-    }
-    const ty2Subset = this.types.get(ty2);
-    if (!ty2Subset) {
-      console.warn(this.types);
-      throw new Error(`No such type in the set of types: '${ty2}'.`);
-    }
-    if (ty2Subset.has(ty1)) {
-      return new Set([ty1]);
-    }
-    return ty1Subset.intersection(ty2Subset);
-  }
-
   unifyRelationArgumentWithContext(
-    a: RelArgument<TypeNames, VarNames>,
-    unifyState: UnifyState<TypeNames, VarNames>,
-    relType: TypeNames, // The type of this argument in the relation
+    a: RelArgument<TypeName, VarName>,
+    unifyState: UnifyState<TypeName, VarName>,
+    relTypes: Set<TypeName>, // The type of this argument in the relation
     argumentNumber: number = -1 // indicates that no argument was provided.
-  ): UnifyFailure | undefined {
-    console.log(
-      'unifyRelationArgumentWithState: init varTypes',
-      unifyState.varTypes,
-      a
-    );
-
+  ): UnifyFailure | null {
     // Check the argument is consistent with Relation's corresponding argument type...
-    let varType = a.varType;
-    if (varType === '') {
-      varType = relType;
-    } else if (
-      varType !== relType &&
-      !this.subtypeOfSuperType(varType, relType)
-    ) {
-      // Else if the variable type is specificed, and it is not a subtype of what
-      // the relation allows, unification fails.
-      // console.error({
-      //   kind: 'UnifyFailure:argRelationTypeClash',
-      //   argumentNumber: argumentNumber,
-      //   relationVarType: relType,
-      //   argType: a.varType,
-      // });
-      // throw new Error('UnifyFailure:argRelationTypeClash');
+    const varTypes = typesetIntersection(this.types, a.varTypes, relTypes);
+    if (varTypes.size === 0) {
       return {
         kind: 'UnifyFailure:argRelationTypeClash',
         argumentNumber: argumentNumber,
-        relationVarType: relType,
-        argType: a.varType,
+        relationVarTypes: [...relTypes].sort(),
+        argTypes: [...a.varTypes].sort(),
       };
     }
-
-    // If this doesn't change the previously known type for this var...
-    const prevBoundType = unifyState.varTypes.get(a.varName);
-
-    // If not previously bound, this is a new binding...
-    if (!prevBoundType) {
-      unifyState.varTypes.set(a.varName, varType);
-      return;
-    }
-
-    // If current binding is the same, or tighter already...
-    if (
-      varType === prevBoundType || // same as before
-      // or this relation treats the type as more general,
-      // that's also true, but doesn't change the binding.
-      this.subtypeOfSuperType(prevBoundType, varType)
-    ) {
-      return;
-    }
-
-    // If this type is more specific than previously, set the type.
-    // Note: adding `!prevBoundType || ` to start of the condition
-    if (this.subtypeOfSuperType(varType, prevBoundType)) {
-      unifyState.varTypes.set(a.varName, varType);
-      return;
-    }
-
-    // console.log({
-    //   kind: 'UnifyFailure:argStoryTypeClash',
-    //   argumentNumber: argumentNumber,
-    //   storyVarTypes: prevBoundType,
-    //   argType: a.varType,
-    // });
-
-    return {
-      kind: 'UnifyFailure:argStoryTypeClash',
-      argumentNumber: argumentNumber,
-      storyVarTypes: prevBoundType,
-      argType: a.varType,
-    };
-
-    // else if (!prevBoundType) {
-    //   unifyState.varTypes.set(a.varName, varType);
-    //   return;
-    // } else {
-    //   return {
-    //     kind: 'UnifyFailure:argStoryTypeClash',
-    //     argumentNumber: argumentNumber,
-    //     storyVarTypes: prevBoundType,
-    //     argType: a.varType,
-    //   };
-    // }
+    unifyState.varTypes.set(a.varName, varTypes);
+    return null;
   }
 
   unifyRelationWithContext(
-    r: Relation<TypeNames, VarNames, RelNames>,
-    unifyState: UnifyState<TypeNames, VarNames>
-  ): UnifyFailure | undefined {
+    r: Relation<TypeName, VarName, RelNames>,
+    unifyState: UnifyState<TypeName, VarName>
+  ): UnifyFailure | null {
     const relTypes = this.relations.get(r.relName);
 
     if (!relTypes) {
       throw new Error('UnifyFailure:relNameMissingFromStory');
-      // return {
-      //   kind: 'UnifyFailure:relNameMissingFromStory',
-      //   relName: r.relName,
-      // };
     }
-
     if (relTypes.length !== r.args.length) {
       throw new Error('UnifyFailure:relNameStoryArityMismatch');
-      // return {
-      //   kind: 'UnifyFailure:relNameStoryArityMismatch',
-      //   relName: r.relName,
-      //   storyArity: relTypes.length,
-      //   instanceArity: r.args.length,
-      // };
     }
 
     for (let i = 0; i < r.args.length; i++) {
@@ -319,13 +205,13 @@ export class Story<
         return unifyFailure;
       }
     }
-    return;
+    return null;
   }
 
   unify(
-    r1: Relation<TypeNames, VarNames, RelNames>,
-    r2: Relation<TypeNames, VarNames, RelNames>,
-    unifyState: UnifyState<TypeNames, VarNames>
+    r1: Relation<TypeName, VarName, RelNames>,
+    r2: Relation<TypeName, VarName, RelNames>,
+    unifyState: UnifyState<TypeName, VarName>
   ): UnifyFailure | null {
     if (r1.relName !== r2.relName) {
       return {
@@ -353,6 +239,7 @@ export class Story<
       return unify2Failure;
     }
 
+    // Unify each argument of the relation.
     for (let i = 0; i < r1.args.length; i++) {
       const v1Name =
         unifyState.varSubsts.get(r1.args[i].varName) || r1.args[i].varName;
@@ -364,23 +251,18 @@ export class Story<
         continue;
       }
 
-      // Note: || type might not be needed. Need to think.
-      const v1Type = unifyState.varTypes.get(v1Name) || r1.args[i].varType;
-      const v2Type = unifyState.varTypes.get(v2Name) || r2.args[i].varType;
-      if (v1Type !== v2Type) {
-        // Make both have the narrower type, or if incompatible, fail.
-        if (this.subtypeOfSuperType(v1Type, v2Type)) {
-          unifyState.varTypes.set(v2Name, v1Type);
-        } else if (this.subtypeOfSuperType(v2Type, v1Type)) {
-          unifyState.varTypes.set(v1Name, v2Type);
-        } else {
-          return {
-            kind: 'UnifyFailure:relRelTypeClashArg',
-            argumentNumber: i,
-            arg1Type: v1Type,
-            arg2Type: v2Type,
-          };
-        }
+      // Note: types are always in the context thanks to the unifyRelationWithContext above.
+      // So the else branch of || should never be called.
+      const v1Types = unifyState.varTypes.get(v1Name) || r1.args[i].varTypes;
+      const v2Types = unifyState.varTypes.get(v2Name) || r2.args[i].varTypes;
+      const unifiedArgTypes = typesetIntersection(this.types, v1Types, v2Types);
+      if (unifiedArgTypes.size === 0) {
+        return {
+          kind: 'UnifyFailure:relRelTypeClashArg',
+          argumentNumber: i,
+          arg1Types: [...v1Types].sort(),
+          arg2Types: [...v2Types].sort(),
+        };
       }
 
       // v1 gets replaced everywhere as v2 now.
@@ -393,11 +275,11 @@ export class Story<
     return null;
   }
 
-  newUnifyState(): UnifyState<TypeNames, VarNames> {
-    let unifyState: UnifyState<TypeNames, VarNames> = {
+  newUnifyState(): UnifyState<TypeName, VarName> {
+    let unifyState: UnifyState<TypeName, VarName> = {
       kind: 'UnifyState',
       varTypes: new Map(this.varTypes),
-      varSubsts: new Map<VarNames, VarNames>(),
+      varSubsts: new Map<VarName, VarName>(),
     };
     return unifyState;
   }
@@ -405,8 +287,8 @@ export class Story<
   // Make sure the rule's relation match the types and argument-counts of the story's context.
   // Return an initial unification state with the rule's variables having appropriately general types.
   unifyRuleWithContext(
-    rule: Rule<TypeNames, VarNames, RelNames>
-  ): UnifyState<TypeNames, VarNames> | null {
+    rule: Rule<TypeName, VarName, RelNames>
+  ): UnifyState<TypeName, VarName> | null {
     const initMatchUnifState = this.newUnifyState();
     const unifFailure = this.unifyRelationWithContext(
       rule.rel,
@@ -445,8 +327,8 @@ export class Story<
   }
 
   matchRule(
-    rule: Rule<TypeNames, VarNames, RelNames>
-  ): RuleMatch<TypeNames, VarNames, RelNames>[] {
+    rule: Rule<TypeName, VarName, RelNames>
+  ): RuleMatch<TypeName, VarName, RelNames>[] {
     const maybeInitMatchUnifState = this.unifyRuleWithContext(rule);
     if (!maybeInitMatchUnifState) {
       // console.error(`Rule's relations are malformed for this context ${stringifyRule(rule)}`);
@@ -468,7 +350,7 @@ export class Story<
         // in the story to that condition of the rule.
         condToStoryRelIdx: [],
         unifState: maybeInitMatchUnifState,
-      } as RuleMatch<TypeNames, VarNames, RelNames>,
+      } as RuleMatch<TypeName, VarName, RelNames>,
     ];
 
     // Always match positive conditions first. (Negative filter these down,
@@ -479,9 +361,9 @@ export class Story<
     // TODO: make more efficient: only fork the unify state when needed.
     // e.g. fail as much as possible before working.
     const finalMatches = rule.posConditions.reduce<
-      RuleMatch<TypeNames, VarNames, RelNames>[]
+      RuleMatch<TypeName, VarName, RelNames>[]
     >((ruleMatches, condRel) => {
-      const nextMatches: RuleMatch<TypeNames, VarNames, RelNames>[] = [];
+      const nextMatches: RuleMatch<TypeName, VarName, RelNames>[] = [];
       ruleMatches.forEach((match) => {
         // TODO: make more efficient: only fork the unify state when needed.
         // e.g. fail as much as possible before working.
@@ -531,7 +413,7 @@ export class Story<
   }
 
   // Top level copy of a story; forking it.
-  fork(): Story<TypeNames, VarNames, RelNames> {
+  fork(): Story<TypeName, VarName, RelNames> {
     const c = new Story(
       this.types,
       this.relations,
@@ -544,8 +426,8 @@ export class Story<
   }
 
   applyRuleMatch(
-    match: RuleMatch<TypeNames, VarNames, RelNames>
-  ): Story<TypeNames, VarNames, RelNames> {
+    match: RuleMatch<TypeName, VarName, RelNames>
+  ): Story<TypeName, VarName, RelNames> {
     const newStory = this.fork();
 
     // Names of locally introduced variables.
@@ -557,7 +439,7 @@ export class Story<
     match.unifState.varTypes.forEach((vType, vName) => {
       if (this.isUnboundVarName(vName)) {
         if (!match.unifState.varSubsts.has(vName)) {
-          const newLocalName = newStory.names.makeAndAddNextName() as VarNames;
+          const newLocalName = newStory.names.makeAndAddNextName() as VarName;
           freshNameUnif.varSubsts.set(vName, newLocalName);
           freshNameUnif.varTypes.set(newLocalName, vType);
           newStory.varTypes.set(newLocalName, vType);
@@ -705,38 +587,15 @@ export function isUnboundVarName(v: string): boolean {
 
 export function initStory<TypeNames extends string, RelNames extends string>(
   typeMap: Map<TypeNames, Set<TypeNames>>,
-  relationMap: Map<RelNames, TypeNames[]>
+  relationMap: Map<RelNames, Set<TypeNames>[]>
 ) {
   return new Story(
     typeMap,
     relationMap,
     new FreshNames(), // Updated by the story updates
-    new Map<VarNames, TypeNames>(), // Updated by the story updates
+    new Map<VarNames, Set<TypeNames>>(), // Updated by the story updates
     isUnboundVarName // Must match FreshNames.
   );
-}
-
-export type TypeHierarchy = string[] | { [name: string]: TypeHierarchy };
-
-export function addToTypeMap(
-  h: TypeHierarchy,
-  m: Map<string, Set<string>>
-): Set<string> {
-  if (Array.isArray(h)) {
-    h.forEach((t) => m.set(t, new Set()));
-    return new Set(h);
-  } else {
-    const subTaxonomy = Object.keys(h);
-    // let allSubTypes: string[] = [];
-    const allSubTypes = new Set<string>();
-    subTaxonomy.forEach((t) => {
-      const subTypes = addToTypeMap(h[t], m);
-      m.set(t, new Set(subTypes));
-      subTypes.forEach((t) => allSubTypes.add(t));
-      allSubTypes.add(t);
-    });
-    return allSubTypes;
-  }
 }
 
 export function sampleNextRel<

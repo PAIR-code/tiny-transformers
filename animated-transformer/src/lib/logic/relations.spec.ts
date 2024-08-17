@@ -19,7 +19,7 @@ import {
   stringifyRelation,
   stringifyTypes,
   subtypeOfTypeset,
-  typeIntersection,
+  typesetIntersection,
   typeIntersectSet,
   typeSetIsSubsetOf,
 } from './relations';
@@ -146,19 +146,19 @@ fdescribe('generative_logic', () => {
       AB: ['A', 'B'],
     });
     expect(
-      typeIntersection(typeDef, new Set(['A', 'B']), new Set(['A', 'B']))
+      typesetIntersection(typeDef, new Set(['A', 'B']), new Set(['A', 'B']))
     ).toEqual(new Set(['A', 'B']));
     expect(
-      typeIntersection(typeDef, new Set(['A', 'B']), new Set(['AB']))
+      typesetIntersection(typeDef, new Set(['A', 'B']), new Set(['AB']))
     ).toEqual(new Set(['AB']));
     expect(
-      typeIntersection(typeDef, new Set(['AB']), new Set(['A', 'B']))
+      typesetIntersection(typeDef, new Set(['AB']), new Set(['A', 'B']))
     ).toEqual(new Set(['AB']));
     expect(
-      typeIntersection(typeDef, new Set(['1']), new Set(['A', 'B']))
+      typesetIntersection(typeDef, new Set(['1']), new Set(['A', 'B']))
     ).toEqual(new Set(['1']));
     expect(
-      typeIntersection(typeDef, new Set(['b1', 'b2']), new Set(['A', 'B']))
+      typesetIntersection(typeDef, new Set(['b1', 'b2']), new Set(['A', 'B']))
     ).toEqual(new Set(['B']));
   });
 });

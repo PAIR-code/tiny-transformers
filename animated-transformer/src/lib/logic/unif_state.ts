@@ -39,7 +39,7 @@ export function applyUnifSubstToRel<TypeNames, VarNames, RelNames>(
   const args = rel.args.map((a) => {
     return {
       varName: unifState.varSubsts.get(a.varName) || a.varName,
-      varType: unifState.varTypes.get(a.varName) || a.varType,
+      varTypes: unifState.varTypes.get(a.varName) || a.varTypes,
     } as RelArgument<TypeNames, VarNames>;
   });
   const newRel = { relName: rel.relName, args };

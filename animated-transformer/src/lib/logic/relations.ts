@@ -1,5 +1,9 @@
 export type TypeHierarchy = string[] | { [name: string]: TypeHierarchy };
 
+export type RelTypeArgsSpec<RelName extends string, TypeName extends string> = {
+  [Key in RelName]: TypeName[];
+};
+
 // returns the set of all types.
 export function addToTypeMap(
   h: TypeHierarchy,
@@ -131,7 +135,7 @@ export function typeIntersectSet<TypeName>(
   }
 }
 
-export function typeIntersection<TypeName>(
+export function typesetIntersection<TypeName>(
   // A map from types to every type in it.
   typeDefs: Map<TypeName, Set<TypeName>>,
   tys1: Set<TypeName>,
@@ -177,6 +181,33 @@ const argumentRegexp = new RegExp(
   /(?<varName>[\_\?][^ \t\r\n\f\:]+)(\:(?<varTypes>\S+))?/
 );
 
+export function parseTypeSet(typesetString: string): Set<string> {
+  return new Set<string>(typesetString.split('|'));
+}
+
+export function parseTypeSetArgs<TypeName extends string>(
+  argTypeStrings: TypeName[]
+): Set<TypeName>[] {
+  return argTypeStrings.map(
+    (argString) =>
+      new Set<TypeName>(argString.split('|') as never as Set<TypeName>)
+  );
+}
+
+export function initRelationMap<
+  RelName extends string,
+  TypeName extends string
+>(relSpec: RelTypeArgsSpec<RelName, TypeName>): Map<RelName, Set<TypeName>[]> {
+  const relations = new Map<RelName, Set<TypeName>[]>();
+  for (const relName of Object.keys(relSpec)) {
+    relations.set(
+      relName as RelName,
+      parseTypeSetArgs<TypeName>(relSpec[relName as RelName])
+    );
+  }
+  return relations;
+}
+
 export function parseRel<
   TypeName extends string,
   VarName extends string,
@@ -201,9 +232,7 @@ export function parseRel<
       if (argMatch.varTypes === undefined) {
         argMatch.varTypes = '' as TypeName; // empty string is an unspecified type.
       }
-      const varTypes = new Set<TypeName>(
-        argMatch.varTypes.split('|') as Iterable<TypeName>
-      );
+      const varTypes = parseTypeSet(argMatch.varTypes) as Set<TypeName>;
       const varName = argMatch.varName as VarName;
       const relArgument: RelArgument<TypeName, VarName> = {
         varName,
