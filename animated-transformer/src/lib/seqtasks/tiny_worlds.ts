@@ -15,14 +15,14 @@ limitations under the License.
 
 /* Tiny Worlds */
 
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
-import { FreshNames } from '../names/simple_fresh_names';
 import {
-  addToTypeMap,
-  Story,
-  sampleNextRel,
-  TypeHierarchy,
-} from '../logic/stories';
+  addBetweenEvery,
+  BasicLmTask,
+  BasicRandSeededTaskConfig,
+  Example,
+} from './util';
+import { FreshNames } from '../names/simple_fresh_names';
+import { Story, initStory, sampleNextRel } from '../logic/stories';
 import {
   RandomState,
   RandomStream,
@@ -30,7 +30,15 @@ import {
 } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
 import { parseRule, Rule } from '../logic/rules';
-import { parseRel, Relation } from '../logic/relations';
+import {
+  parseRel,
+  Relation,
+  TypeHierarchy,
+  addToTypeMap,
+  initRelationMap,
+  initTypeDef,
+  typesetEquality,
+} from '../logic/relations';
 
 // Ideas for fancier rules/variants
 //
@@ -140,22 +148,19 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 export const spaceSepToken = ' ';
 export const relSepToken = ', ';
 export const typeIsToken = ':';
+export const typeOrToken = '|';
 export type SepToken = typeof relSepToken;
-export type VarNames = `_${string}` | `?${string}`;
-function isUnboundVarName(v: string): boolean {
-  // console.log(v, v[0] === '?');
-  return v[0] === '?';
-}
-export type TypeNames = string;
-export type RelNames = string;
+export type VarName = `_${string}` | `?${string}`;
+export type TypeName = string;
+export type RelName = string;
 
 // ============================================================================== //
 //  Tiny World Task Configs
 // ============================================================================== //
 
 export class TinyWorldTask implements BasicLmTask {
-  public initStory: Story<TypeNames, VarNames, RelNames>;
-  public rules: Rule<TypeNames, VarNames, RelNames>[];
+  public initStory: Story<TypeName, VarName, RelName>;
+  public rules: Rule<TypeName, VarName, RelName>[];
   public baseVocab: string[];
   private exampleId: number;
   public exampleIter: StateIter<RandomStream, Example>;
@@ -164,14 +169,9 @@ export class TinyWorldTask implements BasicLmTask {
   constructor(public config: TinyWorldTaskConfig) {
     this.exampleId = 0;
 
-    const typeMap = new Map<string, Set<string>>();
-    const allTypes = addToTypeMap(this.config.typeHierarchy, typeMap);
-    typeMap.set('', allTypes);
-
-    const relationMap = new Map<string, string[]>();
-    Object.keys(this.config.relationKinds).forEach((r) => {
-      relationMap.set(r, this.config.relationKinds[r]);
-    });
+    const typeMap = initTypeDef(this.config.typeHierarchy);
+    const allTypes = [...typeMap.get('')!];
+    const relationMap = initRelationMap(this.config.relationKinds);
 
     const freshNames = new FreshNames();
     const varNames: string[] = [];
@@ -183,18 +183,13 @@ export class TinyWorldTask implements BasicLmTask {
     this.baseVocab = [
       relSepToken,
       typeIsToken,
-      ...Object.keys(relationMap),
+      typeOrToken,
+      ...relationMap.keys(),
       ...allTypes,
       ...varNames,
     ];
 
-    this.initStory = new Story(
-      typeMap,
-      relationMap,
-      new FreshNames(),
-      new Map<VarNames, TypeNames>(),
-      isUnboundVarName
-    );
+    this.initStory = initStory(typeMap, relationMap);
     this.initStory.extendScene(this.config.baseStory.map((r) => parseRel(r)));
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
@@ -205,14 +200,25 @@ export class TinyWorldTask implements BasicLmTask {
   }
 
   nextRelTokens(
-    curStory: Story<TypeNames, VarNames, RelNames>,
-    rel: Relation<TypeNames, VarNames, RelNames>
+    curStory: Story<TypeName, VarName, RelName>,
+    rel: Relation<TypeName, VarName, RelName>
   ) {
-    const args = rel.args.flatMap((r) =>
-      r.varType === '' || curStory.varTypes.get(r.varName) === r.varType
-        ? [spaceSepToken, r.varName]
-        : [spaceSepToken, r.varName, typeIsToken, r.varType]
-    );
+    const args = rel.args.flatMap((r) => {
+      // skip outputing the type when not needed.
+      if (
+        r.varTypes.has('') ||
+        typesetEquality(
+          curStory.types,
+          curStory.varTypes.get(r.varName)!,
+          r.varTypes
+        )
+      ) {
+        return [spaceSepToken, r.varName];
+      } else {
+        const typeTokens = addBetweenEvery([...r.varTypes].sort(), typeOrToken);
+        return [spaceSepToken, r.varName, ...typeTokens];
+      }
+    });
     return [rel.relName, ...args];
   }
 

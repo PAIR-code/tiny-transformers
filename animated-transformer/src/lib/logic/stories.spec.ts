@@ -24,13 +24,12 @@ import {
 import {
   parseRel,
   addToTypeMap,
-  makeTypeDef,
+  initTypeDef,
   parseTypeSet,
   parseTypeSetArgs,
   initRelationMap,
 } from './relations';
 import { parseRule } from './rules';
-import { Type } from '@angular/core';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
 //   ExampleObjects,
@@ -414,7 +413,7 @@ describe('stories', () => {
   });
 
   it('addToTypeMap', () => {
-    const typeMap = makeTypeDef({
+    const typeMap = initTypeDef({
       animal: ['cat', 'monkey', 'elephant'],
       inanimate: ['rock', 'tree', 'flower'],
       squishable: ['cat', 'monkey', 'flower'],
@@ -427,7 +426,7 @@ describe('stories', () => {
   });
 
   it('Making a new example domain using helpers', () => {
-    const typeMap = makeTypeDef({
+    const typeMap = initTypeDef({
       animal: ['cat', 'monkey', 'elephant'],
       inanimate: ['rock', 'tree', 'flower'],
       squishable: ['cat', 'monkey', 'flower'],

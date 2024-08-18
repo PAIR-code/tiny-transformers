@@ -21,11 +21,11 @@ import {
   RuleApp,
 } from '../logic/stories';
 import {
-  RelNames,
+  RelName,
   TinyWorldTask,
   TinyWorldTaskConfig,
-  TypeNames,
-  VarNames,
+  TypeName,
+  VarName,
   defaultTinyWorldTaskConfig,
 } from './tiny_worlds';
 

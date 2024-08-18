@@ -26,7 +26,7 @@ export function addToTypeMap(
   }
 }
 
-export function makeTypeDef(
+export function initTypeDef(
   typeHierarchy: TypeHierarchy
 ): Map<string, Set<string>> {
   const typeMap = new Map<string, Set<string>>();
@@ -135,6 +135,34 @@ export function typeIntersectSet<TypeName>(
   }
 }
 
+// Flatten a set of types into the most ground types possible.
+export function flattenTypeset<TypeName>(
+  typeDefs: Map<TypeName, Set<TypeName>>,
+  tyset: Set<TypeName>
+): Set<TypeName> {
+  const flattenedTypeset = new Set<TypeName>();
+  tyset.forEach((ty) => {
+    flattenedTypeset.add(ty);
+    const tysubset = typeDefs.get(ty);
+    if (!tysubset) {
+      throw new Error(`typeDefs needs to have all types, but lacks ${ty}.`);
+    }
+    tysubset.forEach((subty) => flattenedTypeset.add(subty));
+  });
+  return flattenedTypeset;
+}
+
+export function typesetSymmetricDifference<TypeName>(
+  // A map from types to every type in it.
+  typeDefs: Map<TypeName, Set<TypeName>>,
+  tys1: Set<TypeName>,
+  tys2: Set<TypeName>
+): Set<TypeName> {
+  const flatTys1 = flattenTypeset(typeDefs, tys1);
+  const flatTys2 = flattenTypeset(typeDefs, tys2);
+  return flatTys1.symmetricDifference(flatTys2);
+}
+
 export function typesetIntersection<TypeName>(
   // A map from types to every type in it.
   typeDefs: Map<TypeName, Set<TypeName>>,
@@ -147,6 +175,16 @@ export function typesetIntersection<TypeName>(
     allSubtypes = allSubtypes.union(ty1s);
   }
   return allSubtypes;
+}
+
+// TODO: consider a faster implementation that avoid flattening when not needed...
+export function typesetEquality<TypeName>(
+  // A map from types to every type in it.
+  typeDefs: Map<TypeName, Set<TypeName>>,
+  tys1: Set<TypeName>,
+  tys2: Set<TypeName>
+): boolean {
+  return typesetSymmetricDifference(typeDefs, tys1, tys2).size === 0;
 }
 
 export function stringifyTypes<TypeName>(types: Set<TypeName>) {

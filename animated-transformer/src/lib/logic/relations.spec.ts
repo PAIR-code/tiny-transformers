@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import {
   addToTypeMap,
-  makeTypeDef,
+  initTypeDef,
   parseRel,
   stringifyRelation,
   stringifyTypes,
@@ -55,7 +55,7 @@ fdescribe('generative_logic', () => {
   });
 
   it('makeTypeDef', () => {
-    const typeDef = makeTypeDef({
+    const typeDef = initTypeDef({
       A: ['a1', 'a2'],
       B: ['b1', 'b2'],
       '1': ['a1', 'b1'],
@@ -66,7 +66,7 @@ fdescribe('generative_logic', () => {
   });
 
   it('subtypeOfTypeset', () => {
-    const typeDef = makeTypeDef({
+    const typeDef = initTypeDef({
       A: ['a1', 'a2'],
       B: ['b1', 'b2'],
       '1': ['a1', 'b1'],
@@ -82,7 +82,7 @@ fdescribe('generative_logic', () => {
   });
 
   it('typeIsSubsetOf', () => {
-    const typeDef = makeTypeDef({
+    const typeDef = initTypeDef({
       A: ['a1', 'a2'],
       B: ['b1', 'b2'],
       '1': ['a1', 'b1'],
@@ -118,7 +118,7 @@ fdescribe('generative_logic', () => {
   });
 
   it('typeIntersectSet', () => {
-    const typeDef = makeTypeDef({
+    const typeDef = initTypeDef({
       A: ['a1', 'a2'],
       B: ['b1', 'b2'],
       '1': ['a1', 'b1'],
@@ -139,7 +139,7 @@ fdescribe('generative_logic', () => {
   });
 
   it('typeIntersection', () => {
-    const typeDef = makeTypeDef({
+    const typeDef = initTypeDef({
       A: ['a1', 'a2'],
       B: ['b1', 'b2'],
       '1': ['a1', 'b1'],

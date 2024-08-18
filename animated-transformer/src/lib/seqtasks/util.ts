@@ -144,3 +144,14 @@ export function splitGenerativeTaskTestSet(
     testSetFilteredExamples,
   };
 }
+
+export function addBetweenEvery<T>(arr: T[], newEntry: T): T[] {
+  return arr.reduce((result, current, index) => {
+    result.push(current);
+    if (index < arr.length - 1) {
+      // Avoid adding at the very end
+      result.push(newEntry);
+    }
+    return result;
+  }, [] as T[]);
+}
