@@ -16,7 +16,6 @@ limitations under the License.
 import * as tf from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import { GTensor, DName, makeTruncNormal } from '../gtensor/gtensor';
-import { GVariableTree } from '../gtensor/gtensor_tree';
 
 // CONSIDER: parameterise by the tokens, e.g. by a <T extends string>?
 export interface TokenEmbConfig {
@@ -85,9 +84,7 @@ export function embedBatch(
 
   let maxInputLength = 0;
   if (!config.maxInputLength) {
-    examples.forEach(
-      (l) => (maxInputLength = Math.max(l.length, maxInputLength))
-    );
+    examples.forEach((l) => (maxInputLength = Math.max(l.length, maxInputLength)));
     examples.map((l) => l.map((s) => tokenToIdx[s]));
   } else {
     maxInputLength = config.maxInputLength;
@@ -131,15 +128,13 @@ export function embedBatch(
     }
   }
 
-  const batchTokenIds = new GTensor(tf.stack(inputEmbList, 0), [
+  const batchTokenIds = new GTensor(tf.stack(inputEmbList, 0), ['batch', 'pos']);
+
+  const batchedinputEmbs = new GTensor(tf.gather(embeddings.tensor, batchTokenIds.tensor), [
     'batch',
     'pos',
+    'inputRep',
   ]);
-
-  const batchedinputEmbs = new GTensor(
-    tf.gather(embeddings.tensor, batchTokenIds.tensor),
-    ['batch', 'pos', 'inputRep']
-  );
 
   return batchedinputEmbs;
 }
@@ -156,9 +151,7 @@ export type BasicTaskTokenRep = {
 // ----------------------------------------------------------------------------
 // Prepate the task representation in a vector space.
 // TODO: maybe this should be viewed as a task extension: i.e. Task --> Task
-export function prepareBasicTaskTokenRep(
-  baseVocab: string[]
-): BasicTaskTokenRep {
+export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep {
   // Create a tokenEmbedding that has an extra mask token.
   const maskToken = '[MASK]';
   const padToken = '[PAD]';
@@ -183,34 +176,27 @@ export function prepareBasicTaskTokenRep(
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-export type StrSeqPrepFn<ParamsKind, Dims extends DName> = (
+export type StrSeqPrepFn<Params, Dims extends DName> = (
   tokenRep: BasicTaskTokenRep,
-  params: GVariableTree<ParamsKind>,
+  params: Params,
   // tokenEmb: GTensor<'tokenId' | 'inputRep'>,
   maxInputLength: number,
   strSeqs: string[][]
 ) => GTensor<Dims>;
 
-export function strSeqPrepFn<
-  Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }
->(
+export function strSeqPrepFn<Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }>(
   tokenRep: BasicTaskTokenRep,
-  params: GVariableTree<Params>,
+  params: Params,
   maxInputLength: number,
   inputSeqs: string[][]
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
   const padTokenId = tokenRep.tokenToIdx[tokenRep.padToken];
-  const batchedInputEmb = embedBatch(
-    tokenRep.tokenToIdx,
-    params.obj.tokenEmbedding,
-    inputSeqs,
-    {
-      paddingId: padTokenId,
-      padAt: 'start',
-      dtype: 'int32',
-      maxInputLength,
-    }
-  );
+  const batchedInputEmb = embedBatch(tokenRep.tokenToIdx, params.tokenEmbedding, inputSeqs, {
+    paddingId: padTokenId,
+    padAt: 'start',
+    dtype: 'int32',
+    maxInputLength,
+  });
   return batchedInputEmb;
 }
 
@@ -226,7 +212,7 @@ export function strSeqPrepFnAddingFinalMask<
   Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }
 >(
   tokenRep: BasicTaskTokenRep,
-  params: GVariableTree<Params>,
+  params: Params,
   maxInputLength: number,
   inputSeqs: string[][]
 ): GTensor<'batch' | 'pos' | 'inputRep'> {

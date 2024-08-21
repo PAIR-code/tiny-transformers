@@ -16,18 +16,8 @@ limitations under the License.
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 
 import * as tf from '@tensorflow/tfjs';
-import {
-  computeTransformer,
-  initDecoderParams,
-} from '../../lib/transformer/transformer_gtensor';
-import * as gtensor from '../../lib/gtensor/gtensor';
-import { gtensorTrees } from '../../lib/gtensor/gtensor_tree';
-import { stringifyJsonValue } from '../../lib/pretty_json/pretty_json';
-import { transformer } from 'src/lib';
-import { Router, ActivatedRoute, ParamMap } from '@angular/router';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import { Router, ActivatedRoute } from '@angular/router';
+import { BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { ModelUpdate } from './model-selector/model-selector.component';
 import {
   TrainerConfigUpdate,
@@ -95,9 +85,7 @@ export class AnimatedTransformerComponent implements OnInit {
 
   updateTrainer(trainerUpdate: TrainerConfigUpdate) {
     console.log('trainer update in top level component.');
-    this.trainerName = trainerUpdate.trainer
-      ? trainerUpdate.trainer.config.name
-      : '';
+    this.trainerName = trainerUpdate.trainer ? trainerUpdate.trainer.config.name : '';
     this.lastTrainerUpdate = { ...trainerUpdate };
     const queryParams = { trainer: this.trainerName };
     this.router.navigate([], {

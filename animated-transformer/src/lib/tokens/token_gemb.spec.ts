@@ -17,13 +17,7 @@ limitations under the License.
 
 import { GVariable, GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import {
-  strSeqPrepFn,
-  embed,
-  prepareBasicTaskTokenRep,
-  embedBatch,
-} from '../tokens/token_gemb';
-import { GVariableTree, GTensorTree } from '../gtensor/gtensor_tree';
+import { strSeqPrepFn, embed, prepareBasicTaskTokenRep, embedBatch } from '../tokens/token_gemb';
 
 describe('token_gemb', () => {
   it('embed', () => {
@@ -34,10 +28,7 @@ describe('token_gemb', () => {
     ];
     const tokens = ['a', 'b', '[pad]'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
-    const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), [
-      'tokenId',
-      'inputRep',
-    ]);
+    const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
     const seqToEmbed = ['a', 'b', '[PAD]', 'a'];
     const embeddedSeq = embed(tokenRep.tokenToIdx, embeddings, seqToEmbed);
     const positionEmb = embeddedSeq.unstack('pos');
@@ -56,61 +47,22 @@ describe('token_gemb', () => {
     ];
     const tokens = ['a', 'b', '[pad]'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
-    const tokenEmbedding = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), [
-      'tokenId',
-      'inputRep',
-    ]);
+    const tokenEmbedding = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
-    const seqsToEmbed = [
-      ['a', 'b', '[pad]', 'a'],
-      ['a', 'b'],
-      [],
-      ['b'],
-      ['a'],
-    ];
+    const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
 
-    const seqEmb = embedBatch(
-      tokenRep.tokenToIdx,
-      tokenEmbedding,
-      seqsToEmbed,
-      {
-        paddingId: 2,
-        padAt: 'start',
-        dtype: 'int32',
-      }
-    );
+    const seqEmb = embedBatch(tokenRep.tokenToIdx, tokenEmbedding, seqsToEmbed, {
+      paddingId: 2,
+      padAt: 'start',
+      dtype: 'int32',
+    });
     const batchesEmb = seqEmb.unstack('batch');
     expect(batchesEmb.length).toEqual(5);
-    expect(batchesEmb[0].tensor.arraySync()).toEqual([
-      aEmb,
-      bEmb,
-      padEmb,
-      aEmb,
-    ]);
-    expect(batchesEmb[1].tensor.arraySync()).toEqual([
-      padEmb,
-      padEmb,
-      aEmb,
-      bEmb,
-    ]);
-    expect(batchesEmb[2].tensor.arraySync()).toEqual([
-      padEmb,
-      padEmb,
-      padEmb,
-      padEmb,
-    ]);
-    expect(batchesEmb[3].tensor.arraySync()).toEqual([
-      padEmb,
-      padEmb,
-      padEmb,
-      bEmb,
-    ]);
-    expect(batchesEmb[4].tensor.arraySync()).toEqual([
-      padEmb,
-      padEmb,
-      padEmb,
-      aEmb,
-    ]);
+    expect(batchesEmb[0].tensor.arraySync()).toEqual([aEmb, bEmb, padEmb, aEmb]);
+    expect(batchesEmb[1].tensor.arraySync()).toEqual([padEmb, padEmb, aEmb, bEmb]);
+    expect(batchesEmb[2].tensor.arraySync()).toEqual([padEmb, padEmb, padEmb, padEmb]);
+    expect(batchesEmb[3].tensor.arraySync()).toEqual([padEmb, padEmb, padEmb, bEmb]);
+    expect(batchesEmb[4].tensor.arraySync()).toEqual([padEmb, padEmb, padEmb, aEmb]);
   });
 
   it('batchEmbed, pad end', () => {
@@ -121,18 +73,9 @@ describe('token_gemb', () => {
     ];
     const tokens = ['a', 'b', '[pad]'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
-    const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), [
-      'tokenId',
-      'inputRep',
-    ]);
+    const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
-    const seqsToEmbed = [
-      ['a', 'b', '[pad]', 'a'],
-      ['a', 'b'],
-      [],
-      ['b'],
-      ['a'],
-    ];
+    const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
 
     const seqEmb = embedBatch(tokenRep.tokenToIdx, embeddings, seqsToEmbed, {
       paddingId: 2,
@@ -141,60 +84,33 @@ describe('token_gemb', () => {
     });
     const batchesEmb = seqEmb.unstack('batch');
     expect(batchesEmb.length).toEqual(5);
-    expect(batchesEmb[0].tensor.arraySync()).toEqual([
-      aEmb,
-      bEmb,
-      padEmb,
-      aEmb,
-    ]);
-    expect(batchesEmb[1].tensor.arraySync()).toEqual([
-      aEmb,
-      bEmb,
-      padEmb,
-      padEmb,
-    ]);
-    expect(batchesEmb[2].tensor.arraySync()).toEqual([
-      padEmb,
-      padEmb,
-      padEmb,
-      padEmb,
-    ]);
-    expect(batchesEmb[3].tensor.arraySync()).toEqual([
-      bEmb,
-      padEmb,
-      padEmb,
-      padEmb,
-    ]);
-    expect(batchesEmb[4].tensor.arraySync()).toEqual([
-      aEmb,
-      padEmb,
-      padEmb,
-      padEmb,
-    ]);
+    expect(batchesEmb[0].tensor.arraySync()).toEqual([aEmb, bEmb, padEmb, aEmb]);
+    expect(batchesEmb[1].tensor.arraySync()).toEqual([aEmb, bEmb, padEmb, padEmb]);
+    expect(batchesEmb[2].tensor.arraySync()).toEqual([padEmb, padEmb, padEmb, padEmb]);
+    expect(batchesEmb[3].tensor.arraySync()).toEqual([bEmb, padEmb, padEmb, padEmb]);
+    expect(batchesEmb[4].tensor.arraySync()).toEqual([aEmb, padEmb, padEmb, padEmb]);
   });
 
   it('strSeqPrepFn', () => {
     const tokens = ['a', 'b'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
-    const tokenEmbParams = new GVariableTree({
+    const tokenEmbParams = {
       tokenEmbedding: new GVariable(
         makeTruncNormal({
           tokenId: tokenRep.tokens.length,
           inputRep: 2,
         })
       ),
-    });
+    };
 
     const seqToEmbed = ['a', 'b', '[PAD]', 'a'];
 
     const embeddedSeq = strSeqPrepFn(tokenRep, tokenEmbParams, 6, [seqToEmbed]);
 
-    const tokenEmbUnstacked =
-      tokenEmbParams.obj.tokenEmbedding.unstack('tokenId');
+    const tokenEmbUnstacked = tokenEmbParams.tokenEmbedding.unstack('tokenId');
     const aRep = tokenEmbUnstacked[tokenRep.tokenToIdx['a']].tensor.arraySync();
     const bRep = tokenEmbUnstacked[tokenRep.tokenToIdx['b']].tensor.arraySync();
-    const padRep =
-      tokenEmbUnstacked[tokenRep.tokenToIdx['[PAD]']].tensor.arraySync();
+    const padRep = tokenEmbUnstacked[tokenRep.tokenToIdx['[PAD]']].tensor.arraySync();
 
     const positionEmb = embeddedSeq.unstack('batch')[0].unstack('pos');
     expect(positionEmb.length).toEqual(6);

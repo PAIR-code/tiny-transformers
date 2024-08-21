@@ -40,6 +40,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { contract, ContractSpec } from './contract';
 import { range } from './gtensor_util';
+import { DictArrTree } from '../js_tree/js_tree';
 
 // export type DName = string | number | symbol;
 
@@ -106,8 +107,7 @@ type DotCompatibleDimension<
     : ErrorDimensionNamesMustBeEqual<D2, D1>
   : ErrorDimensionNamesMustBeEqual<D1, D2>;
 
-type DisjointDimensions<G2 extends DName, G extends DName> = G2 &
-  G extends never
+type DisjointDimensions<G2 extends DName, G extends DName> = G2 & G extends never
   ? G2
   : ErrorMustNotHaveCommonDimension<G2, G>;
 
@@ -120,30 +120,22 @@ interface ErrorLiftDimInOutput<D> {
 }
 
 // type for: D is a dimension-name not in G and not in G2.
-type DimensionFnToLift<
-  D extends DName,
-  G extends DName,
-  G2 extends DName
-> = D extends G
+type DimensionFnToLift<D extends DName, G extends DName, G2 extends DName> = D extends G
   ? ErrorLiftDimInInput<D>
   : D extends G2
   ? ErrorLiftDimInOutput<D>
   : D;
 
-export function liftGTensorFnOverDim<
-  D extends string,
-  G extends string,
-  G2 extends string
->(
+export function liftGTensorFnOverDim<D extends string, G extends string, G2 extends string>(
   liftDim: DimensionFnToLift<D, G, G2>,
   toLiftFn: (input: GTensor<G>) => GTensor<G2>
 ): (input: GTensor<G | D>) => GTensor<G2 | D> {
   function liftedFn(input: GTensor<G | D>): GTensor<G2 | D> {
     if (!((liftDim as string) in input.dim)) {
       throw new ValueError(
-        `The lift dimension ${String(
-          liftDim
-        )} must occur in input's dimensions: ${Object.keys(input)}`
+        `The lift dimension ${String(liftDim)} must occur in input's dimensions: ${Object.keys(
+          input
+        )}`
       );
     }
     return toLiftFn(input as GTensor<G>) as GTensor<G2 | D>;
@@ -151,20 +143,16 @@ export function liftGTensorFnOverDim<
   return liftedFn;
 }
 
-export function liftFnOverDim<
-  D extends string,
-  G extends string,
-  G2 extends string
->(
+export function liftFnOverDim<D extends string, G extends string, G2 extends string>(
   liftDim: DimensionFnToLift<D, G, G2>,
   toLiftFn: (input: Dims<G>) => Dims<G2>
 ): (input: Dims<G | D>) => Dims<G2 | D> {
   function liftedFn(input: Dims<G | D>): Dims<G2 | D> {
     if (!((liftDim as string) in input)) {
       throw new ValueError(
-        `The lift dimension ${String(
-          liftDim
-        )} must occur in input's dimensions: ${Object.keys(input)}`
+        `The lift dimension ${String(liftDim)} must occur in input's dimensions: ${Object.keys(
+          input
+        )}`
       );
     }
     const unstackedDims = input[liftDim as D].unstack() as never as Dims<G>[];
@@ -187,9 +175,9 @@ export function liftMapFnOverDim<
   } {
     if (!((liftDim as string) in input)) {
       throw new ValueError(
-        `The lift dimension ${String(
-          liftDim
-        )} must occur in input's dimensions: ${Object.keys(input)}`
+        `The lift dimension ${String(liftDim)} must occur in input's dimensions: ${Object.keys(
+          input
+        )}`
       );
     }
     const unstackedDims = input[liftDim as D].unstack() as never as Dims<G>[];
@@ -197,12 +185,8 @@ export function liftMapFnOverDim<
     const stackedApplications = {} as {
       [key in keyof MapDim]: Dims<MapDim[key] | D>;
     };
-    for (const key of Object.keys(
-      unstackedApplications[0]
-    ) as (keyof MapDim)[]) {
-      const toStack = unstackedApplications.map(
-        (a) => a[key] as Dims<MapDim[keyof MapDim]>
-      );
+    for (const key of Object.keys(unstackedApplications[0]) as (keyof MapDim)[]) {
+      const toStack = unstackedApplications.map((a) => a[key] as Dims<MapDim[keyof MapDim]>);
       stackedApplications[key] = stack(liftDim as D, toStack);
     }
     return stackedApplications;
@@ -211,9 +195,7 @@ export function liftMapFnOverDim<
 }
 
 // G is the set of all names in the tensor. D is the specific name of this dimension.
-export class Dimension<G extends string, D extends G>
-  implements DimensionData<G, D>
-{
+export class Dimension<G extends string, D extends G> implements DimensionData<G, D> {
   name: D;
   size: number;
   gtensor: GTensor<G>;
@@ -251,9 +233,7 @@ export class Dimension<G extends string, D extends G>
   _rename<T extends string>(newName: T): GTensor<Exclude<G, D> | T> {
     // TODO: shouldn't TS be able to infer that typeod(this.name) extends G? It's specified in the
     // contrains for the class...?
-    return this.gtensor.rename(this.name as never, newName) as GTensor<
-      Exclude<G, D> | T
-    >;
+    return this.gtensor.rename(this.name as never, newName) as GTensor<Exclude<G, D> | T>;
   }
 
   rename<T extends string>(newName: T): Dims<Exclude<G, D> | T> {
@@ -409,10 +389,7 @@ export class GTensor<G extends DName> {
   }
 
   public transpose(): GTensor<G> {
-    return new GTensor<G>(
-      tf.transpose(this.tensor),
-      this.dimNames.slice().reverse()
-    );
+    return new GTensor<G>(tf.transpose(this.tensor), this.dimNames.slice().reverse());
   }
 
   public transposeTo(newNameOrder: G[]): GTensor<G> {
@@ -426,9 +403,7 @@ export class GTensor<G extends DName> {
   }
 
   // Returns the dimension names & sizes in g2 that are not in this gtensor.
-  public subtractDimsFrom<G2 extends DName>(
-    g2: GTensor<G2>
-  ): Dimension<G2, G2>[] {
+  public subtractDimsFrom<G2 extends DName>(g2: GTensor<G2>): Dimension<G2, G2>[] {
     const dimsToIgnore: Dimension<G2, G2>[] = [];
     const dimsToExpandBy: Dimension<G2, G2>[] = [];
     for (const g2d of Object.values(g2.dim) as Dimension<G2, G2>[]) {
@@ -457,9 +432,7 @@ export class GTensor<G extends DName> {
   // This replicates this tensor's values for every extra dimension in g2.
   // Throws an error if there's a dimesion in g2 that has the saame name, but
   // not the same size as it's counter-part in g1.
-  public broadcastToCombinedShape<G2 extends DName>(
-    g2: GTensor<G2>
-  ): GTensor<G | G2> {
+  public broadcastToCombinedShape<G2 extends DName>(g2: GTensor<G2>): GTensor<G | G2> {
     if (this.isScalar) {
       throw new ValueError('A scalar cannot be broadcastToCombinedShape');
     }
@@ -482,23 +455,19 @@ export class GTensor<G extends DName> {
   // This replicates this tensor's values for every extra dimension in g2.
   // Throws an error if there's a dimesion in g2 that has the saame name, but
   // not the same size as it's counter-part in g1.
-  public broadcastTo<G2 extends DName>(
-    newDimensions: Map<G2, number>
-  ): GTensor<G | G2> {
+  public broadcastTo<G2 extends DName>(newDimensions: Map<G2, number>): GTensor<G | G2> {
     const bigTensor = tf.broadcastTo(
       this.tensor,
       [...newDimensions.values()].concat(this.tensor.shape)
     );
-    const combinedNames: (G | G2)[] = (
-      [...newDimensions.keys()] as (G | G2)[]
-    ).concat(this.dimNames);
+    const combinedNames: (G | G2)[] = ([...newDimensions.keys()] as (G | G2)[]).concat(
+      this.dimNames
+    );
     return new GTensor(bigTensor, combinedNames);
   }
 
   // Rename a set of dimensions.
-  public withNewNames<NewNames extends DName>(
-    newNames: NewNames[]
-  ): GTensor<NewNames> {
+  public withNewNames<NewNames extends DName>(newNames: NewNames[]): GTensor<NewNames> {
     return new GTensor<NewNames>(this.tensor, newNames);
   }
 
@@ -516,10 +485,7 @@ export class GTensor<G extends DName> {
       const index = this.dim[key].index;
       newDimNames[index] = val;
     }
-    return new GTensor<Exclude<G, ReplacedNames> | NewNames>(
-      this.tensor,
-      newDimNames
-    );
+    return new GTensor<Exclude<G, ReplacedNames> | NewNames>(this.tensor, newDimNames);
   }
 
   // Rename a single dimension.
@@ -533,9 +499,7 @@ export class GTensor<G extends DName> {
     // const toName = Object.keys(to)[0] as ``;
     const i = this.dimNames.findIndex((n) => (n as DName) === fromName);
     if (i === undefined) {
-      throw new ValueError(
-        `${String(fromName)} is missing from ${this.dimNames}`
-      );
+      throw new ValueError(`${String(fromName)} is missing from ${this.dimNames}`);
     }
     const newDimNames = [...this.dimNames] as (Exclude<G, T1> | T2)[];
     newDimNames.splice(i, 1, toName);
@@ -614,66 +578,39 @@ export class GTensor<G extends DName> {
   // each value of each matrix is multiplied by each other.
   public pointwiseMul<G2 extends DName>(g2: GTensor<G2>): GTensor<G | G2> {
     if (this.isScalar) {
-      return new GTensor(
-        tf.mul(this.tensor, g2.tensor),
-        g2.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.mul(this.tensor, g2.tensor), g2.dimNames) as GTensor<G | G2>;
     } else if (g2.isScalar) {
-      return new GTensor(
-        tf.mul(this.tensor, g2.tensor),
-        this.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.mul(this.tensor, g2.tensor), this.dimNames) as GTensor<G | G2>;
     }
     // TODO: runtime check intersection of dim names?
     const g2big = g2.broadcastToCombinedShape(this);
     const g1big = this.broadcastToCombinedShape(g2);
     const g1bigLikeG2 = g1big.transposeLike(g2big);
-    return new GTensor(
-      tf.mul(g1bigLikeG2.tensor, g2big.tensor),
-      g1bigLikeG2.dimNames
-    );
+    return new GTensor(tf.mul(g1bigLikeG2.tensor, g2big.tensor), g1bigLikeG2.dimNames);
   }
 
   public pointwiseDiv<G2 extends DName>(g2: GTensor<G2>): GTensor<G | G2> {
     if (this.isScalar) {
-      return new GTensor(
-        tf.div(this.tensor, g2.tensor),
-        g2.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.div(this.tensor, g2.tensor), g2.dimNames) as GTensor<G | G2>;
     } else if (g2.isScalar) {
-      return new GTensor(
-        tf.div(this.tensor, g2.tensor),
-        this.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.div(this.tensor, g2.tensor), this.dimNames) as GTensor<G | G2>;
     }
     const g2big = g2.broadcastToCombinedShape(this);
     const g1big = this.broadcastToCombinedShape(g2);
     const g1bigLikeG2 = g1big.transposeLike(g2big);
-    return new GTensor(
-      tf.div(g1bigLikeG2.tensor, g2big.tensor),
-      g1bigLikeG2.dimNames
-    );
+    return new GTensor(tf.div(g1bigLikeG2.tensor, g2big.tensor), g1bigLikeG2.dimNames);
   }
 
   public pointwiseAdd<G2 extends DName>(g2: GTensor<G2>): GTensor<G | G2> {
     if (this.isScalar) {
-      return new GTensor(
-        tf.add(this.tensor, g2.tensor),
-        g2.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.add(this.tensor, g2.tensor), g2.dimNames) as GTensor<G | G2>;
     } else if (g2.isScalar) {
-      return new GTensor(
-        tf.add(this.tensor, g2.tensor),
-        this.dimNames
-      ) as GTensor<G | G2>;
+      return new GTensor(tf.add(this.tensor, g2.tensor), this.dimNames) as GTensor<G | G2>;
     }
     const g2big = g2.broadcastToCombinedShape(this);
     const g1big = this.broadcastToCombinedShape(g2);
     const g1bigLikeG2 = g1big.transposeLike(g2big);
-    return new GTensor(
-      tf.add(g1bigLikeG2.tensor, g2big.tensor),
-      g1bigLikeG2.dimNames
-    );
+    return new GTensor(tf.add(g1bigLikeG2.tensor, g2big.tensor), g1bigLikeG2.dimNames);
   }
 
   // TODO: consider having a base set of things saved e.g. tf.scalar(-1)
@@ -706,10 +643,7 @@ export class GTensor<G extends DName> {
   }
 
   public logSoftmax<D extends G>(n: D): GTensor<G> {
-    return new GTensor(
-      tf.logSoftmax(this.tensor, this.dim[n].index),
-      this.dimNames
-    );
+    return new GTensor(tf.logSoftmax(this.tensor, this.dim[n].index), this.dimNames);
   }
 
   public unstack<D extends G>(n: D): GTensor<Exclude<G, D>>[] {
@@ -787,9 +721,7 @@ export class GTensor<G extends DName> {
     d: D,
     newDims: { [key in D2]: number }
   ): GTensor<Exclude<G, D> | D2> {
-    const newDimsMap = new Map<D2, number>(
-      Object.entries(newDims) as [D2, number][]
-    );
+    const newDimsMap = new Map<D2, number>(Object.entries(newDims) as [D2, number][]);
     const oldShape = this.tensor.shape;
     const newSizes = [];
     const addedDimNames: D2[] = [];
@@ -923,9 +855,7 @@ export interface InitializerConfig {
   constant?: tf_init.ConstantArgs;
 }
 
-export function makeInitializer(
-  config: InitializerConfig
-): tf_init.Initializer {
+export function makeInitializer(config: InitializerConfig): tf_init.Initializer {
   if (config.tuncNormal) {
     return tf.initializers.truncatedNormal(config.tuncNormal);
   } else if (config.zeros) {
@@ -1000,11 +930,7 @@ export function makeConstant<T extends string>(
   constant: number,
   dtype: tf.DataType = 'float32'
 ): GTensor<T> {
-  return fromInitializer(
-    dims,
-    tf.initializers.constant({ value: constant }),
-    dtype
-  );
+  return fromInitializer(dims, tf.initializers.constant({ value: constant }), dtype);
 }
 
 export function makeRange<T extends DName>(
@@ -1026,3 +952,29 @@ export function makeScalar(
 
 export const one = makeScalar(1);
 export const zero = makeScalar(0);
+
+// ----------------------------------------------------------------------------
+// Note: the key idea here is that we can parameterise other types so that a
+// given instance knows if it has Variable (imperitively editable) parameter
+// values, or if the tensors might be fixed constant tensors.
+export type TensorKind = 'tensor';
+export type VariableKind = 'varTensor';
+export type TensorOrVarKind = TensorKind | VariableKind;
+
+export type AnyGTensorOrVar<T extends TensorOrVarKind> = T extends TensorKind
+  ? GTensor<any>
+  : T extends VariableKind
+  ? GVariable<any>
+  : never;
+
+export type GTensorOrVar<T extends TensorOrVarKind, D extends DName> = T extends TensorKind
+  ? GTensor<D>
+  : T extends VariableKind
+  ? GVariable<D>
+  : never;
+
+// type ShouldBeTrue = DictArrTree<AnyGTensorOrVar<VariableKind>> extends DictArrTree<
+//   AnyGTensorOrVar<TensorKind>
+// >
+//   ? true
+//   : never;

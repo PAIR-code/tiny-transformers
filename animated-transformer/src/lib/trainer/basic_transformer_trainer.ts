@@ -15,23 +15,26 @@ limitations under the License.
 
 // TODO: add regulariztion methods, e.g. weight decay/L2/L1/Ln regularization.
 
-import { GTensor, GVariable } from '../gtensor/gtensor';
+import { TensorOrVarKind, GTensor, GVariable, VariableKind, TensorKind } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicLmTask,
-  Example,
-  splitGenerativeTaskTestSet,
-} from '../seqtasks/util';
+import { BasicLmTask, Example, splitGenerativeTaskTestSet } from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { transformerAccuracy } from '../transformer/transformer_gtensor';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
-import { GTensorTree, GVariableTree } from 'src/lib/gtensor/gtensor_tree';
-import { ModelData } from 'src/app/animated-transformer/model-selector/model-selector.component';
+// import { GTensorTree, GVariableTree } from 'src/lib/gtensor/gtensor_tree';
 
+// Handy abbreviation for a Transformer Training state.
+// This lets us write `new TransformerTrainState(...)`
 export type TransformerTrainState = TrainState<
   transformer.TransformerParamSpec,
-  transformer.TransformerParams,
+  transformer.VarTransformerParams,
+  'batch' | 'pos' | 'inputRep',
+  'batch'
+>;
+export const TransformerTrainState = TrainState<
+  transformer.TransformerParamSpec,
+  transformer.VarTransformerParams,
   'batch' | 'pos' | 'inputRep',
   'batch'
 >;
@@ -51,16 +54,10 @@ export interface TrainMetrics {
 export function initTransformerTrainState(
   task: BasicLmTask,
   tokenRep: BasicTaskTokenRep,
-  inputPrepFn: StrSeqPrepFn<
-    transformer.TransformerParams,
-    'batch' | 'pos' | 'inputRep'
-  >,
-  targetPrepFn: (
-    tokenRep: BasicTaskTokenRep,
-    outputSeqs: string[][]
-  ) => GTensor<'batch'>,
+  inputPrepFn: StrSeqPrepFn<transformer.TransformerParams, 'batch' | 'pos' | 'inputRep'>,
+  targetPrepFn: (tokenRep: BasicTaskTokenRep, outputSeqs: string[][]) => GTensor<'batch'>,
   transformerConfig: transformer.TransformerConfig,
-  transformerInitParams: GVariableTree<transformer.TransformerParams>,
+  transformerInitParams: transformer.VarTransformerParams,
   trainStateConfig: TrainStateConfig
 ): TransformerTrainState {
   function transformerLastTokenLoss(
@@ -69,11 +66,7 @@ export function initTransformerTrainState(
     inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
     targets: GTensor<'batch'>
   ): tf.Scalar {
-    const decoderComputation = transformer.computeTransformer(
-      spec,
-      params,
-      inputs
-    );
+    const decoderComputation = transformer.computeTransformer(spec, params, inputs);
     const loss = transformer.transformerLastTokenCrossEntropyLoss(
       decoderComputation,
       params.tokenEmbedding,
@@ -101,7 +94,7 @@ export function initTransformerTrainState(
   // We use ! because assignment is inside tf.tidy.
   let state!: TransformerTrainState;
   tf.tidy(() => {
-    state = new TrainState(
+    state = new TransformerTrainState(
       transformerConfig.spec,
       transformerInitParams,
       trainStateConfig,
@@ -110,17 +103,14 @@ export function initTransformerTrainState(
       taskDatasetSplit,
       inputPrepFn,
       targetPrepFn
-    );
+    ) as TransformerTrainState;
   });
   return state;
 }
 
 export function computeMetrics(state: TransformerTrainState): TrainMetrics {
   const trainBatchAcc: number = computeStateBatchAccuracy(state);
-  const testLossAndAcc = computeLossAndAccuracy(
-    state,
-    state.taskSplit.testSetExamples
-  );
+  const testLossAndAcc = computeLossAndAccuracy(state, state.taskSplit.testSetExamples);
   return {
     nExamples: state.nExamples,
     nEpochs: state.nExamples / state.epochSize - 1,
@@ -132,19 +122,17 @@ export function computeMetrics(state: TransformerTrainState): TrainMetrics {
   };
 }
 
-export function computeStateBatchAccuracy(
-  state: TransformerTrainState
-): number {
+export function computeStateBatchAccuracy(state: TransformerTrainState): number {
   let meanAcc: number = -1;
   tf.tidy(() => {
     const decoderComputation = transformer.computeTransformer(
       state.spec,
-      state.params.obj,
+      state.params,
       state.inputsVar
     );
     meanAcc = transformerAccuracy(
       decoderComputation,
-      state.params.obj.tokenEmbedding,
+      state.params.tokenEmbedding,
       state.targetsVar
     ).dataSync()[0];
   });
@@ -167,23 +155,19 @@ export function computeLossAndAccuracy(
       state.prepareBatch(testSetBatch);
       const decoderComputation = transformer.computeTransformer(
         state.spec,
-        state.params.obj,
+        state.params,
         state.inputsVar
       );
       const batchAcc = transformerAccuracy(
         decoderComputation,
-        state.params.obj.tokenEmbedding,
+        state.params.tokenEmbedding,
         state.targetsVar
       ).dataSync()[0];
       meanAccPerBatch.push(batchAcc);
       meanLossPerBatch.push(state.updateLoss());
     }
-    meanAcc =
-      meanAccPerBatch.reduce((prev, cur) => cur + prev) /
-      meanAccPerBatch.length;
-    meanLoss =
-      meanLossPerBatch.reduce((prev, cur) => cur + prev) /
-      meanLossPerBatch.length;
+    meanAcc = meanAccPerBatch.reduce((prev, cur) => cur + prev) / meanAccPerBatch.length;
+    meanLoss = meanLossPerBatch.reduce((prev, cur) => cur + prev) / meanLossPerBatch.length;
     state.prepareBatch(initBatchExamples);
     state.batchMeanLoss = initBatchLoss;
   });
@@ -213,3 +197,13 @@ export function computeLossAndAccuracy(
 //   }
 //   return;
 // }
+
+// type T = transformer.TransformerParams<VariableKind> extends transformer.TransformerParams<TensorKind> ? true : never;
+
+// const t: { v: GVariable<any>[] } = {} as any;
+
+// function f(x: { v: GTensor<any>[] }) {
+//   return;
+// }
+
+// f(t);

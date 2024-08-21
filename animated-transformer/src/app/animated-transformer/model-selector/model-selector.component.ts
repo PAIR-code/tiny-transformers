@@ -15,25 +15,19 @@ limitations under the License.
 
 import * as _ from 'underscore';
 
-import {
-  Component,
-  Input,
-  OnInit,
-  Signal,
-  WritableSignal,
-  computed,
-  signal,
-} from '@angular/core';
+import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
 import json5 from 'json5';
 import { FormControl } from '@angular/forms';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
-import { SimpleJsTreesLib, DictTree } from '../../../lib/js_tree/js_tree';
+import { DictTree } from '../../../lib/js_tree/js_tree';
+import * as jstree from '../../../lib/js_tree/js_tree';
 import {
   transformerAccuracy,
   TransformerConfig,
   TransformerParamLayerSpec,
   TransformerParams,
   TransformerParamSpec,
+  VarTransformerParams,
 } from '../../../lib/transformer/transformer_gtensor';
 import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
@@ -46,7 +40,7 @@ import {
   prepareBasicTaskTokenRep,
   strSeqPrepFn,
 } from 'src/lib/tokens/token_gemb';
-import { GVariableTree } from 'src/lib/gtensor/gtensor_tree';
+import { GTensor } from 'src/lib/gtensor/gtensor';
 
 export type JsonConfigData = DictTree<number | string | boolean>;
 
@@ -60,7 +54,7 @@ export type ModelData = {
   config: ModelConfig;
   tokenRep: BasicTaskTokenRep;
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>;
-  params: GVariableTree<TransformerParams>;
+  params: VarTransformerParams;
   paramCount: number;
 };
 
@@ -72,9 +66,7 @@ export class ModelSpecAndData {
   public modelData: WritableSignal<ModelData | null> = signal(null);
 
   constructor(public kind: 'transformer', public defaultConfig: ModelConfig) {
-    this.config = SimpleJsTreesLib.copy<JsonConfigData>(
-      defaultConfig
-    ) as ModelConfig;
+    this.config = structuredClone(defaultConfig);
     this.configStr = stringifyJsonValue(this.config);
     this.defaultConfigStr = this.configStr;
   }
@@ -137,19 +129,13 @@ const transWithLayerNormed: ModelConfig = {
 
 const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
 
-const simpleTransformerWithLayerNorm = new ModelSpecAndData(
-  'transformer',
-  transWithLayerNormed
-);
+const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
 
 export interface ModelUpdate {
   model: ModelSpecAndData | null;
 }
 
-const initModels: ModelSpecAndData[] = [
-  simpleTransformer,
-  simpleTransformerWithLayerNorm,
-];
+const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
 const initModelsMap: { [name: string]: ModelSpecAndData } = {};
 initModels.forEach((m) => (initModelsMap[m.config.name] = m));
 
@@ -252,10 +238,7 @@ export class ModelSelectorComponent {
       return;
     }
 
-    const newModel = new ModelSpecAndData(
-      currentModel.kind,
-      currentModel.defaultConfig
-    );
+    const newModel = new ModelSpecAndData(currentModel.kind, currentModel.defaultConfig);
     newModel.updateFromStr(configUpdate.json);
     // Model name was changed.
     if (newModel.config.name !== currentModel.config.name) {
@@ -280,18 +263,16 @@ export class ModelSelectorComponent {
     if (modelData) {
       // Dispose...
       // curModel.modelData.tokenRep
-      modelData.params.forEach((g) => g.dispose());
+      jstree.forEach((g: GTensor<any>) => g.dispose(), modelData.params);
     }
 
     const config = _.clone(curModel.config);
     const tokenRep = prepareBasicTaskTokenRep(this.task.baseVocab);
-    const params = transformer.initDecoderParamsTree(
-      tokenRep,
-      config.transformer
-    );
-    const paramCount = params.reduce(
+    const params = transformer.initDecoderParamsTree(tokenRep, config.transformer);
+    const paramCount = jstree.reduce<GTensor<any>, number>(
       (count, paramObj) => count + paramObj.tensor.size,
-      0
+      0,
+      params
     );
     curModel.modelData.set({
       config,
