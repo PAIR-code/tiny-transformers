@@ -14,18 +14,57 @@ limitations under the License.
 ==============================================================================*/
 
 import { stringifyRule } from '../logic/rules';
-import { addRuleApps, applyRules, nextRelDistrStats, RuleApp } from '../logic/stories';
 import {
-  RelName,
   TinyWorldTask,
   TinyWorldTaskConfig,
-  TypeName,
-  VarName,
+  bayesianV1TinyWorldTaskConfig,
   defaultTinyWorldTaskConfig,
 } from './tiny_worlds';
 
 describe('tiny_worlds', () => {
   beforeEach(() => {});
+
+  it('test_bayesianV1TinyWorldTaskConfig', () => {
+    const initConfig = { ...bayesianV1TinyWorldTaskConfig };
+    console.log('config uses: bayesianE1TinyWorldTaskConfig');
+    const len = 1500; // sample many for counting
+    initConfig.maxInputLen = len;
+    initConfig.maxOutputLen = 1;
+    const tinyWorld = new TinyWorldTask(initConfig);
+    const [example] = tinyWorld.exampleIter.takeOutN(1);
+
+    function count(list: any[], elem: any) {
+      return list.filter((x: any) => x === elem).length;
+    }
+    const input_count_i0 = count(example.input, 'i0');
+    const input_count_11 = count(example.input, 'i1');
+    const input_count_ratio = (input_count_i0 * 1.0) / input_count_11;
+    const mean = 0.5,
+      eps = 0.05; // eps is determined by len
+    expect(input_count_ratio).toBeGreaterThanOrEqual(mean - eps);
+    expect(input_count_ratio).toBeLessThanOrEqual(mean + eps);
+  });
+
+  it('genRandExampleWithSameAndDifferentSeeds', () => {
+    const commonConfig: TinyWorldTaskConfig = {
+      ...defaultTinyWorldTaskConfig,
+      maxInputLen: 100,
+      maxOutputLen: 1,
+    };
+    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
+    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
+    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, seed: 1 };
+
+    const tinyWorld_1 = new TinyWorldTask(initConfig_1);
+    const tinyWorld_2 = new TinyWorldTask(initConfig_2);
+    const tinyWorld_3 = new TinyWorldTask(initConfig_3);
+    const [example_1] = tinyWorld_1.exampleIter.takeOutN(1);
+    const [example_2] = tinyWorld_2.exampleIter.takeOutN(1);
+    const [example_3] = tinyWorld_3.exampleIter.takeOutN(1);
+
+    expect(example_1.input.join('')).toEqual(example_2.input.join(''));
+    expect(example_1.input.join('')).not.toEqual(example_3.input.join(''));
+  });
 
   it('genRandExample', () => {
     const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };

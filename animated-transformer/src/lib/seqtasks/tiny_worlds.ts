@@ -61,6 +61,26 @@ export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
   maxEntityLimit: number;
 }
 
+/* 
+besyian world (version 1) 
+tests if some zero-order and first order info could be correctly captured.
+*/
+export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
+  name: 'beysian (version 1) world. ',
+  seed: 42,
+  maxInputLen: 10,
+  maxOutputLen: 10,
+  typeHierarchy: {
+    t0: ['i0', 'i1'],
+  },
+  relationKinds: {
+    is: [''],
+  },
+  baseStory: [],
+  rules: ['S(is ?x:i0) += 1', 'S(is ?x:i1) += 2'],
+  maxEntityLimit: 6,
+};
+
 export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'tiny synthetic world',
   seed: 0,
