@@ -34,17 +34,17 @@ import {
 // Ideas for fancier rules/variants
 //
 // If a monkey just jumped over something, they are not so likely to jump again right away.
-// '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
+// '[... jumpsOver _x _y ...:3] ==> jumpsOver _x _y *= 0.1',
 //
 // Let actions/observations have names too.
 // '_e: (tries_to_jumps_over _x:monkey _y) ==> succeeds(_e) += 1',
 //
 // Should types be observations?, e.g. could we write:
-// '_x:cat ==> runs-away _x += 1'
-// i.e. that would be the same as: 'is _x cat ==> runs-away _x += 1'
+// '_x:cat ==> runsAway _x += 1'
+// i.e. that would be the same as: 'is _x cat ==> runsAway _x += 1'
 //
 // Should we allow an unbound syntax?
-// 'jumps-over monkey _y += 5' === 'jumps-over _x:monkey _y += 5' ?
+// 'jumpsOver monkey _y += 5' === 'jumpsOver _x:monkey _y += 5' ?
 // Maybe this is just syntax, so we skip it? Or maybe this somehow says that one
 // *cannot* bind to the monkey, i.e. is says there was an unknown monkey who jumped over _y?
 
@@ -117,7 +117,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // TODO: I'd like to be able to quantify over the type... e.g. but that means
     // implicitly defining a distinution over types, which I guess would be some kind of equal split?
     // And also, how do you manage many level of specificity? t?<..<animal and t?<=..<=animal
-    //   'S(is ?x:?t<animal | runs-away ?x, -is ?x:?t) += 1',
+    //   'S(is ?x:?t<animal | runsAway ?x, -is ?x:?t) += 1',
     'S(is ?x:cat | runsAway ?x, -is ?x) += 1',
 
     // When an animal runs away, it can't squish anything, jump or run-away again.
@@ -191,19 +191,28 @@ export class TinyWorldTask implements BasicLmTask {
   }
 
   nextRelTokens(
+    prevStory: Story<TypeName, VarName, RelName>,
     curStory: Story<TypeName, VarName, RelName>,
     rel: Relation<TypeName, VarName, RelName>
   ) {
-    const args = rel.args.flatMap((r) => {
+    const args = rel.args.flatMap((r, i) => {
+      const prevStoryType = prevStory.varTypes.get(r.varName) || new Set();
       // skip outputing the type when not needed.
       if (
-        r.varTypes.has(universalType) ||
-        typesetEquality(curStory.types, curStory.varTypes.get(r.varName)!, r.varTypes)
+        r.varTypes.has(universalType) || // skip universal types always.
+        // Skip is the type already existed and has not changed
+        (prevStoryType && typesetEquality(curStory.types, prevStoryType, r.varTypes)) ||
+        // Skip is it's the same as the relation's default top level type.
+        (!prevStoryType &&
+          typesetEquality(curStory.types, curStory.relations.get(rel.relName)![i], r.varTypes))
       ) {
+        // console.log(`${r.varName} (in story): ${[...curStory.varTypes.get(r.varName)!]}`);
+        // console.log(`${r.varName} (in prev story): ${[...prevStoryType]}`);
+        // console.log(`${r.varName} (in rel): ${[...curStory.relations.get(rel.relName)![i]]}`);
         return [spaceSepToken, r.varName];
       } else {
         const typeTokens = addBetweenEvery([...r.varTypes].sort(), typeOrToken);
-        return [spaceSepToken, r.varName, ...typeTokens];
+        return [spaceSepToken, r.varName, typeIsToken, ...typeTokens];
       }
     });
     return [rel.relName, ...args];
@@ -225,15 +234,15 @@ export class TinyWorldTask implements BasicLmTask {
     const maxTokens = this.config.maxInputLen + this.config.maxOutputLen;
     let curStory = this.initStory;
     while (generatedTokens.length < maxTokens) {
-      console.log('rns.state.curSeedVal', rns.state.curSeedVal);
+      // console.log('genRandExample: rns.state.curSeedVal', rns.state.curSeedVal);
       const maybeNextStory = sampleNextRel(rns, curStory, this.rules);
       if (maybeNextStory) {
-        const extraTokens = this.nextRelTokens(curStory, maybeNextStory.rel);
-        console.log('extraTokens', extraTokens.join(' '));
+        const extraTokens = this.nextRelTokens(curStory, maybeNextStory.story, maybeNextStory.rel);
+        // console.log('extraTokens', extraTokens.join(' '));
         this.addNextRelTokens(maxTokens, generatedTokens, extraTokens);
         curStory = maybeNextStory.story;
-        console.log('scene', curStory.scene);
-        console.log('varTypes', curStory.varTypes);
+        // console.log('scene', curStory.relSeq);
+        // console.log('varTypes', curStory.varTypes);
       } else {
         break;
       }

@@ -1,4 +1,5 @@
 import { Type } from '@angular/core';
+import { filterSet } from '../seqtasks/util';
 
 export type TypeHierarchySpec = string[] | { [name: string]: TypeHierarchySpec };
 
@@ -162,13 +163,16 @@ export type Relation<TypeName, VarName, RelName> = {
 // Flatten a set of types into the most ground types possible.
 export function flattenType<TypeName>(
   typeDef: TypeDef<TypeName>,
-  typeName: TypeName
+  typeName: TypeName,
+  onlyLeaves = true
 ): Set<TypeName> {
   const decendents = typeDef.decendent.get(typeName)!;
   if (decendents.size === 0) {
     return new Set([typeName]);
   } else {
-    return decendents;
+    return onlyLeaves
+      ? filterSet((name) => typeDef.decendent.get(name)!.size === 0, decendents)
+      : decendents;
   }
 }
 
@@ -283,14 +287,8 @@ export function typeSetIsSubsetOf<TypeName>(
   subTypes: Set<TypeName>,
   superTypes: Set<TypeName>
 ): boolean {
-  console.log('--');
-  console.log('decendentMap', decendentMap);
-  console.log('subTypes', subTypes);
-  console.log('superTypes', superTypes);
   const flatTys1 = flattenTypeset(decendentMap, subTypes);
-  console.log('flatTys1', flatTys1);
   const flatTys2 = flattenTypeset(decendentMap, superTypes);
-  console.log('flatTys2', flatTys2);
   return flatTys1.difference(flatTys2).size === 0;
 }
 

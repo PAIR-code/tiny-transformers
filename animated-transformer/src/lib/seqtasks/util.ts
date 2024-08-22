@@ -79,11 +79,7 @@ export interface BasicLmTaskUpdate {
 // This allows new escape sequences to be added that we know will never occur
 // s', e.g. `${escapeChar}${safeSequence}`.
 // This provides a simple string serialization format for compound objects.
-export function escapeString(
-  token: string,
-  escapeChar = '\\',
-  sepChar = ' '
-): string {
+export function escapeString(token: string, escapeChar = '\\', sepChar = ' '): string {
   return token
     .replaceAll(escapeChar, `${escapeChar}${escapeChar}`)
     .replaceAll(sepChar, `${escapeChar}${sepChar}`);
@@ -94,17 +90,10 @@ export function escapeToken(token: string) {
 }
 
 export function indexExample(example: Example): string {
-  return [
-    ...example.input.map(escapeToken),
-    '\\-->',
-    ...example.output.map(escapeToken),
-  ].join(' ');
+  return [...example.input.map(escapeToken), '\\-->', ...example.output.map(escapeToken)].join(' ');
 }
 
-export function generateBatch(
-  exampleGen: Iterator<Example>,
-  batchSize: number
-): Example[] {
+export function generateBatch(exampleGen: Iterator<Example>, batchSize: number): Example[] {
   // return [...takeNextN(exampleGen, batchSize)];
   const examples: Example[] = [];
   for (let i = 0; i < batchSize; i++) {
@@ -134,9 +123,7 @@ export function splitGenerativeTaskTestSet(
   const testSetIndex = new Set(testSetExamples.map(indexExample));
 
   const testSetFilteredExamples = examplesIter.copy();
-  testSetFilteredExamples.filter(
-    (example) => !testSetIndex.has(indexExample(example))
-  );
+  testSetFilteredExamples.filter((example) => !testSetIndex.has(indexExample(example)));
 
   return {
     testSetExamples,
@@ -154,4 +141,14 @@ export function addBetweenEvery<T>(arr: T[], newEntry: T): T[] {
     }
     return result;
   }, [] as T[]);
+}
+
+export function filterSet<T>(keepItFn: (ty: T) => boolean, s: Set<T>): Set<T> {
+  const filteredSet = new Set<T>();
+  s.forEach((i) => {
+    if (keepItFn(i)) {
+      filteredSet.add(i);
+    }
+  });
+  return filteredSet;
 }

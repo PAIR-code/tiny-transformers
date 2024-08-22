@@ -101,7 +101,7 @@ export type RelationToAdd<TypeNames, VarNames, RelNames> = {
 //
 // TODO: make a deep-copy function so it's easier to be safe?
 export class Story<TypeName extends string, VarName extends string, RelNames extends string> {
-  public scene: Relation<TypeName, VarName, RelNames>[] = [];
+  public relSeq: Relation<TypeName, VarName, RelNames>[] = [];
 
   constructor(
     // The type hierarchy.
@@ -134,7 +134,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
     rels.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithContext(r, unifyState);
       if (unifyFailed) {
-        console.warn(`can't create Story with the specified relation. Unif state:`, r, unifyFailed);
+        // console.warn(`can't create Story with the specified relation. Unif state:`, r, unifyFailed);
         throw new Error(`${unifyFailed.kind} for relation (${i}): '${stringifyRelation(r)}'`);
       }
     });
@@ -143,11 +143,11 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
     });
     this.names.addNames(unifyState.varTypes.keys());
     const instantiatedRels = rels.map((rel) => applyUnifSubstToRel(unifyState, rel));
-    this.scene = [...this.scene, ...instantiatedRels];
+    this.relSeq = [...this.relSeq, ...instantiatedRels];
   }
 
   lastSceneRel(): Relation<TypeName, VarName, RelNames> | null {
-    return this.scene.length > 1 ? this.scene[this.scene.length] : null;
+    return this.relSeq.length > 1 ? this.relSeq[this.relSeq.length] : null;
   }
 
   unifyRelationArgumentWithContext(
@@ -319,7 +319,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
     const initialMatches = [
       {
         rule: rule,
-        sceneBeforeRule: this.scene,
+        sceneBeforeRule: this.relSeq,
         // Each position in the list corresponds to a positive condition of
         // the rule.
         // The number in the list is an index in into the matching relation
@@ -342,7 +342,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
         ruleMatches.forEach((match) => {
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
-          this.scene.forEach((storyRel, storyRelIdx) => {
+          this.relSeq.forEach((storyRel, storyRelIdx) => {
             // TODO: make more efficient: only fork the unify state when needed.
             // e.g. fail as much as possible before working.
             const newMatch = forkRuleMatch(match);
@@ -350,13 +350,14 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
             if (!unifyFailure) {
               newMatch.condToStoryRelIdx.push(storyRelIdx);
               nextMatches.push(newMatch);
-            } else {
-              console.log('matchRule: unifFailure', {
-                condRel,
-                storyRel,
-                unifState: newMatch.unifState,
-              });
             }
+            // else {
+            //   // console.log('matchRule: unifFailure', {
+            //   //   condRel,
+            //   //   storyRel,
+            //   //   unifState: newMatch.unifState,
+            //   // });
+            // }
           });
         });
         return nextMatches;
@@ -369,7 +370,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
       // = if any neg condition matches any story rel, this rule
       // is not applicable.
       for (const negRuleRel of rule.negConditions) {
-        for (const storyRel of this.scene) {
+        for (const storyRel of this.relSeq) {
           const newMatch = forkRuleMatch(match);
           const unifyFailure = this.unify(negRuleRel, storyRel, newMatch.unifState);
           if (!unifyFailure) {
@@ -390,7 +391,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
       new Map(this.varTypes),
       this.isUnboundVarName
     );
-    c.scene = [...this.scene];
+    c.relSeq = [...this.relSeq];
     return c;
   }
 
@@ -421,7 +422,7 @@ export class Story<TypeName extends string, VarName extends string, RelNames ext
     });
 
     const matchedRelation = applyUnifSubstToRel(freshNameUnif, match.rule.rel);
-    newStory.scene.push(matchedRelation);
+    newStory.relSeq.push(matchedRelation);
 
     return newStory;
   }
@@ -461,7 +462,7 @@ export function addRuleApps<
 ): void {
   story.matchRule(rule).map((m) => {
     const newStory = story.applyRuleMatch(m);
-    const newRel = newStory.scene[newStory.scene.length - 1];
+    const newRel = newStory.relSeq[newStory.relSeq.length - 1];
     const newRelStr = stringifyRelation(newRel);
     const prevRuleApps = ruleApps.get(newRelStr) || [];
     prevRuleApps.push({ story: newStory, rule, newRel: newRel });

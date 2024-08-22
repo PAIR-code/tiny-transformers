@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import {
   extendTypesWithDecendent,
+  flattenType,
   initTypeDef,
   parseRel,
   stringifyMapToSet,
@@ -52,6 +53,11 @@ describe('relations', () => {
     expect(stringifyRelation(rel)).toEqual('squishes _x _y:animal _z:a|b|c');
   });
 
+  it('stringifyRel: skips universal type', () => {
+    const rel = parseRel('is _x:*');
+    expect(stringifyRelation(rel)).toEqual('is _x');
+  });
+
   it('initTypeDef: empty', () => {
     const types = initTypeDef({});
     expect(types.decendent.size).toEqual(1);
@@ -72,6 +78,18 @@ describe('relations', () => {
     });
     expect(decendent.get(universalType)!.size).toBe(9);
     expect(decendent.get('animal')).toEqual(new Set(['cat', 'monkey', 'elephant']));
+  });
+
+  it('flattenType', () => {
+    const types = initTypeDef({
+      animal: ['cat', 'monkey', 'elephant'],
+      inanimate: ['rock', 'tree', 'flower'],
+      squishable: ['cat', 'monkey', 'flower'],
+    });
+    expect(flattenType(types, universalType).size).toBe(6);
+    expect(flattenType(types, 'animal').size).toBe(3);
+    expect(flattenType(types, 'cat').size).toBe(1);
+    expect(flattenType(types, 'animal')).toEqual(new Set(['cat', 'monkey', 'elephant']));
   });
 
   it('extendTypesWithDecendent', () => {
