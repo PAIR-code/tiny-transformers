@@ -1,46 +1,52 @@
-import { RelArgument, Relation } from './relations';
+import { RelArgument, Relation, stringifyMapToSet } from './relations';
 import { Rule } from './rules';
 
-export type UnifyState<Types, Vars> = {
+export type UnifyState<TypeName, VarName> = {
   kind: 'UnifyState';
   // Maps a variable name to the set of alternative possible valid types for that variable.
-  varTypes: Map<Vars, Set<Types>>;
+  varTypes: Map<VarName, Set<TypeName>>;
   // Substitutions for variable names.
-  varSubsts: Map<Vars, Vars>;
+  varSubsts: Map<VarName, VarName>;
 };
 
-export function emptyUnifState<TypeNames, VarNames>(): UnifyState<
-  TypeNames,
-  VarNames
-> {
-  let unifyState: UnifyState<TypeNames, VarNames> = {
+export function stringifyUnifyState<TypeName extends string, VarName extends string>(
+  state: UnifyState<TypeName, VarName>
+) {
+  return `state.varTypes:
+${stringifyMapToSet(state.varTypes)}
+state.varSubsts:
+${state.varSubsts.entries()}`;
+}
+
+export function emptyUnifState<TypeName, VarName>(): UnifyState<TypeName, VarName> {
+  let unifyState: UnifyState<TypeName, VarName> = {
     kind: 'UnifyState',
-    varTypes: new Map<VarNames, Set<TypeNames>>(),
-    varSubsts: new Map<VarNames, VarNames>(),
+    varTypes: new Map<VarName, Set<TypeName>>(),
+    varSubsts: new Map<VarName, VarName>(),
   };
   return unifyState;
 }
 
-export function forkUnifyState<TypeNames, VarNames>(
-  s: UnifyState<TypeNames, VarNames>
-): UnifyState<TypeNames, VarNames> {
-  let unifyState: UnifyState<TypeNames, VarNames> = {
+export function forkUnifyState<TypeName, VarName>(
+  s: UnifyState<TypeName, VarName>
+): UnifyState<TypeName, VarName> {
+  let unifyState: UnifyState<TypeName, VarName> = {
     kind: 'UnifyState',
     varTypes: new Map(s.varTypes),
-    varSubsts: new Map<VarNames, VarNames>(s.varSubsts),
+    varSubsts: new Map<VarName, VarName>(s.varSubsts),
   };
   return unifyState;
 }
 
-export function applyUnifSubstToRel<TypeNames, VarNames, RelNames>(
-  unifState: UnifyState<TypeNames, VarNames>,
-  rel: Relation<TypeNames, VarNames, RelNames>
-): Relation<TypeNames, VarNames, RelNames> {
+export function applyUnifSubstToRel<TypeName, VarName, RelName>(
+  unifState: UnifyState<TypeName, VarName>,
+  rel: Relation<TypeName, VarName, RelName>
+): Relation<TypeName, VarName, RelName> {
   const args = rel.args.map((a) => {
     return {
       varName: unifState.varSubsts.get(a.varName) || a.varName,
       varTypes: unifState.varTypes.get(a.varName) || a.varTypes,
-    } as RelArgument<TypeNames, VarNames>;
+    } as RelArgument<TypeName, VarName>;
   });
   const newRel = { relName: rel.relName, args };
   return newRel;
@@ -51,12 +57,8 @@ export function applyUnifSubstToRule<TypeNames, VarNames, RelNames>(
   rule: Rule<TypeNames, VarNames, RelNames>
 ): Rule<TypeNames, VarNames, RelNames> {
   const rel = applyUnifSubstToRel(unifState, rule.rel);
-  const posConditions = rule.posConditions.map((c) =>
-    applyUnifSubstToRel(unifState, c)
-  );
-  const negConditions = rule.posConditions.map((c) =>
-    applyUnifSubstToRel(unifState, c)
-  );
+  const posConditions = rule.posConditions.map((c) => applyUnifSubstToRel(unifState, c));
+  const negConditions = rule.posConditions.map((c) => applyUnifSubstToRel(unifState, c));
   return { rel, posConditions, negConditions, op: rule.op, score: rule.score };
 }
 

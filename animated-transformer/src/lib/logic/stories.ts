@@ -21,12 +21,14 @@ import {
   UnifyState,
   forkRuleMatch,
   RuleMatch,
+  stringifyUnifyState,
 } from './unif_state';
 import {
   parseRel,
   RelArgument,
   Relation,
   stringifyRelation,
+  TypeDef,
   typesetIntersection,
 } from './relations';
 import { Rule, stringifyRule } from './rules';
@@ -98,16 +100,12 @@ export type RelationToAdd<TypeNames, VarNames, RelNames> = {
 // down to the edited part, and return a new copy.
 //
 // TODO: make a deep-copy function so it's easier to be safe?
-export class Story<
-  TypeName extends string,
-  VarName extends string,
-  RelNames extends string
-> {
+export class Story<TypeName extends string, VarName extends string, RelNames extends string> {
   public scene: Relation<TypeName, VarName, RelNames>[] = [];
 
   constructor(
     // The type hierarchy.
-    public types: Map<TypeName, Set<TypeName>>,
+    public types: TypeDef<TypeName>,
     // Mapping from Relation to the list of most general type for each argument.
     public relations: Map<RelNames, Set<TypeName>[]>,
 
@@ -125,7 +123,7 @@ export class Story<
     public isUnboundVarName: (v: VarName) => boolean
   ) {
     this.names = new FreshNames();
-    this.names.addNames(types.keys());
+    this.names.addNames(types.decendent.keys());
     this.names.addNames(relations.keys());
     this.names.addNames(varTypes.keys());
   }
@@ -136,23 +134,15 @@ export class Story<
     rels.forEach((r, i) => {
       const unifyFailed = this.unifyRelationWithContext(r, unifyState);
       if (unifyFailed) {
-        console.warn(
-          `can't create Story with the specified relation. Unif state:`,
-          r,
-          unifyFailed
-        );
-        throw new Error(
-          `${unifyFailed.kind} for relation (${i}): '${stringifyRelation(r)}'`
-        );
+        console.warn(`can't create Story with the specified relation. Unif state:`, r, unifyFailed);
+        throw new Error(`${unifyFailed.kind} for relation (${i}): '${stringifyRelation(r)}'`);
       }
     });
     unifyState.varTypes.forEach((varTypes, varName) => {
       this.varTypes.set(varName, varTypes);
     });
     this.names.addNames(unifyState.varTypes.keys());
-    const instantiatedRels = rels.map((rel) =>
-      applyUnifSubstToRel(unifyState, rel)
-    );
+    const instantiatedRels = rels.map((rel) => applyUnifSubstToRel(unifyState, rel));
     this.scene = [...this.scene, ...instantiatedRels];
   }
 
@@ -240,10 +230,8 @@ export class Story<
 
     // Unify each argument of the relation.
     for (let i = 0; i < r1.args.length; i++) {
-      const v1Name =
-        unifyState.varSubsts.get(r1.args[i].varName) || r1.args[i].varName;
-      const v2Name =
-        unifyState.varSubsts.get(r2.args[i].varName) || r2.args[i].varName;
+      const v1Name = unifyState.varSubsts.get(r1.args[i].varName) || r1.args[i].varName;
+      const v2Name = unifyState.varSubsts.get(r2.args[i].varName) || r2.args[i].varName;
 
       // If the names are the same, the types must be. Proof by induction & construction.
       if (v1Name === v2Name) {
@@ -263,6 +251,8 @@ export class Story<
           arg2Types: [...v2Types].sort(),
         };
       }
+      unifyState.varTypes.set(v1Name, unifiedArgTypes);
+      unifyState.varTypes.set(v2Name, unifiedArgTypes);
 
       // v1 gets replaced everywhere as v2 now.
       unifyState.varSubsts.set(v1Name, v2Name);
@@ -289,19 +279,13 @@ export class Story<
     rule: Rule<TypeName, VarName, RelNames>
   ): UnifyState<TypeName, VarName> | null {
     const initMatchUnifState = this.newUnifyState();
-    const unifFailure = this.unifyRelationWithContext(
-      rule.rel,
-      initMatchUnifState
-    );
+    const unifFailure = this.unifyRelationWithContext(rule.rel, initMatchUnifState);
     if (unifFailure) {
       console.warn(unifFailure);
       return null;
     }
     for (const posCondition of rule.posConditions) {
-      const unifFailure = this.unifyRelationWithContext(
-        posCondition,
-        initMatchUnifState
-      );
+      const unifFailure = this.unifyRelationWithContext(posCondition, initMatchUnifState);
       if (unifFailure) {
         console.warn(unifFailure);
         // The types not longer match
@@ -311,10 +295,7 @@ export class Story<
     }
 
     for (const negCondition of rule.negConditions) {
-      const unifFailure = this.unifyRelationWithContext(
-        negCondition,
-        initMatchUnifState
-      );
+      const unifFailure = this.unifyRelationWithContext(negCondition, initMatchUnifState);
       if (unifFailure) {
         console.warn(unifFailure);
         // The types not longer match
@@ -325,15 +306,11 @@ export class Story<
     return initMatchUnifState;
   }
 
-  matchRule(
-    rule: Rule<TypeName, VarName, RelNames>
-  ): RuleMatch<TypeName, VarName, RelNames>[] {
+  matchRule(rule: Rule<TypeName, VarName, RelNames>): RuleMatch<TypeName, VarName, RelNames>[] {
     const maybeInitMatchUnifState = this.unifyRuleWithContext(rule);
     if (!maybeInitMatchUnifState) {
       // console.error(`Rule's relations are malformed for this context ${stringifyRule(rule)}`);
-      throw new Error(
-        `Rule's relations are malformed for this context ${stringifyRule(rule)}`
-      );
+      throw new Error(`Rule's relations are malformed for this context ${stringifyRule(rule)}`);
       // The types not longer match
       // console.warn('surprising unification failure on rule concl', unifFailure);
       // return [];
@@ -359,36 +336,33 @@ export class Story<
     //
     // TODO: make more efficient: only fork the unify state when needed.
     // e.g. fail as much as possible before working.
-    const finalMatches = rule.posConditions.reduce<
-      RuleMatch<TypeName, VarName, RelNames>[]
-    >((ruleMatches, condRel) => {
-      const nextMatches: RuleMatch<TypeName, VarName, RelNames>[] = [];
-      ruleMatches.forEach((match) => {
-        // TODO: make more efficient: only fork the unify state when needed.
-        // e.g. fail as much as possible before working.
-        this.scene.forEach((storyRel, storyRelIdx) => {
+    const finalMatches = rule.posConditions.reduce<RuleMatch<TypeName, VarName, RelNames>[]>(
+      (ruleMatches, condRel) => {
+        const nextMatches: RuleMatch<TypeName, VarName, RelNames>[] = [];
+        ruleMatches.forEach((match) => {
           // TODO: make more efficient: only fork the unify state when needed.
           // e.g. fail as much as possible before working.
-          const newMatch = forkRuleMatch(match);
-          const unifyFailure = this.unify(
-            condRel,
-            storyRel,
-            newMatch.unifState
-          );
-          if (!unifyFailure) {
-            newMatch.condToStoryRelIdx.push(storyRelIdx);
-            nextMatches.push(newMatch);
-          } else {
-            console.log('matchRule: unifFailure', {
-              condRel,
-              storyRel,
-              unifState: newMatch.unifState,
-            });
-          }
+          this.scene.forEach((storyRel, storyRelIdx) => {
+            // TODO: make more efficient: only fork the unify state when needed.
+            // e.g. fail as much as possible before working.
+            const newMatch = forkRuleMatch(match);
+            const unifyFailure = this.unify(condRel, storyRel, newMatch.unifState);
+            if (!unifyFailure) {
+              newMatch.condToStoryRelIdx.push(storyRelIdx);
+              nextMatches.push(newMatch);
+            } else {
+              console.log('matchRule: unifFailure', {
+                condRel,
+                storyRel,
+                unifState: newMatch.unifState,
+              });
+            }
+          });
         });
-      });
-      return nextMatches;
-    }, initialMatches);
+        return nextMatches;
+      },
+      initialMatches
+    );
 
     return finalMatches.filter((match) => {
       // every neg condition must fail to match every story rel:
@@ -397,11 +371,7 @@ export class Story<
       for (const negRuleRel of rule.negConditions) {
         for (const storyRel of this.scene) {
           const newMatch = forkRuleMatch(match);
-          const unifyFailure = this.unify(
-            negRuleRel,
-            storyRel,
-            newMatch.unifState
-          );
+          const unifyFailure = this.unify(negRuleRel, storyRel, newMatch.unifState);
           if (!unifyFailure) {
             return false;
           }
@@ -457,11 +427,7 @@ export class Story<
   }
 }
 
-export type RuleApp<
-  TypeNames extends string,
-  VarNames extends string,
-  RelNames extends string
-> = {
+export type RuleApp<TypeNames extends string, VarNames extends string, RelNames extends string> = {
   rule: Rule<TypeNames, VarNames, RelNames>;
   story: Story<TypeNames, VarNames, RelNames>;
   newRel: Relation<TypeNames, VarNames, RelNames>;
@@ -530,10 +496,7 @@ export function nextRelDistrStats<
   nextRuleApps: Map<string, RuleApp<TypeNames, VarNames, RelNames>[]>
 ): Map<string, RelRuleApps<TypeNames, VarNames, RelNames>> {
   // string = string form of introduced relation
-  const finalDistr = new Map<
-    string,
-    RelRuleApps<TypeNames, VarNames, RelNames>
-  >();
+  const finalDistr = new Map<string, RelRuleApps<TypeNames, VarNames, RelNames>>();
 
   let rel: Relation<TypeNames, VarNames, RelNames>;
 
@@ -541,20 +504,17 @@ export function nextRelDistrStats<
   // new added relation.
   const initScoreParts: ScoreParts = { sum: 0, mult: 1 };
   nextRuleApps.forEach((ruleApps, relStrKey) => {
-    const finalRuleScore = ruleApps.reduce<ScoreParts>(
-      (scoreCalc: ScoreParts, ruleApp) => {
-        rel = ruleApp.newRel;
-        let newMult = scoreCalc.mult;
-        let newSum = scoreCalc.sum;
-        if (ruleApp.rule.op === '*=') {
-          newMult = scoreCalc.mult * ruleApp.rule.score;
-        } else if (ruleApp.rule.op === '+=') {
-          newSum = scoreCalc.sum + ruleApp.rule.score;
-        }
-        return { sum: newSum, mult: newMult };
-      },
-      initScoreParts
-    );
+    const finalRuleScore = ruleApps.reduce<ScoreParts>((scoreCalc: ScoreParts, ruleApp) => {
+      rel = ruleApp.newRel;
+      let newMult = scoreCalc.mult;
+      let newSum = scoreCalc.sum;
+      if (ruleApp.rule.op === '*=') {
+        newMult = scoreCalc.mult * ruleApp.rule.score;
+      } else if (ruleApp.rule.op === '+=') {
+        newSum = scoreCalc.sum + ruleApp.rule.score;
+      }
+      return { sum: newSum, mult: newMult };
+    }, initScoreParts);
     // return the final string distribution.
     finalDistr.set(relStrKey, {
       ruleScore: finalRuleScore,
@@ -565,10 +525,7 @@ export function nextRelDistrStats<
     });
   });
 
-  const allTotalScores = [...finalDistr.values()].reduce(
-    (sum, v) => v.totalScore + sum,
-    0
-  );
+  const allTotalScores = [...finalDistr.values()].reduce((sum, v) => v.totalScore + sum, 0);
   finalDistr.forEach((appInfo) => {
     appInfo.prob = appInfo.totalScore / allTotalScores;
   });
@@ -585,11 +542,11 @@ export function isUnboundVarName(v: string): boolean {
 }
 
 export function initStory<TypeNames extends string, RelNames extends string>(
-  typeMap: Map<TypeNames, Set<TypeNames>>,
+  typeDef: TypeDef<TypeNames>,
   relationMap: Map<RelNames, Set<TypeNames>[]>
 ) {
   return new Story(
-    typeMap,
+    typeDef,
     relationMap,
     new FreshNames(), // Updated by the story updates
     new Map<VarNames, Set<TypeNames>>(), // Updated by the story updates

@@ -73,8 +73,7 @@ export function computeLossAndGrads<Params extends DictArrTree<GTensor<any>>>(
 ): { grads: Params; loss: tf.Scalar } {
   // The variables we want to quickly update in the training loop.
   const tfGradFn = tf.valueAndGrads(() => loss(params).tensor as tf.Scalar);
-
-  const gtensorParams = jstree.flatten(params) as GTensor<any>[];
+  const gtensorParams = jstree.flatten<GTensor<any>>(params);
   const paramVarTensors = gtensorParams.map((g) => g.tensor);
   const gradAndValue = tfGradFn(paramVarTensors);
   const gradGTensors = gradAndValue.grads.map((t, i) => new GTensor(t, gtensorParams[i].dimNames));

@@ -23,13 +23,14 @@ import {
 } from './stories';
 import {
   parseRel,
-  addToTypeMap,
   initTypeDef,
-  parseTypeSet,
-  parseTypeSetArgs,
   initRelationMap,
+  universalType,
+  TypeDef,
+  flattenType,
 } from './relations';
 import { parseRule } from './rules';
+import { stringifyUnifyState } from './unif_state';
 
 // const example_TinyWorldTaskConfig: TinyWorldTaskConfig<
 //   ExampleObjects,
@@ -43,7 +44,7 @@ import { parseRule } from './rules';
 //   relationTokenArgs: relArgs,
 // };
 
-describe('stories', () => {
+fdescribe('stories', () => {
   const animalTypes = ['cat', 'monkey', 'elephant'] as const;
   const inanimateTypes = ['flower', 'rock', 'tree'] as const;
   const allTypes = [
@@ -52,41 +53,34 @@ describe('stories', () => {
     'inanimate',
     ...inanimateTypes,
     'squishable',
-    '', // unspecified type
+    universalType, // unspecified type
   ] as const;
   // "& {}" is a trick to get typescript errors to use the type name instead
   // of the full list of underlying union of string literals.
   type TypeName = (typeof allTypes)[number] & {};
 
-  const types = new Map<TypeName, Set<TypeName>>();
-  types.set('', new Set(allTypes));
-  types.set('animal', new Set(animalTypes));
-  types.set('inanimate', new Set(inanimateTypes));
-  types.set('squishable', new Set([...animalTypes, 'flower', 'tree']));
-  allTypes.forEach((t) => {
-    if (!types.get(t)) {
-      types.set(t, new Set());
-    }
-  });
+  const types = initTypeDef({
+    animal: [...animalTypes],
+    inanimate: [...inanimateTypes],
+    squishable: ['cat', 'monkey', 'flower'],
+  }) as TypeDef<TypeName>;
 
   const allRelations = ['jumps-over', 'runs-away', 'squishes', 'is'] as const;
   // "& {}" is a trick to get typescript errors to use the type name instead
   // of the full list of underlying union of string literals.
   type RelName = (typeof allRelations)[number] & {};
 
-  const relations = initRelationMap({
-    'jumps-over': ['animal', ''],
+  const relations = initRelationMap<RelName, TypeName>({
+    'jumps-over': ['animal', universalType],
     'runs-away': ['animal'],
-    is: [''],
+    is: [universalType],
     squishes: ['animal', 'squishable'],
   });
 
   beforeEach(() => {});
 
   it('Story with relations', () => {
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     expect(s.names.config.usedNameSet).toContain('_m');
@@ -96,9 +90,7 @@ describe('stories', () => {
   });
 
   it('Story creation fails, story clash', () => {
-    const rel2 = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:rock _f:flower'
-    );
+    const rel2 = parseRel<TypeName, VarNames, RelName>('jumps-over _m:rock _f:flower');
     expect(function () {
       const s = initStory(types, relations);
       s.extendScene([rel2]);
@@ -113,38 +105,35 @@ describe('stories', () => {
       {
         relName: 'squishes',
         args: [
-          { varName: '?x', varTypes: new Set(['']) },
-          { varName: '?y', varTypes: new Set(['']) },
+          { varName: '?x', varTypes: new Set([universalType]) },
+          { varName: '?y', varTypes: new Set([universalType]) },
         ],
       },
       {
         relName: 'squishes',
         args: [
           { varName: '_a', varTypes: new Set(['cat']) },
-          { varName: '_b', varTypes: new Set(['']) },
+          { varName: '_b', varTypes: new Set([universalType]) },
         ],
       },
       unifyState
     );
-
     expect(unifyFailed).toEqual(null);
     const varSubsts = unifyState.varSubsts;
     expect(varSubsts.get('?x')).toEqual('_a');
     expect(varSubsts.get('?y')).toEqual('_b');
     const varTypes = unifyState.varTypes;
-    expect(varTypes.get('?x')).toEqual(new Set('cat'));
-    expect(varTypes.get('?y')).toEqual(new Set(['squishable']));
-    expect(varTypes.get('_a')).toEqual(new Set('cat'));
-    expect(varTypes.get('_b')).toEqual(new Set('squishable'));
+    expect(varTypes.get('?x')).toEqual(flattenType(types, 'cat'));
+    expect(varTypes.get('?y')).toEqual(flattenType(types, 'squishable'));
+    expect(varTypes.get('_a')).toEqual(flattenType(types, 'cat'));
+    expect(varTypes.get('_b')).toEqual(flattenType(types, 'squishable'));
   });
 
   it('matchRule: simple match with a more general type in the rule', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?y | jumps-over ?x:animal ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     const ruleMatches = s.matchRule(rule);
@@ -155,9 +144,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     const ruleMatches = s.matchRule(rule);
@@ -168,9 +155,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'squishes _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('squishes _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     const ruleMatches = s.matchRule(rule);
@@ -181,9 +166,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     const ruleMatches = s.matchRule(rule);
@@ -194,9 +177,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s: Story<TypeName, VarNames, RelName> = new Story(
       types,
       relations,
@@ -219,9 +200,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(foosquishes ?x ?y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     expect(() => {
@@ -234,9 +213,7 @@ describe('stories', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x v y | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
     expect(() => {
@@ -259,16 +236,14 @@ describe('stories', () => {
     expect(s2.scene.length).toEqual(2);
     expect(s2.scene[1].relName).toEqual('is');
     expect(s2.scene[1].args[0].varName).toEqual('_b');
-    expect(s2.scene[1].args[0].varTypes).toEqual(new Set(['']));
+    expect(s2.scene[1].args[0].varTypes).toEqual(new Set([universalType]));
   });
 
   it('applyRuleMatch: new vars', () => {
     const rule = parseRule<TypeName, VarNames, RelName>(`
       S(squishes ?x ?z | jumps-over ?x ?y) *= 1
     `);
-    const rel = parseRel<TypeName, VarNames, RelName>(
-      'jumps-over _m:monkey _f:flower'
-    );
+    const rel = parseRel<TypeName, VarNames, RelName>('jumps-over _m:monkey _f:flower');
     const s = initStory(types, relations);
     s.extendScene([rel]);
 
@@ -285,14 +260,11 @@ describe('stories', () => {
   it('Minimal rule distribution calculation: additive only', () => {
     const rule1 = 'S(squishes ?x ?y | jumps-over ?x:animal ?y:flower) += 1';
     const rule2 = 'S(squishes ?x ?y | jumps-over ?x:monkey ?y:flower) += 5';
-    const rules = [rule1, rule2].map((r) =>
-      parseRule<TypeName, VarNames, RelName>(r)
-    );
+    const rules = [rule1, rule2].map((r) => parseRule<TypeName, VarNames, RelName>(r));
 
-    const scene = [
-      'jumps-over _m:monkey _f:flower',
-      'jumps-over _c:cat _f:flower',
-    ].map((s) => parseRel<TypeName, VarNames, RelName>(s));
+    const scene = ['jumps-over _m:monkey _f:flower', 'jumps-over _c:cat _f:flower'].map((s) =>
+      parseRel<TypeName, VarNames, RelName>(s)
+    );
 
     const s = initStory(types, relations);
     s.extendScene(scene);
@@ -300,18 +272,10 @@ describe('stories', () => {
     const nextRelPossibilities = nextRelDistrStats(applyRules(rules, s));
     expect([...nextRelPossibilities.keys()].length).toEqual(2);
 
-    expect(
-      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
-    ).toEqual(6);
-    expect(
-      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
-    ).toEqual(6 / 7);
-    expect(
-      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
-    ).toEqual(1);
-    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
-      1 / 7
-    );
+    expect(nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore).toEqual(6);
+    expect(nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob).toEqual(6 / 7);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore).toEqual(1);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(1 / 7);
   });
 
   // it('Rule distribution calculation: additive and multiplicative', () => {
@@ -356,14 +320,11 @@ describe('stories', () => {
   it('Minimal rule distribution calculation: additive and multiplicative', () => {
     const rule1 = 'S(squishes ?x ?y | jumps-over ?x ?y) += 1';
     const rule2 = 'S(squishes ?x ?y | jumps-over ?x:cat ?y:flower) *= 0';
-    const rules = [rule1, rule2].map((r) =>
-      parseRule<TypeName, VarNames, RelName>(r)
-    );
+    const rules = [rule1, rule2].map((r) => parseRule<TypeName, VarNames, RelName>(r));
 
-    const scene = [
-      'jumps-over _m:monkey _f:flower',
-      'jumps-over _c:cat _f:flower',
-    ].map((s) => parseRel<TypeName, VarNames, RelName>(s));
+    const scene = ['jumps-over _m:monkey _f:flower', 'jumps-over _c:cat _f:flower'].map((s) =>
+      parseRel<TypeName, VarNames, RelName>(s)
+    );
 
     const s = initStory(types, relations);
     s.extendScene(scene);
@@ -375,27 +336,17 @@ describe('stories', () => {
     // );
 
     expect([...nextRelPossibilities.keys()].length).toEqual(2);
-    expect(
-      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore
-    ).toEqual(1);
-    expect(
-      nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob
-    ).toEqual(1);
-    expect(
-      nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore
-    ).toEqual(0);
-    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(
-      0
-    );
+    expect(nextRelPossibilities.get('squishes _m:monkey _f:flower')?.totalScore).toEqual(1);
+    expect(nextRelPossibilities.get('squishes _m:monkey _f:flower')?.prob).toEqual(1);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.totalScore).toEqual(0);
+    expect(nextRelPossibilities.get('squishes _c:cat _f:flower')?.prob).toEqual(0);
   });
 
   it('Negative rules & nothing else to be said', () => {
     const rule1 = 'S(is ?x:cat | runs-away ?x, -is ?x:cat) += 1';
     const rules = [rule1].map((r) => parseRule<TypeName, VarNames, RelName>(r));
 
-    const scene = ['runs-away _c:cat'].map((s) =>
-      parseRel<TypeName, VarNames, RelName>(s)
-    );
+    const scene = ['runs-away _c:cat'].map((s) => parseRel<TypeName, VarNames, RelName>(s));
 
     const s = initStory(types, relations);
     s.extendScene(scene);
@@ -412,21 +363,8 @@ describe('stories', () => {
     expect([...ruleApps2.keys()]).toEqual([]);
   });
 
-  it('addToTypeMap', () => {
-    const typeMap = initTypeDef({
-      animal: ['cat', 'monkey', 'elephant'],
-      inanimate: ['rock', 'tree', 'flower'],
-      squishable: ['cat', 'monkey', 'flower'],
-    });
-    expect(typeMap.get('')!.size).toBe(9);
-    expect(typeMap.get('animal')).toContain('cat');
-    expect(typeMap.get('animal')).toContain('monkey');
-    expect(typeMap.get('animal')).toContain('elephant');
-    expect(typeMap.get('animal')?.size).toBe(3);
-  });
-
   it('Making a new example domain using helpers', () => {
-    const typeMap = initTypeDef({
+    const types = initTypeDef({
       animal: ['cat', 'monkey', 'elephant'],
       inanimate: ['rock', 'tree', 'flower'],
       squishable: ['cat', 'monkey', 'flower'],
@@ -438,7 +376,7 @@ describe('stories', () => {
     type RelName2 = (typeof allRelations2)[number] & {};
 
     const relationMap = initRelationMap<RelName2, TypeName>({
-      is: [''],
+      is: [universalType],
       runsAway: ['animal'],
       squishes: ['animal', 'squishable'],
       jumps: ['animal'],
@@ -451,19 +389,16 @@ describe('stories', () => {
       'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
     ];
 
-    const story = initStory(typeMap, relationMap);
-    const scene = baseStoryStrs.map((rStr) =>
-      parseRel<TypeName, VarNames, RelName2>(rStr)
-    );
+    const story = initStory(types, relationMap);
+    const scene = baseStoryStrs.map((rStr) => parseRel<TypeName, VarNames, RelName2>(rStr));
     story.extendScene(scene);
 
-    const rules = ruleStrs.map((rStr) =>
-      parseRule<TypeName, VarNames, RelName2>(rStr)
-    );
+    const rules = ruleStrs.map((rStr) => parseRule<TypeName, VarNames, RelName2>(rStr));
 
-    console.log(...story.types);
+    console.log(...story.types.decendent);
     const matches = story.matchRule(rules[2]);
     console.log(matches);
     expect(matches.length).toBe(1);
+    throw new Error('remove logs');
   });
 });

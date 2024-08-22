@@ -14,12 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { stringifyRule } from '../logic/rules';
-import {
-  addRuleApps,
-  applyRules,
-  nextRelDistrStats,
-  RuleApp,
-} from '../logic/stories';
+import { addRuleApps, applyRules, nextRelDistrStats, RuleApp } from '../logic/stories';
 import {
   RelName,
   TinyWorldTask,
@@ -47,13 +42,11 @@ describe('tiny_worlds', () => {
     const [example2] = tinyWorld.exampleIter.takeOutN(1);
     expect(example2.id).toEqual(0);
     expect(example2.input.join('')).toEqual('is _a:flower, is _b:');
-    expect(example2.output.join('')).toEqual(
-      'animal, is _c:animal, jumps _b, jumps _b, is _d:'
-    );
+    expect(example2.output.join('')).toEqual('animal, is _c:animal, jumps _b, jumps _b, is _d:');
   });
 
   // Special case that causes "runsAway _a" to be generated more than once.
-  fit('bad world example', () => {
+  it('bad world example', () => {
     const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
     initConfig.maxInputLen = 0;
     initConfig.maxOutputLen = 50;

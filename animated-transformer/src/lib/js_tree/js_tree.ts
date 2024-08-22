@@ -37,13 +37,6 @@ export type DictTree<LeafT> = {
   [key: string]: DictArrTree<LeafT>;
 };
 
-export type DictTreeWithKeys<LeafT, Keys extends string | number | symbol> = {
-  [key in Keys]: DictArrTree<LeafT>;
-};
-
-type DictKeys<T, Leaf> = T extends DictTreeWithKeys<Leaf, infer Keys> ? Keys : never;
-type ArrayType<T> = T extends T[] ? T : never;
-
 type LeafSubst<Leaf, Leaf2, T> = T extends (infer SubT)[]
   ? LeafSubst<Leaf, Leaf2, SubT>[]
   : T extends Leaf
@@ -66,8 +59,7 @@ export function isSomeClass<T>(x: any): x is SomeClass<T> {
     typeof x === 'number' ||
     typeof x === 'string' ||
     typeof x === 'boolean' ||
-    x.constructor.name !== 'Array' ||
-    x.constructor.name !== 'Object'
+    (x.constructor.name !== 'Array' && x.constructor.name !== 'Object')
   );
 }
 
@@ -212,7 +204,7 @@ export function nullify(t: DictArrTree<any>): DictArrTree<null> {
 }
 
 export function flatten<Leaf>(p: DictArrTree<Leaf>): Leaf[] {
-  return [...(iter(p) as Iterable<Leaf>)];
+  return [...iter(p)];
   // const l = [];
   // for (const el of this.iter(p)) {
   //   l.push(el);

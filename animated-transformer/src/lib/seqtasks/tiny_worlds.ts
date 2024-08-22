@@ -15,29 +15,20 @@ limitations under the License.
 
 /* Tiny Worlds */
 
-import {
-  addBetweenEvery,
-  BasicLmTask,
-  BasicRandSeededTaskConfig,
-  Example,
-} from './util';
+import { addBetweenEvery, BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import { Story, initStory, sampleNextRel } from '../logic/stories';
-import {
-  RandomState,
-  RandomStream,
-  makeRandomStream,
-} from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
 import { parseRule, Rule } from '../logic/rules';
 import {
   parseRel,
   Relation,
-  TypeHierarchy,
-  addToTypeMap,
+  TypeHierarchySpec,
   initRelationMap,
   initTypeDef,
   typesetEquality,
+  universalType,
 } from '../logic/relations';
 
 // Ideas for fancier rules/variants
@@ -62,7 +53,7 @@ import {
 // ============================================================================== //
 
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
-  typeHierarchy: TypeHierarchy;
+  typeHierarchy: TypeHierarchySpec;
   relationKinds: { [relName: string]: string[] };
   // List of string representations of relations
   baseStory: string[];
@@ -81,7 +72,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     squishable: ['cat', 'monkey', 'flower'],
   },
   relationKinds: {
-    is: [''],
+    is: [universalType],
     runsAway: ['animal'],
     squishes: ['animal', 'squishable'],
     jumps: ['animal'],
@@ -169,8 +160,8 @@ export class TinyWorldTask implements BasicLmTask {
   constructor(public config: TinyWorldTaskConfig) {
     this.exampleId = 0;
 
-    const typeMap = initTypeDef(this.config.typeHierarchy);
-    const allTypes = [...typeMap.get('')!];
+    const typeDef = initTypeDef(this.config.typeHierarchy);
+    const allTypes = [...typeDef.decendent.keys()];
     const relationMap = initRelationMap(this.config.relationKinds);
 
     const freshNames = new FreshNames();
@@ -189,7 +180,7 @@ export class TinyWorldTask implements BasicLmTask {
       ...varNames,
     ];
 
-    this.initStory = initStory(typeMap, relationMap);
+    this.initStory = initStory(typeDef, relationMap);
     this.initStory.extendScene(this.config.baseStory.map((r) => parseRel(r)));
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
@@ -206,12 +197,8 @@ export class TinyWorldTask implements BasicLmTask {
     const args = rel.args.flatMap((r) => {
       // skip outputing the type when not needed.
       if (
-        r.varTypes.has('') ||
-        typesetEquality(
-          curStory.types,
-          curStory.varTypes.get(r.varName)!,
-          r.varTypes
-        )
+        r.varTypes.has(universalType) ||
+        typesetEquality(curStory.types, curStory.varTypes.get(r.varName)!, r.varTypes)
       ) {
         return [spaceSepToken, r.varName];
       } else {
@@ -222,11 +209,7 @@ export class TinyWorldTask implements BasicLmTask {
     return [rel.relName, ...args];
   }
 
-  addNextRelTokens(
-    maxTokens: number,
-    generatedTokens: string[],
-    extraTokens: string[]
-  ) {
+  addNextRelTokens(maxTokens: number, generatedTokens: string[], extraTokens: string[]) {
     if (generatedTokens.length > 0) {
       generatedTokens.push(relSepToken);
     }
