@@ -56,7 +56,7 @@ import {
 import { mapNonNull } from 'src/lib/rxjs/util';
 import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
 import { stringifyJsonValue } from 'src/lib/pretty_json/pretty_json';
-import { DictTree, SimpleJsTreesLib } from 'src/lib/js_tree/js_tree';
+import { DictTree } from 'src/lib/js_tree/js_tree';
 import * as tf from '@tensorflow/tfjs';
 import {
   prepareBasicTaskTokenRep,
@@ -80,15 +80,12 @@ export class TrainerMetaData {
   public configStr: string;
   public defaultConfigStr: string;
 
-  public trainState: WritableSignal<TransformerTrainState | null> =
-    signal(null);
+  public trainState: WritableSignal<TransformerTrainState | null> = signal(null);
   // public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
   public metrics: WritableSignal<TrainMetrics | null> = signal(null);
 
   constructor(public kind: 'transformer', public defaultConfig: TrainerConfig) {
-    this.config = SimpleJsTreesLib.copy<JsonConfigData>(
-      defaultConfig
-    ) as TrainerConfig;
+    this.config = structuredClone(defaultConfig);
     this.configStr = stringifyJsonValue(this.config);
     this.defaultConfigStr = this.configStr;
   }
@@ -360,9 +357,9 @@ export class ModelTaskTrainerComponent {
     if (trySgdTrainStep(trainState)) {
       this.addMetricsToGraph(this.curMetrics, trainer.config.name);
       this.layerNormHeadsProjectionGain =
-        trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+        trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
       this.layerNormPostFFGain =
-        trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+        trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
     }
   }
 
@@ -407,11 +404,7 @@ export class ModelTaskTrainerComponent {
     async function doTraining() {
       if (self.isTraining) {
         let stillTraining = true;
-        for (
-          let i = 0;
-          stillTraining && i < trainer.config.updateGraphEveryNSteps;
-          i++
-        ) {
+        for (let i = 0; stillTraining && i < trainer.config.updateGraphEveryNSteps; i++) {
           stillTraining = trySgdTrainStep(trainState);
         }
         if (!stillTraining) {
@@ -421,9 +414,9 @@ export class ModelTaskTrainerComponent {
         self.curMetrics = computeMetrics(trainState);
         self.addMetricsToGraph(self.curMetrics, trainer.config.name);
         self.layerNormHeadsProjectionGain =
-          trainState.params.obj.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+          trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
         self.layerNormPostFFGain =
-          trainState.params.obj.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+          trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
         // await self.trainStep();
         // wait 100ms between training steps.
         // TODO: we don't need to do this if we move to using separate

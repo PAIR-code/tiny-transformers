@@ -31,6 +31,7 @@
     "d3-color": "^3.1.0",
     "d3-selection": "^3.0.0",
     "json5": "^2.2.3",
+    "msgpackr": "^1.11.0",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
     "underscore": "^1.13.6",
@@ -54,6 +55,6 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.0.0",
-    "typescript": "~5.4.5"
+    "typescript": "~5.5.0"
   }
 }

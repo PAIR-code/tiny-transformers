@@ -23,7 +23,7 @@
     "resolveJsonModule": true,
     "lib": [
       "ESNext",
-      "dom"
+      "dom",
     ]
   },
   "ts-node": {

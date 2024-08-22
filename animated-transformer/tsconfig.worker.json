@@ -4,7 +4,7 @@
   "compilerOptions": {
     "outDir": "./out-tsc/worker",
     "lib": [
-      "ES2022",
+      "ESNext",
       "webworker"
     ],
     "types": ["wicg-file-system-access"]

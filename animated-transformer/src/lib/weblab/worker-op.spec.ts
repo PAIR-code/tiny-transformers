@@ -14,9 +14,11 @@ limitations under the License.
 ==============================================================================*/
 
 import { nodeToFsa } from 'memfs/lib/node-to-fsa';
+
 import { WorkerOp } from './worker-op';
 import { WorkerEnv } from './worker-env';
 import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
+import { LabState } from './lab-state';
 
 type Name = string;
 type TensorValue = {
@@ -35,31 +37,25 @@ type OpKind = {
   outputs: (keyof Globals)[];
 };
 
-describe('worker-ops', () => {
-  // // const dir = nodeToFsa(fs, os.tmpdir(), { mode: 'readwrite' });
-  // const ops: OpKind[] = [
-  //   {
-  //     workerpath: './app.worker',
-  //     inputs: ['name'],
-  //     outputs: ['t'],
-  //   },
-  // ];
-  // beforeEach(async () => {});
-  // it('should create', async () => {
-  //   console.log(dir.__path);
-  //   const env = new WorkerEnv<Globals>(
-  //     // TODO: bug in typings? nodeToFsa should presumably
-  //     // result in FileSystemDirectoryHandle, not
-  //     // NodeFileSystemDirectoryHandle
-  //     dir as unknown as FileSystemDirectoryHandle
-  //   );
-  //   const op = new WorkerOp('./app.worker', {
-  //     inputs: ['name'],
-  //     outputs: ['t'],
-  //   });
-  //   const outputs = await env.run(op);
-  //   expect(outputs.t).toBeTruthy();
-  // });
+xdescribe('worker-ops', () => {
+  const state = new LabState();
+  const ops: OpKind[] = [
+    {
+      workerpath: './app.worker',
+      inputs: ['name'],
+      outputs: ['t'],
+    },
+  ];
+  beforeEach(async () => {});
+  it('worker-op', async () => {
+    const env = new WorkerEnv<Globals>(state);
+    const op = new WorkerOp('./app.worker', {
+      inputs: ['name'],
+      outputs: ['t'],
+    });
+    const outputs = await env.run(op);
+    expect(outputs.t).toBeTruthy();
+  });
   it('ignoreme', () => {
     expect(true).toBeTruthy();
   });

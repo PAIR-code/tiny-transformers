@@ -13,10 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import * as json5 from 'json5';
 import { WorkerOp } from './worker-op';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
+import { LabState } from './lab-state';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -28,31 +27,10 @@ export type ItemMetaData = {
 export class WorkerEnv<Globals extends { [key: string]: any }> {
   inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
-  state: Partial<Globals> = {};
+  stateVars: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
 
-  constructor(public workingDir: FileSystemDirectoryHandle) {}
-
-  // having to add string here to avoid Typescript bug.
-  async loadValueFromFile<Key extends keyof Globals & string>(
-    inputFileName: Key
-  ): Promise<Globals[Key]> {
-    const fileHandle = await this.workingDir.getFileHandle(inputFileName);
-    const file = await fileHandle.getFile();
-    const dec = new TextDecoder('utf-8');
-    const json = dec.decode(await file.arrayBuffer());
-    let obj: Globals[Key];
-    try {
-      obj = json5.parse(json);
-    } catch (e: unknown) {
-      // Remark: Why don't errors come in trees, so one can provide
-      // context in try/catch blocks?
-      console.error(`Failed to parse ${inputFileName}.`);
-      throw e;
-    }
-    // TODO: introduce concept of escaping & object registry.
-    return obj;
-  }
+  constructor(public workerState: LabState) {}
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
     op: WorkerOp<I, O>
@@ -60,9 +38,16 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
     for (const inputName of op.api.inputs) {
-      if (this.state[inputName] === undefined) {
-        const inputValue = await this.loadValueFromFile(inputName);
-        this.state[inputName] = inputValue;
+      if (this.stateVars[inputName] === undefined) {
+        const inputValue = await this.workerState.loadValue<Globals[O]>(
+          inputName
+        );
+        if (!inputValue) {
+          throw new Error(
+            `No state for op (${op.workerPath}) for input: ${inputName}`
+          );
+        }
+        this.stateVars[inputName] = inputValue.data;
       }
     }
 
@@ -74,8 +59,11 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
           worker.terminate();
           break;
         case 'requestInput':
+          worker.postMessage(this.stateVars[messageFromWorker.name]);
           break;
         case 'providingOutput':
+          const outputName = messageFromWorker.name as O;
+          outputs[outputName] = messageFromWorker.outputData as Globals[O];
           break;
         default:
           console.error('unknown worker message: ', data);

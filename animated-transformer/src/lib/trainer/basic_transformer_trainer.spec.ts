@@ -23,6 +23,8 @@ import {
 } from '../tokens/token_gemb';
 import { initTransformerTrainState } from './basic_transformer_trainer';
 import { TrainStateConfig, trySgdTrainStep } from './train_state';
+import * as jstree from '../js_tree/js_tree';
+import { GTensor } from '../gtensor/gtensor';
 
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
@@ -62,10 +64,7 @@ describe('basic_transformer_trainer', () => {
     };
     const task = new abtask.AorBisMaxTask(taskConfig);
     const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const initParams = transformer.initDecoderParamsTree(
-      tokenRep,
-      decoderConfig
-    );
+    const initParams = transformer.initDecoderParamsTree(tokenRep, decoderConfig);
     console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
@@ -88,7 +87,7 @@ describe('basic_transformer_trainer', () => {
     expect(newLoss).toBeLessThan(initLoss);
 
     // Memory cleanup
-    initParams.forEach((g) => g.dispose());
+    jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);
     trainState.dispose();
   });
 });

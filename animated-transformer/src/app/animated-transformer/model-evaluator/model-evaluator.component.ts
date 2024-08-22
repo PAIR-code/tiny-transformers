@@ -33,13 +33,10 @@ import {
   JsonStrListConfig,
 } from '../../form-validators/json-str-list-validator.directive';
 
-import {
-  computeDecoder,
-  computePrediction,
-} from 'src/lib/transformer/transformer_gtensor';
+import { computeDecoder, computePrediction } from 'src/lib/transformer/transformer_gtensor';
 
-import { JsTreeLib, DictArrTree, DictTree } from 'src/lib/js_tree/js_tree';
-import { gtensorTrees } from 'src/lib/gtensor/gtensor_tree';
+import { DictArrTree, DictTree } from 'src/lib/js_tree/js_tree';
+import * as jstree from 'src/lib/js_tree/js_tree';
 import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
 import {
   ModelUpdate,
@@ -64,7 +61,7 @@ import { mapNonNull } from 'src/lib/rxjs/util';
 function typedGetData<N extends string>(
   params: DictTree<GVariable<N>>
 ): DictArrTree<{ shape: number[]; data: number[] }> {
-  return gtensorTrees.map(params, (g: GTensorOrScalar) => ({
+  return jstree.map(params, (g: GTensorOrScalar) => ({
     shape: g.tensor.shape as number[],
     data: Array.from(g.tensor.dataSync()) as number[],
   }));
@@ -148,17 +145,17 @@ export class ModelEvaluatorComponent {
       curIndent: '',
       sortObjKeys: true,
     });
-    const weightsTree = modelData.params.tree;
+    const weights = modelData.params;
 
-    const tokenEmbedding = (weightsTree as any)['tokenEmbedding'].variable;
+    const tokenEmbedding = weights.tokenEmbedding.variable;
     const tokenEmbeddingData = {
       shape: tokenEmbedding.shape,
       data: Array.from(tokenEmbedding.dataSync()),
     };
 
     const layerData: any = [];
-    (weightsTree as any).layers.forEach((layer: any) => {
-      layerData.push(typedGetData(layer));
+    weights.layers.forEach((layer) => {
+      layerData.push(typedGetData(layer as DictTree<GVariable<any>>));
     });
 
     const serialized = { spec, tokenEmbeddingData, layerData };

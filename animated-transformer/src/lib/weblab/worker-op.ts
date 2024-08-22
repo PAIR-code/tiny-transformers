@@ -13,16 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import * as json5 from 'json5';
-
 // export type WorkerOp<Inputs, Outputs> = {
 //   workerPath: string;
 //   inputs: Inputs[];
 //   outputs: Outputs[];
 // };
 
-// Using a class allows correct type inference to happen for the inputs and outputs params;
+// Using a class instead of a type allows correct type inference to
+// happen for the inputs and outputs params; Maybe a constructor
+// function for a type instance would work as well?
 export class WorkerOp<Inputs extends string, Outputs extends string> {
   constructor(
     public workerPath: string,
@@ -31,9 +30,16 @@ export class WorkerOp<Inputs extends string, Outputs extends string> {
       outputs: Outputs[];
     }
   ) {}
-
-  onceGetInputs() {}
 }
+
+export type OpInputs<Op> = Op extends WorkerOp<infer I, any> ? I : never;
+export type OpOutputs<Op> = Op extends WorkerOp<any, infer O> ? O : never;
+
+// type ExampleInput = OpInputs<typeof exampleWorkerOp>;
+
+// type ExampleInput2 = typeof exampleWorkerOp extends WorkerOp<infer I, any>
+//   ? I
+//   : never;
 
 // type ObjMap<G> = {
 //   [name in keyof G]: G[keyof G];

@@ -2,6 +2,7 @@
 
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { Signal, WritableSignal, SignalSpace } from './signalspace';
+import { WorkerOp } from './worker-op';
 
 export const space = new SignalSpace();
 
@@ -36,4 +37,7 @@ export function output<T>(name: string, outputData: T) {
   workerToMainMessage({ kind: 'providingOutput', name, outputData });
 }
 
-// export class WebLabCell {}
+// export class LabCell<Globals extends { [key: string]: any }, I extends string, O extends string> {
+//   constructor(op: WorkerOp<I, O>) {}
+//   inputs;
+// }

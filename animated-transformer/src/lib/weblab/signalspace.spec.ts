@@ -13,13 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  SignalSpace,
-  ValueSignal,
-  signal,
-  computed,
-  effect,
-} from './signalspace';
+import { SignalSpace, ValueSignal, signal, computed, effect } from './signalspace';
 
 describe('signalspace', () => {
   async function waitTick(): Promise<void> {
@@ -44,7 +38,7 @@ describe('signalspace', () => {
     expect(c.get()).toEqual('ac');
   });
 
-  it('Compound signal graph compute', () => {
+  it('Compound signal graph compute', async () => {
     const s = new SignalSpace();
 
     const a = new ValueSignal(s, 'a');
@@ -61,9 +55,11 @@ describe('signalspace', () => {
     expect(aab.get()).toEqual('aab');
     b.set('B');
     expect(aab.get()).toEqual('aaB');
+    console.warn('about to accidentally have a signal update (in a timeout callback...)...');
     a.set('A');
     expect(aab.someDependencyChanged()).toEqual(true);
     expect(aab.get()).toEqual('AaB');
+    console.warn('...TODO: fix the above.');
   });
 
   it('Two step signal update', () => {
@@ -103,13 +99,11 @@ describe('signalspace', () => {
     expect(e.get()).toEqual('abe');
     a.set('A');
 
-    const { e2, c2 } = await new Promise<{ c2: string; e2: string }>(
-      (resolve) => {
-        setTimeout(() => {
-          resolve({ c2: c.lastValue, e2: e.lastValue });
-        }, 0);
-      }
-    );
+    const { e2, c2 } = await new Promise<{ c2: string; e2: string }>((resolve) => {
+      setTimeout(() => {
+        resolve({ c2: c.lastValue, e2: e.lastValue });
+      }, 0);
+    });
 
     expect(c2).toEqual('abc');
     expect(e2).toEqual('Abe');
@@ -135,13 +129,11 @@ describe('signalspace', () => {
     expect(e()).toEqual('abe');
     a.set('A');
 
-    const { e2, c2 } = await new Promise<{ c2: string; e2: string }>(
-      (resolve) => {
-        setTimeout(() => {
-          resolve({ c2: c.lastValue(), e2: e.lastValue() });
-        }, 0);
-      }
-    );
+    const { e2, c2 } = await new Promise<{ c2: string; e2: string }>((resolve) => {
+      setTimeout(() => {
+        resolve({ c2: c.lastValue(), e2: e.lastValue() });
+      }, 0);
+    });
 
     expect(c2).toEqual('abc');
     expect(e2).toEqual('Abe');

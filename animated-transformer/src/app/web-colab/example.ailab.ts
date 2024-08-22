@@ -13,16 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { nodeToFsa } from 'memfs/lib/node-to-fsa';
-import { fs } from 'memfs';
-import os from 'os';
-import { WorkerOp } from './worker-op';
-import { WorkerEnv } from './worker-env';
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
+import { GTensor } from 'src/lib/gtensor/gtensor';
+import { WorkerOp } from '../../lib/weblab/worker-op';
 
 export type Name = string;
 export type TensorValue = {
-  t: SerializedGTensor<'a'>;
+  t: GTensor<'a'>;
   v: number;
 } | null;
 
@@ -30,6 +26,8 @@ export type Globals = {
   name: Name;
   t: TensorValue;
 };
+
+const globals: Partial<Globals> = {};
 
 // export const exampleWorkerOp = {
 //   workerPath: './app.worker',
@@ -41,11 +39,3 @@ export const exampleWorkerOp = new WorkerOp('./app.worker', {
   inputs: ['name'],
   outputs: ['t'],
 });
-
-export type OpInputs<Op> = Op extends WorkerOp<infer I, any> ? I : never;
-
-type ExampleInput = OpInputs<typeof exampleWorkerOp>;
-
-type ExampleInput2 = typeof exampleWorkerOp extends WorkerOp<infer I, any>
-  ? I
-  : never;

@@ -13,17 +13,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import {
+  TensorOrVarKind,
+  TensorKind,
+  GTensor,
+  GTensorOrVar,
+  makeScalar,
+  VariableKind,
+} from './gtensor';
 
-import { GTensor, makeScalar } from './gtensor';
+export type LayerNormParams<T extends TensorOrVarKind> = {
+  gain: GTensorOrVar<T, never>;
+  bias?: GTensorOrVar<T, never>;
+  epsilon: GTensorOrVar<T, never>;
+} & {};
+// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
+type WorkAroundMakesThisTrue = LayerNormParams<VariableKind> extends LayerNormParams<TensorKind>
+  ? true
+  : false;
+// These are needed to get workaround to function accross files.
+export type VarLayerNormParams = LayerNormParams<VariableKind>;
+export type TensorLayerNormParams = LayerNormParams<TensorKind>;
 
-export type LayerNormParams = {
-  gain: GTensor<never>
-  bias?: GTensor<never>
-  epsilon: GTensor<never>
-};
-
-export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerNormParams {
-  const layerNormParams: LayerNormParams = {
+export function initLayerNormParams(
+  includeBias: boolean,
+  epsilon = 1e5
+): LayerNormParams<TensorKind> {
+  const layerNormParams: LayerNormParams<TensorOrVarKind> = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),
   };
@@ -34,18 +50,22 @@ export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerN
 }
 
 export function layerNorm<G extends string, D extends G>(
-  layerNormParams: LayerNormParams,
+  layerNormParams: LayerNormParams<TensorOrVarKind>,
   g: GTensor<G>,
-  dim: D,
+  dim: D
 ): GTensor<G> {
   const { gain, bias, epsilon } = layerNormParams;
   const repSizeScalar = makeScalar(g.dim[dim].size, 'float32');
   const mean = g.sumOverDims([dim]).scalarDiv(repSizeScalar);
-  const varianceSquared = g.pointwiseSub(mean).squared()
-    .sumOverDims([dim]).scalarDiv(repSizeScalar);
-  const meanAndVarNormalized = g.pointwiseSub(mean)
+  const varianceSquared = g
+    .pointwiseSub(mean)
+    .squared()
+    .sumOverDims([dim])
+    .scalarDiv(repSizeScalar);
+  const meanAndVarNormalized = g
+    .pointwiseSub(mean)
     .pointwiseDiv(varianceSquared.scalarAdd(epsilon).sqrt());
-  const scaledNorm = meanAndVarNormalized.scalarMul(gain)
+  const scaledNorm = meanAndVarNormalized.scalarMul(gain);
   if (!bias) {
     return scaledNorm;
   }

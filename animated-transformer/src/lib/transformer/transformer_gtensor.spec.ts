@@ -13,24 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, GVariable, makeTruncNormal } from '../gtensor/gtensor';
+import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as transformer from './transformer_gtensor';
 import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
-// import * as attention_head from './attention_head';
-// import { TokenEmbConfig } from '../tokens/token_emb';
 import * as tf from '@tensorflow/tfjs';
-// import * as swap_task from '../seqtasks/swap_task';
-// import json5 from 'json5';
-// import { TrainingConfig } from '../../app/config-store.service';
-// import { nextFrame } from '@tensorflow/tfjs';
-import { Observable, generate, EMPTY } from 'rxjs';
-import { map } from 'rxjs/operators';
-
-import { Example } from '../seqtasks/util';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
-import * as param_map from '../gtensor/gtensor_tree';
-import { GVariableTree, gtensorTrees } from '../gtensor/gtensor_tree';
 
 describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {

@@ -15,46 +15,36 @@ limitations under the License.
 
 /* Tiny Worlds */
 
-import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { addBetweenEvery, BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
-import {
-  addToTypeMap,
-  applyRules,
-  Context,
-  nextRelDistrStats,
-  parseRel,
-  parseRule,
-  Relation,
-  RelRuleApps,
-  Rule,
-  RuleApp,
-  sampleNextRel,
-  stringifyRelation,
-  TypeHierarchy,
-} from '../logic/generative_logic';
-import { SimpleJsTreesLib } from '../js_tree/js_tree';
-import {
-  RandomState,
-  RandomStream,
-  makeRandomStream,
-} from '../state-iter/random';
+import { Story, initStory, sampleNextRel } from '../logic/stories';
+import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
+import { parseRule, Rule } from '../logic/rules';
+import {
+  parseRel,
+  Relation,
+  TypeHierarchySpec,
+  initRelationMap,
+  initTypeDef,
+  typesetEquality,
+  universalType,
+} from '../logic/relations';
 
 // Ideas for fancier rules/variants
 //
 // If a monkey just jumped over something, they are not so likely to jump again right away.
-// '[... jumps-over _x _y ...:3] ==> jumps-over _x _y *= 0.1',
+// '[... jumpsOver _x _y ...:3] ==> jumpsOver _x _y *= 0.1',
 //
 // Let actions/observations have names too.
 // '_e: (tries_to_jumps_over _x:monkey _y) ==> succeeds(_e) += 1',
 //
 // Should types be observations?, e.g. could we write:
-// '_x:cat ==> runs-away _x += 1'
-// i.e. that would be the same as: 'is _x cat ==> runs-away _x += 1'
+// '_x:cat ==> runsAway _x += 1'
+// i.e. that would be the same as: 'is _x cat ==> runsAway _x += 1'
 //
 // Should we allow an unbound syntax?
-// 'jumps-over monkey _y += 5' === 'jumps-over _x:monkey _y += 5' ?
+// 'jumpsOver monkey _y += 5' === 'jumpsOver _x:monkey _y += 5' ?
 // Maybe this is just syntax, so we skip it? Or maybe this somehow says that one
 // *cannot* bind to the monkey, i.e. is says there was an unknown monkey who jumped over _y?
 
@@ -63,9 +53,10 @@ import { StateIter } from '../state-iter/state-iter';
 // ============================================================================== //
 
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
-  typeHierarchy: TypeHierarchy;
+  typeHierarchy: TypeHierarchySpec;
   relationKinds: { [relName: string]: string[] };
-  baseContext: string[];
+  // List of string representations of relations
+  baseStory: string[];
   rules: string[];
   maxEntityLimit: number;
 }
@@ -85,7 +76,7 @@ export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
   relationKinds: {
     is: [''],
   },
-  baseContext: [],
+  baseStory: [],
   rules: ['S(is ?x:i0) += 1', 'S(is ?x:i1) += 2'],
   maxEntityLimit: 6,
 };
@@ -101,12 +92,12 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     squishable: ['cat', 'monkey', 'flower'],
   },
   relationKinds: {
-    is: [''],
+    is: [universalType],
     runsAway: ['animal'],
     squishes: ['animal', 'squishable'],
     jumps: ['animal'],
   },
-  baseContext: [],
+  baseStory: [],
   rules: [
     // TODO: We might want type-variables, save us from enumerating rules
     // for all of these...
@@ -125,12 +116,14 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 
     // A mentioned animal might jump
     'S(jumps ?x | is ?x:animal) += 5',
+    'S(jumps ?x | jumps ?x) += 0.2',
 
     // When they jump, monkeys and cats sometimes squish things, but monkeys more often
     //
     // TODO: we've like to express that you can squish one thing per jump.
     'S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2',
     'S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1',
+    'S(squishes ?x ?x | is ?x) *= 0',
 
     // Cats sometimes run away away when elephants jump
     'S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2',
@@ -144,7 +137,7 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // TODO: I'd like to be able to quantify over the type... e.g. but that means
     // implicitly defining a distinution over types, which I guess would be some kind of equal split?
     // And also, how do you manage many level of specificity? t?<..<animal and t?<=..<=animal
-    //   'S(is ?x:?t<animal | runs-away ?x, -is ?x:?t) += 1',
+    //   'S(is ?x:?t<animal | runsAway ?x, -is ?x:?t) += 1',
     'S(is ?x:cat | runsAway ?x, -is ?x) += 1',
 
     // When an animal runs away, it can't squish anything, jump or run-away again.
@@ -154,11 +147,11 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // types for conditions, not depend on past statements
     // (like we do below)... linear types could saves us from the frame problem!
     'S(jumps ?a | runsAway ?a:animal) *= 0',
-    'S(squishes ?x ?a | runsAway ?a:animal) *= 0',
-    'S(runsAway ?x ?a | runsAway ?x:animal) *= 0',
+    'S(squishes ?x ?a | runsAway ?a) *= 0',
+    'S(runsAway ?x | runsAway ?x) *= 0',
     // Squished animals can't run away or jump anymore
-    'S(runsAway ?y | squishes ?x ?y:animal) *= 0',
-    'S(jumps ?y | squishes ?x ?y:animal) *= 0',
+    'S(runsAway ?y | squishes ?x ?y) *= 0',
+    'S(jumps ?y | squishes ?x ?y) *= 0',
   ],
   maxEntityLimit: 6,
 };
@@ -166,37 +159,30 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
 export const spaceSepToken = ' ';
 export const relSepToken = ', ';
 export const typeIsToken = ':';
+export const typeOrToken = '|';
 export type SepToken = typeof relSepToken;
-type VarNames = `_${string}` | `?${string}`;
-function isUnboundVarName(v: string): boolean {
-  // console.log(v, v[0] === '?');
-  return v[0] === '?';
-}
-type TypeNames = string;
-type RelNames = string;
+export type VarName = `_${string}` | `?${string}`;
+export type TypeName = string;
+export type RelName = string;
 
 // ============================================================================== //
 //  Tiny World Task Configs
 // ============================================================================== //
 
 export class TinyWorldTask implements BasicLmTask {
-  public initContext: Context<TypeNames, VarNames, RelNames>;
-  public rules: Rule<TypeNames, VarNames, RelNames>[];
+  public initStory: Story<TypeName, VarName, RelName>;
+  public rules: Rule<TypeName, VarName, RelName>[];
   public baseVocab: string[];
   private exampleId: number;
   public exampleIter: StateIter<RandomStream, Example>;
+  public rns: RandomStream;
 
   constructor(public config: TinyWorldTaskConfig) {
     this.exampleId = 0;
 
-    const typeMap = new Map<string, Set<string>>();
-    const allTypes = addToTypeMap(this.config.typeHierarchy, typeMap);
-    typeMap.set('', allTypes);
-
-    const relationMap = new Map<string, string[]>();
-    Object.keys(this.config.relationKinds).forEach((r) => {
-      relationMap.set(r, this.config.relationKinds[r]);
-    });
+    const typeDef = initTypeDef(this.config.typeHierarchy);
+    const allTypes = [...typeDef.decendent.keys()];
+    const relationMap = initRelationMap(this.config.relationKinds);
 
     const freshNames = new FreshNames();
     const varNames: string[] = [];
@@ -208,54 +194,75 @@ export class TinyWorldTask implements BasicLmTask {
     this.baseVocab = [
       relSepToken,
       typeIsToken,
+      typeOrToken,
       ...relationMap.keys(),
-      // Here relationMap is a Map rather than a plain object,
-      // so use Map.prototype.keys() for its keys.
       ...allTypes,
       ...varNames,
     ];
 
-    this.initContext = new Context(
-      typeMap,
-      relationMap,
-      new FreshNames(),
-      new Map<VarNames, TypeNames>(),
-      isUnboundVarName
-    );
-    this.initContext.extendScene(
-      this.config.baseContext.map((r) => parseRel(r))
-    );
+    this.initStory = initStory(typeDef, relationMap);
+    this.initStory.extendScene(this.config.baseStory.map((r) => parseRel(r)));
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
-    );
+    this.rns = makeRandomStream(config.seed);
+
+    this.exampleIter = new StateIter(this.rns, (rns) => this.examplesGen(rns));
   }
 
-  genRandExample(rng: RandomStream): Example {
+  nextRelTokens(
+    prevStory: Story<TypeName, VarName, RelName>,
+    curStory: Story<TypeName, VarName, RelName>,
+    rel: Relation<TypeName, VarName, RelName>
+  ) {
+    const args = rel.args.flatMap((r, i) => {
+      const prevStoryType = prevStory.varTypes.get(r.varName) || new Set();
+      // skip outputing the type when not needed.
+      if (
+        r.varTypes.has(universalType) || // skip universal types always.
+        // Skip is the type already existed and has not changed
+        (prevStoryType && typesetEquality(curStory.types, prevStoryType, r.varTypes)) ||
+        // Skip is it's the same as the relation's default top level type.
+        (!prevStoryType &&
+          typesetEquality(curStory.types, curStory.relations.get(rel.relName)![i], r.varTypes))
+      ) {
+        // console.log(`${r.varName} (in story): ${[...curStory.varTypes.get(r.varName)!]}`);
+        // console.log(`${r.varName} (in prev story): ${[...prevStoryType]}`);
+        // console.log(`${r.varName} (in rel): ${[...curStory.relations.get(rel.relName)![i]]}`);
+        return [spaceSepToken, r.varName];
+      } else {
+        const typeTokens = addBetweenEvery([...r.varTypes].sort(), typeOrToken);
+        return [spaceSepToken, r.varName, typeIsToken, ...typeTokens];
+      }
+    });
+    return [rel.relName, ...args];
+  }
+
+  addNextRelTokens(maxTokens: number, generatedTokens: string[], extraTokens: string[]) {
+    if (generatedTokens.length > 0) {
+      generatedTokens.push(relSepToken);
+    }
+    let nextToken = extraTokens.shift();
+    while (generatedTokens.length < maxTokens && nextToken) {
+      generatedTokens.push(nextToken);
+      nextToken = extraTokens.shift();
+    }
+  }
+
+  genRandExample(rns: RandomStream): Example {
     const generatedTokens: string[] = [];
-    const totalTokens = this.config.maxInputLen + this.config.maxOutputLen;
-    let curContext = this.initContext;
-    while (generatedTokens.length < totalTokens) {
-      const maybeNextContext = sampleNextRel(rng, curContext, this.rules);
-      if (maybeNextContext) {
-        if (generatedTokens.length > 0) {
-          generatedTokens.push(relSepToken);
-        }
-        const rel = maybeNextContext.rel;
-        const args = rel.args.flatMap((r) =>
-          r.varType === '' || curContext.varTypes.get(r.varName) === r.varType
-            ? [spaceSepToken, r.varName]
-            : [spaceSepToken, r.varName, typeIsToken, r.varType]
-        );
-        curContext = maybeNextContext.context;
-        const extraTokens = [rel.relName, ...args];
-        let nextToken = extraTokens.shift();
-        while (generatedTokens.length < totalTokens && nextToken) {
-          generatedTokens.push(nextToken);
-          nextToken = extraTokens.shift();
-        }
+    const maxTokens = this.config.maxInputLen + this.config.maxOutputLen;
+    let curStory = this.initStory;
+    while (generatedTokens.length < maxTokens) {
+      // console.log('genRandExample: rns.state.curSeedVal', rns.state.curSeedVal);
+      const maybeNextStory = sampleNextRel(rns, curStory, this.rules);
+      if (maybeNextStory) {
+        const extraTokens = this.nextRelTokens(curStory, maybeNextStory.story, maybeNextStory.rel);
+        // console.log('extraTokens', extraTokens.join(' '));
+        this.addNextRelTokens(maxTokens, generatedTokens, extraTokens);
+        curStory = maybeNextStory.story;
+        // console.log('scene', curStory.relSeq);
+        // console.log('varTypes', curStory.varTypes);
       } else {
         break;
       }

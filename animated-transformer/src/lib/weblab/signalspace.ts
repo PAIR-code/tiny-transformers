@@ -70,6 +70,7 @@ export interface ReadonlySignal<T> extends AbstractSignal<T> {
 }
 
 export type Signal<T> = WritableSignal<T> | ReadonlySignal<T>;
+export type Timeout = unknown;
 
 // Manages a single update pass through the signalspace.
 type SignalSpaceUpdate = {
@@ -90,7 +91,7 @@ type SignalSpaceUpdate = {
   computedValuesChanges: Set<ValueSignal<unknown>>;
   // The actual function that gets called with timeout of 0
   // to do the updating the signalspace.
-  updateFn?: NodeJS.Timeout;
+  updateFn?: Timeout;
   counter: number;
 };
 
@@ -203,10 +204,13 @@ export class SignalSpace {
     delete this.update;
   }
 
-  pipeFromIter<T>(iter: Iterable<T>, signal: WritableSignal<T>) {
-    for (const i of iter) {
+  async pipeFromAsyncIter<T>(
+    iter: AsyncIterable<T>,
+    signal: WritableSignal<T>
+  ) {
+    for await (const i of iter) {
       signal.set(i);
-      this.noteUpdate(signal.rawValue as ValueSignal<unknown>, true);
+      this.noteUpdate(signal.rawValue as ValueSignal<unknown>);
       this.updatePendingEffects();
     }
   }
