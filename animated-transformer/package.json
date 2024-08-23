@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch"
   },
-  "node": ">=20.11.1",
+  "node": ">=22.7.0",
   "private": true,
   "dependencies": {
     "@angular/animations": "^18.0.1",
@@ -33,6 +33,7 @@
     "json5": "^2.2.3",
     "msgpackr": "^1.11.0",
     "rxjs": "~7.5.0",
+    "ts-node": "^10.9.2",
     "tslib": "^2.3.0",
     "underscore": "^1.13.6",
     "yargs": "^17.7.2",
