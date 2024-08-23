@@ -18,7 +18,7 @@ limitations under the License.
 Tiny Worlds, run with (gtensor-based) transformers.
 
 Run:
-  ts-node src/lib/seqtasks/tiny_worlds.run_with_transformer.script.ts
+npx ts-node src/lib/seqtasks/tiny_worlds.run_with_transformer.script.ts
 
 */
 
@@ -55,7 +55,6 @@ import {
   prepareBasicTaskTokenRep,
   BasicTaskTokenRep,
 } from '../tokens/token_gemb';
-import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { layer } from '@tensorflow/tfjs-vis/dist/show/model';
 import { example } from 'yargs';
 
@@ -97,11 +96,7 @@ function getTransformerConfig(): TransformerConfig {
   return config;
 }
 
-function* dataGenerator(
-  task: TinyWorldTask,
-  batchNum: number,
-  batchSize: number
-) {
+function* dataGenerator(task: TinyWorldTask, batchNum: number, batchSize: number) {
   for (let batchId = 0; batchId < batchNum; batchId += 1) {
     let batchOriginal = task.exampleIter.takeOutN(batchSize);
     let batchInput = batchOriginal.map((example) => example.input);
@@ -115,7 +110,7 @@ function unbindedLossFn(
   batchOutput: string[][],
   tokenRep: BasicTaskTokenRep,
   transformerConfig: TransformerConfig,
-  decoderParamsTree: GVariableTree<TransformerParams>
+  decoderParamsTree: TransformerParams
 ): tf.Scalar {
   let spec = transformerConfig.spec;
   let computation: TransformerComputation = computeDecoder(
@@ -125,18 +120,15 @@ function unbindedLossFn(
     decoderParamsTree,
     batchInput
   );
-  let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(
-    tokenRep,
-    batchOutput
-  );
+  let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
   let entropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
     computation,
-    decoderParamsTree.obj.tokenEmbedding,
+    decoderParamsTree.tokenEmbedding,
     singleNextTokenIdx
   );
   let accuracy: tf.Scalar = transformerAccuracy(
     computation,
-    decoderParamsTree.obj.tokenEmbedding,
+    decoderParamsTree.tokenEmbedding,
     singleNextTokenIdx
   );
 
@@ -171,13 +163,7 @@ function unbindedLossFn(
 
     let [batchInput, batchOutput] = batch;
     let bindedLossFn = () =>
-      unbindedLossFn(
-        batchInput,
-        batchOutput,
-        tokenRep,
-        transformerConfig,
-        decoderParamsTree
-      );
+      unbindedLossFn(batchInput, batchOutput, tokenRep, transformerConfig, decoderParamsTree);
     optimizer.minimize(bindedLossFn);
   }
 
@@ -200,16 +186,9 @@ function unbindedLossFn(
       decoderParamsTree,
       batchInput
     );
-    let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(
-      tokenRep,
-      batchOutput
-    );
-    let singleNextTokenIdxArrayData =
-      singleNextTokenIdx.tensor.arraySync() as number[];
-    let logits = transformerLastTokenLogits(
-      computation,
-      decoderParamsTree.obj.tokenEmbedding
-    );
+    let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
+    let singleNextTokenIdxArrayData = singleNextTokenIdx.tensor.arraySync() as number[];
+    let logits = transformerLastTokenLogits(computation, decoderParamsTree.tokenEmbedding);
     let probs = logits.softmax('tokenId');
     let probsArrayData = probs.tensor.arraySync() as number[][];
 
@@ -237,8 +216,6 @@ function unbindedLossFn(
     batchInput = batchInput.map((subArray, batchIndex) =>
       subArray.slice(1).concat(batchOutput[batchIndex])
     );
-    batchOutput = batchOutputAll.map((subArray) =>
-      subArray.slice(inferStep, inferStep + 1)
-    );
+    batchOutput = batchOutputAll.map((subArray) => subArray.slice(inferStep, inferStep + 1));
   }
 }
