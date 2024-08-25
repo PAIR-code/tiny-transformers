@@ -186,6 +186,9 @@ export function flattenTypeset<TypeName>(
   tyset.forEach((ty) => {
     const tyDecendents = decendentMap.get(ty);
     if (!tyDecendents) {
+      console.warn('decendentMap:', decendentMap);
+      console.warn('tyset:', tyset);
+      console.warn('onlyLeaves:', onlyLeaves);
       throw new Error(`typeDefs needs to have all types, but lacks ${ty}.`);
     }
     if (!onlyLeaves || tyDecendents.size === 0) {

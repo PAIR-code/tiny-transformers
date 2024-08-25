@@ -16,8 +16,9 @@ limitations under the License.
 /* Generated Tiny Worlds */
 
 import * as tf from '@tensorflow/tfjs';
-import { TinyWorldTaskConfig, TinyWorldTask } from './tiny_worlds';
+import { TinyWorldTaskConfig } from './tiny_worlds';
 import { makeRandomStream } from '../state-iter/random';
+import { universalType } from '../logic/relations';
 
 export const defaultNGramTinyWorldConfig: TinyWorldTaskConfig = {
   name: 'Generated N-Gram Tiny World',
@@ -26,17 +27,14 @@ export const defaultNGramTinyWorldConfig: TinyWorldTaskConfig = {
   maxOutputLen: 20,
   typeHierarchy: {},
   relationKinds: {
-    is: [''],
+    is: [universalType],
   },
-  baseContext: [],
+  baseStory: [],
   rules: [],
   maxEntityLimit: 6,
 };
 
-export function getUniGramTinyWorldConfig(
-  nIdentity: number,
-  seed: number = 0
-) {
+export function getUniGramTinyWorldConfig(nIdentity: number, seed: number = 0) {
   function getIdentity(index: number) {
     return 'i' + String(index);
   }

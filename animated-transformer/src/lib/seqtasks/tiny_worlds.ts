@@ -74,7 +74,7 @@ export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
     t0: ['i0', 'i1'],
   },
   relationKinds: {
-    is: [''],
+    is: [universalType],
   },
   baseStory: [],
   rules: ['S(is ?x:i0) += 1', 'S(is ?x:i1) += 2'],
@@ -177,6 +177,8 @@ export class TinyWorldTask implements BasicLmTask {
   public exampleIter: StateIter<RandomStream, Example>;
   public rns: RandomStream;
 
+  // TODO: validate the relations don't break the types...
+  // e.g. "is: ['']" can currently be added by accident.
   constructor(public config: TinyWorldTaskConfig) {
     this.exampleId = 0;
 

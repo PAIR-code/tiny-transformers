@@ -14,11 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { Component } from '@angular/core';
-import {
-  GTensor,
-  SerializedGTensor,
-  makeScalar,
-} from 'src/lib/gtensor/gtensor';
+import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
 
 // Create a new
@@ -67,11 +63,7 @@ export class WebColabComponent {
     }>(this.worker);
     console.log('webworker completed');
     console.log(output);
-    console.log(
-      GTensor.fromSerialised(output.data.t)
-        .scalarDiv(makeScalar(3))
-        .tensor.arraySync()
-    );
+    console.log(GTensor.fromSerialised(output.data.t).scalarDiv(makeScalar(3)).tensor.arraySync());
     console.log(output.data.v);
 
     // const myWorker = new Worker('worker.js');

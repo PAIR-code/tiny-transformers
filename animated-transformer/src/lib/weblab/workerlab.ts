@@ -2,7 +2,7 @@
 
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { Signal, WritableSignal, SignalSpace } from './signalspace';
-import { WorkerOp } from './worker-op';
+import { InputPromises, ValueStruct, CellSpec as CellSpec } from './cellspec';
 
 export const space = new SignalSpace();
 
@@ -33,7 +33,7 @@ export function onceGetInput<T>(name: string): Promise<T> {
   });
 }
 
-export function output<T>(name: string, outputData: T) {
+export function sendOutput<T>(name: string, outputData: T) {
   workerToMainMessage({ kind: 'providingOutput', name, outputData });
 }
 
@@ -41,3 +41,18 @@ export function output<T>(name: string, outputData: T) {
 //   constructor(op: WorkerOp<I, O>) {}
 //   inputs;
 // }
+
+export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
+  input: InputPromises<Input>;
+
+  constructor(spec: CellSpec<Input, Output>) {
+    this.input = {} as Input;
+    for (const inputName of spec.inputs) {
+      this.input[inputName] = onceGetInput(inputName as string);
+    }
+  }
+
+  output<Key extends keyof Output>(key: Key, value: Output[Key]) {
+    sendOutput(key as string, value);
+  }
+}
