@@ -40,7 +40,6 @@ import {
 
 {
   const initConfig = { ...bayesianV1TinyWorldTaskConfig };
-  console.log('config uses: bayesianE1TinyWorldTaskConfig');
   initConfig.maxInputLen = 400;
   initConfig.maxOutputLen = 400;
   const tinyWorld = new TinyWorldTask(initConfig);

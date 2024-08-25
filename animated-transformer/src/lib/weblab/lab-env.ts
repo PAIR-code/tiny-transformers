@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { WorkerOp } from './worker-op';
+import { SpecificValueStruct, ValueStruct, CellSpec } from './cellspec';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
 
@@ -24,7 +24,7 @@ export type ItemMetaData = {
 // TODO: maybe define a special type of serializable
 // object that includes things with a toSerialise function?
 
-export class WorkerEnv<Globals extends { [key: string]: any }> {
+export class LabEnv<Globals extends ValueStruct> {
   inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   stateVars: Partial<Globals> = {};
@@ -33,19 +33,15 @@ export class WorkerEnv<Globals extends { [key: string]: any }> {
   constructor(public workerState: LabState) {}
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
-    op: WorkerOp<I, O>
+    op: CellSpec<SpecificValueStruct<I>, SpecificValueStruct<O>>
   ): Promise<{ [key in O]: Globals[O] }> {
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
-    for (const inputName of op.api.inputs) {
+    for (const inputName of op.inputs) {
       if (this.stateVars[inputName] === undefined) {
-        const inputValue = await this.workerState.loadValue<Globals[O]>(
-          inputName
-        );
+        const inputValue = await this.workerState.loadValue<Globals[O]>(inputName);
         if (!inputValue) {
-          throw new Error(
-            `No state for op (${op.workerPath}) for input: ${inputName}`
-          );
+          throw new Error(`No state for op (${op.workerPath}) for input: ${inputName}`);
         }
         this.stateVars[inputName] = inputValue.data;
       }

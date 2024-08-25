@@ -13,29 +13,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor } from 'src/lib/gtensor/gtensor';
-import { WorkerOp } from '../../lib/weblab/worker-op';
+import { LabEnv } from './lab-env';
+import { LabState } from './lab-state';
 
-export type Name = string;
-export type TensorValue = {
-  t: GTensor<'a'>;
-  v: number;
-} | null;
+import { exampleWorkerSpec, Globals } from './example.ailab';
 
-export type Globals = {
-  name: Name;
-  t: TensorValue;
-};
-
-const globals: Partial<Globals> = {};
-
-// export const exampleWorkerOp = {
-//   workerPath: './app.worker',
-//   inputs: ['name'] as const,
-//   outputs: ['t'] as const,
-// } as WorkerOp<'name', 't'>;
-
-export const exampleWorkerOp = new WorkerOp('./app.worker', {
-  inputs: ['name'],
-  outputs: ['t'],
+xdescribe('lab-env', () => {
+  const state = new LabState();
+  // const ops: OpKind[] = [
+  //   {
+  //     workerpath: './app.worker',
+  //     inputs: ['name'],
+  //     outputs: ['t'],
+  //   },
+  // ];
+  beforeEach(async () => {});
+  it('worker-op', async () => {
+    const env = new LabEnv<Globals>(state);
+    env.stateVars.name = 'initial fake name';
+    const outputs = await env.run(exampleWorkerSpec);
+    expect(outputs.tensor).toBeTruthy();
+  });
+  it('ignoreme', () => {
+    expect(true).toBeTruthy();
+  });
 });

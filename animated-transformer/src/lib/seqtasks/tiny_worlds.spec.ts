@@ -26,15 +26,14 @@ describe('tiny_worlds', () => {
 
   it('test_bayesianV1TinyWorldTaskConfig', () => {
     const initConfig = { ...bayesianV1TinyWorldTaskConfig };
-    console.log('config uses: bayesianE1TinyWorldTaskConfig');
     const len = 1500; // sample many for counting
     initConfig.maxInputLen = len;
     initConfig.maxOutputLen = 1;
     const tinyWorld = new TinyWorldTask(initConfig);
     const [example] = tinyWorld.exampleIter.takeOutN(1);
 
-    function count(list: any[], elem: any) {
-      return list.filter((x: any) => x === elem).length;
+    function count<T>(list: T[], elem: T) {
+      return list.filter((x: T) => x === elem).length;
     }
     const input_count_i0 = count(example.input, 'i0');
     const input_count_11 = count(example.input, 'i1');
