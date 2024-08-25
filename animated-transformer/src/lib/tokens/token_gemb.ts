@@ -232,6 +232,18 @@ export function strSeqPrepFnAddingFinalMask<
 
 // TODO: maybe change the type to somethinfg more specific and without tokenEmb
 // and maxInputLength since they are not relevant.
+//
+// Note: outputSeqs is a list of next tokens, where each inner list contains an
+// entry for each example in the batch.
+// e.g.
+// if you have batch size 3, and 3 continuations:
+//    example 1 continuation: cat
+//    example 2 continuation: boo
+//    example 3 continuation: foo
+// Then you have an outputSeqs array: [[c,b,f], [a,o,o], [t,o,o]]
+// And this function returns the token indexes for [c,b,f].
+//
+// TODO: we'll want to generalise this for longer sequences...
 export function singleNextTokenIdxOutputPrepFn(
   tokenRep: BasicTaskTokenRep,
   outputSeqs: string[][]

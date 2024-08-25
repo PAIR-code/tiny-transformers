@@ -41,7 +41,7 @@ describe('rules', () => {
       op,
       score,
       posConditions: conditions,
-    } = parseRule('S(squishes _x _y | jumps-over _x:monkey _y:flower) += 1');
+    } = parseRule('S(squishes _x _y | jumpsOver _x:monkey _y:flower) += 1');
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('_x');
     expect(rel.args[0].varTypes).toEqual(new Set(universalType));
@@ -50,7 +50,7 @@ describe('rules', () => {
     expect(op).toEqual('+=');
     expect(score).toEqual(1.0);
     expect(conditions.length).toEqual(1);
-    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].relName).toEqual('jumpsOver');
     expect(conditions[0].args[0]).toEqual({ varName: '_x', varTypes: new Set(['monkey']) });
     expect(conditions[0].args[1]).toEqual({ varName: '_y', varTypes: new Set(['flower']) });
   });
@@ -61,7 +61,7 @@ describe('rules', () => {
       op,
       score,
       posConditions: conditions,
-    } = parseRule('S(squishes ?x ?y | jumps-over ?x ?y) += 1');
+    } = parseRule('S(squishes ?x ?y | jumpsOver ?x ?y) += 1');
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0].varName).toEqual('?x');
     expect(rel.args[0].varTypes).toEqual(new Set(universalType));
@@ -70,7 +70,7 @@ describe('rules', () => {
     expect(op).toEqual('+=');
     expect(score).toEqual(1.0);
     expect(conditions.length).toEqual(1);
-    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].relName).toEqual('jumpsOver');
     expect(conditions[0].args[0]).toEqual({ varName: '?x', varTypes: new Set(universalType) });
     expect(conditions[0].args[1]).toEqual({ varName: '?y', varTypes: new Set(universalType) });
   });
@@ -84,7 +84,7 @@ describe('rules', () => {
       posConditions: conditions,
     } = parseRule(`
     S(squishes _x _y 
-    | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0
+    | jumpsOver _x _y, jumpsOver _x _y, jumpsOver _x _y) *= 0
     `);
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0]).toEqual({ varName: '_x', varTypes: new Set(universalType) });
@@ -92,13 +92,13 @@ describe('rules', () => {
     expect(op).toEqual('*=');
     expect(score).toEqual(0);
     expect(conditions.length).toEqual(3);
-    expect(conditions[0].relName).toEqual('jumps-over');
+    expect(conditions[0].relName).toEqual('jumpsOver');
     expect(conditions[0].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(conditions[0].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
-    expect(conditions[1].relName).toEqual('jumps-over');
+    expect(conditions[1].relName).toEqual('jumpsOver');
     expect(conditions[1].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(conditions[1].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
-    expect(conditions[2].relName).toEqual('jumps-over');
+    expect(conditions[2].relName).toEqual('jumpsOver');
     expect(conditions[2].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(conditions[2].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
   });
@@ -107,7 +107,7 @@ describe('rules', () => {
   it('parseRule: 3 conditions and one neg', () => {
     const { rel, op, score, posConditions, negConditions } = parseRule(`
     S(squishes _x _y 
-    | jumps-over _x _y, jumps-over _x _y, -is _y, jumps-over _x _y) *= 0
+    | jumpsOver _x _y, jumpsOver _x _y, -is _y, jumpsOver _x _y) *= 0
     `);
     expect(rel.relName).toEqual('squishes');
     expect(rel.args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
@@ -115,13 +115,13 @@ describe('rules', () => {
     expect(op).toEqual('*=');
     expect(score).toEqual(0);
     expect(posConditions.length).toEqual(3);
-    expect(posConditions[0].relName).toEqual('jumps-over');
+    expect(posConditions[0].relName).toEqual('jumpsOver');
     expect(posConditions[0].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(posConditions[0].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
-    expect(posConditions[1].relName).toEqual('jumps-over');
+    expect(posConditions[1].relName).toEqual('jumpsOver');
     expect(posConditions[1].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(posConditions[1].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
-    expect(posConditions[2].relName).toEqual('jumps-over');
+    expect(posConditions[2].relName).toEqual('jumpsOver');
     expect(posConditions[2].args[0]).toEqual({ varName: '_x', varTypes: new Set(['*']) });
     expect(posConditions[2].args[1]).toEqual({ varName: '_y', varTypes: new Set(['*']) });
     expect(negConditions.length).toEqual(1);
@@ -131,7 +131,7 @@ describe('rules', () => {
 
   // TODO: maybe no varType can mean any time, and we can skip the explicit type of all types?
   it('print and parseRule symmetry', () => {
-    const initRuleStr = `S(squishes _x _y | jumps-over _x _y, jumps-over _x _y, jumps-over _x _y) *= 0`;
+    const initRuleStr = `S(squishes _x _y | jumpsOver _x _y, jumpsOver _x _y, jumpsOver _x _y) *= 0`;
     const rule = parseRule(initRuleStr);
     const parsedRuleStr = stringifyRule(rule);
     expect(parsedRuleStr).toEqual(initRuleStr);
