@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { getUniGramTinyWorldConfig } from './generated_tiny_worlds';
+import { getUniGramTinyWorldConfig } from './ngram_tiny_worlds';
 import { TinyWorldTask } from './tiny_worlds';
 
-describe('generated_tiny_worlds', () => {
+describe('ngram_tiny_worlds', () => {
   beforeEach(() => {});
 
   it('test_getUniGramTinyWorldConfig', () => {

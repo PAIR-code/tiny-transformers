@@ -20,20 +20,15 @@ import { exampleWorkerSpec, Globals } from './example.ailab';
 
 xdescribe('lab-env', () => {
   const state = new LabState();
-  // const ops: OpKind[] = [
-  //   {
-  //     workerpath: './app.worker',
-  //     inputs: ['name'],
-  //     outputs: ['t'],
-  //   },
-  // ];
   beforeEach(async () => {});
+
   it('worker-op', async () => {
     const env = new LabEnv<Globals>(state);
     env.stateVars.name = 'initial fake name';
     const outputs = await env.run(exampleWorkerSpec);
     expect(outputs.tensor).toBeTruthy();
   });
+
   it('ignoreme', () => {
     expect(true).toBeTruthy();
   });

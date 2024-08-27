@@ -12,14 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 /* 
 
 Tiny Worlds, run with (gtensor-based) transformers.
 
 Run:
 npx ts-node src/lib/seqtasks/tiny_worlds.run_with_transformer.script.ts
-
 */
 
 import * as tf from '@tensorflow/tfjs-node';
@@ -234,7 +232,7 @@ function run() {
 
     console.log('Inference Step:', inferStep);
     console.log('Context:', batchInput[0].join(''));
-    console.log('Target Output:', batchOutput[0].join(''));
+    // console.log('Target Output:', batchOutput[0].join(''));
     console.log('Target next token:', batchOutput[0][0]);
     console.log('Prediction:');
     console.log('   ', 'token'.padEnd(10), ' ', 'prob'.padEnd(10), ' ');

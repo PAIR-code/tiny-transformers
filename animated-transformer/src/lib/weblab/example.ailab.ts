@@ -44,7 +44,8 @@ const globals: Partial<Globals> = {
 // } as WorkerOp<'name', 't'>;
 
 export const exampleWorkerSpec = new CellSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
-  './example.worker',
-  ['name'],
+  // 'src/lib/weblab/example.worker.js' as never as URL,
+  new URL('./example.worker', import.meta.url),
+  ['name'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
   ['tensor']
 );
