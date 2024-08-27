@@ -2,9 +2,9 @@
 
 Recommended dependendies:
 
-- Install node `v20.14.0` using the [nvm](https://github.com/nvm-sh/nvm) tool: `$ nvm install v20.14.0`
-  - Set the default to be this version: `nvm alias default v20.14.0`
-- Install globally the Angular 18 CLI with `$ npm install -g @angular/cli`
+- Install node `v22` using the [nvm](https://github.com/nvm-sh/nvm) tool: `$ nvm install v22`
+  - Set the default to be this version: `nvm alias default v22`
+- \[optional\] Install globally the Angular 18 CLI with `$ npm install -g @angular/cli` so that you can directly use `ng` commands, otherwise you have to use `npx ng`.
 
 ## Development server
 
