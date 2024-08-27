@@ -14,8 +14,6 @@ limitations under the License.
 ==============================================================================*/
 
 /* Generated Tiny Worlds */
-
-import * as tf from '@tensorflow/tfjs';
 import { TinyWorldTaskConfig } from './tiny_worlds';
 import { makeRandomStream } from '../state-iter/random';
 import { universalType } from '../logic/relations';

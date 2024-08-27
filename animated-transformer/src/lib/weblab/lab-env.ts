@@ -47,7 +47,12 @@ export class LabEnv<Globals extends ValueStruct> {
       }
     }
 
-    const worker = new Worker(new URL(op.workerPath, import.meta.url));
+    // const workerUrl = new URL(op.workerUrl, import.meta.url);
+    // console.log('op.workerPath:', op.workerPath);
+    // console.log('import.meta.url:', import.meta.url);
+    // console.log('workerUrl:', workerUrl);
+    const worker = new Worker(op.workerPath, { type: 'module' });
+    // console.log(worker);
     worker.onmessage = ({ data }) => {
       const messageFromWorker = data as FromWorkerMessage;
       switch (messageFromWorker.kind) {
