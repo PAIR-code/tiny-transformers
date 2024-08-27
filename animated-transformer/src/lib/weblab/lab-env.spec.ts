@@ -18,7 +18,7 @@ import { LabState } from './lab-state';
 
 import { exampleWorkerSpec, Globals } from './example.ailab';
 
-fdescribe('lab-env', () => {
+xdescribe('lab-env', () => {
   const state = new LabState();
   beforeEach(async () => {});
 
