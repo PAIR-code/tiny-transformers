@@ -39,6 +39,10 @@ async function run() {
     t: t.toSerialised(),
     v,
   });
+
+  console.log('worker going to finish...');
+  cell.finished();
+  console.log('worker finished.');
 }
 
 run();

@@ -29,51 +29,71 @@ export class LabEnv<Globals extends ValueStruct> {
   inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   stateVars: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
+  runningCells: {
+    [name: string]: CellSpec<{}, {}>;
+  } = {};
 
-  constructor(public workerState: LabState) {}
+  constructor(public workerState: LabState) {
+    console.log('import.meta.url', import.meta.url.toString());
+  }
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
     op: CellSpec<SpecificValueStruct<I>, SpecificValueStruct<O>>
   ): Promise<{ [key in O]: Globals[O] }> {
+    this.runningCells[op.name] = op as CellSpec<{}, {}>;
+
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
     for (const inputName of op.inputs) {
       if (this.stateVars[inputName] === undefined) {
         const inputValue = await this.workerState.loadValue<Globals[O]>(inputName);
         if (!inputValue) {
-          throw new Error(`No state for op (${op.workerPath}) for input: ${inputName}`);
+          throw new Error(`No state for op (${op.createWorker}) for input: ${inputName}`);
         }
         this.stateVars[inputName] = inputValue.data;
       }
     }
 
-    // const workerUrl = new URL(op.workerUrl, import.meta.url);
-    // console.log('op.workerPath:', op.workerPath);
-    // console.log('import.meta.url:', import.meta.url);
-    // console.log('workerUrl:', workerUrl);
-    const worker = new Worker(op.workerPath, { type: 'module' });
+    let resolveWithOutputFn: (output: { [key in O]: Globals[O] }) => void;
+    const onceFinished = new Promise<{ [key in O]: Globals[O] }>((resolve, reject) => {
+      resolveWithOutputFn = resolve;
+    });
+
+    const worker = op.createWorker();
+    // const worker = new Worker(op.workerPath, { type: 'module' });
     // console.log(worker);
     worker.onmessage = ({ data }) => {
+      console.log('main thread got worker.onmessage', data);
       const messageFromWorker = data as FromWorkerMessage;
       switch (messageFromWorker.kind) {
-        case 'finished':
-          worker.terminate();
-          break;
         case 'requestInput':
-          worker.postMessage(this.stateVars[messageFromWorker.name]);
+          console.log(
+            'this.stateVars[messageFromWorker.name]',
+            this.stateVars[messageFromWorker.name]
+          );
+          worker.postMessage({
+            kind: 'providingInput',
+            name: messageFromWorker.name,
+            inputData: this.stateVars[messageFromWorker.name],
+          });
+          break;
+        // only called when the webworker is really finished.
+        case 'finished':
+          delete this.runningCells[op.name];
+          resolveWithOutputFn(outputs);
           break;
         case 'providingOutput':
           const outputName = messageFromWorker.name as O;
           outputs[outputName] = messageFromWorker.outputData as Globals[O];
           break;
         default:
-          console.error('unknown worker message: ', data);
+          console.error('main thread go unknown worker message: ', data);
           break;
       }
     };
 
     // worker.onmessage(() => {});
 
-    return outputs;
+    return onceFinished;
   }
 }

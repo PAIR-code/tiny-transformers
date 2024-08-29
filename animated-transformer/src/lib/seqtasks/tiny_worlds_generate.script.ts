@@ -13,7 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// Run with: ts-node src/lib/seqtasks/tiny_worlds.script.ts
+/*
+Run with:
+  npx ts-node src/lib/seqtasks/tiny_worlds_generate.script.ts
+*/
 
 import {
   TinyWorldTask,
@@ -38,16 +41,16 @@ import {
   console.log(' - output: ', JSON.stringify(example2.output.join('')));
 }
 
-{
-  const initConfig = { ...bayesianV1TinyWorldTaskConfig };
-  initConfig.maxInputLen = 400;
-  initConfig.maxOutputLen = 400;
-  const tinyWorld = new TinyWorldTask(initConfig);
-  const [example] = tinyWorld.exampleIter.takeOutN(1);
-  console.log('Example 1');
-  console.log('input: ', JSON.stringify(example.input.join('')));
-  console.log('output: ', JSON.stringify(example.output.join('')));
-  console.log('Example 1');
-  console.log('input: ', JSON.stringify(example.input.join('')));
-  console.log('output: ', JSON.stringify(example.output.join('')));
-}
+// {
+//   const initConfig = { ...bayesianV1TinyWorldTaskConfig };
+//   initConfig.maxInputLen = 400;
+//   initConfig.maxOutputLen = 400;
+//   const tinyWorld = new TinyWorldTask(initConfig);
+//   const [example] = tinyWorld.exampleIter.takeOutN(1);
+//   console.log('Example 1');
+//   console.log('input: ', JSON.stringify(example.input.join('')));
+//   console.log('output: ', JSON.stringify(example.output.join('')));
+//   console.log('Example 1');
+//   console.log('input: ', JSON.stringify(example.input.join('')));
+//   console.log('output: ', JSON.stringify(example.output.join('')));
+// }

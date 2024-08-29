@@ -38,7 +38,8 @@ export type InputPromises<S extends ValueStruct> = { [Key in keyof S]: Promise<S
 
 export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   constructor(
-    public workerPath: URL,
+    public name: string,
+    public createWorker: () => Worker,
     public inputs: (keyof Inputs)[],
     public outputs: (keyof Outputs)[]
   ) {}
