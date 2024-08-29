@@ -18,7 +18,7 @@ limitations under the License.
  */
 
 import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import { CellSpec } from './cellspec';
+import { CellSpec } from '../../lib/weblab/cellspec';
 
 export type Name = string;
 export type TensorValue = {
@@ -44,9 +44,12 @@ const globals: Partial<Globals> = {
 // } as WorkerOp<'name', 't'>;
 
 export const exampleWorkerSpec = new CellSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
-  'an example cell',
+  'example app worker',
   // 'src/lib/weblab/example.worker.js' as never as URL,
-  () => new Worker(new URL('./example.worker', import.meta.url)),
+  // Hack because angular dev builder does a regexp replacement, so we need the full string of
+  // new Worker(new URL('<literal path>', import.meta.url)) in order for dev server and prod
+  // build to correctly create these paths.
+  () => new Worker(new URL('./app.worker', import.meta.url)),
   ['name'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
   ['tensor']
 );

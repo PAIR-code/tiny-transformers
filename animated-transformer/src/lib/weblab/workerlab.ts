@@ -6,10 +6,6 @@ import { InputPromises, ValueStruct, CellSpec as CellSpec } from './cellspec';
 
 export const space = new SignalSpace();
 
-function workerToMainMessage(m: FromWorkerMessage) {
-  postMessage(m);
-}
-
 const initInputs = {} as { [name: string]: unknown };
 // const recievedInputs = space.writable(initInputs);
 const inputResolvers = {} as { [name: string]: (value: unknown) => void };
@@ -20,12 +16,16 @@ addEventListener('message', ({ data }) => {
     initInputs[toWorkerMessage.name] = toWorkerMessage.inputData;
     if (toWorkerMessage.name in inputResolvers) {
       inputResolvers[toWorkerMessage.name](toWorkerMessage.inputData);
+    } else {
+      console.warn('got sent an input we do not know about: ', data);
     }
+  } else {
+    console.warn('unknown message from the main thread: ', data);
   }
 });
 
 export function onceGetInput<T>(name: string): Promise<T> {
-  workerToMainMessage({ kind: 'requestInput', name });
+  postMessage({ kind: 'requestInput', name });
   return new Promise<T>((resolve, reject) => {
     // TODO: consider allowing parent to send stuff before we ask for it..
     // this would just involved checking the inputResolvers here.
@@ -34,7 +34,7 @@ export function onceGetInput<T>(name: string): Promise<T> {
 }
 
 export function sendOutput<T>(name: string, outputData: T) {
-  workerToMainMessage({ kind: 'providingOutput', name, outputData });
+  postMessage({ kind: 'providingOutput', name, outputData });
 }
 
 // export class LabCell<Globals extends { [key: string]: any }, I extends string, O extends string> {
@@ -54,5 +54,10 @@ export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
 
   output<Key extends keyof Output>(key: Key, value: Output[Key]) {
     sendOutput(key as string, value);
+  }
+
+  finished() {
+    postMessage({ kind: 'finished' });
+    close();
   }
 }

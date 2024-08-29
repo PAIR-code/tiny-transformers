@@ -16,6 +16,9 @@ limitations under the License.
 import { Component } from '@angular/core';
 import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
+import { LabState } from 'src/lib/weblab/lab-state';
+import { LabEnv } from 'src/lib/weblab/lab-env';
+import { exampleWorkerSpec, Globals } from './foo.ailab';
 
 // Create a new
 async function onceOutput<T>(worker: Worker): Promise<T> {
@@ -34,11 +37,11 @@ async function onceOutput<T>(worker: Worker): Promise<T> {
   styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
-  public worker: Worker;
+  // public worker2: Worker;
 
   constructor() {
-    this.worker = new Worker(new URL('./app.worker', import.meta.url));
-    // this.foo();
+    // This works...
+    // this.worker2 = new Worker(new URL('./app.worker', import.meta.url));
   }
 
   async foo() {
@@ -55,18 +58,14 @@ export class WebColabComponent {
       console.error('We require webworkers. Sorry.');
       return;
     }
-    this.worker.postMessage('hello, are you there webworker?');
-    console.log('posted message');
-    // Create a new
-    const output = await onceOutput<{
-      data: { t: SerializedGTensor<'a'>; v: number };
-    }>(this.worker);
-    console.log('webworker completed');
-    console.log(output);
-    console.log(GTensor.fromSerialised(output.data.t).scalarDiv(makeScalar(3)).tensor.arraySync());
-    console.log(output.data.v);
-
-    // const myWorker = new Worker('worker.js');
+    const state = new LabState();
+    const env = new LabEnv<Globals>(state);
+    env.stateVars.name = 'initial fake name';
+    const outputs = await env.run(exampleWorkerSpec);
+    console.log(outputs);
+    console.log(
+      GTensor.fromSerialised(outputs.tensor!.t).scalarDiv(makeScalar(3)).tensor.arraySync()
+    );
   }
 
   async doOpen() {

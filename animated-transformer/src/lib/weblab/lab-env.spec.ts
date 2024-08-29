@@ -18,7 +18,7 @@ import { LabState } from './lab-state';
 
 import { exampleWorkerSpec, Globals } from './example.ailab';
 
-xdescribe('lab-env', () => {
+describe('lab-env', () => {
   const state = new LabState();
   beforeEach(async () => {});
 
@@ -27,9 +27,5 @@ xdescribe('lab-env', () => {
     env.stateVars.name = 'initial fake name';
     const outputs = await env.run(exampleWorkerSpec);
     expect(outputs.tensor).toBeTruthy();
-  });
-
-  it('ignoreme', () => {
-    expect(true).toBeTruthy();
   });
 });

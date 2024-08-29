@@ -53,6 +53,8 @@ async function run() {
     t: t.toSerialised(),
     v,
   });
+
+  cell.finished();
 }
 
 run();

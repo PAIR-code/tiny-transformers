@@ -17,7 +17,7 @@ limitations under the License.
 Tiny Worlds, run with (gtensor-based) transformers.
 
 Run:
-npx ts-node src/lib/seqtasks/tiny_worlds.run_with_transformer.script.ts
+  npx ts-node src/lib/seqtasks/tiny_worlds_train.script.ts
 */
 
 import * as tf from '@tensorflow/tfjs-node';
