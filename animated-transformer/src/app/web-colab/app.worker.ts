@@ -31,8 +31,8 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import { GTensor } from 'src/lib/gtensor/gtensor';
-import * as lab from '../../lib/weblab/workerlab';
-import { exampleWorkerSpec } from '../../lib/weblab/example.ailab';
+import * as lab from '../../lib/weblab/lab-cell';
+import { exampleWorkerSpec } from './foo.ailab';
 
 console.log('app.worker', self.location);
 

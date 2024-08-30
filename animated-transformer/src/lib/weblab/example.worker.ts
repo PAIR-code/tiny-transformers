@@ -15,34 +15,44 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import * as tf from '@tensorflow/tfjs';
-import { GTensor } from 'src/lib/gtensor/gtensor';
-import * as lab from './workerlab';
+import * as lab from './lab-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
 console.log('example.worker', self.location);
 
-async function run() {
-  const cell = new lab.Cell(exampleWorkerSpec);
+const cell = new lab.Cell(exampleWorkerSpec);
+cell.runOnce((inputs) => {
+  const toyOutput = `webworker got input! ${inputs.toyInput}`;
 
-  const name = await cell.input.name;
+  // TODO: consider using the packr for transfers too...
+  return {
+    toyOutputStr: toyOutput,
+    toyOutputNumber: 3,
+  };
+});
 
-  console.log(`webworker got input! ${name}`);
+// Above is equivalent to...
+// async function run() {
+//   const cell = new lab.Cell(exampleWorkerSpec);
 
-  const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-  const v = t.contract(t, ['a']).tensor.arraySync() as number;
+//   const name = await cell.input.name;
 
-  // TODO: handle all transferable objects, and for objects that are
-  // serializable (have a toSerialised, and a from Serialised), go via that
-  // if/as needed.
-  cell.output('tensor', {
-    t: t.toSerialised(),
-    v,
-  });
+//   console.log(`webworker got input! ${name}`);
 
-  console.log('worker going to finish...');
-  cell.finished();
-  console.log('worker finished.');
-}
+//   const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
+//   const v = t.contract(t, ['a']).tensor.arraySync() as number;
 
-run();
+//   // TODO: handle all transferable objects, and for objects that are
+//   // serializable (have a toSerialised, and a from Serialised), go via that
+//   // if/as needed.
+//   cell.output('tensor', {
+//     t: t.toSerialised(),
+//     v,
+//   });
+
+//   console.log('worker going to finish...');
+//   cell.finished();
+//   console.log('worker finished.');
+// }
+
+// run();

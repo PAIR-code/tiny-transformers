@@ -44,12 +44,40 @@ export function sendOutput<T>(name: string, outputData: T) {
 
 export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
   input: InputPromises<Input>;
+  stillExpectedInputs: Set<keyof Input>;
+  inputSoFar: Partial<Input> = {};
+  onceAllInputs: Promise<Input>;
 
   constructor(spec: CellSpec<Input, Output>) {
     this.input = {} as Input;
+    this.stillExpectedInputs = new Set(spec.inputs);
+
+    let onceAllInputsResolver: (allInput: Input) => void;
+    this.onceAllInputs = new Promise<Input>((resolve, reject) => {
+      onceAllInputsResolver = resolve;
+    });
+
     for (const inputName of spec.inputs) {
       this.input[inputName] = onceGetInput(inputName as string);
+      this.input[inputName].then((inputValue) => {
+        this.inputSoFar[inputName] = inputValue;
+        this.stillExpectedInputs.delete(inputName);
+        if (this.stillExpectedInputs.size === 0) {
+          onceAllInputsResolver(this.inputSoFar as Input);
+        }
+      });
     }
+  }
+
+  // get all inputs, run the function on them, and then provide the outputs.
+  // Basically an RPC.
+  async runOnce(runFn: (input: Input) => Output) {
+    const inputs = await this.onceAllInputs;
+    const outputs = runFn(inputs);
+    for (const [outputName, outputValue] of Object.entries(outputs)) {
+      this.output(outputName, outputValue);
+    }
+    this.finished();
   }
 
   output<Key extends keyof Output>(key: Key, value: Output[Key]) {

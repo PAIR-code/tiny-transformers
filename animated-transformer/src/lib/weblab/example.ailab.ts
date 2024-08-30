@@ -17,36 +17,45 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import { CellSpec } from './cellspec';
 
-export type Name = string;
-export type TensorValue = {
-  t: SerializedGTensor<'a'>;
-  v: number;
-} | null;
+// export type Name = string;
+// export type TensorValue = {
+//   t: SerializedGTensor<'a'>;
+//   v: number;
+// } | null;
 
-export type Globals = {
-  name: Name;
-  tensor: TensorValue;
+// export type Globals = {
+//   name: Name;
+//   tensor: TensorValue;
+// };
+
+// export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
+
+export type ExampleCellInput = {
+  toyInput: string;
 };
 
-export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
-
-const globals: Partial<Globals> = {
-  name: 'some silly fake initial name',
+export type ExampleCellOutput = {
+  toyOutputStr: string;
+  toyOutputNumber: number;
 };
+
+export type ExampleGlobals = ExampleCellInput & ExampleCellOutput;
+
+// const initialState: Partial<ExampleGlobals> = {
+//   toyInput: 'some initial input',
+// };
 
 // export const exampleWorkerOp = {
 //   workerPath: './app.worker',
 //   inputs: ['name'] as const,
 //   outputs: ['t'] as const,
 // } as WorkerOp<'name', 't'>;
-
-export const exampleWorkerSpec = new CellSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
+export const exampleWorkerSpec = new CellSpec<ExampleCellInput, ExampleCellOutput>(
   'an example cell',
   // 'src/lib/weblab/example.worker.js' as never as URL,
   () => new Worker(new URL('./example.worker', import.meta.url)),
-  ['name'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
-  ['tensor']
+  ['toyInput'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
+  ['toyOutputStr', 'toyOutputNumber']
 );

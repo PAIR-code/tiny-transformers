@@ -16,16 +16,16 @@ limitations under the License.
 import { LabEnv } from './lab-env';
 import { LabState } from './lab-state';
 
-import { exampleWorkerSpec, Globals } from './example.ailab';
+import { exampleWorkerSpec, ExampleGlobals } from './example.ailab';
 
 describe('lab-env', () => {
   const state = new LabState();
   beforeEach(async () => {});
 
-  it('worker-op', async () => {
-    const env = new LabEnv<Globals>(state);
-    env.stateVars.name = 'initial fake name';
+  it('Running a simple cell', async () => {
+    const env = new LabEnv<ExampleGlobals>(state);
+    env.stateVars.toyInput = 'some initial input';
     const outputs = await env.run(exampleWorkerSpec);
-    expect(outputs.tensor).toBeTruthy();
+    expect(outputs.toyOutputStr).toEqual('webworker got input! some initial input');
   });
 });
