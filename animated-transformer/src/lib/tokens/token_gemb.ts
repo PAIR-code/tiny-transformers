@@ -246,6 +246,19 @@ export function singleNextTokenIdxOutputPrepFn(
   );
 }
 
+export function prepareTargetsTensor(
+  tokenRep: BasicTaskTokenRep,
+  inputSeqs: string[][],
+  outputSeqs: string[][]
+): GTensor<'batch' | 'pos'> {
+const firstColumnOfOutputSeq = tf.tensor2d(outputSeqs).slice([0, 0], [-1, 1]);
+const resultTensor = tf.tensor2d(inputSeqs).concat(firstColumnOfOutputSeq, 1);
+return new GTensor(
+    resultTensor,
+    ['batch', 'pos']
+  );
+}
+
 export function padInputSeqStart(
   paddingToken: string,
   maxInputLength: number,

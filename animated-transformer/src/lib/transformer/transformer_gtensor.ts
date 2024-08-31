@@ -416,6 +416,53 @@ export function transformerLastTokenCrossEntropyLoss(
   // return loss.tensor;
 }
 
+/** Return logits for all tokens of the transformer.
+ *
+ * params: transformer parameters.
+ * tokenEmb: embeddings for all tokens.
+ */
+export function transformerLogits(
+  params: TransformerComputation,
+  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  const lastLayer = params.layers[params.layers.length - 1];
+  const seqOutput = lastLayer.seqOuput;
+  const logits = seqOutput.contract(tokenEmb, ['inputRep']);
+  return logits;
+}
+
+/**
+ * Returns the average per example loss for all tokens predicated.
+ * losses are summed over all positions.
+ */
+export function transformerAllTokensCrossEntropyLoss(
+  params: TransformerComputation,
+  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+  targetTokenIdxs: GTensor<'batch' | 'pos' >
+): tf.Scalar {
+  const logits = transformerLogits(params, tokenEmb);
+
+  // This does softmax over the dimension of tokenID ??
+  const logProbs = logits.softmax('tokenId').log();
+  //
+  // const logProbs = logits.softmax('token');
+
+  // we are multiplying the same target for everything. Should it be the next token of the input?
+  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, tokenEmb.dim.tokenId.size), [
+    'batch',
+    'pos',
+    'tokenId',
+  ]);
+
+  const crossEntopy = logProbs.pointwiseMul(oneHotToken); 
+
+  return (
+    crossEntopy
+      .sumOverDims(['batch', 'pos', 'tokenId'])
+      ._tfScalarDiv(tf.scalar(targetTokenIdxs.dim.batch.size * -1)).tensor as tf.Scalar
+  );
+}
+
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.

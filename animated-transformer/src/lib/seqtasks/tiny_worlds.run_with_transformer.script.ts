@@ -38,6 +38,7 @@ import {
   TransformerComputation,
   computeDecoder,
   transformerLastTokenLogits,
+  transformerAllTokensCrossEntropyLoss,
   transformerLastTokenCrossEntropyLoss,
   transformerAccuracy,
 } from '../transformer/transformer_gtensor';
@@ -54,6 +55,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   prepareBasicTaskTokenRep,
   BasicTaskTokenRep,
+  prepareTargetsTensor,
 } from '../tokens/token_gemb';
 import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { layer } from '@tensorflow/tfjs-vis/dist/show/model';
@@ -112,7 +114,7 @@ function* dataGenerator(
 
 function unbindedLossFn(
   batchInput: string[][],
-  batchOutput: string[][],
+  batchOutput: string[][], // target
   tokenRep: BasicTaskTokenRep,
   transformerConfig: TransformerConfig,
   decoderParamsTree: GVariableTree<TransformerParams>
@@ -129,7 +131,7 @@ function unbindedLossFn(
     tokenRep,
     batchOutput
   );
-  let entropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
+  let lastTokenEntropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
     computation,
     decoderParamsTree.obj.tokenEmbedding,
     singleNextTokenIdx
@@ -140,13 +142,18 @@ function unbindedLossFn(
     singleNextTokenIdx
   );
 
+  let targetIdxs = prepareTargetsTensor(tokenRep, batchInput, batchOutput);
+  let fullEntropyLoss = transformerAllTokensCrossEntropyLoss(computation, decoderParamsTree.obj.tokenEmbedding, targetIdxs);
+
   console.log(
     'entropyLoss.arraySync()',
-    entropyLoss.arraySync(),
+    // lastTokenEntropyLoss.arraySync(),
+    fullEntropyLoss.arraySync(),
     'accuracy.arraySync()',
     accuracy.arraySync()
   );
-  return entropyLoss;
+  // return entropyLoss;
+  return fullEntropyLoss;
 }
 
 {
