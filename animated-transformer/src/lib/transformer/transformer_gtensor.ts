@@ -17,7 +17,6 @@ limitations under the License.
  * Transformers implemented using GTensor.
  *
  * TODO: encode-decoder. (currently only have decoder models)
- * TODO: dropout.
  * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
  * TODO: loss for all tokens (currently just the last token).
  * TODO: Adam optimiser / others (currently only have SGD).
@@ -50,6 +49,12 @@ import {
   TensorLayerNormParams,
   VarLayerNormParams,
 } from '../gtensor/layer_norm';
+import {
+  initDropoutParams,
+  dropout,
+  TensorDropoutParams,
+  VarDropoutParams,
+} from '../gtensor/dropout';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
@@ -87,6 +92,7 @@ export type AttnHeadParamSpec = {
   layerNormHeadsProjection: boolean;
   layerNormFF: boolean;
   addLayerNormBias: boolean;
+  dropoutRate: number;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
 };
@@ -97,6 +103,7 @@ export type TransformerParamLayerSpec = {
   layerNormFF: boolean;
   layerNormHeadsProjection: boolean;
   addLayerNormBias: boolean; // only meaningful when one of the above is true.
+  dropoutRate: number;
   computeSpec: AttnHeadComputeSpec;
 };
 
@@ -118,6 +125,11 @@ export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
   ? VarLayerNormParams
   : TensorLayerNormParams;
 
+// More workaround for https://github.com/microsoft/TypeScript/issues/48070
+export type DropoutParams<T extends TensorOrVarKind> = T extends VariableKind
+  ? VarDropoutParams
+  : TensorDropoutParams;
+
 // Use of type here to be compatible with generic params.
 export type AttnHeadParams<T extends TensorOrVarKind> = {
   queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
@@ -131,6 +143,7 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
   // ff2: FfParams<'ffRep', 'ffOut'>;
   // Relative position attention
   relativePosAttention?: GTensorOrVar<T, 'heads' | 'relativePos'>;
+  dropout?: DropoutParams<T>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -194,6 +207,11 @@ export function initAttnHeadParams(
       initConfig
     );
   }
+
+  if (spec.dropoutRate > 0) {
+    attnHeadParams.dropout = initDropoutParams(spec.dropoutRate)
+  }
+
   return attnHeadParams;
 }
 
@@ -266,6 +284,17 @@ export function computeAttnHead(
     );
   }
 
+  // TODO(@aliciafmachado): Place this correctly, and pass output to next layer.
+  // TODO(@aliciafmachado): introduce deterministic flag to disable dropout if we are evaluating.
+  let dropoutResult = normedHeadReduction;
+  if (params.dropout) {
+    dropoutResult = dropout(
+      params.dropout,
+      normedHeadReduction,
+      'inputRepToFF',
+    );
+  }
+
   // Residual connection. Note: we follow T5 transformers and put layerNorm
   // before residual. The original attention paper had layer norm after the
   // residual connection.
@@ -316,6 +345,7 @@ export function initDecoderParams(
       layerNormHeadsProjection: layerSpec.layerNormHeadsProjection,
       // addLayerNormBias: AttentionIsAllYouNeed = true; T5 = false.
       addLayerNormBias: layerSpec.addLayerNormBias,
+      dropoutRate: layerSpec.dropoutRate,
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });
@@ -454,7 +484,9 @@ export function computeDecoder(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
     0
   );
+  // Tokenization.
   const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
+  // Transformer computation.
   return computeTransformer(spec, params, gtensorInputs);
 }
 

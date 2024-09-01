@@ -84,10 +84,11 @@ const layerSpec: TransformerParamLayerSpec = {
   layerNormFF: false,
   layerNormHeadsProjection: false,
   addLayerNormBias: false,
+  dropoutRate: 0,
 };
 
 const defaultConfig: ModelConfig = {
-  name: 'd=8 l=1 h=4, !layerN',
+  name: 'd=8 l=1 h=4, !layerN !dropout',
   transformer: {
     spec: {
       inputRep: 8,
@@ -109,10 +110,11 @@ const layerSpecWithNorm: TransformerParamLayerSpec = {
   layerNormFF: true,
   layerNormHeadsProjection: true,
   addLayerNormBias: false,
+  dropoutRate: 0,
 };
 
 const transWithLayerNormed: ModelConfig = {
-  name: 'd=8 l=1 h=4 +layerN',
+  name: 'd=8 l=1 h=4 +layerN !dropout',
   transformer: {
     spec: {
       inputRep: 8,
@@ -127,15 +129,43 @@ const transWithLayerNormed: ModelConfig = {
   },
 };
 
+const layerSpecWithNormAndDropout: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true },
+  layerNormFF: true,
+  layerNormHeadsProjection: true,
+  addLayerNormBias: false,
+  dropoutRate: 0.1,
+};
+
+const transWithLayerNormedAndDropout: ModelConfig = {
+  name: 'd=8 l=1 h=4 +layerN +dropout',
+  transformer: {
+    spec: {
+      inputRep: 8,
+      kqvRep: 8,
+      layers: [layerSpecWithNormAndDropout],
+    },
+    init: {
+      stddev: 0.5,
+      mean: 0,
+      seed: 96,
+    },
+  },
+};
+
 const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
 
 const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
+
+const simpleTransformerWithLayerNormAndDropout = new ModelSpecAndData('transformer', transWithLayerNormedAndDropout)
 
 export interface ModelUpdate {
   model: ModelSpecAndData | null;
 }
 
-const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
+const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm, simpleTransformerWithLayerNormAndDropout];
 const initModelsMap: { [name: string]: ModelSpecAndData } = {};
 initModels.forEach((m) => (initModelsMap[m.config.name] = m));
 

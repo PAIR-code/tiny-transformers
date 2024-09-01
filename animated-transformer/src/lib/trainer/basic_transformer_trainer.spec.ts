@@ -36,6 +36,7 @@ describe('basic_transformer_trainer', () => {
       layerNormFF: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
+      dropoutRate: 0,
     };
     const decoderConfig: transformer.TransformerConfig = {
       spec: {

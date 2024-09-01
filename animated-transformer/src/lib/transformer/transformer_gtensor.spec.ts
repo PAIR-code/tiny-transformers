@@ -33,6 +33,7 @@ describe('GTensor Transformers', () => {
       layerNormHeadsProjection: true,
       layerNormFF: true,
       addLayerNormBias: false,
+      dropoutRate: 0,
     };
     const params = transformer.initAttnHeadParams(paramSizes);
     const inputExample1 = new GTensor(
