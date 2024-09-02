@@ -71,7 +71,7 @@ export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async runOnce(runFn: (input: Input) => Output) {
+  async run(runFn: (input: Input) => Output) {
     const inputs = await this.onceAllInputs;
     const outputs = runFn(inputs);
     for (const [outputName, outputValue] of Object.entries(outputs)) {

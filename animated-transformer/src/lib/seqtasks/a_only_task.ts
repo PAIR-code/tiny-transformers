@@ -27,15 +27,21 @@ import { StateIter } from '../state-iter/state-iter';
 
 export const baseVocab = ['a', 'b'];
 
+export type OnlyATaskConfig = BasicRandSeededTaskConfig & {
+  kind: 'OnlyATask';
+};
+
 export class OnlyATask implements BasicLmTask {
   public name = 'onlyATask';
   public baseVocab = baseVocab;
   private exampleId = 0;
   public exampleIter: StateIter<RandomStream, Example>;
 
-  constructor(public config: BasicRandSeededTaskConfig) {
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+  constructor(public config: OnlyATaskConfig) {
+    this.exampleIter = new StateIter(
+      makeRandomStream(config.seed),
+      (x) => x.copy(),
+      (rng) => this.examplesGen(rng)
     );
   }
 

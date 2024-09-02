@@ -83,9 +83,11 @@ export type LossFn<
   targets: GTensor<TargetDims>
 ) => tf.Scalar;
 
-type TensorParams = jstree.DictArrTree<GTensor<any>>;
 type VarParams = jstree.DictArrTree<GVariable<any>>;
-type TensorOrVarParams<T extends TensorOrVarKind> = jstree.DictArrTree<AnyGTensorOrVar<T>>;
+// You might think we'd need this:
+//   type TensorOrVarParams<T extends TensorOrVarKind> = jstree.DictArrTree<AnyGTensorOrVar<T>>;
+// but we don't because
+//   jstree.DictArrTree<GVariable<any>> extends jstree.DictArrTree<GTensor<any>>
 
 // Class to hold state, primarily for memory management.
 export class TrainState<

@@ -37,22 +37,27 @@ export type RelPosDecision = 'R' | 'L';
 export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
 
+export type DecisionBoundaryTaskConfig = BasicRandSeededTaskConfig & {
+  kind: 'DecisionBoundaryTask';
+};
+
 export class DecisionBoundaryTask implements BasicLmTask {
   public baseVocab = baseVocab;
   private exampleId: number;
   public exampleIter: StateIter<RandomStream, Example>;
 
-  constructor(public config: BasicRandSeededTaskConfig) {
+  constructor(public config: DecisionBoundaryTaskConfig) {
     this.exampleId = 0;
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+    this.exampleIter = new StateIter(
+      makeRandomStream(config.seed),
+      (x) => x.copy(),
+      (rng) => this.examplesGen(rng)
     );
   }
 
   genRandExample(rng: RandomStream): Example {
     // Boundary position is one of [-.05, 0.5, 1.5, ... (N+0.5)]
-    const boundaryPos =
-      Math.floor(rng.random() * (numberVocab.length + 1)) - 0.5;
+    const boundaryPos = Math.floor(rng.random() * (numberVocab.length + 1)) - 0.5;
 
     // Create number inputs such that we don't go over the max length:
     // Each input numberVocab will be followed by a L or R
@@ -68,14 +73,10 @@ export class DecisionBoundaryTask implements BasicLmTask {
 
     const finalIndex = inputIndexes.pop();
     if (finalIndex === undefined) {
-      throw new Error(
-        `no input indexes. maxInputLen: ${this.config.maxInputLen}`
-      );
+      throw new Error(`no input indexes. maxInputLen: ${this.config.maxInputLen}`);
     }
 
-    const input = inputIndexes
-      .map((i) => [numberVocab[i], i < boundaryPos ? 'L' : 'R'])
-      .flat();
+    const input = inputIndexes.map((i) => [numberVocab[i], i < boundaryPos ? 'L' : 'R']).flat();
     input.push(numberVocab[finalIndex]);
 
     const output = [finalIndex < boundaryPos ? 'L' : 'R'];

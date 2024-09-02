@@ -29,6 +29,7 @@ import json5 from 'json5';
 import * as swap_task from '../../../lib/seqtasks/swap_task';
 import {
   DecisionBoundaryTask,
+  DecisionBoundaryTaskConfig,
   baseVocab as dboundaryVocab,
 } from '../../../lib/seqtasks/decision_boundary_task';
 import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
@@ -41,10 +42,7 @@ import {
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
-import {
-  SecretTokenTask,
-  SecretTokenTaskConfig,
-} from 'src/lib/seqtasks/secret_token_task';
+import { SecretTokenTask, SecretTokenTaskConfig } from 'src/lib/seqtasks/secret_token_task';
 import {
   TinyWorldTask,
   TinyWorldTaskConfig,
@@ -88,11 +86,12 @@ const inittaskSet: TaskMetadata[] = [
   new TaskMetadata(
     {
       name: 'a boundary task',
+      kind: 'DecisionBoundaryTask',
       maxInputLen: 5,
       maxOutputLen: 1,
       seed: 0,
-    } as BasicRandSeededTaskConfig,
-    (c) => new DecisionBoundaryTask(c as BasicRandSeededTaskConfig)
+    } as DecisionBoundaryTaskConfig,
+    (c) => new DecisionBoundaryTask(c as DecisionBoundaryTaskConfig)
   ),
   new TaskMetadata(
     {
@@ -105,10 +104,7 @@ const inittaskSet: TaskMetadata[] = [
     } as SecretTokenTaskConfig<string>,
     (c) => new SecretTokenTask(c as SecretTokenTaskConfig<string>)
   ),
-  new TaskMetadata(
-    defaultTinyWorldTaskConfig,
-    (c) => new TinyWorldTask(c as TinyWorldTaskConfig)
-  ),
+  new TaskMetadata(defaultTinyWorldTaskConfig, (c) => new TinyWorldTask(c as TinyWorldTaskConfig)),
 ];
 const initTaskMap = {} as { [name: string]: TaskMetadata };
 inittaskSet.forEach((t) => (initTaskMap[t.config.name] = t));
@@ -135,8 +131,7 @@ export class SeqTaskSelectorComponent {
   shownNumOfExamples = 6;
   repSize = 8;
 
-  taskMap: WritableSignal<{ [name: string]: TaskMetadata }> =
-    signal(initTaskMap);
+  taskMap: WritableSignal<{ [name: string]: TaskMetadata }> = signal(initTaskMap);
   taskNames: Signal<string[]>;
 
   currentTask: WritableSignal<TaskMetadata | null> = signal(null);
@@ -202,10 +197,7 @@ export class SeqTaskSelectorComponent {
       return;
     }
 
-    console.log(
-      'taskConfigUpdated: ',
-      JSON.stringify(configUpdate.json, null, 2)
-    );
+    console.log('taskConfigUpdated: ', JSON.stringify(configUpdate.json, null, 2));
 
     const updatedTask = new TaskMetadata(configUpdate.obj, task.factory);
 

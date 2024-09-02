@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { CopyableData, StateIter } from '../state-iter/state-iter';
+import { makeClonableIter, StateIter } from '../state-iter/state-iter';
 import {
   Example,
   generateBatch,
@@ -55,22 +55,23 @@ describe('seqtasks/util', () => {
   });
 
   it('takeFirstN of makeExampleGenerator', () => {
-    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
+    function* iterateExample(state: { idx: number }): Iterator<Example> {
       while (true) {
-        const i = state.data;
+        const i = state.idx;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
-        state.data++;
+        state.idx++;
       }
     }
     /* Simple interface for classes that provide a task */
+    const exampleIter = makeClonableIter({ idx: 0 }, iterateExample);
     const task: BasicLmTask = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: new StateIter(new CopyableData(0), iterateExample),
+      exampleIter: exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       '0 0 \\--> 0',
@@ -90,9 +91,9 @@ describe('seqtasks/util', () => {
   });
 
   it('splitGenerativeTaskTestSet', () => {
-    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
+    function* iterateExample(state: { idx: number }): Iterator<Example> {
       while (true) {
-        const i = state.data++;
+        const i = state.idx++;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
@@ -100,11 +101,12 @@ describe('seqtasks/util', () => {
         };
       }
     }
+    const exampleIter = makeClonableIter({ idx: 0 }, iterateExample);
     /* Simple interface for classes that provide a task */
     const task: BasicLmTask = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
       config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: new StateIter(new CopyableData(0), iterateExample),
+      exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       // Test set = first 7
@@ -136,9 +138,7 @@ describe('seqtasks/util', () => {
       '2 0 \\--> 2',
     ]);
 
-    const nextExamples1 = split.testSetFilteredExamples
-      .takeOutN(6)
-      .map(indexExample);
+    const nextExamples1 = split.testSetFilteredExamples.takeOutN(6).map(indexExample);
     expect(nextExamples1).toEqual([
       '3 1 \\--> 0',
       '0 2 \\--> 2',
@@ -149,9 +149,7 @@ describe('seqtasks/util', () => {
       // test set, so we loop back onto the start of the training set now.
       '3 1 \\--> 0',
     ]);
-    const nextExamples2 = split.testSetFilteredExamples
-      .takeOutN(6)
-      .map(indexExample);
+    const nextExamples2 = split.testSetFilteredExamples.takeOutN(6).map(indexExample);
     expect(nextExamples2).toEqual([
       '0 2 \\--> 2',
       '1 0 \\--> 1',

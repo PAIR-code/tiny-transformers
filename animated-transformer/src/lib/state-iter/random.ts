@@ -33,19 +33,11 @@ limitations under the License.
 
 import { StateIter } from './state-iter';
 
-export function asFloatInRange(
-  zeroToOneNumber: number,
-  min: number,
-  max: number
-): number {
+export function asFloatInRange(zeroToOneNumber: number, min: number, max: number): number {
   return min + zeroToOneNumber * (max - min);
 }
 
-export function asIntInRange(
-  zeroToOneNumber: number,
-  min: number,
-  max: number
-): number {
+export function asIntInRange(zeroToOneNumber: number, min: number, max: number): number {
   return Math.floor(asFloatInRange(zeroToOneNumber, min, max));
 }
 
@@ -66,7 +58,7 @@ export function nextRandom(state: RandomState): number {
 }
 
 export function makeSubstream(state: RandomState): RandomState {
-  return { curSeedVal: nextRandom(state), copy: () => copyRandomState(state) };
+  return { curSeedVal: nextRandom(state) };
 }
 
 export function* randomItor(state: RandomState): Iterator<number> {
@@ -75,10 +67,26 @@ export function* randomItor(state: RandomState): Iterator<number> {
   }
 }
 
-export type RandomState = { curSeedVal: number; copy(): RandomState };
-// export type RandomStream = StateIter<RandomState, number>;
+export type RandomState = { curSeedVal: number };
+// slightly sneakily used as both constructor and copier.
+export function copyRandomState(state: { curSeedVal: number }): RandomState {
+  return { curSeedVal: state.curSeedVal };
+}
+export function makeRandomStream(curSeedVal: number): RandomStream {
+  return new RandomStream({ curSeedVal });
+}
 
 export class RandomStream extends StateIter<RandomState, number> {
+  public override state!: RandomState;
+
+  constructor(state: RandomState) {
+    super(state, copyRandomState, randomItor);
+  }
+
+  override copy(): RandomStream {
+    return new RandomStream(copyRandomState(this.state));
+  }
+
   random(): number {
     return nextRandom(this.state);
   }
@@ -92,26 +100,6 @@ export class RandomStream extends StateIter<RandomState, number> {
     return asEntryFromList(this.random(), l);
   }
   substream(): RandomStream {
-    return new RandomStream(makeSubstream(this.state), this.iterFn);
+    return new RandomStream(makeSubstream(this.state));
   }
-
-  override copy(): RandomStream {
-    return new RandomStream(this.state.copy(), this.iterFn);
-  }
-}
-
-// slightly sneakily used as both constructor and copier.
-function copyRandomState(state: { curSeedVal: number }): RandomState {
-  return {
-    curSeedVal: state.curSeedVal,
-    copy: () => copyRandomState(state),
-  };
-}
-
-export function makeRandomState(seed: number): RandomState {
-  return copyRandomState({ curSeedVal: seed });
-}
-
-export function makeRandomStream(curSeedVal: number): RandomStream {
-  return new RandomStream(copyRandomState({ curSeedVal }), randomItor);
 }

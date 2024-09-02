@@ -21,7 +21,7 @@ import { exampleWorkerSpec } from './example.ailab';
 console.log('example.worker', self.location);
 
 const cell = new lab.Cell(exampleWorkerSpec);
-cell.runOnce((inputs) => {
+cell.run((inputs) => {
   const toyOutput = `webworker got input! ${inputs.toyInput}`;
 
   // TODO: consider using the packr for transfers too...

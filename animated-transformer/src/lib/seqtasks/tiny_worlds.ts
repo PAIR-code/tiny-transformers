@@ -18,7 +18,7 @@ limitations under the License.
 import { addBetweenEvery, BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import { Story, initStory, sampleNextRel } from '../logic/stories';
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomStream, makeRandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
 import { parseRule, Rule } from '../logic/rules';
 import {
@@ -53,6 +53,7 @@ import {
 // ============================================================================== //
 
 export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
+  kind: 'TinyWorldTask';
   typeHierarchy: TypeHierarchySpec;
   relationKinds: { [relName: string]: string[] };
   // List of string representations of relations
@@ -67,6 +68,7 @@ tests if some zero-order and first order info could be correctly captured.
 */
 export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'beysian (version 1) world. ',
+  kind: 'TinyWorldTask',
   seed: 42,
   maxInputLen: 10,
   maxOutputLen: 10,
@@ -83,6 +85,7 @@ export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
 
 export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'tiny synthetic world',
+  kind: 'TinyWorldTask',
   seed: 0,
   maxInputLen: 10,
   maxOutputLen: 10,
@@ -209,7 +212,11 @@ export class TinyWorldTask implements BasicLmTask {
 
     this.rns = makeRandomStream(config.seed);
 
-    this.exampleIter = new StateIter(this.rns, (rns) => this.examplesGen(rns));
+    this.exampleIter = new StateIter(
+      this.rns,
+      (x) => x.copy(),
+      (rns) => this.examplesGen(rns)
+    );
   }
 
   nextRelTokens(

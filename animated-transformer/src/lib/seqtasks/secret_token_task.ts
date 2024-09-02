@@ -49,8 +49,8 @@ import { RandomStream, makeRandomStream } from '../state-iter/random';
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
 
-export interface SecretTokenTaskConfig<Vocab extends string>
-  extends BasicRandSeededTaskConfig {
+export interface SecretTokenTaskConfig<Vocab extends string> extends BasicRandSeededTaskConfig {
+  kind: 'SecretTokenTask';
   // Vocab for the random tokens, and also from which the secret value is
   // chosen.
   randomTokensVocab: Vocab[];
@@ -74,8 +74,10 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
       s: Vocab,
       t: Vocab
     ) => BoolToken;
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+    this.exampleIter = new StateIter(
+      makeRandomStream(config.seed),
+      (x) => x.copy(),
+      (rng) => this.examplesGen(rng)
     );
   }
 
@@ -105,10 +107,7 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
     const input = randomTokenIds
       .map((i) => {
         const thisToken = this.config.randomTokensVocab[i];
-        return [
-          thisToken,
-          this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F',
-        ];
+        return [thisToken, this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F'];
       })
       .flat();
     const finalToken = this.config.randomTokensVocab[finalId];

@@ -20,6 +20,7 @@ import { universalType } from '../logic/relations';
 
 export const defaultNGramTinyWorldConfig: TinyWorldTaskConfig = {
   name: 'Generated N-Gram Tiny World',
+  kind: 'TinyWorldTask',
   seed: 42,
   maxInputLen: 10,
   maxOutputLen: 20,

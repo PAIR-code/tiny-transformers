@@ -30,6 +30,7 @@ import { StateIter } from '../state-iter/state-iter';
 import { RandomStream, makeRandomStream } from '../state-iter/random';
 
 export type SwapTaskConfig = BasicLmTaskConfig & {
+  kind: 'SwapTask';
   valuesLessThan: number;
   seed: number;
 };
@@ -91,8 +92,10 @@ export class SwapTask implements BasicLmTask {
   constructor(public config: SwapTaskConfig) {
     this.name = this.config.name;
     this.exampleId = 0;
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+    this.exampleIter = new StateIter(
+      makeRandomStream(config.seed),
+      (x) => x.copy(),
+      (rng) => this.examplesGen(rng)
     );
   }
 

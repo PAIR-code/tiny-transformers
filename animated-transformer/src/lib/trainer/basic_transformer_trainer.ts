@@ -32,12 +32,6 @@ export type TransformerTrainState = TrainState<
   'batch' | 'pos' | 'inputRep',
   'batch'
 >;
-export const TransformerTrainState = TrainState<
-  transformer.TransformerParamSpec,
-  transformer.VarTransformerParams,
-  'batch' | 'pos' | 'inputRep',
-  'batch'
->;
 
 export interface TrainMetrics {
   nExamples: number;
@@ -94,7 +88,7 @@ export function initTransformerTrainState(
   // We use ! because assignment is inside tf.tidy.
   let state!: TransformerTrainState;
   tf.tidy(() => {
-    state = new TransformerTrainState(
+    state = new TrainState(
       transformerConfig.spec,
       transformerInitParams,
       trainStateConfig,

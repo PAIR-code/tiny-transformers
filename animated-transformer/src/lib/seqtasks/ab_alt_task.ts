@@ -27,15 +27,21 @@ import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
 
 export const baseVocab = ['a', 'b'];
 
+export type AorBisMaxTaskConfig = BasicRandSeededTaskConfig & {
+  kind: 'AorBisMaxTask';
+};
+
 export class AorBisMaxTask implements BasicLmTask {
   public name = 'AorBisMaxTask';
   public baseVocab = baseVocab;
   private exampleId = 0;
   public exampleIter: StateIter<RandomStream, Example>;
 
-  constructor(public config: BasicRandSeededTaskConfig) {
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+  constructor(public config: AorBisMaxTaskConfig) {
+    this.exampleIter = new StateIter(
+      makeRandomStream(config.seed),
+      (x) => x.copy(),
+      (rng) => this.examplesGen(rng)
     );
   }
 

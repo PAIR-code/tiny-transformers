@@ -21,7 +21,8 @@ describe('swap_task', () => {
 
   beforeEach(() => {
     swapTask = new swap_task.SwapTask({
-      name: 'SwapTask',
+      name: 'a SwapTask',
+      kind: 'SwapTask',
       maxInputLen: 10,
       maxOutputLen: 1,
       valuesLessThan: swap_task.baseVocab.length + 1,
@@ -67,9 +68,7 @@ describe('swap_task', () => {
     //   example.input.map(parseInt)[1] === NaN
     const inputsAsNumbers = example.input.map((x) => parseInt(x));
     expect(example.input.length).toEqual(swapTask.config.maxInputLen);
-    expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan
-    );
+    expect(Math.max(...inputsAsNumbers)).toBeLessThan(swapTask.config.valuesLessThan);
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 
@@ -77,9 +76,7 @@ describe('swap_task', () => {
     const [example] = swapTask.exampleIter;
     const inputsAsNumbers = example.input.map((x) => parseInt(x));
     expect(example.input.length).toEqual(swapTask.config.maxInputLen);
-    expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan
-    );
+    expect(Math.max(...inputsAsNumbers)).toBeLessThan(swapTask.config.valuesLessThan);
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 });

@@ -13,44 +13,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { boolean, number, string } from 'yargs';
-import { DictArrTree } from '../js_tree/js_tree';
-
 // Determistic stateful iterables. The assumption is that the state contains
 // all the information used by the iterator, and the iterator updates the state.
 // Copying the state, effectively enables
 
-export interface Copyable<S> {
-  copy(): S;
-}
-
-export type UnknownCopyable = {
-  copy(): UnknownCopyable;
-};
-
-export class CopyableData<T> implements Copyable<CopyableData<T>> {
-  constructor(public data: T) {}
-  copy(): CopyableData<T> {
-    return new CopyableData(structuredClone(this.data));
-  }
-}
-
 // Class wrapper so we have convenience functions handy.
-export class StateIter<S extends Copyable<S>, T>
-  implements Iterable<T>, Iterator<T>, Copyable<StateIter<S, T>>
-{
-  constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {
-    this.state;
-  }
+//
+// Note: We don't use S extends IsCopyable or Copyable, or anything like that
+// because it ends in a big type-passing mess, and you can construct stuff like
+// that on top of this easily:
+//
+//   (x) => x.copy()
+//
+export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T> {
+  constructor(public state: S, public copyFn: (s: S) => S, public iterFn: (s: S) => Iterator<T>) {}
 
   copy(): StateIter<S, T> {
-    return new StateIter(this.state.copy(), this.iterFn);
+    return new StateIter(this.copyFn(this.state), this.copyFn, this.iterFn);
   }
 
   filter(filterKeepFn: (i: T) => boolean): void {
     const originalIterFn = this.iterFn;
-    const newIterFn = (state: S) =>
-      filterGen(filterKeepFn, originalIterFn(state));
+    const newIterFn = (state: S) => filterGen(filterKeepFn, originalIterFn(state));
     this.iterFn = newIterFn;
   }
 
@@ -60,7 +44,7 @@ export class StateIter<S extends Copyable<S>, T>
     function newIterFn(s: S): Iterator<T2> {
       return mapGen(oldIterFn(s), fn);
     }
-    return new StateIter(newState, newIterFn);
+    return new StateIter(newState, this.copyFn, newIterFn);
   }
 
   // Returns a state iterator copy for the first N examples.
@@ -74,6 +58,32 @@ export class StateIter<S extends Copyable<S>, T>
 
   [Symbol.iterator]() {
     return this.iterFn(this.state);
+  }
+}
+
+export function makeClonableIter<S, T>(s: S, iterFn: (S: S) => Iterator<T>): StateIter<S, T> {
+  return new StateIter<S, T>(s, structuredClone, iterFn);
+}
+
+export type UnknownCopyable = {
+  copy(): UnknownCopyable;
+};
+
+export type Copyable<S> = {
+  copy(): S;
+};
+
+export function makeCopyableIter<S extends Copyable<S>, T>(
+  s: S,
+  iterFn: (S: S) => Iterator<T>
+): StateIter<S, T> {
+  return new StateIter<S, T>(s, (x) => x.copy(), iterFn);
+}
+
+export class CopyableData<T> implements Copyable<CopyableData<T>> {
+  constructor(public data: T) {}
+  copy(): CopyableData<T> {
+    return new CopyableData(structuredClone(this.data));
   }
 }
 
@@ -212,10 +222,7 @@ export function* takeNextNgen<T, T2>(
   return;
 }
 
-export function* filterIterable<T>(
-  filterFn: (x: T) => boolean,
-  iter: Iterable<T>
-): Iterable<T> {
+export function* filterIterable<T>(filterFn: (x: T) => boolean, iter: Iterable<T>): Iterable<T> {
   for (const i of iter) {
     if (filterFn(i)) {
       yield i;

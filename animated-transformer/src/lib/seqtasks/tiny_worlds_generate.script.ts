@@ -17,6 +17,7 @@ limitations under the License.
 Run with:
   npx ts-node src/lib/seqtasks/tiny_worlds_generate.script.ts
 */
+import { boolean, number, string } from 'yargs';
 
 import {
   TinyWorldTask,

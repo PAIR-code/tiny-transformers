@@ -21,7 +21,8 @@ limitations under the License.
  * -
  */
 
-import { Copyable, StateIter, UnknownCopyable } from '../state-iter/state-iter';
+import { RandomStream } from '../state-iter/random';
+import { StateIter } from '../state-iter/state-iter';
 
 export interface Example {
   id: number;
@@ -50,6 +51,8 @@ export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
 export type BasicLmTask = {
   config: BasicLmTaskConfig;
   baseVocab: string[];
+  // TODO: consider if/how this can give more generality in the state of the
+  // state iterator.
   exampleIter: StateIter<any, Example>;
   // tokenRep: MaskedTaskTokenRep;
   // genRandExample(): Example;
@@ -116,7 +119,7 @@ export function splitGenerativeTaskTestSet(
 ): {
   testSetExamples: Example[];
   testSetIndex: Set<string>;
-  testSetFilteredExamples: StateIter<UnknownCopyable, Example>;
+  testSetFilteredExamples: StateIter<unknown, Example>;
 } {
   const examplesIter = task.exampleIter.copy();
   const testSetExamples = examplesIter.takeOutN(firstN);

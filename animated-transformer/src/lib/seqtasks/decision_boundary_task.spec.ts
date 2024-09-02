@@ -23,7 +23,8 @@ describe('decision_boundary_task', () => {
 
   it('genRandExample', () => {
     task = new DecisionBoundaryTask({
-      name: 'DecisionBoundaryTask',
+      name: 'a DecisionBoundaryTask',
+      kind: 'DecisionBoundaryTask',
       maxInputLen: 5,
       maxOutputLen: 1,
       seed: 0,
