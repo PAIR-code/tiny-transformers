@@ -20,7 +20,7 @@ import { exampleWorkerSpec } from './example.ailab';
 
 console.log('example.worker', self.location);
 
-const cell = new lab.Cell(exampleWorkerSpec);
+const cell = new lab.FuncCell(exampleWorkerSpec);
 cell.run((inputs) => {
   const toyOutput = `webworker got input! ${inputs.toyInput}`;
 

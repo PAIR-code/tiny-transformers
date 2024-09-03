@@ -37,7 +37,7 @@ import { exampleWorkerSpec } from './foo.ailab';
 console.log('app.worker', self.location);
 
 async function run() {
-  const cell = new lab.Cell(exampleWorkerSpec);
+  const cell = new lab.FuncCell(exampleWorkerSpec);
 
   const name = await cell.input.name;
 

@@ -18,13 +18,17 @@ limitations under the License.
  */
 
 import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import { CellSpec } from '../../lib/weblab/cellspec';
+import { CellFuncSpec } from '../../lib/weblab/cellspec';
 
 export type Name = string;
 export type TensorValue = {
   t: SerializedGTensor<'a'>;
   v: number;
 } | null;
+
+const globals: Partial<Globals> = {
+  name: 'some silly fake initial name',
+};
 
 export type Globals = {
   name: Name;
@@ -33,17 +37,13 @@ export type Globals = {
 
 export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
 
-const globals: Partial<Globals> = {
-  name: 'some silly fake initial name',
-};
-
 // export const exampleWorkerOp = {
 //   workerPath: './app.worker',
 //   inputs: ['name'] as const,
 //   outputs: ['t'] as const,
 // } as WorkerOp<'name', 't'>;
 
-export const exampleWorkerSpec = new CellSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
+export const exampleWorkerSpec = new CellFuncSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
   'example app worker',
   // 'src/lib/weblab/example.worker.js' as never as URL,
   // Hack because angular dev builder does a regexp replacement, so we need the full string of

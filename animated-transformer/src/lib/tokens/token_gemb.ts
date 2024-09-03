@@ -182,17 +182,21 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
+// Note: don't use  `GTensor<'tokenId' | 'inputRep'>,` here because we want
+// this type to be generic enough that a generic training state that knows
+// nothing about
+//
+// TODO: revisit.
 export type StrSeqPrepFn<Params, Dims extends DName> = (
   tokenRep: BasicTaskTokenRep,
   params: Params,
-  // tokenEmb: GTensor<'tokenId' | 'inputRep'>,
   maxInputLength: number,
   strSeqs: string[][]
 ) => GTensor<Dims>;
 
-export function strSeqPrepFn<Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }>(
+export function strSeqPrepFn(
   tokenRep: BasicTaskTokenRep,
-  params: Params,
+  params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> },
   maxInputLength: number,
   inputSeqs: string[][]
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
@@ -214,11 +218,9 @@ export function strSeqPrepFn<Params extends { tokenEmbedding: GTensor<'tokenId' 
 // output is the prediction of the next token; but that requires causal
 // attention from the token forward. We use bi-dir attention throughout (no
 // causal masking of attention, yet).
-export function strSeqPrepFnAddingFinalMask<
-  Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }
->(
+export function strSeqPrepFnAddingFinalMask(
   tokenRep: BasicTaskTokenRep,
-  params: Params,
+  params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> },
   maxInputLength: number,
   inputSeqs: string[][]
 ): GTensor<'batch' | 'pos' | 'inputRep'> {

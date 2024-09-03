@@ -126,7 +126,7 @@ describe('seqtasks/util', () => {
       // Back to Test set...
       '0 0 \\--> 0',
     ]);
-    const split = splitGenerativeTaskTestSet(7, task);
+    const split = splitGenerativeTaskTestSet(7, task.exampleIter);
     const testValuesIndex = [...split.testSetIndex.values()];
     expect(testValuesIndex).toEqual([
       '0 0 \\--> 0',
@@ -138,7 +138,7 @@ describe('seqtasks/util', () => {
       '2 0 \\--> 2',
     ]);
 
-    const nextExamples1 = split.testSetFilteredExamples.takeOutN(6).map(indexExample);
+    const nextExamples1 = split.trainExamples.takeOutN(6).map(indexExample);
     expect(nextExamples1).toEqual([
       '3 1 \\--> 0',
       '0 2 \\--> 2',
@@ -149,7 +149,7 @@ describe('seqtasks/util', () => {
       // test set, so we loop back onto the start of the training set now.
       '3 1 \\--> 0',
     ]);
-    const nextExamples2 = split.testSetFilteredExamples.takeOutN(6).map(indexExample);
+    const nextExamples2 = split.trainExamples.takeOutN(6).map(indexExample);
     expect(nextExamples2).toEqual([
       '0 2 \\--> 2',
       '1 0 \\--> 1',

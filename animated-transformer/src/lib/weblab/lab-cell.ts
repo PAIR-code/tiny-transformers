@@ -2,12 +2,18 @@
 
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { Signal, WritableSignal, SignalSpace } from './signalspace';
-import { InputPromises, ValueStruct, CellSpec as CellSpec } from './cellspec';
+import {
+  ValueStruct,
+  CellFuncSpec as CellFuncSpec,
+  CellStateSpec,
+  PromiseStructFn,
+  SignalsStructFn,
+  PromisedSignalsFn,
+} from './cellspec';
 
 export const space = new SignalSpace();
 
 const initInputs = {} as { [name: string]: unknown };
-// const recievedInputs = space.writable(initInputs);
 const inputResolvers = {} as { [name: string]: (value: unknown) => void };
 
 addEventListener('message', ({ data }) => {
@@ -42,13 +48,13 @@ export function sendOutput<T>(name: string, outputData: T) {
 //   inputs;
 // }
 
-export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
-  input: InputPromises<Input>;
+export class FuncCell<Input extends ValueStruct, Output extends ValueStruct> {
+  input: PromiseStructFn<Input>;
   stillExpectedInputs: Set<keyof Input>;
   inputSoFar: Partial<Input> = {};
   onceAllInputs: Promise<Input>;
 
-  constructor(spec: CellSpec<Input, Output>) {
+  constructor(spec: CellFuncSpec<Input, Output>) {
     this.input = {} as Input;
     this.stillExpectedInputs = new Set(spec.inputs);
 
@@ -81,6 +87,61 @@ export class Cell<Input extends ValueStruct, Output extends ValueStruct> {
   }
 
   output<Key extends keyof Output>(key: Key, value: Output[Key]) {
+    sendOutput(key as string, value);
+  }
+
+  finished() {
+    postMessage({ kind: 'finished' });
+    close();
+  }
+}
+
+export class StatefulCell<
+  Globals extends ValueStruct,
+  Uses extends Globals,
+  Updates extends Globals
+> {
+  input: PromisedSignalsFn<Uses>;
+  stillExpectedInputs: Set<keyof Uses>;
+  inputSoFar: Partial<SignalsStructFn<Uses>> = {};
+  onceAllInputs: Promise<SignalsStructFn<Uses>>;
+
+  constructor(spec: CellStateSpec<Uses & Updates, keyof Uses, keyof Updates>) {
+    this.input = {} as PromisedSignalsFn<Uses>;
+    this.stillExpectedInputs = new Set(spec.uses);
+
+    let onceAllInputsResolver: (allInput: SignalsStructFn<Uses>) => void;
+    this.onceAllInputs = new Promise<SignalsStructFn<Uses>>((resolve, reject) => {
+      onceAllInputsResolver = resolve;
+    });
+
+    for (const inputName of spec.uses) {
+      const promisedInput = onceGetInput<Uses[typeof inputName]>(inputName as string);
+      this.input[inputName] = promisedInput.then((inputValue) => {
+        const signal = space.writable(inputValue);
+        this.inputSoFar[inputName] = signal;
+        this.stillExpectedInputs.delete(inputName);
+        if (this.stillExpectedInputs.size === 0) {
+          onceAllInputsResolver(this.inputSoFar as SignalsStructFn<Uses>);
+        }
+        // New inputs should now simply update the existing signal.
+        inputResolvers[inputName as string] = (value) => {
+          signal.set(value as Uses[typeof inputName]);
+        };
+        return signal;
+      });
+    }
+  }
+
+  // get all inputs, run the function on them, and then provide the outputs.
+  // Basically an RPC.
+  async run(runFn: (input: SignalsStructFn<Uses>) => void) {
+    const inputs = await this.onceAllInputs;
+    runFn(inputs);
+    this.finished();
+  }
+
+  output<Key extends keyof Updates>(key: Key, value: Updates[Key]) {
     sendOutput(key as string, value);
   }
 

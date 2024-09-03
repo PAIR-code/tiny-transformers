@@ -40,11 +40,9 @@ limitations under the License.
  *
  * CONSIDER: ideally, it would be nice to track dependencies in the type system...
  *
+ * TODO: Make explicit the notion of a set of updates, and when they are triggered.
+ * e.g. updateCachedValue(...) should not directly trigger. Where emit(...) should.
  */
-
-// TODO: add equality function checks for signal change needed propegation.
-// Also: not all downstream things are necessarily needing updated, we should
-// follow the equality path checks.
 
 export interface AbstractSignal<T> {
   // The get signal value function. If this is a computed signal that
@@ -91,6 +89,7 @@ type SignalSpaceUpdate = {
   computedValuesChanges: Set<ValueSignal<unknown>>;
   // The actual function that gets called with timeout of 0
   // to do the updating the signalspace.
+  // It gets removed from here after it is called.
   updateFn?: Timeout;
   counter: number;
 };
@@ -113,9 +112,7 @@ export class SignalSpace {
   constructor() {}
 
   maybeDependeeComputeSignal(): ComputedSignal<unknown> | null {
-    return this.computeStack.length > 0
-      ? this.computeStack[this.computeStack.length - 1]
-      : null;
+    return this.computeStack.length > 0 ? this.computeStack[this.computeStack.length - 1] : null;
   }
 
   makeSignal<T>(value: T): ValueSignal<T> {
@@ -123,10 +120,7 @@ export class SignalSpace {
     return s;
   }
 
-  makeComputedSignal<T>(
-    f: () => T,
-    options?: Partial<ComputeOptions<T>>
-  ): ComputedSignal<T> {
+  makeComputedSignal<T>(f: () => T, options?: Partial<ComputeOptions<T>>): ComputedSignal<T> {
     const thisComputeSignal = new ComputedSignal<T>(this, f, options);
     return thisComputeSignal;
   }
@@ -204,10 +198,7 @@ export class SignalSpace {
     delete this.update;
   }
 
-  async pipeFromAsyncIter<T>(
-    iter: AsyncIterable<T>,
-    signal: WritableSignal<T>
-  ) {
+  async pipeFromAsyncIter<T>(iter: AsyncIterable<T>, signal: WritableSignal<T>) {
     for await (const i of iter) {
       signal.set(i);
       this.noteUpdate(signal.rawValue as ValueSignal<unknown>);
@@ -348,9 +339,7 @@ export class ValueSignal<T> {
   errorForLoopySet(v: T): boolean {
     if (
       this.signalSpace.updateInProgress() &&
-      this.signalSpace.update.computedValuesChanges.has(
-        this as ValueSignal<unknown>
-      )
+      this.signalSpace.update.computedValuesChanges.has(this as ValueSignal<unknown>)
     ) {
       console.error(
         `A cyclic value update happened in a computation:`,
@@ -427,8 +416,7 @@ export class ComputedSignal<T> {
     for (const dep of this.dependsOnComputing) {
       if (dep.updateNeeded !== dep.lastUpdate) {
         dep.updateValue();
-        someComputeDepChanged =
-          someComputeDepChanged || dep.lastUpdateChangedValue;
+        someComputeDepChanged = someComputeDepChanged || dep.lastUpdateChangedValue;
       }
     }
     if (someComputeDepChanged) {
@@ -503,12 +491,10 @@ export function signal<T>(space: SignalSpace, value: T): WritableSignal<T> {
   function getFunction() {
     return valueSignal.get();
   }
-  const writableSignal: WritableSignal<T> =
-    getFunction as unknown as WritableSignal<T>;
+  const writableSignal: WritableSignal<T> = getFunction as unknown as WritableSignal<T>;
   // const foo = {...writableSignal, { lastValue: 'foo' } };
   writableSignal.lastValue = () => valueSignal.value;
-  writableSignal.set = (value: T, options?: SignalSetOptions) =>
-    valueSignal.set(value, options);
+  writableSignal.set = (value: T, options?: SignalSetOptions) => valueSignal.set(value, options);
   writableSignal.update = (f: (v: T) => T, options?: SignalSetOptions) =>
     valueSignal.update(f, options);
   writableSignal.kind = 'value';
@@ -536,10 +522,7 @@ export function effect<T>(
   f: () => T,
   options?: Partial<ComputeOptions<T>>
 ): ReadonlySignal<T> {
-  const computedSignal = space.makeComputedSignal(
-    f,
-    Object.assign({ ...options, isEffect: true })
-  );
+  const computedSignal = space.makeComputedSignal(f, Object.assign({ ...options, isEffect: true }));
   function getFunction() {
     return computedSignal.get();
   }

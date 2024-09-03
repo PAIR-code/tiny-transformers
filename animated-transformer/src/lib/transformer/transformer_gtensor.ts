@@ -105,6 +105,38 @@ export type AttnHeadComputeSpec = {
   residuals: boolean;
 };
 
+export function defaultTransformerConfig(): TransformerConfig {
+  const layer_config: TransformerParamLayerSpec = {
+    nHeads: 4,
+    hasPosEncoding: false,
+    // There may be a problem with layer norm; it seems to stop it from learning.
+    // With laynorm off, we get entropyLoss: 1.05391383  accuracy: 0.53125000
+    // with it on, we get lowest entropyLoss: 1.7 ish, and accuracy: ~0.35
+    layerNormFF: false,
+    layerNormHeadsProjection: false,
+    addLayerNormBias: false,
+    computeSpec: { residuals: true },
+  };
+  const layer_config_first: TransformerParamLayerSpec = {
+    ...layer_config,
+    hasPosEncoding: false,
+  };
+  const spec: TransformerParamSpec = {
+    inputRep: 64,
+    kqvRep: 64,
+    layers: [layer_config_first, layer_config, layer_config, layer_config],
+  };
+  const config: TransformerConfig = {
+    spec: spec,
+    init: {
+      stddev: 0.05, // default
+      mean: 0,
+      seed: 42,
+    },
+  };
+  return config;
+}
+
 // ---------------------------------------------------------------------------
 export type FfParams<T extends TensorOrVarKind, Input extends DName, Output extends DName> = {
   w: GTensorOrVar<T, Input | Output>;
@@ -326,7 +358,7 @@ export function initDecoderParams(
   return { layers, tokenEmbedding };
 }
 
-export function initDecoderParamsTree(
+export function initDecoderVarParams(
   tokenRep: BasicTaskTokenRep,
   config: TransformerConfig
 ): VarTransformerParams {

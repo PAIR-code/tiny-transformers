@@ -268,7 +268,7 @@ export class ModelSelectorComponent {
 
     const config = _.clone(curModel.config);
     const tokenRep = prepareBasicTaskTokenRep(this.task.baseVocab);
-    const params = transformer.initDecoderParamsTree(tokenRep, config.transformer);
+    const params = transformer.initDecoderVarParams(tokenRep, config.transformer);
     const paramCount = jstree.reduce<GTensor<any>, number>(
       (count, paramObj) => count + paramObj.tensor.size,
       0,

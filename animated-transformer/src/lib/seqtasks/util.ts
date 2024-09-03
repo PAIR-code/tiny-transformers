@@ -113,25 +113,25 @@ export function generateBatch(exampleGen: Iterator<Example>, batchSize: number):
 //
 // Split off a number of examples to form the test set, and make sure that is
 // never in the set of examples generated after.
-export function splitGenerativeTaskTestSet(
+export function splitGenerativeTaskTestSet<S>(
   firstN: number,
-  task: BasicLmTask
+  datasetExampleIter: StateIter<S, Example>
 ): {
   testSetExamples: Example[];
   testSetIndex: Set<string>;
-  testSetFilteredExamples: StateIter<unknown, Example>;
+  trainExamples: StateIter<S, Example>;
 } {
-  const examplesIter = task.exampleIter.copy();
+  const examplesIter = datasetExampleIter.copy();
   const testSetExamples = examplesIter.takeOutN(firstN);
   const testSetIndex = new Set(testSetExamples.map(indexExample));
 
-  const testSetFilteredExamples = examplesIter.copy();
-  testSetFilteredExamples.filter((example) => !testSetIndex.has(indexExample(example)));
+  const trainExamples = examplesIter.copy();
+  trainExamples.filter((example) => !testSetIndex.has(indexExample(example)));
 
   return {
     testSetExamples,
     testSetIndex,
-    testSetFilteredExamples,
+    trainExamples,
   };
 }
 

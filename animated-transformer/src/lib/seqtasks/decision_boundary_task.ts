@@ -41,6 +41,14 @@ export type DecisionBoundaryTaskConfig = BasicRandSeededTaskConfig & {
   kind: 'DecisionBoundaryTask';
 };
 
+export const defaultDecisionBoundaryTaskConfig: DecisionBoundaryTaskConfig = {
+  name: 'a DecisionBoundaryTask',
+  kind: 'DecisionBoundaryTask',
+  maxInputLen: 5,
+  maxOutputLen: 1,
+  seed: 0,
+};
+
 export class DecisionBoundaryTask implements BasicLmTask {
   public baseVocab = baseVocab;
   private exampleId: number;

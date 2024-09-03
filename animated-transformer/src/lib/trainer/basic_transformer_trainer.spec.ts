@@ -49,8 +49,9 @@ describe('basic_transformer_trainer', () => {
         seed: 1,
       },
     };
-    const taskConfig: BasicRandSeededTaskConfig = {
-      name: 'AorBisMaxTask',
+    const taskConfig: abtask.AorBisMaxTaskConfig = {
+      name: 'an AorBisMaxTask',
+      kind: 'AorBisMaxTask',
       maxInputLen: 4,
       maxOutputLen: 4,
       seed: 0,
@@ -64,7 +65,7 @@ describe('basic_transformer_trainer', () => {
     };
     const task = new abtask.AorBisMaxTask(taskConfig);
     const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const initParams = transformer.initDecoderParamsTree(tokenRep, decoderConfig);
+    const initParams = transformer.initDecoderVarParams(tokenRep, decoderConfig);
     console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,

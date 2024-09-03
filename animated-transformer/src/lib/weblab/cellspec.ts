@@ -19,15 +19,25 @@ limitations under the License.
  * worker's) behaviour.
  */
 
+import { WritableSignal } from './signalspace';
+
 export type ValueStruct = {
   [key: string]: any;
 };
+
+// export type SignalStruct = {
+//   [key: string]: WritableSignal<any>;
+// };
 
 export type SpecificValueStruct<Names extends string> = {
   [key in Names]: any;
 };
 
-export type InputPromises<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
+export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
+export type SignalsStructFn<S extends ValueStruct> = { [Key in keyof S]: WritableSignal<S[Key]> };
+export type PromisedSignalsFn<S extends ValueStruct> = {
+  [Key in keyof S]: Promise<WritableSignal<S[Key]>>;
+};
 
 // A cell specification is a very simply class that connects types to names for
 // the values that are the WebWorker cell inputs and outputs.
@@ -36,7 +46,7 @@ export type InputPromises<S extends ValueStruct> = { [Key in keyof S]: Promise<S
 // happen for the inputs and outputs params; Maybe a constructor
 // function for a type instance would work as well?
 
-export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
+export class CellFuncSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   constructor(
     public name: string,
     public createWorker: () => Worker,
@@ -45,5 +55,26 @@ export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   ) {}
 }
 
-export type OpInputs<Op> = Op extends CellSpec<infer I, any> ? I : never;
-export type OpOutputs<Op> = Op extends CellSpec<any, infer O> ? O : never;
+export class CellStateSpec<
+  Globals extends ValueStruct,
+  Uses extends keyof Globals,
+  Updates extends keyof Globals
+> {
+  constructor(
+    public name: string,
+    public createWorker: () => Worker,
+    public uses: Uses[],
+    public updates: Updates[]
+  ) {}
+}
+
+export function cellFactory<
+  Globals extends ValueStruct,
+  Uses extends keyof Globals,
+  Updates extends keyof Globals
+>(globals: Globals, cellName: string, worker: () => Worker, uses: Uses[], updates: Updates[]) {
+  return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
+}
+
+export type OpInputs<Op> = Op extends CellFuncSpec<infer I, any> ? I : never;
+export type OpOutputs<Op> = Op extends CellFuncSpec<any, infer O> ? O : never;

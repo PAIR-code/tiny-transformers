@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SpecificValueStruct, ValueStruct, CellSpec } from './cellspec';
+import { SpecificValueStruct, ValueStruct, CellFuncSpec } from './cellspec';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
 
@@ -30,7 +30,7 @@ export class LabEnv<Globals extends ValueStruct> {
   stateVars: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
   runningCells: {
-    [name: string]: CellSpec<{}, {}>;
+    [name: string]: CellFuncSpec<{}, {}>;
   } = {};
 
   constructor(public workerState: LabState) {
@@ -38,9 +38,9 @@ export class LabEnv<Globals extends ValueStruct> {
   }
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
-    op: CellSpec<SpecificValueStruct<I>, SpecificValueStruct<O>>
+    op: CellFuncSpec<SpecificValueStruct<I>, SpecificValueStruct<O>>
   ): Promise<{ [key in O]: Globals[O] }> {
-    this.runningCells[op.name] = op as CellSpec<{}, {}>;
+    this.runningCells[op.name] = op as CellFuncSpec<{}, {}>;
 
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
