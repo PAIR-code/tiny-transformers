@@ -23,7 +23,6 @@ limitations under the License.
 
 import { RandomState, RandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
-import { TaskConfig } from './task_registry';
 
 export interface Example {
   id: number;
@@ -79,21 +78,9 @@ export function configFromTaskIter<GenState extends {}, Config extends BasicLmTa
   return config;
 }
 
-// export type BasicLmTask<C extends BasicLmTaskConfig<{}>> =
-//   BasicLmTaskWithGenState<, C>
-
 export type BasicRandLmTask = BasicLmTask<BasicLmTaskConfig<RandomState>>;
-
-export type SomeBasicLmTask = BasicLmTask<BasicLmTaskConfig<any>>;
-
-// export type RandomStateExtendsUnit = RandomState extends {} ? true : false;
-// export type BasicExtendsSome_True = BasicRandLmTask extends SomeBasicLmTask ? true : false;
-
-// function foo(t: BasicLmTask<BasicLmTaskConfig<{}>>) {}
-
-// const bar = {} as never as BasicRandLmTask;
-
-// foo(bar);
+export type SomeBasicLmTask = BasicLmTask<BasicLmTaskConfig<{}>>;
+export type BasicExtendsSome_True = BasicRandLmTask extends SomeBasicLmTask ? true : false;
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------

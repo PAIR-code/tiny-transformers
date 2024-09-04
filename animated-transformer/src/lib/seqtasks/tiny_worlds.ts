@@ -37,6 +37,7 @@ import {
   typesetEquality,
   universalType,
 } from '../logic/relations';
+import { taskRegistry } from './task_registry';
 
 // Ideas for fancier rules/variants
 //
@@ -59,7 +60,7 @@ import {
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export interface TinyWorldTaskConfig extends RandLmTaskConfig {
+export type TinyWorldTaskConfig = RandLmTaskConfig & {
   kind: 'TinyWorldTask';
   typeHierarchy: TypeHierarchySpec;
   relationKinds: { [relName: string]: string[] };
@@ -67,7 +68,7 @@ export interface TinyWorldTaskConfig extends RandLmTaskConfig {
   baseStory: string[];
   rules: string[];
   maxEntityLimit: number;
-}
+};
 
 /* 
 besyian world (version 1) 
@@ -298,3 +299,5 @@ export class TinyWorldTask implements BasicRandLmTask {
     }
   }
 }
+
+taskRegistry.register(defaultTinyWorldTaskConfig, (c) => new TinyWorldTask(c));

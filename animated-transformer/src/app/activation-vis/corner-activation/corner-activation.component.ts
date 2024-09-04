@@ -34,10 +34,7 @@ import { ConfigStoreService } from '../../config-store.service';
 import { TfvisService } from '../../tfvis.service';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../../lib/gtensor/gtensor';
-import {
-  mkVisTensor,
-  TensorImageComponent,
-} from '../../tensor-image/tensor-image.component';
+import { mkVisTensor, TensorImageComponent } from '../../tensor-image/tensor-image.component';
 import json5 from 'json5';
 import {
   AbstractControl,
@@ -76,7 +73,7 @@ import {
   basicGatesAsGTensor,
   TwoVarGTensorDataset,
 } from '../../../lib/gtensor/the_16_two_var_bool_fns';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 
 // import { pointWiseEval, softVoronoiEval, pointwiseGrad } from '../../lib/gtensor/boolfns';
 import { pointWiseEval, pointwiseGrad } from '../../../lib/gtensor/boolfns';
@@ -87,7 +84,7 @@ import {
   BoundedFloatError,
 } from '../../form-validators/bounded-float-validator.directive';
 // import { nanValidator } from '../nan-validator.directive';
-import { JsonValue } from 'src/lib/pretty_json/json';
+import { JsonValue } from 'src/lib/json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import * as _ from 'underscore';
@@ -142,10 +139,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
 })
-export class CornerActivationComponent
-  extends ActivationManagerComponent
-  implements OnDestroy
-{
+export class CornerActivationComponent extends ActivationManagerComponent implements OnDestroy {
   updateParamsFromControlsEffect?: EffectRef;
 
   paramValueControls: WritableSignal<FormControl<string>[]>;
@@ -154,17 +148,13 @@ export class CornerActivationComponent
   learningRateControl: FormControl<string>;
 
   paramVisResolution: Signal<number>;
-  paramsValuesTensor: WritableSignal<
-    gtensor.GTensor<'pointId' | 'outputRepSize'>
-  >;
+  paramsValuesTensor: WritableSignal<gtensor.GTensor<'pointId' | 'outputRepSize'>>;
   lastParams?: gtensor.GTensor<'pointId' | 'outputRepSize'>;
 
   // paramPositionsTensor uses standard visual coordinates i.e. [0,0] is top
   // left, and first axis is x and second is y. (w.r.t. rendering code)
   // Also, 0 = false = black; and 1 = true = white.
-  paramPositionsTensor: WritableSignal<
-    gtensor.GTensor<'pointId' | 'inputRepSize'>
-  >;
+  paramPositionsTensor: WritableSignal<gtensor.GTensor<'pointId' | 'inputRepSize'>>;
   paramsVisTensor: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
   // These get set right before we open the config panel, so that we can use the config panel to
@@ -182,8 +172,9 @@ export class CornerActivationComponent
   posInputs: FormControl<string> | null = null;
 
   // ----------------------------------------------------------------------------------------------
-  constructor(private injector: Injector) // private tfvisService: TfvisService
-  {
+  constructor(
+    private injector: Injector // private tfvisService: TfvisService
+  ) {
     super();
 
     this.currentConfig = signal(makeDefaultActivationVizConfig(), {
@@ -198,10 +189,7 @@ export class CornerActivationComponent
       ])
     );
     this.paramsValuesTensor = signal(
-      new gtensor.GTensor(tf.tensor(this.currentConfig().paramValues), [
-        'pointId',
-        'outputRepSize',
-      ])
+      new gtensor.GTensor(tf.tensor(this.currentConfig().paramValues), ['pointId', 'outputRepSize'])
     );
 
     // config chnages update the param values and positions.
@@ -214,9 +202,7 @@ export class CornerActivationComponent
       { allowSignalWrites: true }
     );
 
-    this.paramVisResolution = computed(
-      () => this.currentConfig().paramVisResolution
-    );
+    this.paramVisResolution = computed(() => this.currentConfig().paramVisResolution);
 
     this.paramsVisTensor = computed(
       () =>
@@ -233,10 +219,7 @@ export class CornerActivationComponent
     effect(
       () => {
         const values = this.paramsValuesTensor();
-        if (
-          this.lastParams &&
-          this.lastParams.dim.pointId.size === values.dim.pointId.size
-        ) {
+        if (this.lastParams && this.lastParams.dim.pointId.size === values.dim.pointId.size) {
           return;
         }
         this.lastParams = values;
@@ -287,9 +270,7 @@ export class CornerActivationComponent
           this.updateParamsFromControlsEffect = effect(
             () => {
               const controlValues = this.controlValuesArr();
-              const curValues = untracked(
-                this.paramsValuesTensor
-              ).tensor.arraySync() as number[][];
+              const curValues = untracked(this.paramsValuesTensor).tensor.arraySync() as number[][];
               let needToUpdate = false;
               for (let i = 0; i < curValues.length; i++) {
                 const s = controlValues[i];
@@ -365,10 +346,7 @@ export class CornerActivationComponent
 
   updateParamValues(paramValues: number[][]) {
     this.paramsValuesTensor.update((oldValues) => {
-      const newValues = new gtensor.GTensor(tf.tensor(paramValues), [
-        'pointId',
-        'outputRepSize',
-      ]);
+      const newValues = new gtensor.GTensor(tf.tensor(paramValues), ['pointId', 'outputRepSize']);
       if (isSameGTensorValue(oldValues, newValues)) {
         return oldValues;
       }
@@ -441,20 +419,14 @@ export class CornerActivationComponent
     const curGradient = this.grad();
     const curParams = this.paramsValuesTensor();
     console.log(`curParams: ${JSON.stringify(curParams.tensor.arraySync())}`);
-    console.log(
-      `curGradient: ${JSON.stringify(
-        !curGradient || curGradient.tensor.arraySync()
-      )}`
-    );
+    console.log(`curGradient: ${JSON.stringify(!curGradient || curGradient.tensor.arraySync())}`);
     console.log(`curConfig: ${JSON.stringify(curConfig)}`);
     if (!curGradient) {
       console.warn('applyGrad called when gradient was not defined.');
       return;
     }
     const curLR = parseFloat(this.learningRateControl.value);
-    this.paramsValuesTensor.set(
-      curParams.pointwiseSub(curGradient._tfScalarMul(tf.scalar(curLR)))
-    );
+    this.paramsValuesTensor.set(curParams.pointwiseSub(curGradient._tfScalarMul(tf.scalar(curLR))));
     // curConfig.paramValues =
     // console.log(`new curConfig: ${JSON.stringify(curConfig)}`);
 

@@ -24,7 +24,7 @@ import {
   TensorOrVarKind,
 } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, generateBatch } from '../seqtasks/util';
+import { BasicLmTask, BasicRandLmTask, Example, generateBatch } from '../seqtasks/util';
 import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
@@ -45,7 +45,7 @@ export type TrainStateConfig = {
 };
 
 export type TaskDatasetSplit = {
-  task: BasicLmTask;
+  task: BasicRandLmTask;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
   trainSetIter: Iterator<Example>;

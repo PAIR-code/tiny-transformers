@@ -18,7 +18,7 @@ import * as _ from 'underscore';
 import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
 import json5 from 'json5';
 import { FormControl } from '@angular/forms';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import { DictTree } from '../../../lib/js_tree/js_tree';
 import * as jstree from '../../../lib/js_tree/js_tree';
 import {

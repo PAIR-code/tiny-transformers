@@ -26,7 +26,7 @@ import {
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import {
   jsonStrListValidator,
   jsonStrListErrorFn,

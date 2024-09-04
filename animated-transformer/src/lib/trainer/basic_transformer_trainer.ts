@@ -18,7 +18,12 @@ limitations under the License.
 import { TensorOrVarKind, GTensor, GVariable, VariableKind, TensorKind } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, splitGenerativeTaskTestSet } from '../seqtasks/util';
+import {
+  BasicLmTask,
+  BasicRandLmTask,
+  Example,
+  splitGenerativeTaskTestSet,
+} from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { transformerAccuracy } from '../transformer/transformer_gtensor';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
@@ -46,7 +51,7 @@ export interface TrainMetrics {
 }
 
 export function initTransformerTrainState(
-  task: BasicLmTask,
+  task: BasicRandLmTask,
   model: {
     tokenRep: BasicTaskTokenRep;
     config: transformer.TransformerConfig;

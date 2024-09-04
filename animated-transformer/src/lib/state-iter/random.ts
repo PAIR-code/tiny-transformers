@@ -87,10 +87,6 @@ export class RandomStream extends StateIter<RandomState, number> {
     super(state, randomItor);
   }
 
-  override copy(): RandomStream {
-    return new RandomStream(copyRandomState(this.state));
-  }
-
   random(): number {
     return nextRandom(this.state);
   }

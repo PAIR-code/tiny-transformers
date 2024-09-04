@@ -32,13 +32,14 @@ import {
   DecisionBoundaryTaskConfig,
   baseVocab as dboundaryVocab,
 } from '../../../lib/seqtasks/decision_boundary_task';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import {
   BasicLmTask,
   BasicLmTaskConfig,
   BasicLmTaskUpdate,
   RandLmTaskConfig,
   Example,
+  BasicRandLmTask,
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
@@ -51,61 +52,7 @@ import {
 
 // ----------------------------------------------------------------------------
 
-class TaskMetadata {
-  public configStr: string;
-  public defaultConfigStr: string;
-  public task: BasicLmTask;
-
-  constructor(
-    public config: BasicLmTaskConfig,
-    public factory: (c: BasicLmTaskConfig) => BasicLmTask
-  ) {
-    this.configStr = stringifyJsonValue(config);
-    this.defaultConfigStr = this.configStr;
-    this.task = this.factory(this.config);
-  }
-
-  updateFromStr(s: string): void {
-    this.configStr = s;
-    this.config = json5.parse(this.configStr);
-    this.task = this.factory(this.config);
-  }
-}
-
-const inittaskSet: TaskMetadata[] = [
-  new TaskMetadata(
-    {
-      name: 'a swap task',
-      maxInputLen: 4,
-      maxOutputLen: 1,
-      valuesLessThan: swap_task.baseVocab.length + 1,
-      seed: 47,
-    } as swap_task.SwapTaskConfig,
-    (c) => new swap_task.SwapTask(c as swap_task.SwapTaskConfig)
-  ),
-  new TaskMetadata(
-    {
-      name: 'a boundary task',
-      kind: 'DecisionBoundaryTask',
-      maxInputLen: 5,
-      maxOutputLen: 1,
-      seed: 0,
-    } as DecisionBoundaryTaskConfig,
-    (c) => new DecisionBoundaryTask(c as DecisionBoundaryTaskConfig)
-  ),
-  new TaskMetadata(
-    {
-      name: 'mod secret token === 0',
-      maxInputLen: 5,
-      maxOutputLen: 1,
-      seed: 0,
-      randomTokensVocab: ['1', '2', '3', '4', '5'],
-      tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
-    } as SecretTokenTaskConfig<string>,
-    (c) => new SecretTokenTask(c as SecretTokenTaskConfig<string>)
-  ),
-  new TaskMetadata(defaultTinyWorldTaskConfig, (c) => new TinyWorldTask(c as TinyWorldTaskConfig)),
-];
+const inittaskSet: TaskMetadata[] = [];
 const initTaskMap = {} as { [name: string]: TaskMetadata };
 inittaskSet.forEach((t) => (initTaskMap[t.config.name] = t));
 

@@ -45,11 +45,12 @@ import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 import { StateIter } from '../state-iter/state-iter';
 import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { taskRegistry } from './task_registry';
 
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
 
-export interface SecretTokenTaskConfig<Vocab extends string> extends RandLmTaskConfig {
+export type SecretTokenTaskConfig<Vocab extends string> = RandLmTaskConfig & {
   kind: 'SecretTokenTask';
   // Vocab for the random tokens, and also from which the secret value is
   // chosen.
@@ -58,7 +59,17 @@ export interface SecretTokenTaskConfig<Vocab extends string> extends RandLmTaskC
   //   (s: Vocab, t: Vocab) => boolean
   //   e.g. 'return s > t'
   tokenToBoolFnStr: string;
-}
+};
+
+export const defaultSecretTokenTaskConfig: SecretTokenTaskConfig<string> = {
+  name: 'mod secret token === 0',
+  kind: 'SecretTokenTask',
+  maxInputLen: 5,
+  maxOutputLen: 1,
+  genStateConfig: { seed: 0 },
+  randomTokensVocab: ['1', '2', '3', '4', '5'],
+  tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
+};
 
 export class SecretTokenTask<Vocab extends string> implements BasicRandLmTask {
   // TODO: consider doing programatically in the constructor?
@@ -128,3 +139,5 @@ export class SecretTokenTask<Vocab extends string> implements BasicRandLmTask {
     }
   }
 }
+
+taskRegistry.register(defaultSecretTokenTaskConfig, (c) => new SecretTokenTask(c));

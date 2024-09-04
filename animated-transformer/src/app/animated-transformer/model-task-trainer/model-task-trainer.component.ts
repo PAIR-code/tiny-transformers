@@ -55,7 +55,7 @@ import {
 } from 'src/lib/trainer/basic_transformer_trainer';
 import { mapNonNull } from 'src/lib/rxjs/util';
 import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
-import { stringifyJsonValue } from 'src/lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { DictTree } from 'src/lib/js_tree/js_tree';
 import * as tf from '@tensorflow/tfjs';
 import {

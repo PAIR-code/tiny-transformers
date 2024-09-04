@@ -25,16 +25,13 @@ The strutcure has up-pointers to the parent, this can be used to take the
 This is an implementation for the "JSON"-fragment of JavaScript values, and
 it is used to support some slightly formatting of JSON (very pretty printing).
 ---------------------------------------------------------------------------- */
-import { quote } from '../pretty_json/json';
+import { quote } from '../json/json';
 
 // ----------------------------------------------------------------------------
 // Abstract Tube type has a parent.
 export abstract class AbsTube {
   // The path up...
-  public parent:
-    | null
-    | { idx: number; node: Tube }
-    | { key: string; node: Tube } = null;
+  public parent: null | { idx: number; node: Tube } | { key: string; node: Tube } = null;
 
   accessorString(): string {
     if (this.parent === null) {
@@ -190,13 +187,7 @@ export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
     if (config.sortObjKeys) {
       keys = keys.sort();
     }
-    return (
-      '{' +
-      keys
-        .map((k) => `${k}: ${stringifyOneLine(config, t.obj[k])}`)
-        .join(', ') +
-      '}'
-    );
+    return '{' + keys.map((k) => `${k}: ${stringifyOneLine(config, t.obj[k])}`).join(', ') + '}';
   }
 }
 
@@ -208,10 +199,7 @@ function maxLineStrWidth(s: string): {
 } {
   const lines = s.split('\n');
   return {
-    maxLineWidth: lines.reduce(
-      (maxWidth, l) => (l.length > maxWidth ? l.length : maxWidth),
-      0
-    ),
+    maxLineWidth: lines.reduce((maxWidth, l) => (l.length > maxWidth ? l.length : maxWidth), 0),
     firstLineWidth: lines[0].length,
     lastLineWidth: lines[lines.length - 1].length,
     nLines: lines.length,
@@ -234,9 +222,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       const joinStr = ',\n' + subConfig.curIndent;
       // IDEA: know the pre-string, to help define line break for first item
       // in list.
-      return `[ ${t.arr
-        .map((c) => stringifyTube(subConfig, c))
-        .join(joinStr)} ]`;
+      return `[ ${t.arr.map((c) => stringifyTube(subConfig, c)).join(joinStr)} ]`;
     } else {
       if (t.arr.length === 0) {
         return stringifyOneLine(config, t);
@@ -248,10 +234,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
         const s = stringifyOneLine(config, c);
         if (
           curLine.length > 2 &&
-          config.curIndent.length +
-            curLine.length +
-            s.length +
-            ARR_VALUE_SEP_LEN >=
+          config.curIndent.length + curLine.length + s.length + ARR_VALUE_SEP_LEN >=
             config.arrWrapAt
         ) {
           curStr += curLine + ',\n';
@@ -288,14 +271,11 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       const subConfig = { ...config };
       subConfig.curIndent += '  ';
       let joinStr = ',\n' + subConfig.curIndent;
-      const innerStr = keys
-        .map((k) => `${k}: ${stringifyTube(subConfig, t.obj[k])}`)
-        .join(joinStr);
+      const innerStr = keys.map((k) => `${k}: ${stringifyTube(subConfig, t.obj[k])}`).join(joinStr);
       // TODO:
       let prefix = '{ ';
       const postfix = ' }';
-      const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } =
-        maxLineStrWidth(innerStr);
+      const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } = maxLineStrWidth(innerStr);
 
       // Ideas for smarter positioning...
       // (maxLineWidth > config.objWrapAt ||

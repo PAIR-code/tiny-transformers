@@ -28,6 +28,7 @@ import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, RandLmTaskConfig, BasicRandLmTask, Example } from './util';
 import { StateIter } from '../state-iter/state-iter';
 import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { taskRegistry } from './task_registry';
 
 export type SwapTaskConfig = RandLmTaskConfig & {
   kind: 'SwapTask';
@@ -79,6 +80,15 @@ export function makeOutput(input: number[]): Action[] {
   return output;
 }
 
+export const defaultSwapTaskConfig: SwapTaskConfig = {
+  name: 'a swap task',
+  kind: 'SwapTask',
+  maxInputLen: 4,
+  maxOutputLen: 1,
+  valuesLessThan: baseVocab.length + 1,
+  genStateConfig: { seed: 47 },
+};
+
 export class SwapTask implements BasicRandLmTask {
   // TODO: consider doing programatically in the constructor?
   public name: string;
@@ -128,3 +138,5 @@ export class SwapTask implements BasicRandLmTask {
     }
   }
 }
+
+taskRegistry.register(defaultSwapTaskConfig, (c) => new SwapTask(c));

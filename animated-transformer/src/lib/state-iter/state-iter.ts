@@ -22,43 +22,92 @@ limitations under the License.
 // structuredClone works for so many cases, this is generally fine.
 
 // Class wrapper so we have convenience functions handy.
+
 export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T> {
-  // copy: () => StateIter<S, T>;
+  copy: () => StateIter<S, T>;
+  iter: () => Iterator<T>;
 
-  constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {}
-
-  copy(): StateIter<S, T> {
-    return new StateIter(structuredClone(this.state), this.iterFn);
+  // TODO: make iterFn local, and use it to locally make the copy function, and
+  // in filter, map, etc, copy the full StateIter instead of the internal state.
+  // This way the state is never an input to a function, and downstream types
+  // can maintain nice stacking even when they have StateIter arguments.
+  constructor(public state: S, iterFn: (s: S) => Iterator<T>) {
+    this.iter = () => {
+      return iterFn(this.state);
+    };
+    this.copy = () => {
+      return new StateIter(structuredClone(this.state), iterFn);
+    };
   }
 
   filter(filterKeepFn: (i: T) => boolean): void {
-    const originalIterFn = this.iterFn;
-    const newIterFn = (state: S) => filterGen(filterKeepFn, originalIterFn(state));
-    this.iterFn = newIterFn;
+    const newIterFn = () => filterGen(filterKeepFn, this.iter());
+    this.iter = newIterFn;
   }
 
   map<T2>(fn: (x: T) => T2): StateIter<S, T2> {
-    const newState = structuredClone(this.state);
-    const oldIterFn = this.iterFn;
-    function newIterFn(s: S): Iterator<T2> {
-      return mapGen(oldIterFn(s), fn);
-    }
-    return new StateIter(newState, newIterFn);
+    const newStateIter = this.copy() as never as StateIter<S, T2>;
+    newStateIter.iter = () => {
+      return mapGen(newStateIter.iter() as Iterator<T>, fn);
+    };
+    return newStateIter;
   }
 
   // Returns a state iterator copy for the first N examples.
   takeOutN(n: number): T[] {
-    return listNextN(this.iterFn(this.state), n);
+    return listNextN(this.iter(), n);
   }
 
   next() {
-    return this.iterFn(this.state).next();
+    return this.iter().next();
   }
 
   [Symbol.iterator]() {
-    return this.iterFn(this.state);
+    return this.iter();
   }
 }
+
+// export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T> {
+//   // copy: () => StateIter<S, T>;
+
+//   // TODO: make iterFn local, and use it to locally make the copy function, and
+//   // in filter, map, etc, copy the full StateIter instead of the internal state.
+//   // This way the state is never an input to a function, and downstream types
+//   // can maintain nice stacking even when they have StateIter arguments.
+//   constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {}
+
+//   copy(): StateIter<S, T> {
+//     return new StateIter(structuredClone(this.state), this.iterFn);
+//   }
+
+//   filter(filterKeepFn: (i: T) => boolean): void {
+//     const originalIterFn = this.iterFn;
+//     const newIterFn = (state: S) => filterGen(filterKeepFn, originalIterFn(state));
+//     this.iterFn = newIterFn;
+//   }
+
+//   map<T2>(fn: (x: T) => T2): StateIter<S, T2> {
+//     const newState = structuredClone(this.state);
+//     const oldIterFn = this.iterFn;
+//     function newIterFn(s: S): Iterator<T2> {
+//       return mapGen(oldIterFn(s), fn);
+//     }
+//     return new StateIter(newState, newIterFn);
+//   }
+
+//   // Returns a state iterator copy for the first N examples.
+//   takeOutN(n: number): T[] {
+//     return listNextN(this.iterFn(this.state), n);
+//   }
+
+//   next() {
+//     return this.iterFn(this.state).next();
+//   }
+
+//   [Symbol.iterator]() {
+//     return this.iterFn(this.state);
+//   }
+// }
 
 // export function generateBatch<T>(
 //   exampleGenFn: (
