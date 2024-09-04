@@ -15,10 +15,17 @@ limitations under the License.
 
 /* Tiny Worlds */
 
-import { addBetweenEvery, BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import {
+  addBetweenEvery,
+  BasicLmTask,
+  RandLmTaskConfig,
+  Example,
+  BasicRandLmTask,
+  SomeBasicLmTask,
+} from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import { Story, initStory, sampleNextRel } from '../logic/stories';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
 import { parseRule, Rule } from '../logic/rules';
 import {
@@ -52,7 +59,7 @@ import {
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export interface TinyWorldTaskConfig extends BasicRandSeededTaskConfig {
+export interface TinyWorldTaskConfig extends RandLmTaskConfig {
   kind: 'TinyWorldTask';
   typeHierarchy: TypeHierarchySpec;
   relationKinds: { [relName: string]: string[] };
@@ -69,7 +76,7 @@ tests if some zero-order and first order info could be correctly captured.
 export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'beysian (version 1) world. ',
   kind: 'TinyWorldTask',
-  seed: 42,
+  genStateConfig: { seed: 42 },
   maxInputLen: 10,
   maxOutputLen: 10,
   typeHierarchy: {
@@ -86,7 +93,7 @@ export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
 export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
   name: 'tiny synthetic world',
   kind: 'TinyWorldTask',
-  seed: 0,
+  genStateConfig: { seed: 42 },
   maxInputLen: 10,
   maxOutputLen: 10,
   typeHierarchy: {
@@ -172,13 +179,13 @@ export type RelName = string;
 //  Tiny World Task Configs
 // ============================================================================== //
 
-export class TinyWorldTask implements BasicLmTask {
+export class TinyWorldTask implements BasicRandLmTask {
   public initStory: Story<TypeName, VarName, RelName>;
   public rules: Rule<TypeName, VarName, RelName>[];
   public baseVocab: string[];
   private exampleId: number;
-  public exampleIter: StateIter<RandomStream, Example>;
-  public rns: RandomStream;
+  public exampleIter: StateIter<RandomState, Example>;
+  // public rns: RandomStream;
 
   // TODO: validate the relations don't break the types...
   // e.g. "is: ['']" can currently be added by accident.
@@ -210,12 +217,12 @@ export class TinyWorldTask implements BasicLmTask {
 
     this.rules = this.config.rules.map((rStr) => parseRule(rStr));
 
-    this.rns = makeRandomStream(config.seed);
+    // this.rns = makeRandomStream(config.genStateConfig.seed);
 
     this.exampleIter = new StateIter(
-      this.rns,
-      (x) => x.copy(),
-      (rns) => this.examplesGen(rns)
+      structuredClone(config.genStateConfig),
+      // (x) => x.copy(),
+      (r) => this.examplesGen(r)
     );
   }
 
@@ -258,7 +265,8 @@ export class TinyWorldTask implements BasicLmTask {
     }
   }
 
-  genRandExample(rns: RandomStream): Example {
+  genRandExample(rndState: RandomState): Example {
+    const rns = new RandomStream(rndState);
     const generatedTokens: string[] = [];
     const maxTokens = this.config.maxInputLen + this.config.maxOutputLen;
     let curStory = this.initStory;
@@ -284,9 +292,9 @@ export class TinyWorldTask implements BasicLmTask {
     };
   }
 
-  *examplesGen(rng: RandomStream): Iterator<Example> {
+  *examplesGen(rndState: RandomState): Iterator<Example> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(rndState);
     }
   }
 }

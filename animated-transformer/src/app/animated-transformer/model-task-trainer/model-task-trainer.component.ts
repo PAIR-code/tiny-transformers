@@ -107,7 +107,7 @@ const layerNormTrainer = new TrainerMetaData('transformer', {
   trainState: {
     batchSize: 64,
     learningRate: 10,
-    maxInputlength: 5,
+    maxInputLength: 5,
     testSetSize: 64,
     trainSetSize: 64 * 10000,
   },
@@ -120,7 +120,7 @@ const noLayerNormTrainer = new TrainerMetaData('transformer', {
   trainState: {
     batchSize: 64,
     learningRate: 0.5,
-    maxInputlength: 5,
+    maxInputLength: 5,
     testSetSize: 64,
     trainSetSize: 64 * 10000,
   },

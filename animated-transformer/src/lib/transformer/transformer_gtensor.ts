@@ -373,15 +373,17 @@ export type TransformerComputation = {
 };
 
 export function computeTransformer(
-  spec: TransformerParamSpec,
-  params: TransformerParams,
+  model: {
+    config: { spec: TransformerParamSpec };
+    params: TransformerParams;
+  },
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
   let currentLayerInput = seqInput;
-  params.layers.forEach((layerParams, i) => {
+  model.params.layers.forEach((layerParams, i) => {
     const layerCompute = computeAttnHead(
-      spec.layers[i].computeSpec,
+      model.config.spec.layers[i].computeSpec,
       layerParams,
       currentLayerInput
     );
@@ -403,40 +405,34 @@ export function computeTransformer(
  * tokenEmb: embeddings for all tokens.
  * targetTokenIdxs: a one-hot token vector for the correct token.
  */
-export function transformerLastTokenLogits(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+export function lastTokenLogits(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
 ): GTensor<'batch' | 'tokenId'> {
-  const lastLayer = params.layers[params.layers.length - 1];
+  const lastLayer = computation.layers[computation.layers.length - 1];
   const positionParams = lastLayer.seqOuput.unstack('pos');
   const lastPosParams = positionParams[positionParams.length - 1];
-  const logits = lastPosParams.contract(tokenEmb, ['inputRep']);
+  const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
   return logits;
 }
 
 /**
  * Returns the average per example loss for the last token prediction.
  */
-export function transformerLastTokenCrossEntropyLoss(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+export function lastTokenCrossEntropyLoss(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
   targetTokenIdxs: GTensor<'batch'>
 ): tf.Scalar {
-  const logits = transformerLastTokenLogits(params, tokenEmb);
-
+  const logits = lastTokenLogits(model, computation);
   const logProbs = logits.softmax('tokenId').log();
-  //
-  // const logProbs = logits.softmax('token');
-
-  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, tokenEmb.dim.tokenId.size), [
-    'batch',
-    'tokenId',
-  ]);
-
+  const nTokens = model.params.tokenEmbedding.dim.tokenId.size;
+  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, nTokens), ['batch', 'tokenId']);
   const crossEntopy = logProbs.pointwiseMul(oneHotToken);
-  // const crossEntopy = logProbs.squaredDifference(oneHotToken).sqrt();
-  // const loss = signedDelta.pointwiseMul(signedDelta);
-
   return (
     crossEntopy
       .sumOverDims(['batch', 'tokenId'])
@@ -455,20 +451,23 @@ export function transformerLastTokenCrossEntropyLoss(
  * targetTokenIdxs: a one-hot token vector for the correct token.
  */
 export function transformerTopPrediction(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
 ): GTensor<'batch'> {
-  const dotProd = transformerLastTokenLogits(params, tokenEmb);
+  const dotProd = lastTokenLogits(model, computation);
   return dotProd.argMax('tokenId');
 }
 
 export function transformerAccuracy(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
   targetTokenIdxs: GTensor<'batch'>
 ): tf.Scalar {
-  const predictions = transformerTopPrediction(params, tokenEmb);
-
+  const predictions = transformerTopPrediction(model, computation);
   return predictions
     .pointwiseEqual(targetTokenIdxs)
     .sumOverDims(['batch'])
@@ -476,31 +475,35 @@ export function transformerAccuracy(
 }
 
 export function computeDecoder(
-  tokenRep: BasicTaskTokenRep,
+  model: {
+    config: { spec: TransformerParamSpec };
+    params: TransformerParams;
+    tokenRep: BasicTaskTokenRep;
+  },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  spec: TransformerParamSpec,
-  params: TransformerParams,
   inputs: string[][]
 ): TransformerComputation {
   const maxInputLength = inputs.reduce(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
     0
   );
-  const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
-  return computeTransformer(spec, params, gtensorInputs);
+  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
+  return computeTransformer(model, gtensorInputs);
 }
 
 export function computePrediction(
-  tokenRep: BasicTaskTokenRep,
+  model: {
+    config: { spec: TransformerParamSpec };
+    tokenRep: BasicTaskTokenRep;
+    params: TransformerParams;
+  },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  spec: TransformerParamSpec,
-  params: TransformerParams,
   inputs: string[][]
 ): string[][] {
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(tokenRep, inputPrepFn, spec, params, inputs);
-    const predictions = transformerTopPrediction(decoderComputation, params.tokenEmbedding);
-    return (predictions.tensor.arraySync() as number[]).map((idx, i) => [tokenRep.tokens[idx]]);
+    const decoderComputation = computeDecoder(model, inputPrepFn, inputs);
+    const predictions = transformerTopPrediction(model, decoderComputation);
+    return (predictions.tensor.arraySync() as number[]).map((idx) => [model.tokenRep.tokens[idx]]);
   });
   return examplePredictions;
 }

@@ -15,13 +15,23 @@ limitations under the License.
 
 import { SignalSpace, ValueSignal, signal, computed, effect } from './signalspace';
 
+// type MaybeReturn<T, F> = undefined extends F ? void : T;
+type MaybeReturn<T> = void extends T ? void : T;
+
+// type Foo = undefined extends undefined ? true : false;
+type Foo = void extends void ? true : false;
+
 describe('signalspace', () => {
-  async function waitTick(): Promise<void> {
-    return new Promise<void>((resolve) => {
+  async function waitTick<T>(f?: () => T): Promise<MaybeReturn<T>> {
+    return new Promise<T | void>((resolve) => {
       setTimeout(() => {
-        resolve();
+        if (f) {
+          resolve(f());
+        } else {
+          resolve();
+        }
       }, 0);
-    });
+    }) as Promise<MaybeReturn<T>>;
   }
 
   it('Simple signal compute', () => {
@@ -111,6 +121,62 @@ describe('signalspace', () => {
     expect(c.lastValue).toEqual('Abc');
   });
 
+  fit('Double setting values and effects: normal alwaysUpdate Values', async () => {
+    const s = new SignalSpace();
+
+    let counter = 0;
+    const a = signal(s, 'a');
+    const e = effect(s, () => {
+      counter += 1;
+      return a() + 'e';
+    });
+
+    expect(a()).toEqual('a');
+    expect(e()).toEqual('ae');
+    a.set('A');
+
+    const { nextTick_a, nextTick_e } = await waitTick(() => {
+      return { nextTick_a: a.lastValue(), nextTick_e: e.lastValue() };
+    });
+
+    expect(nextTick_a).toEqual('a');
+    expect(nextTick_e).toEqual('Ae');
+    expect(counter).toEqual(1);
+    a.set('aa');
+    a.set('AA');
+    await waitTick();
+    expect(counter).toEqual(3);
+  });
+
+  fit('Double setting values and effects: normal update justLatest Values', async () => {
+    const s = new SignalSpace();
+
+    let counter = 0;
+    const a = signal(s, 'a', { clobberBehvaior: 'justLatest' });
+    const e = effect(s, () => {
+      counter += 1;
+      return a() + 'e';
+    });
+
+    expect(a()).toEqual('a');
+    expect(e()).toEqual('ae');
+
+    expect(counter).toEqual(0);
+    console.log('1:', a.lastValue());
+    a.set('A');
+    expect(counter).toEqual(0);
+    console.log('2:', a.lastValue());
+    await waitTick();
+    console.log('3:', a.lastValue());
+
+    expect(counter).toEqual(1);
+    a.set('aa');
+    a.set('AA');
+    await waitTick();
+    // Contrast this to the previous test where the value is 3!
+    expect(counter).toEqual(2);
+  });
+
   it('Two step effect vs compute signal update with angular-style syntax', async () => {
     const s = new SignalSpace();
 
@@ -129,10 +195,8 @@ describe('signalspace', () => {
     expect(e()).toEqual('abe');
     a.set('A');
 
-    const { e2, c2 } = await new Promise<{ c2: string; e2: string }>((resolve) => {
-      setTimeout(() => {
-        resolve({ c2: c.lastValue(), e2: e.lastValue() });
-      }, 0);
+    const { e2, c2 } = await waitTick(() => {
+      return { c2: c.lastValue(), e2: e.lastValue() };
     });
 
     expect(c2).toEqual('abc');

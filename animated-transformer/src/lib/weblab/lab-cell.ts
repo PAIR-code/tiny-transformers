@@ -1,5 +1,21 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 /// <reference lib="webworker" />
 
+import * as tf from '@tensorflow/tfjs';
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { Signal, WritableSignal, SignalSpace } from './signalspace';
 import {
@@ -9,6 +25,7 @@ import {
   PromiseStructFn,
   SignalsStructFn,
   PromisedSignalsFn,
+  Metrics,
 } from './cellspec';
 
 export const space = new SignalSpace();
@@ -96,37 +113,47 @@ export class FuncCell<Input extends ValueStruct, Output extends ValueStruct> {
   }
 }
 
+export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
+  [Key in Name]: Globals[Key];
+};
+
+// Something to force type evaluation. See: https://github.com/microsoft/TypeScript/issues/47980
+export type Expand<T> = T extends unknown ? { [K in keyof T]: Expand<T[K]> } : never;
+
+// Something to force type evaluation. See: https://github.com/microsoft/TypeScript/issues/47980
+export type ExpandOnce<T> = T extends unknown ? { [K in keyof T]: T[K] } : never;
+
 export class StatefulCell<
   Globals extends ValueStruct,
-  Uses extends Globals,
-  Updates extends Globals
+  Uses extends keyof Globals,
+  Updates extends keyof Globals
 > {
-  input: PromisedSignalsFn<Uses>;
-  stillExpectedInputs: Set<keyof Uses>;
-  inputSoFar: Partial<SignalsStructFn<Uses>> = {};
-  onceAllInputs: Promise<SignalsStructFn<Uses>>;
+  input: PromisedSignalsFn<Subobj<Globals, Uses>>;
+  stillExpectedInputs: Set<Uses>;
+  inputSoFar: Partial<SignalsStructFn<Subobj<Globals, Uses>>> = {};
+  onceAllInputs: Promise<SignalsStructFn<Subobj<Globals, Uses>>>;
 
-  constructor(spec: CellStateSpec<Uses & Updates, keyof Uses, keyof Updates>) {
-    this.input = {} as PromisedSignalsFn<Uses>;
+  constructor(public global: Partial<Globals>, spec: CellStateSpec<Globals, Uses, Updates>) {
+    this.input = {} as PromisedSignalsFn<Subobj<Globals, Uses>>;
     this.stillExpectedInputs = new Set(spec.uses);
 
-    let onceAllInputsResolver: (allInput: SignalsStructFn<Uses>) => void;
-    this.onceAllInputs = new Promise<SignalsStructFn<Uses>>((resolve, reject) => {
+    let onceAllInputsResolver: (allInput: SignalsStructFn<Subobj<Globals, Uses>>) => void;
+    this.onceAllInputs = new Promise<SignalsStructFn<Subobj<Globals, Uses>>>((resolve, reject) => {
       onceAllInputsResolver = resolve;
     });
 
     for (const inputName of spec.uses) {
-      const promisedInput = onceGetInput<Uses[typeof inputName]>(inputName as string);
+      const promisedInput = onceGetInput<Globals[typeof inputName]>(inputName as string);
       this.input[inputName] = promisedInput.then((inputValue) => {
         const signal = space.writable(inputValue);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
-          onceAllInputsResolver(this.inputSoFar as SignalsStructFn<Uses>);
+          onceAllInputsResolver(this.inputSoFar as SignalsStructFn<Subobj<Globals, Uses>>);
         }
         // New inputs should now simply update the existing signal.
         inputResolvers[inputName as string] = (value) => {
-          signal.set(value as Uses[typeof inputName]);
+          signal.set(value as Globals[typeof inputName]);
         };
         return signal;
       });
@@ -135,13 +162,14 @@ export class StatefulCell<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async run(runFn: (input: SignalsStructFn<Uses>) => void) {
+
+  async run(runFn: (input: ExpandOnce<SignalsStructFn<Subobj<Globals, Uses>>>) => void) {
     const inputs = await this.onceAllInputs;
-    runFn(inputs);
+    runFn(inputs as ExpandOnce<SignalsStructFn<Subobj<Globals, Uses>>>);
     this.finished();
   }
 
-  output<Key extends keyof Updates>(key: Key, value: Updates[Key]) {
+  output<Key extends Updates>(key: Key, value: Globals[Key]) {
     sendOutput(key as string, value);
   }
 
@@ -149,4 +177,43 @@ export class StatefulCell<
     postMessage({ kind: 'finished' });
     close();
   }
+}
+
+// ============================================================================
+
+type PromisedMetrics<Name extends string> = {
+  batchId: number;
+  values: { [name in Name]: Promise<number> };
+};
+
+export function makeMetricReporter<Name extends string>(
+  names: Name[]
+): {
+  lastMetrics: Signal<Metrics<Name>>;
+  reportMetrics: (batchId: number, tfScalarMetrics: { [names in Name]: tf.Scalar }) => void;
+} {
+  const promisedMetrics = space.writable({} as PromisedMetrics<Name>);
+
+  // Notes:
+  // - We keep all tfjs values local, so there is no memory leakage.
+  // - We avoid sync calls that slow down CPU/GPU communication.
+  function reportMetrics(batchId: number, tfScalarMetrics: { [names in Name]: tf.Scalar }): void {
+    const promised = { batchId, values: {} } as PromisedMetrics<Name>;
+    for (const [metricName, scalar] of Object.entries<tf.Scalar>(tfScalarMetrics)) {
+      promised.values[metricName as Name] = scalar.array();
+    }
+    promisedMetrics.set(promised);
+  }
+
+  const lastMetrics = space.writable({ batchId: -1, values: {} } as Metrics<Name>);
+  space.effect(async () => {
+    const promised = promisedMetrics();
+    const metric = { batchId: promised.batchId, values: {} } as Metrics<Name>;
+    for (const [metricName, promise] of Object.entries<Promise<number>>(promised.values)) {
+      metric.values[metricName as Name] = await promise;
+    }
+    lastMetrics.set(metric);
+  });
+
+  return { lastMetrics, reportMetrics };
 }

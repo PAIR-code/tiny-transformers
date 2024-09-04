@@ -50,15 +50,15 @@ export function asEntryFromList<T>(zeroToOneNumber: number, l: T[]): T {
 // before things go wrong. e.g. in JS:
 // Number.MAX_VALUE + 1 === Number.MAX_VALUE (tested 10 Mar 2023).
 export function nextRandom(state: RandomState): number {
-  state.curSeedVal += 0x6d2b79f5; // === 1831565813
-  let x = state.curSeedVal;
+  state.seed += 0x6d2b79f5; // === 1831565813
+  let x = state.seed;
   x = Math.imul(x ^ (x >>> 15), x | 1);
   x ^= x + Math.imul(x ^ (x >>> 7), x | 61); // 61 = prime number.
   return ((x ^ (x >>> 14)) >>> 0) / 0x100000000; // 2 ^^ 32 === 4294967296
 }
 
 export function makeSubstream(state: RandomState): RandomState {
-  return { curSeedVal: nextRandom(state) };
+  return { seed: nextRandom(state) };
 }
 
 export function* randomItor(state: RandomState): Iterator<number> {
@@ -67,20 +67,24 @@ export function* randomItor(state: RandomState): Iterator<number> {
   }
 }
 
-export type RandomState = { curSeedVal: number };
+export type RandomState = { seed: number };
 // slightly sneakily used as both constructor and copier.
-export function copyRandomState(state: { curSeedVal: number }): RandomState {
-  return { curSeedVal: state.curSeedVal };
+export function copyRandomState(state: RandomState): RandomState {
+  return { seed: state.seed };
 }
-export function makeRandomStream(curSeedVal: number): RandomStream {
-  return new RandomStream({ curSeedVal });
+export function makeRandomStream(initSeed: number): RandomStream {
+  return new RandomStream({ seed: initSeed });
 }
 
+// TO CONSIDER: not really clear if this does more than the basic library for working
+// on random states... we could consider making a library for the
+// "asFloatInRange" and others that simply calls the nextRandom on the state
+// first...?
 export class RandomStream extends StateIter<RandomState, number> {
   public override state!: RandomState;
 
   constructor(state: RandomState) {
-    super(state, copyRandomState, randomItor);
+    super(state, randomItor);
   }
 
   override copy(): RandomStream {

@@ -28,26 +28,24 @@ Another variant: have to output number of a's and b's to make the count equal.
 
 // import * as tf from '@tensorflow/tfjs';
 // import { TokenEmb } from '../tokens/token_emb';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 
 export const baseVocab = ['a', 'b'];
 
-export type AorBisMaxTaskConfig = BasicRandSeededTaskConfig & {
+export type AorBisMaxTaskConfig = RandLmTaskConfig & {
   kind: 'AorBisMaxTask';
 };
 
-export class AorBisMaxTask implements BasicLmTask {
+export class AorBisMaxTask implements BasicRandLmTask {
   public baseVocab = ['a', 'b'];
   private exampleId = 0;
-  public exampleIter: StateIter<RandomStream, Example>;
+  public exampleIter: StateIter<RandomState, Example>;
 
   constructor(public config: AorBisMaxTaskConfig) {
-    this.exampleIter = new StateIter(
-      makeRandomStream(config.seed),
-      (x) => x.copy(),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(structuredClone(config.genStateConfig), (r) =>
+      this.examplesGen(r)
     );
   }
 
@@ -56,7 +54,8 @@ export class AorBisMaxTask implements BasicLmTask {
   // to improve the ordering of the list.
   // * Of all pairs that you can swap to improve the ascending ordering of the list,
   // what pair have the biggest difference?
-  genRandExample(rng: RandomStream): Example {
+  genRandExample(r: RandomState): Example {
+    const rng = new RandomStream(r);
     const input = new Array<string>(this.config.maxInputLen);
     const output = new Array<string>(1);
     let aCount = 0;
@@ -83,9 +82,9 @@ export class AorBisMaxTask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
+  *examplesGen(r: RandomState): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(r);
     }
   }
 }

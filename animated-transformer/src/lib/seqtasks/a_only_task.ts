@@ -20,34 +20,33 @@ and output should be 'a'.
 Can we get the loss to 0?
 */
 
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
 
 export const baseVocab = ['a', 'b'];
 
-export type OnlyATaskConfig = BasicRandSeededTaskConfig & {
+export type OnlyATaskConfig = RandLmTaskConfig & {
   kind: 'OnlyATask';
 };
 
-export class OnlyATask implements BasicLmTask {
+export class OnlyATask implements BasicRandLmTask {
   public name = 'onlyATask';
   public baseVocab = baseVocab;
   private exampleId = 0;
-  public exampleIter: StateIter<RandomStream, Example>;
+  public exampleIter: StateIter<RandomState, Example>;
 
   constructor(public config: OnlyATaskConfig) {
-    this.exampleIter = new StateIter(
-      makeRandomStream(config.seed),
-      (x) => x.copy(),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(structuredClone(this.config.genStateConfig), (r) =>
+      this.examplesGen(r)
     );
   }
 
   // Problem Descriptions:
   // * Return 'a'
-  genRandExample(rng: RandomStream): Example {
+  genRandExample(r: RandomState): Example {
+    const rng = new RandomStream(r);
     const input = new Array<string>(this.config.maxInputLen);
     const output = new Array<string>(1);
 
@@ -60,9 +59,9 @@ export class OnlyATask implements BasicLmTask {
     return { id: this.exampleId++, input, output };
   }
 
-  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
+  *examplesGen(r: RandomState): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(r);
     }
   }
 }

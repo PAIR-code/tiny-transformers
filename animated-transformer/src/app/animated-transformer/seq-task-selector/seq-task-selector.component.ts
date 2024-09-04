@@ -37,7 +37,7 @@ import {
   BasicLmTask,
   BasicLmTaskConfig,
   BasicLmTaskUpdate,
-  BasicRandSeededTaskConfig,
+  RandLmTaskConfig,
   Example,
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';

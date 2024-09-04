@@ -15,7 +15,7 @@ limitations under the License.
 
 import * as transformer from '../transformer/transformer_gtensor';
 import * as abtask from '../seqtasks/ab_task';
-import { BasicRandSeededTaskConfig } from '../seqtasks/util';
+import { RandLmTaskConfig } from '../seqtasks/util';
 import {
   prepareBasicTaskTokenRep,
   strSeqPrepFn,
@@ -59,7 +59,7 @@ describe('basic_transformer_trainer', () => {
     const trainStateConfig: TrainStateConfig = {
       learningRate: 0.5,
       batchSize: 64,
-      maxInputlength: taskConfig.maxInputLen,
+      maxInputLength: taskConfig.maxInputLen,
       testSetSize: 0,
       trainSetSize: 64,
     };

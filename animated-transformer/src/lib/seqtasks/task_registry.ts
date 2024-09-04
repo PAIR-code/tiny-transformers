@@ -28,7 +28,7 @@ export const taskConfigDefaults: TaskConfig[] = [
   defaultDecisionBoundaryTaskConfig,
 ];
 
-export function makeTask(config: TaskConfig): BasicLmTask {
+export function makeTask(config: TaskConfig): BasicLmTask<TaskConfig> {
   switch (config.kind) {
     case 'TinyWorldTask':
       return new TinyWorldTask(config);

@@ -19,15 +19,27 @@ limitations under the License.
 
 import { BasicLmTask, BasicLmTaskConfig, Example, indexExample } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { TrainStateConfig } from 'src/lib/trainer/train_state';
 import { WritableSignal } from 'src/lib/weblab/signalspace';
-import { cellFactory } from 'src/lib/weblab/cellspec';
+import { cellFactory, Metrics } from 'src/lib/weblab/cellspec';
+import { TaskConfig } from 'src/lib/seqtasks/task_registry';
+
+export type TrainConfig = {
+  learningRate: number;
+  batchSize: number;
+  maxInputLength: number;
+  checkpointFrequencyInBatches: number;
+  metricReporting: {
+    metricFrequencyInBatches: number;
+  };
+};
 
 export type Globals = {
-  transformerConfig: WritableSignal<TransformerConfig>;
-  transformerParams: WritableSignal<TransformerParams>;
-  trainConfig: WritableSignal<TrainStateConfig>;
-  testSet: WritableSignal<Example[]>;
+  taskConfig: TaskConfig;
+  transformerConfig: TransformerConfig;
+  transformerParams: TransformerParams;
+  trainConfig: TrainConfig;
+  testSet: Example[];
+  lastTrainMetric: Metrics<'entropyLoss' | 'accuracy'>;
 };
 export const globals: Partial<Globals> = {};
 
@@ -36,5 +48,5 @@ export const trainerCell = cellFactory(
   'Trainer cell',
   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
   ['testSet', 'trainConfig', 'transformerConfig'],
-  ['transformerParams']
+  ['transformerParams', 'lastTrainMetric']
 );

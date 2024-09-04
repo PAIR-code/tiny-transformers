@@ -115,8 +115,8 @@ export class SignalSpace {
     return this.computeStack.length > 0 ? this.computeStack[this.computeStack.length - 1] : null;
   }
 
-  makeSignal<T>(value: T): ValueSignal<T> {
-    const s = new ValueSignal(this, value);
+  makeSignal<T>(value: T, options?: Partial<ValueOptions<T>>): ValueSignal<T> {
+    const s = new ValueSignal(this, value, options);
     return s;
   }
 
@@ -269,6 +269,11 @@ export type ComputeOptions<T> = {
 
 export type ValueOptions<T> = {
   eqCheck: (x: T, y: T) => boolean;
+  // If a value is set twice, what should the update behvaior be?
+  // * 'alwaysUpdate' ==> any dependent effects and computations get called twice.
+  // * 'justLatest' ==> dependent effects and computations get called once only,
+  //   with the latest value.
+  clobberBehvaior: 'alwaysUpdate' | 'justLatest';
 };
 
 function defaultEqCheck<T>(x: T, y: T) {
@@ -285,15 +290,9 @@ function defaultComputeOptions<T>(): ComputeOptions<T> {
 function defaultValueOptions<T>(): ValueOptions<T> {
   return {
     eqCheck: defaultEqCheck,
+    clobberBehvaior: 'alwaysUpdate',
   };
 }
-
-// export interface Signal<T> {
-//   // (options?: SignalGetOptions): T;
-//   data: SignalData<T>;
-//   dependsOnMe: Set<ComputedSignalClass<unknown>>;
-//   get(options?: SignalGetOptions): T;
-// }
 
 export class ValueSignal<T> {
   // All these computed signals in the SignalSpace, `c` have a `c.get(this)`.
@@ -308,8 +307,7 @@ export class ValueSignal<T> {
     public value: T,
     options?: Partial<ValueOptions<T>>
   ) {
-    this.options = Object.assign(defaultValueOptions(), options || {});
-    // super('options', 'return this.get(options)');
+    this.options = { ...defaultValueOptions(), ...options };
     signalSpace.signalSet.add(this as ValueSignal<unknown>);
   }
 
@@ -369,9 +367,10 @@ export class ValueSignal<T> {
       // If we try and set an already set value, we have to update all effects
       // before we set the new value.
       if (
+        (this.options.clobberBehvaior === 'alwaysUpdate',
         this.dependsOnMeEffects.size > 0 &&
-        this.signalSpace.update &&
-        this.signalSpace.update.valuesUpdated.has(this as ValueSignal<unknown>)
+          this.signalSpace.update &&
+          this.signalSpace.update.valuesUpdated.has(this as ValueSignal<unknown>))
       ) {
         this.signalSpace.updatePendingEffects();
       }
@@ -486,8 +485,12 @@ export type SomeSignal = ComputedSignal<unknown> | ValueSignal<unknown>;
 
 // TODO: is there a writing style that catching errors/missing values?
 // Maybe ... { function, ...objectproperties }
-export function signal<T>(space: SignalSpace, value: T): WritableSignal<T> {
-  const valueSignal = space.makeSignal(value);
+export function signal<T>(
+  space: SignalSpace,
+  value: T,
+  valueOptions?: Partial<ValueOptions<T>>
+): WritableSignal<T> {
+  const valueSignal = space.makeSignal(value, valueOptions);
   function getFunction() {
     return valueSignal.get();
   }

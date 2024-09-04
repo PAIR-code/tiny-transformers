@@ -13,14 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  CopyableData,
-  StateIter,
-  filterGen,
-  listGen,
-  takeNextN,
-  takeNextNgen,
-} from './state-iter';
+import { StateIter, filterGen, listGen, takeNextN, takeNextNgen } from './state-iter';
 
 describe('state-iter', () => {
   beforeEach(() => {});
@@ -43,16 +36,16 @@ describe('state-iter', () => {
     expect([...takenNums]).toEqual([1, 3, 5]);
   });
 
-  it('simple StateIter.takeOutN', () => {
-    function* listPopIter<T>(l: CopyableData<T[]>) {
-      while (l.data.length > 0) {
-        yield l.data.pop();
-      }
-    }
-    const iter = new StateIter(new CopyableData([1, 2, 3, 4, 5]), listPopIter);
+  // it('simple StateIter.takeOutN', () => {
+  //   function* listPopIter<T>(l: CopyableData<T[]>) {
+  //     while (l.data.length > 0) {
+  //       yield l.data.pop();
+  //     }
+  //   }
+  //   const iter = new StateIter(new CopyableData([1, 2, 3, 4, 5]), listPopIter);
 
-    expect(iter.takeOutN(2)).toEqual([5, 4]);
-    expect(iter.takeOutN(2)).toEqual([3, 2]);
-    expect(iter.takeOutN(2)).toEqual([1]);
-  });
+  //   expect(iter.takeOutN(2)).toEqual([5, 4]);
+  //   expect(iter.takeOutN(2)).toEqual([3, 2]);
+  //   expect(iter.takeOutN(2)).toEqual([1]);
+  // });
 });

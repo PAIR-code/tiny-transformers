@@ -32,8 +32,8 @@ import {
   initDecoderVarParams,
   TransformerComputation,
   computeDecoder,
-  transformerLastTokenLogits,
-  transformerLastTokenCrossEntropyLoss,
+  lastTokenLogits,
+  lastTokenCrossEntropyLoss,
   transformerAccuracy,
 } from '../transformer/transformer_gtensor';
 import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
@@ -101,32 +101,20 @@ function* batchGenerator(task: TinyWorldTask, batchNum: number, batchSize: numbe
 }
 
 function computeLoss(
+  model: {
+    tokenRep: BasicTaskTokenRep;
+    config: TransformerConfig;
+    params: TransformerParams;
+  },
   batchId: number,
   batchInput: string[][],
-  batchOutput: string[][],
-  tokenRep: BasicTaskTokenRep,
-  transformerConfig: TransformerConfig,
-  decoderParamsTree: TransformerParams
+  batchOutput: string[][]
 ): tf.Scalar {
-  const computation: TransformerComputation = computeDecoder(
-    tokenRep,
-    strSeqPrepFn,
-    transformerConfig.spec,
-    decoderParamsTree,
-    batchInput
-  );
-  const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
-  const entropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
-    computation,
-    decoderParamsTree.tokenEmbedding,
-    singleNextTokenIdx
-  );
+  const computation: TransformerComputation = computeDecoder(model, strSeqPrepFn, batchInput);
+  const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
+  const entropyLoss: tf.Scalar = lastTokenCrossEntropyLoss(model, computation, singleNextTokenIdx);
   if (batchId % printEveryNBatches === 0) {
-    const accuracy: tf.Scalar = transformerAccuracy(
-      computation,
-      decoderParamsTree.tokenEmbedding,
-      singleNextTokenIdx
-    );
+    const accuracy: tf.Scalar = transformerAccuracy(model, computation, singleNextTokenIdx);
     console.log(
       `batch: ${batchId} `.padEnd(15) +
         ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
@@ -145,6 +133,11 @@ function run() {
   const transformerConfig = getTransformerConfig();
   const tokenRep = prepareBasicTaskTokenRep(trainTask.baseVocab);
   const decoderParams = initDecoderVarParams(tokenRep, transformerConfig);
+  const model = {
+    tokenRep,
+    config: transformerConfig,
+    params: decoderParams,
+  };
 
   {
     // train with optimiztaion
@@ -155,9 +148,7 @@ function run() {
     let batchId = 0;
     for (let batch of batchGenerator(trainTask, batchNum, batchSize)) {
       let [batchInput, batchOutput] = batch;
-      optimizer.minimize(() =>
-        computeLoss(batchId, batchInput, batchOutput, tokenRep, transformerConfig, decoderParams)
-      );
+      optimizer.minimize(() => computeLoss(model, batchId, batchInput, batchOutput));
       batchId += 1;
     }
     optimizer.dispose();
@@ -184,18 +175,12 @@ function run() {
     // for (let inferStep = 0; inferStep < inferSteps; inferStep += 1) {
     const inferStep = 0;
     const spec = transformerConfig.spec;
-    const computation: TransformerComputation = computeDecoder(
-      tokenRep,
-      strSeqPrepFn,
-      spec,
-      decoderParams,
-      batchInput
-    );
+    const computation: TransformerComputation = computeDecoder(model, strSeqPrepFn, batchInput);
     //
-    const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
+    const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
     // [0] to look at only the first example in batch.
     const singleNextTokenIdxArrayData = (singleNextTokenIdx.tensor.arraySync() as number[])[0];
-    const logits = transformerLastTokenLogits(computation, decoderParams.tokenEmbedding);
+    const logits = lastTokenLogits(model, computation);
     // TODO: tensor.arraySync() doesn't provide any guarentee for the ordering of outputs,
     // we need to use the right gtensor functions to get the output we want...
     // [0] to look at only the first example in batch.

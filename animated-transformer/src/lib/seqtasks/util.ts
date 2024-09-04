@@ -21,8 +21,9 @@ limitations under the License.
  * -
  */
 
-import { RandomStream } from '../state-iter/random';
+import { RandomState, RandomStream } from '../state-iter/random';
 import { StateIter } from '../state-iter/state-iter';
+import { TaskConfig } from './task_registry';
 
 export interface Example {
   id: number;
@@ -37,28 +38,62 @@ export interface Example {
 // export type ExampleIter = ;
 // Generator<Example, undefined, undefined>;
 
-export type BasicLmTaskConfig = {
+export type BasicLmTaskConfig<T> = {
   name: string;
+  kind: string; // this part of a descriminated union.
   maxInputLen: number;
   maxOutputLen: number;
+  // All determistically generated tasks must have some data that defines the
+  // task. This lives in genStateConfig, should be directly serializable, and
+  // uniquely defines how/what data examples get generated. This requirement
+  // allows a config to be saved and loaded later, while keeping generation
+  // deterministic, independently of when it is loaded/saved.
+  genStateConfig: T;
 };
 
-export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
-  seed: number;
-};
+// Many tasks depend solely on a random number.
+export type RandLmTaskConfig = BasicLmTaskConfig<RandomState>;
+
+export type GenStateOfTaskConfig<T> = T extends BasicLmTaskConfig<infer GenState>
+  ? GenState
+  : never;
+
+type ShouldBeTrue = GenStateOfTaskConfig<RandLmTaskConfig> extends RandomState ? true : false;
 
 /* Simple interface for classes that provide a task */
-export type BasicLmTask = {
-  config: BasicLmTaskConfig;
+export interface BasicLmTask<Config extends BasicLmTaskConfig<{}>> {
+  config: Config;
   baseVocab: string[];
-  // TODO: consider if/how this can give more generality in the state of the
-  // state iterator.
-  exampleIter: StateIter<any, Example>;
-  // tokenRep: MaskedTaskTokenRep;
-  // genRandExample(): Example;
-  // Called after a config change to re-init.
-  // reInitFromConfig(): void;
-};
+  exampleIter: StateIter<GenStateOfTaskConfig<Config>, Example>;
+}
+
+// A way to get from a BasicLmTask back to a config that can be used to
+// reconstruct the same task state.
+export function configFromTaskIter<GenState extends {}, Config extends BasicLmTaskConfig<GenState>>(
+  task: BasicLmTask<Config>
+): Config {
+  const config: Config = {
+    ...structuredClone(task.config),
+    genStateConfig: structuredClone(task.exampleIter.state),
+  };
+  return config;
+}
+
+// export type BasicLmTask<C extends BasicLmTaskConfig<{}>> =
+//   BasicLmTaskWithGenState<, C>
+
+export type BasicRandLmTask = BasicLmTask<BasicLmTaskConfig<RandomState>>;
+
+export type SomeBasicLmTask = BasicLmTask<BasicLmTaskConfig<any>>;
+
+// export type RandomStateExtendsUnit = RandomState extends {} ? true : false;
+// export type BasicExtendsSome_True = BasicRandLmTask extends SomeBasicLmTask ? true : false;
+
+// function foo(t: BasicLmTask<BasicLmTaskConfig<{}>>) {}
+
+// const bar = {} as never as BasicRandLmTask;
+
+// foo(bar);
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -69,7 +104,7 @@ export type BasicLmTask = {
 // that when we emit task changes, they always have a new top-level object so
 // that change detection sees that it's something new.
 export interface BasicLmTaskUpdate {
-  task?: BasicLmTask;
+  task?: SomeBasicLmTask;
 }
 
 // ----------------------------------------------------------------------------

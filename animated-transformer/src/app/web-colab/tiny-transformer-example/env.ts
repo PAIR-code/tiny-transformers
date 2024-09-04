@@ -27,27 +27,29 @@ import {
   TransformerParamSpec,
 } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { computed, signal, SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
+import { SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
 import { cellFactory, CellFuncSpec, CellStateSpec, ValueStruct } from 'src/lib/weblab/cellspec';
 import { makeTask, TaskConfig, taskConfigDefaults } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
 
-const s = new SignalSpace();
+const space = new SignalSpace();
+const writable = space.writable;
+const computed = space.computed;
 
-const taskConfig = signal<TaskConfig>(s, structuredClone(taskConfigDefaults[0]));
-const task = computed(s, () => makeTask(taskConfig()));
-const tokenRep = computed(s, () => prepareBasicTaskTokenRep(task().baseVocab));
+const taskConfig = writable<TaskConfig>(structuredClone(taskConfigDefaults[0]));
+const task = computed(() => makeTask(taskConfig()));
+const tokenRep = computed(() => prepareBasicTaskTokenRep(task().baseVocab));
 
-const trainConfig = signal<TrainStateConfig>(s, {
+const trainConfig = writable<TrainStateConfig>({
   learningRate: 0.5,
   batchSize: 64,
-  maxInputlength: 10,
+  maxInputLength: 10,
   testSetSize: 200,
   trainSetSize: 640,
 });
 
-const testTrainSplit = computed(s, () => {
+const dataSplitByTrainAndTest = computed(() => {
   const examplesIter = task().exampleIter.copy();
   const testExamples = examplesIter.takeOutN(trainConfig().testSetSize);
   const testSetIndex = new Set(testExamples.map(indexExample));
@@ -59,22 +61,24 @@ const testTrainSplit = computed(s, () => {
   return { testExamples, trainExamplesIter };
 });
 
-const testExamples = computed(s, () => testTrainSplit().testExamples);
-const trainExamplesIter = computed(s, () => testTrainSplit().trainExamplesIter);
+const testExamples = computed(() => dataSplitByTrainAndTest().testExamples);
+const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
 
-const transformerConfig = signal<TransformerConfig>(s, defaultTransformerConfig());
-const transformerParams = computed(s, () => initDecoderVarParams(tokenRep(), transformerConfig()));
+const transformerConfig = writable(defaultTransformerConfig());
+const transformerParams = computed(() => initDecoderVarParams(tokenRep(), transformerConfig()));
+const model = computed(() => {
+  return {
+    tokenRep: tokenRep(),
+    config: transformerConfig(),
+    params: transformerParams(),
+  };
+});
 
 function makeTrainBatch(): GTensor<'batch' | 'pos' | 'inputRep'> {
-  let batchOriginal = testTrainSplit().trainExamplesIter.takeOutN(trainConfig().batchSize);
+  let batchOriginal = dataSplitByTrainAndTest().trainExamplesIter.takeOutN(trainConfig().batchSize);
   let batchInputSeqs = batchOriginal.map((example) => example.input);
   let batchOutputSeqs = batchOriginal.map((example) => example.output);
-  const batchInputGTensor = strSeqPrepFnAddingFinalMask(
-    tokenRep(),
-    transformerParams().tokenEmbedding,
-    trainConfig().maxInputlength,
-    batchInputSeqs
-  );
+  const batchInputGTensor = strSeqPrepFnAddingFinalMask(model(), batchInputSeqs, trainConfig());
   return batchInputGTensor;
 }
 

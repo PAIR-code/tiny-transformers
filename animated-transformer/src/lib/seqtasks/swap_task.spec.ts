@@ -26,7 +26,7 @@ describe('swap_task', () => {
       maxInputLen: 10,
       maxOutputLen: 1,
       valuesLessThan: swap_task.baseVocab.length + 1,
-      seed: 47,
+      genStateConfig: { seed: 47 },
     });
   });
 
@@ -60,7 +60,7 @@ describe('swap_task', () => {
 
   it('genRandExample', () => {
     const rng = makeRandomStream(0);
-    const example = swapTask.genRandExample(rng);
+    const example = swapTask.genRandExample(rng.state);
     // Strange bug:
     //   example.input.map(x => parseInt(x)) !==
     //   example.input.map(parseInt)

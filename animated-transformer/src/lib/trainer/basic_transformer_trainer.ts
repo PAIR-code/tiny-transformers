@@ -47,25 +47,28 @@ export interface TrainMetrics {
 
 export function initTransformerTrainState(
   task: BasicLmTask,
-  tokenRep: BasicTaskTokenRep,
+  model: {
+    tokenRep: BasicTaskTokenRep;
+    config: transformer.TransformerConfig;
+    params: transformer.VarTransformerParams;
+  },
   inputPrepFn: StrSeqPrepFn<transformer.VarTransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  targetPrepFn: (tokenRep: BasicTaskTokenRep, outputSeqs: string[][]) => GTensor<'batch'>,
-  transformerConfig: transformer.TransformerConfig,
-  transformerInitParams: transformer.VarTransformerParams,
+  targetPrepFn: (
+    model: { tokenRep: BasicTaskTokenRep },
+    outputSeqs: string[][]
+  ) => GTensor<'batch'>,
   trainStateConfig: TrainStateConfig
 ): TransformerTrainState {
   function transformerLastTokenLoss(
-    spec: transformer.TransformerParamSpec,
-    params: transformer.TransformerParams,
+    model: {
+      config: { spec: transformer.TransformerParamSpec };
+      params: transformer.VarTransformerParams;
+    },
     inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
     targets: GTensor<'batch'>
   ): tf.Scalar {
-    const decoderComputation = transformer.computeTransformer(spec, params, inputs);
-    const loss = transformer.transformerLastTokenCrossEntropyLoss(
-      decoderComputation,
-      params.tokenEmbedding,
-      targets
-    );
+    const decoderComputation = transformer.computeTransformer(model, inputs);
+    const loss = transformer.lastTokenCrossEntropyLoss(model, decoderComputation, targets);
     return loss as tf.Scalar;
   }
 
@@ -88,11 +91,9 @@ export function initTransformerTrainState(
   let state!: TransformerTrainState;
   tf.tidy(() => {
     state = new TrainState(
-      transformerConfig.spec,
-      transformerInitParams,
+      model,
       trainStateConfig,
       transformerLastTokenLoss,
-      tokenRep,
       taskDatasetSplit,
       inputPrepFn,
       targetPrepFn
@@ -118,16 +119,8 @@ export function computeMetrics(state: TransformerTrainState): TrainMetrics {
 export function computeStateBatchAccuracy(state: TransformerTrainState): number {
   let meanAcc: number = -1;
   tf.tidy(() => {
-    const decoderComputation = transformer.computeTransformer(
-      state.spec,
-      state.params,
-      state.inputsVar
-    );
-    meanAcc = transformerAccuracy(
-      decoderComputation,
-      state.params.tokenEmbedding,
-      state.targetsVar
-    ).dataSync()[0];
+    const decoderComputation = transformer.computeTransformer(state.model, state.inputsVar);
+    meanAcc = transformerAccuracy(state.model, decoderComputation, state.targetsVar).dataSync()[0];
   });
   return meanAcc;
 }
@@ -146,14 +139,10 @@ export function computeLossAndAccuracy(
     for (let i = 0; i < examples.length; i += state.config.batchSize) {
       const testSetBatch = examples.slice(i, i + state.config.batchSize);
       state.prepareBatch(testSetBatch);
-      const decoderComputation = transformer.computeTransformer(
-        state.spec,
-        state.params,
-        state.inputsVar
-      );
+      const decoderComputation = transformer.computeTransformer(state.model, state.inputsVar);
       const batchAcc = transformerAccuracy(
+        state.model,
         decoderComputation,
-        state.params.tokenEmbedding,
         state.targetsVar
       ).dataSync()[0];
       meanAccPerBatch.push(batchAcc);

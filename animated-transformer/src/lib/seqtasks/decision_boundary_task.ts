@@ -25,9 +25,9 @@ decision boundary is.
 // fastest route to D is left or right.
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 import { StateIter } from '../state-iter/state-iter';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
 
 export const numberVocab = ['1', '2', '3', '4', '5'];
 // Given B = decision boundary:
@@ -37,7 +37,7 @@ export type RelPosDecision = 'R' | 'L';
 export const relPosVocab: RelPosDecision[] = ['L', 'R'];
 export const baseVocab = [...relPosVocab, ...numberVocab];
 
-export type DecisionBoundaryTaskConfig = BasicRandSeededTaskConfig & {
+export type DecisionBoundaryTaskConfig = RandLmTaskConfig & {
   kind: 'DecisionBoundaryTask';
 };
 
@@ -46,24 +46,23 @@ export const defaultDecisionBoundaryTaskConfig: DecisionBoundaryTaskConfig = {
   kind: 'DecisionBoundaryTask',
   maxInputLen: 5,
   maxOutputLen: 1,
-  seed: 0,
+  genStateConfig: { seed: 0 },
 };
 
-export class DecisionBoundaryTask implements BasicLmTask {
+export class DecisionBoundaryTask implements BasicRandLmTask {
   public baseVocab = baseVocab;
   private exampleId: number;
-  public exampleIter: StateIter<RandomStream, Example>;
+  public exampleIter: StateIter<RandomState, Example>;
 
   constructor(public config: DecisionBoundaryTaskConfig) {
     this.exampleId = 0;
-    this.exampleIter = new StateIter(
-      makeRandomStream(config.seed),
-      (x) => x.copy(),
-      (rng) => this.examplesGen(rng)
+    this.exampleIter = new StateIter(structuredClone(config.genStateConfig), (r) =>
+      this.examplesGen(r)
     );
   }
 
-  genRandExample(rng: RandomStream): Example {
+  genRandExample(r: RandomState): Example {
+    const rng = new RandomStream(r);
     // Boundary position is one of [-.05, 0.5, 1.5, ... (N+0.5)]
     const boundaryPos = Math.floor(rng.random() * (numberVocab.length + 1)) - 0.5;
 
@@ -92,9 +91,9 @@ export class DecisionBoundaryTask implements BasicLmTask {
     return { id: this.exampleId++, input, output, secret: [`${boundaryPos}`] };
   }
 
-  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
+  *examplesGen(r: RandomState): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(r);
     }
   }
 }

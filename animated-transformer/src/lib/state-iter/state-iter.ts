@@ -15,21 +15,20 @@ limitations under the License.
 
 // Determistic stateful iterables. The assumption is that the state contains
 // all the information used by the iterator, and the iterator updates the state.
-// Copying the state, effectively enables
+// Also assumes that the state is copyable by structuredClone.
+
+// Note: it would also be possible to make a version of this that was given the
+// copy function, or that required S to be an object with a copy function. But
+// structuredClone works for so many cases, this is generally fine.
 
 // Class wrapper so we have convenience functions handy.
-//
-// Note: We don't use S extends IsCopyable or Copyable, or anything like that
-// because it ends in a big type-passing mess, and you can construct stuff like
-// that on top of this easily:
-//
-//   (x) => x.copy()
-//
 export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T> {
-  constructor(public state: S, public copyFn: (s: S) => S, public iterFn: (s: S) => Iterator<T>) {}
+  // copy: () => StateIter<S, T>;
+
+  constructor(public state: S, public iterFn: (s: S) => Iterator<T>) {}
 
   copy(): StateIter<S, T> {
-    return new StateIter(this.copyFn(this.state), this.copyFn, this.iterFn);
+    return new StateIter(structuredClone(this.state), this.iterFn);
   }
 
   filter(filterKeepFn: (i: T) => boolean): void {
@@ -44,7 +43,7 @@ export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T
     function newIterFn(s: S): Iterator<T2> {
       return mapGen(oldIterFn(s), fn);
     }
-    return new StateIter(newState, this.copyFn, newIterFn);
+    return new StateIter(newState, newIterFn);
   }
 
   // Returns a state iterator copy for the first N examples.
@@ -58,32 +57,6 @@ export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T
 
   [Symbol.iterator]() {
     return this.iterFn(this.state);
-  }
-}
-
-export function makeClonableIter<S, T>(s: S, iterFn: (S: S) => Iterator<T>): StateIter<S, T> {
-  return new StateIter<S, T>(s, structuredClone, iterFn);
-}
-
-export type UnknownCopyable = {
-  copy(): UnknownCopyable;
-};
-
-export type Copyable<S> = {
-  copy(): S;
-};
-
-export function makeCopyableIter<S extends Copyable<S>, T>(
-  s: S,
-  iterFn: (S: S) => Iterator<T>
-): StateIter<S, T> {
-  return new StateIter<S, T>(s, (x) => x.copy(), iterFn);
-}
-
-export class CopyableData<T> implements Copyable<CopyableData<T>> {
-  constructor(public data: T) {}
-  copy(): CopyableData<T> {
-    return new CopyableData(structuredClone(this.data));
   }
 }
 

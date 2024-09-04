@@ -17,9 +17,16 @@ limitations under the License.
  * way that can be pulled into a webworker, or the environment that runs the
  * webworker. Both can then share the same types that specify the Cell's (aka
  * worker's) behaviour.
+ *
+ * Runs in webworker AND in main browser or node context.
  */
 
 import { WritableSignal } from './signalspace';
+
+export type Metrics<Name extends string> = {
+  batchId: number;
+  values: { [name in Name]: number };
+};
 
 export type ValueStruct = {
   [key: string]: any;
@@ -72,7 +79,13 @@ export function cellFactory<
   Globals extends ValueStruct,
   Uses extends keyof Globals,
   Updates extends keyof Globals
->(globals: Globals, cellName: string, worker: () => Worker, uses: Uses[], updates: Updates[]) {
+>(
+  globals: Partial<Globals>,
+  cellName: string,
+  worker: () => Worker,
+  uses: Uses[],
+  updates: Updates[]
+) {
   return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
 }
 

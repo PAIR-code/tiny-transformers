@@ -49,10 +49,11 @@ describe('tiny_worlds', () => {
       ...defaultTinyWorldTaskConfig,
       maxInputLen: 100,
       maxOutputLen: 1,
+      genStateConfig: { seed: 0 },
     };
-    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
-    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
-    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, seed: 1 };
+    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig };
+    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig };
+    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, genStateConfig: { seed: 1 } };
 
     const tinyWorld_1 = new TinyWorldTask(initConfig_1);
     const tinyWorld_2 = new TinyWorldTask(initConfig_2);

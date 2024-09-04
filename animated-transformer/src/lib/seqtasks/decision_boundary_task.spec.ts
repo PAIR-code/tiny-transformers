@@ -27,7 +27,7 @@ describe('decision_boundary_task', () => {
       kind: 'DecisionBoundaryTask',
       maxInputLen: 5,
       maxOutputLen: 1,
-      seed: 0,
+      genStateConfig: { seed: 0 },
     });
 
     let example: Example;
