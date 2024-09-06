@@ -442,12 +442,7 @@ export function transformerAllTokensCrossEntropyLoss(
 ): tf.Scalar {
   const logits = transformerLogits(params, tokenEmb);
 
-  // This does softmax over the dimension of tokenID ??
   const logProbs = logits.softmax('tokenId').log();
-  //
-  // const logProbs = logits.softmax('token');
-
-  // we are multiplying the same target for everything. Should it be the next token of the input?
   const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, tokenEmb.dim.tokenId.size), [
     'batch',
     'pos',

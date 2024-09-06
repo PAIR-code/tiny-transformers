@@ -38,6 +38,7 @@ import {
   transformerLastTokenLogits,
   transformerLastTokenCrossEntropyLoss,
   transformerAccuracy,
+  transformerAllTokensCrossEntropyLoss
 } from '../transformer/transformer_gtensor';
 import {
   TinyWorldTask,
@@ -52,6 +53,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   prepareBasicTaskTokenRep,
   BasicTaskTokenRep,
+  prepareTargetsTensor
 } from '../tokens/token_gemb';
 import { layer } from '@tensorflow/tfjs-vis/dist/show/model';
 import { example } from 'yargs';
@@ -114,7 +116,7 @@ function* dataGenerator(task: TinyWorldTask, batchNum: number, batchSize: number
 function unbindedLossFn(
   batchId: number,
   batchInput: string[][],
-  batchOutput: string[][],
+  batchOutput: string[][], // Targets
   tokenRep: BasicTaskTokenRep,
   transformerConfig: TransformerConfig,
   decoderParamsTree: TransformerParams
@@ -128,7 +130,7 @@ function unbindedLossFn(
     batchInput
   );
   let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
-  let entropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
+  let lastTokenEntropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
     computation,
     decoderParamsTree.tokenEmbedding,
     singleNextTokenIdx
@@ -139,14 +141,19 @@ function unbindedLossFn(
     singleNextTokenIdx
   );
 
+  let targetIdxs = prepareTargetsTensor(tokenRep, batchInput, batchOutput);
+  let fullEntropyLoss = transformerAllTokensCrossEntropyLoss(computation, decoderParamsTree.obj.tokenEmbedding, targetIdxs);
+
   if (batchId % printEveryNBatches === 0) {
     console.log(
       `batch: ${batchId} `.padEnd(15) +
-        ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
-        ('accuracy: ' + accuracy.arraySync().toFixed(8)).padEnd(25)
+      ('lastTokenEntropyLoss: ' + lastTokenEntropyLoss.arraySync().toFixed(8)).padEnd(25) +
+      ('fullEntropyLoss: ' + fullEntropyLoss.arraySync().toFixed(8)).padEnd(25) +
+      ('accuracy: ' + accuracy.arraySync().toFixed(8)).padEnd(25)
     );
   }
-  return entropyLoss;
+  // return lastTokenEntropyLoss;
+  return fullEntropyLoss;
 }
 
 function run() {

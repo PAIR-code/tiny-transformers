@@ -263,9 +263,9 @@ export function prepareTargetsTensor(
   inputSeqs: string[][],
   outputSeqs: string[][]
 ): GTensor<'batch' | 'pos'> {
-const firstColumnOfOutputSeq = tf.tensor2d(outputSeqs).slice([0, 0], [-1, 1]);
-const resultTensor = tf.tensor2d(inputSeqs).concat(firstColumnOfOutputSeq, 1);
-return new GTensor(
+  const firstColumnOfOutputSeq = tf.tensor2d(outputSeqs.map((outputSeq) => tokenRep.tokenToIdx[outputSeq[0]])).slice([0, 0], [-1, 1]);
+  const resultTensor = tf.tensor2d(inputSeqs).concat(firstColumnOfOutputSeq, 1);
+  return new GTensor(
     resultTensor,
     ['batch', 'pos']
   );
