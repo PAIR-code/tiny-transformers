@@ -438,7 +438,7 @@ export function transformerLogits(
 export function transformerAllTokensCrossEntropyLoss(
   params: TransformerComputation,
   tokenEmb: GTensor<'tokenId' | 'inputRep'>,
-  targetTokenIdxs: GTensor<'batch' | 'pos' >
+  targetTokenIdxs: GTensor<'batch' | 'pos'>
 ): tf.Scalar {
   const logits = transformerLogits(params, tokenEmb);
 
@@ -449,12 +449,15 @@ export function transformerAllTokensCrossEntropyLoss(
     'tokenId',
   ]);
 
-  const crossEntopy = logProbs.pointwiseMul(oneHotToken); 
+  const crossEntopy = logProbs.pointwiseMul(oneHotToken);
+
+  const batchSizeScalar = tf.scalar(targetTokenIdxs.dim.batch.size * -1);
+  const posSizeScalar = tf.scalar(targetTokenIdxs.dim.pos.size * -1);
 
   return (
     crossEntopy
       .sumOverDims(['batch', 'pos', 'tokenId'])
-      ._tfScalarDiv(tf.scalar(targetTokenIdxs.dim.batch.size * -1)).tensor as tf.Scalar
+      ._tfScalarDiv(tf.mul(batchSizeScalar, posSizeScalar)).tensor as tf.Scalar
   );
 }
 
