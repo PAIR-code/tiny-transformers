@@ -80,11 +80,10 @@ export class ModelSpecAndData {
 const layerSpec: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0.0 },
   layerNormFF: false,
   layerNormHeadsProjection: false,
   addLayerNormBias: false,
-  dropoutRate: 0,
 };
 
 const defaultConfig: ModelConfig = {
@@ -106,11 +105,10 @@ const defaultConfig: ModelConfig = {
 const layerSpecWithNorm: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0.0 },
   layerNormFF: true,
   layerNormHeadsProjection: true,
   addLayerNormBias: false,
-  dropoutRate: 0,
 };
 
 const transWithLayerNormed: ModelConfig = {
@@ -132,11 +130,10 @@ const transWithLayerNormed: ModelConfig = {
 const layerSpecWithNormAndDropout: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0.1 },
   layerNormFF: true,
   layerNormHeadsProjection: true,
   addLayerNormBias: false,
-  dropoutRate: 0.1,
 };
 
 const transWithLayerNormedAndDropout: ModelConfig = {

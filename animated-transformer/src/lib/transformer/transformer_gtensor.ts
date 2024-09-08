@@ -50,11 +50,8 @@ import {
   VarLayerNormParams,
 } from '../gtensor/layer_norm';
 import {
-  initDropoutParams,
   dropout,
-  TensorDropoutParams,
-  VarDropoutParams,
-} from '../gtensor/dropout';
+} from './dropout';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
@@ -92,9 +89,9 @@ export type AttnHeadParamSpec = {
   layerNormHeadsProjection: boolean;
   layerNormFF: boolean;
   addLayerNormBias: boolean;
-  dropoutRate: number;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
+  // Note: dropout spec don't introduce params, so they are not here either.
 };
 
 export type TransformerParamLayerSpec = {
@@ -103,13 +100,13 @@ export type TransformerParamLayerSpec = {
   layerNormFF: boolean;
   layerNormHeadsProjection: boolean;
   addLayerNormBias: boolean; // only meaningful when one of the above is true.
-  dropoutRate: number;
   computeSpec: AttnHeadComputeSpec;
 };
 
 export type AttnHeadComputeSpec = {
   // Whether to include or not the residual connections in the computation.
   residuals: boolean;
+  dropoutRate: number; 
 };
 
 // ---------------------------------------------------------------------------
@@ -125,11 +122,6 @@ export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
   ? VarLayerNormParams
   : TensorLayerNormParams;
 
-// More workaround for https://github.com/microsoft/TypeScript/issues/48070
-export type DropoutParams<T extends TensorOrVarKind> = T extends VariableKind
-  ? VarDropoutParams
-  : TensorDropoutParams;
-
 // Use of type here to be compatible with generic params.
 export type AttnHeadParams<T extends TensorOrVarKind> = {
   queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
@@ -143,7 +135,6 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
   // ff2: FfParams<'ffRep', 'ffOut'>;
   // Relative position attention
   relativePosAttention?: GTensorOrVar<T, 'heads' | 'relativePos'>;
-  dropout?: DropoutParams<T>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -207,11 +198,6 @@ export function initAttnHeadParams(
       initConfig
     );
   }
-
-  if (spec.dropoutRate > 0) {
-    attnHeadParams.dropout = initDropoutParams(spec.dropoutRate)
-  }
-
   return attnHeadParams;
 }
 
@@ -275,23 +261,22 @@ export function computeAttnHead(
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
-  let normedHeadReduction = headsReduction;
+  // Dropout after attention weights.
+  // TODO(@aliciafmachado): introduce deterministic flag to disable dropout if we are evaluating.
+  let dropoutResult = headsReduction;
+  if (spec.dropoutRate != 0) {
+    dropoutResult = dropout(
+      spec.dropoutRate,
+      headsReduction,
+    );
+  }
+
+  let normedHeadReduction = dropoutResult;
   if (params.layerNormHeadsProjection) {
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
       headsReduction,
       'inputRepToFF'
-    );
-  }
-
-  // TODO(@aliciafmachado): Place this correctly, and pass output to next layer.
-  // TODO(@aliciafmachado): introduce deterministic flag to disable dropout if we are evaluating.
-  let dropoutResult = normedHeadReduction;
-  if (params.dropout) {
-    dropoutResult = dropout(
-      params.dropout,
-      normedHeadReduction,
-      'inputRepToFF',
     );
   }
 
@@ -345,7 +330,6 @@ export function initDecoderParams(
       layerNormHeadsProjection: layerSpec.layerNormHeadsProjection,
       // addLayerNormBias: AttentionIsAllYouNeed = true; T5 = false.
       addLayerNormBias: layerSpec.addLayerNormBias,
-      dropoutRate: layerSpec.dropoutRate,
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });

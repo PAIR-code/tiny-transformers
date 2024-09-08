@@ -31,12 +31,11 @@ describe('basic_transformer_trainer', () => {
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: false,
-      computeSpec: { residuals: true },
+      computeSpec: { residuals: true, dropoutRate: 0},
       // TODO: investigate: these make 0 gradients?
       layerNormFF: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
-      dropoutRate: 0,
     };
     const decoderConfig: transformer.TransformerConfig = {
       spec: {
@@ -94,13 +93,12 @@ describe('basic_transformer_trainer', () => {
   it('AorBisMaxTaskWithDropout training', async () => {
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
-      hasPosEncoding: false,
-      computeSpec: { residuals: true },
+      hasPosEncoding: true,
+      computeSpec: { residuals: true, dropoutRate: 0.1 },
       // TODO: investigate: these make 0 gradients?
       layerNormFF: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
-      dropoutRate: 0.1,
     };
     const decoderConfig: transformer.TransformerConfig = {
       spec: {

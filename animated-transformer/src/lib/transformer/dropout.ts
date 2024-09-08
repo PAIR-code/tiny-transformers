@@ -13,4 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// TODO(@aliciafmachado): Implement tests for dropout implementation once it's done.
+import {
+    GTensor,
+  } from '../gtensor/gtensor';
+
+  import {dropout as tf_dropout} from '@tensorflow/tfjs';
+  
+  // Wrapper for tf ts dropout.
+  export function dropout<G extends string, D extends G>(
+    dropoutRate: number,
+    g: GTensor<G>,
+    seed?: number,
+    dim?: number[],
+  ): GTensor<G> {
+    return new GTensor(tf_dropout(g.tensor, dropoutRate, dim, seed), g.dimNames);
+  }
+  
