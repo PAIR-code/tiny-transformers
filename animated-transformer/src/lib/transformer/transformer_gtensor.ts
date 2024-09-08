@@ -230,13 +230,19 @@ export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams<TensorKind>,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  eval_mode: boolean = false
+  evalMode: boolean = false
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
-  const queries = seqInput.contract(queryM, ['inputRep']);
-  const keys = seqInput.contract(keyM, ['inputRep']);
-  const values = seqInput.contract(valueM, ['inputRep']);
+  // Dropout on the input of the stack.
+  let seqInputAfterDropout = seqInput;
+  if (spec.dropoutRate > 0){
+    seqInputAfterDropout = dropout(spec.dropoutRate, seqInput, evalMode);
+  }
+
+  const queries = seqInputAfterDropout.contract(queryM, ['inputRep']);
+  const keys = seqInputAfterDropout.contract(keyM, ['inputRep']);
+  const values = seqInputAfterDropout.contract(valueM, ['inputRep']);
 
   let rawAttention = keys
     .rename('pos', 'keyPos')
@@ -255,6 +261,15 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
+  // Dropout on attention weights.
+  if (spec.dropoutRate > 0) {
+    rawAttention = dropout(
+      spec.dropoutRate,
+      rawAttention,
+      evalMode,
+    );
+  }
+
   const attention = rawAttention.softmax('queryPos');
   const attendedValues = values
     .contract(attention.rename('queryPos', 'pos'), ['pos'])
@@ -262,18 +277,17 @@ export function computeAttnHead(
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
-  // Dropout after attention weights.
-  // TODO(@aliciafmachado): Add proper seeding to dropout so that results are reproducible.
-  let dropoutResult = headsReduction;
-  // Disable dropout when evaluating.
-  if (spec.dropoutRate != 0 && !eval_mode) {
-    dropoutResult = dropout(
+  // Dropout before layer norm and residual connection.
+  let headsReductionAfterDropout = headsReduction;
+  if (spec.dropoutRate > 0) {
+    headsReductionAfterDropout = dropout(
       spec.dropoutRate,
       headsReduction,
+      evalMode,
     );
   }
 
-  let normedHeadReduction = dropoutResult;
+  let normedHeadReduction = headsReductionAfterDropout;
   if (params.layerNormHeadsProjection) {
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
@@ -290,19 +304,34 @@ export function computeAttnHead(
     inputToFF = normedHeadReduction.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
   }
 
+  // Skipped dropout in the FF, since the FF nn is a single layer.
   let unNormedSeqOuput = inputToFF
     .contract(ff.w, ['inputRepToFF'])
     .pointwiseAdd(ff.bIn)
     .applyPointWiseTfFn(gelu)
     .pointwiseAdd(ff.bOut);
+
+  // Dropout before layer norm and residual connection.
+  let unNormedSeqOuputAfterDropout = unNormedSeqOuput;
+  if (spec.dropoutRate > 0) {
+    unNormedSeqOuputAfterDropout = dropout(
+      spec.dropoutRate,
+      unNormedSeqOuput,
+      evalMode,
+    );
+  }
+
   if (spec.residuals) {
-    // FF residual
-    unNormedSeqOuput = unNormedSeqOuput.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
+    // FF residual.
+    unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
   }
   let seqOuput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
     seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
   }
+  
+  // Skipped dropout in the output, since results are being outputted directly without additional 
+  // computations.
 
   return {
     seqInput,
@@ -360,7 +389,7 @@ export function computeTransformer(
   spec: TransformerParamSpec,
   params: TransformerParams,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  eval_mode: boolean = false
+  evalMode: boolean = false
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
   let currentLayerInput = seqInput;
@@ -369,7 +398,7 @@ export function computeTransformer(
       spec.layers[i].computeSpec,
       layerParams,
       currentLayerInput,
-      eval_mode,
+      evalMode,
     );
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;

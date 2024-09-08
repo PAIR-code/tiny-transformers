@@ -23,9 +23,26 @@ import {
   export function dropout<G extends string, D extends G>(
     dropoutRate: number,
     g: GTensor<G>,
+    deterministic: boolean,
     seed?: number,
-    dim?: number[],
+    dimNames?: string[],
   ): GTensor<G> {
-    return new GTensor(tf_dropout(g.tensor, dropoutRate, dim, seed), g.dimNames);
+    if (deterministic) {
+      return g;
+    }
+
+    let dimensions: number[] = g.tensor.shape;
+    if (dimNames) {
+      dimensions = [];
+      for (const d of g.dimNames) {
+        if (dimNames.includes(d)) {
+          dimensions = dimensions.concat(g.dim[d].size);
+        }
+        else {
+          dimensions = dimensions.concat(1);
+        }
+      }
+    }
+    return new GTensor(tf_dropout(g.tensor, dropoutRate, dimensions, seed), g.dimNames);
   }
   
