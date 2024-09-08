@@ -229,7 +229,8 @@ function gelu(x: tf.Tensor) {
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams<TensorKind>,
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  eval_mode: boolean = false
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
@@ -262,9 +263,10 @@ export function computeAttnHead(
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
   // Dropout after attention weights.
-  // TODO(@aliciafmachado): introduce deterministic flag to disable dropout if we are evaluating.
+  // TODO(@aliciafmachado): Add proper seeding to dropout so that results are reproducible.
   let dropoutResult = headsReduction;
-  if (spec.dropoutRate != 0) {
+  // Disable dropout when evaluating.
+  if (spec.dropoutRate != 0 && !eval_mode) {
     dropoutResult = dropout(
       spec.dropoutRate,
       headsReduction,
@@ -357,7 +359,8 @@ export type TransformerComputation = {
 export function computeTransformer(
   spec: TransformerParamSpec,
   params: TransformerParams,
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  eval_mode: boolean = false
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
   let currentLayerInput = seqInput;
@@ -365,7 +368,8 @@ export function computeTransformer(
     const layerCompute = computeAttnHead(
       spec.layers[i].computeSpec,
       layerParams,
-      currentLayerInput
+      currentLayerInput,
+      eval_mode,
     );
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
@@ -447,7 +451,7 @@ export function transformerTopPrediction(
 export function transformerAccuracy(
   params: TransformerComputation,
   tokenEmb: GTensor<'tokenId' | 'inputRep'>,
-  targetTokenIdxs: GTensor<'batch'>
+  targetTokenIdxs: GTensor<'batch'>,
 ): tf.Scalar {
   const predictions = transformerTopPrediction(params, tokenEmb);
 
