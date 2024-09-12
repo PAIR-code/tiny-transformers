@@ -20,21 +20,28 @@ import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { Signal, WritableSignal, SignalSpace } from './signalspace';
 import {
   ValueStruct,
-  CellFuncSpec as CellFuncSpec,
   CellStateSpec,
   PromiseStructFn,
   SignalsStructFn,
   PromisedSignalsFn,
   Metrics,
 } from './cellspec';
+import { ExpandOnce } from '../ts-type-helpers';
 
 export const space = new SignalSpace();
 
 const initInputs = {} as { [name: string]: unknown };
 const inputResolvers = {} as { [name: string]: (value: unknown) => void };
+let onceFinishedFn: () => void;
+const onceFinished = new Promise<void>((resolve) => {
+  onceFinishedFn = resolve;
+});
 
 addEventListener('message', ({ data }) => {
   const toWorkerMessage = data as ToWorkerMessage;
+  if (toWorkerMessage.kind === 'finishRequest') {
+    onceFinishedFn();
+  }
   if (toWorkerMessage.kind === 'providingInput') {
     initInputs[toWorkerMessage.name] = toWorkerMessage.inputData;
     if (toWorkerMessage.name in inputResolvers) {
@@ -65,69 +72,65 @@ export function sendOutput<T>(name: string, outputData: T) {
 //   inputs;
 // }
 
-export class FuncCell<Input extends ValueStruct, Output extends ValueStruct> {
-  input: PromiseStructFn<Input>;
-  stillExpectedInputs: Set<keyof Input>;
-  inputSoFar: Partial<Input> = {};
-  onceAllInputs: Promise<Input>;
+// export class FuncCell<Input extends ValueStruct, Output extends ValueStruct> {
+//   onceFinishRequested: Promise<void> = onceFinished;
+//   input: PromiseStructFn<Input>;
+//   stillExpectedInputs: Set<keyof Input>;
+//   inputSoFar: Partial<Input> = {};
+//   onceAllInputs: Promise<Input>;
 
-  constructor(spec: CellFuncSpec<Input, Output>) {
-    this.input = {} as Input;
-    this.stillExpectedInputs = new Set(spec.inputs);
+//   constructor(spec: CellFuncSpec<Input, Output>) {
+//     this.input = {} as Input;
+//     this.stillExpectedInputs = new Set(spec.inputs);
 
-    let onceAllInputsResolver: (allInput: Input) => void;
-    this.onceAllInputs = new Promise<Input>((resolve, reject) => {
-      onceAllInputsResolver = resolve;
-    });
+//     let onceAllInputsResolver: (allInput: Input) => void;
+//     this.onceAllInputs = new Promise<Input>((resolve, reject) => {
+//       onceAllInputsResolver = resolve;
+//     });
 
-    for (const inputName of spec.inputs) {
-      this.input[inputName] = onceGetInput(inputName as string);
-      this.input[inputName].then((inputValue) => {
-        this.inputSoFar[inputName] = inputValue;
-        this.stillExpectedInputs.delete(inputName);
-        if (this.stillExpectedInputs.size === 0) {
-          onceAllInputsResolver(this.inputSoFar as Input);
-        }
-      });
-    }
-  }
+//     for (const inputName of spec.inputs) {
+//       this.input[inputName] = onceGetInput(inputName as string);
+//       this.input[inputName].then((inputValue) => {
+//         this.inputSoFar[inputName] = inputValue;
+//         this.stillExpectedInputs.delete(inputName);
+//         if (this.stillExpectedInputs.size === 0) {
+//           onceAllInputsResolver(this.inputSoFar as Input);
+//         }
+//       });
+//     }
+//   }
 
-  // get all inputs, run the function on them, and then provide the outputs.
-  // Basically an RPC.
-  async run(runFn: (input: Input) => Output) {
-    const inputs = await this.onceAllInputs;
-    const outputs = runFn(inputs);
-    for (const [outputName, outputValue] of Object.entries(outputs)) {
-      this.output(outputName, outputValue);
-    }
-    this.finished();
-  }
+//   // get all inputs, run the function on them, and then provide the outputs.
+//   // Basically an RPC.
+//   async run(runFn: (input: Input) => Output) {
+//     const inputs = await this.onceAllInputs;
+//     const outputs = runFn(inputs);
+//     for (const [outputName, outputValue] of Object.entries(outputs)) {
+//       this.output(outputName, outputValue);
+//     }
+//     this.finished();
+//   }
 
-  output<Key extends keyof Output>(key: Key, value: Output[Key]) {
-    sendOutput(key as string, value);
-  }
+//   output<Key extends keyof Output>(key: Key, value: Output[Key]) {
+//     sendOutput(key as string, value);
+//   }
 
-  finished() {
-    postMessage({ kind: 'finished' });
-    close();
-  }
-}
+//   finished() {
+//     postMessage({ kind: 'finished' });
+//     close();
+//   }
+// }
 
 export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
   [Key in Name]: Globals[Key];
 };
-
-// Something to force type evaluation. See: https://github.com/microsoft/TypeScript/issues/47980
-export type Expand<T> = T extends unknown ? { [K in keyof T]: Expand<T[K]> } : never;
-
-// Something to force type evaluation. See: https://github.com/microsoft/TypeScript/issues/47980
-export type ExpandOnce<T> = T extends unknown ? { [K in keyof T]: T[K] } : never;
 
 export class StatefulCell<
   Globals extends ValueStruct,
   Uses extends keyof Globals,
   Updates extends keyof Globals
 > {
+  onceFinishRequested: Promise<void> = onceFinished;
   input: PromisedSignalsFn<Subobj<Globals, Uses>>;
   stillExpectedInputs: Set<Uses>;
   inputSoFar: Partial<SignalsStructFn<Subobj<Globals, Uses>>> = {};
@@ -165,7 +168,7 @@ export class StatefulCell<
 
   async run(runFn: (input: ExpandOnce<SignalsStructFn<Subobj<Globals, Uses>>>) => void) {
     const inputs = await this.onceAllInputs;
-    runFn(inputs as ExpandOnce<SignalsStructFn<Subobj<Globals, Uses>>>);
+    await runFn(inputs as ExpandOnce<SignalsStructFn<Subobj<Globals, Uses>>>);
     this.finished();
   }
 

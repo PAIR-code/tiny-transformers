@@ -28,18 +28,22 @@ import {
 } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
 import { SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
-import { cellFactory, CellFuncSpec, CellStateSpec, ValueStruct } from 'src/lib/weblab/cellspec';
-import { makeTask, TaskConfig, taskConfigDefaults } from 'src/lib/seqtasks/task_registry';
+import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
+import { globals, Globals, trainerCell } from './ailab';
+import { LabEnv } from 'src/lib/weblab/lab-env';
+import { LabState } from 'src/lib/weblab/lab-state';
 
+// Consider... one liner... but maybe handy to have the object to debug.
+// const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const writable = space.writable;
-const computed = space.computed;
+const { writable, computed } = space;
 
-const taskConfig = writable<TaskConfig>(structuredClone(taskConfigDefaults[0]));
-const task = computed(() => makeTask(taskConfig()));
-const tokenRep = computed(() => prepareBasicTaskTokenRep(task().baseVocab));
+const taskKinds = Object.keys(taskRegistry.kinds);
+
+const taskKind = writable<string>(taskKinds[0]);
+const task = computed(() => taskRegistry.kinds[taskKind()].makeDefault());
 
 const trainConfig = writable<TrainStateConfig>({
   learningRate: 0.5,
@@ -65,10 +69,9 @@ const testExamples = computed(() => dataSplitByTrainAndTest().testExamples);
 const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
 
 const transformerConfig = writable(defaultTransformerConfig());
-const transformerParams = computed(() => initDecoderVarParams(tokenRep(), transformerConfig()));
+const transformerParams = computed(() => initDecoderVarParams(transformerConfig()));
 const model = computed(() => {
   return {
-    tokenRep: tokenRep(),
     config: transformerConfig(),
     params: transformerParams(),
   };
@@ -81,6 +84,11 @@ function makeTrainBatch(): GTensor<'batch' | 'pos' | 'inputRep'> {
   const batchInputGTensor = strSeqPrepFnAddingFinalMask(model(), batchInputSeqs, trainConfig());
   return batchInputGTensor;
 }
+
+const state = new LabState();
+const env = new LabEnv<typeof globals>(state);
+
+env.run(trainerCell);
 
 // function* batchGenerator(batchNum: number, batchSize: number): Iterator<> {
 //   for (let batchId = 0; batchId < batchNum; batchId += 1) {

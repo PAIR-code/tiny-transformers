@@ -31,7 +31,7 @@ limitations under the License.
  * const s2 = s.copy() // creates a parallel set of random numbers from s.
  */
 
-import { StateIter } from './state-iter';
+import { StateIter } from '../state-iter/state-iter';
 
 export function asFloatInRange(zeroToOneNumber: number, min: number, max: number): number {
   return min + zeroToOneNumber * (max - min);

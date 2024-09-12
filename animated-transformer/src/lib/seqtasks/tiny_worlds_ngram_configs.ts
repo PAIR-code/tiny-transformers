@@ -15,7 +15,7 @@ limitations under the License.
 
 /* Generated Tiny Worlds */
 import { TinyWorldTaskConfig } from './tiny_worlds';
-import { makeRandomStream } from '../state-iter/random';
+import { makeRandomStream } from '../random/random';
 import { universalType } from '../logic/relations';
 
 export const defaultNGramTinyWorldConfig: TinyWorldTaskConfig = {

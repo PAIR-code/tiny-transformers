@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomStream, makeRandomStream } from '../random/random';
 import * as swap_task from './swap_task';
 
 describe('swap_task', () => {

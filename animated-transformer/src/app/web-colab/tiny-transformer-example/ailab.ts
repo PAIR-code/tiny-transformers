@@ -18,10 +18,19 @@ limitations under the License.
  */
 
 import { BasicLmTask, BasicLmTaskConfig, Example, indexExample } from 'src/lib/seqtasks/util';
-import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
+import {
+  TransformerConfig,
+  TransformerModel,
+  TransformerParams,
+} from 'src/lib/transformer/transformer_gtensor';
 import { WritableSignal } from 'src/lib/weblab/signalspace';
 import { cellFactory, Metrics } from 'src/lib/weblab/cellspec';
-import { TaskConfig } from 'src/lib/seqtasks/task_registry';
+
+export type Batch = {
+  batchId: number;
+  inputs: string[][];
+  outputs: string[][];
+};
 
 export type TrainConfig = {
   learningRate: number;
@@ -34,10 +43,11 @@ export type TrainConfig = {
 };
 
 export type Globals = {
-  taskConfig: TaskConfig;
+  taskConfig: BasicLmTask<BasicLmTaskConfig<{}>>;
   transformerConfig: TransformerConfig;
   transformerParams: TransformerParams;
   trainConfig: TrainConfig;
+  batch: Batch;
   testSet: Example[];
   lastTrainMetric: Metrics<'entropyLoss' | 'accuracy'>;
 };
@@ -47,6 +57,6 @@ export const trainerCell = cellFactory(
   globals,
   'Trainer cell',
   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  ['testSet', 'trainConfig', 'transformerConfig'],
+  ['testSet', 'trainConfig', 'transformerConfig', 'batch'],
   ['transformerParams', 'lastTrainMetric']
 );

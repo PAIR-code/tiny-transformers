@@ -25,7 +25,7 @@ import {
 } from './util';
 import { FreshNames } from '../names/simple_fresh_names';
 import { Story, initStory, sampleNextRel } from '../logic/stories';
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
 import { StateIter } from '../state-iter/state-iter';
 import { parseRule, Rule } from '../logic/rules';
 import {
@@ -300,4 +300,7 @@ export class TinyWorldTask implements BasicRandLmTask {
   }
 }
 
-taskRegistry.register(defaultTinyWorldTaskConfig, (c) => new TinyWorldTask(c));
+export const tinyWorldTaskKind = taskRegistry.register(
+  defaultTinyWorldTaskConfig,
+  (c) => new TinyWorldTask(c)
+);

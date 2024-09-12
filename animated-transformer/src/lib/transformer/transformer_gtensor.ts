@@ -51,13 +51,17 @@ import {
   VarLayerNormParams,
 } from '../gtensor/layer_norm';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
-import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
+import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
+import { makeModel, modelRegistry } from '../models/model_registry';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
+  name: string;
+  kind: 'Transformer';
   // Defines how the transformer is created.
   spec: TransformerParamSpec;
+  tokenRep: BasicTaskTokenRep;
   init: {
     // === tf_init.TruncatedNormalArgs
     stddev: number;
@@ -127,7 +131,10 @@ export function defaultTransformerConfig(): TransformerConfig {
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
+    name: 'defaultTransformerConfig',
+    kind: 'Transformer',
     spec: spec,
+    tokenRep: toyTokenTep,
     init: {
       stddev: 0.05, // default
       mean: 0,
@@ -136,6 +143,56 @@ export function defaultTransformerConfig(): TransformerConfig {
   };
   return config;
 }
+
+export const simpleLayerSpec_nLN: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true },
+  layerNormFF: false,
+  layerNormHeadsProjection: false,
+  addLayerNormBias: false,
+};
+
+export const simpleTransfomerConfig_nLN: TransformerConfig = {
+  name: 'd=8 l=1 h=4, !layerN',
+  kind: 'Transformer',
+  spec: {
+    inputRep: 8,
+    kqvRep: 8,
+    layers: [simpleLayerSpec_nLN],
+  },
+  tokenRep: toyTokenTep,
+  init: {
+    stddev: 0.5,
+    mean: 0,
+    seed: 76,
+  },
+};
+
+export const simpleLayerSpec_LN: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true },
+  layerNormFF: true,
+  layerNormHeadsProjection: true,
+  addLayerNormBias: false,
+};
+
+export const simpleTransfomerConfig_LN: TransformerConfig = {
+  name: 'd=8 l=1 h=4 +layerN',
+  kind: 'Transformer',
+  spec: {
+    inputRep: 8,
+    kqvRep: 8,
+    layers: [simpleLayerSpec_LN],
+  },
+  tokenRep: toyTokenTep,
+  init: {
+    stddev: 0.5,
+    mean: 0,
+    seed: 96,
+  },
+};
 
 // ---------------------------------------------------------------------------
 export type FfParams<T extends TensorOrVarKind, Input extends DName, Output extends DName> = {
@@ -193,6 +250,12 @@ export type VarTransformerParams = CondTransformerParams<VariableKind>;
 export type TransformerParams = CondTransformerParams<TensorKind>;
 
 type TransformerParamsCheck = VarTransformerParams extends TransformerParams ? true : false;
+
+export type TransformerModel = {
+  // Locally cached version of the model.
+  config: TransformerConfig;
+  params: TransformerParams;
+};
 
 // ---------------------------------------------------------------------------
 
@@ -332,10 +395,7 @@ export function computeAttnHead(
   };
 }
 
-export function initDecoderParams(
-  tokenRep: BasicTaskTokenRep,
-  config: TransformerConfig
-): TransformerParams {
+export function initDecoderParams(config: TransformerConfig): TransformerParams {
   const { spec, init } = config;
   // const paramInitializerConfig = config.init;
   const layers: AttnHeadParams<TensorKind>[] = spec.layers.map((layerSpec) => {
@@ -352,17 +412,14 @@ export function initDecoderParams(
     return initAttnHeadParams(attnHeadSpec, init);
   });
   const tokenEmbedding = makeTruncNormal({
-    tokenId: tokenRep.tokens.length,
+    tokenId: config.tokenRep.tokens.length,
     inputRep: spec.inputRep,
   });
   return { layers, tokenEmbedding };
 }
 
-export function initDecoderVarParams(
-  tokenRep: BasicTaskTokenRep,
-  config: TransformerConfig
-): VarTransformerParams {
-  const initParams = initDecoderParams(tokenRep, config);
+export function initDecoderVarParams(config: TransformerConfig): VarTransformerParams {
+  const initParams = initDecoderParams(config);
   // Maybe make a nice initializer variable trees from tensor trees?
   const params = jstree.map(initParams, (t: GTensor<any>) => new GVariable(t));
   return params as VarTransformerParams;
@@ -476,9 +533,11 @@ export function transformerAccuracy(
 
 export function computeDecoder(
   model: {
-    config: { spec: TransformerParamSpec };
+    config: {
+      spec: TransformerParamSpec;
+      tokenRep: BasicTaskTokenRep;
+    };
     params: TransformerParams;
-    tokenRep: BasicTaskTokenRep;
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
   inputs: string[][]
@@ -493,8 +552,7 @@ export function computeDecoder(
 
 export function computePrediction(
   model: {
-    config: { spec: TransformerParamSpec };
-    tokenRep: BasicTaskTokenRep;
+    config: { spec: TransformerParamSpec; tokenRep: BasicTaskTokenRep };
     params: TransformerParams;
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
@@ -503,7 +561,20 @@ export function computePrediction(
   const examplePredictions = tf.tidy(() => {
     const decoderComputation = computeDecoder(model, inputPrepFn, inputs);
     const predictions = transformerTopPrediction(model, decoderComputation);
-    return (predictions.tensor.arraySync() as number[]).map((idx) => [model.tokenRep.tokens[idx]]);
+    return (predictions.tensor.arraySync() as number[]).map((idx) => [
+      model.config.tokenRep.tokens[idx],
+    ]);
   });
   return examplePredictions;
 }
+
+export function makeTransformer(transformerConfig: TransformerConfig): TransformerModel {
+  const config = structuredClone(transformerConfig);
+  const params = initDecoderParams(config);
+  return { config, params };
+}
+
+export const transformerModelKind = modelRegistry.register(
+  defaultTransformerConfig(),
+  makeTransformer
+);

@@ -27,7 +27,7 @@ what pair have the biggest difference?
 import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, RandLmTaskConfig, BasicRandLmTask, Example } from './util';
 import { StateIter } from '../state-iter/state-iter';
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
 import { taskRegistry } from './task_registry';
 
 export type SwapTaskConfig = RandLmTaskConfig & {

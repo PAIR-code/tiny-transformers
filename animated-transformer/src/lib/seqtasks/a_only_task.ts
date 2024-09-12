@@ -22,7 +22,7 @@ Can we get the loss to 0?
 
 import { RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 
-import { RandomState, RandomStream } from '../state-iter/random';
+import { RandomState, RandomStream } from '../random/random';
 import { StateIter } from '../state-iter/state-iter';
 
 export const baseVocab = ['a', 'b'];

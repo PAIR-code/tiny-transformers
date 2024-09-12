@@ -17,7 +17,7 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { CellFuncSpec } from './cellspec';
+import { CellStateSpec } from './cellspec';
 
 // export type Name = string;
 // export type TensorValue = {
@@ -52,7 +52,11 @@ export type ExampleGlobals = ExampleCellInput & ExampleCellOutput;
 //   inputs: ['name'] as const,
 //   outputs: ['t'] as const,
 // } as WorkerOp<'name', 't'>;
-export const exampleWorkerSpec = new CellFuncSpec<ExampleCellInput, ExampleCellOutput>(
+export const exampleWorkerSpec = new CellStateSpec<
+  Partial<ExampleGlobals>,
+  keyof ExampleCellInput,
+  keyof ExampleCellOutput
+>(
   'an example cell',
   // 'src/lib/weblab/example.worker.js' as never as URL,
   () => new Worker(new URL('./example.worker', import.meta.url)),

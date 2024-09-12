@@ -21,7 +21,7 @@ Simple generative task for stings of the form `a?(ba)*b?`
 //   ==>  LSTM + one attention layer makes it learn quickly.
 */
 
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
 import { StateIter } from '../state-iter/state-iter';
 import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 

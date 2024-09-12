@@ -35,6 +35,7 @@ import {
   lastTokenLogits,
   lastTokenCrossEntropyLoss,
   transformerAccuracy,
+  TransformerModel,
 } from '../transformer/transformer_gtensor';
 import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
 import {
@@ -59,7 +60,7 @@ function getTaskConfig(): TinyWorldTaskConfig {
   return taskConfig;
 }
 
-function getTransformerConfig(): TransformerConfig {
+function initTransformerConfig(baseVocab: string[]): TransformerConfig {
   const layer_config: TransformerParamLayerSpec = {
     nHeads: 4,
     hasPosEncoding: false,
@@ -81,7 +82,10 @@ function getTransformerConfig(): TransformerConfig {
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
+    name: 'a simple transformer',
+    kind: 'Transformer',
     spec: spec,
+    tokenRep: prepareBasicTaskTokenRep(baseVocab),
     init: {
       stddev: 0.05, // default
       mean: 0,
@@ -91,18 +95,27 @@ function getTransformerConfig(): TransformerConfig {
   return config;
 }
 
-function* batchGenerator(task: TinyWorldTask, batchNum: number, batchSize: number) {
+type Batch = {
+  batchId: number;
+  inputs: string[][];
+  outputs: string[][];
+};
+
+function* batchGenerator(
+  task: TinyWorldTask,
+  batchNum: number,
+  batchSize: number
+): Iterable<Batch> {
   for (let batchId = 0; batchId < batchNum; batchId += 1) {
     let batchOriginal = task.exampleIter.takeOutN(batchSize);
-    let batchInput = batchOriginal.map((example) => example.input);
-    let batchOutput = batchOriginal.map((example) => example.output);
-    yield [batchInput, batchOutput];
+    let inputs = batchOriginal.map((example) => example.input);
+    let outputs = batchOriginal.map((example) => example.output);
+    yield { batchId, inputs, outputs };
   }
 }
 
 function computeLoss(
   model: {
-    tokenRep: BasicTaskTokenRep;
     config: TransformerConfig;
     params: TransformerParams;
   },
@@ -130,11 +143,9 @@ function run() {
   const trainTask = new TinyWorldTask(trainTaskConfig);
 
   // define vocab & decoder
-  const transformerConfig = getTransformerConfig();
-  const tokenRep = prepareBasicTaskTokenRep(trainTask.baseVocab);
-  const decoderParams = initDecoderVarParams(tokenRep, transformerConfig);
-  const model = {
-    tokenRep,
+  const transformerConfig = initTransformerConfig(trainTask.baseVocab);
+  const decoderParams = initDecoderVarParams(transformerConfig);
+  const model: TransformerModel = {
     config: transformerConfig,
     params: decoderParams,
   };
@@ -145,10 +156,9 @@ function run() {
     const batchSize: number = 64;
 
     let optimizer = tf.train.adam();
-    let batchId = 0;
     for (let batch of batchGenerator(trainTask, batchNum, batchSize)) {
-      let [batchInput, batchOutput] = batch;
-      optimizer.minimize(() => computeLoss(model, batchId, batchInput, batchOutput));
+      let { batchId, inputs, outputs } = batch;
+      optimizer.minimize(() => computeLoss(model, batchId, inputs, outputs));
       batchId += 1;
     }
     optimizer.dispose();
@@ -191,7 +201,7 @@ function run() {
 
     // Create a sorted table of information for each token.
     const possibleTokenTable = probsArrayData.map((prob, i) => {
-      return { str: tokenRep.tokens[i], tokenId: i, prob: prob, logit: logitsArr[i] };
+      return { str: model.config.tokenRep.tokens[i], tokenId: i, prob: prob, logit: logitsArr[i] };
     });
     possibleTokenTable.sort((a, b) => b.prob - a.prob);
 
@@ -211,12 +221,6 @@ function run() {
       }
       console.log('   ', token.str.padEnd(10), ' ', token.prob.toFixed(8), ' ', mark);
     }
-
-    //   batchInput = batchInput.map((subArray, batchIndex) =>
-    //     subArray.slice(1).concat(batchOutput[batchIndex])
-    //   );
-    //   batchOutput = batchOutputAll.map((subArray) => subArray.slice(inferStep, inferStep + 1));
-    // }
   } // infer
 } // run
 

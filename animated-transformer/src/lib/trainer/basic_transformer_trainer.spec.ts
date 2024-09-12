@@ -28,6 +28,15 @@ import { GTensor } from '../gtensor/gtensor';
 
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
+    const taskConfig: abtask.AorBisMaxTaskConfig = {
+      name: 'an AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      maxInputLen: 4,
+      maxOutputLen: 4,
+      genStateConfig: { seed: 0 },
+    };
+    const task = new abtask.AorBisMaxTask(taskConfig);
+
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: false,
@@ -38,24 +47,21 @@ describe('basic_transformer_trainer', () => {
       addLayerNormBias: false,
     };
     const decoderConfig: transformer.TransformerConfig = {
+      name: 'a toy transformer',
+      kind: 'Transformer',
       spec: {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
       },
+      tokenRep: prepareBasicTaskTokenRep(task.baseVocab),
       init: {
         stddev: 0.5,
         mean: 0,
         seed: 1,
       },
     };
-    const taskConfig: abtask.AorBisMaxTaskConfig = {
-      name: 'an AorBisMaxTask',
-      kind: 'AorBisMaxTask',
-      maxInputLen: 4,
-      maxOutputLen: 4,
-      seed: 0,
-    };
+
     const trainStateConfig: TrainStateConfig = {
       learningRate: 0.5,
       batchSize: 64,
@@ -63,17 +69,17 @@ describe('basic_transformer_trainer', () => {
       testSetSize: 0,
       trainSetSize: 64,
     };
-    const task = new abtask.AorBisMaxTask(taskConfig);
-    const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const initParams = transformer.initDecoderVarParams(tokenRep, decoderConfig);
+    const params = transformer.initDecoderVarParams(decoderConfig);
+    const model = {
+      config: decoderConfig,
+      params,
+    };
     console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
-      tokenRep,
+      model,
       strSeqPrepFn,
       singleNextTokenIdxOutputPrepFn,
-      decoderConfig,
-      initParams,
       trainStateConfig
     );
     // Taking a couple of steps...
@@ -88,7 +94,7 @@ describe('basic_transformer_trainer', () => {
     expect(newLoss).toBeLessThan(initLoss);
 
     // Memory cleanup
-    jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);
+    jstree.forEach((g: GTensor<any>) => g.dispose(), params);
     trainState.dispose();
   });
 });

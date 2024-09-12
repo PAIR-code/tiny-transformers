@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { makeRandomState, makeRandomStream, nextRandom } from './random';
+import { makeRandomStream, nextRandom } from './random';
 
 describe('random', () => {
   beforeEach(() => {});
@@ -21,22 +21,22 @@ describe('random', () => {
     const rng = makeRandomStream(42);
     const rng2 = rng.copy();
     expect(rng.takeOutN(5)).toEqual([
-      0.6011037519201636, 0.44829055899754167, 0.8524657934904099,
-      0.6697340414393693, 0.17481389874592423,
+      0.6011037519201636, 0.44829055899754167, 0.8524657934904099, 0.6697340414393693,
+      0.17481389874592423,
     ]);
     expect(rng.takeOutN(5)).toEqual([
-      0.5265925421845168, 0.2732279943302274, 0.6247446539346129,
-      0.8654746483080089, 0.4723170551005751,
+      0.5265925421845168, 0.2732279943302274, 0.6247446539346129, 0.8654746483080089,
+      0.4723170551005751,
     ]);
     // Same as the first 5 out of rng!
     expect(rng2.takeOutN(5)).toEqual([
-      0.6011037519201636, 0.44829055899754167, 0.8524657934904099,
-      0.6697340414393693, 0.17481389874592423,
+      0.6011037519201636, 0.44829055899754167, 0.8524657934904099, 0.6697340414393693,
+      0.17481389874592423,
     ]);
   });
 
   it('nextRandom', () => {
-    const rand = nextRandom(makeRandomState(1));
+    const rand = nextRandom({ seed: 1 });
     expect(rand).toEqual(0.6270739405881613);
   });
 });

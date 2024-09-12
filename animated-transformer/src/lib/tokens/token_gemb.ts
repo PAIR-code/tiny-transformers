@@ -179,6 +179,8 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   };
 }
 
+export const toyTokenTep = prepareBasicTaskTokenRep(['a', 'b', 'c']);
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
@@ -189,7 +191,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
 // TODO: revisit.
 export type StrSeqPrepFn<Params, Dims extends DName> = (
   model: {
-    tokenRep: BasicTaskTokenRep;
+    config: { tokenRep: BasicTaskTokenRep };
     params: Params;
   },
   strSeqs: string[][],
@@ -198,15 +200,15 @@ export type StrSeqPrepFn<Params, Dims extends DName> = (
 
 export function strSeqPrepFn(
   model: {
-    tokenRep: BasicTaskTokenRep;
+    config: { tokenRep: BasicTaskTokenRep };
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
   inputSeqs: string[][],
   options: { maxInputLength: number }
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
-  const padTokenId = model.tokenRep.tokenToIdx[model.tokenRep.padToken];
+  const padTokenId = model.config.tokenRep.tokenToIdx[model.config.tokenRep.padToken];
   const batchedInputEmb = embedBatch(
-    model.tokenRep.tokenToIdx,
+    model.config.tokenRep.tokenToIdx,
     model.params.tokenEmbedding,
     inputSeqs,
     {
@@ -229,14 +231,14 @@ export function strSeqPrepFn(
 // causal masking of attention, yet).
 export function strSeqPrepFnAddingFinalMask(
   model: {
-    tokenRep: BasicTaskTokenRep;
+    config: { tokenRep: BasicTaskTokenRep };
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
   inputSeqs: string[][],
   options: { maxInputLength: number }
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
   const inputsWithFinalMask = inputSeqs.map((inputSeq) =>
-    inputSeq.concat(model.tokenRep.maskToken)
+    inputSeq.concat(model.config.tokenRep.maskToken)
   );
   return strSeqPrepFn(model, inputsWithFinalMask, options);
 }
@@ -256,12 +258,12 @@ export function strSeqPrepFnAddingFinalMask(
 //
 // TODO: we'll want to generalise this for longer sequences...
 export function singleNextTokenIdxOutputPrepFn(
-  model: { tokenRep: BasicTaskTokenRep },
+  model: { config: { tokenRep: BasicTaskTokenRep } },
   outputSeqs: string[][]
 ): GTensor<'batch'> {
   return new GTensor(
     tf.tensor(
-      outputSeqs.map((outputSeq) => model.tokenRep.tokenToIdx[outputSeq[0]]),
+      outputSeqs.map((outputSeq) => model.config.tokenRep.tokenToIdx[outputSeq[0]]),
       [outputSeqs.length],
       'int32'
     ),

@@ -48,13 +48,25 @@ import {
   TinyWorldTask,
   TinyWorldTaskConfig,
   defaultTinyWorldTaskConfig,
+  tinyWorldTaskKind,
 } from 'src/lib/seqtasks/tiny_worlds';
+import { ConfigKind, ConfigObj } from 'src/lib/json/config-obj';
+import { taskRegistry } from 'src/lib/seqtasks/task_registry';
+import * as _ from 'underscore';
+import { nullableEqFn } from 'src/lib/utils';
 
 // ----------------------------------------------------------------------------
 
-const inittaskSet: TaskMetadata[] = [];
-const initTaskMap = {} as { [name: string]: TaskMetadata };
-inittaskSet.forEach((t) => (initTaskMap[t.config.name] = t));
+const taskMakerMap = {} as { [kind: string]: ConfigKind<RandLmTaskConfig, BasicRandLmTask> };
+const initTaskMap = {} as { [name: string]: BasicRandLmTask };
+{
+  const initTaskKinds = [tinyWorldTaskKind];
+  initTaskKinds.forEach((k) => k.makeFn(k.defaultConfigStr));
+  const aConfiguredTask = taskMakerMap[tinyWorldTaskKind.kind].makeFn(
+    tinyWorldTaskKind.defaultConfigStr
+  );
+  initTaskMap[aConfiguredTask.config.name] = aConfiguredTask;
+}
 
 // ----------------------------------------------------------------------------
 @Component({
@@ -78,10 +90,12 @@ export class SeqTaskSelectorComponent {
   shownNumOfExamples = 6;
   repSize = 8;
 
-  taskMap: WritableSignal<{ [name: string]: TaskMetadata }> = signal(initTaskMap);
+  taskMap: WritableSignal<{ [name: string]: BasicRandLmTask }> = signal(initTaskMap);
   taskNames: Signal<string[]>;
 
-  currentTask: WritableSignal<TaskMetadata | null> = signal(null);
+  currentTask = signal<BasicRandLmTask | null>(null, {
+    equal: nullableEqFn((a, b) => _.isEqual(a.config, b.config)),
+  });
   currentTaskName: Signal<string | null>;
   selectedTaskExamples!: Signal<Example[] | null>;
   datasetColumns: string[] = ['input', 'target'];
@@ -89,11 +103,11 @@ export class SeqTaskSelectorComponent {
   constructor() {
     this.taskNames = computed(() => Object.keys(this.taskMap()));
     this.selectedTaskExamples = computed(() => {
-      const taskMetadata = this.currentTask();
-      if (!taskMetadata) {
+      const curTask = this.currentTask();
+      if (!curTask) {
         return null;
       }
-      return taskMetadata.task.exampleIter.takeOutN(this.shownNumOfExamples);
+      return curTask.exampleIter.takeOutN(this.shownNumOfExamples);
     });
     this.currentTaskName = computed(() => {
       const taskMetadata = this.currentTask();
@@ -114,15 +128,15 @@ export class SeqTaskSelectorComponent {
       }
       return;
     }
-    const newTaskMetadata = taskMap[maybeName];
-    if (oldTask && newTaskMetadata.config.name === oldTask.config.name) {
+    const task = taskMap[maybeName];
+    if (oldTask && task.config.name === oldTask.config.name) {
       return;
     }
-    this.currentTask.set(newTaskMetadata);
-    this.taskUpdates.emit({ task: newTaskMetadata.task });
+    this.currentTask.set(task);
+    this.taskUpdates.emit({ task });
   }
 
-  taskConfigUpdated(configUpdate: ConfigUpdate<BasicLmTaskConfig>): void {
+  taskConfigUpdated(configUpdate: ConfigUpdate<RandLmTaskConfig>): void {
     // When configUpdate has a new object, we assume it to be correct.
     //
     // TODO: provide some runtime value type checking. Right now all that is
@@ -138,23 +152,24 @@ export class SeqTaskSelectorComponent {
       return;
     }
 
-    const task = this.currentTask();
+    let task = this.currentTask();
     if (!task) {
       console.error(`had null task for configUpdated: ${configUpdate}`);
       return;
     }
 
+    const oldName = task.config.name;
+    task = taskMakerMap[configUpdate.obj.kind].makeFn(configUpdate.json);
+
     console.log('taskConfigUpdated: ', JSON.stringify(configUpdate.json, null, 2));
 
-    const updatedTask = new TaskMetadata(configUpdate.obj, task.factory);
-
-    if (task.config.name !== configUpdate.obj.name) {
+    if (oldName !== configUpdate.obj.name) {
       const newTaskMap = { ...this.taskMap() };
-      delete newTaskMap[task.config.name];
-      newTaskMap[updatedTask.config.name] = updatedTask;
+      delete newTaskMap[oldName];
+      newTaskMap[configUpdate.obj.name] = task;
       this.taskMap.set(newTaskMap);
     }
-    this.currentTask.set(updatedTask);
+    this.currentTask.set(task);
   }
 
   toggleEditor() {
@@ -168,7 +183,7 @@ export class SeqTaskSelectorComponent {
     return JSON.stringify(output);
   }
 
-  taskConfigAsJson(config: BasicLmTaskConfig): string {
+  taskConfigAsJson(config: RandLmTaskConfig): string {
     return stringifyJsonValue(config, {
       arrWrapAt: 60,
       objWrapAt: 60,

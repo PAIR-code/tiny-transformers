@@ -44,7 +44,7 @@ Obvoiusly there are many further generalizations:
 import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 import { StateIter } from '../state-iter/state-iter';
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
 import { taskRegistry } from './task_registry';
 
 export type BoolToken = 'T' | 'F';

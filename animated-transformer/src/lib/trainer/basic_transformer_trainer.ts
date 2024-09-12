@@ -53,13 +53,12 @@ export interface TrainMetrics {
 export function initTransformerTrainState(
   task: BasicRandLmTask,
   model: {
-    tokenRep: BasicTaskTokenRep;
     config: transformer.TransformerConfig;
     params: transformer.VarTransformerParams;
   },
   inputPrepFn: StrSeqPrepFn<transformer.VarTransformerParams, 'batch' | 'pos' | 'inputRep'>,
   targetPrepFn: (
-    model: { tokenRep: BasicTaskTokenRep },
+    model: { config: { tokenRep: BasicTaskTokenRep } },
     outputSeqs: string[][]
   ) => GTensor<'batch'>,
   trainStateConfig: TrainStateConfig

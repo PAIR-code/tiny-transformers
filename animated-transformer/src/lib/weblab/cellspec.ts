@@ -53,14 +53,14 @@ export type PromisedSignalsFn<S extends ValueStruct> = {
 // happen for the inputs and outputs params; Maybe a constructor
 // function for a type instance would work as well?
 
-export class CellFuncSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
-  constructor(
-    public name: string,
-    public createWorker: () => Worker,
-    public inputs: (keyof Inputs)[],
-    public outputs: (keyof Outputs)[]
-  ) {}
-}
+// export class CellFuncSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
+//   constructor(
+//     public name: string,
+//     public createWorker: () => Worker,
+//     public inputs: (keyof Inputs)[],
+//     public outputs: (keyof Outputs)[]
+//   ) {}
+// }
 
 export class CellStateSpec<
   Globals extends ValueStruct,
@@ -89,5 +89,5 @@ export function cellFactory<
   return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
 }
 
-export type OpInputs<Op> = Op extends CellFuncSpec<infer I, any> ? I : never;
-export type OpOutputs<Op> = Op extends CellFuncSpec<any, infer O> ? O : never;
+// export type OpInputs<Op> = Op extends CellFuncSpec<infer I, any> ? I : never;
+// export type OpOutputs<Op> = Op extends CellFuncSpec<any, infer O> ? O : never;

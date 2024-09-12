@@ -22,6 +22,9 @@ export type FromWorkerMessage =
     };
 export type ToWorkerMessage =
   | {
+      kind: 'finishRequest';
+    }
+  | {
       kind: 'providingInput';
       name: string;
       inputData: unknown;

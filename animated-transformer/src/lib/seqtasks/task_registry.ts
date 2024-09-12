@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { DictArrTree } from '../js_tree/js_tree';
-import { ConfigObjRegistry } from '../json/config-obj';
+import { ConfigKindRegistry } from '../json/config-obj';
 import {
   DecisionBoundaryTask,
   DecisionBoundaryTaskConfig,
@@ -39,7 +39,7 @@ import { BasicLmTask, BasicLmTaskConfig } from './util';
 // ];
 
 // TODO: think hard about this 'any'...
-export const taskRegistry = new ConfigObjRegistry<BasicLmTask<BasicLmTaskConfig<{}>>>();
+export const taskRegistry = new ConfigKindRegistry<BasicLmTask<BasicLmTaskConfig<{}>>>();
 
 // TODO: think about better error handling, we probably want to be able to
 // separate parse errors from config validity errors from missing task.

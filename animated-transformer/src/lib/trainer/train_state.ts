@@ -127,11 +127,10 @@ export class TrainState<
    */
   constructor(
     public model: {
-      tokenRep: BasicTaskTokenRep;
       // SpecKind defines the meta-data for the model's specification, e.g.
       // what model is it and what hyper-params does it have.
       // (dimension size, nLayers, etc).
-      config: { spec: SpecKind };
+      config: { spec: SpecKind; tokenRep: BasicTaskTokenRep };
       // This is a JS object that contains the actual parameters.
       // Note: this class, the TrainState, does not own the params tree.
       // It's caller is responsible for initialization and cleanup.
@@ -143,7 +142,7 @@ export class TrainState<
     public taskSplit: TaskDatasetSplit,
     public inputPrepFn: StrSeqPrepFn<Params, InputDims>,
     public targetPrepFn: (
-      model: { tokenRep: BasicTaskTokenRep },
+      model: { config: { tokenRep: BasicTaskTokenRep } },
       outputSeqs: string[][]
     ) => GTensor<TargetDims>
   ) {

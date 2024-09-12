@@ -21,7 +21,7 @@ limitations under the License.
  * -
  */
 
-import { RandomState, RandomStream } from '../state-iter/random';
+import { RandomState, RandomStream } from '../random/random';
 import { StateIter } from '../state-iter/state-iter';
 
 export interface Example {
@@ -91,7 +91,7 @@ export type BasicExtendsSome_True = BasicRandLmTask extends SomeBasicLmTask ? tr
 // that when we emit task changes, they always have a new top-level object so
 // that change detection sees that it's something new.
 export interface BasicLmTaskUpdate {
-  task?: SomeBasicLmTask;
+  task?: BasicRandLmTask;
 }
 
 // ----------------------------------------------------------------------------

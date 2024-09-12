@@ -17,7 +17,6 @@ import {
   Component,
   EventEmitter,
   Input,
-  OnInit,
   Output,
   Signal,
   WritableSignal,
@@ -27,23 +26,9 @@ import {
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import {
   ModelUpdate,
-  ModelSpecAndData,
-  ModelData,
+  TransformerModel,
 } from '../model-selector/model-selector.component';
 import json5 from 'json5';
-import { FormControl } from '@angular/forms';
-import {
-  BehaviorSubject,
-  combineLatest,
-  filter,
-  firstValueFrom,
-  map,
-  merge,
-  Observable,
-  shareReplay,
-  startWith,
-  tap,
-} from 'rxjs';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
 
@@ -63,47 +48,23 @@ import {
   strSeqPrepFn,
   singleNextTokenIdxOutputPrepFn,
 } from 'src/lib/tokens/token_gemb';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
+import { ConfigObj } from 'src/lib/json/config-obj';
 
 // TODO: update to use JsTree.
 export type JsonConfigData = DictTree<number | string | boolean>;
 
 export type TrainerConfig = {
   name: string;
+  kind: 'TransformerTrainConfig';
   trainState: TrainStateConfig;
   updateGraphEveryNSteps: number;
   stepDelayInMs: number;
 };
 
-export class TrainerMetaData {
-  public config: TrainerConfig;
-  public configStr: string;
-  public defaultConfigStr: string;
-
-  public trainState: WritableSignal<TransformerTrainState | null> = signal(null);
-  // public trainAndMetricsGen?: Generator<TrainMetrics, undefined, undefined>;
-  public metrics: WritableSignal<TrainMetrics | null> = signal(null);
-
-  constructor(public kind: 'transformer', public defaultConfig: TrainerConfig) {
-    this.config = structuredClone(defaultConfig);
-    this.configStr = stringifyJsonValue(this.config);
-    this.defaultConfigStr = this.configStr;
-  }
-
-  updateFromStr(s: string) {
-    this.configStr = s;
-    this.config = json5.parse(this.configStr);
-  }
-}
-
-export interface TrainerConfigUpdate {
-  trainer: TrainerMetaData | null;
-}
-
-export interface ModelParamsUpdate {}
-
-const layerNormTrainer = new TrainerMetaData('transformer', {
+const layerNormTrainerConfig: TrainerConfig = {
   name: 'layerNormTrainer',
+  kind: 'TransformerTrainConfig',
   trainState: {
     batchSize: 64,
     learningRate: 10,
@@ -113,10 +74,11 @@ const layerNormTrainer = new TrainerMetaData('transformer', {
   },
   updateGraphEveryNSteps: 10,
   stepDelayInMs: 100,
-});
+};
 
-const noLayerNormTrainer = new TrainerMetaData('transformer', {
+const noLayerNormTrainerConfig: TrainerConfig = {
   name: 'noLayerNormTrainer',
+  kind: 'TransformerTrainConfig',
   trainState: {
     batchSize: 64,
     learningRate: 0.5,
@@ -126,11 +88,30 @@ const noLayerNormTrainer = new TrainerMetaData('transformer', {
   },
   updateGraphEveryNSteps: 10,
   stepDelayInMs: 100,
-});
+};
 
-const initTrainerSet = [noLayerNormTrainer, layerNormTrainer];
-const initTrainersMap = {} as { [name: string]: TrainerMetaData };
+const noLayerNormTrainer = {};
+const layerNormTrainerConfig = {};
+
+type ConfiguredTrainer = ConfigObj<TrainerConfig, TransformerTrainState>;
+const initTrainerSet: ConfiguredTrainer[] = [noLayerNormTrainer, layerNormTrainerConfig];
+const initTrainersMap = {} as { [name: string]: ConfiguredTrainer };
 initTrainerSet.forEach((t) => (initTrainersMap[t.config.name] = t));
+
+export interface ModelParamsUpdate {}
+
+function nullOrComputed<T, T2>(
+  maybeNullSignal: Signal<null | T>,
+  f: (x: T) => T2
+): Signal<T2 | null> {
+  return computed(() => {
+    const maybeNull = maybeNullSignal();
+    if (!maybeNull) {
+      return null;
+    }
+    return f(maybeNull);
+  });
+}
 
 // ----------------------------------------------------------------------------
 @Component({
@@ -146,10 +127,10 @@ export class ModelTaskTrainerComponent {
   trainersMap = signal(initTrainersMap);
   trainerNames: Signal<string[]>;
 
-  currentTrainer = signal<TrainerMetaData | null>(null);
+  currentTrainer = signal<ConfiguredTrainer | null>(null);
   currentModel = signal<ModelSpecAndData | null>(null);
-  currentModelData: Signal<ModelData | null>;
-  currentTask = signal<BasicLmTask | null>(null);
+  currentModelData: Signal<TransformerModel | null>;
+  currentTask = signal<BasicRandLmTask | null>(null);
   currentTrainerName: Signal<string | null>;
   trainState: Signal<TransformerTrainState | null>;
 
@@ -190,23 +171,9 @@ export class ModelTaskTrainerComponent {
   }
 
   constructor() {
-    this.currentTrainerName = computed(() => {
-      const task = this.currentTrainer();
-      if (!task) {
-        return null;
-      }
-      return task.config.name;
-    });
-
-    this.currentModelData = computed(() => {
-      const model = this.currentModel();
-      if (!model) {
-        return null;
-      }
-      return model.modelData();
-    });
-
-    this.trainState = computed(() => {
+    this.currentTrainerName = nullOrComputed(this.currentTrainer, (trainer) => trainer.config.name);
+    this.currentModelData = nullOrComputed(this.currentModel, model => model.modelData());
+    this.trainState = nullOrComputed(this.currentTrainer, (trainer) => trainer. {
       const trainer = this.currentTrainer();
       if (!trainer) {
         return null;
@@ -342,7 +309,7 @@ export class ModelTaskTrainerComponent {
     return currentModel;
   }
 
-  getCurrentModelData(): ModelData {
+  getCurrentModelData(): TransformerModel {
     const data = this.currentModelData();
     if (!data) {
       throw new Error('current model missing data');
@@ -382,11 +349,9 @@ export class ModelTaskTrainerComponent {
     }
     const newState = initTransformerTrainState(
       currentTask,
-      currentModelData.tokenRep,
+      currentModelData,
       strSeqPrepFn,
       singleNextTokenIdxOutputPrepFn,
-      currentModelData.config.transformer,
-      currentModelData.params,
       trainer.config.trainState
     );
 

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SpecificValueStruct, ValueStruct, CellFuncSpec } from './cellspec';
+import { SpecificValueStruct, ValueStruct, CellStateSpec } from './cellspec';
 import { FromWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
 
@@ -30,7 +30,7 @@ export class LabEnv<Globals extends ValueStruct> {
   stateVars: Partial<Globals> = {};
   metadata: Map<keyof Globals, ItemMetaData> = new Map();
   runningCells: {
-    [name: string]: CellFuncSpec<{}, {}>;
+    [name: string]: CellStateSpec<Globals, keyof Globals, keyof Globals>;
   } = {};
 
   constructor(public workerState: LabState) {
@@ -38,13 +38,13 @@ export class LabEnv<Globals extends ValueStruct> {
   }
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
-    op: CellFuncSpec<SpecificValueStruct<I>, SpecificValueStruct<O>>
+    op: CellStateSpec<Globals, I, O>
   ): Promise<{ [key in O]: Globals[O] }> {
-    this.runningCells[op.name] = op as CellFuncSpec<{}, {}>;
+    this.runningCells[op.name] = op as CellStateSpec<Globals, I, O>;
 
     const outputs = {} as { [key in O]: Globals[O] };
     // Ensure inputs in memory.
-    for (const inputName of op.inputs) {
+    for (const inputName of op.uses) {
       if (this.stateVars[inputName] === undefined) {
         const inputValue = await this.workerState.loadValue<Globals[O]>(inputName);
         if (!inputValue) {

@@ -41,7 +41,7 @@ import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
 import {
   ModelUpdate,
   ModelSpecAndData,
-  ModelData,
+  TransformerModel,
 } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import {
@@ -78,7 +78,7 @@ export class ModelEvaluatorComponent {
   currentModel = signal<ModelSpecAndData | null>(null);
   currentTask = signal<BasicLmTask | null>(null);
   // currentTask$: BehaviorSubject<BasicLmTask | null>;
-  modelData: Signal<ModelData | null>;
+  modelData: Signal<TransformerModel | null>;
   // taskAndModel$: Observable<{ model: ModelMetadata; task: BasicLmTask } | null>;
   validatorConfig = {} as JsonStrListConfig;
   modelOutput: string[] | null = null;

@@ -13,60 +13,69 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import _ from 'underscore';
 import { DictArrTree } from '../js_tree/js_tree';
-import { JsonObj } from './json';
 import { stringifyJsonValue } from './pretty_json';
 import * as json5 from 'json5';
 
+export type JsonWithKind = DictArrTree<number | string | boolean> & { kind: string };
+
 // Combines an instance of a class with the config that generates it so you can
 // easily change the config and reconstruct it.
-export class ConfigObj<ConfigT extends JsonObj, ObjT> {
+export class ConfigObj<ConfigT extends JsonWithKind> {
   public configStr: string;
   public defaultConfigStr: string;
-  public task: ObjT;
+  public config: ConfigT;
 
-  constructor(public defaultConfig: ConfigT, public factory: (c: ConfigT) => ObjT) {
-    this.configStr = stringifyJsonValue(defaultConfig);
-    this.defaultConfigStr = this.configStr;
-    this.task = this.factory(this.defaultConfig);
+  constructor(defaultConfig: ConfigT, defaultConfigStr: string) {
+    this.configStr = defaultConfigStr;
+    this.defaultConfigStr = defaultConfigStr;
+    this.config = structuredClone(defaultConfig);
   }
 
   updateFromStr(s: string): void {
     this.configStr = s;
-    const config: ConfigT = json5.parse(this.configStr);
-    // TODO: add additional validtation stuff...?
-    this.task = this.factory(config);
+    // TODO: consider validity checking...?
+    this.config = json5.parse(this.configStr);
   }
 }
 
 // ----------------------------------------------------------------------------
 
-export type JsonWithKind = DictArrTree<number | string | boolean> & { kind: string };
-
-export type RegisterEntry<T> = {
+export type ConfigKind<Config extends JsonWithKind, T> = {
   kind: string;
-  defaultConfig: JsonWithKind;
+  defaultConfig: Config;
   defaultConfigStr: string;
   makeFn: (newConfig: string) => T;
+  makeDefault: () => T;
+  configFn: (obj: T) => JsonWithKind;
 };
 
-export class ConfigObjRegistry<T> {
-  kinds: { [kind: string]: RegisterEntry<T> } = {};
+export class ConfigKindRegistry<T extends { config: JsonWithKind }> {
+  kinds: { [kind: string]: ConfigKind<JsonWithKind, T> } = {};
 
-  register<ConfigT extends JsonWithKind>(defaultConfig: ConfigT, factory: (c: ConfigT) => T) {
+  register<ConfigT extends JsonWithKind, T2 extends T>(
+    defaultConfig: ConfigT,
+    makeFromConfigFn: (c: ConfigT) => T2
+  ): ConfigKind<ConfigT, T2> {
     const kind = defaultConfig.kind;
     if (kind in this.kinds) {
       throw new Error(`${kind} is already registered.`);
     }
     function makeFn(s: string): T {
       const config: ConfigT = json5.parse(s);
-      return factory(config);
+      return makeFromConfigFn(config);
     }
-    this.kinds[kind] = {
+    const defaultConfigStr = stringifyJsonValue(defaultConfig);
+    const configKind: ConfigKind<ConfigT, T> = {
       kind,
       defaultConfig,
-      defaultConfigStr: stringifyJsonValue(defaultConfig),
+      defaultConfigStr,
       makeFn,
+      makeDefault: () => makeFn(defaultConfigStr),
+      configFn: (obj) => obj.config as ConfigT,
     };
+    this.kinds[kind] = configKind;
+    return configKind as unknown as ConfigKind<ConfigT, T2>;
   }
 }

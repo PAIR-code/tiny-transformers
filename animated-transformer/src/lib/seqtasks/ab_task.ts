@@ -28,7 +28,7 @@ Another variant: have to output number of a's and b's to make the count equal.
 
 // import * as tf from '@tensorflow/tfjs';
 // import { TokenEmb } from '../tokens/token_emb';
-import { RandomState, RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
 import { StateIter } from '../state-iter/state-iter';
 import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 
