@@ -39,10 +39,10 @@ export class LabEnv<Globals extends ValueStruct> {
 
   async run<I extends keyof Globals & string, O extends keyof Globals & string>(
     op: CellStateSpec<Globals, I, O>
-  ): Promise<{ [key in O]: Globals[O] }> {
+  ): Promise<{ [Key in O]: Globals[Key] }> {
     this.runningCells[op.name] = op as CellStateSpec<Globals, I, O>;
 
-    const outputs = {} as { [key in O]: Globals[O] };
+    const outputs = {} as { [Key in O]: Globals[Key] };
     // Ensure inputs in memory.
     for (const inputName of op.uses) {
       if (this.stateVars[inputName] === undefined) {
@@ -54,8 +54,8 @@ export class LabEnv<Globals extends ValueStruct> {
       }
     }
 
-    let resolveWithOutputFn: (output: { [key in O]: Globals[O] }) => void;
-    const onceFinished = new Promise<{ [key in O]: Globals[O] }>((resolve, reject) => {
+    let resolveWithOutputFn: (output: { [Key in O]: Globals[Key] }) => void;
+    const onceFinished = new Promise<{ [Key in O]: Globals[Key] }>((resolve, reject) => {
       resolveWithOutputFn = resolve;
     });
 

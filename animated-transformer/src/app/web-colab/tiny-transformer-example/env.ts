@@ -88,7 +88,10 @@ function makeTrainBatch(): GTensor<'batch' | 'pos' | 'inputRep'> {
 const state = new LabState();
 const env = new LabEnv<typeof globals>(state);
 
-env.run(trainerCell);
+async function run() {
+  const cellResults = env.run(trainerCell);
+}
+run();
 
 // function* batchGenerator(batchNum: number, batchSize: number): Iterator<> {
 //   for (let batchId = 0; batchId < batchNum; batchId += 1) {
