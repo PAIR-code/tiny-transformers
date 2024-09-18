@@ -33,9 +33,11 @@ import {
   makeOnes,
   makeScalar,
   GVariable,
-  GTensorOrVar,
-  TensorOrVarKind,
-  VariableKind,
+  GTensorKindFn,
+  ConstTKind,
+  VarTKind,
+  SerialTKind,
+  SerializedGTensor,
   TensorKind,
 } from '../gtensor/gtensor';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
@@ -54,6 +56,7 @@ import {
 import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
 import { makeModel, modelRegistry } from '../models/model_registry';
+import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
@@ -195,59 +198,64 @@ export const simpleTransfomerConfig_LN: TransformerConfig = {
 };
 
 // ---------------------------------------------------------------------------
-export type FfParams<T extends TensorOrVarKind, Input extends DName, Output extends DName> = {
-  w: GTensorOrVar<T, Input | Output>;
-  bIn: GTensorOrVar<T, Output>;
-  bOut: GTensorOrVar<T, Output>;
+export type FfParams<T extends TensorKind, Input extends DName, Output extends DName> = {
+  w: GTensorKindFn<T, Input | Output>;
+  bIn: GTensorKindFn<T, Output>;
+  bOut: GTensorKindFn<T, Output>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
 // More workaround for https://github.com/microsoft/TypeScript/issues/48070
-export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
+export type LayerNormParams<T extends TensorKind> = T extends VarTKind
   ? VarLayerNormParams
-  : TensorLayerNormParams;
+  : T extends ConstTKind
+  ? TensorLayerNormParams
+  : T extends SerialTKind
+  ? Float32Array
+  : never;
 
 // Use of type here to be compatible with generic params.
-export type AttnHeadParams<T extends TensorOrVarKind> = {
-  queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  keyM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  valueM: GTensorOrVar<T, 'heads' | 'inputRep' | 'value'>;
-  headsToInputRepM: GTensorOrVar<T, 'heads' | 'value' | 'inputRepToFF'>;
+export type AttnHeadParams<T extends TensorKind> = {
+  queryM: GTensorKindFn<T, 'heads' | 'inputRep' | 'kq'>;
+  keyM: GTensorKindFn<T, 'heads' | 'inputRep' | 'kq'>;
+  valueM: GTensorKindFn<T, 'heads' | 'inputRep' | 'value'>;
+  headsToInputRepM: GTensorKindFn<T, 'heads' | 'value' | 'inputRepToFF'>;
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
   layerNormHeadsProjection?: LayerNormParams<T>;
   layerNormPostFF?: LayerNormParams<T>;
   ff: FfParams<T, 'inputRepToFF', 'inputRep'>;
   // ff2: FfParams<'ffRep', 'ffOut'>;
   // Relative position attention
-  relativePosAttention?: GTensorOrVar<T, 'heads' | 'relativePos'>;
+  relativePosAttention?: GTensorKindFn<T, 'heads' | 'relativePos'>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
 // Use of type here to be compatible with generic params.
-export type CondTransformerParams<T extends TensorOrVarKind> = {
+export type CondTransformerParams<T extends TensorKind> = {
   layers: AttnHeadParams<T>[];
-  tokenEmbedding: GTensorOrVar<T, 'tokenId' | 'inputRep'>;
+  tokenEmbedding: GTensorKindFn<T, 'tokenId' | 'inputRep'>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
 // Checks for workaround for https://github.com/microsoft/TypeScript/issues/48070
-type FfParamsCheck<I extends DName, O extends DName> = FfParams<
-  VariableKind,
+type FfParamsCheck<I extends DName, O extends DName> = FfParams<VarTKind, I, O> extends FfParams<
+  ConstTKind,
   I,
   O
-> extends FfParams<TensorKind, I, O>
+>
   ? true
   : false;
 
-type LayerNormParamsCheck = LayerNormParams<VariableKind> extends LayerNormParams<TensorKind>
+// Should be true...
+type LayerNormParamsCheck = LayerNormParams<VarTKind> extends LayerNormParams<ConstTKind>
   ? true
   : false;
-type AttnHeadParamsCheck = AttnHeadParams<VariableKind> extends AttnHeadParams<TensorKind>
+type AttnHeadParamsCheck = AttnHeadParams<VarTKind> extends AttnHeadParams<ConstTKind>
   ? true
   : false;
 
-export type VarTransformerParams = CondTransformerParams<VariableKind>;
-export type TransformerParams = CondTransformerParams<TensorKind>;
+export type VarTransformerParams = CondTransformerParams<VarTKind>;
+export type TransformerParams = CondTransformerParams<ConstTKind>;
 
 type TransformerParamsCheck = VarTransformerParams extends TransformerParams ? true : false;
 
@@ -257,15 +265,38 @@ export type TransformerModel = {
   params: TransformerParams;
 };
 
+export const savableTransformerParamsKind = new SavableValueKind(
+  'SVKind_TransformerParams',
+  (x: TransformerParams) => jstree.map(x, (g: GTensor<any>) => g.toSerialised()),
+  (s: jstree.DictArrTree<SerializedGTensor<any>>) =>
+    jstree.map(s, (sg) => GTensor.fromSerialised(sg)) as TransformerParams
+);
+
+export const savableTransformerModelKind = new SavableValueKind(
+  'SVKind_TransformerModel',
+  (x: TransformerModel) => {
+    return {
+      config: x.config as TransformerConfig,
+      params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
+    };
+  },
+  (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
+    return {
+      config: s.config as TransformerConfig,
+      params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
+    };
+  }
+);
+
 // ---------------------------------------------------------------------------
 
 export function initAttnHeadParams(
   spec: AttnHeadParamSpec,
   // TODO: take in param initializers, instead of one for all.
   initConfig?: tf_init.TruncatedNormalArgs
-): AttnHeadParams<TensorKind> {
+): AttnHeadParams<ConstTKind> {
   const { inputRep, kq, value, heads } = spec;
-  const attnHeadParams: AttnHeadParams<TensorKind> = {
+  const attnHeadParams: AttnHeadParams<ConstTKind> = {
     queryM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     keyM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     valueM: makeTruncNormal({ inputRep, value, heads }, initConfig),
@@ -319,7 +350,7 @@ function gelu(x: tf.Tensor) {
 // TODO: Add residuals and layer-norm.
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
-  params: AttnHeadParams<TensorKind>,
+  params: AttnHeadParams<ConstTKind>,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
@@ -398,7 +429,7 @@ export function computeAttnHead(
 export function initDecoderParams(config: TransformerConfig): TransformerParams {
   const { spec, init } = config;
   // const paramInitializerConfig = config.init;
-  const layers: AttnHeadParams<TensorKind>[] = spec.layers.map((layerSpec) => {
+  const layers: AttnHeadParams<ConstTKind>[] = spec.layers.map((layerSpec) => {
     const attnHeadSpec: AttnHeadParamSpec = {
       inputRep: spec.inputRep,
       kq: spec.kqvRep,

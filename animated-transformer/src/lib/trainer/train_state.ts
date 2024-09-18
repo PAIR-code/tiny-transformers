@@ -19,9 +19,9 @@ import {
   GVariable,
   GTensorOrScalar,
   makeScalar,
-  GTensorOrVar,
+  GTensorKindFn,
   AnyGTensorOrVar,
-  TensorOrVarKind,
+  ConstTKind,
 } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, BasicRandLmTask, Example, generateBatch } from '../seqtasks/util';

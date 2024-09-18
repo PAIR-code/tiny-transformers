@@ -15,33 +15,26 @@ limitations under the License.
 
 import { gradsFunctor } from './grad';
 
-import {
-  GTensor,
-  GVariable,
-  GTensorOrVar,
-  TensorKind,
-  VariableKind,
-  TensorOrVarKind,
-} from './gtensor';
+import { GTensor, GVariable, GTensorKindFn, ConstTKind, VarTKind, ConstTKind } from './gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as jstree from '../js_tree/js_tree';
 
-type ParamShape<T extends TensorOrVarKind> = {
-  a: GTensorOrVar<T, 'rep'>;
-  b: GTensorOrVar<T, 'rep'>;
+type ParamShape<T extends ConstTKind> = {
+  a: GTensorKindFn<T, 'rep'>;
+  b: GTensorKindFn<T, 'rep'>;
 };
 
 describe('grad', () => {
   it('gradsFunctor', async () => {
     // const scalarLr = tf.scalar(0.5);
-    const initParams: ParamShape<TensorKind> = {
+    const initParams: ParamShape<ConstTKind> = {
       a: new GTensor(tf.tensor1d([1, 1], 'float32'), ['rep']),
       b: new GTensor(tf.tensor1d([1, 1], 'float32'), ['rep']),
     };
     const paramVars = jstree.map(
       initParams,
       (t: GTensor<any>) => new GVariable(t)
-    ) as ParamShape<VariableKind>;
+    ) as ParamShape<VarTKind>;
 
     const batchInput = {
       inputs: new GTensor(

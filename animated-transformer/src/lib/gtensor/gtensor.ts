@@ -957,20 +957,25 @@ export const zero = makeScalar(0);
 // Note: the key idea here is that we can parameterise other types so that a
 // given instance knows if it has Variable (imperitively editable) parameter
 // values, or if the tensors might be fixed constant tensors.
-export type TensorKind = 'tensor';
-export type VariableKind = 'varTensor';
-export type TensorOrVarKind = TensorKind | VariableKind;
+export type ConstTKind = 'tensor';
+export type VarTKind = 'varTensor';
+export type SerialTKind = 'serialisedTensor';
+export type TensorKind = ConstTKind | VarTKind | SerialTKind;
 
-export type AnyGTensorOrVar<T extends TensorOrVarKind> = T extends TensorKind
+export type AnyGTensorOrVar<T extends TensorKind> = T extends ConstTKind
   ? GTensor<any>
-  : T extends VariableKind
+  : T extends VarTKind
   ? GVariable<any>
+  : T extends SerialTKind
+  ? SerialTKind
   : never;
 
-export type GTensorOrVar<T extends TensorOrVarKind, D extends DName> = T extends TensorKind
+export type GTensorKindFn<T extends TensorKind, D extends DName> = T extends ConstTKind
   ? GTensor<D>
-  : T extends VariableKind
+  : T extends VarTKind
   ? GVariable<D>
+  : T extends SerialTKind
+  ? SerialTKind
   : never;
 
 // type ShouldBeTrue = DictArrTree<AnyGTensorOrVar<VariableKind>> extends DictArrTree<
