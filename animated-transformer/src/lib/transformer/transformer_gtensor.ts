@@ -33,13 +33,10 @@ import {
   makeOnes,
   makeScalar,
   GVariable,
-  GTensorKindFn,
-  ConstTKind,
-  VarTKind,
-  SerialTKind,
   SerializedGTensor,
-  TensorKind,
 } from '../gtensor/gtensor';
+import { ConstTKind, GTensorKindFn, SerialTKind, TensorKind, VarTKind } from '../gtensor/params';
+
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import {
   BatchedRelativePosAttention,
@@ -447,13 +444,6 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
     inputRep: spec.inputRep,
   });
   return { layers, tokenEmbedding };
-}
-
-export function initDecoderVarParams(config: TransformerConfig): VarTransformerParams {
-  const initParams = initDecoderParams(config);
-  // Maybe make a nice initializer variable trees from tensor trees?
-  const params = jstree.map(initParams, (t: GTensor<any>) => new GVariable(t));
-  return params as VarTransformerParams;
 }
 
 export type TransformerComputation = {

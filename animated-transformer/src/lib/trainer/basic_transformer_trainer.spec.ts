@@ -25,6 +25,7 @@ import { initTransformerTrainState } from './basic_transformer_trainer';
 import { TrainStateConfig, trySgdTrainStep } from './train_state';
 import * as jstree from '../js_tree/js_tree';
 import { GTensor } from '../gtensor/gtensor';
+import { constToVarParams } from '../gtensor/params';
 
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
@@ -69,7 +70,7 @@ describe('basic_transformer_trainer', () => {
       testSetSize: 0,
       trainSetSize: 64,
     };
-    const params = transformer.initDecoderVarParams(decoderConfig);
+    const params = constToVarParams(transformer.initDecoderParams(decoderConfig));
     const model = {
       config: decoderConfig,
       params,

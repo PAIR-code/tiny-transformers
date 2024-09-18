@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ConstTKind, GTensor, GTensorKindFn, makeScalar, TensorKind, VarTKind } from './gtensor';
+import { GTensor, makeScalar } from './gtensor';
+import { ConstTKind, GTensorKindFn, TensorKind, VarTKind } from './params';
 
 export type LayerNormParams<T extends TensorKind> = {
   gain: GTensorKindFn<T, never>;

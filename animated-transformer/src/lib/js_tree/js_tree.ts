@@ -37,7 +37,7 @@ export type DictTree<LeafT> = {
   [key: string]: DictArrTree<LeafT>;
 };
 
-type LeafSubst<Leaf, Leaf2, T> = T extends (infer SubT)[]
+export type LeafSubst<Leaf, Leaf2, T> = T extends (infer SubT)[]
   ? LeafSubst<Leaf, Leaf2, SubT>[]
   : T extends Leaf
   ? Leaf2

@@ -15,7 +15,7 @@ limitations under the License.
 
 // TODO: add regulariztion methods, e.g. weight decay/L2/L1/Ln regularization.
 
-import { GTensor, GVariable, VarTKind, ConstTKind } from '../gtensor/gtensor';
+import { GTensor } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
 import {

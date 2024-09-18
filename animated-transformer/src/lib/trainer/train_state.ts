@@ -13,16 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  GTensor,
-  DName,
-  GVariable,
-  GTensorOrScalar,
-  makeScalar,
-  GTensorKindFn,
-  AnyGTensorOrVar,
-  ConstTKind,
-} from '../gtensor/gtensor';
+import { GTensor, DName, GVariable, GTensorOrScalar, makeScalar } from '../gtensor/gtensor';
+
 import * as tf from '@tensorflow/tfjs';
 import { BasicLmTask, BasicRandLmTask, Example, generateBatch } from '../seqtasks/util';
 import { gradsVarTreeFunctor } from '../gtensor/grad';

@@ -29,13 +29,13 @@ import {
   TransformerParamSpec,
   TransformerConfig,
   TransformerParams,
-  initDecoderVarParams,
   TransformerComputation,
   computeDecoder,
   lastTokenLogits,
   lastTokenCrossEntropyLoss,
   transformerAccuracy,
   TransformerModel,
+  initDecoderParams,
 } from '../transformer/transformer_gtensor';
 import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
 import {
@@ -45,6 +45,7 @@ import {
   BasicTaskTokenRep,
 } from '../tokens/token_gemb';
 import * as yargs from 'yargs';
+import { constToVarParams } from '../gtensor/params';
 
 const tfjsBackendName = tf.getBackend();
 console.log('tfjs backend:', tfjsBackendName);
@@ -144,7 +145,7 @@ function run() {
 
   // define vocab & decoder
   const transformerConfig = initTransformerConfig(trainTask.baseVocab);
-  const decoderParams = initDecoderVarParams(transformerConfig);
+  const decoderParams = constToVarParams(initDecoderParams(transformerConfig));
   const model: TransformerModel = {
     config: transformerConfig,
     params: decoderParams,

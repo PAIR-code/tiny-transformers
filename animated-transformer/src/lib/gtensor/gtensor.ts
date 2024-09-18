@@ -40,7 +40,6 @@ import * as tf from '@tensorflow/tfjs';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { contract, ContractSpec } from './contract';
 import { range } from './gtensor_util';
-import { DictArrTree } from '../js_tree/js_tree';
 
 // export type DName = string | number | symbol;
 
@@ -952,34 +951,3 @@ export function makeScalar(
 
 export const one = makeScalar(1);
 export const zero = makeScalar(0);
-
-// ----------------------------------------------------------------------------
-// Note: the key idea here is that we can parameterise other types so that a
-// given instance knows if it has Variable (imperitively editable) parameter
-// values, or if the tensors might be fixed constant tensors.
-export type ConstTKind = 'tensor';
-export type VarTKind = 'varTensor';
-export type SerialTKind = 'serialisedTensor';
-export type TensorKind = ConstTKind | VarTKind | SerialTKind;
-
-export type AnyGTensorOrVar<T extends TensorKind> = T extends ConstTKind
-  ? GTensor<any>
-  : T extends VarTKind
-  ? GVariable<any>
-  : T extends SerialTKind
-  ? SerialTKind
-  : never;
-
-export type GTensorKindFn<T extends TensorKind, D extends DName> = T extends ConstTKind
-  ? GTensor<D>
-  : T extends VarTKind
-  ? GVariable<D>
-  : T extends SerialTKind
-  ? SerialTKind
-  : never;
-
-// type ShouldBeTrue = DictArrTree<AnyGTensorOrVar<VariableKind>> extends DictArrTree<
-//   AnyGTensorOrVar<TensorKind>
-// >
-//   ? true
-//   : never;

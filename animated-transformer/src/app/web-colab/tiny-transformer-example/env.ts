@@ -17,14 +17,10 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { BasicLmTask, BasicLmTaskConfig, Example, indexExample } from 'src/lib/seqtasks/util';
+import { indexExample } from 'src/lib/seqtasks/util';
 import {
   defaultTransformerConfig,
-  initDecoderVarParams,
-  TransformerConfig,
-  TransformerParamLayerSpec,
-  TransformerParams,
-  TransformerParamSpec,
+  initDecoderParams,
 } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
 import { SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
@@ -34,6 +30,7 @@ import { GTensor } from 'src/lib/gtensor/gtensor';
 import { globals, Globals, trainerCell } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
+import { constToVarParams } from 'src/lib/gtensor/params';
 
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
@@ -69,7 +66,7 @@ const testExamples = computed(() => dataSplitByTrainAndTest().testExamples);
 const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
 
 const transformerConfig = writable(defaultTransformerConfig());
-const transformerParams = computed(() => initDecoderVarParams(transformerConfig()));
+const transformerParams = computed(() => constToVarParams(initDecoderParams(transformerConfig())));
 const model = computed(() => {
   return {
     config: transformerConfig(),
