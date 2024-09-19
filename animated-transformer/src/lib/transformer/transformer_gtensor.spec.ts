@@ -61,10 +61,11 @@ describe('GTensor Transformers', () => {
     const inputRep = 2;
     const batchSize = 4;
     const task = new abtask.AorBisMaxTask({
-      name: 'AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      name: 'an A or B is Max task',
       maxInputLen: 2,
       maxOutputLen: 2,
-      seed: 0,
+      genStateConfig: { seed: 0 },
       // Create a tokenEmbedding that also has [MASC] token & [PAD] token.
       // inputRepSize: inputRep,
     });

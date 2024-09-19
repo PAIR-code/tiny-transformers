@@ -22,20 +22,13 @@ That is, any javascript object with GTensor leaves (including GVariable leaves).
 
 e.g. 
 
-  type LayerNormParams<T extends TensorKind> = {
-    gain: GTensorKindFn<T, never>;
-    bias?: GTensorKindFn<T, never>;
-    epsilon: GTensorKindFn<T, never>;
-  } 
-
-provides you with a type that has a gain, bias, and epsilon scalar values, and
-when TensorKind is GTensor, this is: 
-
   type LayerNormParams = {
     gain: GScalar;
     bias?: GScalar;
     epsilon: GScalar;
   }
+
+Is type that has a gain, bias, and epsilon scalar tensor values.
 
 The neat thing about this class of types is that there are some nice programatic
 type operations that let you do things like convert them into serializable
@@ -52,12 +45,13 @@ will give you:
     epsilon: SerializedGScalar;
   }
 
-Note: 
+Where: 
   GScalar = GTensor<never>
   SerializedGScalar = SerializedGTensor<never>
 */
 
 import * as jstree from '../js_tree/js_tree';
+import { SavableValueKind } from '../weblab/savable-value';
 import { DName, GTensor, GVariable, SerializedGTensor } from './gtensor';
 
 // ----------------------------------------------------------------------------
@@ -101,6 +95,17 @@ export type SerializeTensorParams<T> = T extends (infer SubT)[]
   ? { [key in keyof T]: SerializeTensorParams<T[key]> }
   : never;
 
+export type DeserializeTensorParams<T> = T extends (infer SubT)[]
+  ? DeserializeTensorParams<SubT>[]
+  : T extends SerializedGTensor<infer N>
+  ? GTensor<N>
+  : T extends jstree.DictTree<SerializedGTensor<any>>
+  ? { [key in keyof T]: DeserializeTensorParams<T[key]> }
+  : never;
+
+// Note: there is no varToConstParams because GVariable is a supertype of
+// GTensor already. So you should never need that.
+
 export function constToVarParams<Params extends jstree.DictArrTree<GTensor<any>>>(
   params: Params
 ): VarifyTensorParams<Params> {
@@ -113,4 +118,20 @@ export function constToSerialParams<Params extends jstree.DictArrTree<GTensor<an
 ): SerializeTensorParams<Params> {
   const vparams = jstree.map(params, (t: GTensor<any>) => t.toSerialised());
   return vparams as SerializeTensorParams<Params>;
+}
+
+export function serialToConstParams<
+  SerialParams extends jstree.DictArrTree<SerializedGTensor<any>>
+>(serialParams: SerialParams): DeserializeTensorParams<SerialParams> {
+  const params = jstree.map(serialParams, (s: SerializedGTensor<any>) => GTensor.fromSerialised(s));
+  return params as DeserializeTensorParams<SerialParams>;
+}
+
+// Unclear if this is useful or not...
+export function savableParamsKind<Params extends jstree.DictArrTree<GTensor<any>>>() {
+  return new SavableValueKind<'SVK_Params', Params, SerializeTensorParams<Params>>(
+    'SVK_Params',
+    constToSerialParams as (params: Params) => SerializeTensorParams<Params>,
+    serialToConstParams as (serialParams: SerializeTensorParams<Params>) => Params
+  );
 }

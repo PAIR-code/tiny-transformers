@@ -59,6 +59,7 @@ export function isSomeClass<T>(x: any): x is SomeClass<T> {
     typeof x === 'number' ||
     typeof x === 'string' ||
     typeof x === 'boolean' ||
+    '__kind__' in x || // we use this for specific tree shaped leaf types.
     (x.constructor.name !== 'Array' && x.constructor.name !== 'Object')
   );
 }

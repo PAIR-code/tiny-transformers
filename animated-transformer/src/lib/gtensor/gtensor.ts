@@ -296,6 +296,9 @@ export function stack<G extends string, NewD extends string>(
 }
 
 export type SerializedGTensor<G extends DName> = {
+  // Used so that when walking a jstree one can identify a distinguish a
+  // SerializedGTensor from named sub-parts of the tree of GTensors...
+  __kind__: 'SerializedGTensor';
   buffer: Uint8Array;
   shape: number[];
   dimNames: G[];
@@ -354,6 +357,7 @@ export class GTensor<G extends DName> {
 
   toSerialised(): SerializedGTensor<G> {
     return {
+      __kind__: 'SerializedGTensor',
       buffer: new Uint8Array(this.tensor.bufferSync().values),
       shape: this.tensor.shape,
       dimNames: this.dimNames,

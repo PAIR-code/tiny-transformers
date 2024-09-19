@@ -14,26 +14,15 @@ limitations under the License.
 ==============================================================================*/
 
 import { GTensor, makeScalar } from './gtensor';
-import { ConstTKind, GTensorKindFn, TensorKind, VarTKind } from './params';
 
-export type LayerNormParams<T extends TensorKind> = {
-  gain: GTensorKindFn<T, never>;
-  bias?: GTensorKindFn<T, never>;
-  epsilon: GTensorKindFn<T, never>;
-} & {};
-// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
-type WorkAroundMakesThisTrue = LayerNormParams<VarTKind> extends LayerNormParams<ConstTKind>
-  ? true
-  : false;
-// These are needed to get workaround to function accross files.
-export type VarLayerNormParams = LayerNormParams<VarTKind>;
-export type TensorLayerNormParams = LayerNormParams<ConstTKind>;
+export type LayerNormParams = {
+  gain: GTensor<never>;
+  bias?: GTensor<never>;
+  epsilon: GTensor<never>;
+};
 
-export function initLayerNormParams(
-  includeBias: boolean,
-  epsilon = 1e5
-): LayerNormParams<ConstTKind> {
-  const layerNormParams: LayerNormParams<ConstTKind> = {
+export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerNormParams {
+  const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),
   };
@@ -44,7 +33,7 @@ export function initLayerNormParams(
 }
 
 export function layerNorm<G extends string, D extends G>(
-  layerNormParams: LayerNormParams<ConstTKind>,
+  layerNormParams: LayerNormParams,
   g: GTensor<G>,
   dim: D
 ): GTensor<G> {
