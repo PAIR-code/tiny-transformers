@@ -75,7 +75,8 @@ export class CellStateSpec<
   ) {}
 }
 
-export function cellFactory<
+// A bit of a hack to manage types...
+export function cellSpec<
   Globals extends ValueStruct,
   Uses extends keyof Globals,
   Updates extends keyof Globals

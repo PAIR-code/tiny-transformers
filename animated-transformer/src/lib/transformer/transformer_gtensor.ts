@@ -37,11 +37,11 @@ import {
 } from '../gtensor/gtensor';
 import {
   ConstTKind,
-  constToSerialParams,
+  serializeParams,
   GTensorKindFn,
   SerializeTensorParams,
   SerialTKind,
-  serialToConstParams,
+  deserializeParams,
   TensorKind,
   VarifyTensorParams,
   VarTKind,

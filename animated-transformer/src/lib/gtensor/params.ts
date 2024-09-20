@@ -106,23 +106,23 @@ export type DeserializeTensorParams<T> = T extends (infer SubT)[]
 // Note: there is no varToConstParams because GVariable is a supertype of
 // GTensor already. So you should never need that.
 
-export function constToVarParams<Params extends jstree.DictArrTree<GTensor<any>>>(
+export function varifyParams<Params extends jstree.DictArrTree<GTensor<any>>>(
   params: Params
 ): VarifyTensorParams<Params> {
   const vparams = jstree.map(params, (t: GTensor<any>) => new GVariable(t));
   return vparams as VarifyTensorParams<Params>;
 }
 
-export function constToSerialParams<Params extends jstree.DictArrTree<GTensor<any>>>(
+export function serializeParams<Params extends jstree.DictArrTree<GTensor<any>>>(
   params: Params
 ): SerializeTensorParams<Params> {
   const vparams = jstree.map(params, (t: GTensor<any>) => t.toSerialised());
   return vparams as SerializeTensorParams<Params>;
 }
 
-export function serialToConstParams<
-  SerialParams extends jstree.DictArrTree<SerializedGTensor<any>>
->(serialParams: SerialParams): DeserializeTensorParams<SerialParams> {
+export function deserializeParams<SerialParams extends jstree.DictArrTree<SerializedGTensor<any>>>(
+  serialParams: SerialParams
+): DeserializeTensorParams<SerialParams> {
   const params = jstree.map(serialParams, (s: SerializedGTensor<any>) => GTensor.fromSerialised(s));
   return params as DeserializeTensorParams<SerialParams>;
 }
@@ -131,7 +131,28 @@ export function serialToConstParams<
 export function savableParamsKind<Params extends jstree.DictArrTree<GTensor<any>>>() {
   return new SavableValueKind<'SVK_Params', Params, SerializeTensorParams<Params>>(
     'SVK_Params',
-    constToSerialParams as (params: Params) => SerializeTensorParams<Params>,
-    serialToConstParams as (serialParams: SerializeTensorParams<Params>) => Params
+    serializeParams as (params: Params) => SerializeTensorParams<Params>,
+    deserializeParams as (serialParams: SerializeTensorParams<Params>) => Params
   );
+}
+
+export function listifyVarParams<VarParams extends jstree.DictArrTree<GVariable<any>>>(
+  p: VarParams
+) {
+  return jstree.flatten(p as jstree.DictArrTree<GVariable<any>>);
+}
+
+export function assignParams<Params extends jstree.DictArrTree<GTensor<any>>>(
+  p: VarifyTensorParams<Params>,
+  t: Params
+) {
+  return jstree.forEachZip<GVariable<any>, GTensor<any>>(
+    (lp, lt) => lp.variable.assign(lt.tensor),
+    p,
+    t
+  );
+}
+
+export function disposeParams(p: jstree.DictArrTree<GTensor<any>>) {
+  jstree.map(p, (g) => g.dispose());
 }

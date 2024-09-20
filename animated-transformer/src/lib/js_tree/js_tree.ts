@@ -45,22 +45,32 @@ export type LeafSubst<Leaf, Leaf2, T> = T extends (infer SubT)[]
   ? { [key in keyof T]: LeafSubst<Leaf, Leaf2, T[key]> }
   : never;
 
-type Foo = { a: string; b: string[]; c: { d: string }[] };
-type Foo2 = LeafSubst<string, number, Foo>;
-
 export type LeafOf<T> = T extends DictArrTree<infer LeafT> ? LeafT : never;
 
-export interface SomeClass<T> extends Function {
+export interface ClassLike<T> extends Function {
   new (...args: any[]): T;
 }
 
-export function isSomeClass<T>(x: any): x is SomeClass<T> {
+// QUESION: should we require that all leaf objects that a __kind__ string? This
+// would make a clear type-level distinction possible between objects and leafs.
+type SomeLeaf = { __kind__: string } | number | string | boolean | ClassLike<any>;
+// SomeClass<any>;
+class FooClass {}
+
+// the ClassLike being false here is a big issue: it means that we can have
+// non-pure-object classes match SomeLeaf.
+// This is very sad because it would be wondeful if isLeaf really worked...
+type FooClassExtendSomeClass_Check_is_False = FooClass extends ClassLike<any> ? true : false;
+
+export function isLeaf<T>(
+  x: any
+): x is ClassLike<T> | number | string | boolean | { __kind__: string } {
   return (
     typeof x === 'number' ||
     typeof x === 'string' ||
     typeof x === 'boolean' ||
-    '__kind__' in x || // we use this for specific tree shaped leaf types.
-    (x.constructor.name !== 'Array' && x.constructor.name !== 'Object')
+    '__kind__' in x || // we use this for specific tree shaped leaf types that we don't want to break into parts, e.g. for serialised tensors that may contain Float32Array
+    (x.constructor !== Array && x.constructor !== Object)
   );
 }
 
@@ -73,22 +83,22 @@ export function isSomeClass<T>(x: any): x is SomeClass<T> {
 // version of a shape.
 
 // TODO: make an unsorted, faster version
-export function* iter<Leaf>(
-  t: DictArrTree<Leaf>
-): Generator<Leaf, undefined, undefined> & Iterable<Leaf> {
-  if (isSomeClass(t)) {
-    yield t;
-  } else if (t instanceof Array && t.length > 0 && isSomeClass(t[0])) {
+export function* iter<D extends DictArrTree<any>>(
+  t: D
+): Generator<LeafOf<D>, undefined, undefined> & Iterable<LeafOf<D>> {
+  if (isLeaf(t as SomeLeaf)) {
+    yield t as LeafOf<D>;
+  } else if (t instanceof Array && t.length > 0 && isLeaf(t[0])) {
     for (const el of t) {
-      yield el as Leaf;
+      yield el as LeafOf<D>;
     }
   } else {
     // t: ParamsDict<T> | ParamsDict<T>[]
-    const node = t as DictTree<Leaf> | DictTree<Leaf>[];
+    const node = t as DictTree<SomeLeaf> | DictTree<SomeLeaf>[];
     if (node instanceof Array) {
       for (const el of node) {
         for (const subel of iter(el)) {
-          yield subel as Leaf;
+          yield subel as LeafOf<D>;
         }
       }
     } else {
@@ -96,7 +106,7 @@ export function* iter<Leaf>(
         for (const subel of iter(node[k])) {
           // Treat { x =
           // if (subel !== undefined) {
-          yield subel as Leaf;
+          yield subel as LeafOf<D>;
           // }
         }
       }
@@ -105,10 +115,10 @@ export function* iter<Leaf>(
   return;
 }
 
-export function forEach<Leaf>(fn: (el: Leaf, i: number) => void, t: DictArrTree<Leaf>): void {
+export function forEach<LeafT>(fn: (el: LeafT, i: number) => void, t: DictArrTree<LeafT>): void {
   let i = 0;
   for (const el of iter(t)) {
-    fn(el, i++);
+    fn(el as LeafT, i++);
   }
 }
 
@@ -124,7 +134,7 @@ export function forEachZip<Leaf1, Leaf2>(
   let el1 = iter1.next();
   let el2 = iter2.next();
   while (el1.value && el2.value) {
-    fn(el1.value, el2.value, i++);
+    fn(el1.value as Leaf1, el2.value as Leaf2, i++);
     el1 = iter1.next();
     el2 = iter2.next();
   }
@@ -162,9 +172,9 @@ export function mapTree<Leaf1, Leaf2>(
   t: DictArrTree<Leaf1>,
   fn: (l: Leaf1) => Leaf2
 ): DictArrTree<Leaf2> {
-  if (isSomeClass(t)) {
+  if (isLeaf(t)) {
     return fn(t);
-  } else if (t instanceof Array && t.length > 0 && isSomeClass(t[0])) {
+  } else if (t instanceof Array && t.length > 0 && isLeaf(t[0])) {
     return (t as Leaf1[]).map((e) => fn(e));
   } else {
     const node = t as DictTree<Leaf1> | DictTree<Leaf1>[];
@@ -204,13 +214,8 @@ export function nullify(t: DictArrTree<any>): DictArrTree<null> {
   return map(t, (l) => null);
 }
 
-export function flatten<Leaf>(p: DictArrTree<Leaf>): Leaf[] {
-  return [...iter(p)];
-  // const l = [];
-  // for (const el of this.iter(p)) {
-  //   l.push(el);
-  // }
-  // return l;
+export function flatten<LeafT>(p: DictArrTree<LeafT>): LeafT[] {
+  return [...iter(p)] as LeafT[];
 }
 
 // We use `T extends DictArrTree` here so that the original type can be preserved

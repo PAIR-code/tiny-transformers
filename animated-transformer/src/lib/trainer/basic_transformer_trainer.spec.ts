@@ -15,7 +15,6 @@ limitations under the License.
 
 import * as transformer from '../transformer/transformer_gtensor';
 import * as abtask from '../seqtasks/ab_task';
-import { RandLmTaskConfig } from '../seqtasks/util';
 import {
   prepareBasicTaskTokenRep,
   strSeqPrepFn,
@@ -25,7 +24,7 @@ import { initTransformerTrainState } from './basic_transformer_trainer';
 import { TrainStateConfig, trySgdTrainStep } from './train_state';
 import * as jstree from '../js_tree/js_tree';
 import { GTensor } from '../gtensor/gtensor';
-import { constToVarParams } from '../gtensor/params';
+import { varifyParams } from '../gtensor/params';
 
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
@@ -70,7 +69,7 @@ describe('basic_transformer_trainer', () => {
       testSetSize: 0,
       trainSetSize: 64,
     };
-    const params = constToVarParams(transformer.initDecoderParams(decoderConfig));
+    const params = varifyParams(transformer.initDecoderParams(decoderConfig));
     const model = {
       config: decoderConfig,
       params,

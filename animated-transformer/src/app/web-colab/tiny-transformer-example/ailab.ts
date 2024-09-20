@@ -24,7 +24,8 @@ import {
   TransformerParams,
 } from 'src/lib/transformer/transformer_gtensor';
 import { WritableSignal } from 'src/lib/weblab/signalspace';
-import { cellFactory, Metrics } from 'src/lib/weblab/cellspec';
+import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
+import { SerializeTensorParams } from 'src/lib/gtensor/params';
 
 export type Batch = {
   batchId: number;
@@ -43,9 +44,11 @@ export type TrainConfig = {
 };
 
 export type Globals = {
-  taskConfig: BasicLmTask<BasicLmTaskConfig<{}>>;
-  transformerConfig: TransformerConfig;
-  transformerParams: TransformerParams;
+  taskConfig: BasicLmTaskConfig<{}>;
+  model: {
+    config: TransformerConfig;
+    serializedParams?: SerializeTensorParams<TransformerParams>;
+  };
   trainConfig: TrainConfig;
   batch: Batch;
   testSet: Example[];
@@ -53,10 +56,10 @@ export type Globals = {
 };
 export const globals: Partial<Globals> = {};
 
-export const trainerCell = cellFactory(
+export const trainerCell = cellSpec(
   globals,
   'Trainer cell',
   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  ['testSet', 'trainConfig', 'transformerConfig', 'batch'],
-  ['transformerParams', 'lastTrainMetric']
+  ['testSet', 'trainConfig', 'model', 'batch'],
+  ['model', 'lastTrainMetric']
 );

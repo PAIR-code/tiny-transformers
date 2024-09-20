@@ -30,7 +30,7 @@ import { GTensor } from 'src/lib/gtensor/gtensor';
 import { globals, Globals, trainerCell } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
-import { constToVarParams } from 'src/lib/gtensor/params';
+import { varifyParams } from 'src/lib/gtensor/params';
 
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
@@ -66,7 +66,7 @@ const testExamples = computed(() => dataSplitByTrainAndTest().testExamples);
 const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
 
 const transformerConfig = writable(defaultTransformerConfig());
-const transformerParams = computed(() => constToVarParams(initDecoderParams(transformerConfig())));
+const transformerParams = computed(() => varifyParams(initDecoderParams(transformerConfig())));
 const model = computed(() => {
   return {
     config: transformerConfig(),

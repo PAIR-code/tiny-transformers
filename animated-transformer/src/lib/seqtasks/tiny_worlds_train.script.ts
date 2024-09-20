@@ -42,10 +42,10 @@ import {
   strSeqPrepFn,
   singleNextTokenIdxOutputPrepFn,
   prepareBasicTaskTokenRep,
-  BasicTaskTokenRep,
 } from '../tokens/token_gemb';
 import * as yargs from 'yargs';
-import { constToVarParams } from '../gtensor/params';
+import { varifyParams, listifyVarParams } from '../gtensor/params';
+import * as jstree from '../js_tree/js_tree';
 
 const tfjsBackendName = tf.getBackend();
 console.log('tfjs backend:', tfjsBackendName);
@@ -145,11 +145,14 @@ function run() {
 
   // define vocab & decoder
   const transformerConfig = initTransformerConfig(trainTask.baseVocab);
-  const decoderParams = constToVarParams(initDecoderParams(transformerConfig));
+  const decoderParams = varifyParams(initDecoderParams(transformerConfig));
   const model: TransformerModel = {
     config: transformerConfig,
     params: decoderParams,
   };
+  // By manipulating decoderParams, you can selectively limit what parameters
+  // get tuned.
+  const paramsList = listifyVarParams(decoderParams).map((g) => g.variable);
 
   {
     // train with optimiztaion
@@ -159,7 +162,7 @@ function run() {
     let optimizer = tf.train.adam();
     for (let batch of batchGenerator(trainTask, batchNum, batchSize)) {
       let { batchId, inputs, outputs } = batch;
-      optimizer.minimize(() => computeLoss(model, batchId, inputs, outputs));
+      optimizer.minimize(() => computeLoss(model, batchId, inputs, outputs), false, paramsList);
       batchId += 1;
     }
     optimizer.dispose();

@@ -34,8 +34,18 @@ import {
   TransformerParamSpec,
   TransformerModel,
   makeTransformer,
+  VarTransformerParams,
+  initDecoderParams,
 } from 'src/lib/transformer/transformer_gtensor';
 import { Signal } from 'src/lib/weblab/signalspace';
+import {
+  assignParams,
+  deserializeParams,
+  disposeParams,
+  listifyVarParams,
+  SerializeTensorParams,
+  varifyParams,
+} from 'src/lib/gtensor/params';
 
 const { lastMetrics, reportMetrics } = makeMetricReporter(['entropyLoss', 'accuracy']);
 
@@ -60,9 +70,55 @@ function computeLoss(model: TransformerModel, batch: Batch, options: Options): t
   return entropyLoss;
 }
 
+const { computed, effect, writable } = space;
+
+function updateModel(
+  newModel: { config?: TransformerConfig; params?: SerializeTensorParams<TransformerParams> },
+  oldModel?: { config: TransformerConfig; params: VarTransformerParams }
+): { config: TransformerConfig; params: VarTransformerParams } {
+  // TODO: instead of doing all at the same time, we should use some streaming
+  // iterator through the parts... (this will save memory), and allow transfer
+  // to happen at the same time as we assign in the GPU.
+  const { config, params } = newModel;
+  if (config) {
+    if (params) {
+      // Use the new params and config.
+      if (oldModel) {
+        disposeParams(oldModel.params);
+      }
+      return {
+        config,
+        params: varifyParams(deserializeParams(params)),
+      };
+    } else {
+      // Make the model from the config.
+      if (oldModel) {
+        disposeParams(oldModel.params);
+      }
+      return {
+        config,
+        params: varifyParams(initDecoderParams(config)),
+      };
+    }
+  } else {
+    if (params && oldModel) {
+      // new params for existing config.
+      assignParams(oldModel.params, deserializeParams(params));
+      return oldModel;
+    } else {
+      throw new Error('updateModel called with no params and no config, what do you expect?');
+    }
+  }
+}
+
 const cell = new StatefulCell(globals, trainerCell);
 cell.run(async (inputs) => {
-  const model = space.computed(() => makeTransformer(inputs.transformerConfig()));
+  const model = writable(updateModel(inputs.model()));
+  effect(() => {
+    updateModel(inputs.model(), model());
+  });
+  const varParamList = computed(() => listifyVarParams(model().params).map((g) => g.variable));
+
   const options = space.computed(() => {
     const trainConfig = inputs.trainConfig();
     return {
@@ -74,11 +130,15 @@ cell.run(async (inputs) => {
 
   let optimizer = tf.train.adam();
 
-  space.effect(() => {
-    optimizer.minimize(() => computeLoss(model(), inputs.batch(), options()));
+  effect(() => {
+    optimizer.minimize(
+      () => computeLoss(model(), inputs.batch(), options()),
+      false,
+      varParamList()
+    );
   });
 
-  space.effect(() => {
+  effect(() => {
     cell.output('lastTrainMetric', lastMetrics());
   });
 
@@ -86,6 +146,7 @@ cell.run(async (inputs) => {
     if (optimizer) {
       optimizer.dispose();
     }
+    disposeParams(model().params);
   });
 });
 
