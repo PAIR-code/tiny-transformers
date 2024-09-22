@@ -238,21 +238,21 @@ export type TransformerModel = {
   params: TransformerParams;
 };
 
-// export const savableTransformerModelKind = new SavableValueKind(
-//   'SVKind_TransformerModel',
-//   (x: TransformerModel) => {
-//     return {
-//       config: x.config as TransformerConfig,
-//       params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
-//     };
-//   },
-//   (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
-//     return {
-//       config: s.config as TransformerConfig,
-//       params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
-//     };
-//   }
-// );
+export const savableTransformerModelKind = new SavableValueKind(
+  'SVKind_TransformerModel',
+  (x: TransformerModel) => {
+    return {
+      config: x.config as TransformerConfig,
+      params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
+    };
+  },
+  (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
+    return {
+      config: s.config as TransformerConfig,
+      params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
+    };
+  }
+);
 
 // ---------------------------------------------------------------------------
 

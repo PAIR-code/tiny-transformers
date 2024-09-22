@@ -48,6 +48,7 @@ export interface AbstractSignal<T> {
   // The get signal value function. If this is a computed signal that
   // needs updating, it will compute the updated value.
   (options?: SignalGetOptions): T;
+  space: SignalSpace;
   // The last value the signal had (doesn't compute updates, even if
   // the signal needs updating).
   lastValue(): T;
@@ -58,16 +59,18 @@ export interface WritableSignal<T> extends AbstractSignal<T> {
   // Sets the value of the signal.
   set(newValue: T, options?: SignalSetOptions): void;
   update(f: (oldValue: T) => T, options?: SignalSetOptions): void;
-  rawComputation: ComputedSignal<T>;
+  // rawComputation: ComputedSignal<T>;
   rawValue: ValueSignal<T>;
 }
 
-export interface ReadonlySignal<T> extends AbstractSignal<T> {
+export interface ComputedSignal<T> extends AbstractSignal<T> {
   kind: 'computed';
-  rawComputation: ComputedSignal<T>;
+  rawComputation: DerivedSignal<T>;
 }
 
-export type Signal<T> = WritableSignal<T> | ReadonlySignal<T>;
+export type Signal<T> = WritableSignal<T> | ComputedSignal<T>;
+
+// Intended to be a type for the result of setTimeout.
 export type Timeout = unknown;
 
 // Manages a single update pass through the signalspace.
@@ -75,9 +78,9 @@ type SignalSpaceUpdate = {
   // Values touched in this update.
   valuesUpdated: Set<ValueSignal<unknown>>;
   // All effects touched in this update.
-  effectsTouched: Set<ComputedSignal<unknown>>;
+  effectsTouched: Set<DerivedSignal<unknown>>;
   // Effects left to actually compute the update of.
-  pendingEffects: Set<ComputedSignal<unknown>>;
+  pendingEffects: Set<DerivedSignal<unknown>>;
   // The set of values updated from computations.
   // Used to avoid computation loops.
   //
@@ -101,7 +104,7 @@ export class SignalSpace {
   // e.g. c = makeComputedSignal(() => ... x.get())
   // means that c depends on the value of x. So:
   //  computeGraph.get(x).depOnKey.has(x)
-  public computeStack: ComputedSignal<unknown>[] = [];
+  public computeStack: DerivedSignal<unknown>[] = [];
 
   public signalSet: Set<SomeSignal> = new Set();
 
@@ -111,7 +114,7 @@ export class SignalSpace {
 
   constructor() {}
 
-  maybeDependeeComputeSignal(): ComputedSignal<unknown> | null {
+  maybeDependeeComputeSignal(): DerivedSignal<unknown> | null {
     return this.computeStack.length > 0 ? this.computeStack[this.computeStack.length - 1] : null;
   }
 
@@ -120,8 +123,8 @@ export class SignalSpace {
     return s;
   }
 
-  makeComputedSignal<T>(f: () => T, options?: Partial<ComputeOptions<T>>): ComputedSignal<T> {
-    const thisComputeSignal = new ComputedSignal<T>(this, f, options);
+  makeComputedSignal<T>(f: () => T, options?: Partial<ComputeOptions<T>>): DerivedSignal<T> {
+    const thisComputeSignal = new DerivedSignal<T>(this, f, options);
     return thisComputeSignal;
   }
 
@@ -240,14 +243,14 @@ export class SignalSpace {
     };
   }
 
-  writable<T>(defaultValue: T): WritableSignal<T> {
-    return signal(this, defaultValue);
+  writable<T>(defaultValue: T, valueOptions?: Partial<ValueOptions<T>>): WritableSignal<T> {
+    return writable(this, defaultValue, valueOptions);
   }
-  computed<T>(f: () => T): Signal<T> {
-    return computed(this, f);
+  computed<T>(f: () => T, options?: ComputeOptions<T>): ComputedSignal<T> {
+    return computed(this, f, options);
   }
-  effect<T>(f: () => T): Signal<T> {
-    return effect(this, f);
+  effect<T>(f: () => T, options?: ComputeOptions<T>): ComputedSignal<T> {
+    return effect(this, f, options);
   }
 }
 
@@ -256,6 +259,7 @@ export type SignalSetOptions = {
 };
 
 export type SignalGetOptions = {
+  // CONSIDER: change this to the positive version: tracked, and default true.
   untracked: boolean; // default false;
 };
 
@@ -265,6 +269,8 @@ export type ComputeOptions<T> = {
   // the corresponding s.get() method is called.
   isEffect: boolean; // default false;
   eqCheck: (x: T, y: T) => boolean;
+  // TODO: add clobberBehavior here too. Useful is you have a alwaysUpdate that
+  // you want to merge later...
 };
 
 export type ValueOptions<T> = {
@@ -296,8 +302,8 @@ function defaultValueOptions<T>(): ValueOptions<T> {
 
 export class ValueSignal<T> {
   // All these computed signals in the SignalSpace, `c` have a `c.get(this)`.
-  dependsOnMeCompute = new Set<ComputedSignal<unknown>>();
-  dependsOnMeEffects = new Set<ComputedSignal<unknown>>();
+  dependsOnMeCompute = new Set<DerivedSignal<unknown>>();
+  dependsOnMeEffects = new Set<DerivedSignal<unknown>>();
   lastUpdate?: SignalSpaceUpdate;
   kind = 'valueSignal';
   options: ValueOptions<T>;
@@ -381,15 +387,15 @@ export class ValueSignal<T> {
   }
 }
 
-export class ComputedSignal<T> {
+export class DerivedSignal<T> {
   kind = 'computedSignal';
   updateNeeded?: SignalSpaceUpdate;
   lastUpdate?: SignalSpaceUpdate;
   lastUpdateChangedValue = true;
   // TODO: use this to check if any child dep changed,
   // and thus this needs recomputation.
-  dependsOnMe = new Set<ComputedSignal<unknown>>();
-  dependsOnComputing = new Set<ComputedSignal<unknown>>();
+  dependsOnMe = new Set<DerivedSignal<unknown>>();
+  dependsOnComputing = new Set<DerivedSignal<unknown>>();
   dependsOnValues = new Set<ValueSignal<unknown>>();
   lastValue: T;
   options: ComputeOptions<T>;
@@ -401,8 +407,8 @@ export class ComputedSignal<T> {
   ) {
     this.options = Object.assign(defaultComputeOptions(), options || {});
 
-    signalSpace.signalSet.add(this as ComputedSignal<unknown>);
-    this.signalSpace.computeStack.push(this as ComputedSignal<unknown>);
+    signalSpace.signalSet.add(this as DerivedSignal<unknown>);
+    this.signalSpace.computeStack.push(this as DerivedSignal<unknown>);
     // Note: this.lastValue should be set last, because...
     // Within the `computeFunction()` call, we expect other siganls, s,
     // to be called with s.get(), and these will add all
@@ -462,7 +468,7 @@ export class ComputedSignal<T> {
       // Set when we are in the process of defining a new computed siganl.
       const computeDependee = this.signalSpace.maybeDependeeComputeSignal();
       if (computeDependee) {
-        computeDependee.dependsOnComputing.add(this as ComputedSignal<unknown>);
+        computeDependee.dependsOnComputing.add(this as DerivedSignal<unknown>);
         this.dependsOnMe.add(computeDependee);
         for (const dep of this.dependsOnValues) {
           computeDependee.dependsOnValues.add(dep);
@@ -481,26 +487,27 @@ export class ComputedSignal<T> {
   }
 }
 
-export type SomeSignal = ComputedSignal<unknown> | ValueSignal<unknown>;
+export type SomeSignal = DerivedSignal<unknown> | ValueSignal<unknown>;
 
-// TODO: is there a writing style that catching errors/missing values?
-// Maybe ... { function, ...objectproperties }
-export function signal<T>(
+// Note: we use the type-safe way to define the return value; as far as I know
+// this is the only way to do so in typescript; although it is more implicit than I would like.
+export function writable<T>(
   space: SignalSpace,
   value: T,
   valueOptions?: Partial<ValueOptions<T>>
 ): WritableSignal<T> {
   const valueSignal = space.makeSignal(value, valueOptions);
-  function getFunction() {
+  const writableSignal = function () {
     return valueSignal.get();
-  }
-  const writableSignal: WritableSignal<T> = getFunction as unknown as WritableSignal<T>;
+  };
   // const foo = {...writableSignal, { lastValue: 'foo' } };
   writableSignal.lastValue = () => valueSignal.value;
   writableSignal.set = (value: T, options?: SignalSetOptions) => valueSignal.set(value, options);
   writableSignal.update = (f: (v: T) => T, options?: SignalSetOptions) =>
     valueSignal.update(f, options);
-  writableSignal.kind = 'value';
+  writableSignal.space = space;
+  writableSignal.kind = 'value' as const;
+  writableSignal.rawValue = valueSignal;
   return writableSignal;
 }
 
@@ -508,15 +515,15 @@ export function computed<T>(
   space: SignalSpace,
   f: () => T,
   options?: ComputeOptions<T>
-): ReadonlySignal<T> {
-  const computedSignal = space.makeComputedSignal(f, options);
-  function getFunction() {
-    return computedSignal.get();
-  }
-  const signal: ReadonlySignal<T> = getFunction as unknown as ReadonlySignal<T>;
-  signal.lastValue = () => computedSignal.lastValue;
-  signal.rawComputation = computedSignal;
-  signal.kind = 'computed';
+): ComputedSignal<T> {
+  const derivedSignal = space.makeComputedSignal(f, options);
+  const signal = function () {
+    return derivedSignal.get();
+  };
+  signal.rawComputation = derivedSignal;
+  signal.lastValue = () => derivedSignal.lastValue;
+  signal.space = space;
+  signal.kind = 'computed' as const;
   return signal;
 }
 
@@ -524,14 +531,14 @@ export function effect<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<ComputeOptions<T>>
-): ReadonlySignal<T> {
-  const computedSignal = space.makeComputedSignal(f, Object.assign({ ...options, isEffect: true }));
-  function getFunction() {
-    return computedSignal.get();
-  }
-  const signal: ReadonlySignal<T> = getFunction as unknown as ReadonlySignal<T>;
-  signal.lastValue = () => computedSignal.lastValue;
-  signal.rawComputation = computedSignal;
-  signal.kind = 'computed';
+): ComputedSignal<T> {
+  const derivedSignal = space.makeComputedSignal(f, Object.assign({ ...options, isEffect: true }));
+  const signal = function () {
+    return derivedSignal.get();
+  };
+  signal.rawComputation = derivedSignal;
+  signal.lastValue = () => derivedSignal.lastValue;
+  signal.space = space;
+  signal.kind = 'computed' as const;
   return signal;
 }

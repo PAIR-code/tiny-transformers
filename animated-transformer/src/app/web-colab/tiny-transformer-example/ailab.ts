@@ -17,13 +17,8 @@ limitations under the License.
  * lab environment.
  */
 
-import { BasicLmTask, BasicLmTaskConfig, Example, indexExample } from 'src/lib/seqtasks/util';
-import {
-  TransformerConfig,
-  TransformerModel,
-  TransformerParams,
-} from 'src/lib/transformer/transformer_gtensor';
-import { WritableSignal } from 'src/lib/weblab/signalspace';
+import { BasicLmTaskConfig, Example } from 'src/lib/seqtasks/util';
+import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
 import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 
@@ -34,21 +29,26 @@ export type Batch = {
 };
 
 export type TrainConfig = {
+  // Training hyper-params
   learningRate: number;
   batchSize: number;
   maxInputLength: number;
+  // Eval
+  testSetSize: number;
   checkpointFrequencyInBatches: number;
   metricReporting: {
     metricFrequencyInBatches: number;
   };
 };
 
+export type EnvModel = {
+  config: TransformerConfig;
+  serializedParams?: SerializeTensorParams<TransformerParams>;
+};
+
 export type Globals = {
   taskConfig: BasicLmTaskConfig<{}>;
-  model: {
-    config: TransformerConfig;
-    serializedParams?: SerializeTensorParams<TransformerParams>;
-  };
+  model: EnvModel;
   trainConfig: TrainConfig;
   batch: Batch;
   testSet: Example[];
@@ -56,6 +56,14 @@ export type Globals = {
 };
 export const globals: Partial<Globals> = {};
 
+// Note: one the advantages of this global var namespace approach is that you
+// can work with partial global var namespace, and worker can simply wait for
+// objects to be constructed.
+//
+// The alternative require definition of empty/initial objects for all types,
+// and handling these dummy base-cases; which often feels like a distraction.
+// (although longer term you do want to be able to always have some kind of
+// dummy/test values...)
 export const trainerCell = cellSpec(
   globals,
   'Trainer cell',
@@ -63,3 +71,25 @@ export const trainerCell = cellSpec(
   ['testSet', 'trainConfig', 'model', 'batch'],
   ['model', 'lastTrainMetric']
 );
+
+// const globalSpace = new SignalSpace();
+// const { writable } = globalSpace;
+
+// export const trainerSpec = {
+//   name: 'Trainer cell',
+//   workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+//   data: {
+//     model: writable({ config: defaultTransformerConfig }),
+//     testSet: writable<Example[]>([]),
+//     batch: writable<Batch>({ batchId: -1, inputs:[], outputs: []}),
+
+//   },
+// };
+
+// cellSpec(
+//   globals,
+//   'Trainer cell',
+//   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+//   ['testSet', 'trainConfig', 'model', 'batch'],
+//   ['model', 'lastTrainMetric']
+// );

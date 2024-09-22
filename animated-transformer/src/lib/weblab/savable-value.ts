@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ComputedSignal, SignalSpace, WritableSignal } from './signalspace';
+import { ComputedSignal, DerivedSignal, SignalSpace, WritableSignal } from './signalspace';
 
 export class SavableValueKind<K extends string, T, S> {
   constructor(
@@ -26,27 +26,22 @@ export class SavableValueKind<K extends string, T, S> {
   ) {}
 }
 
-export interface UpdatableValue<T> {
-  value: WritableSignal<T>;
-  updateValue(): void;
-}
-
-export class WritableSValue<K extends string, T, S> implements UpdatableValue<T> {
-  public proposedValue: T;
+export class WritableSValue<K extends string, T, S> {
+  public proposedValue: WritableSignal<T>;
   constructor(public kind: SavableValueKind<K, T, S>, public value: WritableSignal<T>) {
-    this.proposedValue = value();
+    this.proposedValue = this.value.space.writable(value());
   }
   updateValue() {
-    this.value.set(this.proposedValue);
+    this.value.set(this.proposedValue.lastValue());
   }
 }
 
-export class ComputedSValue<K extends string, T, S> implements UpdatableValue<T> {
+export class ComputedSValue<K extends string, T, S> {
   public value: WritableSignal<T>;
   constructor(public kind: SavableValueKind<K, T, S>, public proposedValue: ComputedSignal<T>) {
-    this.value = proposedValue.signalSpace.writable(proposedValue.lastValue);
+    this.value = proposedValue.space.writable(proposedValue.lastValue());
   }
   updateValue() {
-    this.value.set(this.proposedValue.lastValue);
+    this.value.set(this.proposedValue.lastValue());
   }
 }

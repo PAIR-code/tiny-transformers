@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SignalSpace, ValueSignal, signal, computed, effect } from './signalspace';
+import { SignalSpace, ValueSignal, writable, computed, effect } from './signalspace';
 
 // type MaybeReturn<T, F> = undefined extends F ? void : T;
 type MaybeReturn<T> = void extends T ? void : T;
@@ -125,7 +125,7 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     let counter = 0;
-    const a = signal(s, 'a');
+    const a = writable(s, 'a');
     const e = effect(s, () => {
       counter += 1;
       return a() + 'e';
@@ -152,7 +152,7 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     let counter = 0;
-    const a = signal(s, 'a', { clobberBehvaior: 'justLatest' });
+    const a = writable(s, 'a', { clobberBehvaior: 'justLatest' });
     const e = effect(s, () => {
       counter += 1;
       return a() + 'e';
@@ -180,7 +180,7 @@ describe('signalspace', () => {
   it('Two step effect vs compute signal update with angular-style syntax', async () => {
     const s = new SignalSpace();
 
-    const a = signal(s, 'a');
+    const a = writable(s, 'a');
     const b = computed(s, () => {
       return a() + 'b';
     });
@@ -208,9 +208,9 @@ describe('signalspace', () => {
   it('An effect that sets a value', async () => {
     const s = new SignalSpace();
 
-    const v1 = signal(s, 'a');
-    const v2 = signal(s, 1);
-    const v3 = signal(s, '_');
+    const v1 = writable(s, 'a');
+    const v2 = writable(s, 1);
+    const v3 = writable(s, '_');
     const b = computed(s, () => {
       return v1() + 'b' + v2() + v3();
     });

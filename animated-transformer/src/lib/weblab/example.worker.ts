@@ -15,7 +15,7 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import * as lab from './lab-cell';
+import * as lab from './lab-worker-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
 console.log('example.worker', self.location);

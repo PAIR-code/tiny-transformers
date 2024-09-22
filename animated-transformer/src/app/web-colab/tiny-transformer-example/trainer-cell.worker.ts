@@ -17,27 +17,21 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import {
-  BasicTaskTokenRep,
   singleNextTokenIdxOutputPrepFn,
-  strSeqPrepFn,
+  strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { StatefulCell, makeMetricReporter, space } from '../../../lib/weblab/lab-cell';
+import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
 import { Batch, globals, trainerCell } from './ailab';
 import {
-  computeDecoder,
   computeTransformer,
   transformerAccuracy,
-  TransformerComputation,
   TransformerConfig,
   lastTokenCrossEntropyLoss,
   TransformerParams,
-  TransformerParamSpec,
   TransformerModel,
-  makeTransformer,
   VarTransformerParams,
   initDecoderParams,
 } from 'src/lib/transformer/transformer_gtensor';
-import { Signal } from 'src/lib/weblab/signalspace';
 import {
   assignParams,
   deserializeParams,
@@ -47,16 +41,22 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 
-const { lastMetrics, reportMetrics } = makeMetricReporter(['entropyLoss', 'accuracy']);
+const cell = new StatefulCell(globals, trainerCell);
+const { computed, effect, writable } = cell.space;
 
-type Options = {
+const metrics = writable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
+const { reportMetrics } = makeMetricReporter(cell.space, metrics);
+effect(() => cell.output('lastTrainMetric', metrics()));
+
+type LossOptions = {
   maxInputLength: number;
   metricFrequency: number;
   checkpointFrequency: number;
 };
 
-function computeLoss(model: TransformerModel, batch: Batch, options: Options): tf.Scalar {
-  const gtensorInputs = strSeqPrepFn(model, batch.inputs, options);
+function computeLoss(model: TransformerModel, batch: Batch, options: LossOptions): tf.Scalar {
+  const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, options);
+  // const gtensorInputs = strSeqPrepFn(model, batch.inputs, options);
   const computation = computeTransformer(model, gtensorInputs);
   const nextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
   const entropyLoss = lastTokenCrossEntropyLoss(model, computation, nextTokenIdx);
@@ -70,35 +70,23 @@ function computeLoss(model: TransformerModel, batch: Batch, options: Options): t
   return entropyLoss;
 }
 
-const { computed, effect, writable } = space;
-
+// TODO: instead of updating all params at the same time, we should use some
+// streaming iterator through the parts... (to save memory), and allow
+// transfer to happen at the same time as we assign in the GPU.
 function updateModel(
   newModel: { config?: TransformerConfig; params?: SerializeTensorParams<TransformerParams> },
   oldModel?: { config: TransformerConfig; params: VarTransformerParams }
 ): { config: TransformerConfig; params: VarTransformerParams } {
-  // TODO: instead of doing all at the same time, we should use some streaming
-  // iterator through the parts... (this will save memory), and allow transfer
-  // to happen at the same time as we assign in the GPU.
   const { config, params } = newModel;
   if (config) {
+    // Use the new params and config.
+    if (oldModel) {
+      disposeParams(oldModel.params);
+    }
     if (params) {
-      // Use the new params and config.
-      if (oldModel) {
-        disposeParams(oldModel.params);
-      }
-      return {
-        config,
-        params: varifyParams(deserializeParams(params)),
-      };
+      return { config, params: varifyParams(deserializeParams(params)) };
     } else {
-      // Make the model from the config.
-      if (oldModel) {
-        disposeParams(oldModel.params);
-      }
-      return {
-        config,
-        params: varifyParams(initDecoderParams(config)),
-      };
+      return { config, params: varifyParams(initDecoderParams(config)) };
     }
   } else {
     if (params && oldModel) {
@@ -111,7 +99,6 @@ function updateModel(
   }
 }
 
-const cell = new StatefulCell(globals, trainerCell);
 cell.run(async (inputs) => {
   const model = writable(updateModel(inputs.model()));
   effect(() => {
@@ -119,7 +106,7 @@ cell.run(async (inputs) => {
   });
   const varParamList = computed(() => listifyVarParams(model().params).map((g) => g.variable));
 
-  const options = space.computed(() => {
+  const options = computed(() => {
     const trainConfig = inputs.trainConfig();
     return {
       maxInputLength: trainConfig.maxInputLength,
@@ -136,10 +123,6 @@ cell.run(async (inputs) => {
       false,
       varParamList()
     );
-  });
-
-  effect(() => {
-    cell.output('lastTrainMetric', lastMetrics());
   });
 
   await cell.onceFinishRequested.then(() => {

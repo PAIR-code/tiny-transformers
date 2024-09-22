@@ -21,7 +21,7 @@ limitations under the License.
  * Runs in webworker AND in main browser or node context.
  */
 
-import { WritableSignal } from './signalspace';
+import { AbstractSignal, ComputedSignal, WritableSignal } from './signalspace';
 
 export type Metrics<Name extends string> = {
   batchId: number;
@@ -41,7 +41,9 @@ export type SpecificValueStruct<Names extends string> = {
 };
 
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
-export type SignalsStructFn<S extends ValueStruct> = { [Key in keyof S]: WritableSignal<S[Key]> };
+export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: WritableSignal<S[Key]> };
+export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: ComputedSignal<S[Key]> };
+export type SignalStructFn<S extends ValueStruct> = { [Key in keyof S]: AbstractSignal<S[Key]> };
 export type PromisedSignalsFn<S extends ValueStruct> = {
   [Key in keyof S]: Promise<WritableSignal<S[Key]>>;
 };
@@ -75,7 +77,7 @@ export class CellStateSpec<
   ) {}
 }
 
-// A bit of a hack to manage types...
+// A bit of a hack to manage types... (we infer them from globals object that is not actually used)
 export function cellSpec<
   Globals extends ValueStruct,
   Uses extends keyof Globals,

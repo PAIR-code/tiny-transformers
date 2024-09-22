@@ -21,13 +21,14 @@ import { indexExample } from 'src/lib/seqtasks/util';
 import {
   defaultTransformerConfig,
   initDecoderParams,
+  TransformerConfig,
 } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
 import { SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
-import { globals, Globals, trainerCell } from './ailab';
+import { Batch, EnvModel, globals, Globals, TrainConfig, trainerCell } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
@@ -38,16 +39,20 @@ const space = new SignalSpace();
 const { writable, computed } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
-
 const taskKind = writable<string>(taskKinds[0]);
 const task = computed(() => taskRegistry.kinds[taskKind()].makeDefault());
 
-const trainConfig = writable<TrainStateConfig>({
+const trainConfig = writable<TrainConfig>({
+  // training hyper-params
   learningRate: 0.5,
   batchSize: 64,
   maxInputLength: 10,
+  // Reporting / eval
   testSetSize: 200,
-  trainSetSize: 640,
+  checkpointFrequencyInBatches: 100,
+  metricReporting: {
+    metricFrequencyInBatches: 10,
+  },
 });
 
 const dataSplitByTrainAndTest = computed(() => {
@@ -62,33 +67,33 @@ const dataSplitByTrainAndTest = computed(() => {
   return { testExamples, trainExamplesIter };
 });
 
-const testExamples = computed(() => dataSplitByTrainAndTest().testExamples);
+const testSet = computed(() => dataSplitByTrainAndTest().testExamples);
 const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
+const model = writable<EnvModel>({ config: defaultTransformerConfig() });
 
-const transformerConfig = writable(defaultTransformerConfig());
-const transformerParams = computed(() => varifyParams(initDecoderParams(transformerConfig())));
-const model = computed(() => {
-  return {
-    config: transformerConfig(),
-    params: transformerParams(),
-  };
-});
-
-function makeTrainBatch(): GTensor<'batch' | 'pos' | 'inputRep'> {
-  let batchOriginal = dataSplitByTrainAndTest().trainExamplesIter.takeOutN(trainConfig().batchSize);
-  let batchInputSeqs = batchOriginal.map((example) => example.input);
-  let batchOutputSeqs = batchOriginal.map((example) => example.output);
-  const batchInputGTensor = strSeqPrepFnAddingFinalMask(model(), batchInputSeqs, trainConfig());
-  return batchInputGTensor;
+function makeBatch(batchId: number, batchSize: number): Batch {
+  let batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
+  let inputs = batchOriginal.map((example) => example.input);
+  let outputs = batchOriginal.map((example) => example.output);
+  return { batchId, inputs, outputs };
 }
+
+const batchId = writable(0);
+const batch = computed<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
 
 const state = new LabState();
-const env = new LabEnv<typeof globals>(state);
+const env = new LabEnv<Globals>(state);
 
-async function run() {
-  const cellResults = env.run(trainerCell);
-}
-run();
+// async function run() {
+const cellState = env.start(trainerCell, {
+  model,
+  trainConfig,
+  batch,
+  testSet,
+});
+
+// }
+// run();
 
 // function* batchGenerator(batchNum: number, batchSize: number): Iterator<> {
 //   for (let batchId = 0; batchId < batchNum; batchId += 1) {

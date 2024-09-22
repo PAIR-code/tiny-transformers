@@ -14,13 +14,15 @@ limitations under the License.
 ==============================================================================*/
 
 import { SignalSpace } from './signalspace';
-import { WritableSValue } from './savable-value';
+import { ComputedSValue, WritableSValue } from './savable-value';
 import { GTensor } from '../gtensor/gtensor';
 import {
   initDecoderParams,
-  savableTransformerParamsKind,
+  savableTransformerModelKind,
   transformerModelKind,
 } from '../transformer/transformer_gtensor';
+import _ from 'underscore';
+import { serializeParams } from '../gtensor/params';
 
 // type MaybeReturn<T, F> = undefined extends F ? void : T;
 type MaybeReturn<T> = void extends T ? void : T;
@@ -42,17 +44,31 @@ describe('signalspace-value', () => {
     const s = new SignalSpace();
     const { writable, computed, effect } = s;
 
-    const configS = writable(transformerModelKind.defaultConfig);
+    const config = writable(transformerModelKind.defaultConfig, { eqCheck: _.isEqual });
+    const params = writable(initDecoderParams(transformerModelKind.defaultConfig));
 
-    effect(() => {
-      const config = configS();
+    const model = computed(() => {
+      if (!_.isEqual(model.lastValue().config, config())) {
+        params.set(initDecoderParams(transformerModelKind.defaultConfig));
+      }
+      return {
+        config: config(),
+        params: params(),
+      };
+    });
+    const modelV = new ComputedSValue(savableTransformerModelKind, model);
 
-      initDecoderParams(config);
+    config.update((c) => {
+      c.spec.inputRep += 10;
+      return c;
     });
 
-    const paramsS = writable(initDecoderParams(transformerModelKind.defaultConfig));
-    const paramsV = new WritableSValue(savableTransformerParamsKind, paramsS);
+    const expectedModifiedConfig = structuredClone(transformerModelKind.defaultConfig);
+    expectedModifiedConfig.spec.inputRep += 10;
 
-    expect(paramsV).toEqual(paramsV);
+    expect(modelV.value().config).toEqual(transformerModelKind.defaultConfig);
+    expect(modelV.proposedValue().config).toEqual(expectedModifiedConfig);
+    modelV.updateValue();
+    expect(modelV.value().config).toEqual(expectedModifiedConfig);
   });
 });
