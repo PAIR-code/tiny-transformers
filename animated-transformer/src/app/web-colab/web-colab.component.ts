@@ -15,19 +15,23 @@ limitations under the License.
 
 import { Component } from '@angular/core';
 import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
-import * as tf from '@tensorflow/tfjs';
-import { LabState } from 'src/lib/weblab/lab-state';
+import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
+import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
+import { TrainStateConfig } from 'src/lib/trainer/train_state';
+import { ComputedSignal, SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
+import { taskRegistry } from 'src/lib/seqtasks/task_registry';
+import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
+import {
+  Batch,
+  EnvModel,
+  globals,
+  Globals,
+  TrainConfig,
+  trainerCell,
+} from './tiny-transformer-example/ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { exampleWorkerSpec, Globals } from './foo.ailab';
-
-// Create a new
-async function onceOutput<T>(worker: Worker): Promise<T> {
-  return new Promise<T>((resolve) => {
-    worker.onmessage = ({ data }) => {
-      resolve(data as T);
-    };
-  });
-}
+import { LabState } from 'src/lib/weblab/lab-state';
+import { varifyParams } from 'src/lib/gtensor/params';
 
 @Component({
   selector: 'app-web-colab',
@@ -37,35 +41,94 @@ async function onceOutput<T>(worker: Worker): Promise<T> {
   styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
-  // public worker2: Worker;
+  globals: {
+    taskKind: WritableSignal<string>;
+    taskConfigStr: WritableSignal<string>;
+    model: WritableSignal<EnvModel>;
+    trainConfig: WritableSignal<TrainConfig>;
+    batchId: WritableSignal<number>;
+    batch: ComputedSignal<Batch>;
+    testSet: ComputedSignal<Example[]>;
+  };
+  state: LabState;
+  env: LabEnv<Globals>;
+  space: SignalSpace;
 
   constructor() {
+    this.state = new LabState();
+    this.env = new LabEnv<Globals>(this.state);
+    this.space = new SignalSpace();
+    // Consider... one liner... but maybe handy to have the object to debug.
+    // const { writable, computed } = new SignalSpace();
+    const { writable, computed, effect } = this.space;
+
+    const taskKinds = Object.keys(taskRegistry.kinds);
+    const taskKind = writable<string>(taskKinds[0]);
+    const taskConfigStr = writable(taskRegistry.kinds[taskKind()].defaultConfigStr);
+    const task = computed(() => taskRegistry.kinds[taskKind()].makeFn(taskConfigStr()));
+    effect(() => taskConfigStr.set(taskRegistry.kinds[taskKind()].defaultConfigStr));
+
+    const trainConfig = writable<TrainConfig>({
+      // training hyper-params
+      learningRate: 0.5,
+      batchSize: 64,
+      maxInputLength: 10,
+      // Reporting / eval
+      testSetSize: 200,
+      checkpointFrequencyInBatches: 100,
+      metricReporting: {
+        metricFrequencyInBatches: 10,
+      },
+    });
+
+    const dataSplitByTrainAndTest = computed(() => {
+      const examplesIter = task().exampleIter.copy();
+      const testExamples = examplesIter.takeOutN(trainConfig().testSetSize);
+      const testSetIndex = new Set(testExamples.map(indexExample));
+      const trainExamplesIter = examplesIter.copy();
+      // With a generative synthetic world you can guarentee no duplicate example in
+      // the test set and train set by filtering the test from the train.
+      // This gives the optimal quality of test metric measurement.
+      trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
+      return { testExamples, trainExamplesIter };
+    });
+
+    const testSet = computed(() => dataSplitByTrainAndTest().testExamples);
+    const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
+    const model = writable<EnvModel>({ config: defaultTransformerConfig() });
+
+    // TODO: move making examples to a separate web-worker.
+    function makeBatch(batchId: number, batchSize: number): Batch {
+      let batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
+      let inputs = batchOriginal.map((example) => example.input);
+      let outputs = batchOriginal.map((example) => example.output);
+      return { batchId, inputs, outputs };
+    }
+
+    const batchId = writable(0);
+    const batch = computed<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
+
+    this.globals = {
+      taskKind,
+      taskConfigStr,
+      batchId,
+      batch,
+      model,
+      trainConfig,
+      testSet,
+    };
+
+    // async function run() {
+
     // This works...
     // this.worker2 = new Worker(new URL('./app.worker', import.meta.url));
   }
 
-  async foo() {
-    const urlPath = './foo.worker';
-    console.log(urlPath);
-    const worker2 = new Worker(new URL(urlPath, import.meta.url));
-
-    worker2.postMessage('hello, are you there webworker2?');
-    console.log('worker2 says:', await onceOutput<string>(worker2));
-  }
-
   async doRun() {
-    if (typeof Worker === 'undefined') {
-      console.error('We require webworkers. Sorry.');
-      return;
-    }
-    const state = new LabState();
-    const env = new LabEnv<Globals>(state);
-    env.stateVars.name = 'initial fake name';
-    const outputs = await env.run(exampleWorkerSpec);
-    console.log(outputs);
-    console.log(
-      GTensor.fromSerialised(outputs.tensor!.t).scalarDiv(makeScalar(3)).tensor.arraySync()
-    );
+    const cell = this.env.start(trainerCell, this.globals);
+    const lastTrainMetric = await cell.outputs.lastTrainMetric;
+    console.log(lastTrainMetric);
+    cell.worker.terminate();
   }
 
   async doOpen() {

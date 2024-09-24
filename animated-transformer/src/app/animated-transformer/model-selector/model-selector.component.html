@@ -14,18 +14,14 @@
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>
       </button>
-
-      <button *ngIf="!model.modelData" mat-flat-button color="warn" (click)="initModelData()">
-        init
-      </button>
-      <button *ngIf="model.modelData" mat-flat-button (click)="initModelData()">
+      <button *ngIf="this.currentModel()" mat-flat-button (click)="initModelData()">
         re-init
       </button>
     </div>
-    @if (model.modelData(); as data) {
+    @if (this.currentModel(); as model) {
       <div>
-        Model is initialised. Params: <span>{{data.paramCount}}</span>
-        Token vocab size: <span>{{data.tokenRep.tokens.length}}</span>
+        Model is initialised. Params: <span>{{paramCount()}}</span>
+        Token vocab size: <span>{{currentModel()?.config?.tokenRep?.tokens!.length}}</span>
       </div>
     } @else {
       <div>
@@ -37,8 +33,8 @@
     <app-codemirror-config-editor
       (update)="modelConfigUpdated($event)"
       [whatIsBeingEditedName]="model.config.name"
-      [defaultConfig]="model.defaultConfigStr"
-      [config]="model.configStr"></app-codemirror-config-editor>
+      [defaultConfig]="currentDefaultConfigStr()"
+      [config]="currentConfigStr()"></app-codemirror-config-editor>
   </div>
 
 </div>

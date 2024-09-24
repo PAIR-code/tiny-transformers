@@ -52,6 +52,7 @@ export interface AbstractSignal<T> {
   // The last value the signal had (doesn't compute updates, even if
   // the signal needs updating).
   lastValue(): T;
+  options?: Partial<AbstractOptions<T>>;
 }
 
 export interface WritableSignal<T> extends AbstractSignal<T> {
@@ -61,11 +62,13 @@ export interface WritableSignal<T> extends AbstractSignal<T> {
   update(f: (oldValue: T) => T, options?: SignalSetOptions): void;
   // rawComputation: ComputedSignal<T>;
   rawValue: ValueSignal<T>;
+  options?: Partial<ValueOptions<T>>;
 }
 
 export interface ComputedSignal<T> extends AbstractSignal<T> {
   kind: 'computed';
   rawComputation: DerivedSignal<T>;
+  options?: Partial<DerivedOptions<T>>;
 }
 
 export type Signal<T> = WritableSignal<T> | ComputedSignal<T>;
@@ -123,7 +126,7 @@ export class SignalSpace {
     return s;
   }
 
-  makeComputedSignal<T>(f: () => T, options?: Partial<ComputeOptions<T>>): DerivedSignal<T> {
+  makeComputedSignal<T>(f: () => T, options?: Partial<DerivedOptions<T>>): DerivedSignal<T> {
     const thisComputeSignal = new DerivedSignal<T>(this, f, options);
     return thisComputeSignal;
   }
@@ -246,11 +249,17 @@ export class SignalSpace {
   writable<T>(defaultValue: T, valueOptions?: Partial<ValueOptions<T>>): WritableSignal<T> {
     return writable(this, defaultValue, valueOptions);
   }
-  computed<T>(f: () => T, options?: ComputeOptions<T>): ComputedSignal<T> {
+  computed<T>(f: () => T, options?: DerivedOptions<T>): ComputedSignal<T> {
     return computed(this, f, options);
   }
-  effect<T>(f: () => T, options?: ComputeOptions<T>): ComputedSignal<T> {
+  effect<T>(f: () => T, options?: DerivedOptions<T>): ComputedSignal<T> {
     return effect(this, f, options);
+  }
+
+  writableFork<T>(s: AbstractSignal<T>): WritableSignal<T> {
+    const fork = this.writable(s(), s.options);
+    this.effect(() => fork.set(s()));
+    return fork;
   }
 }
 
@@ -263,18 +272,20 @@ export type SignalGetOptions = {
   untracked: boolean; // default false;
 };
 
-export type ComputeOptions<T> = {
+export type AbstractOptions<T> = {
+  eqCheck: (x: T, y: T) => boolean;
+};
+
+export type DerivedOptions<T> = AbstractOptions<T> & {
   // When something is an effect, it gets updated every time it needs it be
   // updated in the next tick. And otherwise, values are updated only when
   // the corresponding s.get() method is called.
   isEffect: boolean; // default false;
-  eqCheck: (x: T, y: T) => boolean;
   // TODO: add clobberBehavior here too. Useful is you have a alwaysUpdate that
   // you want to merge later...
 };
 
-export type ValueOptions<T> = {
-  eqCheck: (x: T, y: T) => boolean;
+export type ValueOptions<T> = AbstractOptions<T> & {
   // If a value is set twice, what should the update behvaior be?
   // * 'alwaysUpdate' ==> any dependent effects and computations get called twice.
   // * 'justLatest' ==> dependent effects and computations get called once only,
@@ -286,7 +297,7 @@ function defaultEqCheck<T>(x: T, y: T) {
   return x === y;
 }
 
-function defaultComputeOptions<T>(): ComputeOptions<T> {
+function defaultComputeOptions<T>(): DerivedOptions<T> {
   return {
     isEffect: false,
     eqCheck: defaultEqCheck,
@@ -398,12 +409,12 @@ export class DerivedSignal<T> {
   dependsOnComputing = new Set<DerivedSignal<unknown>>();
   dependsOnValues = new Set<ValueSignal<unknown>>();
   lastValue: T;
-  options: ComputeOptions<T>;
+  options: DerivedOptions<T>;
 
   constructor(
     public signalSpace: SignalSpace,
     public computeFunction: () => T,
-    options?: Partial<ComputeOptions<T>>
+    options?: Partial<DerivedOptions<T>>
   ) {
     this.options = Object.assign(defaultComputeOptions(), options || {});
 
@@ -494,27 +505,27 @@ export type SomeSignal = DerivedSignal<unknown> | ValueSignal<unknown>;
 export function writable<T>(
   space: SignalSpace,
   value: T,
-  valueOptions?: Partial<ValueOptions<T>>
+  options?: Partial<ValueOptions<T>>
 ): WritableSignal<T> {
-  const valueSignal = space.makeSignal(value, valueOptions);
-  const writableSignal = function () {
+  const valueSignal = space.makeSignal(value, options);
+  const signal = function () {
     return valueSignal.get();
   };
   // const foo = {...writableSignal, { lastValue: 'foo' } };
-  writableSignal.lastValue = () => valueSignal.value;
-  writableSignal.set = (value: T, options?: SignalSetOptions) => valueSignal.set(value, options);
-  writableSignal.update = (f: (v: T) => T, options?: SignalSetOptions) =>
-    valueSignal.update(f, options);
-  writableSignal.space = space;
-  writableSignal.kind = 'value' as const;
-  writableSignal.rawValue = valueSignal;
-  return writableSignal;
+  signal.lastValue = () => valueSignal.value;
+  signal.set = (value: T, options?: SignalSetOptions) => valueSignal.set(value, options);
+  signal.update = (f: (v: T) => T, options?: SignalSetOptions) => valueSignal.update(f, options);
+  signal.space = space;
+  signal.kind = 'value' as const;
+  signal.rawValue = valueSignal;
+  signal.options = options;
+  return signal;
 }
 
 export function computed<T>(
   space: SignalSpace,
   f: () => T,
-  options?: ComputeOptions<T>
+  options?: Partial<DerivedOptions<T>>
 ): ComputedSignal<T> {
   const derivedSignal = space.makeComputedSignal(f, options);
   const signal = function () {
@@ -524,13 +535,14 @@ export function computed<T>(
   signal.lastValue = () => derivedSignal.lastValue;
   signal.space = space;
   signal.kind = 'computed' as const;
+  signal.options = options;
   return signal;
 }
 
 export function effect<T>(
   space: SignalSpace,
   f: () => T,
-  options?: Partial<ComputeOptions<T>>
+  options?: Partial<DerivedOptions<T>>
 ): ComputedSignal<T> {
   const derivedSignal = space.makeComputedSignal(f, Object.assign({ ...options, isEffect: true }));
   const signal = function () {
@@ -540,5 +552,6 @@ export function effect<T>(
   signal.lastValue = () => derivedSignal.lastValue;
   signal.space = space;
   signal.kind = 'computed' as const;
+  signal.options = options;
   return signal;
 }

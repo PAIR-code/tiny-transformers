@@ -13,21 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  Component,
-  EventEmitter,
-  Input,
-  Output,
-  Signal,
-  WritableSignal,
-  computed,
-  signal,
-} from '@angular/core';
+import { Component, EventEmitter, Input, Output, Signal, computed, signal } from '@angular/core';
 import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
-import {
-  ModelUpdate,
-  TransformerModel,
-} from '../model-selector/model-selector.component';
+import { ModelUpdate } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
@@ -38,21 +26,14 @@ import {
   TrainMetrics,
   TransformerTrainState,
 } from 'src/lib/trainer/basic_transformer_trainer';
-import { mapNonNull } from 'src/lib/rxjs/util';
 import { TrainStateConfig, trySgdTrainStep } from 'src/lib/trainer/train_state';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { DictTree } from 'src/lib/js_tree/js_tree';
 import * as tf from '@tensorflow/tfjs';
-import {
-  prepareBasicTaskTokenRep,
-  strSeqPrepFn,
-  singleNextTokenIdxOutputPrepFn,
-} from 'src/lib/tokens/token_gemb';
+import { strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/token_gemb';
 import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { ConfigObj } from 'src/lib/json/config-obj';
-
-// TODO: update to use JsTree.
-export type JsonConfigData = DictTree<number | string | boolean>;
+import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
 
 export type TrainerConfig = {
   name: string;
@@ -90,13 +71,9 @@ const noLayerNormTrainerConfig: TrainerConfig = {
   stepDelayInMs: 100,
 };
 
-const noLayerNormTrainer = {};
-const layerNormTrainerConfig = {};
-
-type ConfiguredTrainer = ConfigObj<TrainerConfig, TransformerTrainState>;
-const initTrainerSet: ConfiguredTrainer[] = [noLayerNormTrainer, layerNormTrainerConfig];
-const initTrainersMap = {} as { [name: string]: ConfiguredTrainer };
-initTrainerSet.forEach((t) => (initTrainersMap[t.config.name] = t));
+const initTrainerConfigSet = [noLayerNormTrainerConfig, layerNormTrainerConfig];
+const initTrainersConfigMap = {} as { [name: string]: TrainerConfig };
+initTrainerConfigSet.forEach((t) => (initTrainersConfigMap[t.name] = t));
 
 export interface ModelParamsUpdate {}
 
@@ -124,12 +101,11 @@ export class ModelTaskTrainerComponent {
   // lastTaskUpdate: BasicLmTaskUpdate = {}
   view: 'edit' | 'view' = 'view';
   // currentTrainer: TrainerMetaData | null = null;
-  trainersMap = signal(initTrainersMap);
+  trainersMap = signal(initTrainersConfigMap);
   trainerNames: Signal<string[]>;
 
-  currentTrainer = signal<ConfiguredTrainer | null>(null);
-  currentModel = signal<ModelSpecAndData | null>(null);
-  currentModelData: Signal<TransformerModel | null>;
+  currentTrainer = signal<TrainerConfig | null>(null);
+  currentModel = signal<EnvModel | null>(null);
   currentTask = signal<BasicRandLmTask | null>(null);
   currentTrainerName: Signal<string | null>;
   trainState: Signal<TransformerTrainState | null>;
@@ -153,9 +129,6 @@ export class ModelTaskTrainerComponent {
   curMetrics: TrainMetrics;
   isTraining: boolean = false;
 
-  @Output() configUpdate = new EventEmitter<TrainerConfigUpdate>();
-  @Output() modelUpdate = new EventEmitter<ModelParamsUpdate>();
-
   @Input()
   set trainerName(n: string) {
     this.selectTrainer(n);
@@ -171,15 +144,16 @@ export class ModelTaskTrainerComponent {
   }
 
   constructor() {
-    this.currentTrainerName = nullOrComputed(this.currentTrainer, (trainer) => trainer.config.name);
-    this.currentModelData = nullOrComputed(this.currentModel, model => model.modelData());
-    this.trainState = nullOrComputed(this.currentTrainer, (trainer) => trainer. {
-      const trainer = this.currentTrainer();
-      if (!trainer) {
-        return null;
-      }
-      return trainer.trainState() || null;
-    });
+    this.currentTrainerName = nullOrComputed(this.currentTrainer, (trainer) => trainer.name);
+    // this.currentModelData = nullOrComputed(this.currentModel, model => model.modelData());
+    this.trainState = nullOrComputed(this.currentTrainer, (trainer) => null);
+    // this.trainState = nullOrComputed(this.currentTrainer, (trainer) => trainer. {
+    //   const trainer = this.currentTrainer();
+    //   if (!trainer) {
+    //     return null;
+    //   }
+    //   return trainer.trainState() || null;
+    // });
 
     this.trainerNames = computed(() => Object.keys(this.trainersMap()));
 
@@ -201,23 +175,23 @@ export class ModelTaskTrainerComponent {
   }
 
   selectTrainer(maybeName: string | null): void {
-    const currentTrainerName = this.currentTrainerName() || '';
-    const newTrainerName = maybeName || '';
-    if (newTrainerName === currentTrainerName) {
-      return;
-    }
-    if (newTrainerName in this.trainersMap()) {
-      const newTrainer = this.trainersMap()[newTrainerName];
-      if (currentTrainerName !== newTrainer.config.name) {
-        this.currentTrainer.set(newTrainer);
-        this.configUpdate.emit({ trainer: newTrainer });
-      }
-    } else {
-      if (currentTrainerName !== null) {
-        this.configUpdate.emit({ trainer: null });
-        this.currentTrainer.set(null);
-      }
-    }
+    // const currentTrainerName = this.currentTrainerName() || '';
+    // const newTrainerName = maybeName || '';
+    // if (newTrainerName === currentTrainerName) {
+    //   return;
+    // }
+    // if (newTrainerName in this.trainersMap()) {
+    //   const newTrainer = this.trainersMap()[newTrainerName];
+    //   if (currentTrainerName !== newTrainer.config.name) {
+    //     this.currentTrainer.set(newTrainer);
+    //     this.configUpdate.emit({ trainer: newTrainer });
+    //   }
+    // } else {
+    //   if (currentTrainerName !== null) {
+    //     this.configUpdate.emit({ trainer: null });
+    //     this.currentTrainer.set(null);
+    //   }
+    // }
   }
 
   toggleModelEditor() {
@@ -234,35 +208,7 @@ export class ModelTaskTrainerComponent {
       return;
     }
 
-    const trainer = this.currentTrainer();
-    if (!trainer) {
-      console.error(`had null trainer for configUpdated: ${configUpdate}`);
-      return;
-    }
-    const trainState = trainer.trainState();
-    if (trainState) {
-      trainState.config = configUpdate.obj.trainState;
-      trainState.initInputsAndTargets();
-    }
-
-    const newTrainer = new TrainerMetaData(trainer.kind, trainer.defaultConfig);
-    newTrainer.metrics.set(trainer.metrics());
-
-    newTrainer.updateFromStr(configUpdate.json);
-    // Model name was changed.
-    if (trainer.config.name !== newTrainer.config.name) {
-      if (!newTrainer.config.name) {
-        newTrainer.config.name = 'model without a name';
-      }
-      console.log('updating trainer name');
-      // Because the name of the model may have changed, we need to
-      // re-create the index
-      const newTrainersMap = { ...this.trainersMap() };
-      delete newTrainersMap[trainer.config.name];
-      newTrainersMap[newTrainer.config.name] = newTrainer;
-      this.trainersMap.set(newTrainersMap);
-    }
-    this.currentTrainer.set(newTrainer);
+    this.currentTrainer.set(configUpdate.obj);
   }
 
   addMetricsToGraph(m: TrainMetrics, name: string) {
@@ -277,7 +223,7 @@ export class ModelTaskTrainerComponent {
     ]);
   }
 
-  getCurrentTrainer(): TrainerMetaData {
+  getCurrentTrainer(): TrainerConfig {
     const currentTrainer = this.currentTrainer();
     if (!currentTrainer) {
       throw new Error('no currentTrainer');
@@ -285,49 +231,49 @@ export class ModelTaskTrainerComponent {
     return currentTrainer;
   }
 
-  getTrainState(): TransformerTrainState {
-    const trainState = this.trainState();
-    if (!trainState) {
-      throw new Error('no trainState');
-    }
-    return trainState;
-  }
+  // getTrainState(): TransformerTrainState {
+  //   const trainState = this.trainState();
+  //   if (!trainState) {
+  //     throw new Error('no trainState');
+  //   }
+  //   return trainState;
+  // }
 
-  getCurrentTask(): BasicLmTask {
-    const currentTask = this.currentTask();
-    if (!currentTask) {
-      throw new Error('no currentTask');
-    }
-    return currentTask;
-  }
+  // getCurrentTask(): BasicLmTask {
+  //   const currentTask = this.currentTask();
+  //   if (!currentTask) {
+  //     throw new Error('no currentTask');
+  //   }
+  //   return currentTask;
+  // }
 
-  getCurrentModel(): ModelSpecAndData {
-    const currentModel = this.currentModel();
-    if (!currentModel) {
-      throw new Error('no current model');
-    }
-    return currentModel;
-  }
+  // getCurrentModel(): ModelSpecAndData {
+  //   const currentModel = this.currentModel();
+  //   if (!currentModel) {
+  //     throw new Error('no current model');
+  //   }
+  //   return currentModel;
+  // }
 
-  getCurrentModelData(): TransformerModel {
-    const data = this.currentModelData();
-    if (!data) {
-      throw new Error('current model missing data');
-    }
-    return data;
-  }
+  // getCurrentModelData(): TransformerModel {
+  //   const data = this.currentModelData();
+  //   if (!data) {
+  //     throw new Error('current model missing data');
+  //   }
+  //   return data;
+  // }
 
   trainStep() {
     const trainer = this.getCurrentTrainer();
-    const trainState = this.getTrainState();
-    this.curMetrics = computeMetrics(trainState);
-    if (trySgdTrainStep(trainState)) {
-      this.addMetricsToGraph(this.curMetrics, trainer.config.name);
-      this.layerNormHeadsProjectionGain =
-        trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
-      this.layerNormPostFFGain =
-        trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
-    }
+    // const trainState = this.getTrainState();
+    // this.curMetrics = computeMetrics(trainState);
+    // if (trySgdTrainStep(trainState)) {
+    //   this.addMetricsToGraph(this.curMetrics, trainer.config.name);
+    //   this.layerNormHeadsProjectionGain =
+    //     trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+    //   this.layerNormPostFFGain =
+    //     trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+    // }
   }
 
   hasPlots() {
@@ -340,66 +286,65 @@ export class ModelTaskTrainerComponent {
   }
 
   initTrainer(): void {
-    const trainer = this.getCurrentTrainer();
-    const currentTask = this.getCurrentTask();
-    const currentModelData = this.getCurrentModelData();
-    const oldTrainState = trainer.trainState();
-    if (oldTrainState) {
-      oldTrainState.dispose();
-    }
-    const newState = initTransformerTrainState(
-      currentTask,
-      currentModelData,
-      strSeqPrepFn,
-      singleNextTokenIdxOutputPrepFn,
-      trainer.config.trainState
-    );
-
-    trainer.trainState.set(newState);
-    this.curMetrics = computeMetrics(newState);
-    this.addMetricsToGraph(this.curMetrics, trainer.config.name);
+    // const trainer = this.getCurrentTrainer();
+    // const currentTask = this.getCurrentTask();
+    // const currentModelData = this.getCurrentModelData();
+    // const oldTrainState = trainer.trainState();
+    // if (oldTrainState) {
+    //   oldTrainState.dispose();
+    // }
+    // const newState = initTransformerTrainState(
+    //   currentTask,
+    //   currentModelData,
+    //   strSeqPrepFn,
+    //   singleNextTokenIdxOutputPrepFn,
+    //   trainer.config.trainState
+    // );
+    // trainer.trainState.set(newState);
+    // this.curMetrics = computeMetrics(newState);
+    // this.addMetricsToGraph(this.curMetrics, trainer.config.name);
   }
 
   // Repeatedly does training steps.
   // TODO: move into web-worker and remove the timeout.
   async startTraining() {
-    const trainer = this.getCurrentTrainer();
-    const trainState = this.getTrainState();
-    const self = this;
-    async function doTraining() {
-      if (self.isTraining) {
-        let stillTraining = true;
-        for (let i = 0; stillTraining && i < trainer.config.updateGraphEveryNSteps; i++) {
-          stillTraining = trySgdTrainStep(trainState);
-        }
-        if (!stillTraining) {
-          self.stopTraining();
-          return;
-        }
-        self.curMetrics = computeMetrics(trainState);
-        self.addMetricsToGraph(self.curMetrics, trainer.config.name);
-        self.layerNormHeadsProjectionGain =
-          trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
-        self.layerNormPostFFGain =
-          trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
-        // await self.trainStep();
-        // wait 100ms between training steps.
-        // TODO: we don't need to do this if we move to using separate
-        // web-worker for training.
-        setTimeout(doTraining, trainer.config.stepDelayInMs || 100);
-      }
-    }
-    self.isTraining = true;
-    await doTraining();
+    // const trainer = this.getCurrentTrainer();
+    // const trainState = this.getTrainState();
+    // const self = this;
+    // async function doTraining() {
+    //   if (self.isTraining) {
+    //     let stillTraining = true;
+    //     for (let i = 0; stillTraining && i < trainer.config.updateGraphEveryNSteps; i++) {
+    //       stillTraining = trySgdTrainStep(trainState);
+    //     }
+    //     if (!stillTraining) {
+    //       self.stopTraining();
+    //       return;
+    //     }
+    //     self.curMetrics = computeMetrics(trainState);
+    //     self.addMetricsToGraph(self.curMetrics, trainer.config.name);
+    //     self.layerNormHeadsProjectionGain =
+    //       trainState.params.layers[0].layerNormHeadsProjection?.gain.tensor.dataSync()[0]!;
+    //     self.layerNormPostFFGain =
+    //       trainState.params.layers[0].layerNormPostFF?.gain.tensor.dataSync()[0]!;
+    //     // await self.trainStep();
+    //     // wait 100ms between training steps.
+    //     // TODO: we don't need to do this if we move to using separate
+    //     // web-worker for training.
+    //     setTimeout(doTraining, trainer.config.stepDelayInMs || 100);
+    //   }
+    // }
+    // self.isTraining = true;
+    // await doTraining();
   }
   stopTraining() {
     this.isTraining = false;
   }
   toggleTraining(change: MatSlideToggleChange) {
-    if (change.checked) {
-      this.startTraining();
-    } else {
-      this.stopTraining();
-    }
+    // if (change.checked) {
+    //   this.startTraining();
+    // } else {
+    //   this.stopTraining();
+    // }
   }
 }

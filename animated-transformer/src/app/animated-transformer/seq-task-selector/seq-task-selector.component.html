@@ -5,6 +5,7 @@
         [itemNames]="taskNames()"
         (itemSelected)="selectTask($event)">
         </app-auto-completed-text-input>
+  
 </div>
 @if(currentTask(); as task) {
   <div class="row">
@@ -33,8 +34,8 @@
       <app-codemirror-config-editor
         (update)="taskConfigUpdated($event)"
         [whatIsBeingEditedName]="task.config.name"
-        [defaultConfig]="task.defaultConfigStr"
-        [config]="task.configStr"></app-codemirror-config-editor>
+        [defaultConfig]="tinyModelsService.modelConfigDefaultStr"
+        [config]="currentTaskConfigStr()"></app-codemirror-config-editor>
     </div>
   }
   </div>

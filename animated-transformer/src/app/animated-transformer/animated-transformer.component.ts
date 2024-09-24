@@ -19,10 +19,8 @@ import * as tf from '@tensorflow/tfjs';
 import { Router, ActivatedRoute } from '@angular/router';
 import { BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { ModelUpdate } from './model-selector/model-selector.component';
-import {
-  TrainerConfigUpdate,
-  ModelParamsUpdate,
-} from './model-task-trainer/model-task-trainer.component';
+import { ModelParamsUpdate } from './model-task-trainer/model-task-trainer.component';
+import { TinyModelsService } from '../tiny-models.service';
 
 @Component({
   selector: 'app-animated-transformer',
@@ -37,9 +35,13 @@ export class AnimatedTransformerComponent implements OnInit {
   evalInputStr: string = '';
   lastTaskUpdate: BasicLmTaskUpdate = {};
   lastModelUpdate: ModelUpdate = { model: null };
-  lastTrainerUpdate: TrainerConfigUpdate = { trainer: null };
+  // lastTrainerUpdate: TrainerConfigUpdate = { trainer: null };
 
-  constructor(private route: ActivatedRoute, private router: Router) {
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private tinyModelsService: TinyModelsService
+  ) {
     console.log(`tf.getBackend: ${tf.getBackend()}`);
   }
 
@@ -83,17 +85,17 @@ export class AnimatedTransformerComponent implements OnInit {
 
   modelParamsUpdate(modelParamsUpdate: ModelParamsUpdate) {}
 
-  updateTrainer(trainerUpdate: TrainerConfigUpdate) {
-    console.log('trainer update in top level component.');
-    this.trainerName = trainerUpdate.trainer ? trainerUpdate.trainer.config.name : '';
-    this.lastTrainerUpdate = { ...trainerUpdate };
-    const queryParams = { trainer: this.trainerName };
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: queryParams,
-      // remove to replace all query params by provided
-      queryParamsHandling: 'merge',
-    });
+  updateTrainer(trainerUpdate: {}) {
+    //   console.log('trainer update in top level component.');
+    //   this.trainerName = trainerUpdate.trainer ? trainerUpdate.trainer.config.name : '';
+    //   // this.lastTrainerUpdate = { ...trainerUpdate };
+    //   const queryParams = { trainer: this.trainerName };
+    //   this.router.navigate([], {
+    //     relativeTo: this.route,
+    //     queryParams: queryParams,
+    //     // remove to replace all query params by provided
+    //     queryParamsHandling: 'merge',
+    //   });
   }
 
   updateEvalInput(input: string) {

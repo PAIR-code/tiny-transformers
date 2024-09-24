@@ -15,38 +15,36 @@ limitations under the License.
 
 import * as _ from 'underscore';
 
-import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  Signal,
+  WritableSignal,
+  computed,
+  effect,
+  signal,
+} from '@angular/core';
 import json5 from 'json5';
 import { FormControl } from '@angular/forms';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import { DictTree } from '../../../lib/js_tree/js_tree';
 import * as jstree from '../../../lib/js_tree/js_tree';
 import {
-  transformerAccuracy,
   TransformerConfig,
   TransformerModel,
   transformerModelKind,
-  TransformerParamLayerSpec,
-  TransformerParams,
-  TransformerParamSpec,
-  VarTransformerParams,
 } from '../../../lib/transformer/transformer_gtensor';
 import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
-import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
+import { BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicTaskTokenRep,
-  StrSeqPrepFn,
-  prepareBasicTaskTokenRep,
-  strSeqPrepFn,
-} from 'src/lib/tokens/token_gemb';
+import { prepareBasicTaskTokenRep } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
-import { ConfigKind, ConfigObj } from 'src/lib/json/config-obj';
+import { ConfigKind } from 'src/lib/json/config-obj';
 import { nullableEqFn } from 'src/lib/utils';
-
-export type JsonConfigData = DictTree<number | string | boolean>;
+import { disposeParams } from 'src/lib/gtensor/params';
 
 const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
 const initModelConfigsMap = {} as { [name: string]: TransformerConfig };
@@ -112,7 +110,7 @@ export class ModelSelectorComponent {
     this.maybeSetModel(n);
   }
 
-  @Output() modelConfigChange = new EventEmitter<ModelUpdate>();
+  @Output() modelChange = new EventEmitter<ModelUpdate>();
   isTraining: boolean = false;
 
   public get tfjsMemory(): string {
@@ -126,14 +124,12 @@ export class ModelSelectorComponent {
   view: 'edit' | 'view' = 'view';
 
   modelsMap = signal(initModelConfigsMap);
-  currentConfig = signal<TransformerConfig | null>(null, {
-    equal: nullableEqFn((a, b) => _.isEqual(a, b)),
-  });
-
+  currentConfig = signal<TransformerConfig | null>(null, { equal: (a, b) => _.isEqual(a, b) });
   currentModel: Signal<TransformerModel | null>;
   paramCount: Signal<number>;
   currentModelName: Signal<string>;
   modelNames: Signal<string[]>;
+  lastModelValue: TransformerModel | null = null;
 
   constructor() {
     this.currentModelName = computed(() => {
@@ -142,14 +138,7 @@ export class ModelSelectorComponent {
     });
 
     this.modelNames = computed(() => Object.keys(this.modelsMap()));
-
-    this.currentModel = computed(() => {
-      const config = this.currentConfig();
-      if (!config) {
-        return null;
-      }
-      return transformer.makeTransformer(config);
-    });
+    this.currentModel = computed(() => this.initModelData());
 
     this.paramCount = computed(() => {
       const model = this.currentModel();
@@ -163,6 +152,40 @@ export class ModelSelectorComponent {
         model.params
       );
     });
+
+    effect(() => {
+      this.modelChange.emit({ model: this.currentModel() });
+    });
+  }
+
+  currentDefaultConfigStr(): string {
+    const curConfig = this.currentConfig();
+    if (curConfig) {
+      return modelMakerMap[curConfig.kind].defaultConfigStr;
+    } else {
+      return '<currentTaskDefaultConfigStr: undefined config>';
+    }
+  }
+
+  currentConfigStr(): string {
+    const curConfig = this.currentConfig();
+    if (curConfig) {
+      return stringifyJsonValue(curConfig);
+    } else {
+      return '<currentTaskConfigStr: undefined config>';
+    }
+  }
+
+  initModelData(): TransformerModel | null {
+    const config = this.currentConfig();
+    if (!config) {
+      return null;
+    }
+    if (this.lastModelValue) {
+      disposeParams(this.lastModelValue.params);
+    }
+    this.lastModelValue = modelMakerMap[config.kind].makeFn(JSON.stringify(config));
+    return this.lastModelValue;
   }
 
   toggleModelEditor() {
@@ -170,11 +193,7 @@ export class ModelSelectorComponent {
   }
 
   maybeSetModel(maybeName: string | null) {
-    const newConfig = this.modelsMap()[maybeName || ''] || null;
-    if (newConfig !== this.currentConfig()) {
-      this.currentConfig.set(newConfig);
-      this.modelConfigChange.emit({ model: newConfig });
-    }
+    this.currentConfig.set(this.modelsMap()[maybeName || ''] || null);
   }
 
   modelConfigAsJson(model: TransformerModel): string {
@@ -213,40 +232,6 @@ export class ModelSelectorComponent {
       return;
     }
 
-    let model = this.currentModel();
-    if (!model) {
-      console.error(`had null model for configUpdated: ${configUpdate}`);
-      return;
-    }
-
-    const oldModelName = model.config.name;
-
-    model = modelMakerMap[configUpdate.obj.kind].makeFn(configUpdate.json);
-
-    // Model name was changed.
-    if (model.config.name !== oldModelName) {
-      const newModelsMap = { ...this.modelsMap() };
-      delete newModelsMap[oldModelName];
-      newModelsMap[model.config.name] = model;
-      this.modelsMap.set(newModelsMap);
-    }
-    this.currentModel.set(model);
-    this.modelConfigChange.emit({ model });
-  }
-
-  handleUpdatedConfig(): void {
-    const curModel = this.currentModel();
-    if (!curModel) {
-      throw new Error('no model set');
-    }
-    if (!this.task) {
-      throw new Error('no task set');
-    }
-    const modelData = curModel.modelData();
-    if (modelData) {
-      // Dispose...
-      // curModel.modelData.tokenRep
-      jstree.forEach((g: GTensor<any>) => g.dispose(), modelData.params);
-    }
+    this.currentConfig.set(configUpdate.obj);
   }
 }

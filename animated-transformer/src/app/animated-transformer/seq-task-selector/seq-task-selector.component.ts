@@ -54,19 +54,9 @@ import { ConfigKind, ConfigObj } from 'src/lib/json/config-obj';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import * as _ from 'underscore';
 import { nullableEqFn } from 'src/lib/utils';
+import { TinyModelsService } from 'src/app/tiny-models.service';
 
 // ----------------------------------------------------------------------------
-
-const taskMakerMap = {} as { [kind: string]: ConfigKind<RandLmTaskConfig, BasicRandLmTask> };
-const initTaskMap = {} as { [name: string]: BasicRandLmTask };
-{
-  const initTaskKinds = [tinyWorldTaskKind];
-  initTaskKinds.forEach((k) => k.makeFn(k.defaultConfigStr));
-  const aConfiguredTask = taskMakerMap[tinyWorldTaskKind.kind].makeFn(
-    tinyWorldTaskKind.defaultConfigStr
-  );
-  initTaskMap[aConfiguredTask.config.name] = aConfiguredTask;
-}
 
 // ----------------------------------------------------------------------------
 @Component({
@@ -90,9 +80,6 @@ export class SeqTaskSelectorComponent {
   shownNumOfExamples = 6;
   repSize = 8;
 
-  taskMap: WritableSignal<{ [name: string]: BasicRandLmTask }> = signal(initTaskMap);
-  taskNames: Signal<string[]>;
-
   currentTask = signal<BasicRandLmTask | null>(null, {
     equal: nullableEqFn((a, b) => _.isEqual(a.config, b.config)),
   });
@@ -100,40 +87,18 @@ export class SeqTaskSelectorComponent {
   selectedTaskExamples!: Signal<Example[] | null>;
   datasetColumns: string[] = ['input', 'target'];
 
-  constructor() {
-    this.taskNames = computed(() => Object.keys(this.taskMap()));
-    this.selectedTaskExamples = computed(() => {
-      const curTask = this.currentTask();
-      if (!curTask) {
-        return null;
-      }
-      return curTask.exampleIter.takeOutN(this.shownNumOfExamples);
-    });
-    this.currentTaskName = computed(() => {
-      const taskMetadata = this.currentTask();
-      if (!taskMetadata) {
-        return null;
-      }
-      return taskMetadata.config.name;
-    });
+  constructor(public tinyModelsService: TinyModelsService) {}
+
+  currentTaskDefaultConfigStr(): string {
+    return this.tinyModelsService.modelConfigDefaultStr;
+  }
+
+  currentTaskConfigStr(): string {
+    return stringifyJsonValue(this.tinyModelsService.modelConfig);
   }
 
   selectTask(maybeName: string | null): void {
-    const oldTask = this.currentTask();
-    const taskMap = this.taskMap();
-    if (!maybeName || !(maybeName in taskMap)) {
-      if (oldTask) {
-        this.currentTask.set(null);
-        this.taskUpdates.emit({});
-      }
-      return;
-    }
-    const task = taskMap[maybeName];
-    if (oldTask && task.config.name === oldTask.config.name) {
-      return;
-    }
-    this.currentTask.set(task);
-    this.taskUpdates.emit({ task });
+    this.tinyModelsService.selectTask(maybeName);
   }
 
   taskConfigUpdated(configUpdate: ConfigUpdate<RandLmTaskConfig>): void {

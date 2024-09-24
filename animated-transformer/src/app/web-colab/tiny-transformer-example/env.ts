@@ -36,7 +36,7 @@ import { varifyParams } from 'src/lib/gtensor/params';
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const { writable, computed } = space;
+const { writable, computed, effect } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
 const taskKind = writable<string>(taskKinds[0]);
@@ -84,16 +84,24 @@ const batch = computed<Batch>(() => makeBatch(batchId(), trainConfig().batchSize
 const state = new LabState();
 const env = new LabEnv<Globals>(state);
 
-// async function run() {
-const cellState = env.start(trainerCell, {
-  model,
-  trainConfig,
-  batch,
-  testSet,
-});
+async function run() {
+  const cellState = env.start(trainerCell, {
+    model,
+    trainConfig,
+    batch,
+    testSet,
+  });
 
-// }
-// run();
+  const lastTrainMetric = await cellState.outputs.lastTrainMetric;
+
+  effect(() => {
+    const metrics = lastTrainMetric();
+    console.log(
+      `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
+    );
+  });
+}
+run();
 
 // function* batchGenerator(batchNum: number, batchSize: number): Iterator<> {
 //   for (let batchId = 0; batchId < batchNum; batchId += 1) {

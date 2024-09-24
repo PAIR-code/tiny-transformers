@@ -25,6 +25,7 @@ import {
   WritableStructFn,
   PromisedSignalsFn,
   Metrics,
+  Subobj,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
 
@@ -81,10 +82,6 @@ import { ExpandOnce } from '../ts-type-helpers';
 //     close();
 //   }
 // }
-
-export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
-  [Key in Name]: Globals[Key];
-};
 
 export class StatefulCell<
   Globals extends ValueStruct,

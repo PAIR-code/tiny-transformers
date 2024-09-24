@@ -40,6 +40,10 @@ export type SpecificValueStruct<Names extends string> = {
   [key in Names]: any;
 };
 
+export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
+  [Key in Name]: Globals[Key];
+};
+
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
 export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: WritableSignal<S[Key]> };
 export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: ComputedSignal<S[Key]> };

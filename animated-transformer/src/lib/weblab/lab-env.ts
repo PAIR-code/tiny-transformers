@@ -13,10 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SignalStructFn, ValueStruct, CellStateSpec, WritableStructFn } from './cellspec';
+import {
+  SignalStructFn,
+  ValueStruct,
+  CellStateSpec,
+  WritableStructFn,
+  PromiseStructFn,
+  PromisedSignalsFn,
+  Subobj,
+} from './cellspec';
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
-import { SignalSpace, writable, WritableSignal } from './signalspace';
+import { AbstractSignal, SignalSpace, writable, WritableSignal } from './signalspace';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -27,21 +35,44 @@ export class LabEnvCell<
   I extends keyof Globals & string,
   O extends keyof Globals & string
 > {
-  public onceFinished: Promise<{ [Key in O]: Globals[Key] }>;
+  public onceFinished: Promise<SignalStructFn<Subobj<Globals, O>>>;
   public worker: Worker;
+  public outputs: PromiseStructFn<SignalStructFn<Subobj<Globals, O>>>;
+  public outputSoFar: Partial<SignalStructFn<Subobj<Globals, O>>>;
+  public stillExpectedOutputs: Set<O>;
+  outputResolvers = {} as { [name: string]: (value: unknown) => void };
 
   constructor(
     public space: SignalSpace,
     public spec: CellStateSpec<Globals, I, O>,
     public uses: SignalStructFn<{ [Key in I]: Globals[Key] }>
   ) {
-    let resolveWithOutputFn: (output: { [Key in O]: Globals[Key] }) => void;
-    this.onceFinished = new Promise<{ [Key in O]: Globals[Key] }>((resolve, reject) => {
-      resolveWithOutputFn = resolve;
+    let resolveWithAllOutputsFn: (output: SignalStructFn<Subobj<Globals, O>>) => void;
+    this.onceFinished = new Promise<SignalStructFn<Subobj<Globals, O>>>((resolve, reject) => {
+      resolveWithAllOutputsFn = resolve;
     });
     this.worker = spec.createWorker();
 
-    const outputs = {} as { [Key in O]: Globals[Key] };
+    this.outputs = {} as PromisedSignalsFn<Subobj<Globals, O>>;
+    this.outputSoFar = {};
+    this.stillExpectedOutputs = new Set(spec.updates);
+
+    for (const outputName of spec.updates) {
+      const promisedInput = this.initOnceOutput<Globals[typeof outputName]>(outputName as string);
+      this.outputs[outputName] = promisedInput.then((inputValue) => {
+        const signal = this.space.writable(inputValue);
+        this.outputSoFar[outputName] = signal;
+        this.stillExpectedOutputs.delete(outputName);
+        if (this.stillExpectedOutputs.size === 0) {
+          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
+        }
+        // New inputs should now simply update the existing signal.
+        this.outputResolvers[outputName as string] = (value) => {
+          signal.set(value as Globals[typeof outputName]);
+        };
+        return signal;
+      });
+    }
 
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {
@@ -61,11 +92,12 @@ export class LabEnvCell<
           break;
         // only called when the webworker is really finished.
         case 'finished':
-          resolveWithOutputFn(outputs);
+          // TODO: what if there are missing outputs?
+          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
         case 'providingOutput':
           const outputName = messageFromWorker.name as O;
-          outputs[outputName] = messageFromWorker.outputData as Globals[O];
+          this.outputResolvers[outputName](messageFromWorker.outputData as Globals[O]);
           break;
         default:
           console.error('main thread go unknown worker message: ', data);
@@ -86,6 +118,15 @@ export class LabEnvCell<
         this.worker.postMessage(messageToWorker);
       });
     }
+  }
+
+  initOnceOutput<T>(name: string): Promise<T> {
+    // postMessage({ kind: 'requestInput', name });
+    return new Promise<T>((resolve, reject) => {
+      // TODO: consider allowing parent to send stuff before we ask for it..
+      // this would just involved checking the inputResolvers here.
+      this.outputResolvers[name] = resolve as (v: unknown) => void;
+    });
   }
 
   // TODO: maybe send all at once?
