@@ -8,6 +8,7 @@ import {
   TransformerModel,
   transformerModelKind,
 } from 'src/lib/transformer/transformer_gtensor';
+import { SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
 
 const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
 const initModelConfigsMap = {} as { [name: string]: TransformerConfig };
@@ -35,29 +36,45 @@ const initTaskConfigMap = {} as { [name: string]: RandLmTaskConfig };
   providedIn: 'root',
 })
 export class TinyModelsService {
-  taskName: string;
+  space: SignalSpace;
+
+  get taskName(): string {
+    return this.taskConfig.name;
+  }
   taskConfig: RandLmTaskConfig;
   taskConfigDefaultStr: string;
   taskConfigsMap: { [name: string]: RandLmTaskConfig };
 
-  modelName: string;
-  modelConfig: TransformerConfig;
+  get modelName(): string {
+    return this.modelConfig.name;
+  }
+  modelConfig: SetableSignal<TransformerConfig>;
   modelConfigDefaultStr: string;
   modelConfigsMap: { [name: string]: TransformerConfig };
 
   constructor(private route: ActivatedRoute, private router: Router) {
-    this.modelConfigsMap = initModelConfigsMap;
-    this.modelName = Object.keys(this.modelConfigsMap)[0];
-    this.modelConfig = this.modelConfigsMap[this.modelName];
-    this.modelConfigDefaultStr = taskMakerMap[this.modelName].defaultConfigStr;
+    this.space = new SignalSpace();
+    const { nullComputable, nullme, writable } = this.space;
 
     this.taskConfigsMap = initTaskConfigMap;
-    this.taskName = Object.keys(this.taskConfigsMap)[0];
+    const taskName = Object.keys(this.taskConfigsMap)[0];
     this.taskConfig = this.taskConfigsMap[this.taskName];
     this.taskConfigDefaultStr = taskMakerMap[this.taskName].defaultConfigStr;
+
+    this.modelConfigsMap = initModelConfigsMap;
+    const modelName = Object.keys(this.modelConfigsMap)[0];
+    this.modelConfig = writable<TransformerConfig | null>(this.modelConfigsMap[this.modelName]);
+    // TODO: maybe store modelConfigStr as the source artefact.
+    this.modelConfigDefaultStr = taskMakerMap[this.modelName].defaultConfigStr;
   }
 
   selectTask(taskName: string | null) {
     this.taskName = taskName || '';
   }
+
+  selectModel(modelName: string | null) {
+    this.modelName = modelName || '';
+  }
+
+  initModelParams() {}
 }

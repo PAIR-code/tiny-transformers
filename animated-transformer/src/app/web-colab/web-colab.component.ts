@@ -18,7 +18,7 @@ import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor'
 import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { ComputedSignal, SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
+import { DerivedSignal, SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import {
@@ -42,13 +42,13 @@ import { varifyParams } from 'src/lib/gtensor/params';
 })
 export class WebColabComponent {
   globals: {
-    taskKind: WritableSignal<string>;
-    taskConfigStr: WritableSignal<string>;
-    model: WritableSignal<EnvModel>;
-    trainConfig: WritableSignal<TrainConfig>;
-    batchId: WritableSignal<number>;
-    batch: ComputedSignal<Batch>;
-    testSet: ComputedSignal<Example[]>;
+    taskKind: SetableSignal<string>;
+    taskConfigStr: SetableSignal<string>;
+    model: SetableSignal<EnvModel>;
+    trainConfig: SetableSignal<TrainConfig>;
+    batchId: SetableSignal<number>;
+    batch: DerivedSignal<Batch>;
+    testSet: DerivedSignal<Example[]>;
   };
   state: LabState;
   env: LabEnv<Globals>;
@@ -60,7 +60,7 @@ export class WebColabComponent {
     this.space = new SignalSpace();
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
-    const { writable, computed, effect } = this.space;
+    const { writable, computable: computed, effect } = this.space;
 
     const taskKinds = Object.keys(taskRegistry.kinds);
     const taskKind = writable<string>(taskKinds[0]);

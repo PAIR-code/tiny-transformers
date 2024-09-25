@@ -45,17 +45,7 @@ import { GTensor } from 'src/lib/gtensor/gtensor';
 import { ConfigKind } from 'src/lib/json/config-obj';
 import { nullableEqFn } from 'src/lib/utils';
 import { disposeParams } from 'src/lib/gtensor/params';
-
-const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
-const initModelConfigsMap = {} as { [name: string]: TransformerConfig };
-{
-  const initModelKinds = [transformerModelKind];
-  initModelKinds.forEach((k) => k.makeFn(k.defaultConfigStr));
-  const aConfiguredModel = modelMakerMap[transformerModelKind.kind].makeFn(
-    transformerModelKind.defaultConfigStr
-  );
-  initModelConfigsMap[aConfiguredModel.config.name] = aConfiguredModel.config;
-}
+import { TinyModelsService } from 'src/app/tiny-models.service';
 
 // export class ModelSpecAndData {
 //   public config: TransformerConfig;
@@ -91,26 +81,6 @@ export interface ModelUpdate {
   styleUrls: ['./model-selector.component.scss'],
 })
 export class ModelSelectorComponent {
-  task: BasicRandLmTask | null = null;
-
-  @Input()
-  set taskUpdate(update: BasicLmTaskUpdate) {
-    this.task = update.task || null;
-    // When people change the task, update the
-    this.currentConfig.update((oldConfig) => {
-      if (oldConfig && this.task) {
-        oldConfig.tokenRep = prepareBasicTaskTokenRep(this.task.baseVocab);
-      }
-      return oldConfig;
-    });
-  }
-
-  @Input()
-  set modelName(n: string) {
-    this.maybeSetModel(n);
-  }
-
-  @Output() modelChange = new EventEmitter<ModelUpdate>();
   isTraining: boolean = false;
 
   public get tfjsMemory(): string {
@@ -123,21 +93,12 @@ export class ModelSelectorComponent {
   modelNameControl = new FormControl<string>('');
   view: 'edit' | 'view' = 'view';
 
-  modelsMap = signal(initModelConfigsMap);
   currentConfig = signal<TransformerConfig | null>(null, { equal: (a, b) => _.isEqual(a, b) });
   currentModel: Signal<TransformerModel | null>;
   paramCount: Signal<number>;
-  currentModelName: Signal<string>;
-  modelNames: Signal<string[]>;
   lastModelValue: TransformerModel | null = null;
 
-  constructor() {
-    this.currentModelName = computed(() => {
-      const model = this.currentModel();
-      return model ? model.config.name : '';
-    });
-
-    this.modelNames = computed(() => Object.keys(this.modelsMap()));
+  constructor(public tmService: TinyModelsService) {
     this.currentModel = computed(() => this.initModelData());
 
     this.paramCount = computed(() => {
@@ -152,19 +113,10 @@ export class ModelSelectorComponent {
         model.params
       );
     });
-
-    effect(() => {
-      this.modelChange.emit({ model: this.currentModel() });
-    });
   }
 
   currentDefaultConfigStr(): string {
-    const curConfig = this.currentConfig();
-    if (curConfig) {
-      return modelMakerMap[curConfig.kind].defaultConfigStr;
-    } else {
-      return '<currentTaskDefaultConfigStr: undefined config>';
-    }
+    return this.tmService.modelConfigDefaultStr;
   }
 
   currentConfigStr(): string {
@@ -232,6 +184,7 @@ export class ModelSelectorComponent {
       return;
     }
 
+    this.tmService;
     this.currentConfig.set(configUpdate.obj);
   }
 }

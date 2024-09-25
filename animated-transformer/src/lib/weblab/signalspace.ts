@@ -17,35 +17,39 @@ limitations under the License.
  * This is a special opinionated take on Signals, inspired by Angular's
  * implementation, but also a little different. Consider:
  *
- * const s = signal(() => ...)
- * const c = compute(() =>  ... s() ...)
+ * ```
+ * const s = setable(() => ...)
+ * const c = derived(() =>  ... s() ...)
  * const e = effect(() => ... s() ...)
+ * ```
  *
- * `c` will get updated lazily, i.e. whenever c() or c.get() is called).
- * `e` will be updated eagerly, every time there's any updates to
- * any signals that e depends on, e.g. whenever s.set(...) is called.
+ * `c` will get updated lazily, i.e. whenever c() or c.get() is called). `e`
+ * will be updated eagerly, every time there's any updates to any signals that e
+ * depends on, e.g. whenever s.set(...) is called.
  *
- * Cool thing: It's fine to call s.set in a compute or effect, but if you create a cycle,
- * only one pass through the cycle will happen, and you'll get a JS console
- * error with a trace. But this lets you do safe stuff easily, like make set stuff that
- * was not set before, and that will cause new signal effects. Loops of .set are not allowed,
- * And will be caught and produce an error.
+ * Cool thing: It's fine to call `s.set` in a derived signal or effect, but if
+ * you create a cycle, only one pass through the cycle will happen, and you'll
+ * get a JS console error with a trace. But this lets you do safe stuff easily,
+ * like make set stuff that was not set before, and that will cause new signal
+ * effects. Loops of `.set` are not allowed, and will be caught and produce an
+ * error.
  *
- * TODO: think about if this guarentees termination since there is a
- * finite set of dependee signals in any given update call (existing effects can't change
- * the set of things they depend on)...
- * (CONSIDER proof: what about effects that create new signals, and those new signals
- * trigger new effects - they can't trigger old effects because those old effects are
- * already defined.)
+ * TODO: think about if this guarentees termination since there is a finite set
+ * of dependee signals in any given update call (existing effects can't change
+ * the set of things they depend on)... (CONSIDER proof: what about effects that
+ * create new signals, and those new signals trigger new effects - they can't
+ * trigger old effects because those old effects are already defined.)
  *
- * CONSIDER: ideally, it would be nice to track dependencies in the type system...
+ * CONSIDER: ideally, it would be nice to track dependencies in the type
+ * system...
  *
- * TODO: Make explicit the notion of a set of updates, and when they are triggered.
- * e.g. updateCachedValue(...) should not directly trigger. Where emit(...) should.
+ * TODO: Make explicit the notion of a set of updates, and when they are
+ * triggered. e.g. updateCachedValue(...) should not directly trigger. Where
+ * emit(...) should.
  */
 
 export interface AbstractSignal<T> {
-  // The get signal value function. If this is a computed signal that
+  // The get signal's get value function. If this is a derived signal that
   // needs updating, it will compute the updated value.
   (options?: SignalGetOptions): T;
   space: SignalSpace;
@@ -55,23 +59,23 @@ export interface AbstractSignal<T> {
   options?: Partial<AbstractOptions<T>>;
 }
 
-export interface WritableSignal<T> extends AbstractSignal<T> {
-  kind: 'value';
+export interface SetableSignal<T> extends AbstractSignal<T> {
+  kind: 'setable';
   // Sets the value of the signal.
   set(newValue: T, options?: SignalSetOptions): void;
   update(f: (oldValue: T) => T, options?: SignalSetOptions): void;
   // rawComputation: ComputedSignal<T>;
-  rawValue: ValueSignal<T>;
-  options?: Partial<ValueOptions<T>>;
+  node: SetableNode<T>;
+  options?: Partial<SetableOptions<T>>;
 }
 
-export interface ComputedSignal<T> extends AbstractSignal<T> {
-  kind: 'computed';
-  rawComputation: DerivedSignal<T>;
+export interface DerivedSignal<T> extends AbstractSignal<T> {
+  kind: 'derived';
+  node: DerivedNode<T>;
   options?: Partial<DerivedOptions<T>>;
 }
 
-export type Signal<T> = WritableSignal<T> | ComputedSignal<T>;
+export type Signal<T> = SetableSignal<T> | DerivedSignal<T>;
 
 // Intended to be a type for the result of setTimeout.
 export type Timeout = unknown;
@@ -79,20 +83,24 @@ export type Timeout = unknown;
 // Manages a single update pass through the signalspace.
 type SignalSpaceUpdate = {
   // Values touched in this update.
-  valuesUpdated: Set<ValueSignal<unknown>>;
+  valuesUpdated: Set<SetableNode<unknown>>;
+
   // All effects touched in this update.
-  effectsTouched: Set<DerivedSignal<unknown>>;
+  effectsTouched: Set<DerivedNode<unknown>>;
+
   // Effects left to actually compute the update of.
-  pendingEffects: Set<DerivedSignal<unknown>>;
+  pendingEffects: Set<DerivedNode<unknown>>;
+
   // The set of values updated from computations.
   // Used to avoid computation loops.
   //
   // A compute chain should never update the same value
-  // more than once, otherwise there may be a loop.
+  // more than once, otherwise there is be a loop.
   //
   // TODO: This could be smarter: the same compute never updates
   // the same value more than once.
-  computedValuesChanges: Set<ValueSignal<unknown>>;
+  changedValueSet: Set<SetableNode<unknown>>;
+
   // The actual function that gets called with timeout of 0
   // to do the updating the signalspace.
   // It gets removed from here after it is called.
@@ -107,9 +115,9 @@ export class SignalSpace {
   // e.g. c = makeComputedSignal(() => ... x.get())
   // means that c depends on the value of x. So:
   //  computeGraph.get(x).depOnKey.has(x)
-  public computeStack: DerivedSignal<unknown>[] = [];
+  public computeStack: DerivedNode<unknown>[] = [];
 
-  public signalSet: Set<SomeSignal> = new Set();
+  public signalSet: Set<SomeNode> = new Set();
 
   // Set for the time between a value has been updated, and
   // when the update all effects has been completed.
@@ -117,19 +125,29 @@ export class SignalSpace {
 
   constructor() {}
 
-  maybeDependeeComputeSignal(): DerivedSignal<unknown> | null {
+  maybeContextualComputeSignal(): DerivedNode<unknown> | null {
     return this.computeStack.length > 0 ? this.computeStack[this.computeStack.length - 1] : null;
   }
 
-  makeSignal<T>(value: T, options?: Partial<ValueOptions<T>>): ValueSignal<T> {
-    const s = new ValueSignal(this, value, options);
+  makeSignal<T>(value: T, options?: Partial<SetableOptions<T>>): SetableNode<T> {
+    const s = new SetableNode(this, value, options);
     return s;
   }
 
-  makeComputedSignal<T>(f: () => T, options?: Partial<DerivedOptions<T>>): DerivedSignal<T> {
-    const thisComputeSignal = new DerivedSignal<T>(this, f, options);
+  makeDerivedNode<T>(f: () => T, options?: Partial<DerivedOptions<T>>): DerivedNode<T> {
+    const thisComputeSignal = new DerivedNode<T>(this, f, options);
     return thisComputeSignal;
   }
+
+  // makeNullableComputedSignal<T>(
+  //   f: () => T | null,
+  //   options?: Partial<DerivedOptions<T | null>>
+  // ): DerivedSignal<T | null> {
+  //   options = options || {};
+  //   options.nullable = true;
+  //   const thisComputeSignal = new DerivedSignal<T | null>(this, f, options);
+  //   return thisComputeSignal;
+  // }
 
   // Called when valueSignal's new value !== to the old value.
   //
@@ -138,13 +156,13 @@ export class SignalSpace {
   // your computation).
   // This might flip dep management, and have comutation know the
   // set of all (trans closure w.r.t. compute dep) value dependencies.
-  noteUpdate(valueSignal: ValueSignal<unknown>, skipTimeout: boolean = false) {
+  noteUpdate(valueSignal: SetableNode<unknown>, skipTimeout: boolean = false) {
     if (!this.update) {
       this.update = {
         valuesUpdated: new Set(),
         effectsTouched: new Set(),
         pendingEffects: new Set(),
-        computedValuesChanges: new Set(),
+        changedValueSet: new Set(),
         counter: this.updateCounts++,
       };
     }
@@ -204,10 +222,10 @@ export class SignalSpace {
     delete this.update;
   }
 
-  async pipeFromAsyncIter<T>(iter: AsyncIterable<T>, signal: WritableSignal<T>) {
+  async pipeFromAsyncIter<T>(iter: AsyncIterable<T>, signal: SetableSignal<T>) {
     for await (const i of iter) {
       signal.set(i);
-      this.noteUpdate(signal.rawValue as ValueSignal<unknown>);
+      this.noteUpdate(signal.node as SetableNode<unknown>);
       this.updatePendingEffects();
     }
   }
@@ -246,20 +264,39 @@ export class SignalSpace {
     };
   }
 
-  writable<T>(defaultValue: T, valueOptions?: Partial<ValueOptions<T>>): WritableSignal<T> {
-    return writable(this, defaultValue, valueOptions);
+  writable<T>(defaultValue: T, valueOptions?: Partial<SetableOptions<T>>): SetableSignal<T> {
+    return setable(this, defaultValue, valueOptions);
   }
-  computed<T>(f: () => T, options?: DerivedOptions<T>): ComputedSignal<T> {
-    return computed(this, f, options);
+  computable<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
+    return derived(this, f, options);
   }
-  effect<T>(f: () => T, options?: DerivedOptions<T>): ComputedSignal<T> {
-    return effect(this, f, options);
+  nullComputable<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
+    return nullDerived(this, f, options);
+  }
+  effect<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
+    return alwaysDerived(this, f, options);
   }
 
-  writableFork<T>(s: AbstractSignal<T>): WritableSignal<T> {
+  writableFork<T>(s: AbstractSignal<T>): SetableSignal<T> {
     const fork = this.writable(s(), s.options);
     this.effect(() => fork.set(s()));
     return fork;
+  }
+
+  nullme<T>(s: AbstractSignal<T | null>): T {
+    const contextualCompute = this.maybeContextualComputeSignal();
+    if (!contextualCompute || !contextualCompute.nullTyped) {
+      throw Error('nullme is only defined within a derived signal.');
+    }
+    const sResult = s();
+    if (sResult === null || sResult === undefined) {
+      contextualCompute.nullOnNullChild = true;
+      // Note: this is a lie; but the contextualCompute computation will make up
+      // for it, and not actually depend on sResult being nonNull, so all is ok.
+      return sResult as T;
+    } else {
+      return sResult;
+    }
   }
 }
 
@@ -285,7 +322,7 @@ export type DerivedOptions<T> = AbstractOptions<T> & {
   // you want to merge later...
 };
 
-export type ValueOptions<T> = AbstractOptions<T> & {
+export type SetableOptions<T> = AbstractOptions<T> & {
   // If a value is set twice, what should the update behvaior be?
   // * 'alwaysUpdate' ==> any dependent effects and computations get called twice.
   // * 'justLatest' ==> dependent effects and computations get called once only,
@@ -304,41 +341,42 @@ function defaultComputeOptions<T>(): DerivedOptions<T> {
   };
 }
 
-function defaultValueOptions<T>(): ValueOptions<T> {
+function defaultValueOptions<T>(): SetableOptions<T> {
   return {
     eqCheck: defaultEqCheck,
     clobberBehvaior: 'alwaysUpdate',
   };
 }
 
-export class ValueSignal<T> {
-  // All these computed signals in the SignalSpace, `c` have a `c.get(this)`.
-  dependsOnMeCompute = new Set<DerivedSignal<unknown>>();
-  dependsOnMeEffects = new Set<DerivedSignal<unknown>>();
+export class SetableNode<T> {
+  // All these derived signal nodes in the SignalSpace, `c` have a `c.get(this)`
+  // somewhere in them.
+  dependsOnMeCompute = new Set<DerivedNode<unknown>>();
+  dependsOnMeEffects = new Set<DerivedNode<unknown>>();
   lastUpdate?: SignalSpaceUpdate;
   kind = 'valueSignal';
-  options: ValueOptions<T>;
+  options: SetableOptions<T>;
 
   constructor(
     public signalSpace: SignalSpace,
     public value: T,
-    options?: Partial<ValueOptions<T>>
+    options?: Partial<SetableOptions<T>>
   ) {
     this.options = { ...defaultValueOptions(), ...options };
-    signalSpace.signalSet.add(this as ValueSignal<unknown>);
+    signalSpace.signalSet.add(this as SetableNode<unknown>);
   }
 
   get(options?: SignalGetOptions): T {
-    // Set when we are in the process of defining a new computed siganl.
+    // Set when we are in the process of defining a new derived siganl.
     if (!options || !options.untracked) {
-      const computeDependee = this.signalSpace.maybeDependeeComputeSignal();
-      if (computeDependee) {
-        if (computeDependee.options.isEffect) {
-          this.dependsOnMeEffects.add(computeDependee);
+      const contextualCompute = this.signalSpace.maybeContextualComputeSignal();
+      if (contextualCompute) {
+        if (contextualCompute.options.isEffect) {
+          this.dependsOnMeEffects.add(contextualCompute);
         } else {
-          this.dependsOnMeCompute.add(computeDependee);
+          this.dependsOnMeCompute.add(contextualCompute);
         }
-        computeDependee.dependsOnValues.add(this as ValueSignal<unknown>);
+        contextualCompute.dependsOnValues.add(this as SetableNode<unknown>);
       }
     }
     return this.value;
@@ -354,7 +392,7 @@ export class ValueSignal<T> {
   errorForLoopySet(v: T): boolean {
     if (
       this.signalSpace.updateInProgress() &&
-      this.signalSpace.update.computedValuesChanges.has(this as ValueSignal<unknown>)
+      this.signalSpace.update.changedValueSet.has(this as SetableNode<unknown>)
     ) {
       console.error(
         `A cyclic value update happened in a computation:`,
@@ -387,27 +425,35 @@ export class ValueSignal<T> {
         (this.options.clobberBehvaior === 'alwaysUpdate',
         this.dependsOnMeEffects.size > 0 &&
           this.signalSpace.update &&
-          this.signalSpace.update.valuesUpdated.has(this as ValueSignal<unknown>))
+          this.signalSpace.update.valuesUpdated.has(this as SetableNode<unknown>))
       ) {
         this.signalSpace.updatePendingEffects();
       }
       this.value = v;
-      this.signalSpace.noteUpdate(this as ValueSignal<unknown>);
+      this.signalSpace.noteUpdate(this as SetableNode<unknown>);
       this.lastUpdate = this.signalSpace.update;
     }
   }
 }
 
-export class DerivedSignal<T> {
+export class DerivedNode<T> {
   kind = 'computedSignal';
   updateNeeded?: SignalSpaceUpdate;
   lastUpdate?: SignalSpaceUpdate;
   lastUpdateChangedValue = true;
   // TODO: use this to check if any child dep changed,
   // and thus this needs recomputation.
-  dependsOnMe = new Set<DerivedSignal<unknown>>();
-  dependsOnComputing = new Set<DerivedSignal<unknown>>();
-  dependsOnValues = new Set<ValueSignal<unknown>>();
+  dependsOnMe = new Set<DerivedNode<unknown>>();
+  dependsOnComputing = new Set<DerivedNode<unknown>>();
+  dependsOnValues = new Set<SetableNode<unknown>>();
+  // When true, the type T must be = S | null (null must extend T) this value is
+  // null if any dependency is wrapped in a `nullme`, and the child dep is null.
+  //
+  // CONSIDER: we could make special creation function that types as never if T
+  // doesn't extend null, but this is true...
+  nullTyped = false;
+  // should only be possible to true when nullTyped is true.
+  nullOnNullChild = false;
   lastValue: T;
   options: DerivedOptions<T>;
 
@@ -418,8 +464,8 @@ export class DerivedSignal<T> {
   ) {
     this.options = Object.assign(defaultComputeOptions(), options || {});
 
-    signalSpace.signalSet.add(this as DerivedSignal<unknown>);
-    this.signalSpace.computeStack.push(this as DerivedSignal<unknown>);
+    signalSpace.signalSet.add(this as DerivedNode<unknown>);
+    this.signalSpace.computeStack.push(this as DerivedNode<unknown>);
     // Note: this.lastValue should be set last, because...
     // Within the `computeFunction()` call, we expect other siganls, s,
     // to be called with s.get(), and these will add all
@@ -433,6 +479,9 @@ export class DerivedSignal<T> {
       if (dep.updateNeeded !== dep.lastUpdate) {
         dep.updateValue();
         someComputeDepChanged = someComputeDepChanged || dep.lastUpdateChangedValue;
+        if (this.nullOnNullChild) {
+          break;
+        }
       }
     }
     if (someComputeDepChanged) {
@@ -460,7 +509,15 @@ export class DerivedSignal<T> {
     this.lastUpdate = this.updateNeeded || this.lastUpdate;
     if (this.someDependencyChanged()) {
       delete this.updateNeeded;
-      const newValue = this.computeFunction();
+      let newValue: T;
+      if (this.nullOnNullChild) {
+        // This is a lie that has to be caught at runtime by the `nullme`
+        // operator only being applicable when working within a computation that
+        // may be null.
+        newValue = null as T;
+      } else {
+        newValue = this.computeFunction();
+      }
       if (this.options.eqCheck(this.lastValue, newValue)) {
         this.lastUpdateChangedValue = false;
       } else {
@@ -470,16 +527,18 @@ export class DerivedSignal<T> {
     } else {
       delete this.updateNeeded;
       this.lastUpdateChangedValue = false;
-      return;
     }
+    // Reset the possibility that a child is null, and wants me to be null
+    // because of it.
+    this.nullOnNullChild = false;
   }
 
   get(options?: SignalGetOptions): T {
     if (!options || !options.untracked) {
       // Set when we are in the process of defining a new computed siganl.
-      const computeDependee = this.signalSpace.maybeDependeeComputeSignal();
+      const computeDependee = this.signalSpace.maybeContextualComputeSignal();
       if (computeDependee) {
-        computeDependee.dependsOnComputing.add(this as DerivedSignal<unknown>);
+        computeDependee.dependsOnComputing.add(this as DerivedNode<unknown>);
         this.dependsOnMe.add(computeDependee);
         for (const dep of this.dependsOnValues) {
           computeDependee.dependsOnValues.add(dep);
@@ -498,60 +557,103 @@ export class DerivedSignal<T> {
   }
 }
 
-export type SomeSignal = DerivedSignal<unknown> | ValueSignal<unknown>;
+export type SomeNode = DerivedNode<unknown> | SetableNode<unknown>;
 
 // Note: we use the type-safe way to define the return value; as far as I know
 // this is the only way to do so in typescript; although it is more implicit than I would like.
-export function writable<T>(
+export function setable<T>(
   space: SignalSpace,
   value: T,
-  options?: Partial<ValueOptions<T>>
-): WritableSignal<T> {
-  const valueSignal = space.makeSignal(value, options);
+  options?: Partial<SetableOptions<T>>
+): SetableSignal<T> {
+  const valueNode = space.makeSignal(value, options);
   const signal = function () {
-    return valueSignal.get();
+    return valueNode.get();
   };
   // const foo = {...writableSignal, { lastValue: 'foo' } };
-  signal.lastValue = () => valueSignal.value;
-  signal.set = (value: T, options?: SignalSetOptions) => valueSignal.set(value, options);
-  signal.update = (f: (v: T) => T, options?: SignalSetOptions) => valueSignal.update(f, options);
+  signal.lastValue = () => valueNode.value;
+  signal.set = (value: T, options?: SignalSetOptions) => valueNode.set(value, options);
+  signal.update = (f: (v: T) => T, options?: SignalSetOptions) => valueNode.update(f, options);
   signal.space = space;
-  signal.kind = 'value' as const;
-  signal.rawValue = valueSignal;
+  signal.kind = 'setable' as const;
+  signal.node = valueNode;
   signal.options = options;
   return signal;
 }
 
-export function computed<T>(
+export function derived<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<DerivedOptions<T>>
-): ComputedSignal<T> {
-  const derivedSignal = space.makeComputedSignal(f, options);
+): DerivedSignal<T> {
+  const derivedNode = space.makeDerivedNode(f, options);
   const signal = function () {
-    return derivedSignal.get();
+    return derivedNode.get();
   };
-  signal.rawComputation = derivedSignal;
-  signal.lastValue = () => derivedSignal.lastValue;
+  signal.node = derivedNode;
+  signal.lastValue = () => derivedNode.lastValue;
   signal.space = space;
-  signal.kind = 'computed' as const;
+  signal.kind = 'derived' as const;
   signal.options = options;
   return signal;
 }
 
-export function effect<T>(
+// A special case that allows for `nullme` operators on sub-signals to handle the null cases.
+export function nullDerived<T>(
+  space: SignalSpace,
+  f: () => T | null,
+  options?: Partial<DerivedOptions<T>>
+): DerivedSignal<T | null> {
+  const eqCheck = options && options.eqCheck;
+  let nullableEqCheckOptions: Partial<DerivedOptions<T | null>> = {};
+  if (eqCheck) {
+    nullableEqCheckOptions = {
+      ...options,
+      eqCheck: (a, b) => {
+        if (a !== null && b !== null) {
+          return eqCheck(a, b);
+        } else if (a === null && b === null) {
+          return true;
+        } else {
+          return false;
+        }
+      },
+    };
+  }
+  const derivedNode = space.makeDerivedNode(f, nullableEqCheckOptions);
+  derivedNode.nullTyped = true;
+  // Note: in pure JS we could write `const signal = derivedSignal.get` But for
+  // typescript to do correct incremental type inference, we use the identity
+  // function wrapper.
+  const signal = function () {
+    return derivedNode.get();
+  };
+  signal.node = derivedNode;
+  signal.lastValue = () => derivedNode.lastValue;
+  signal.space = space;
+  signal.kind = 'derived' as const;
+  signal.options = nullableEqCheckOptions;
+  return signal;
+}
+
+// The key characteristic of effects is that they get updated per "set" of a
+// child. Computed signals have the option to only re-compute once per tick,
+// however many "set" calls of children happen.
+export function alwaysDerived<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<DerivedOptions<T>>
-): ComputedSignal<T> {
-  const derivedSignal = space.makeComputedSignal(f, Object.assign({ ...options, isEffect: true }));
-  const signal = function () {
-    return derivedSignal.get();
-  };
-  signal.rawComputation = derivedSignal;
-  signal.lastValue = () => derivedSignal.lastValue;
-  signal.space = space;
-  signal.kind = 'computed' as const;
-  signal.options = options;
-  return signal;
+): DerivedSignal<T> {
+  return derived(space, f, Object.assign({ ...options, isEffect: true }));
+}
+
+// The key characteristic of effects is that they get updated per "set" of a
+// child. Computed signals have the option to only re-compute once per tick,
+// however many "set" calls of children happen.
+export function alwaysNullDerived<T>(
+  space: SignalSpace,
+  f: () => T | null,
+  options?: Partial<DerivedOptions<T>>
+): DerivedSignal<T | null> {
+  return nullDerived(space, f, Object.assign({ ...options, isEffect: true }));
 }

@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
-import { Signal, WritableSignal, SignalSpace } from './signalspace';
+import { Signal, SetableSignal, SignalSpace } from './signalspace';
 import {
   ValueStruct,
   CellStateSpec,
@@ -196,7 +196,7 @@ type PromisedMetrics<Name extends string> = {
 
 export function makeMetricReporter<Name extends string>(
   space: SignalSpace,
-  metrics: WritableSignal<Metrics<Name>>
+  metrics: SetableSignal<Metrics<Name>>
 ): {
   reportMetrics: (batchId: number, tfScalarMetrics: { [names in Name]: tf.Scalar }) => void;
 } {

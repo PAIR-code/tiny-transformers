@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ComputedSignal, DerivedSignal, SignalSpace, WritableSignal } from './signalspace';
+import { DerivedSignal, DerivedNode, SignalSpace, SetableSignal } from './signalspace';
 
 export class SavableValueKind<K extends string, T, S> {
   constructor(
@@ -27,8 +27,8 @@ export class SavableValueKind<K extends string, T, S> {
 }
 
 export class WritableSValue<K extends string, T, S> {
-  public proposedValue: WritableSignal<T>;
-  constructor(public kind: SavableValueKind<K, T, S>, public value: WritableSignal<T>) {
+  public proposedValue: SetableSignal<T>;
+  constructor(public kind: SavableValueKind<K, T, S>, public value: SetableSignal<T>) {
     this.proposedValue = this.value.space.writable(value());
   }
   updateValue() {
@@ -37,8 +37,8 @@ export class WritableSValue<K extends string, T, S> {
 }
 
 export class ComputedSValue<K extends string, T, S> {
-  public value: WritableSignal<T>;
-  constructor(public kind: SavableValueKind<K, T, S>, public proposedValue: ComputedSignal<T>) {
+  public value: SetableSignal<T>;
+  constructor(public kind: SavableValueKind<K, T, S>, public proposedValue: DerivedSignal<T>) {
     this.value = proposedValue.space.writable(proposedValue.lastValue());
   }
   updateValue() {

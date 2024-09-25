@@ -24,7 +24,7 @@ import {
   TransformerConfig,
 } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { SignalSpace, WritableSignal } from 'src/lib/weblab/signalspace';
+import { SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
@@ -36,7 +36,7 @@ import { varifyParams } from 'src/lib/gtensor/params';
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const { writable, computed, effect } = space;
+const { writable, computable: computed, effect } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
 const taskKind = writable<string>(taskKinds[0]);

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SignalSpace, ValueSignal, writable, computed, effect } from './signalspace';
+import { SignalSpace, SetableNode, setable, derived, alwaysDerived } from './signalspace';
 
 // type MaybeReturn<T, F> = undefined extends F ? void : T;
 type MaybeReturn<T> = void extends T ? void : T;
@@ -37,9 +37,9 @@ describe('signalspace', () => {
   it('Simple signal compute', () => {
     const s = new SignalSpace();
 
-    const b = new ValueSignal(s, 'b');
+    const b = new SetableNode(s, 'b');
 
-    const c = s.makeComputedSignal(() => {
+    const c = s.makeDerivedNode(() => {
       return b.get() + 'c';
     });
 
@@ -51,14 +51,14 @@ describe('signalspace', () => {
   it('Compound signal graph compute', async () => {
     const s = new SignalSpace();
 
-    const a = new ValueSignal(s, 'a');
-    const b = new ValueSignal(s, 'b');
+    const a = new SetableNode(s, 'a');
+    const b = new SetableNode(s, 'b');
 
-    const aa = s.makeComputedSignal(() => {
+    const aa = s.makeDerivedNode(() => {
       return a.get() + 'a';
     });
 
-    const aab = s.makeComputedSignal(() => {
+    const aab = s.makeDerivedNode(() => {
       return aa.get() + b.get();
     });
 
@@ -72,14 +72,37 @@ describe('signalspace', () => {
     console.warn('...TODO: fix the above.');
   });
 
+  it('nullComputable & nullme', () => {
+    const s = new SignalSpace();
+    const { writable, nullComputable, nullme } = s;
+    const a = writable<string | null>('a');
+    const b = nullComputable(() => {
+      return nullme(a) + 'b';
+    });
+    expect(b()).toEqual('a');
+    a.set(null);
+    expect(b()).toEqual(null);
+  });
+
+  it('computable & nullme errors at runtime', () => {
+    const s = new SignalSpace();
+    const { writable, computable, nullme } = s;
+    const a = writable<string | null>('a');
+    expect(() =>
+      computable(() => {
+        return nullme(a) + 'b';
+      })
+    ).toThrow();
+  });
+
   it('Two step signal update', () => {
     const s = new SignalSpace();
 
-    const a = new ValueSignal(s, 'a');
-    const b = s.makeComputedSignal(() => {
+    const a = new SetableNode(s, 'a');
+    const b = s.makeDerivedNode(() => {
       return a.get() + 'b';
     });
-    const c = s.makeComputedSignal(() => {
+    const c = s.makeDerivedNode(() => {
       return b.get() + 'c';
     });
 
@@ -91,14 +114,14 @@ describe('signalspace', () => {
   it('Two step effect vs compute signal update', async () => {
     const s = new SignalSpace();
 
-    const a = new ValueSignal(s, 'a');
-    const b = s.makeComputedSignal(() => {
+    const a = new SetableNode(s, 'a');
+    const b = s.makeDerivedNode(() => {
       return a.get() + 'b';
     });
-    const c = s.makeComputedSignal(() => {
+    const c = s.makeDerivedNode(() => {
       return b.get() + 'c';
     });
-    const e = s.makeComputedSignal(
+    const e = s.makeDerivedNode(
       () => {
         return b.get() + 'e';
       },
@@ -125,8 +148,8 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     let counter = 0;
-    const a = writable(s, 'a');
-    const e = effect(s, () => {
+    const a = setable(s, 'a');
+    const e = alwaysDerived(s, () => {
       counter += 1;
       return a() + 'e';
     });
@@ -152,8 +175,8 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     let counter = 0;
-    const a = writable(s, 'a', { clobberBehvaior: 'justLatest' });
-    const e = effect(s, () => {
+    const a = setable(s, 'a', { clobberBehvaior: 'justLatest' });
+    const e = alwaysDerived(s, () => {
       counter += 1;
       return a() + 'e';
     });
@@ -180,14 +203,14 @@ describe('signalspace', () => {
   it('Two step effect vs compute signal update with angular-style syntax', async () => {
     const s = new SignalSpace();
 
-    const a = writable(s, 'a');
-    const b = computed(s, () => {
+    const a = setable(s, 'a');
+    const b = derived(s, () => {
       return a() + 'b';
     });
-    const c = computed(s, () => {
+    const c = derived(s, () => {
       return b() + 'c';
     });
-    const e = effect(s, () => {
+    const e = alwaysDerived(s, () => {
       return b() + 'e';
     });
 
@@ -208,13 +231,13 @@ describe('signalspace', () => {
   it('An effect that sets a value', async () => {
     const s = new SignalSpace();
 
-    const v1 = writable(s, 'a');
-    const v2 = writable(s, 1);
-    const v3 = writable(s, '_');
-    const b = computed(s, () => {
+    const v1 = setable(s, 'a');
+    const v2 = setable(s, 1);
+    const v3 = setable(s, '_');
+    const b = derived(s, () => {
       return v1() + 'b' + v2() + v3();
     });
-    const d = effect(s, () => {
+    const d = alwaysDerived(s, () => {
       return v2() + 'd';
     });
 
@@ -222,7 +245,7 @@ describe('signalspace', () => {
 
     expect(d()).toEqual('1d');
 
-    const e = effect(s, () => {
+    const e = alwaysDerived(s, () => {
       v2.update((v) => v + 1);
       // v2.set(v2({ untracked: true }) + 1);
       return v1() + 'e';

@@ -21,7 +21,7 @@ limitations under the License.
  * Runs in webworker AND in main browser or node context.
  */
 
-import { AbstractSignal, ComputedSignal, WritableSignal } from './signalspace';
+import { AbstractSignal, DerivedSignal, SetableSignal } from './signalspace';
 
 export type Metrics<Name extends string> = {
   batchId: number;
@@ -45,11 +45,11 @@ export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
 };
 
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
-export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: WritableSignal<S[Key]> };
-export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: ComputedSignal<S[Key]> };
+export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: SetableSignal<S[Key]> };
+export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: DerivedSignal<S[Key]> };
 export type SignalStructFn<S extends ValueStruct> = { [Key in keyof S]: AbstractSignal<S[Key]> };
 export type PromisedSignalsFn<S extends ValueStruct> = {
-  [Key in keyof S]: Promise<WritableSignal<S[Key]>>;
+  [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
 };
 
 // A cell specification is a very simply class that connects types to names for
