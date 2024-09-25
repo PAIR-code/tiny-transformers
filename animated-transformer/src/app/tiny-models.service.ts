@@ -54,7 +54,7 @@ export class TinyModelsService {
 
   constructor(private route: ActivatedRoute, private router: Router) {
     this.space = new SignalSpace();
-    const { nullComputable, nullme, writable } = this.space;
+    const { nullDerived: nullComputable, defined: nullme, setable: writable } = this.space;
 
     this.taskConfigsMap = initTaskConfigMap;
     const taskName = Object.keys(this.taskConfigsMap)[0];

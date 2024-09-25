@@ -36,7 +36,7 @@ import { varifyParams } from 'src/lib/gtensor/params';
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const { writable, computable: computed, effect } = space;
+const { setable: writable, derived: computed, alwaysDerived: effect } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
 const taskKind = writable<string>(taskKinds[0]);

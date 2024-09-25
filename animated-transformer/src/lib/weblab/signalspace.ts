@@ -238,7 +238,7 @@ export class SignalSpace {
     let curPromise: Promise<T> = new Promise<T>((resolve) => {
       resolveFn = resolve;
     });
-    this.effect(() => {
+    this.alwaysDerived(() => {
       buffer.push(curPromise);
       resolveFn(s());
       curPromise = new Promise<T>((resolve) => {
@@ -264,26 +264,33 @@ export class SignalSpace {
     };
   }
 
-  writable<T>(defaultValue: T, valueOptions?: Partial<SetableOptions<T>>): SetableSignal<T> {
+  setable<T>(defaultValue: T, valueOptions?: Partial<SetableOptions<T>>): SetableSignal<T> {
     return setable(this, defaultValue, valueOptions);
   }
-  computable<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
+  derived<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
     return derived(this, f, options);
   }
-  nullComputable<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
+  nullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
     return nullDerived(this, f, options);
   }
-  effect<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
+  alwaysDerived<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
     return alwaysDerived(this, f, options);
+  }
+  alwaysNullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
+    return alwaysNullDerived(this, f, options);
   }
 
   writableFork<T>(s: AbstractSignal<T>): SetableSignal<T> {
-    const fork = this.writable(s(), s.options);
-    this.effect(() => fork.set(s()));
+    const fork = this.setable(s(), s.options);
+    this.alwaysDerived(() => fork.set(s()));
     return fork;
   }
 
-  nullme<T>(s: AbstractSignal<T | null>): T {
+  // This is an operator to wrap calls to sub-signals that should only be used
+  // within nullDerived signals. It will cause the parent derived signal to be
+  // null when this signal is null. i.e. you can say only when this is defined
+  // do we do this computation.
+  defined<T>(s: AbstractSignal<T | null>): T {
     const contextualCompute = this.maybeContextualComputeSignal();
     if (!contextualCompute || !contextualCompute.nullTyped) {
       throw Error('nullme is only defined within a derived signal.');

@@ -42,7 +42,7 @@ describe('signalspace-value', () => {
 
   it('Simple signal compute', () => {
     const s = new SignalSpace();
-    const { writable, computable: computed, effect } = s;
+    const { setable: writable, derived: computed, alwaysDerived: effect } = s;
 
     const config = writable(transformerModelKind.defaultConfig, { eqCheck: _.isEqual });
     const params = writable(initDecoderParams(transformerModelKind.defaultConfig));

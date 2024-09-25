@@ -29,7 +29,7 @@ export class SavableValueKind<K extends string, T, S> {
 export class WritableSValue<K extends string, T, S> {
   public proposedValue: SetableSignal<T>;
   constructor(public kind: SavableValueKind<K, T, S>, public value: SetableSignal<T>) {
-    this.proposedValue = this.value.space.writable(value());
+    this.proposedValue = this.value.space.setable(value());
   }
   updateValue() {
     this.value.set(this.proposedValue.lastValue());
@@ -39,7 +39,7 @@ export class WritableSValue<K extends string, T, S> {
 export class ComputedSValue<K extends string, T, S> {
   public value: SetableSignal<T>;
   constructor(public kind: SavableValueKind<K, T, S>, public proposedValue: DerivedSignal<T>) {
-    this.value = proposedValue.space.writable(proposedValue.lastValue());
+    this.value = proposedValue.space.setable(proposedValue.lastValue());
   }
   updateValue() {
     this.value.set(this.proposedValue.lastValue());

@@ -42,7 +42,7 @@ import {
 } from 'src/lib/gtensor/params';
 
 const cell = new StatefulCell(globals, trainerCell);
-const { computable: computed, effect, writable } = cell.space;
+const { derived: computed, alwaysDerived: effect, setable: writable } = cell.space;
 
 const metrics = writable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
 const { reportMetrics } = makeMetricReporter(cell.space, metrics);

@@ -60,7 +60,7 @@ export class WebColabComponent {
     this.space = new SignalSpace();
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
-    const { writable, computable: computed, effect } = this.space;
+    const { setable: writable, derived: computed, alwaysDerived: effect } = this.space;
 
     const taskKinds = Object.keys(taskRegistry.kinds);
     const taskKind = writable<string>(taskKinds[0]);

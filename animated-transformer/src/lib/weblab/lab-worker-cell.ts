@@ -134,7 +134,7 @@ export class StatefulCell<
     for (const inputName of spec.uses) {
       const promisedInput = this.initOnceInput<Globals[typeof inputName]>(inputName as string);
       this.inputPromises[inputName] = promisedInput.then((inputValue) => {
-        const signal = this.space.writable(inputValue);
+        const signal = this.space.setable(inputValue);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
@@ -200,7 +200,7 @@ export function makeMetricReporter<Name extends string>(
 ): {
   reportMetrics: (batchId: number, tfScalarMetrics: { [names in Name]: tf.Scalar }) => void;
 } {
-  const promisedMetrics = space.writable({} as PromisedMetrics<Name>);
+  const promisedMetrics = space.setable({} as PromisedMetrics<Name>);
 
   // Notes:
   // - We keep all tfjs values local, so there is no memory leakage.
@@ -214,7 +214,7 @@ export function makeMetricReporter<Name extends string>(
   }
 
   // const lastMetrics = space.writable({ batchId: -1, values: {} } as Metrics<Name>);
-  space.effect(async () => {
+  space.alwaysDerived(async () => {
     const promised = promisedMetrics();
     const metric = { batchId: promised.batchId, values: {} } as Metrics<Name>;
     for (const [metricName, promise] of Object.entries<Promise<number>>(promised.values)) {

@@ -60,7 +60,7 @@ export class LabEnvCell<
     for (const outputName of spec.updates) {
       const promisedInput = this.initOnceOutput<Globals[typeof outputName]>(outputName as string);
       this.outputs[outputName] = promisedInput.then((inputValue) => {
-        const signal = this.space.writable(inputValue);
+        const signal = this.space.setable(inputValue);
         this.outputSoFar[outputName] = signal;
         this.stillExpectedOutputs.delete(outputName);
         if (this.stillExpectedOutputs.size === 0) {
@@ -108,7 +108,7 @@ export class LabEnvCell<
     // In addition, whenever any of the "uses" variables are updated, we send
     // the update to the worker.
     for (const key of Object.keys(uses)) {
-      this.space.effect(() => {
+      this.space.alwaysDerived(() => {
         const value = uses[key as I]();
         const messageToWorker: ToWorkerMessage = {
           kind: 'providingInput',

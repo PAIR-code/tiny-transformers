@@ -74,10 +74,10 @@ describe('signalspace', () => {
 
   it('nullComputable & nullme', () => {
     const s = new SignalSpace();
-    const { writable, nullComputable, nullme } = s;
-    const a = writable<string | null>('a');
-    const b = nullComputable(() => {
-      return nullme(a) + 'b';
+    const { setable, nullDerived, defined } = s;
+    const a = setable<string | null>('a');
+    const b = nullDerived(() => {
+      return defined(a) + 'b';
     });
     expect(b()).toEqual('a');
     a.set(null);
@@ -86,11 +86,11 @@ describe('signalspace', () => {
 
   it('computable & nullme errors at runtime', () => {
     const s = new SignalSpace();
-    const { writable, computable, nullme } = s;
-    const a = writable<string | null>('a');
+    const { setable, derived, defined } = s;
+    const a = setable<string | null>('a');
     expect(() =>
-      computable(() => {
-        return nullme(a) + 'b';
+      derived(() => {
+        return defined(a) + 'b';
       })
     ).toThrow();
   });
