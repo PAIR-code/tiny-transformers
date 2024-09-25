@@ -8,7 +8,8 @@ import {
   TransformerModel,
   transformerModelKind,
 } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
+import { SignalSpace, SetableSignal, derived, DerivedSignal } from 'src/lib/weblab/signalspace';
+import { EnvModel } from './web-colab/tiny-transformer-example/ailab';
 
 const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
 const initModelConfigsMap = {} as { [name: string]: TransformerConfig };
@@ -38,42 +39,103 @@ const initTaskConfigMap = {} as { [name: string]: RandLmTaskConfig };
 export class TinyModelsService {
   space: SignalSpace;
 
+  // Tasks...
+  taskConfigsMap: { [name: string]: RandLmTaskConfig } = initTaskConfigMap;
+  taskConfig: SetableSignal<RandLmTaskConfig | null>;
   get taskName(): string {
-    return this.taskConfig.name;
+    const config = this.taskConfig();
+    return config ? config.name : '';
   }
-  taskConfig: RandLmTaskConfig;
-  taskConfigDefaultStr: string;
-  taskConfigsMap: { [name: string]: RandLmTaskConfig };
+  get taskConfigDefaultStr(): string {
+    if (this.taskName === '') {
+      return '<undefined>';
+    }
+    return taskMakerMap[this.taskName].defaultConfigStr;
+  }
 
+  // Models...
+  modelConfigsMap: { [name: string]: TransformerConfig } = initModelConfigsMap;
+  modelConfig: SetableSignal<TransformerConfig | null>;
   get modelName(): string {
-    return this.modelConfig.name;
+    const config = this.modelConfig();
+    return config ? config.name : '';
   }
-  modelConfig: SetableSignal<TransformerConfig>;
-  modelConfigDefaultStr: string;
-  modelConfigsMap: { [name: string]: TransformerConfig };
+  get modelConfigDefaultStr(): string {
+    if (this.modelName === '') {
+      return '<undefined>';
+    }
+    return modelMakerMap[this.modelName].defaultConfigStr;
+  }
+  model: DerivedSignal<EnvModel | null>;
 
   constructor(private route: ActivatedRoute, private router: Router) {
+    this.route.queryParams.subscribe((params) => {
+      this.selectModel(params['model'] || '');
+      this.selectTask(params['task'] || '');
+      // this.trainerName = params['trainer'] || '';
+      // this.evalInputStr = params['input'] || '';
+    });
+
     this.space = new SignalSpace();
-    const { nullDerived: nullComputable, defined: nullme, setable: writable } = this.space;
-
-    this.taskConfigsMap = initTaskConfigMap;
+    const { nullDerived, defined, setable } = this.space;
     const taskName = Object.keys(this.taskConfigsMap)[0];
-    this.taskConfig = this.taskConfigsMap[this.taskName];
-    this.taskConfigDefaultStr = taskMakerMap[this.taskName].defaultConfigStr;
-
-    this.modelConfigsMap = initModelConfigsMap;
+    this.taskConfig = setable<RandLmTaskConfig | null>(this.taskConfigsMap[taskName]);
     const modelName = Object.keys(this.modelConfigsMap)[0];
-    this.modelConfig = writable<TransformerConfig | null>(this.modelConfigsMap[this.modelName]);
+    this.modelConfig = setable<TransformerConfig | null>(this.modelConfigsMap[modelName]);
     // TODO: maybe store modelConfigStr as the source artefact.
-    this.modelConfigDefaultStr = taskMakerMap[this.modelName].defaultConfigStr;
+
+    this.model = nullDerived<EnvModel>(() => {
+      // TODO: init params... load them?
+      return { config: defined(this.modelConfig) };
+    });
   }
 
   selectTask(taskName: string | null) {
-    this.taskName = taskName || '';
+    if (taskName === this.taskName) {
+      return;
+    }
+
+    if (!taskName || !(taskName in this.taskConfigsMap)) {
+      this.taskConfig.set(null);
+      return;
+    }
+    this.taskConfig.set(this.taskConfigsMap[taskName]);
+
+    const queryParams = { task: taskName };
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: queryParams,
+      // remove to replace all query params by provided
+      queryParamsHandling: 'merge',
+    });
   }
 
   selectModel(modelName: string | null) {
-    this.modelName = modelName || '';
+    if (modelName === this.modelName) {
+      return;
+    }
+
+    if (!modelName || !(modelName in this.modelConfigsMap)) {
+      this.modelConfig.set(null);
+      return;
+    }
+    this.modelConfig.set(this.modelConfigsMap[modelName]);
+
+    const queryParams = { model: modelName };
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: queryParams,
+      // remove to replace all query params by provided
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  updateTaskConfig(config: RandLmTaskConfig) {
+    console.log('to implement');
+  }
+
+  updateModelConfig(config: TransformerConfig) {
+    console.log('to implement');
   }
 
   initModelParams() {}

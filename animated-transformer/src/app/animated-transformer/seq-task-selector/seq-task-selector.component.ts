@@ -65,15 +65,6 @@ import { TinyModelsService } from 'src/app/tiny-models.service';
   styleUrls: ['./seq-task-selector.component.scss'],
 })
 export class SeqTaskSelectorComponent {
-  // Cached value or the current task name. e.g. updated by url changes.
-  @Input()
-  set taskName(maybeName: string | null) {
-    this.selectTask(maybeName);
-  }
-
-  // When this component changes the task... (even if the name has not changed)
-  @Output() taskUpdates = new EventEmitter<BasicLmTaskUpdate>();
-
   view: 'edit' | 'view' = 'view';
 
   showExamples = false;
@@ -83,22 +74,21 @@ export class SeqTaskSelectorComponent {
   currentTask = signal<BasicRandLmTask | null>(null, {
     equal: nullableEqFn((a, b) => _.isEqual(a.config, b.config)),
   });
-  currentTaskName: Signal<string | null>;
   selectedTaskExamples!: Signal<Example[] | null>;
   datasetColumns: string[] = ['input', 'target'];
 
-  constructor(public tinyModelsService: TinyModelsService) {}
-
-  currentTaskDefaultConfigStr(): string {
-    return this.tinyModelsService.modelConfigDefaultStr;
+  get taskNames(): string[] {
+    return Object.keys(this.tmService.taskConfigsMap);
   }
 
+  constructor(public tmService: TinyModelsService) {}
+
   currentTaskConfigStr(): string {
-    return stringifyJsonValue(this.tinyModelsService.modelConfig);
+    return stringifyJsonValue(this.tmService.modelConfig());
   }
 
   selectTask(maybeName: string | null): void {
-    this.tinyModelsService.selectTask(maybeName);
+    this.tmService.selectTask(maybeName);
   }
 
   taskConfigUpdated(configUpdate: ConfigUpdate<RandLmTaskConfig>): void {
@@ -111,30 +101,10 @@ export class SeqTaskSelectorComponent {
     if (configUpdate.close) {
       this.view = 'view';
     }
-
     if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
-      // console.log(`configUpdated with no update: ${configUpdate}`);
       return;
     }
-
-    let task = this.currentTask();
-    if (!task) {
-      console.error(`had null task for configUpdated: ${configUpdate}`);
-      return;
-    }
-
-    const oldName = task.config.name;
-    task = taskMakerMap[configUpdate.obj.kind].makeFn(configUpdate.json);
-
-    console.log('taskConfigUpdated: ', JSON.stringify(configUpdate.json, null, 2));
-
-    if (oldName !== configUpdate.obj.name) {
-      const newTaskMap = { ...this.taskMap() };
-      delete newTaskMap[oldName];
-      newTaskMap[configUpdate.obj.name] = task;
-      this.taskMap.set(newTaskMap);
-    }
-    this.currentTask.set(task);
+    this.tmService.updateTaskConfig(configUpdate.obj);
   }
 
   toggleEditor() {

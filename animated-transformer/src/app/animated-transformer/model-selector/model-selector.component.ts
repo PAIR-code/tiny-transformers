@@ -41,7 +41,7 @@ import { BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
 import * as tf from '@tensorflow/tfjs';
 import { prepareBasicTaskTokenRep } from 'src/lib/tokens/token_gemb';
-import { GTensor } from 'src/lib/gtensor/gtensor';
+import { GTensor, SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import { ConfigKind } from 'src/lib/json/config-obj';
 import { nullableEqFn } from 'src/lib/utils';
 import { disposeParams } from 'src/lib/gtensor/params';
@@ -87,40 +87,34 @@ export class ModelSelectorComponent {
     return JSON.stringify(tf.memory(), null, 2);
   }
 
+  get modelNames(): string[] {
+    return Object.keys(this.tmService.modelConfigsMap);
+  }
+
   // lossGraphVegaSpec: vegaembed.VisualizationSpec;
   // accGraphVegaSpec: vegaembed.VisualizationSpec;
 
   modelNameControl = new FormControl<string>('');
   view: 'edit' | 'view' = 'view';
 
-  currentConfig = signal<TransformerConfig | null>(null, { equal: (a, b) => _.isEqual(a, b) });
-  currentModel: Signal<TransformerModel | null>;
-  paramCount: Signal<number>;
+  get paramCount(): number {
+    const model = this.tmService.model();
+    if (!model || !model.serializedParams) {
+      return -1;
+    }
+    // TODO: kind of ugly to need the any here.
+    return jstree.reduce<SerializedGTensor<any>, number>(
+      (count, paramObj) => count + paramObj.shape.reduce((acc, cur) => cur * acc, 1),
+      0,
+      model.serializedParams
+    );
+  }
   lastModelValue: TransformerModel | null = null;
 
-  constructor(public tmService: TinyModelsService) {
-    this.currentModel = computed(() => this.initModelData());
-
-    this.paramCount = computed(() => {
-      const model = this.currentModel();
-      if (!model) {
-        return -1;
-      }
-      // TODO: kind of ugly to need the any here.
-      return jstree.reduce<GTensor<any>, number>(
-        (count, paramObj) => count + paramObj.tensor.size,
-        0,
-        model.params
-      );
-    });
-  }
-
-  currentDefaultConfigStr(): string {
-    return this.tmService.modelConfigDefaultStr;
-  }
+  constructor(public tmService: TinyModelsService) {}
 
   currentConfigStr(): string {
-    const curConfig = this.currentConfig();
+    const curConfig = this.tmService.modelConfig();
     if (curConfig) {
       return stringifyJsonValue(curConfig);
     } else {
@@ -128,24 +122,8 @@ export class ModelSelectorComponent {
     }
   }
 
-  initModelData(): TransformerModel | null {
-    const config = this.currentConfig();
-    if (!config) {
-      return null;
-    }
-    if (this.lastModelValue) {
-      disposeParams(this.lastModelValue.params);
-    }
-    this.lastModelValue = modelMakerMap[config.kind].makeFn(JSON.stringify(config));
-    return this.lastModelValue;
-  }
-
   toggleModelEditor() {
     this.view = this.view === 'edit' ? 'view' : 'edit';
-  }
-
-  maybeSetModel(maybeName: string | null) {
-    this.currentConfig.set(this.modelsMap()[maybeName || ''] || null);
   }
 
   modelConfigAsJson(model: TransformerModel): string {
@@ -184,7 +162,6 @@ export class ModelSelectorComponent {
       return;
     }
 
-    this.tmService;
-    this.currentConfig.set(configUpdate.obj);
+    this.tmService.updateModelConfig(configUpdate.obj);
   }
 }

@@ -1,11 +1,10 @@
 <div class="row">
   <app-auto-completed-text-input class="dataset-form"
         [label]="'Task'"
-        [selectedName]="currentTaskName()"
-        [itemNames]="taskNames()"
+        [selectedName]="tmService.taskName"
+        [itemNames]="taskNames"
         (itemSelected)="selectTask($event)">
         </app-auto-completed-text-input>
-  
 </div>
 @if(currentTask(); as task) {
   <div class="row">
@@ -34,7 +33,7 @@
       <app-codemirror-config-editor
         (update)="taskConfigUpdated($event)"
         [whatIsBeingEditedName]="task.config.name"
-        [defaultConfig]="tinyModelsService.modelConfigDefaultStr"
+        [defaultConfig]="this.tmService.modelConfigDefaultStr"
         [config]="currentTaskConfigStr()"></app-codemirror-config-editor>
     </div>
   }

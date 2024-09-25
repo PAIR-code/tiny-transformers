@@ -14,8 +14,8 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { RouterTestingModule } from '@angular/router/testing';
 import { ModelSelectorComponent } from './model-selector/model-selector.component';
+import { TinyModelsService } from '../tiny-models.service';
 
 describe('AnimatedTransformerComponent', () => {
   let component: AnimatedTransformerComponent;
@@ -23,12 +23,12 @@ describe('AnimatedTransformerComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [TinyModelsService],
       imports: [
         CommonModule,
         BrowserAnimationsModule,
         FormsModule,
         ReactiveFormsModule,
-        RouterTestingModule,
         // ---
         MatButtonModule,
         MatIconModule,
@@ -44,7 +44,7 @@ describe('AnimatedTransformerComponent', () => {
         AnimatedTransformerComponent,
         SeqTaskSelectorComponent,
         ModelSelectorComponent,
-      ]
+      ],
     }).compileComponents();
   });
 

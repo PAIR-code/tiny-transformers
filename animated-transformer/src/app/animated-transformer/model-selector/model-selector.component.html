@@ -1,27 +1,27 @@
 <div class="row">
   <app-auto-completed-text-input class="dataset-form"
     [label]="'Model'"
-    [selectedName]="currentModelName()"
-    [itemNames]="modelNames()"
-    (itemSelected)="maybeSetModel($event)">
+    [selectedName]="this.tmService.modelName"
+    [itemNames]="modelNames"
+    (itemSelected)="this.tmService.selectModel($event)">
     </app-auto-completed-text-input>
 </div>
 
-<div class="row" *ngIf="currentModel() as model">
+<div class="row" *ngIf="this.tmService.model() as model">
   <div *ngIf="view != 'edit'" class="row">
     <!-- <div class="json">{{modelConfigAsJson(model)}}</div> -->
     <div class='buttonrow'>
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>
       </button>
-      <button *ngIf="this.currentModel()" mat-flat-button (click)="initModelData()">
+      <button *ngIf="model" mat-flat-button (click)="tmService.initModelParams()">
         re-init
       </button>
     </div>
-    @if (this.currentModel(); as model) {
+    @if (model) {
       <div>
-        Model is initialised. Params: <span>{{paramCount()}}</span>
-        Token vocab size: <span>{{currentModel()?.config?.tokenRep?.tokens!.length}}</span>
+        Model is initialised. Params: <span>{{paramCount}}</span>
+        Token vocab size: <span>{{model.config.tokenRep.tokens.length}}</span>
       </div>
     } @else {
       <div>
@@ -32,8 +32,8 @@
   <div *ngIf="view == 'edit'" class="code-full-screen full-width">
     <app-codemirror-config-editor
       (update)="modelConfigUpdated($event)"
-      [whatIsBeingEditedName]="model.config.name"
-      [defaultConfig]="currentDefaultConfigStr()"
+      [whatIsBeingEditedName]="this.tmService.modelName"
+      [defaultConfig]="this.tmService.modelConfigDefaultStr"
       [config]="currentConfigStr()"></app-codemirror-config-editor>
   </div>
 
