@@ -1,7 +1,7 @@
 <div class="row">
   <app-auto-completed-text-input class="dataset-form"
     [label]="'Model'"
-    [selectedName]="this.tmService.modelName"
+    [selectedName]="this.tmService.modelId"
     [itemNames]="modelNames"
     (itemSelected)="this.tmService.selectModel($event)">
     </app-auto-completed-text-input>
@@ -14,7 +14,7 @@
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>
       </button>
-      <button *ngIf="model" mat-flat-button (click)="tmService.initModelParams()">
+      <button *ngIf="model" mat-flat-button (click)="tmService.reInitModelParams()">
         re-init
       </button>
     </div>
@@ -32,7 +32,7 @@
   <div *ngIf="view == 'edit'" class="code-full-screen full-width">
     <app-codemirror-config-editor
       (update)="modelConfigUpdated($event)"
-      [whatIsBeingEditedName]="this.tmService.modelName"
+      [whatIsBeingEditedName]="this.tmService.modelId"
       [defaultConfig]="this.tmService.modelConfigDefaultStr"
       [config]="currentConfigStr()"></app-codemirror-config-editor>
   </div>

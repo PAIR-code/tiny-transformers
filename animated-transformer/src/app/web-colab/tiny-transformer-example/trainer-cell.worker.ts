@@ -21,7 +21,7 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
-import { Batch, globals, trainerCell } from './ailab';
+import { Batch, globals, trainerCellSpec } from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -41,12 +41,12 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 
-const cell = new StatefulCell(globals, trainerCell);
-const { derived: computed, alwaysDerived: effect, setable: writable } = cell.space;
+const cell = new StatefulCell(globals, trainerCellSpec);
+const { derived, alwaysDerived, setable } = cell.space;
 
-const metrics = writable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
+const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
 const { reportMetrics } = makeMetricReporter(cell.space, metrics);
-effect(() => cell.output('lastTrainMetric', metrics()));
+alwaysDerived(() => cell.output('lastTrainMetric', metrics()));
 
 type LossOptions = {
   maxInputLength: number;
@@ -100,13 +100,13 @@ function updateModel(
 }
 
 cell.run(async (inputs) => {
-  const model = writable(updateModel(inputs.model()));
-  effect(() => {
+  const model = setable(updateModel(inputs.model()));
+  alwaysDerived(() => {
     updateModel(inputs.model(), model());
   });
-  const varParamList = computed(() => listifyVarParams(model().params).map((g) => g.variable));
+  const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
 
-  const options = computed(() => {
+  const options = derived(() => {
     const trainConfig = inputs.trainConfig();
     return {
       maxInputLength: trainConfig.maxInputLength,
@@ -117,7 +117,7 @@ cell.run(async (inputs) => {
 
   let optimizer = tf.train.adam();
 
-  effect(() => {
+  alwaysDerived(() => {
     optimizer.minimize(
       () => computeLoss(model(), inputs.batch(), options()),
       false,

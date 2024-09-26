@@ -29,7 +29,7 @@ import { varifyParams } from '../gtensor/params';
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
     const taskConfig: abtask.AorBisMaxTaskConfig = {
-      name: 'an AorBisMaxTask',
+      id: 'an AorBisMaxTask',
       kind: 'AorBisMaxTask',
       maxInputLen: 4,
       maxOutputLen: 4,
@@ -47,7 +47,7 @@ describe('basic_transformer_trainer', () => {
       addLayerNormBias: false,
     };
     const decoderConfig: transformer.TransformerConfig = {
-      name: 'a toy transformer',
+      id: 'a toy transformer',
       kind: 'Transformer',
       spec: {
         inputRep: 4,

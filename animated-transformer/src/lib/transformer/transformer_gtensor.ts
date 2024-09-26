@@ -62,7 +62,7 @@ import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
-  name: string;
+  id: string;
   kind: 'Transformer';
   // Defines how the transformer is created.
   spec: TransformerParamSpec;
@@ -136,7 +136,7 @@ export function defaultTransformerConfig(): TransformerConfig {
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
-    name: 'defaultTransformerConfig',
+    id: 'defaultTransformerConfig',
     kind: 'Transformer',
     spec: spec,
     tokenRep: toyTokenTep,
@@ -159,7 +159,7 @@ export const simpleLayerSpec_nLN: TransformerParamLayerSpec = {
 };
 
 export const simpleTransfomerConfig_nLN: TransformerConfig = {
-  name: 'd=8 l=1 h=4, !layerN',
+  id: 'd=8 l=1 h=4, !layerN',
   kind: 'Transformer',
   spec: {
     inputRep: 8,
@@ -184,7 +184,7 @@ export const simpleLayerSpec_LN: TransformerParamLayerSpec = {
 };
 
 export const simpleTransfomerConfig_LN: TransformerConfig = {
-  name: 'd=8 l=1 h=4 +layerN',
+  id: 'd=8 l=1 h=4 +layerN',
   kind: 'Transformer',
   spec: {
     inputRep: 8,

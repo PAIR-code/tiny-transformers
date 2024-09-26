@@ -62,7 +62,7 @@ export type SecretTokenTaskConfig<Vocab extends string> = RandLmTaskConfig & {
 };
 
 export const defaultSecretTokenTaskConfig: SecretTokenTaskConfig<string> = {
-  name: 'mod secret token === 0',
+  id: 'mod secret token === 0',
   kind: 'SecretTokenTask',
   maxInputLen: 5,
   maxOutputLen: 1,

@@ -43,7 +43,7 @@ export type DecisionBoundaryTaskConfig = RandLmTaskConfig & {
 };
 
 export const defaultDecisionBoundaryTaskConfig: DecisionBoundaryTaskConfig = {
-  name: 'a DecisionBoundaryTask',
+  id: 'a DecisionBoundaryTask',
   kind: 'DecisionBoundaryTask',
   maxInputLen: 5,
   maxOutputLen: 1,

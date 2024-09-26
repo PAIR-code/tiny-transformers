@@ -75,7 +75,7 @@ besyian world (version 1)
 tests if some zero-order and first order info could be correctly captured.
 */
 export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
-  name: 'beysian (version 1) world. ',
+  id: 'beysian (version 1) world. ',
   kind: 'TinyWorldTask',
   genStateConfig: { seed: 42 },
   maxInputLen: 10,
@@ -92,7 +92,7 @@ export const bayesianV1TinyWorldTaskConfig: TinyWorldTaskConfig = {
 };
 
 export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
-  name: 'tiny synthetic world',
+  id: 'tiny synthetic world',
   kind: 'TinyWorldTask',
   genStateConfig: { seed: 42 },
   maxInputLen: 10,

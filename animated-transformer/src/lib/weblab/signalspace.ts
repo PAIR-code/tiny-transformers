@@ -46,6 +46,11 @@ limitations under the License.
  * TODO: Make explicit the notion of a set of updates, and when they are
  * triggered. e.g. updateCachedValue(...) should not directly trigger. Where
  * emit(...) should.
+ *
+ * CONSIDER: maybe alwaysDerived (called effects earlier) should be always
+ * derived from what defines it, rather than from the root setable nodes. Right
+ * now I think the long range implicit dependency is likely to be surprising and
+ * confusing; it's just a bit too subtle.
  */
 
 export interface AbstractSignal<T> {
@@ -307,8 +312,16 @@ export class SignalSpace {
   }
 }
 
+// 'asNew' effectively forces the eqCheck to be false - as if this is the first
+// ever set of the value.
+//
+// 'skipUpdate' treats this set as untracked, and will not trigger downstream
+// dependencies.
+//
+// 'eqCheck' (default) will run the equality check to decide if downstream
+// derived signals need to be updated.
 export type SignalSetOptions = {
-  withoutUpdating: boolean; // default false;
+  updateStrategy: 'asNew' | 'skipUpdate' | 'eqCheck'; // default 'eqCheck';
 };
 
 export type SignalGetOptions = {
@@ -389,11 +402,8 @@ export class SetableNode<T> {
     return this.value;
   }
 
-  shouldCauseUpdates(setOptions?: SignalSetOptions) {
-    return (
-      (this.dependsOnMeEffects.size > 0 || this.dependsOnMeCompute.size > 0) &&
-      (!setOptions || (setOptions && !setOptions.withoutUpdating))
-    );
+  hasDerivedSignals(setOptions?: SignalSetOptions) {
+    return this.dependsOnMeEffects.size > 0 || this.dependsOnMeCompute.size > 0;
   }
 
   errorForLoopySet(v: T): boolean {
@@ -419,27 +429,30 @@ export class SetableNode<T> {
   }
 
   set(v: T, setOptions?: SignalSetOptions) {
-    if (this.options.eqCheck(this.value, v)) {
+    const updateStrategy = setOptions ? setOptions.updateStrategy : 'eqCheck';
+    if (
+      updateStrategy === 'skipUpdate' ||
+      !this.hasDerivedSignals(setOptions) ||
+      (updateStrategy !== 'asNew' && this.options.eqCheck(this.value, v))
+    ) {
       return;
     }
-    if (this.shouldCauseUpdates(setOptions)) {
-      if (this.errorForLoopySet(v)) {
-        return;
-      }
-      // If we try and set an already set value, we have to update all effects
-      // before we set the new value.
-      if (
-        (this.options.clobberBehvaior === 'alwaysUpdate',
-        this.dependsOnMeEffects.size > 0 &&
-          this.signalSpace.update &&
-          this.signalSpace.update.valuesUpdated.has(this as SetableNode<unknown>))
-      ) {
-        this.signalSpace.updatePendingEffects();
-      }
-      this.value = v;
-      this.signalSpace.noteUpdate(this as SetableNode<unknown>);
-      this.lastUpdate = this.signalSpace.update;
+    if (this.errorForLoopySet(v)) {
+      return;
     }
+    // If we try and set an already set value, we have to update all effects
+    // before we set the new value.
+    if (
+      (this.options.clobberBehvaior === 'alwaysUpdate',
+      this.dependsOnMeEffects.size > 0 &&
+        this.signalSpace.update &&
+        this.signalSpace.update.valuesUpdated.has(this as SetableNode<unknown>))
+    ) {
+      this.signalSpace.updatePendingEffects();
+    }
+    this.value = v;
+    this.signalSpace.noteUpdate(this as SetableNode<unknown>);
+    this.lastUpdate = this.signalSpace.update;
   }
 }
 

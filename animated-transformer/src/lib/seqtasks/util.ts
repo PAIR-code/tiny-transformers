@@ -38,13 +38,13 @@ export interface Example {
 // Generator<Example, undefined, undefined>;
 
 export type BasicLmTaskConfig<T> = {
-  name: string;
+  id: string;
   kind: string; // this part of a descriminated union.
   maxInputLen: number;
   maxOutputLen: number;
   // All determistically generated tasks must have some data that defines the
-  // task. This lives in genStateConfig, should be directly serializable, and
-  // uniquely defines how/what data examples get generated. This requirement
+  // task. This lives in genStateConfig, and should be directly serializable,
+  // and uniquely defines how/what data examples get generated. This requirement
   // allows a config to be saved and loaded later, while keeping generation
   // deterministic, independently of when it is loaded/saved.
   genStateConfig: T;

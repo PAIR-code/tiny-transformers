@@ -10,8 +10,8 @@
 <div class="row" *ngIf="currentTrainer() as currentTrainer">
   <div *ngIf="view != 'edit'">
     <div>
-      <div *ngIf="currentTask() as task">Selected task: <span class="json">{{task.config.name}}</span></div>
-      <div *ngIf="currentModel() as model">Selected model: <span class="json">{{model.config.name}}</span></div>
+      <div *ngIf="currentTask() as task">Selected task: <span class="json">{{task.config.id}}</span></div>
+      <div *ngIf="currentModel() as model">Selected model: <span class="json">{{model.config.id}}</span></div>
       <div *ngIf="trainState() as trainState">
         <div>state.nExamples: <span class="json">{{trainState.nExamples}}</span></div>
         <div>state.nSteps: <span class="json">{{trainState.nSteps}}</span></div>

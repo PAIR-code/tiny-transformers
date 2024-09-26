@@ -21,7 +21,7 @@ describe('swap_task', () => {
 
   beforeEach(() => {
     swapTask = new swap_task.SwapTask({
-      name: 'a SwapTask',
+      id: 'a SwapTask',
       kind: 'SwapTask',
       maxInputLen: 10,
       maxOutputLen: 1,

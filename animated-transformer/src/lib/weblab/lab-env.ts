@@ -157,11 +157,16 @@ export class LabEnv<Globals extends ValueStruct> {
     console.log('import.meta.url', import.meta.url.toString());
   }
 
-  start<I extends keyof Globals & string, O extends keyof Globals & string>(
-    spec: CellStateSpec<Globals, I, O>,
-    cellUses: SignalStructFn<{ [Key in I]: Globals[Key] }>
-  ): LabEnvCell<Globals, I, O> {
-    this.runningCells[spec.name] = spec as CellStateSpec<Globals, I, O>;
+  start<
+    CellVars extends ValueStruct,
+    I extends keyof CellVars & string,
+    O extends keyof CellVars & string
+  >(
+    spec: CellStateSpec<CellVars, I, O>,
+    cellUses: SignalStructFn<{ [Key in I]: CellVars[Key] }>
+  ): LabEnvCell<CellVars, I, O> {
+    // TODO: CellVars !== Globals. Think about this.
+    this.runningCells[spec.cellName] = spec as CellStateSpec<CellVars, I, O>;
 
     // const cellUses = {} as SignalsStructFn<{ [Key in I]: Globals[Key] }>;
 
@@ -193,7 +198,7 @@ export class LabEnv<Globals extends ValueStruct> {
 
     const envCell = new LabEnvCell(this.space, spec, cellUses);
     envCell.sendInputs();
-    envCell.onceFinished.then(() => delete this.runningCells[spec.name]);
+    envCell.onceFinished.then(() => delete this.runningCells[spec.cellName]);
     return envCell;
   }
 }

@@ -19,7 +19,7 @@ import { makeRandomStream } from '../random/random';
 import { universalType } from '../logic/relations';
 
 export const defaultNGramTinyWorldConfig: TinyWorldTaskConfig = {
-  name: 'Generated N-Gram Tiny World',
+  id: 'Generated N-Gram Tiny World',
   kind: 'TinyWorldTask',
   genStateConfig: { seed: 42 },
   maxInputLen: 10,
@@ -53,7 +53,7 @@ export function getUniGramTinyWorldConfig(nIdentity: number, seed: number = 0) {
 
   const resultConfig: TinyWorldTaskConfig = {
     ...defaultNGramTinyWorldConfig,
-    name: 'Generated Uni-Gram Tiny World',
+    id: 'Generated Uni-Gram Tiny World',
     typeHierarchy: typeHierarchy,
     rules: rules,
   };

@@ -62,7 +62,7 @@ describe('GTensor Transformers', () => {
     const batchSize = 4;
     const task = new abtask.AorBisMaxTask({
       kind: 'AorBisMaxTask',
-      name: 'an A or B is Max task',
+      id: 'an A or B is Max task',
       maxInputLen: 2,
       maxOutputLen: 2,
       genStateConfig: { seed: 0 },

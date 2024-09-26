@@ -25,7 +25,7 @@ describe('secret_token_task', () => {
 
   it('genRandExample: DecisionBoundaryTask', () => {
     task = new SecretTokenTask({
-      name: 'a SecretTokenTask',
+      id: 'a SecretTokenTask',
       kind: 'SecretTokenTask',
       maxInputLen: 5,
       maxOutputLen: 1,
@@ -63,7 +63,7 @@ describe('secret_token_task', () => {
 
   it('genRandExample: ModIsZero', () => {
     task = new SecretTokenTask({
-      name: 'ModIsZero',
+      id: 'ModIsZero',
       kind: 'SecretTokenTask',
       maxInputLen: 5,
       maxOutputLen: 1,

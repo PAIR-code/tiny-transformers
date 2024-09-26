@@ -46,7 +46,7 @@ export function initTrainer() {
   };
 
   const config: RandLmTaskConfig = {
-    name: 'AorBisMaxTask',
+    id: 'AorBisMaxTask',
     maxInputLen: 4,
     maxOutputLen: 4,
     seed: 47,

@@ -17,7 +17,7 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { indexExample } from 'src/lib/seqtasks/util';
+import { indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import {
   defaultTransformerConfig,
   initDecoderParams,
@@ -28,7 +28,15 @@ import { SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
-import { Batch, EnvModel, globals, Globals, TrainConfig, trainerCell } from './ailab';
+import {
+  Batch,
+  EnvModel,
+  TaskVars,
+  TrainerVars,
+  TrainConfig,
+  trainerCellSpec,
+  taskCellSpec,
+} from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
@@ -36,70 +44,97 @@ import { varifyParams } from 'src/lib/gtensor/params';
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const { setable: writable, derived: computed, alwaysDerived: effect } = space;
+const { setable, derived, alwaysDerived } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
-const taskKind = writable<string>(taskKinds[0]);
-const task = computed(() => taskRegistry.kinds[taskKind()].makeDefault());
+const taskKind = setable<string>(taskKinds[0]);
+const taskConfig = derived(() =>
+  structuredClone(taskRegistry.kinds[taskKind()].defaultConfig as RandLmTaskConfig)
+);
 
-const trainConfig = writable<TrainConfig>({
+const trainConfig = setable<TrainConfig>({
+  id: 'initial config',
+  kind: 'basicSeqTrainer',
   // training hyper-params
   learningRate: 0.5,
   batchSize: 64,
   maxInputLength: 10,
   // Reporting / eval
-  testSetSize: 200,
   checkpointFrequencyInBatches: 100,
   metricReporting: {
     metricFrequencyInBatches: 10,
   },
 });
 
-const dataSplitByTrainAndTest = computed(() => {
-  const examplesIter = task().exampleIter.copy();
-  const testExamples = examplesIter.takeOutN(trainConfig().testSetSize);
-  const testSetIndex = new Set(testExamples.map(indexExample));
-  const trainExamplesIter = examplesIter.copy();
-  // With a generative synthetic world you can guarentee no duplicate example in
-  // the test set and train set by filtering the test from the train.
-  // This gives the optimal quality of test metric measurement.
-  trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
-  return { testExamples, trainExamplesIter };
-});
+const testSetSize = setable(200);
 
-const testSet = computed(() => dataSplitByTrainAndTest().testExamples);
-const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
-const model = writable<EnvModel>({ config: defaultTransformerConfig() });
+// const dataSplitByTrainAndTest = derived(() => {
+//   const examplesIter = task().exampleIter.copy();
+//   const testExamples = examplesIter.takeOutN(testSetSize());
+//   const testSetIndex = new Set(testExamples.map(indexExample));
+//   const trainExamplesIter = examplesIter.copy();
+//   // With a generative synthetic world you can guarentee no duplicate example in
+//   // the test set and train set by filtering the test from the train.
+//   // This gives the optimal quality of test metric measurement.
+//   trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
+//   return { testExamples, trainExamplesIter };
+// });
 
-function makeBatch(batchId: number, batchSize: number): Batch {
-  let batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
-  let inputs = batchOriginal.map((example) => example.input);
-  let outputs = batchOriginal.map((example) => example.output);
-  return { batchId, inputs, outputs };
-}
+// const testSet = derived(() => dataSplitByTrainAndTest().testExamples);
+// const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
 
-const batchId = writable(0);
-const batch = computed<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
+// function makeBatch(batchId: number, batchSize: number): Batch {
+//   let batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
+//   let inputs = batchOriginal.map((example) => example.input);
+//   let outputs = batchOriginal.map((example) => example.output);
+//   return { batchId, inputs, outputs };
+// }
+
+const batchId = setable(0);
+// const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
+const initBatchSeed = setable(42);
+
+const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
+const model = setable<EnvModel>({ config: defaultTransformerConfig() });
 
 const state = new LabState();
 const env = new LabEnv<Globals>(state);
 
 async function run() {
-  const cellState = env.start(trainerCell, {
-    model,
+  const batchSize = derived(() => trainConfig().batchSize);
+
+  const taskCell = env.start(taskCellSpec, {
+    taskConfig,
+    testSetSize,
+    batchSize,
+  });
+
+  const batch = await taskCell.outputs.batch;
+  const testSet = await taskCell.outputs.testSet;
+
+  const trainerCell = env.start(trainerCellSpec, {
+    initModel,
     trainConfig,
     batch,
     testSet,
   });
 
-  const lastTrainMetric = await cellState.outputs.lastTrainMetric;
-
-  effect(() => {
-    const metrics = lastTrainMetric();
-    console.log(
-      `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
-    );
-  });
+  trainerCell.outputs.lastTrainMetric.then((lastMetrics) =>
+    alwaysDerived(() => {
+      const metrics = lastMetrics();
+      console.log(
+        `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
+      );
+    })
+  );
+  trainerCell.outputs.checkpoint.then((checkpoint) =>
+    alwaysDerived(() => {
+      const metrics = checkpoint();
+      console.log(
+        `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
+      );
+    })
+  );
 }
 run();
 

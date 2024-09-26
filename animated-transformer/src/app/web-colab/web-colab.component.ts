@@ -27,7 +27,7 @@ import {
   globals,
   Globals,
   TrainConfig,
-  trainerCell,
+  trainerCellSpec,
 } from './tiny-transformer-example/ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
@@ -60,30 +60,34 @@ export class WebColabComponent {
     this.space = new SignalSpace();
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
-    const { setable: writable, derived: computed, alwaysDerived: effect } = this.space;
+    const { setable, derived, alwaysDerived } = this.space;
 
     const taskKinds = Object.keys(taskRegistry.kinds);
-    const taskKind = writable<string>(taskKinds[0]);
-    const taskConfigStr = writable(taskRegistry.kinds[taskKind()].defaultConfigStr);
-    const task = computed(() => taskRegistry.kinds[taskKind()].makeFn(taskConfigStr()));
-    effect(() => taskConfigStr.set(taskRegistry.kinds[taskKind()].defaultConfigStr));
+    const taskKind = setable<string>(taskKinds[0]);
+    const taskConfigStr = setable(taskRegistry.kinds[taskKind()].defaultConfigStr);
+    const task = derived(() => taskRegistry.kinds[taskKind()].makeFn(taskConfigStr()));
+    alwaysDerived(() => taskConfigStr.set(taskRegistry.kinds[taskKind()].defaultConfigStr));
 
-    const trainConfig = writable<TrainConfig>({
+    const trainConfig = setable<TrainConfig>({
+      id: 'a train cofig',
+      kind: 'basicSeqTrainer',
       // training hyper-params
       learningRate: 0.5,
       batchSize: 64,
       maxInputLength: 10,
       // Reporting / eval
-      testSetSize: 200,
+      // testSetSize: 200,
       checkpointFrequencyInBatches: 100,
       metricReporting: {
         metricFrequencyInBatches: 10,
       },
     });
 
-    const dataSplitByTrainAndTest = computed(() => {
+    const testSetSize = setable(200);
+
+    const dataSplitByTrainAndTest = derived(() => {
       const examplesIter = task().exampleIter.copy();
-      const testExamples = examplesIter.takeOutN(trainConfig().testSetSize);
+      const testExamples = examplesIter.takeOutN(testSetSize());
       const testSetIndex = new Set(testExamples.map(indexExample));
       const trainExamplesIter = examplesIter.copy();
       // With a generative synthetic world you can guarentee no duplicate example in
@@ -93,9 +97,9 @@ export class WebColabComponent {
       return { testExamples, trainExamplesIter };
     });
 
-    const testSet = computed(() => dataSplitByTrainAndTest().testExamples);
-    const trainExamplesIter = computed(() => dataSplitByTrainAndTest().trainExamplesIter);
-    const model = writable<EnvModel>({ config: defaultTransformerConfig() });
+    const testSet = derived(() => dataSplitByTrainAndTest().testExamples);
+    const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
+    const model = setable<EnvModel>({ config: defaultTransformerConfig() });
 
     // TODO: move making examples to a separate web-worker.
     function makeBatch(batchId: number, batchSize: number): Batch {
@@ -105,8 +109,8 @@ export class WebColabComponent {
       return { batchId, inputs, outputs };
     }
 
-    const batchId = writable(0);
-    const batch = computed<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
+    const batchId = setable(0);
+    const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
 
     this.globals = {
       taskKind,
@@ -125,7 +129,7 @@ export class WebColabComponent {
   }
 
   async doRun() {
-    const cell = this.env.start(trainerCell, this.globals);
+    const cell = this.env.start(trainerCellSpec, this.globals);
     const lastTrainMetric = await cell.outputs.lastTrainMetric;
     console.log(lastTrainMetric);
     cell.worker.terminate();

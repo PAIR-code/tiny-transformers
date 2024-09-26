@@ -1,7 +1,7 @@
 <div class="row">
   <app-auto-completed-text-input class="dataset-form"
         [label]="'Task'"
-        [selectedName]="tmService.taskName"
+        [selectedName]="tmService.taskId"
         [itemNames]="taskNames"
         (itemSelected)="selectTask($event)">
         </app-auto-completed-text-input>
@@ -32,7 +32,7 @@
     <div class="code-full-screen full-width">
       <app-codemirror-config-editor
         (update)="taskConfigUpdated($event)"
-        [whatIsBeingEditedName]="task.config.name"
+        [whatIsBeingEditedName]="task.config.id"
         [defaultConfig]="this.tmService.modelConfigDefaultStr"
         [config]="currentTaskConfigStr()"></app-codemirror-config-editor>
     </div>

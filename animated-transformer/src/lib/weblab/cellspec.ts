@@ -74,7 +74,7 @@ export class CellStateSpec<
   Updates extends keyof Globals
 > {
   constructor(
-    public name: string,
+    public cellName: string,
     public createWorker: () => Worker,
     public uses: Uses[],
     public updates: Updates[]

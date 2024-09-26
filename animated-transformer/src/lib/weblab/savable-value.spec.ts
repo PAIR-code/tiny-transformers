@@ -42,12 +42,12 @@ describe('signalspace-value', () => {
 
   it('Simple signal compute', () => {
     const s = new SignalSpace();
-    const { setable: writable, derived: computed, alwaysDerived: effect } = s;
+    const { setable, derived } = s;
 
-    const config = writable(transformerModelKind.defaultConfig, { eqCheck: _.isEqual });
-    const params = writable(initDecoderParams(transformerModelKind.defaultConfig));
+    const config = setable(transformerModelKind.defaultConfig, { eqCheck: _.isEqual });
+    const params = setable(initDecoderParams(transformerModelKind.defaultConfig));
 
-    const model = computed(() => {
+    const model = derived(() => {
       if (!_.isEqual(model.lastValue().config, config())) {
         params.set(initDecoderParams(transformerModelKind.defaultConfig));
       }

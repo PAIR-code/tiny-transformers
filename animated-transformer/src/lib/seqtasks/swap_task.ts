@@ -81,7 +81,7 @@ export function makeOutput(input: number[]): Action[] {
 }
 
 export const defaultSwapTaskConfig: SwapTaskConfig = {
-  name: 'a swap task',
+  id: 'a swap task',
   kind: 'SwapTask',
   maxInputLen: 4,
   maxOutputLen: 1,
@@ -99,7 +99,7 @@ export class SwapTask implements BasicRandLmTask {
   // ! because initialied in reInitFromConfig.
 
   constructor(public config: SwapTaskConfig) {
-    this.name = this.config.name;
+    this.name = this.config.id;
     this.exampleId = 0;
     this.exampleIter = new StateIter(structuredClone(this.config.genStateConfig), (r) =>
       this.examplesGen(r)

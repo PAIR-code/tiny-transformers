@@ -83,7 +83,7 @@ function initTransformerConfig(baseVocab: string[]): TransformerConfig {
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
-    name: 'a simple transformer',
+    id: 'a simple transformer',
     kind: 'Transformer',
     spec: spec,
     tokenRep: prepareBasicTaskTokenRep(baseVocab),
