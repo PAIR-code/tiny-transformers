@@ -36,10 +36,14 @@ import {
   TrainConfig,
   trainerCellSpec,
   taskCellSpec,
+  Checkpoint,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
+import { Metrics } from 'src/lib/weblab/cellspec';
+
+type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
 
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
@@ -68,27 +72,23 @@ const trainConfig = setable<TrainConfig>({
 
 const testSetSize = setable(200);
 
-// const dataSplitByTrainAndTest = derived(() => {
-//   const examplesIter = task().exampleIter.copy();
-//   const testExamples = examplesIter.takeOutN(testSetSize());
-//   const testSetIndex = new Set(testExamples.map(indexExample));
-//   const trainExamplesIter = examplesIter.copy();
-//   // With a generative synthetic world you can guarentee no duplicate example in
-//   // the test set and train set by filtering the test from the train.
-//   // This gives the optimal quality of test metric measurement.
-//   trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
-//   return { testExamples, trainExamplesIter };
-// });
+function logMetrics(metrics: SimpleMetrics): void {
+  console.log(
+    `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
+  );
+}
 
-// const testSet = derived(() => dataSplitByTrainAndTest().testExamples);
-// const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
-
-// function makeBatch(batchId: number, batchSize: number): Batch {
-//   let batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
-//   let inputs = batchOriginal.map((example) => example.input);
-//   let outputs = batchOriginal.map((example) => example.output);
-//   return { batchId, inputs, outputs };
-// }
+function logCheckpoint(checkpoint: Checkpoint): void {
+  const metrics = checkpoint.metrics;
+  console.log(
+    `Checkpoint!
+batchid: ${metrics.batchId}
+acc: ${metrics.values.accuracy}
+loss: ${metrics.values.entropyLoss}
+lastBatch.batchId: ${JSON.stringify(checkpoint.lastBatch.batchId)}
+lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
+  );
+}
 
 const batchId = setable(0);
 // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
@@ -98,43 +98,49 @@ const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
 const model = setable<EnvModel>({ config: defaultTransformerConfig() });
 
 const state = new LabState();
-const env = new LabEnv<Globals>(state);
+const env = new LabEnv(state);
+
+// TODO: wrap signals here as namedSignals, with an optional saver, and then we
+// can directly provide outputs from one, to inputs of another.
 
 async function run() {
   const batchSize = derived(() => trainConfig().batchSize);
-
+  const lastTrainBatch = derived<Batch | null>(() => null);
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
     testSetSize,
     batchSize,
+    lastTrainBatch,
   });
 
-  const batch = await taskCell.outputs.batch;
+  const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
   const testSet = await taskCell.outputs.testSet;
 
+  // TODO: add data to each signal in a spec to say if the signal is tracked or
+  // untracked. Tracked means that the worker set ops, push the new value here.
+  // Untracked means every time we read the value, we made a fresh request to
+  // the worker for it's state.
+  //
+  // Note: we can make the semantics here match signalspace. That would be cool.
   const trainerCell = env.start(trainerCellSpec, {
     initModel,
     trainConfig,
-    batch,
+    nextTrainBatch,
     testSet,
   });
 
-  trainerCell.outputs.lastTrainMetric.then((lastMetrics) =>
-    alwaysDerived(() => {
-      const metrics = lastMetrics();
-      console.log(
-        `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
-      );
-    })
-  );
-  trainerCell.outputs.checkpoint.then((checkpoint) =>
-    alwaysDerived(() => {
-      const metrics = checkpoint();
-      console.log(
-        `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
-      );
-    })
-  );
+  // We don't need the batch values.
+  env.pipeSignal(taskCell, trainerCell, 'nextTrainBatch', { keepSignalPushesHereToo: false });
+  // But we would like to have the testSet here.
+  env.pipeSignal(taskCell, trainerCell, 'testSet');
+
+  // Note we could wrap the always derived in an then, but it's a bit ulgy with
+  // all the closures. CONSIDER: We could also introduce a promiseAlwaysDerived
+  // that does the then, and then sets always derived. That would be prettier.
+  const lastMetrics = await trainerCell.outputs.lastTrainMetric;
+  alwaysDerived(() => logMetrics(lastMetrics()));
+  const ckpt = await trainerCell.outputs.checkpoint;
+  alwaysDerived(() => logCheckpoint(ckpt()));
 }
 run();
 

@@ -28,6 +28,14 @@ export type Metrics<Name extends string> = {
   values: { [name in Name]: number };
 };
 
+// TODO: replace with an object that has a kind field in the domain of the map,
+// e.g. kind: 'input' | 'output' | 'inStream' | 'outStream', and has an optional
+// channel object port, for where to send stuff.
+// ```
+// const channel = new MessageChannel();
+// receivingWorker.postMessage({port: channel.port1}, [channel.port1]);
+// sendingWorker.postMessage({port: channel.port2}, [channel.port2]);
+// ```
 export type ValueStruct = {
   [key: string]: any;
 };
@@ -84,8 +92,8 @@ export class CellStateSpec<
 // A bit of a hack to manage types... (we infer them from globals object that is not actually used)
 export function cellSpec<
   Globals extends ValueStruct,
-  Uses extends keyof Globals,
-  Updates extends keyof Globals
+  Uses extends keyof Globals & string,
+  Updates extends keyof Globals & string
 >(
   globals: Partial<Globals>,
   cellName: string,

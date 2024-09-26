@@ -21,12 +21,13 @@ import { BasicLmTaskConfig, Example, RandLmTaskConfig } from 'src/lib/seqtasks/u
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
 import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
+import { RandomState } from 'src/lib/random/random';
 
 export type Batch = {
-  batchId: number;
-  batchSeed: number; // Unique ID that generates the batch.
-  inputs: string[][];
-  outputs: string[][];
+  batchId: number; // just a counter
+  nextSeed: number; // Unique ID that generates the batch.
+  inputs: string[][]; // every example input is a string[] of tokens.
+  outputs: string[][]; // every example output is a string[] of tokens.
 };
 
 export type TrainConfig = {
@@ -46,6 +47,13 @@ export type TrainConfig = {
 export type EnvModel = {
   config: TransformerConfig;
   serializedParams?: SerializeTensorParams<TransformerParams>;
+};
+
+export type Checkpoint = {
+  config: TransformerConfig;
+  serializedParams: SerializeTensorParams<TransformerParams>;
+  lastBatch: Batch;
+  metrics: Metrics<'entropyLoss' | 'accuracy'>;
 };
 
 // Note: one the advantages of this kind of global var namespace approach is
@@ -71,9 +79,9 @@ export type EnvModel = {
 export type TrainerVars = {
   testSet: Example[];
   initModel: EnvModel;
-  checkpoint: EnvModel;
+  checkpoint: Checkpoint;
   trainConfig: TrainConfig;
-  batch: Batch;
+  nextTrainBatch: Batch;
   lastTrainMetric: Metrics<'entropyLoss' | 'accuracy'>;
 };
 export const trainerVars: Partial<TrainerVars> = {};
@@ -81,7 +89,7 @@ export const trainerCellSpec = cellSpec(
   trainerVars,
   'Trainer cell',
   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  ['testSet', 'trainConfig', 'initModel', 'batch'],
+  ['testSet', 'trainConfig', 'initModel', 'nextTrainBatch'],
   ['checkpoint', 'lastTrainMetric']
 );
 
@@ -93,7 +101,8 @@ export type TaskVars = {
   testSet: Example[];
 
   batchSize: number;
-  batch: Batch;
+  lastTrainBatch: Batch | null;
+  nextTrainBatch: Batch;
 };
 export const taskVars: Partial<TaskVars> = {};
 
@@ -101,8 +110,8 @@ export const taskCellSpec = cellSpec(
   taskVars,
   'Task cell',
   () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  ['taskConfig', 'testSetSize', 'batchSize'],
-  ['batch', 'testSet']
+  ['taskConfig', 'testSetSize', 'batchSize', 'lastTrainBatch'],
+  ['nextTrainBatch', 'testSet']
 );
 
 // const globalSpace = new SignalSpace();

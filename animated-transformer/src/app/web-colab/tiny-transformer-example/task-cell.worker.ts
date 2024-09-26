@@ -16,12 +16,12 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { Batch, globals, taskCellSpec } from './ailab';
+import { Batch, taskVars, taskCellSpec } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
 
-const cell = new StatefulCell(globals, taskCellSpec);
+const cell = new StatefulCell(taskVars, taskCellSpec);
 const { derived, alwaysDerived, setable } = cell.space;
 
 cell.run(async (inputs) => {
@@ -33,6 +33,9 @@ cell.run(async (inputs) => {
       ) as BasicRandLmTask
   );
 
+  // TODO: make state iterator take in the state for easier random stream
+  // management?
+  // CONSIDER: RandomStreamOf<Example> having a fork op. But also being savable.
   const dataSplitByTrainAndTest = derived(() => {
     const examplesIter = task().exampleIter.copy();
     const testExamples = examplesIter.takeOutN(inputs.testSetSize());
@@ -42,6 +45,11 @@ cell.run(async (inputs) => {
     // the test set and train set by filtering the test from the train.
     // This gives the optimal quality of test metric measurement.
     trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
+    // If
+    const lastBatch = inputs.lastTrainBatch();
+    if (lastBatch) {
+      trainExamplesIter.state.seed = lastBatch.nextSeed;
+    }
     return { testExamples, trainExamplesIter };
   });
 
@@ -49,47 +57,15 @@ cell.run(async (inputs) => {
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
 
   function makeBatch(batchId: number, batchSize: number): Batch {
-    const batchSeed = trainExamplesIter().state.seed;
     const batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
     const inputs = batchOriginal.map((example) => example.input);
     const outputs = batchOriginal.map((example) => example.output);
-    return { batchId, batchSeed, inputs, outputs };
+    const batchSeed = trainExamplesIter().state.seed;
+    return { batchId, nextSeed: batchSeed, inputs, outputs };
   }
 
   const batchId = setable(0);
-  const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
-
-  const model = setable(updateModel(inputs.model()));
-  alwaysDerived(() => {
-    updateModel(inputs.model(), model());
-  });
-  const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
-
-  const options = derived(() => {
-    const trainConfig = inputs.trainConfig();
-    return {
-      maxInputLength: trainConfig.maxInputLength,
-      metricFrequency: trainConfig.metricReporting.metricFrequencyInBatches,
-      checkpointFrequency: trainConfig.checkpointFrequencyInBatches,
-    };
-  });
-
-  let optimizer = tf.train.adam();
-
-  alwaysDerived(() => {
-    optimizer.minimize(
-      () => computeLoss(model(), inputs.batch(), options()),
-      false,
-      varParamList()
-    );
-  });
-
-  await cell.onceFinishRequested.then(() => {
-    if (optimizer) {
-      optimizer.dispose();
-    }
-    disposeParams(model().params);
-  });
+  const batch = derived<Batch>(() => makeBatch(batchId(), inputs.batchSize()));
 });
 
 // console.log(

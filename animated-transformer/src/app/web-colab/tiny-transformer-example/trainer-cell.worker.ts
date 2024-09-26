@@ -21,7 +21,7 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
-import { Batch, globals, trainerCellSpec } from './ailab';
+import { Batch, trainerCellSpec, trainerVars } from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -41,7 +41,7 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 
-const cell = new StatefulCell(globals, trainerCellSpec);
+const cell = new StatefulCell(trainerVars, trainerCellSpec);
 const { derived, alwaysDerived, setable } = cell.space;
 
 const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
@@ -100,9 +100,9 @@ function updateModel(
 }
 
 cell.run(async (inputs) => {
-  const model = setable(updateModel(inputs.model()));
+  const model = setable(updateModel(inputs.initModel()));
   alwaysDerived(() => {
-    updateModel(inputs.model(), model());
+    updateModel(inputs.initModel(), model());
   });
   const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
 
@@ -119,7 +119,7 @@ cell.run(async (inputs) => {
 
   alwaysDerived(() => {
     optimizer.minimize(
-      () => computeLoss(model(), inputs.batch(), options()),
+      () => computeLoss(model(), inputs.nextTrainBatch(), options()),
       false,
       varParamList()
     );

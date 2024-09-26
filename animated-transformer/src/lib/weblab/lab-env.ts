@@ -25,6 +25,7 @@ import {
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
 import { LabState } from './lab-state';
 import { AbstractSignal, SignalSpace, setable, SetableSignal } from './signalspace';
+import { extend } from 'underscore';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -82,22 +83,23 @@ export class LabEnvCell<
         case 'requestInput':
           console.log(
             'this.stateVars[messageFromWorker.name]: requestInput: ',
-            this.uses[messageFromWorker.name as I]()
+            this.uses[messageFromWorker.signalId as I]()
           );
-          this.worker.postMessage({
-            kind: 'providingInput',
-            name: messageFromWorker.name,
-            inputData: this.uses[messageFromWorker.name as I](),
-          });
+          const message: ToWorkerMessage = {
+            kind: 'setSignal',
+            signalId: messageFromWorker.signalId,
+            signalValue: this.uses[messageFromWorker.signalId as I](),
+          };
+          this.worker.postMessage(message);
           break;
         // only called when the webworker is really finished.
         case 'finished':
           // TODO: what if there are missing outputs?
           resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
-        case 'providingOutput':
-          const outputName = messageFromWorker.name as O;
-          this.outputResolvers[outputName](messageFromWorker.outputData as Globals[O]);
+        case 'setSignal':
+          const outputName = messageFromWorker.signalId as O;
+          this.outputResolvers[outputName](messageFromWorker.signalValue as Globals[O]);
           break;
         default:
           console.error('main thread go unknown worker message: ', data);
@@ -110,18 +112,17 @@ export class LabEnvCell<
     for (const key of Object.keys(uses)) {
       this.space.alwaysDerived(() => {
         const value = uses[key as I]();
-        const messageToWorker: ToWorkerMessage = {
-          kind: 'providingInput',
-          name: key,
-          inputData: value,
+        const message: ToWorkerMessage = {
+          kind: 'setSignal',
+          signalId: key,
+          signalValue: value,
         };
-        this.worker.postMessage(messageToWorker);
+        this.worker.postMessage(message);
       });
     }
   }
 
   initOnceOutput<T>(name: string): Promise<T> {
-    // postMessage({ kind: 'requestInput', name });
     return new Promise<T>((resolve, reject) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
       // this would just involved checking the inputResolvers here.
@@ -131,26 +132,59 @@ export class LabEnvCell<
 
   // TODO: maybe send all at once?
   sendInputs() {
-    for (const name of Object.keys(this.uses))
-      this.worker.postMessage({
-        kind: 'providingInput',
-        name,
-        inputData: this.uses[name as I](),
-      });
+    for (const name of Object.keys(this.uses)) {
+      const message: ToWorkerMessage = {
+        kind: 'setSignal',
+        signalId: name,
+        signalValue: this.uses[name as I](),
+      };
+      this.worker.postMessage(message);
+    }
+  }
+
+  public pipeInputSignal(signalId: string, port: MessagePort) {
+    const message: ToWorkerMessage = {
+      kind: 'pipeInputSignal',
+      signalId,
+      port,
+    };
+    this.worker.postMessage(message, [port]);
+  }
+  public pipeOutputSignal(
+    signalId: string,
+    port: MessagePort,
+    options?: { keepSignalPushesHereToo: boolean }
+  ) {
+    const message: ToWorkerMessage = {
+      kind: 'pipeOutputSignal',
+      signalId,
+      port,
+      options,
+    };
+    this.worker.postMessage(message, [port]);
   }
 }
+
+type SomeCellStateSpec = CellStateSpec<ValueStruct, string, string>;
+type SomeLabEnvCell = LabEnvCell<ValueStruct, string, string>;
 
 // TODO: maybe define a special type of serializable
 // object that includes things with a toSerialise function?
 
-export class LabEnv<Globals extends ValueStruct> {
+export class LabEnv {
   space = new SignalSpace();
   // inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   // inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
   // stateVars: Partial<SignalsStructFn<Globals>> = {};
-  metadata: Map<keyof Globals, ItemMetaData> = new Map();
+  metadata: Map<string, ItemMetaData> = new Map();
   runningCells: {
-    [name: string]: CellStateSpec<Globals, keyof Globals, keyof Globals>;
+    [name: string]: SomeCellStateSpec;
+  } = {};
+  cellChannels: {
+    [port1CellName: string]: {
+      port2CellName: string;
+      signalName: string;
+    };
   } = {};
 
   constructor(public workerState: LabState) {
@@ -200,5 +234,24 @@ export class LabEnv<Globals extends ValueStruct> {
     envCell.sendInputs();
     envCell.onceFinished.then(() => delete this.runningCells[spec.cellName]);
     return envCell;
+  }
+
+  pipeSignal<
+    SourceVars extends ValueStruct,
+    SourceIn extends keyof SourceVars & string,
+    SourceOut extends keyof SourceVars & string,
+    TargetVars extends ValueStruct,
+    TargetIn extends keyof TargetVars & string,
+    TargetOut extends keyof TargetVars & string,
+    SignalId extends SourceOut & TargetIn
+  >(
+    sourceCell: LabEnvCell<SourceVars, SourceIn, SourceOut>,
+    targetCell: LabEnvCell<TargetVars, TargetIn, TargetOut>,
+    signalId: SignalId,
+    options?: { keepSignalPushesHereToo: boolean }
+  ) {
+    const channel = new MessageChannel();
+    sourceCell.pipeOutputSignal(signalId, channel.port1, options);
+    targetCell.pipeInputSignal(signalId, channel.port2);
   }
 }
