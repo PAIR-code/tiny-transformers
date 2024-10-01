@@ -37,7 +37,8 @@ export type TrainConfig = {
   learningRate: number;
   batchSize: number;
   maxInputLength: number;
-  // Eval
+  trainForBatches: number;
+  // Eval/reporting/saving
   checkpointFrequencyInBatches: number;
   metricReporting: {
     metricFrequencyInBatches: number;
@@ -77,12 +78,14 @@ export type Checkpoint = {
 //   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)));
 // ```
 export type TrainerVars = {
+  // input...
   testSet: Example[];
   initModel: EnvModel;
-  checkpoint: Checkpoint;
   trainConfig: TrainConfig;
   nextTrainBatch: Batch;
+  // output...
   lastTrainMetric: Metrics<'entropyLoss' | 'accuracy'>;
+  checkpoint: Checkpoint;
 };
 export const trainerVars: Partial<TrainerVars> = {};
 export const trainerCellSpec = cellSpec(
@@ -93,16 +96,31 @@ export const trainerCellSpec = cellSpec(
   ['checkpoint', 'lastTrainMetric']
 );
 
-export type TaskVars = {
-  taskConfig: RandLmTaskConfig;
+export type TaskGenSate =
+  | { kind: 'paused' }
+  | { kind: 'generating'; lastBatchId: number }
+  | { kind: 'finished' };
 
+export type TaskVars = {
+  // The task to generate from.
+  taskConfig: RandLmTaskConfig;
   // Test set size + taskConfig is used to generated the test set.
   testSetSize: number;
-  testSet: Example[];
-
+  // Last seed allows us to restart from a given state/location.
+  lastBatchSeed: number | null;
+  // The size of the batch.
   batchSize: number;
-  lastTrainBatch: Batch | null;
+  // A way to start/stop generation explicitly.
+  taskGenState: TaskGenSate;
+  // When generating, limit generation to at most this many examples in queue.
+  maxBatchesQueueSize: number;
+  // Last Id is used to provide back-pressure to stop generating we training
+  // can't keep up with generation.
+  lastBatchId: number;
+
+  // These are output...
   nextTrainBatch: Batch;
+  testSet: Example[];
 };
 export const taskVars: Partial<TaskVars> = {};
 
@@ -110,7 +128,14 @@ export const taskCellSpec = cellSpec(
   taskVars,
   'Task cell',
   () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  ['taskConfig', 'testSetSize', 'batchSize', 'lastTrainBatch'],
+  [
+    'taskConfig',
+    'testSetSize',
+    'batchSize',
+    'lastBatchSeed',
+    'taskGenState',
+    'maxBatchesQueueSize',
+  ],
   ['nextTrainBatch', 'testSet']
 );
 

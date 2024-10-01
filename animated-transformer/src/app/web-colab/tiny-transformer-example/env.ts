@@ -37,18 +37,20 @@ import {
   trainerCellSpec,
   taskCellSpec,
   Checkpoint,
+  TaskGenSate,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
 import { Metrics } from 'src/lib/weblab/cellspec';
+import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
 
 type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
 
 // Consider... one liner... but maybe handy to have the object to debug.
 // const { writable, computed } = new SignalSpace();
 const space = new SignalSpace();
-const { setable, derived, alwaysDerived } = space;
+const { setable, derived, derivedEvery } = space;
 
 const taskKinds = Object.keys(taskRegistry.kinds);
 const taskKind = setable<string>(taskKinds[0]);
@@ -63,6 +65,7 @@ const trainConfig = setable<TrainConfig>({
   learningRate: 0.5,
   batchSize: 64,
   maxInputLength: 10,
+  trainForBatches: 100,
   // Reporting / eval
   checkpointFrequencyInBatches: 100,
   metricReporting: {
@@ -90,9 +93,9 @@ lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
   );
 }
 
-const batchId = setable(0);
 // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
-const initBatchSeed = setable(42);
+const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
+const lastBatchId = setable<number>(-1);
 
 const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
 const model = setable<EnvModel>({ config: defaultTransformerConfig() });
@@ -100,17 +103,23 @@ const model = setable<EnvModel>({ config: defaultTransformerConfig() });
 const state = new LabState();
 const env = new LabEnv(state);
 
+//
+const maxBatchesQueueSize = derived(
+  () => trainConfig().metricReporting.metricFrequencyInBatches * 4
+);
 // TODO: wrap signals here as namedSignals, with an optional saver, and then we
 // can directly provide outputs from one, to inputs of another.
 
 async function run() {
   const batchSize = derived(() => trainConfig().batchSize);
-  const lastTrainBatch = derived<Batch | null>(() => null);
+  const lastBatchSeed = derived<number | null>(() => null);
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
     testSetSize,
     batchSize,
-    lastTrainBatch,
+    lastBatchSeed,
+    taskGenState,
+    maxBatchesQueueSize,
   });
 
   const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
@@ -129,6 +138,7 @@ async function run() {
     testSet,
   });
 
+  taskGenState.set({ kind: 'generating', lastBatchId: 0 });
   // We don't need the batch values.
   env.pipeSignal(taskCell, trainerCell, 'nextTrainBatch', { keepSignalPushesHereToo: false });
   // But we would like to have the testSet here.
@@ -138,9 +148,24 @@ async function run() {
   // all the closures. CONSIDER: We could also introduce a promiseAlwaysDerived
   // that does the then, and then sets always derived. That would be prettier.
   const lastMetrics = await trainerCell.outputs.lastTrainMetric;
-  alwaysDerived(() => logMetrics(lastMetrics()));
+  derivedEvery(() => {
+    const metrics = lastMetrics();
+    const state = taskGenState();
+    if (state.kind === 'generating') {
+      logMetrics(metrics);
+      // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
+      // taskConfig?
+      taskGenState.set({ kind: 'generating', lastBatchId: metrics.batchId });
+      if (metrics.batchId >= trainConfig().trainForBatches) {
+        taskGenState.set({ kind: 'finished' });
+      }
+    }
+  });
   const ckpt = await trainerCell.outputs.checkpoint;
-  alwaysDerived(() => logCheckpoint(ckpt()));
+  derivedEvery(() => logCheckpoint(ckpt()));
+
+  await taskCell.onceFinished;
+  await trainerCell.onceFinished;
 }
 run();
 

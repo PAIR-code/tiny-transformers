@@ -60,13 +60,13 @@ export class WebColabComponent {
     this.space = new SignalSpace();
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
-    const { setable, derived, alwaysDerived } = this.space;
+    const { setable, derived, derivedEvery } = this.space;
 
     const taskKinds = Object.keys(taskRegistry.kinds);
     const taskKind = setable<string>(taskKinds[0]);
     const taskConfigStr = setable(taskRegistry.kinds[taskKind()].defaultConfigStr);
     const task = derived(() => taskRegistry.kinds[taskKind()].makeFn(taskConfigStr()));
-    alwaysDerived(() => taskConfigStr.set(taskRegistry.kinds[taskKind()].defaultConfigStr));
+    derivedEvery(() => taskConfigStr.set(taskRegistry.kinds[taskKind()].defaultConfigStr));
 
     const trainConfig = setable<TrainConfig>({
       id: 'a train cofig',

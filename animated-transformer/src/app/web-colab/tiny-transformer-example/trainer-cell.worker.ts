@@ -21,7 +21,7 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
-import { Batch, trainerCellSpec, trainerVars } from './ailab';
+import { Batch, TrainConfig, trainerCellSpec, trainerVars } from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -42,36 +42,30 @@ import {
 } from 'src/lib/gtensor/params';
 
 const cell = new StatefulCell(trainerVars, trainerCellSpec);
-const { derived, alwaysDerived, setable } = cell.space;
+const { derived, derivedEvery, setable } = cell.space;
 
 const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
 const { reportMetrics } = makeMetricReporter(cell.space, metrics);
-alwaysDerived(() => cell.output('lastTrainMetric', metrics()));
+derivedEvery(() => cell.output('lastTrainMetric', metrics()));
 
-type LossOptions = {
-  maxInputLength: number;
-  metricFrequency: number;
-  checkpointFrequency: number;
-};
-
-function computeLoss(model: TransformerModel, batch: Batch, options: LossOptions): tf.Scalar {
-  const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, options);
+function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig): tf.Scalar {
+  const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
   // const gtensorInputs = strSeqPrepFn(model, batch.inputs, options);
   const computation = computeTransformer(model, gtensorInputs);
   const nextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
   const entropyLoss = lastTokenCrossEntropyLoss(model, computation, nextTokenIdx);
-  if (batch.batchId % options.metricFrequency === 0) {
+  if (batch.batchId % config.metricReporting.metricFrequencyInBatches === 0) {
     const accuracy = transformerAccuracy(model, computation, nextTokenIdx);
     reportMetrics(batch.batchId, { entropyLoss, accuracy });
   }
-  if (batch.batchId % options.checkpointFrequency === 0) {
+  if (batch.batchId % config.checkpointFrequencyInBatches === 0) {
     console.log('TODO: save checkpoint');
   }
   return entropyLoss;
 }
 
 // TODO: instead of updating all params at the same time, we should use some
-// streaming iterator through the parts... (to save memory), and allow
+// streaming iterator through the parts... (and save memory), and allow
 // transfer to happen at the same time as we assign in the GPU.
 function updateModel(
   newModel: { config?: TransformerConfig; params?: SerializeTensorParams<TransformerParams> },
@@ -99,27 +93,20 @@ function updateModel(
   }
 }
 
-cell.run(async (inputs) => {
-  const model = setable(updateModel(inputs.initModel()));
-  alwaysDerived(() => {
-    updateModel(inputs.initModel(), model());
-  });
-  const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
+cell.run(async () => {
+  const initModel = await cell.inputPromises.initModel;
+  const trainConfig = await cell.inputPromises.trainConfig;
+  const nextTrainBatch = await cell.inputPromises.nextTrainBatch;
 
-  const options = derived(() => {
-    const trainConfig = inputs.trainConfig();
-    return {
-      maxInputLength: trainConfig.maxInputLength,
-      metricFrequency: trainConfig.metricReporting.metricFrequencyInBatches,
-      checkpointFrequency: trainConfig.checkpointFrequencyInBatches,
-    };
-  });
+  const model = setable(updateModel(initModel()));
+  derivedEvery(() => updateModel(initModel(), model()));
+  const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
 
   let optimizer = tf.train.adam();
 
-  alwaysDerived(() => {
+  derivedEvery(() => {
     optimizer.minimize(
-      () => computeLoss(model(), inputs.nextTrainBatch(), options()),
+      () => computeLoss(model(), nextTrainBatch(), trainConfig()),
       false,
       varParamList()
     );

@@ -110,7 +110,7 @@ export class LabEnvCell<
     // In addition, whenever any of the "uses" variables are updated, we send
     // the update to the worker.
     for (const key of Object.keys(uses)) {
-      this.space.alwaysDerived(() => {
+      this.space.derivedEvery(() => {
         const value = uses[key as I]();
         const message: ToWorkerMessage = {
           kind: 'setSignal',

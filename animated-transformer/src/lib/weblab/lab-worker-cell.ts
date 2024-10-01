@@ -151,9 +151,16 @@ export class StatefulCell<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async run(runFn: (input: ExpandOnce<WritableStructFn<Subobj<Globals, Uses>>>) => void) {
+  async runOnceHaveInputs(
+    runFn: (input: ExpandOnce<WritableStructFn<Subobj<Globals, Uses>>>) => Promise<void>
+  ) {
     const inputs = await this.onceAllInputs;
     await runFn(inputs as ExpandOnce<WritableStructFn<Subobj<Globals, Uses>>>);
+    this.finished();
+  }
+
+  async run(runFn: () => Promise<void>) {
+    await runFn();
     this.finished();
   }
 
@@ -205,7 +212,7 @@ export function makeMetricReporter<Name extends string>(
   }
 
   // const lastMetrics = space.writable({ batchId: -1, values: {} } as Metrics<Name>);
-  space.alwaysDerived(async () => {
+  space.derivedEvery(async () => {
     const promised = promisedMetrics();
     const metric = { batchId: promised.batchId, values: {} } as Metrics<Name>;
     for (const [metricName, promise] of Object.entries<Promise<number>>(promised.values)) {

@@ -134,7 +134,7 @@ export class SignalSpace {
     return this.computeStack.length > 0 ? this.computeStack[this.computeStack.length - 1] : null;
   }
 
-  makeSignal<T>(value: T, options?: Partial<SetableOptions<T>>): SetableNode<T> {
+  makeSetableNode<T>(value: T, options?: Partial<SetableOptions<T>>): SetableNode<T> {
     const s = new SetableNode(this, value, options);
     return s;
   }
@@ -243,7 +243,7 @@ export class SignalSpace {
     let curPromise: Promise<T> = new Promise<T>((resolve) => {
       resolveFn = resolve;
     });
-    this.alwaysDerived(() => {
+    this.derivedEvery(() => {
       buffer.push(curPromise);
       resolveFn(s());
       curPromise = new Promise<T>((resolve) => {
@@ -278,7 +278,7 @@ export class SignalSpace {
   nullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
     return nullDerived(this, f, options);
   }
-  alwaysDerived<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
+  derivedEvery<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
     return alwaysDerived(this, f, options);
   }
   alwaysNullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
@@ -287,7 +287,7 @@ export class SignalSpace {
 
   writableFork<T>(s: AbstractSignal<T>): SetableSignal<T> {
     const fork = this.setable(s(), s.options);
-    this.alwaysDerived(() => fork.set(s()));
+    this.derivedEvery(() => fork.set(s()));
     return fork;
   }
 
@@ -586,7 +586,7 @@ export function setable<T>(
   value: T,
   options?: Partial<SetableOptions<T>>
 ): SetableSignal<T> {
-  const valueNode = space.makeSignal(value, options);
+  const valueNode = space.makeSetableNode(value, options);
   const signal = function () {
     return valueNode.get();
   };
@@ -676,4 +676,22 @@ export function alwaysNullDerived<T>(
   options?: Partial<DerivedOptions<T>>
 ): DerivedSignal<T | null> {
   return nullDerived(space, f, Object.assign({ ...options, isEffect: true }));
+}
+
+export function promisifySignal<T>(
+  s: AbstractSignal<T>
+): DerivedSignal<{ cur: T; next: Promise<T> }> {
+  let resolveFn: (v: T) => void = () => {};
+
+  const promisifiedSignal = s.space.derived(() => {
+    const oldResolveFn = resolveFn;
+    const next = new Promise<T>((resolve) => {
+      resolveFn = resolve;
+    });
+    const cur = s();
+    oldResolveFn(cur);
+    return { cur, next };
+  });
+
+  return promisifiedSignal;
 }

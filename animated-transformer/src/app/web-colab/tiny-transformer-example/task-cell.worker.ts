@@ -20,16 +20,26 @@ import { Batch, taskVars, taskCellSpec } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
+import { promisifySignal } from 'src/lib/weblab/signalspace';
 
 const cell = new StatefulCell(taskVars, taskCellSpec);
-const { derived, alwaysDerived, setable } = cell.space;
+const { derived, derivedEvery, setable } = cell.space;
 
-cell.run(async (inputs) => {
+cell.run(async () => {
+  const taskConfig = await cell.inputPromises.taskConfig;
+  const testSetSize = await cell.inputPromises.testSetSize;
+  const startFromBatchSeed = await cell.inputPromises.lastBatchSeed;
+  const batchSize = await cell.inputPromises.batchSize;
+  const state = promisifySignal(await cell.inputPromises.taskGenState);
+  const maxBatchesQueueSize = await cell.inputPromises.maxBatchesQueueSize;
+  let batchId = 0;
+  let curBatchesQueueSize = 0;
+
   // TODO: this registry business is ugly. Make a better abstraction.
   const task = derived(
     () =>
-      taskRegistry.kinds[inputs.taskConfig().kind].makeFn(
-        stringifyJsonValue(inputs.taskConfig())
+      taskRegistry.kinds[taskConfig().kind].makeFn(
+        stringifyJsonValue(taskConfig())
       ) as BasicRandLmTask
   );
 
@@ -38,23 +48,27 @@ cell.run(async (inputs) => {
   // CONSIDER: RandomStreamOf<Example> having a fork op. But also being savable.
   const dataSplitByTrainAndTest = derived(() => {
     const examplesIter = task().exampleIter.copy();
-    const testExamples = examplesIter.takeOutN(inputs.testSetSize());
+    const testExamples = examplesIter.takeOutN(testSetSize());
     const testSetIndex = new Set(testExamples.map(indexExample));
     const trainExamplesIter = examplesIter.copy();
     // With a generative synthetic world you can guarentee no duplicate example in
     // the test set and train set by filtering the test from the train.
     // This gives the optimal quality of test metric measurement.
     trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
-    // If
-    const lastBatch = inputs.lastTrainBatch();
-    if (lastBatch) {
-      trainExamplesIter.state.seed = lastBatch.nextSeed;
-    }
     return { testExamples, trainExamplesIter };
   });
-
-  const testSet = derived(() => dataSplitByTrainAndTest().testExamples);
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
+  derived(() => cell.output('testSet', dataSplitByTrainAndTest().testExamples));
+
+  // Update the batch seed if/as needed.
+  // Allows restarting generation from an earlier point.
+  derivedEvery(() => {
+    const seed = startFromBatchSeed();
+    if (seed !== null) {
+      dataSplitByTrainAndTest().trainExamplesIter.state.seed = seed;
+      // startFromBatchSeed.set(null, { updateStrategy: 'skipUpdate' });
+    }
+  });
 
   function makeBatch(batchId: number, batchSize: number): Batch {
     const batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
@@ -64,12 +78,18 @@ cell.run(async (inputs) => {
     return { batchId, nextSeed: batchSeed, inputs, outputs };
   }
 
-  const batchId = setable(0);
-  const batch = derived<Batch>(() => makeBatch(batchId(), inputs.batchSize()));
+  // state = onceState();
+  while (state().cur.kind !== 'finished') {
+    for (
+      const st = state();
+      st.cur.kind === 'generating' && curBatchesQueueSize < maxBatchesQueueSize();
+      ++batchId
+    ) {
+      const nextBatch = makeBatch(batchId, batchSize());
+      // TODO: why not use the same syntax and have this be a setable signal?
+      cell.output('nextTrainBatch', nextBatch);
+      curBatchesQueueSize = batchId - st.cur.lastBatchId;
+    }
+    await state().next;
+  }
 });
-
-// console.log(
-//   `batch: ${batchId} `.padEnd(15) +
-//     ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
-//     ('accuracy: ' + accuracy.arraySync().toFixed(8)).padEnd(25)
-// );
