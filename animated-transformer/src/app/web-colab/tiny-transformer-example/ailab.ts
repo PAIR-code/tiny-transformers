@@ -17,11 +17,12 @@ limitations under the License.
  * lab environment.
  */
 
-import { BasicLmTaskConfig, Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
+import { Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
 import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
-import { RandomState } from 'src/lib/random/random';
+
+export type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
 
 export type Batch = {
   batchId: number; // just a counter
@@ -54,7 +55,7 @@ export type Checkpoint = {
   config: TransformerConfig;
   serializedParams: SerializeTensorParams<TransformerParams>;
   lastBatch: Batch;
-  metrics: Metrics<'entropyLoss' | 'accuracy'>;
+  metrics: SimpleMetrics;
 };
 
 // Note: one the advantages of this kind of global var namespace approach is
@@ -84,7 +85,7 @@ export type TrainerVars = {
   trainConfig: TrainConfig;
   nextTrainBatch: Batch;
   // output...
-  lastTrainMetric: Metrics<'entropyLoss' | 'accuracy'>;
+  lastTrainMetric: SimpleMetrics;
   checkpoint: Checkpoint;
 };
 export const trainerVars: Partial<TrainerVars> = {};
@@ -138,25 +139,3 @@ export const taskCellSpec = cellSpec(
   ],
   ['nextTrainBatch', 'testSet']
 );
-
-// const globalSpace = new SignalSpace();
-// const { writable } = globalSpace;
-
-// export const trainerSpec = {
-//   name: 'Trainer cell',
-//   workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-//   data: {
-//     model: writable({ config: defaultTransformerConfig }),
-//     testSet: writable<Example[]>([]),
-//     batch: writable<Batch>({ batchId: -1, inputs:[], outputs: []}),
-
-//   },
-// };
-
-// cellSpec(
-//   globals,
-//   'Trainer cell',
-//   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-//   ['testSet', 'trainConfig', 'model', 'batch'],
-//   ['model', 'lastTrainMetric']
-// );

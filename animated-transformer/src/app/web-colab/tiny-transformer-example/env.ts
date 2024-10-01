@@ -17,63 +17,21 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
-import {
-  defaultTransformerConfig,
-  initDecoderParams,
-  TransformerConfig,
-} from 'src/lib/transformer/transformer_gtensor';
-import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
+import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
+import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
+import { SignalSpace } from 'src/lib/weblab/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
-import { GTensor } from 'src/lib/gtensor/gtensor';
 import {
-  Batch,
   EnvModel,
-  TaskVars,
-  TrainerVars,
   TrainConfig,
   trainerCellSpec,
   taskCellSpec,
   Checkpoint,
   TaskGenSate,
+  SimpleMetrics,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
-import { varifyParams } from 'src/lib/gtensor/params';
-import { Metrics } from 'src/lib/weblab/cellspec';
-import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
-
-type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
-
-// Consider... one liner... but maybe handy to have the object to debug.
-// const { writable, computed } = new SignalSpace();
-const space = new SignalSpace();
-const { setable, derived, derivedEvery } = space;
-
-const taskKinds = Object.keys(taskRegistry.kinds);
-const taskKind = setable<string>(taskKinds[0]);
-const taskConfig = derived(() =>
-  structuredClone(taskRegistry.kinds[taskKind()].defaultConfig as RandLmTaskConfig)
-);
-
-const trainConfig = setable<TrainConfig>({
-  id: 'initial config',
-  kind: 'basicSeqTrainer',
-  // training hyper-params
-  learningRate: 0.5,
-  batchSize: 64,
-  maxInputLength: 10,
-  trainForBatches: 100,
-  // Reporting / eval
-  checkpointFrequencyInBatches: 100,
-  metricReporting: {
-    metricFrequencyInBatches: 10,
-  },
-});
-
-const testSetSize = setable(200);
 
 function logMetrics(metrics: SimpleMetrics): void {
   console.log(
@@ -93,26 +51,47 @@ lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
   );
 }
 
-// const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
-const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
-const lastBatchId = setable<number>(-1);
-
-const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
-const model = setable<EnvModel>({ config: defaultTransformerConfig() });
-
 const state = new LabState();
 const env = new LabEnv(state);
 
-//
-const maxBatchesQueueSize = derived(
-  () => trainConfig().metricReporting.metricFrequencyInBatches * 4
-);
 // TODO: wrap signals here as namedSignals, with an optional saver, and then we
 // can directly provide outputs from one, to inputs of another.
-
 async function run() {
+  // Consider... one liner... but maybe handy to have the 'space' object to debug.
+  // const { writable, computed } = new SignalSpace();
+  const space = new SignalSpace();
+  const { setable, derived, derivedEvery } = space;
+
+  const taskKinds = Object.keys(taskRegistry.kinds);
+  const taskKind = setable<string>(taskKinds[0]);
+  const taskConfig = derived(() =>
+    structuredClone(taskRegistry.kinds[taskKind()].defaultConfig as RandLmTaskConfig)
+  );
+  const trainConfig = setable<TrainConfig>({
+    id: 'initial config',
+    kind: 'basicSeqTrainer',
+    // training hyper-params
+    learningRate: 0.5,
+    batchSize: 64,
+    maxInputLength: 10,
+    trainForBatches: 100,
+    // Reporting / eval
+    checkpointFrequencyInBatches: 100,
+    metricReporting: {
+      metricFrequencyInBatches: 10,
+    },
+  });
+  // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
+  const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
+  const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
+  // Should be set by checkpoint...
+  // const model = setable<EnvModel>({ config: defaultTransformerConfig() });
   const batchSize = derived(() => trainConfig().batchSize);
   const lastBatchSeed = derived<number | null>(() => null);
+  const testSetSize = setable(200);
+  const maxBatchesQueueSize = derived(
+    () => trainConfig().metricReporting.metricFrequencyInBatches * 4
+  );
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
     testSetSize,
@@ -168,9 +147,3 @@ async function run() {
   await trainerCell.onceFinished;
 }
 run();
-
-// function* batchGenerator(batchNum: number, batchSize: number): Iterator<> {
-//   for (let batchId = 0; batchId < batchNum; batchId += 1) {
-//     yield [batchInput, batchOutput];
-//   }
-// }
