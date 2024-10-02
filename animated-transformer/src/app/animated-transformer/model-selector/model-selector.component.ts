@@ -93,6 +93,7 @@ const defaultConfig: ModelConfig = {
       inputRep: 8,
       kqvRep: 8,
       layers: [layerSpec],
+      dropoutRate: 0.0,
     },
     init: {
       stddev: 0.5,
@@ -118,6 +119,7 @@ const transWithLayerNormed: ModelConfig = {
       inputRep: 8,
       kqvRep: 8,
       layers: [layerSpecWithNorm],
+      dropoutRate: 0.0,
     },
     init: {
       stddev: 0.5,
@@ -143,6 +145,7 @@ const transWithLayerNormedAndDropout: ModelConfig = {
       inputRep: 8,
       kqvRep: 8,
       layers: [layerSpecWithNormAndDropout],
+      dropoutRate: 0.1,
     },
     init: {
       stddev: 0.5,

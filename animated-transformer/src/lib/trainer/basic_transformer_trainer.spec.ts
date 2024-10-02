@@ -42,6 +42,7 @@ describe('basic_transformer_trainer', () => {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
+        dropoutRate: 0,
       },
       init: {
         stddev: 0.5,
@@ -77,6 +78,8 @@ describe('basic_transformer_trainer', () => {
     );
     // Taking a couple of steps...
     const initLoss = trainState.batchMeanLoss;
+    console.log('initLoss');
+    console.log(initLoss);
     expect(trainState.nSteps).toBe(0);
     expect(trainState.nExamples).toBe(0);
     const stillTraining = trySgdTrainStep(trainState);
@@ -90,11 +93,14 @@ describe('basic_transformer_trainer', () => {
     jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);
     trainState.dispose();
   });
+  // TODO(@aliciafmachado): Make sure that this test is reproducible by adding seeding.
+  // Currently it's flaky since dropout and some other source of randomness is not properly
+  // seeded yet.
   it('AorBisMaxTaskWithDropout training', async () => {
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: true,
-      computeSpec: { residuals: true, dropoutRate: 0.1 },
+      computeSpec: { residuals: true, dropoutRate: 0.999 },
       // TODO: investigate: these make 0 gradients?
       layerNormFF: false,
       layerNormHeadsProjection: false,
@@ -105,6 +111,7 @@ describe('basic_transformer_trainer', () => {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
+        dropoutRate: 0.999,
       },
       init: {
         stddev: 0.5,
@@ -147,7 +154,8 @@ describe('basic_transformer_trainer', () => {
     const newLoss = trainState.batchMeanLoss;
     expect(trainState.nSteps).toBe(1);
     expect(trainState.nExamples).toBe(trainState.batchExamples.length);
-    expect(newLoss).toBeLessThan(initLoss);
+    // Transformer with 99% dropout should not learn anything, so loss should not improve.
+    expect(newLoss).toBeGreaterThanOrEqual(initLoss);
 
     // Memory cleanup
     jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);

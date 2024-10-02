@@ -109,8 +109,6 @@ export function initTransformerTrainState(
 }
 
 export function computeMetrics(state: TransformerTrainState): TrainMetrics {
-  // Eval mode is passed inside computeStateBatchAccuracy and computeLossAndAccuracy to
-  // computeTransformer.
   const trainBatchAcc: number = computeStateBatchAccuracy(state);
   const testLossAndAcc = computeLossAndAccuracy(state, state.taskSplit.testSetExamples);
   return {
@@ -130,8 +128,7 @@ export function computeStateBatchAccuracy(state: TransformerTrainState): number 
     const decoderComputation = transformer.computeTransformer(
       state.spec,
       state.params,
-      state.inputsVar,
-      true
+      state.inputsVar
     );
     meanAcc = transformerAccuracy(
       decoderComputation,
@@ -159,8 +156,7 @@ export function computeLossAndAccuracy(
       const decoderComputation = transformer.computeTransformer(
         state.spec,
         state.params,
-        state.inputsVar,
-        true
+        state.inputsVar
       );
       const batchAcc = transformerAccuracy(
         decoderComputation,

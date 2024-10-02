@@ -23,11 +23,10 @@ import {
   export function dropout<G extends string, D extends G>(
     dropoutRate: number,
     g: GTensor<G>,
-    deterministic: boolean,
     seed?: number,
     dimNames?: string[],
   ): GTensor<G> {
-    if (deterministic) {
+    if (dropoutRate = 0) {
       return g;
     }
 

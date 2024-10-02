@@ -23,7 +23,7 @@ describe('dropout', () => {
   it('Basic dropout', () => {
     const beforeDropout =
       gtensor.makeRange('input', 1, 5, 1, 'float32');
-    const afterDropout = dropout(0.5, beforeDropout, false, 0);
+    const afterDropout = dropout(0.5, beforeDropout, 0);
     afterDropout.tensor.print();
 
     tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
@@ -35,7 +35,7 @@ describe('dropout', () => {
   it('Deterministic output', () => {
     const beforeDropout =
       gtensor.makeRange('input', 1, 5, 1, 'float32');
-    const afterDropout = dropout(0.5, beforeDropout, true, 0);
+    const afterDropout = dropout(0, beforeDropout, 0);
     afterDropout.tensor.print();
 
     tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
@@ -55,7 +55,7 @@ describe('dropout', () => {
         ]),
         ['batch', 'pos', 'inputRep']
       );
-    const afterDropout = dropout(0.5, beforeDropout, false, 1, ['pos']);
+    const afterDropout = dropout(0.5, beforeDropout, 1, ['pos']);
     afterDropout.tensor.print();
 
     tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
