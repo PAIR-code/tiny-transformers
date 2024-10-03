@@ -94,7 +94,7 @@ describe('token_gemb', () => {
   it('strSeqPrepFn', () => {
     const tokens = ['a', 'b'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
-    const tokenEmbParams = {
+    const params = {
       tokenEmbedding: new GVariable(
         makeTruncNormal({
           tokenId: tokenRep.tokens.length,
@@ -105,9 +105,11 @@ describe('token_gemb', () => {
 
     const seqToEmbed = ['a', 'b', '[PAD]', 'a'];
 
-    const embeddedSeq = strSeqPrepFn(tokenRep, tokenEmbParams, 6, [seqToEmbed]);
+    const embeddedSeq = strSeqPrepFn({ config: { tokenRep }, params }, [seqToEmbed], {
+      maxInputLength: 6,
+    });
 
-    const tokenEmbUnstacked = tokenEmbParams.tokenEmbedding.unstack('tokenId');
+    const tokenEmbUnstacked = params.tokenEmbedding.unstack('tokenId');
     const aRep = tokenEmbUnstacked[tokenRep.tokenToIdx['a']].tensor.arraySync();
     const bRep = tokenEmbUnstacked[tokenRep.tokenToIdx['b']].tensor.arraySync();
     const padRep = tokenEmbUnstacked[tokenRep.tokenToIdx['[PAD]']].tensor.arraySync();

@@ -51,8 +51,7 @@ lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
   );
 }
 
-const state = new LabState();
-const env = new LabEnv(state);
+const env = new LabEnv();
 
 // TODO: wrap signals here as namedSignals, with an optional saver, and then we
 // can directly provide outputs from one, to inputs of another.

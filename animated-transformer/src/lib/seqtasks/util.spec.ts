@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { makeClonableIter, StateIter } from '../state-iter/state-iter';
+// import { makeClonableIter, StateIter } from '../state-iter/state-iter';
+import { StateIter } from '../state-iter/state-iter';
 import {
   Example,
   generateBatch,
@@ -21,6 +22,7 @@ import {
   BasicLmTask,
   splitGenerativeTaskTestSet,
   indexExample,
+  BasicLmTaskConfig,
 } from './util';
 
 describe('seqtasks/util', () => {
@@ -55,7 +57,7 @@ describe('seqtasks/util', () => {
   });
 
   it('takeFirstN of makeExampleGenerator', () => {
-    function* iterateExample(state: { idx: number }): Iterator<Example> {
+    function* iterFn(state: { idx: number }): Iterator<Example> {
       while (true) {
         const i = state.idx;
         yield {
@@ -67,10 +69,16 @@ describe('seqtasks/util', () => {
       }
     }
     /* Simple interface for classes that provide a task */
-    const exampleIter = makeClonableIter({ idx: 0 }, iterateExample);
-    const task: BasicLmTask = {
+    const exampleIter = new StateIter({ idx: 0 }, iterFn);
+    const task: BasicLmTask<BasicLmTaskConfig<{ idx: number }>> = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
-      config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
+      config: {
+        id: 'fooTask',
+        kind: 'foo',
+        maxInputLen: 2,
+        maxOutputLen: 1,
+        genStateConfig: { idx: 0 },
+      },
       exampleIter: exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
@@ -91,22 +99,29 @@ describe('seqtasks/util', () => {
   });
 
   it('splitGenerativeTaskTestSet', () => {
-    function* iterateExample(state: { idx: number }): Iterator<Example> {
+    function* iterFn(state: { idx: number }): Iterator<Example> {
       while (true) {
-        const i = state.idx++;
+        const i = state.idx;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
+        state.idx++;
       }
     }
-    const exampleIter = makeClonableIter({ idx: 0 }, iterateExample);
     /* Simple interface for classes that provide a task */
-    const task: BasicLmTask = {
+    const exampleIter = new StateIter({ idx: 0 }, iterFn);
+    const task: BasicLmTask<BasicLmTaskConfig<{ idx: number }>> = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
-      config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter,
+      config: {
+        id: 'fooTask',
+        kind: 'foo',
+        maxInputLen: 2,
+        maxOutputLen: 1,
+        genStateConfig: { idx: 0 },
+      },
+      exampleIter: exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       // Test set = first 7

@@ -187,7 +187,13 @@ export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
     if (config.sortObjKeys) {
       keys = keys.sort();
     }
-    return '{' + keys.map((k) => `${k}: ${stringifyOneLine(config, t.obj[k])}`).join(', ') + '}';
+    return (
+      '{' +
+      keys
+        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyOneLine(config, t.obj[k])}`)
+        .join(', ') +
+      '}'
+    );
   }
 }
 
@@ -204,6 +210,15 @@ function maxLineStrWidth(s: string): {
     lastLineWidth: lines[lines.length - 1].length,
     nLines: lines.length,
   };
+}
+
+const skipQuotingRegExp = /^[\_\d\w]+$/;
+function quoteObjectKeyIfNeeded(k: string): string {
+  if (skipQuotingRegExp.test(k)) {
+    return k;
+  } else {
+    return quote(k);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -271,7 +286,9 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       const subConfig = { ...config };
       subConfig.curIndent += '  ';
       let joinStr = ',\n' + subConfig.curIndent;
-      const innerStr = keys.map((k) => `${k}: ${stringifyTube(subConfig, t.obj[k])}`).join(joinStr);
+      const innerStr = keys
+        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyTube(subConfig, t.obj[k])}`)
+        .join(joinStr);
       // TODO:
       let prefix = '{ ';
       const postfix = ' }';

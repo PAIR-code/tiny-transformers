@@ -8,7 +8,7 @@ import {
   TransformerModel,
   transformerModelKind,
 } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace, SetableSignal, derived, DerivedSignal } from 'src/lib/weblab/signalspace';
+import { SignalSpace, SetableSignal, DerivedSignal, defined } from 'src/lib/weblab/signalspace';
 import { EnvModel, TrainConfig } from './web-colab/tiny-transformer-example/ailab';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 
@@ -16,7 +16,7 @@ const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, Tran
 const initModelConfigsMap = {} as { [id: string]: TransformerConfig };
 {
   const initModelKinds = [transformerModelKind];
-  initModelKinds.forEach((k) => k.makeFn(k.defaultConfigStr));
+  initModelKinds.forEach((k) => (modelMakerMap[k.kind] = k));
   const aConfiguredModel = modelMakerMap[transformerModelKind.kind].makeFn(
     transformerModelKind.defaultConfigStr
   );
@@ -27,7 +27,9 @@ const taskMakerMap = {} as { [kind: string]: ConfigKind<RandLmTaskConfig, BasicR
 const initTaskConfigMap = {} as { [id: string]: RandLmTaskConfig };
 {
   const initTaskKinds = [tinyWorldTaskKind];
-  initTaskKinds.forEach((k) => k.makeFn(k.defaultConfigStr));
+  initTaskKinds.forEach(
+    (k) => (taskMakerMap[k.kind] = k as never as ConfigKind<RandLmTaskConfig, BasicRandLmTask>)
+  );
   const aConfiguredTask = taskMakerMap[tinyWorldTaskKind.kind].makeFn(
     tinyWorldTaskKind.defaultConfigStr
   );
@@ -41,8 +43,8 @@ const basicTrainConfig: TrainConfig = {
   learningRate: 0.5,
   batchSize: 64,
   maxInputLength: 10,
+  trainForBatches: 10,
   // Reporting / eval
-  testSetSize: 200,
   checkpointFrequencyInBatches: 100,
   metricReporting: {
     metricFrequencyInBatches: 10,
@@ -115,7 +117,7 @@ export class TinyModelsService {
     });
 
     this.space = new SignalSpace();
-    const { nullDerived, defined, setable } = this.space;
+    const { nullDerived, setable } = this.space;
     const taskId = Object.keys(this.taskConfigsMap)[0];
     this.taskConfig = setable<RandLmTaskConfig | null>(this.taskConfigsMap[taskId]);
     this.task = nullDerived(() => {

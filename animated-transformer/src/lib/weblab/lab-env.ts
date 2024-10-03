@@ -23,9 +23,9 @@ import {
   Subobj,
 } from './cellspec';
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
-import { LabState } from './lab-state';
+// import { LabState } from './lab-state';
 import { AbstractSignal, SignalSpace, setable, SetableSignal } from './signalspace';
-import { extend } from 'underscore';
+// import { extend } from 'underscore';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -187,9 +187,9 @@ export class LabEnv {
     };
   } = {};
 
-  constructor(public workerState: LabState) {
-    console.log('import.meta.url', import.meta.url.toString());
-  }
+  // constructor(public workerState: LabState) {
+  //   console.log('import.meta.url', import.meta.url.toString());
+  // }
 
   start<
     CellVars extends ValueStruct,

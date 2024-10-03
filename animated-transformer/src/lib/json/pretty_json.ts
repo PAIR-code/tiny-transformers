@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { stringifyTube, Tube, LeafTube, ArrTube, ObjTube, StringifyConfig } from '../tubes/tubes';
-import { quote, JsonValue } from './json';
+import { JsonValue } from './json';
 
 // ----------------------------------------------------------------------------
 export function tubeifyJsonValue(value: JsonValue): Tube {
@@ -50,7 +50,7 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
   }
 }
 
-export function stringifyJsonValue(o: JsonValue, config?: StringifyConfig): string {
+export function stringifyJsonValue(value: JsonValue, config?: StringifyConfig): string {
   config = config || {
     curIndent: '',
     arrWrapAt: 60,
@@ -58,5 +58,5 @@ export function stringifyJsonValue(o: JsonValue, config?: StringifyConfig): stri
     sortObjKeys: true,
   };
 
-  return stringifyTube(config, tubeifyJsonValue(o));
+  return stringifyTube(config, tubeifyJsonValue(value));
 }

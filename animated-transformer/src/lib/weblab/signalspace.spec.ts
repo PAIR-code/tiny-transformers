@@ -13,13 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { SignalSpace, SetableNode, setable, derived, alwaysDerived } from './signalspace';
+import {
+  SignalSpace,
+  SetableNode,
+  setable,
+  derived,
+  alwaysDerived,
+  DerivedNode,
+  defined,
+} from './signalspace';
 
-// type MaybeReturn<T, F> = undefined extends F ? void : T;
+// if T is void, it's void, otherwiswe it is the return value.
 type MaybeReturn<T> = void extends T ? void : T;
-
-// type Foo = undefined extends undefined ? true : false;
-type Foo = void extends void ? true : false;
 
 describe('signalspace', () => {
   async function waitTick<T>(f?: () => T): Promise<MaybeReturn<T>> {
@@ -39,7 +44,7 @@ describe('signalspace', () => {
 
     const b = new SetableNode(s, 'b');
 
-    const c = s.makeDerivedNode(() => {
+    const c = new DerivedNode(s, () => {
       return b.get() + 'c';
     });
 
@@ -54,11 +59,11 @@ describe('signalspace', () => {
     const a = new SetableNode(s, 'a');
     const b = new SetableNode(s, 'b');
 
-    const aa = s.makeDerivedNode(() => {
+    const aa = new DerivedNode(s, () => {
       return a.get() + 'a';
     });
 
-    const aab = s.makeDerivedNode(() => {
+    const aab = new DerivedNode(s, () => {
       return aa.get() + b.get();
     });
 
@@ -72,21 +77,21 @@ describe('signalspace', () => {
     console.warn('...TODO: fix the above.');
   });
 
-  it('nullComputable & nullme', () => {
+  it('defined in nullDerived', () => {
     const s = new SignalSpace();
-    const { setable, nullDerived, defined } = s;
+    const { setable, nullDerived } = s.ops();
     const a = setable<string | null>('a');
     const b = nullDerived(() => {
       return defined(a) + 'b';
     });
-    expect(b()).toEqual('a');
+    expect(b()).toEqual('ab');
     a.set(null);
     expect(b()).toEqual(null);
   });
 
-  it('computable & nullme errors at runtime', () => {
+  it('defined in derived throws error', () => {
     const s = new SignalSpace();
-    const { setable, derived, defined } = s;
+    const { setable, derived } = s.ops();
     const a = setable<string | null>('a');
     expect(() =>
       derived(() => {
@@ -99,10 +104,10 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     const a = new SetableNode(s, 'a');
-    const b = s.makeDerivedNode(() => {
+    const b = new DerivedNode(s, () => {
       return a.get() + 'b';
     });
-    const c = s.makeDerivedNode(() => {
+    const c = new DerivedNode(s, () => {
       return b.get() + 'c';
     });
 
@@ -115,18 +120,9 @@ describe('signalspace', () => {
     const s = new SignalSpace();
 
     const a = new SetableNode(s, 'a');
-    const b = s.makeDerivedNode(() => {
-      return a.get() + 'b';
-    });
-    const c = s.makeDerivedNode(() => {
-      return b.get() + 'c';
-    });
-    const e = s.makeDerivedNode(
-      () => {
-        return b.get() + 'e';
-      },
-      { isEffect: true }
-    );
+    const b = new DerivedNode(s, () => a.get() + 'b');
+    const c = new DerivedNode(s, () => b.get() + 'c');
+    const e = new DerivedNode(s, () => b.get() + 'e', { isEffect: true });
 
     expect(c.get()).toEqual('abc');
     expect(e.get()).toEqual('abe');
@@ -144,7 +140,7 @@ describe('signalspace', () => {
     expect(c.lastValue).toEqual('Abc');
   });
 
-  fit('Double setting values and effects: normal alwaysUpdate Values', async () => {
+  it('Double setting values and effects: normal alwaysDerived Values', async () => {
     const s = new SignalSpace();
 
     let counter = 0;
@@ -153,6 +149,7 @@ describe('signalspace', () => {
       counter += 1;
       return a() + 'e';
     });
+    expect(counter).toEqual(1);
 
     expect(a()).toEqual('a');
     expect(e()).toEqual('ae');
@@ -162,16 +159,16 @@ describe('signalspace', () => {
       return { nextTick_a: a.lastValue(), nextTick_e: e.lastValue() };
     });
 
-    expect(nextTick_a).toEqual('a');
+    expect(nextTick_a).toEqual('A');
     expect(nextTick_e).toEqual('Ae');
-    expect(counter).toEqual(1);
+    expect(counter).toEqual(2);
     a.set('aa');
     a.set('AA');
     await waitTick();
-    expect(counter).toEqual(3);
+    expect(counter).toEqual(4);
   });
 
-  fit('Double setting values and effects: normal update justLatest Values', async () => {
+  it('Double setting values and effects: normal update justLatest values', async () => {
     const s = new SignalSpace();
 
     let counter = 0;
@@ -180,24 +177,25 @@ describe('signalspace', () => {
       counter += 1;
       return a() + 'e';
     });
+    expect(counter).toEqual(1);
 
     expect(a()).toEqual('a');
     expect(e()).toEqual('ae');
 
-    expect(counter).toEqual(0);
+    expect(counter).toEqual(1);
     console.log('1:', a.lastValue());
     a.set('A');
-    expect(counter).toEqual(0);
+    expect(counter).toEqual(1);
     console.log('2:', a.lastValue());
     await waitTick();
     console.log('3:', a.lastValue());
 
-    expect(counter).toEqual(1);
+    expect(counter).toEqual(2);
     a.set('aa');
     a.set('AA');
     await waitTick();
-    // Contrast this to the previous test where the value is 3!
-    expect(counter).toEqual(2);
+    // Contrast this to the previous test where the value is 4!
+    expect(counter).toEqual(3);
   });
 
   it('Two step effect vs compute signal update with angular-style syntax', async () => {

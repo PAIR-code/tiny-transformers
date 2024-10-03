@@ -100,6 +100,9 @@ cell.run(async () => {
 
   const model = setable(updateModel(initModel()));
   derivedEvery(() => updateModel(initModel(), model()));
+  // Technically, because 'varParamList' is all vars, we don't need to do this;
+  // But I want to show how you can backprop/update only to selected params if
+  // you wanted.
   const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
 
   let optimizer = tf.train.adam();

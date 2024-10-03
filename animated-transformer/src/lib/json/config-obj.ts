@@ -63,7 +63,13 @@ export class ConfigKindRegistry<T extends { config: JsonWithKind }> {
       throw new Error(`${kind} is already registered.`);
     }
     function makeFn(s: string): T {
-      const config: ConfigT = json5.parse(s);
+      let config: ConfigT;
+      try {
+        config = json5.parse(s);
+      } catch {
+        console.error(`Cannot make '${kind}', string parsing failed... \n'''\n${s}\n'''`);
+        throw new Error('register failed.');
+      }
       return makeFromConfigFn(config);
     }
     const defaultConfigStr = stringifyJsonValue(defaultConfig);

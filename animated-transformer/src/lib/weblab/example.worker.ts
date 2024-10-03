@@ -18,18 +18,18 @@ limitations under the License.
 import * as lab from './lab-worker-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
-console.log('example.worker', self.location);
+// console.log('example.worker', self.location);
 
-const cell = new lab.FuncCell(exampleWorkerSpec);
-cell.run((inputs) => {
-  const toyOutput = `webworker got input! ${inputs.toyInput}`;
+// const cell = new lab.FuncCell(exampleWorkerSpec);
+// cell.run((inputs) => {
+//   const toyOutput = `webworker got input! ${inputs.toyInput}`;
 
-  // TODO: consider using the packr for transfers too...
-  return {
-    toyOutputStr: toyOutput,
-    toyOutputNumber: 3,
-  };
-});
+//   // TODO: consider using the packr for transfers too...
+//   return {
+//     toyOutputStr: toyOutput,
+//     toyOutputNumber: 3,
+//   };
+// });
 
 // Above is equivalent to...
 // async function run() {
