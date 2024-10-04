@@ -20,7 +20,10 @@ import { Batch, taskVars, taskCellSpec } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
-import { promisifySignal } from 'src/lib/weblab/signalspace';
+import { promisifySignal } from 'src/lib/signalspace/signalspace';
+import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
+
+console.log(tinyWorldTaskKind);
 
 const cell = new StatefulCell(taskVars, taskCellSpec);
 const { derived, derivedEvery, setable } = cell.space;
@@ -36,12 +39,13 @@ cell.run(async () => {
   let curBatchesQueueSize = 0;
 
   // TODO: this registry business is ugly. Make a better abstraction.
-  const task = derived(
-    () =>
-      taskRegistry.kinds[taskConfig().kind].makeFn(
-        stringifyJsonValue(taskConfig())
-      ) as BasicRandLmTask
-  );
+  const task = derived(() => {
+    console.log('taskConfig: ', taskConfig());
+    console.log('taskRegistry: ', taskRegistry);
+    return taskRegistry.kinds[taskConfig().kind].makeFn(
+      stringifyJsonValue(taskConfig())
+    ) as BasicRandLmTask;
+  });
 
   // TODO: make state iterator take in the state for easier random stream
   // management?

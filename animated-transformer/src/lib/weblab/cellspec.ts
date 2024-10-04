@@ -21,7 +21,7 @@ limitations under the License.
  * Runs in webworker AND in main browser or node context.
  */
 
-import { AbstractSignal, DerivedSignal, SetableSignal } from './signalspace';
+import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
 export type Metrics<Name extends string> = {
   batchId: number;

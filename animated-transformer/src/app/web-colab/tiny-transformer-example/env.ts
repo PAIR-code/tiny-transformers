@@ -19,7 +19,7 @@ limitations under the License.
 
 import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace } from 'src/lib/weblab/signalspace';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import {
   EnvModel,

@@ -16,7 +16,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace } from 'src/lib/weblab/signalspace';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import {
   EnvModel,
@@ -31,10 +31,10 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { getUniGramTinyWorldConfig } from 'src/lib/seqtasks/tiny_worlds_ngram_configs';
 import { TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 
-describe('Task-Cell', () => {
+fdescribe('Task-Cell', () => {
   beforeEach(() => {});
 
-  xit('simple task cell test', async () => {
+  it('simple task cell test', async () => {
     const env = new LabEnv();
 
     // Consider... one liner... but maybe handy to have the 'space' object to debug.
@@ -68,6 +68,8 @@ describe('Task-Cell', () => {
     derivedEvery(() => {
       const batch = nextTrainBatch();
       const state = taskGenState();
+      console.log('batch', batch);
+      console.log('state', state);
       if (state.kind === 'generating') {
         // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
         // taskConfig?

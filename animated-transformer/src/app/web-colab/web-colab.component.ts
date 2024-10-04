@@ -18,7 +18,7 @@ import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor'
 import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { DerivedSignal, SignalSpace, SetableSignal } from 'src/lib/weblab/signalspace';
+import { DerivedSignal, SignalSpace, SetableSignal } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { Batch, EnvModel, TrainConfig, trainerCellSpec } from './tiny-transformer-example/ailab';

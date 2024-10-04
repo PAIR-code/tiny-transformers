@@ -8,7 +8,12 @@ import {
   TransformerModel,
   transformerModelKind,
 } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace, SetableSignal, DerivedSignal, defined } from 'src/lib/weblab/signalspace';
+import {
+  SignalSpace,
+  SetableSignal,
+  DerivedSignal,
+  defined,
+} from 'src/lib/signalspace/signalspace';
 import { EnvModel, TrainConfig } from './web-colab/tiny-transformer-example/ailab';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 

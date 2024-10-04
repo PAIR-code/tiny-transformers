@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
-import { Signal, SetableSignal, SignalSpace } from './signalspace';
+import { Signal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
   CellStateSpec,

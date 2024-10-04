@@ -24,7 +24,7 @@ import {
 } from './cellspec';
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
 // import { LabState } from './lab-state';
-import { AbstractSignal, SignalSpace, setable, SetableSignal } from './signalspace';
+import { AbstractSignal, SignalSpace, setable, SetableSignal } from '../signalspace/signalspace';
 // import { extend } from 'underscore';
 
 export type ItemMetaData = {
