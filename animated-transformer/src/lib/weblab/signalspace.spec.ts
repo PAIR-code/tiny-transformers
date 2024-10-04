@@ -18,7 +18,7 @@ import {
   SetableNode,
   setable,
   derived,
-  alwaysDerived,
+  derivedEvery,
   DerivedNode,
   defined,
 } from './signalspace';
@@ -79,7 +79,7 @@ describe('signalspace', () => {
 
   it('defined in nullDerived', () => {
     const s = new SignalSpace();
-    const { setable, nullDerived } = s.ops();
+    const { setable, nullDerived } = s;
     const a = setable<string | null>('a');
     const b = nullDerived(() => {
       return defined(a) + 'b';
@@ -91,7 +91,7 @@ describe('signalspace', () => {
 
   it('defined in derived throws error', () => {
     const s = new SignalSpace();
-    const { setable, derived } = s.ops();
+    const { setable, derived } = s;
     const a = setable<string | null>('a');
     expect(() =>
       derived(() => {
@@ -145,7 +145,7 @@ describe('signalspace', () => {
 
     let counter = 0;
     const a = setable(s, 'a');
-    const e = alwaysDerived(s, () => {
+    const e = derivedEvery(s, () => {
       counter += 1;
       return a() + 'e';
     });
@@ -173,7 +173,7 @@ describe('signalspace', () => {
 
     let counter = 0;
     const a = setable(s, 'a', { clobberBehvaior: 'justLatest' });
-    const e = alwaysDerived(s, () => {
+    const e = derivedEvery(s, () => {
       counter += 1;
       return a() + 'e';
     });
@@ -208,7 +208,7 @@ describe('signalspace', () => {
     const c = derived(s, () => {
       return b() + 'c';
     });
-    const e = alwaysDerived(s, () => {
+    const e = derivedEvery(s, () => {
       return b() + 'e';
     });
 
@@ -235,7 +235,7 @@ describe('signalspace', () => {
     const b = derived(s, () => {
       return v1() + 'b' + v2() + v3();
     });
-    const d = alwaysDerived(s, () => {
+    const d = derivedEvery(s, () => {
       return v2() + 'd';
     });
 
@@ -243,7 +243,7 @@ describe('signalspace', () => {
 
     expect(d()).toEqual('1d');
 
-    const e = alwaysDerived(s, () => {
+    const e = derivedEvery(s, () => {
       v2.update((v) => v + 1);
       // v2.set(v2({ untracked: true }) + 1);
       return v1() + 'e';

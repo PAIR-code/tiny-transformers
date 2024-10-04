@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+/* 
 import { SignalSpace } from './signalspace';
 import { ComputedSValue, WritableSValue } from './savable-value';
 import { GTensor } from '../gtensor/gtensor';
@@ -23,11 +24,12 @@ import {
 } from '../transformer/transformer_gtensor';
 import _ from 'underscore';
 import { serializeParams } from '../gtensor/params';
+import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
 
 // type MaybeReturn<T, F> = undefined extends F ? void : T;
 type MaybeReturn<T> = void extends T ? void : T;
 
-describe('signalspace-value', () => {
+fdescribe('savable-value', () => {
   async function waitTick<T>(f?: () => T): Promise<MaybeReturn<T>> {
     return new Promise<T | void>((resolve) => {
       setTimeout(() => {
@@ -44,18 +46,24 @@ describe('signalspace-value', () => {
     const s = new SignalSpace();
     const { setable, derived } = s;
 
-    const config = setable(transformerModelKind.defaultConfig, { eqCheck: _.isEqual });
-    const params = setable(initDecoderParams(transformerModelKind.defaultConfig));
+    const model = setable<EnvModel>(() => {
+      function eqCheck(x: EnvModel, y: EnvModel) {
+        
+      },
 
-    const model = derived(() => {
+      return {
+        config: transformerModelKind.defaultConfig,
+        params: initDecoderParams(transformerModelKind.defaultConfig),
+      };
+    });
+    
+    // When config changes, update the params.
+    derived(() => {
       if (!_.isEqual(model.lastValue().config, config())) {
         params.set(initDecoderParams(transformerModelKind.defaultConfig));
       }
-      return {
-        config: config(),
-        params: params(),
-      };
-    });
+    }
+
     const modelV = new ComputedSValue(savableTransformerModelKind, model);
 
     config.update((c) => {
@@ -72,3 +80,5 @@ describe('signalspace-value', () => {
     expect(modelV.value().config).toEqual(expectedModifiedConfig);
   });
 });
+
+*/

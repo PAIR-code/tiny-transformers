@@ -58,7 +58,7 @@ import { initLayerNormParams, layerNorm, LayerNormParams } from '../gtensor/laye
 import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
 import { makeModel, modelRegistry } from '../models/model_registry';
-import { SavableValueKind } from '../weblab/savable-value';
+// import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
@@ -238,21 +238,21 @@ export type TransformerModel = {
   params: TransformerParams;
 };
 
-export const savableTransformerModelKind = new SavableValueKind(
-  'SVKind_TransformerModel',
-  (x: TransformerModel) => {
-    return {
-      config: x.config as TransformerConfig,
-      params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
-    };
-  },
-  (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
-    return {
-      config: s.config as TransformerConfig,
-      params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
-    };
-  }
-);
+// export const savableTransformerModelKind = new SavableValueKind(
+//   'SVKind_TransformerModel',
+//   (x: TransformerModel) => {
+//     return {
+//       config: x.config as TransformerConfig,
+//       params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
+//     };
+//   },
+//   (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
+//     return {
+//       config: s.config as TransformerConfig,
+//       params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
+//     };
+//   }
+// );
 
 // ---------------------------------------------------------------------------
 

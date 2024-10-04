@@ -98,7 +98,7 @@ export class TinyModelsService {
   trainerConfigsMap: { [id: string]: TrainConfig } = initTrainerConfigMap;
   trainerConfig: SetableSignal<TrainConfig | null>;
   get trainerId(): string {
-    const config = this.modelConfig();
+    const config = this.trainerConfig();
     return config ? config.id : '';
   }
   get trainerConfigDefaultStr(): string {
@@ -109,13 +109,6 @@ export class TinyModelsService {
   }
 
   constructor(private route: ActivatedRoute, private router: Router) {
-    this.route.queryParams.subscribe((params) => {
-      this.selectModel(params['model'] || '');
-      this.selectTask(params['task'] || '');
-      // this.trainerName = params['trainer'] || '';
-      // this.evalInputStr = params['input'] || '';
-    });
-
     this.space = new SignalSpace();
     const { nullDerived, setable } = this.space;
     const taskId = Object.keys(this.taskConfigsMap)[0];
@@ -134,6 +127,13 @@ export class TinyModelsService {
     this.model = nullDerived<EnvModel>(() => {
       // TODO: init params... load them?
       return { config: defined(this.modelConfig) };
+    });
+
+    this.route.queryParams.subscribe((params) => {
+      this.selectModel(params['model'] || '');
+      this.selectTask(params['task'] || '');
+      // this.trainerName = params['trainer'] || '';
+      // this.evalInputStr = params['input'] || '';
     });
   }
 

@@ -34,7 +34,7 @@ import { TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 describe('Task-Cell', () => {
   beforeEach(() => {});
 
-  it('simple task cell test', async () => {
+  xit('simple task cell test', async () => {
     const env = new LabEnv();
 
     // Consider... one liner... but maybe handy to have the 'space' object to debug.

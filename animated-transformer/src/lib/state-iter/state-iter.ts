@@ -19,7 +19,8 @@ limitations under the License.
 
 // Note: it would also be possible to make a version of this that was given the
 // copy function, or that required S to be an object with a copy function. But
-// structuredClone works for so many cases, this is generally fine.
+// structuredClone works for so many cases, this is generally fine, and it's
+// nice to skip specification of copy functions and and deal with types etc.
 
 // Class wrapper so we have convenience functions handy.
 
@@ -41,7 +42,8 @@ export class StateIter<S, T> implements Iterable<T>, Iterator<T>, StateIter<S, T
   }
 
   filter(filterKeepFn: (i: T) => boolean): void {
-    const newIterFn = () => filterGen(filterKeepFn, this.iter());
+    const prevIter = this.iter();
+    const newIterFn = () => filterGen(filterKeepFn, prevIter);
     this.iter = newIterFn;
   }
 

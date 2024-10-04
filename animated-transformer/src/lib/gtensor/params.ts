@@ -51,7 +51,7 @@ Where:
 */
 
 import * as jstree from '../js_tree/js_tree';
-import { SavableValueKind } from '../weblab/savable-value';
+// import { SavableValueKind } from '../weblab/savable-value';
 import { DName, GTensor, GVariable, SerializedGTensor } from './gtensor';
 
 // ----------------------------------------------------------------------------
@@ -127,14 +127,14 @@ export function deserializeParams<SerialParams extends jstree.DictArrTree<Serial
   return params as DeserializeTensorParams<SerialParams>;
 }
 
-// Unclear if this is useful or not...
-export function savableParamsKind<Params extends jstree.DictArrTree<GTensor<any>>>() {
-  return new SavableValueKind<'SVK_Params', Params, SerializeTensorParams<Params>>(
-    'SVK_Params',
-    serializeParams as (params: Params) => SerializeTensorParams<Params>,
-    deserializeParams as (serialParams: SerializeTensorParams<Params>) => Params
-  );
-}
+// // Unclear if this is useful or not...
+// export function savableParamsKind<Params extends jstree.DictArrTree<GTensor<any>>>() {
+//   return new SavableValueKind<'SVK_Params', Params, SerializeTensorParams<Params>>(
+//     'SVK_Params',
+//     serializeParams as (params: Params) => SerializeTensorParams<Params>,
+//     deserializeParams as (serialParams: SerializeTensorParams<Params>) => Params
+//   );
+// }
 
 export function listifyVarParams<VarParams extends jstree.DictArrTree<GVariable<any>>>(
   p: VarParams

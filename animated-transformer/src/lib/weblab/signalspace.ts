@@ -139,6 +139,28 @@ export class SignalSpace {
   // when the update all effects has been completed.
   public update?: SignalSpaceUpdate;
 
+  // Convenience functions so you can write {setable} = new SignalSpace();
+  public setable = setable.bind(null, this) as <T>(
+    value: T,
+    options?: Partial<SetableOptions<T>>
+  ) => SetableSignal<T>;
+  public derived = derived.bind(null, this) as <T>(
+    f: () => T,
+    options?: DerivedOptions<T>
+  ) => DerivedSignal<T>;
+  public nullDerived = nullDerived.bind(null, this) as <T>(
+    f: () => T | null,
+    options?: DerivedOptions<T>
+  ) => DerivedSignal<T | null>;
+  public derivedEvery = derivedEvery.bind(null, this) as <T>(
+    f: () => T,
+    options?: DerivedOptions<T>
+  ) => DerivedSignal<T>;
+  public nullDerivedEvery = nullDerivedEvery.bind(null, this) as <T>(
+    f: () => T | null,
+    options?: DerivedOptions<T>
+  ) => DerivedSignal<T | null>;
+
   constructor() {}
 
   maybeContextualDefSignal(): DerivedNode<unknown> | null {
@@ -261,44 +283,18 @@ export class SignalSpace {
       },
     };
   }
+}
 
-  // TODO: is there a nicer way to do this?
-  ops() {
-    return {
-      setable: this.setable.bind(this),
-      derived: this.derived.bind(this),
-      nullDerived: this.nullDerived.bind(this),
-      derivedEvery: this.derivedEvery.bind(this),
-      alwaysNullDerived: this.alwaysNullDerived.bind(this),
-      writableFork: this.writableFork.bind(this),
-    };
+export function writableFork<T>(
+  s: AbstractSignal<T>,
+  options?: Partial<SetableOptions<T>>
+): SetableSignal<T> {
+  if (s.node.kind === 'setable') {
+    options = { ...structuredClone(s.node.options), ...options };
   }
-
-  // TODO: remove the level of indirection; and just inline the functions here.
-  setable<T>(value: T, options?: Partial<SetableOptions<T>>): SetableSignal<T> {
-    return setable(this, value, options);
-  }
-  derived<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
-    return derived(this, f, options);
-  }
-  nullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
-    return nullDerived(this, f, options);
-  }
-  derivedEvery<T>(f: () => T, options?: DerivedOptions<T>): DerivedSignal<T> {
-    return alwaysDerived(this, f, options);
-  }
-  alwaysNullDerived<T>(f: () => T | null, options?: DerivedOptions<T>): DerivedSignal<T | null> {
-    return alwaysNullDerived(this, f, options);
-  }
-
-  writableFork<T>(s: AbstractSignal<T>, options?: Partial<SetableOptions<T>>): SetableSignal<T> {
-    if (s.node.kind === 'setable') {
-      options = { ...structuredClone(s.node.options), ...options };
-    }
-    const fork = this.setable(s(), options);
-    this.derivedEvery(() => fork.set(s()));
-    return fork;
-  }
+  const fork = s.space.setable(s(), options);
+  s.space.derivedEvery(() => fork.set(s()));
+  return fork;
 }
 
 // ----------------------------------------------------------------------------
@@ -769,7 +765,7 @@ export function defined<T>(s: AbstractSignal<T | null>, untracked?: boolean): T 
 // The key characteristic of effects is that they get updated per "set" of a
 // child. Computed signals have the option to only re-compute once per tick,
 // however many "set" calls of children happen.
-export function alwaysDerived<T>(
+export function derivedEvery<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<DerivedOptions<T>>
@@ -780,7 +776,7 @@ export function alwaysDerived<T>(
 // The key characteristic of effects is that they get updated per "set" of a
 // child. Computed signals have the option to only re-compute once per tick,
 // however many "set" calls of children happen.
-export function alwaysNullDerived<T>(
+export function nullDerivedEvery<T>(
   space: SignalSpace,
   f: () => T | null,
   options?: Partial<DerivedOptions<T>>

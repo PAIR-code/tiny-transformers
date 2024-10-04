@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+/* 
+
 import { DerivedSignal, DerivedNode, SignalSpace, SetableSignal } from './signalspace';
 
 export class SavableValueKind<K extends string, T, S> {
@@ -45,3 +47,5 @@ export class ComputedSValue<K extends string, T, S> {
     this.value.set(this.proposedValue.lastValue());
   }
 }
+
+*/
