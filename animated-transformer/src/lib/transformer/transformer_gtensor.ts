@@ -17,7 +17,6 @@ limitations under the License.
  * Transformers implemented using GTensor.
  *
  * TODO: encode-decoder. (currently only have decoder models)
- * TODO: dropout.
  * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
  * TODO: loss for all tokens (currently just the last token).
  * TODO: Adam optimiser / others (currently only have SGD).
@@ -50,6 +49,9 @@ import {
   TensorLayerNormParams,
   VarLayerNormParams,
 } from '../gtensor/layer_norm';
+import {
+  dropout,
+} from './dropout';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
@@ -70,6 +72,8 @@ export type TransformerParamSpec = {
   inputRep: number;
   kqvRep: number;
   layers: TransformerParamLayerSpec[];
+  // Dropout rate on the input before going into the stack.
+  dropoutRate: number;
   relPosEncodingSeqLength?: number;
 };
 
@@ -89,6 +93,7 @@ export type AttnHeadParamSpec = {
   addLayerNormBias: boolean;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
+  // Note: dropout spec don't introduce params, so they are not here either.
 };
 
 export type TransformerParamLayerSpec = {
@@ -103,6 +108,7 @@ export type TransformerParamLayerSpec = {
 export type AttnHeadComputeSpec = {
   // Whether to include or not the residual connections in the computation.
   residuals: boolean;
+  dropoutRate: number; 
 };
 
 // ---------------------------------------------------------------------------
@@ -251,17 +257,24 @@ export function computeAttnHead(
   }
 
   const attention = rawAttention.softmax('queryPos');
+
+  // Dropout on the attention weights.
+  const attentionAfterDropout = dropout(spec.dropoutRate, attention);
+
   const attendedValues = values
-    .contract(attention.rename('queryPos', 'pos'), ['pos'])
+    .contract(attentionAfterDropout.rename('queryPos', 'pos'), ['pos'])
     .rename('keyPos', 'pos');
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
-  let normedHeadReduction = headsReduction;
+  // Dropout before layer norm and residual connection.
+  let headsReductionAfterDropout = dropout(spec.dropoutRate, headsReduction);
+
+  let normedHeadReduction = headsReductionAfterDropout;
   if (params.layerNormHeadsProjection) {
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
-      headsReduction,
+      headsReductionAfterDropout,
       'inputRepToFF'
     );
   }
@@ -274,15 +287,21 @@ export function computeAttnHead(
     inputToFF = normedHeadReduction.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
   }
 
+  // Skipped dropout in the FF, since the FF nn is a single layer with two biases.
   let unNormedSeqOuput = inputToFF
     .contract(ff.w, ['inputRepToFF'])
     .pointwiseAdd(ff.bIn)
     .applyPointWiseTfFn(gelu)
     .pointwiseAdd(ff.bOut);
+
+  // Dropout before layer norm and residual connection.
+  const unNormedSeqOuputAfterDropout = dropout(spec.dropoutRate, unNormedSeqOuput);
+
   if (spec.residuals) {
-    // FF residual
-    unNormedSeqOuput = unNormedSeqOuput.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
+    // FF residual.
+    unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
   }
+
   let seqOuput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
     seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
@@ -346,7 +365,8 @@ export function computeTransformer(
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
-  let currentLayerInput = seqInput;
+  // Dropout on the input.
+  let currentLayerInput = dropout(spec.dropoutRate, seqInput);
   params.layers.forEach((layerParams, i) => {
     const layerCompute = computeAttnHead(
       spec.layers[i].computeSpec,
@@ -356,6 +376,8 @@ export function computeTransformer(
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
   });
+  // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
+  // this in the TransformerComputation output.
   return compute;
 }
 
@@ -433,7 +455,7 @@ export function transformerTopPrediction(
 export function transformerAccuracy(
   params: TransformerComputation,
   tokenEmb: GTensor<'tokenId' | 'inputRep'>,
-  targetTokenIdxs: GTensor<'batch'>
+  targetTokenIdxs: GTensor<'batch'>,
 ): tf.Scalar {
   const predictions = transformerTopPrediction(params, tokenEmb);
 

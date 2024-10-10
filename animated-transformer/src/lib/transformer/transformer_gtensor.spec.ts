@@ -24,6 +24,7 @@ describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {
     const spec: AttnHeadComputeSpec = {
       residuals: true,
+      dropoutRate: 0.0
     };
     const paramSizes: AttnHeadParamSpec = {
       inputRep: 2,
