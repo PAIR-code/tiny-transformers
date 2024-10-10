@@ -185,7 +185,8 @@ export class ModelEvaluatorComponent {
       modelData.inputPrepFn,
       modelData.config.transformer.spec,
       modelData.params,
-      [this.input()]
+      [this.input()],
+      modelData.generator
     );
     this.modelOutput = outputs[0];
   }
@@ -206,7 +207,8 @@ export class ModelEvaluatorComponent {
         modelData.inputPrepFn,
         modelData.config.transformer.spec,
         modelData.params,
-        [input]
+        [input],
+        modelData.generator
       );
 
       const output = decoderOutputs.layers[0].seqOuput;

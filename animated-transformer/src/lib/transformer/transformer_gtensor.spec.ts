@@ -19,6 +19,7 @@ import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
+import { makeRandomStream } from '../state-iter/random';
 
 describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {
@@ -46,7 +47,8 @@ describe('GTensor Transformers', () => {
       ]),
       ['batch', 'pos', 'inputRep']
     );
-    const parts = transformer.computeAttnHead(spec, params, inputExample1);
+    const generator = makeRandomStream(0);
+    const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
     expect(parts.attendedValues.dimNames).toEqual(
       jasmine.arrayContaining(['batch', 'heads', 'value', 'pos'])
     );

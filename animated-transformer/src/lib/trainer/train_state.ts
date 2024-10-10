@@ -28,6 +28,7 @@ import { BasicLmTask, Example, generateBatch } from '../seqtasks/util';
 import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
+import { RandomStream } from '../state-iter/random';
 
 export type TrainingBatch<InputDims extends DName, TargetDims extends DName> = {
   inputs: GTensor<InputDims>;
@@ -75,12 +76,15 @@ export type LossFn<
   // The inputed dimension names of the model
   InputDims extends DName,
   // The outputed dimension names of the model
-  TargetDims extends DName
+  TargetDims extends DName,
+  // Random generator.
+  RandomStream
 > = (
   spec: SpecKind,
   params: ParamsKind,
   inputs: GTensor<InputDims>,
-  targets: GTensor<TargetDims>
+  targets: GTensor<TargetDims>,
+  generator: RandomStream,
 ) => tf.Scalar;
 
 type TensorParams = jstree.DictArrTree<GTensor<any>>;
@@ -132,14 +136,15 @@ export class TrainState<
     public params: Params,
     // Config is
     public config: TrainStateConfig,
-    public lossFn: LossFn<SpecKind, Params, InputDims, TargetDims>,
+    public lossFn: LossFn<SpecKind, Params, InputDims, TargetDims, RandomStream>,
     public tokenRep: BasicTaskTokenRep,
     public taskSplit: TaskDatasetSplit,
     public inputPrepFn: StrSeqPrepFn<Params, InputDims>,
     public targetPrepFn: (
       tokenRep: BasicTaskTokenRep,
       outputSeqs: string[][]
-    ) => GTensor<TargetDims>
+    ) => GTensor<TargetDims>,
+    public generator: RandomStream
   ) {
     // Make a copy of params with GVariables of zero value. init grad = 0
     this.grads = jstree.map(this.params, (t: GTensor<any>) => new GVariable(t.zero()));
@@ -155,7 +160,7 @@ export class TrainState<
     // number of training steps when the caller wants to programatically do
     // stuff with the udpated params.
     this._calculateGradsAndLoss = gradsVarTreeFunctor(this.params, () =>
-      this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar)
+      this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar, this.generator)
     );
 
     this.initInputsAndTargets();
@@ -232,7 +237,7 @@ export class TrainState<
 
   updateLoss(): number {
     tf.tidy(() => {
-      const loss = this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar);
+      const loss = this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar, this.generator);
       this.batchMeanLoss = loss.dataSync()[0];
     });
     return this.batchMeanLoss;

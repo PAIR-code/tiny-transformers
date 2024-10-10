@@ -26,7 +26,7 @@ import {
     seed?: number,
     dimNames?: string[],
   ): GTensor<G> {
-    if (dropoutRate = 0) {
+    if (dropoutRate == 0) {
       return g;
     }
 

@@ -41,6 +41,7 @@ import {
   strSeqPrepFn,
 } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
+import { RandomStream, makeRandomStream} from 'src/lib/state-iter/random';
 
 export type JsonConfigData = DictTree<number | string | boolean>;
 
@@ -56,6 +57,7 @@ export type ModelData = {
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>;
   params: VarTransformerParams;
   paramCount: number;
+  generator: RandomStream;
 };
 
 export class ModelSpecAndData {
@@ -304,12 +306,14 @@ export class ModelSelectorComponent {
       0,
       params
     );
+    const generator = makeRandomStream(config.transformer.init.seed);
     curModel.modelData.set({
       config,
       tokenRep,
       inputPrepFn: strSeqPrepFn,
       params,
       paramCount,
+      generator
     });
   }
 }
