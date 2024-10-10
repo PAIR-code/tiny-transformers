@@ -341,7 +341,7 @@ export function initDecoderParams(
   const tokenEmbedding = makeTruncNormal({
     tokenId: tokenRep.tokens.length,
     inputRep: spec.inputRep,
-  });
+  }, init);
   return { layers, tokenEmbedding };
 }
 
