@@ -80,10 +80,11 @@ export class StatefulCell<
         if (this.stillExpectedInputs.size === 0) {
           onceAllInputsResolver(this.inputSoFar as WritableStructFn<Subobj<Globals, Uses>>);
         }
-        // New inputs should now simply update the existing signal.
-        this.inputResolvers[inputName as string] = (value) => {
-          signal.set(value as Globals[typeof inputName]);
-        };
+        delete this.inputResolvers[inputName as string];
+        // // New inputs should now simply update the existing signal.
+        // this.inputResolvers[inputName as string] = (value) => {
+        //   signal.set(value as Globals[typeof inputName]);
+        // };
         return signal;
       });
     }
@@ -116,6 +117,7 @@ export class StatefulCell<
     } else if (data.kind === 'setSignal') {
       const signal = this.inputSoFar[data.signalId as Uses];
       if (signal) {
+        console.log(`onMessage: setSignal: ${data.signalId}`, data.signalValue);
         signal.set(data.signalValue as Globals[Uses]);
       } else {
         if (data.signalId in this.inputResolvers) {
@@ -137,17 +139,17 @@ export class StatefulCell<
     });
   }
 
-  // Note sure of the value of this separately... maybe handy if something isn't
-  // initially set.
-  requestInput<T>(signalId: string): Promise<T> {
-    const message: FromWorkerMessage = { kind: 'requestInput', signalId };
-    postMessage(message);
-    return new Promise<T>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.inputResolvers[signalId] = resolve as (v: unknown) => void;
-    });
-  }
+  // // Note sure of the value of this separately... maybe handy if something isn't
+  // // initially set.
+  // requestInput<T>(signalId: string): Promise<T> {
+  //   const message: FromWorkerMessage = { kind: 'requestInput', signalId };
+  //   postMessage(message);
+  //   return new Promise<T>((resolve, reject) => {
+  //     // TODO: consider allowing parent to send stuff before we ask for it..
+  //     // this would just involved checking the inputResolvers here.
+  //     this.inputResolvers[signalId] = resolve as (v: unknown) => void;
+  //   });
+  // }
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.

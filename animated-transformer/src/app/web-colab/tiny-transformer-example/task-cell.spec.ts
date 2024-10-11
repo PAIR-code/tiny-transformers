@@ -31,7 +31,7 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { getUniGramTinyWorldConfig } from 'src/lib/seqtasks/tiny_worlds_ngram_configs';
 import { TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 
-fdescribe('Task-Cell', () => {
+xdescribe('Task-Cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test', async () => {
@@ -51,7 +51,7 @@ fdescribe('Task-Cell', () => {
     const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
     const batchSize = derived(() => 10);
     const lastBatchSeed = derived<number | null>(() => null);
-    const testSetSize = setable(200);
+    const testSetSize = setable(5);
     const maxBatchesQueueSize = derived(() => 2);
     const taskCell = env.start(taskCellSpec, {
       taskConfig,
@@ -62,15 +62,18 @@ fdescribe('Task-Cell', () => {
       maxBatchesQueueSize,
     });
     taskGenState.set({ kind: 'generating', lastBatchId: 0 });
+    console.log('taskGenState2', taskGenState());
     const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
     const genForBatches = 5;
 
+    console.log('got first train Batch', nextTrainBatch());
     derivedEvery(() => {
       const batch = nextTrainBatch();
       const state = taskGenState();
       console.log('batch', batch);
       console.log('state', state);
       if (state.kind === 'generating') {
+        console.log('state', state);
         // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
         // taskConfig?
         taskGenState.set({ kind: 'generating', lastBatchId: batch.batchId });

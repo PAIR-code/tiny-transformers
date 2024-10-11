@@ -80,18 +80,18 @@ export class LabEnvCell<
       console.log('main thread got worker.onmessage', data);
       const messageFromWorker: FromWorkerMessage = data;
       switch (messageFromWorker.kind) {
-        case 'requestInput':
-          console.log(
-            'this.stateVars[messageFromWorker.name]: requestInput: ',
-            this.uses[messageFromWorker.signalId as I]()
-          );
-          const message: ToWorkerMessage = {
-            kind: 'setSignal',
-            signalId: messageFromWorker.signalId,
-            signalValue: this.uses[messageFromWorker.signalId as I](),
-          };
-          this.worker.postMessage(message);
-          break;
+        // case 'requestInput':
+        //   console.log(
+        //     'this.stateVars[messageFromWorker.name]: requestInput: ',
+        //     this.uses[messageFromWorker.signalId as I]()
+        //   );
+        //   const message: ToWorkerMessage = {
+        //     kind: 'setSignal',
+        //     signalId: messageFromWorker.signalId,
+        //     signalValue: this.uses[messageFromWorker.signalId as I](),
+        //   };
+        //   this.worker.postMessage(message);
+        //   break;
         // only called when the webworker is really finished.
         case 'finished':
           // TODO: what if there are missing outputs?
@@ -110,13 +110,17 @@ export class LabEnvCell<
     // In addition, whenever any of the "uses" variables are updated, we send
     // the update to the worker.
     for (const key of Object.keys(uses)) {
+      console.log('for (const key of Object.keys(uses)):', key);
       this.space.derivedEvery(() => {
+        console.log('space.computeStack', [...space.computeStack]);
         const value = uses[key as I]();
         const message: ToWorkerMessage = {
           kind: 'setSignal',
           signalId: key,
           signalValue: value,
         };
+        console.log('sending signal: ', uses[key as I].node);
+        console.log('sending: ', message);
         this.worker.postMessage(message);
       });
     }
@@ -229,7 +233,7 @@ export class LabEnv {
     //   //   cellUses[inputName] = this.stateVars[inputName];
     //   // }
     // }
-
+    console.log('cellUses', cellUses);
     const envCell = new LabEnvCell(this.space, spec, cellUses);
     envCell.sendInputs();
     envCell.onceFinished.then(() => delete this.runningCells[spec.cellName]);

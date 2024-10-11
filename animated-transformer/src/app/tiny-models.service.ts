@@ -115,7 +115,7 @@ export class TinyModelsService {
 
   constructor(private route: ActivatedRoute, private router: Router) {
     this.space = new SignalSpace();
-    const { nullDerived, setable } = this.space;
+    const { derivedNullable: nullDerived, setable } = this.space;
     const taskId = Object.keys(this.taskConfigsMap)[0];
     this.taskConfig = setable<RandLmTaskConfig | null>(this.taskConfigsMap[taskId]);
     this.task = nullDerived(() => {

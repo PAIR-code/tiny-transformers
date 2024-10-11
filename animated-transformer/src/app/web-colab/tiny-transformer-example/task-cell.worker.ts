@@ -33,7 +33,11 @@ cell.run(async () => {
   const testSetSize = await cell.inputPromises.testSetSize;
   const startFromBatchSeed = await cell.inputPromises.lastBatchSeed;
   const batchSize = await cell.inputPromises.batchSize;
-  const state = promisifySignal(await cell.inputPromises.taskGenState);
+  const rawState = await cell.inputPromises.taskGenState;
+
+  derivedEvery(() => console.log('rawState', rawState()));
+
+  const state = promisifySignal(rawState);
   const maxBatchesQueueSize = await cell.inputPromises.maxBatchesQueueSize;
   let batchId = 0;
   let curBatchesQueueSize = 0;
@@ -84,6 +88,7 @@ cell.run(async () => {
 
   // state = onceState();
   while (state().cur.kind !== 'finished') {
+    console.log('in-worker-state: ', state());
     for (
       const st = state();
       st.cur.kind === 'generating' && curBatchesQueueSize < maxBatchesQueueSize();
