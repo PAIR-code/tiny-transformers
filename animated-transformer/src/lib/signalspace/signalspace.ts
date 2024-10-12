@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { AbstractSignal, defaultEqCheck, DerivedSignal, SetableSignal } from './abstract-signal';
-import { DerivedNode, DerivedOptions } from './derived-signal';
+import { DerivedNode, DerivedNodeState, DerivedOptions } from './derived-signal';
 import { SetableNode, SetableOptions, SignalSetOptions } from './setable-signal';
 
 /**
@@ -70,23 +70,7 @@ export type Timeout = unknown;
 // Manages a single update pass through the signalspace.
 export type SignalSpaceUpdate = {
   // Values touched in this update.
-  valuesUpdated: Set<SetableNode<unknown>>;
-
-  // All sync deps touched in this update.
-  syncDepsTouched: Set<DerivedNode<unknown>>;
-
-  // Sync deps left to actually compute the update of.
-  syncDepsToUpdate: Set<DerivedNode<unknown>>;
-
-  // The set of values updated from computations.
-  // Used to avoid computation loops.
-  //
-  // A compute chain should never update the same value
-  // more than once, otherwise there is be a loop.
-  //
-  // TODO: This could be smarter: the same compute never updates
-  // the same value more than once.
-  changedValueSet: Set<SetableNode<unknown>>;
+  valuesUpdated: SetableNode<unknown>[];
 
   // The actual function that gets called with timeout of 0
   // to do the updating the signalspace.
@@ -120,26 +104,10 @@ export type SignalDepOptions = {
   downstreamNullIfNull: boolean;
 };
 
-// TODO: make a class for an instance of a dependency, and use that. e.g. to
-// hold if a specific dependency can/should nullify the parent (if the parent
-// allows it).
-// export class SetableDep {
-//   constructor(
-//     public nodes: { cause: SetableNode<unknown>, effect: DerivedNode<unknown>},
-//     public options?: Partial<SignalDepOptions>) {}
-// }
-// export class DerivedDep {
-//   constructor(
-//     public nodes: { cause: DerivedNode<unknown>, effect: DerivedNode<unknown> },
-//     public options?: Partial<SignalDepOptions>) {}
-// }
-
-export class SetableDep {
-  constructor(public node: SetableNode<unknown>, public options?: Partial<SignalDepOptions>) {}
-}
-export class DerivedDep {
-  constructor(public node: DerivedNode<unknown>, public options?: Partial<SignalDepOptions>) {}
-}
+export const defaultDepOptions = {
+  depKind: DepKind.Sync,
+  downstreamNullIfNull: false,
+};
 
 // ----------------------------------------------------------------------------
 //  Information about the context of a computation (e.g. for get or set).
@@ -222,64 +190,63 @@ export class SignalSpace {
     return this.computeStack[this.computeStack.length - 1];
   }
 
-  // propegateValueUpdate(update: SignalSpaceUpdate, derived: DerivedNode<unknown>) {
-
-  //   if(derived)
-  // }
-
   // Called whenever a setable value is set and it changes the value.
-  noteValueUpdate(valueSignal: SetableNode<unknown>): SignalSpaceUpdate {
+  propegateValueUpdate(valueSignal: SetableNode<unknown>): void {
     if (!this.update) {
       this.update = {
-        valuesUpdated: new Set(),
-        // All sync deps downstream of a member of valuesUpdated.
-        syncDepsTouched: new Set(),
-        // Remaining downstream deps to update. Subset of syncDepsTouched.
-        syncDepsToUpdate: new Set(),
-        // Subset of valuesUpdated that were changed during sync updates.
-        changedValueSet: new Set(),
+        // Values in a transaction that were set.
+        valuesUpdated: [],
         counter: this.updateCounts++,
       };
     }
-    this.update.valuesUpdated.add(valueSignal);
+
+    // Error and stop updating if we are looping.
+    if (this.update.valuesUpdated.includes(valueSignal)) {
+      console.error(
+        `A cyclic value update happened in a computation:`,
+        '\nvalueSignal & new value:',
+        valueSignal,
+        this.update.valuesUpdated
+      );
+      throw new Error('loopy setting of values');
+    }
+    //
+    this.update.valuesUpdated.push(valueSignal);
     // Make sure that we know dependencies may need updating,
     // in case they are called in a c.get() in the same JS
     // execution tick/stage.
-    for (const dep of valueSignal.dependsOnMeLazy) {
-      dep.upstreamSetableChanges = this.update.valuesUpdated;
-    }
-    for (const dep of valueSignal.dependsOnMeSync) {
-      dep.upstreamSetableChanges = this.update.valuesUpdated;
-      this.update.syncDepsTouched.add(dep);
-      this.update.syncDepsToUpdate.add(dep);
-    }
-    return this.update;
-  }
-
-  // updateInProgress(): this is { update: SignalSpaceUpdate } {
-  //   return (this.update && !this.update.updateFn) || false;
-  // }
-
-  // TODO: updates should be done based on the direct computation references,
-  // not on the value updates.
-  updateSyncDeps() {
-    if (!this.update) {
-      console.error(`Should not be called with no updateInProgress.`);
-      return;
-    }
-    // Starts the progress update...
-    while (this.update.syncDepsToUpdate.size > 0) {
-      for (const dep of this.update.syncDepsToUpdate) {
-        if (dep.upstreamSetableChanges) {
-          dep.updateFromUpstreamChanges();
+    for (const [dep, options] of valueSignal.dependsOnMe.entries()) {
+      if (options.depKind === DepKind.Lazy) {
+        dep.noteRequiresRecomputing();
+      } else {
+        // implies: options.depKind === DepKind.Sync
+        if (dep.state !== DerivedNodeState.RequiresRecomputing) {
+          dep.noteRequiresRecomputing();
+          dep.ensureUpToDate();
         }
-        this.update.syncDepsToUpdate.delete(dep);
       }
     }
-    if (this.computeStack.length === 0) {
-      delete this.update;
+
+    delete this.update;
+  }
+
+  noteStartedDerivedUpdate(node: DerivedNode<unknown>) {
+    // TODO: maybe could do loop checking...? I think we don't need to because
+    // you cannot define loopy derived compute functions, and all compute
+    // functions eventually depend on setables, and setables can only be updated
+    // by set calls, and we loop-check setable set calls.
+    if (this.update) {
+      this.computeStack.push({
+        kind: ComputeContextKind.Update,
+        node,
+      });
     }
-    console.log('updatePendingEffects: ended', [...this.computeStack]);
+  }
+
+  noteEndedDerivedUpdate(node: DerivedNode<unknown>) {
+    if (this.update) {
+      this.computeStack.pop();
+    }
   }
 
   async pipeFromAsyncIter<T>(iter: AsyncIterable<T>, signal: SetableSignal<T>) {

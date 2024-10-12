@@ -40,7 +40,7 @@ xdescribe('Task-Cell', () => {
     // Consider... one liner... but maybe handy to have the 'space' object to debug.
     // const { writable, computed } = new SignalSpace();
     const space = new SignalSpace();
-    const { setable, derived, derivedEvery } = space;
+    const { setable, derived } = space;
 
     const taskKinds = Object.keys(taskRegistry.kinds);
     const taskKind = setable<string>(taskKinds[0]);
@@ -67,7 +67,7 @@ xdescribe('Task-Cell', () => {
     const genForBatches = 5;
 
     console.log('got first train Batch', nextTrainBatch());
-    derivedEvery(() => {
+    derived(() => {
       const batch = nextTrainBatch();
       const state = taskGenState();
       console.log('batch', batch);

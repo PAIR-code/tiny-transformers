@@ -23,9 +23,7 @@ import {
   Subobj,
 } from './cellspec';
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
-// import { LabState } from './lab-state';
-import { AbstractSignal, SignalSpace, setable, SetableSignal } from '../signalspace/signalspace';
-// import { extend } from 'underscore';
+import { SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
   timestamp: Date;
@@ -111,7 +109,7 @@ export class LabEnvCell<
     // the update to the worker.
     for (const key of Object.keys(uses)) {
       console.log('for (const key of Object.keys(uses)):', key);
-      this.space.derivedEvery(() => {
+      this.space.derived(() => {
         console.log('space.computeStack', [...space.computeStack]);
         const value = uses[key as I]();
         const message: ToWorkerMessage = {

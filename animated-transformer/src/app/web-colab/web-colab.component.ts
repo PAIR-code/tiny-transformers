@@ -18,7 +18,7 @@ import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor'
 import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { DerivedSignal, SignalSpace, SetableSignal } from 'src/lib/signalspace/signalspace';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { Batch, EnvModel, TrainConfig, trainerCellSpec } from './tiny-transformer-example/ailab';
@@ -42,7 +42,7 @@ export class WebColabComponent {
     this.space = new SignalSpace();
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
-    const { setable, derived, derivedEvery } = this.space;
+    const { setable, derived } = this.space;
   }
 
   async doRun() {

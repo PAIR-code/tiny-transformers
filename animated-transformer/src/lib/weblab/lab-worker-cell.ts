@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import { FromWorkerMessage, ToWorkerMessage } from './messages';
-import { Signal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
   CellStateSpec,
@@ -27,6 +27,7 @@ import {
   Subobj,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
+import { SetableSignal } from '../signalspace/abstract-signal';
 
 export class StatefulCell<
   Globals extends ValueStruct,
@@ -214,7 +215,7 @@ export function makeMetricReporter<Name extends string>(
   }
 
   // const lastMetrics = space.writable({ batchId: -1, values: {} } as Metrics<Name>);
-  space.derivedEvery(async () => {
+  space.derived(async () => {
     const promised = promisedMetrics();
     const metric = { batchId: promised.batchId, values: {} } as Metrics<Name>;
     for (const [metricName, promise] of Object.entries<Promise<number>>(promised.values)) {

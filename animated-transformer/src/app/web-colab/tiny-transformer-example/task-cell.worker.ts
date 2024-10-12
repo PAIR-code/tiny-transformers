@@ -20,13 +20,13 @@ import { Batch, taskVars, taskCellSpec } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
-import { promisifySignal } from 'src/lib/signalspace/signalspace';
+import { DepKind, promisifySignal } from 'src/lib/signalspace/signalspace';
 import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
 
 console.log(tinyWorldTaskKind);
 
 const cell = new StatefulCell(taskVars, taskCellSpec);
-const { derived, derivedEvery, setable } = cell.space;
+const { derived, setable } = cell.space;
 
 cell.run(async () => {
   const taskConfig = await cell.inputPromises.taskConfig;
@@ -35,7 +35,7 @@ cell.run(async () => {
   const batchSize = await cell.inputPromises.batchSize;
   const rawState = await cell.inputPromises.taskGenState;
 
-  derivedEvery(() => console.log('rawState', rawState()));
+  derived(() => console.log('rawState', rawState()));
 
   const state = promisifySignal(rawState);
   const maxBatchesQueueSize = await cell.inputPromises.maxBatchesQueueSize;
@@ -70,7 +70,7 @@ cell.run(async () => {
 
   // Update the batch seed if/as needed.
   // Allows restarting generation from an earlier point.
-  derivedEvery(() => {
+  derived(() => {
     const seed = startFromBatchSeed();
     if (seed !== null) {
       dataSplitByTrainAndTest().trainExamplesIter.state.seed = seed;
@@ -79,7 +79,7 @@ cell.run(async () => {
   });
 
   function makeBatch(batchId: number, batchSize: number): Batch {
-    const batchOriginal = trainExamplesIter({ untracked: true }).takeOutN(batchSize);
+    const batchOriginal = trainExamplesIter({ depKind: DepKind.Lazy }).takeOutN(batchSize);
     const inputs = batchOriginal.map((example) => example.input);
     const outputs = batchOriginal.map((example) => example.output);
     const batchSeed = trainExamplesIter().state.seed;

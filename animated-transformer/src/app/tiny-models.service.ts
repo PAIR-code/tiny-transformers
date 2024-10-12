@@ -8,14 +8,11 @@ import {
   TransformerModel,
   transformerModelKind,
 } from 'src/lib/transformer/transformer_gtensor';
-import {
-  SignalSpace,
-  SetableSignal,
-  DerivedSignal,
-  defined,
-} from 'src/lib/signalspace/signalspace';
+import { SignalSpace, defined } from 'src/lib/signalspace/signalspace';
 import { EnvModel, TrainConfig } from './web-colab/tiny-transformer-example/ailab';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
+import { DerivedSignal, SetableSignal } from 'src/lib/signalspace/abstract-signal';
+import { SetableUpdateKind } from 'src/lib/signalspace/setable-signal';
 
 const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
 const initModelConfigsMap = {} as { [id: string]: TransformerConfig };
@@ -194,6 +191,6 @@ export class TinyModelsService {
   }
 
   reInitModelParams() {
-    this.modelConfig.set(this.modelConfig(), { updateStrategy: 'asNew' });
+    this.modelConfig.set(this.modelConfig(), { updateStrategy: SetableUpdateKind.ForceUpdate });
   }
 }

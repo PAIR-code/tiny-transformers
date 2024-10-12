@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { DerivedNode } from './derived-signal';
+import { DerivedNode, DerivedNodeState } from './derived-signal';
 import { SetableNode } from './setable-signal';
 import {
   SignalSpace,
@@ -63,12 +63,12 @@ fdescribe('signalspace', () => {
     b.set('B');
     expect(aab.get()).toEqual('aaB');
     a.set('A');
-    expect(aab.upstreamDepChanged()).toEqual(true);
+    expect(aab.state).toEqual(DerivedNodeState.HasSomeUpstreamChanges);
     expect(aab.get()).toEqual('AaB');
-    expect(aab.upstreamDepChanged()).toEqual(false);
+    expect(aab.state).toEqual(DerivedNodeState.UpToDate);
   });
 
-  it('defined in derivedNullable', () => {
+  fit('defined in derivedNullable', () => {
     const s = new SignalSpace();
     const { setable, derivedNullable } = s;
     const a = setable<string | null>('a');
@@ -134,9 +134,8 @@ fdescribe('signalspace', () => {
     expect(c().cur).toEqual('3b');
   });
 
-  it('Double setting within lazy values', async () => {
+  it('Double setting with lazy values', async () => {
     const s = new SignalSpace();
-
     let counter = 0;
     const a = setable(s, 'a');
     const e = derivedLazy(s, () => {
@@ -144,14 +143,15 @@ fdescribe('signalspace', () => {
       return a() + 'e';
     });
     expect(counter).toEqual(1);
-
     expect(a()).toEqual('a');
     expect(e()).toEqual('ae');
+    expect(counter).toEqual(1);
     a.set('A');
-    expect(e.lastValue).toEqual('ae');
+    expect(e.lastValue()).toEqual('ae');
     expect(counter).toEqual(1);
     expect(e()).toEqual('Ae');
     expect(counter).toEqual(2);
+    expect(e.lastValue()).toEqual('Ae');
     a.set('aa');
     a.set('AA');
     expect(counter).toEqual(2);
@@ -159,7 +159,7 @@ fdescribe('signalspace', () => {
     expect(counter).toEqual(3);
   });
 
-  fit('loopy setting of setables within derived values get caught', async () => {
+  it('loopy setting of setables within derived values get caught', async () => {
     const s = new SignalSpace();
     const { setable, derived } = s;
     const n = setable(1, { id: 'n' });

@@ -17,9 +17,8 @@ import { AbstractOptions, defaultEqCheck } from './abstract-signal';
 import { SetableNode } from './setable-signal';
 import {
   ComputeContextKind,
+  defaultDepOptions,
   DepKind,
-  DerivedDep,
-  SetableDep,
   SignalDepOptions,
   SignalKind,
   SignalSpace,
@@ -30,6 +29,9 @@ export type DerivedOptions<T> = AbstractOptions<T> & {
   // When true, the type `T` must be of the form `S | null` (null must extend
   // T). The idea is that the value of this derivedNode is `null` if any
   // dependency is wrapped in a `defined`, and that child dep's valuye is null.
+  //
+  // TODO: generalise nullTyped to it's algebraic nature:
+  // It's a pooling operation with optional early exit.
   nullTyped: null extends T ? boolean : false;
 
   // Sync means the signal is updated synchronously from its dependencies. Lazy
@@ -53,37 +55,32 @@ export function defaultDerivedOptions<T>(): DerivedOptions<T> {
   };
 }
 
+export enum DerivedNodeState {
+  RequiresRecomputing = 'RequiresRecomputing',
+  HasSomeUpstreamChanges = 'HasSomeUpstreamChanges',
+  UpToDate = 'UpToDate',
+}
+
 // ----------------------------------------------------------------------------
 //  DerivedNode
 // ----------------------------------------------------------------------------
 export class DerivedNode<T> {
-  // These are critical for lazy updates. If we only supported sync updates,
-  // these would not be needed. But you need to know is a dependency's
-  // last-update not the same as the update you need. If it is the same, you
-  // don't need to recompute it, but if it's different, you do.
-  //
-  // updateNeeded is the latest update that needs to be applied to this node.
-  // This is set whenever an upstream setable signal is set.
-  // updateNeeded?: SignalSpaceUpdate;
-  // lastUpdate is the last update that was applied to this node.
-  // lastUpdate?: SignalSpaceUpdate;
+  // // subset of "dependsOnSetables" that have changed.
+  // upstreamSetableChanges?: Set<SetableNode<unknown>>;
 
-  upstreamSetableChanges?: Set<SetableNode<unknown>>;
+  // True when one of dependsOn(Computing|Setables) has changed, and we need to
+  // re-run computeFunction.
+  state: DerivedNodeState = DerivedNodeState.UpToDate;
 
-  // get needsUpdating() {
-  //   return this.updateNeeded !== this.lastUpdate;
-  // }
+  // Directly downstream dependencies (when this is changed, update these).
+  dependsOnMe = new Map<DerivedNode<unknown>, SignalDepOptions>();
 
-  // TODO: use this to check if any child dep changed,
-  // and thus this needs recomputation.
-  dependsOnMeSync = new Set<DerivedNode<unknown>>();
-  dependsOnMeLazy = new Set<DerivedNode<unknown>>();
+  // Direct upstream derived node dependencies (to compute this, one needs to
+  // compute... 'dependsOnComputing')
+  dependsOnComputing = new Map<DerivedNode<unknown>, SignalDepOptions>();
 
-  // Direct dependencies on Derived Notes.
-  dependsOnComputing = new Set<DerivedDep>();
-
-  // Direct dependenies on Setable Nodes.
-  dependsOnSetables = new Set<SetableDep>();
+  // Direct upstream setable dependenies (changes to these directly .
+  dependsOnSetables = new Map<SetableNode<unknown>, SignalDepOptions>();
 
   // // This is true when we are set to null because a child dependency is null.
   // // Should only be possible to true when `this.options.nullTyped === true`.
@@ -95,6 +92,8 @@ export class DerivedNode<T> {
   get id() {
     return `d${this.nodeId}_${(this.options && this.options.id) || ''}`;
   }
+
+  noteChangedSetable(s: SetableNode<unknown>) {}
 
   constructor(
     public signalSpace: SignalSpace,
@@ -115,70 +114,71 @@ export class DerivedNode<T> {
     this.signalSpace.computeStack.pop();
   }
 
-  upstreamDepChanged(): boolean {
-    let upstreamDepChanged = false;
-    for (const dep of this.dependsOnComputing) {
-      if (dep.node.upstreamSetableChanges) {
-        upstreamDepChanged = upstreamDepChanged || dep.node.updateFromUpstreamChanges();
-        if (
-          // this.setToNullDueToNullChild ||
-          dep.options &&
-          dep.options.downstreamNullIfNull &&
-          this.options.nullTyped && // Should be true by construction, remove?
-          dep.node.lastValue === null
-        ) {
-          this.nullBecauseUpstreamNull = true;
-          // return true here is confusing because we are really using it as a
-          // fast exit to set this value here to null and not think about it any
-          // more.
-          return true;
-        }
+  noteRequiresRecomputing() {
+    const initState = this.state;
+    this.state = DerivedNodeState.RequiresRecomputing;
+    if (initState === DerivedNodeState.UpToDate) {
+      for (const depOnMe of this.dependsOnMe.keys()) {
+        depOnMe.noteHasSomeUpstreamChanges();
       }
     }
-    if (upstreamDepChanged) {
-      return true;
-    }
-    if (this.upstreamSetableChanges) {
-      for (const valueDep of this.dependsOnSetables) {
-        if (
-          valueDep.options &&
-          valueDep.options.downstreamNullIfNull &&
-          valueDep.node.value === null
-        ) {
-          this.nullBecauseUpstreamNull = true;
-          // return true here is confusing because we are really using it as a
-          // fast exit to set this value here to null and not think about it any
-          // more.
-          return true;
-        }
-        if (this.upstreamSetableChanges.has(valueDep.node)) {
-          return true;
-        }
+  }
+  noteHasSomeUpstreamChanges() {
+    if (this.state === DerivedNodeState.UpToDate) {
+      this.state = DerivedNodeState.HasSomeUpstreamChanges;
+      for (const depOnMe of this.dependsOnMe.keys()) {
+        depOnMe.noteHasSomeUpstreamChanges();
       }
     }
-    return false;
   }
 
-  // Assumed to only be called when `this.needsUpdating === true`
-  // Meaning that some value under one of the `this.dependsOnComputing`
-  // (and maybe sub this.dependsOnValues was changed.)
   //
-  // Return true when the value changed.
-  updateFromUpstreamChanges(): boolean {
-    let valueChanged = false;
+  checkUpstreamChanges(): void {
+    // let upstreamDepChanged = false;
+    for (const [dep, options] of this.dependsOnComputing.entries()) {
+      if (dep.state !== DerivedNodeState.UpToDate) {
+        //
+        dep.ensureUpToDate();
+        // Note: options.downstreamNullIfNull ==> this.options.nullTyped
+        if (this.options.nullTyped && options.downstreamNullIfNull && dep.lastValue === null) {
+          this.nullBecauseUpstreamNull = true;
+          break;
+        }
+      }
+    }
+    if (this.nullBecauseUpstreamNull) {
+      return;
+    }
+    if (this.options.nullTyped) {
+      for (const [setableDep, depOptions] of this.dependsOnSetables.entries()) {
+        if (depOptions.downstreamNullIfNull && setableDep.value === null) {
+          this.nullBecauseUpstreamNull = true;
+          break;
+        }
+      }
+    }
+  }
+
+  ensureUpToDate(): void {
+    if (this.state === DerivedNodeState.UpToDate) {
+      return;
+    }
     // console.log('compute.update: ', {
     //   lastValue: this.lastValue,
     //   lastUpdate: this.lastUpdate ? this.lastUpdate.counter : 'undef',
     //   mayNeedUpdating: this.updateNeeded ? this.updateNeeded.counter : 'undef',
     // });
-    this.signalSpace.computeStack.push({
-      kind: ComputeContextKind.Update,
-      node: this as DerivedNode<unknown>,
-    });
 
-    if (this.upstreamDepChanged()) {
-      // this.lastUpdate = this.updateNeeded || this.lastUpdate;
-      // delete this.updateNeeded;
+    // A reason we need to track the computeStack is that values can be set
+    // within a get call. When that happens, within the set's effect, we need to
+    // know we are no longer adding get calls to the dependencies of the
+    // definition.
+    this.signalSpace.noteStartedDerivedUpdate(this as DerivedNode<unknown>);
+
+    // checkUpstreamChanges may change this.state to "RequiresRecomputing", if
+    // it does indeed require recomputing.
+    this.checkUpstreamChanges();
+    if (this.state === DerivedNodeState.RequiresRecomputing) {
       let newValue: T;
       if (this.nullBecauseUpstreamNull) {
         // This is a lie that has to be caught at runtime by the `defined`
@@ -189,40 +189,48 @@ export class DerivedNode<T> {
         newValue = this.computeFunction();
       }
       if (!this.options.eqCheck(this.lastValue, newValue)) {
-        valueChanged = true;
         this.lastValue = newValue;
+        for (const [depOnMe, options] of this.dependsOnMe.entries()) {
+          depOnMe.noteRequiresRecomputing();
+          if (options.depKind === DepKind.Sync) {
+            depOnMe.ensureUpToDate();
+          }
+        }
       }
     }
     // Reset the possibility that a child is null, and wants me to be null
     // because of it.
     this.nullBecauseUpstreamNull = false;
-    this.signalSpace.computeStack.pop();
-    delete this.upstreamSetableChanges;
-    return valueChanged;
+    this.signalSpace.noteEndedDerivedUpdate(this as DerivedNode<unknown>);
+    this.state = DerivedNodeState.UpToDate;
+    return;
+  }
+
+  noteDependsOnComputing(
+    node: DerivedNode<unknown>,
+    depOptions?: Partial<SignalDepOptions>
+  ): SignalDepOptions {
+    const newOptions: SignalDepOptions = {
+      ...defaultDepOptions,
+      ...depOptions,
+    };
+    const existingDep = this.dependsOnComputing.get(node);
+    if (existingDep) {
+      if (existingDep.depKind === DepKind.Sync || newOptions.depKind === DepKind.Sync) {
+        // update DepKind to be Sync.
+        newOptions.depKind = DepKind.Sync;
+      }
+      newOptions.downstreamNullIfNull =
+        existingDep.downstreamNullIfNull || newOptions.downstreamNullIfNull;
+    }
+    this.dependsOnComputing.set(node, newOptions);
+    return newOptions;
   }
 
   get(options?: Partial<SignalDepOptions>): T {
     const computeContext = this.signalSpace.computeContext();
     if (computeContext.kind === ComputeContextKind.Definition) {
       const defNode = computeContext.node;
-      console.warn(`[def ${defNode.id}] ${this.id}.get()`);
-      const dep = new DerivedDep(this as DerivedNode<unknown>, options);
-      defNode.dependsOnComputing.add(dep);
-      const depKind = !options ? DepKind.Sync : options.depKind;
-      if (depKind === DepKind.Sync || defNode.options.kind === SignalKind.SyncDerived) {
-        this.dependsOnMeSync.add(defNode);
-      } else {
-        this.dependsOnMeLazy.add(defNode);
-      }
-
-      for (const dep of this.dependsOnSetables) {
-        defNode.dependsOnSetables.add(dep);
-        if (depKind === DepKind.Sync || defNode.options.kind === SignalKind.SyncDerived) {
-          dep.node.dependsOnMeSync.add(defNode);
-        } else {
-          dep.node.dependsOnMeLazy.add(defNode);
-        }
-      }
       if (options && options.downstreamNullIfNull && !defNode.options.nullTyped) {
         console.warn('downstreamNullIfNull dependency must be in a nullType signal', {
           signal: this,
@@ -230,10 +238,13 @@ export class DerivedNode<T> {
         });
         throw new Error('downstreamNullIfNull dependency must be in a nullType signal');
       }
+
+      console.warn(`[def ${defNode.id}] ${this.id}.get()`);
+      // const dep = new DerivedDep(this as DerivedNode<unknown>, options);
+      const depOptions = defNode.noteDependsOnComputing(this as DerivedNode<unknown>, options);
+      this.dependsOnMe.set(defNode, depOptions);
     }
-    if (this.upstreamSetableChanges) {
-      this.updateFromUpstreamChanges();
-    }
+    this.ensureUpToDate();
     return this.lastValue;
   }
 }

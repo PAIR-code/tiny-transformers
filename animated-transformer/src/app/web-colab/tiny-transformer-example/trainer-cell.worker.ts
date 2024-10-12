@@ -42,11 +42,11 @@ import {
 } from 'src/lib/gtensor/params';
 
 const cell = new StatefulCell(trainerVars, trainerCellSpec);
-const { derived, derivedEvery, setable } = cell.space;
+const { derived, setable } = cell.space;
 
 const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
 const { reportMetrics } = makeMetricReporter(cell.space, metrics);
-derivedEvery(() => cell.output('lastTrainMetric', metrics()));
+derived(() => cell.output('lastTrainMetric', metrics()));
 
 function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig): tf.Scalar {
   const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
@@ -99,7 +99,7 @@ cell.run(async () => {
   const nextTrainBatch = await cell.inputPromises.nextTrainBatch;
 
   const model = setable(updateModel(initModel()));
-  derivedEvery(() => updateModel(initModel(), model()));
+  derived(() => updateModel(initModel(), model()));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.
@@ -107,7 +107,7 @@ cell.run(async () => {
 
   let optimizer = tf.train.adam();
 
-  derivedEvery(() => {
+  derived(() => {
     optimizer.minimize(
       () => computeLoss(model(), nextTrainBatch(), trainConfig()),
       false,
