@@ -25,7 +25,7 @@ import {
   SignalKind,
 } from './signalspace';
 
-fdescribe('signalspace', () => {
+describe('signalspace', () => {
   it('Simple signal compute', () => {
     const s = new SignalSpace();
     const ab = new SetableNode(s, 'b' as 'a' | 'b');
@@ -53,22 +53,36 @@ fdescribe('signalspace', () => {
     expect(c.get()).toEqual('Abc');
   });
 
-  it('Compound signal graph with lazy node', async () => {
+  it('Compound signal graph with lazy node updates', async () => {
     const s = new SignalSpace();
-    const a = new SetableNode(s, 'a');
-    const b = new SetableNode(s, 'b');
-    const aa = new DerivedNode(s, () => a.get() + 'a');
-    const aab = new DerivedNode(s, () => aa.get() + b.get(), { kind: SignalKind.LazyDerived });
+    const a = new SetableNode(s, 'a', { id: 'a' });
+    const b = new SetableNode(s, 'b', { id: 'b' });
+    const aa = new DerivedNode(s, () => a.get() + 'a', { id: 'aa' });
+    const aab = new DerivedNode(s, () => aa.get() + b.get(), {
+      kind: SignalKind.LazyDerived,
+      id: 'aab',
+    });
+    const aabc = new DerivedNode(s, () => aab.get() + 'c', {
+      kind: SignalKind.LazyDerived,
+      id: 'aabc',
+    });
     expect(aab.get()).toEqual('aab');
     b.set('B');
     expect(aab.get()).toEqual('aaB');
+    expect(aabc.get()).toEqual('aaBc');
+    expect(aab.state).toEqual(DerivedNodeState.UpToDate);
+    expect(aabc.state).toEqual(DerivedNodeState.UpToDate);
     a.set('A');
-    expect(aab.state).toEqual(DerivedNodeState.HasSomeUpstreamChanges);
+    expect(aab.state).toEqual(DerivedNodeState.RequiresRecomputing);
+    expect(aabc.state).toEqual(DerivedNodeState.HasSomeUpstreamChanges);
     expect(aab.get()).toEqual('AaB');
+    expect(aab.state).toEqual(DerivedNodeState.UpToDate);
+    expect(aabc.state).toEqual(DerivedNodeState.RequiresRecomputing);
+    expect(aabc.get()).toEqual('AaBc');
     expect(aab.state).toEqual(DerivedNodeState.UpToDate);
   });
 
-  fit('defined in derivedNullable', () => {
+  it('derivedNullable on value', () => {
     const s = new SignalSpace();
     const { setable, derivedNullable } = s;
     const a = setable<string | null>('a');
@@ -105,15 +119,16 @@ fdescribe('signalspace', () => {
     const s = new SignalSpace();
     const { setable, derived, derivedLazy } = s;
     const a = setable('a');
-    const b = derivedLazy(() => a() + 'b');
-    const c = derivedLazy(() => b() + 'c');
-    const e = derived(() => b() + 'e');
-    expect(c()).toEqual('abc');
-    expect(e()).toEqual('abe');
+    const lazyAB = derivedLazy(() => a() + 'b');
+    const lazyABC = derivedLazy(() => lazyAB() + 'c');
+    const syncEfromLazyAB = derived(() => lazyAB() + 'e');
+    expect(lazyABC()).toEqual('abc');
+    expect(syncEfromLazyAB()).toEqual('abe');
     a.set('A');
-    expect(c.lastValue).toEqual('abc');
-    expect(e.lastValue).toEqual('Abe');
-    expect(c()).toEqual('Abc');
+    expect(lazyABC.lastValue()).toEqual('abc');
+    expect(syncEfromLazyAB.lastValue()).toEqual('abe');
+    expect(lazyABC()).toEqual('Abc');
+    expect(syncEfromLazyAB.lastValue()).toEqual('Abe');
   });
 
   it('promisifySignal', async () => {
@@ -159,21 +174,14 @@ fdescribe('signalspace', () => {
     expect(counter).toEqual(3);
   });
 
-  it('loopy setting of setables within derived values get caught', async () => {
+  it('Defining derived values that perform an untracked set (using update)', async () => {
     const s = new SignalSpace();
     const { setable, derived } = s;
     const n = setable(1, { id: 'n' });
     const m = setable(10, { id: 'm' });
-    // Uncommenting below causes the set in update call of 'e' to re-execute 'a'
-    // (becaue it depends on n), which calls a get on 'n', which makes e to
-    // depend on 'n': a speaky dependency creep...
-    const a = derived(
-      () => {
-        return n() + 'a';
-      },
-      { id: 'a' }
-    );
-    expect(a()).toEqual('1a');
+    const na = derived(() => n() + 'a', { id: 'na' });
+    expect(na()).toEqual('1a');
+    // Make an effect that, on every update to m, increases the value of n.
     derived(
       () => {
         m();
@@ -181,30 +189,42 @@ fdescribe('signalspace', () => {
       },
       { id: 'e' }
     );
+    // The initial definiton of 'e' updates n
     expect(n()).toEqual(2);
-    expect(a()).toEqual('2a');
+    expect(na()).toEqual('2a');
+    // Now we update m, n is 3!
     m.set(20);
     expect(n()).toEqual(3);
-    expect(a()).toEqual('3a');
+    expect(na()).toEqual('3a');
   });
 
-  xit('Loopy setting within lazy derivations is fine', async () => {
+  it('Loopy setting of values throws error', async () => {
+    const s = new SignalSpace();
+    const { setable, derived } = s;
+    const n = setable(1);
+    expect(() =>
+      derived(() => {
+        n.set(n() + 1);
+      })
+    ).toThrow();
+  });
+
+  it('Loopy setting of values in lazy, does not and is ok', async () => {
     const s = new SignalSpace();
     const { setable, derivedLazy } = s;
     const n = setable(1);
-    const a = derivedLazy(() => {
-      return n() + 'a';
+    const a = setable('a');
+    const lazy = derivedLazy(() => {
+      n.set(n() + 1);
+      a();
+      return n();
     });
-
-    expect(a()).toEqual('1a');
-    console.log(
-      derivedLazy(() => {
-        n.update((v) => v + 1);
-      })
-    );
-
-    expect(n()).toEqual(2);
-    expect(a()).toEqual('2a');
-    expect(a()).toEqual('3a');
+    // definition updates n to 2.
+    expect(lazy()).toEqual(2);
+    // Note this is not re-evaluated because nothing changed.
+    expect(lazy()).toEqual(2);
+    a.set('b');
+    expect(lazy.lastValue()).toEqual(2);
+    expect(lazy()).toEqual(3);
   });
 });

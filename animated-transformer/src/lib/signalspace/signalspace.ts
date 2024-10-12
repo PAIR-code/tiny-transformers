@@ -219,7 +219,6 @@ export class SignalSpace {
       if (options.depKind === DepKind.Lazy) {
         dep.noteRequiresRecomputing();
       } else {
-        // implies: options.depKind === DepKind.Sync
         if (dep.state !== DerivedNodeState.RequiresRecomputing) {
           dep.noteRequiresRecomputing();
           dep.ensureUpToDate();

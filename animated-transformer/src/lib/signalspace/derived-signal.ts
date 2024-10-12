@@ -70,7 +70,7 @@ export class DerivedNode<T> {
 
   // True when one of dependsOn(Computing|Setables) has changed, and we need to
   // re-run computeFunction.
-  state: DerivedNodeState = DerivedNodeState.UpToDate;
+  state: DerivedNodeState;
 
   // Directly downstream dependencies (when this is changed, update these).
   dependsOnMe = new Map<DerivedNode<unknown>, SignalDepOptions>();
@@ -112,6 +112,7 @@ export class DerivedNode<T> {
     // to be called with s.get(), and these will add all
     this.lastValue = computeFunction();
     this.signalSpace.computeStack.pop();
+    this.state = DerivedNodeState.UpToDate;
   }
 
   noteRequiresRecomputing() {
@@ -163,12 +164,6 @@ export class DerivedNode<T> {
     if (this.state === DerivedNodeState.UpToDate) {
       return;
     }
-    // console.log('compute.update: ', {
-    //   lastValue: this.lastValue,
-    //   lastUpdate: this.lastUpdate ? this.lastUpdate.counter : 'undef',
-    //   mayNeedUpdating: this.updateNeeded ? this.updateNeeded.counter : 'undef',
-    // });
-
     // A reason we need to track the computeStack is that values can be set
     // within a get call. When that happens, within the set's effect, we need to
     // know we are no longer adding get calls to the dependencies of the
@@ -212,6 +207,7 @@ export class DerivedNode<T> {
   ): SignalDepOptions {
     const newOptions: SignalDepOptions = {
       ...defaultDepOptions,
+      depKind: this.options.kind === SignalKind.LazyDerived ? DepKind.Lazy : DepKind.Sync,
       ...depOptions,
     };
     const existingDep = this.dependsOnComputing.get(node);

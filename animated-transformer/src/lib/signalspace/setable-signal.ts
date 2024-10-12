@@ -111,6 +111,7 @@ export class SetableNode<T> {
     }
 
     this.dependsOnMe.set(node, newOptions);
+    node.dependsOnSetables.set(this as SetableNode<unknown>, newOptions);
     return newOptions;
   }
 
@@ -144,11 +145,8 @@ export class SetableNode<T> {
   }
 
   set(v: T, setOptions?: SignalSetOptions) {
-    console.log(`${this.id}: set(${v})`);
-
     const updateStrategy = setOptions ? setOptions.updateStrategy : SetableUpdateKind.EqCheck;
     if (updateStrategy === SetableUpdateKind.Untracked || !this.hasDerivedSignals()) {
-      console.log(`${this.id}: set, skipping updating effects: ${v}`);
       this.value = v;
       return;
     } else if (
