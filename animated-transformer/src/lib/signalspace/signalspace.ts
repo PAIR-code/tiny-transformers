@@ -18,64 +18,46 @@ import { DerivedNode, DerivedNodeState, DerivedOptions } from './derived-signal'
 import { SetableNode, SetableOptions, SignalSetOptions } from './setable-signal';
 
 /**
- * This is a special opinionated take on Signals, inspired by Angular's
- * implementation, but also a little different. Consider:
+ * This is a special opinionated take on Signals, inspired by the syntax of
+ * Angular's implementation, but allowing for both lazy and eager updates.
  *
  * ```
  * const s = setable(() => ...)
  * const c = derived(() =>  ... s() ...)
- * const e = derivedEvery(() => ... s() ...)
+ * const e = derivedLazy(() => ... s() ...)
  * ```
  *
  * Semantics:
  *
- *  * setable: holds values that can be edited.
- *  * derived: maybe sync, maybe next tick computations, per tick value set
- *    changes
- *  * derivedEvery: thread-sync effects, per value change
+ *  * setable: holds values that can be set/edited.
+ *  * derived: a derived value, updated sync by default from any dependent
+ *    signals.
+ *  * derivedLazy: computation is evaluted only when requested. This allows many
+ *    of it's dependencies to be updated, but only to cause a single actual
+ *    computation update when needed.
  *
- * `c` will get updated lazily, i.e. whenever c() or c.get() is called). `e`
- * will be updated eagerly, every time there's any updates to any signals that e
- * depends on, e.g. whenever s.set(...) is called.
+ * You are allowed to have "set" calls within derived signals; but if you create
+ * a loop of settings calls that results in a set causing a change to its own
+ * value, then a runtime error is thrown.
  *
- * Cool thing: It's fine to call `s.set` in a derived signal or effect, but if
- * you create a cycle, only one pass through the cycle will happen, and you'll
- * get a JS console error with a trace. But this lets you do safe stuff easily,
- * like make set stuff that was not set before, and that will cause new signal
- * effects (derivedEvery). Loops of `.set` are not allowed, and will be caught
- * and produce an error.
+ * Under the hood each dependency specifies if it is eager or lazy. Sync means
+ * that whenever this particular upstream dependeny changes, the downstream
+ * signal gets updated during the same JS event execution as the upsream change
+ * happened. Lazy means that when we track when updates are needed, but the
+ * downstream computation only happens when the downstream signal value is
+ * requested. This allows fine grained control and efficient computation
+ * management (e.g. to have many downstreams things change, but only cause a
+ * single upstream update).
  *
- * TODO: think about if this guarentees termination since there is a finite set
- * of dependee signals in any given update call (existing effects can't change
- * the set of things they depend on)... (CONSIDER proof: what about effects that
- * create new signals, and those new signals trigger new effects - they can't
- * trigger old effects because those old effects are already defined.)
+ * See the unit tests for details and examples of the semantics.
  *
- * CONSIDER: ideally, it would be nice to track dependencies in the type
- * system...
- *
- * TODO: Make explicit the notion of a set of updates, and when they are
- * triggered. e.g. updateCachedValue(...) should not directly trigger. Where
- * emit(...) should.
- *
- * CONSIDER: maybe alwaysDerived (called effects earlier) should be always
- * derived from what defines it, rather than from the root setable nodes. Right
- * now I think the long range implicit dependency is likely to be surprising and
- * confusing; it's just a bit too subtle.
+ * TODO: Make an explicit "transaction" for a set of updates.
  */
-
-// Intended to be a type for the result of setTimeout.
-export type Timeout = unknown;
 
 // Manages a single update pass through the signalspace.
 export type SignalSpaceUpdate = {
-  // Values touched in this update.
+  // Values touched in this update. Used to track loops of setting values.
   valuesUpdated: SetableNode<unknown>[];
-
-  // The actual function that gets called with timeout of 0
-  // to do the updating the signalspace.
-  // It gets removed from here after it is called.
-  // updateFn?: Timeout;
   counter: number;
 };
 
