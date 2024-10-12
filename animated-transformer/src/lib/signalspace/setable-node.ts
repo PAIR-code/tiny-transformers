@@ -13,18 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Sign } from '@tensorflow/tfjs';
-import { AbstractOptions, defaultEqCheck } from './abstract-signal';
-import { DerivedNode } from './derived-signal';
+import { DerivedNode } from './derived-node';
 import {
   ComputeContextKind,
   defaultDepOptions,
   DepKind,
   SignalDepOptions,
-  SignalKind,
   SignalSpace,
-  SignalSpaceUpdate,
+  SignalKind,
+  defaultSignalOptions,
+  BasicSignalOptions,
 } from './signalspace';
+
+// ----------------------------------------------------------------------------
+//  Setable options
+// ----------------------------------------------------------------------------
+export type SetableOptions<T> = BasicSignalOptions<T>;
+export const defaultSetableOptions: <T>() => SetableOptions<T> = defaultSignalOptions;
 
 // ----------------------------------------------------------------------------
 //  Options when setting a value.
@@ -42,29 +47,6 @@ export enum SetableUpdateKind {
 export type SignalSetOptions = {
   updateStrategy: SetableUpdateKind;
 };
-
-// General options for a setable.
-export type SetableOptions<T> = AbstractOptions<T> & {
-  // If a value is set more than once js-execution-tick, what should the update
-  // behvaior be?
-  //
-  // * 'alwaysUpdate' ==> dependent effects (and intermediate computations) get
-  //   called for each.
-  //
-  // * 'justLatest' ==> dependent effects and computations get called once only,
-  //   with the latest value.
-  //
-  // CONSIDER: introduce a transaction set concept, where updates happen at the
-  // end of the transaction (either sync, or in next tick)
-  clobberBehvaior: 'alwaysUpdateSync' | 'justLatestNextTick';
-};
-
-export function defaultSetableOptions<T>(): SetableOptions<T> {
-  return {
-    eqCheck: defaultEqCheck,
-    clobberBehvaior: 'alwaysUpdateSync',
-  };
-}
 
 // ----------------------------------------------------------------------------
 //  SetableNode

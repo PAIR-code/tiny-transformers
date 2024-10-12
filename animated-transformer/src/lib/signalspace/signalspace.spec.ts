@@ -13,17 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { DerivedNode, DerivedNodeState } from './derived-signal';
-import { SetableNode } from './setable-signal';
-import {
-  SignalSpace,
-  setable,
-  derived,
-  derivedLazy,
-  defined,
-  promisifySignal,
-  SignalKind,
-} from './signalspace';
+import { DerivedNode, DerivedNodeState } from './derived-node';
+import { SetableNode } from './setable-node';
+import { SignalSpace, defined, promisifySignal, SignalKind } from './signalspace';
 
 describe('signalspace', () => {
   it('Simple signal compute', () => {
@@ -151,9 +143,10 @@ describe('signalspace', () => {
 
   it('Double setting with lazy values', async () => {
     const s = new SignalSpace();
+    const { setable, derivedLazy } = s;
     let counter = 0;
-    const a = setable(s, 'a');
-    const e = derivedLazy(s, () => {
+    const a = setable('a');
+    const e = derivedLazy(() => {
       counter += 1;
       return a() + 'e';
     });

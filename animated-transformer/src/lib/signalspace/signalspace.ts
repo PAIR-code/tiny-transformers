@@ -13,9 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { AbstractSignal, defaultEqCheck, DerivedSignal, SetableSignal } from './abstract-signal';
-import { DerivedNode, DerivedNodeState, DerivedOptions } from './derived-signal';
-import { SetableNode, SetableOptions, SignalSetOptions } from './setable-signal';
+import { DerivedNode, DerivedNodeState, DerivedOptions } from './derived-node';
+import { SetableNode, SetableOptions, SignalSetOptions } from './setable-node';
 
 /**
  * This is a special opinionated take on Signals, inspired by the syntax of
@@ -54,12 +53,55 @@ import { SetableNode, SetableOptions, SignalSetOptions } from './setable-signal'
  * TODO: Make an explicit "transaction" for a set of updates.
  */
 
-// Manages a single update pass through the signalspace.
-export type SignalSpaceUpdate = {
-  // Values touched in this update. Used to track loops of setting values.
-  valuesUpdated: SetableNode<unknown>[];
-  counter: number;
+// ----------------------------------------------------------------------------
+export type AbstractSignal<T> = {
+  // The get signal's get value function. If this is a derived signal that
+  // needs updating, it will compute the updated value.
+  (options?: Partial<SignalDepOptions>): T;
+  space: SignalSpace;
+  // The last value the signal had (doesn't compute updates, even if
+  // the signal needs updating).
+  lastValue(): T;
+  node: SetableNode<T> | DerivedNode<T>;
+  // options?: Partial<AbstractOptions<T>>;
 };
+
+// ----------------------------------------------------------------------------
+export type SetableSignal<T> = AbstractSignal<T> & {
+  // Sets the value of the signal.
+  set(newValue: T, options?: Partial<SignalSetOptions>): void;
+  update(f: (oldValue: T) => T, options?: Partial<SignalSetOptions>): void;
+  node: SetableNode<T>;
+};
+
+export type DerivedSignal<T> = AbstractSignal<T> & {
+  node: DerivedNode<T>;
+};
+
+// ----------------------------------------------------------------------------
+export type BasicSignalOptions<T> = {
+  eqCheck: (x: T, y: T) => boolean;
+  id?: string;
+};
+export function defaultEqCheck<T>(x: T, y: T) {
+  return x === y;
+}
+export function defaultSignalOptions<T>(): BasicSignalOptions<T> {
+  return {
+    eqCheck: defaultEqCheck,
+  };
+}
+
+// ----------------------------------------------------------------------------
+export enum SignalKind {
+  // Setable signals contain root values that can be set, triggering derived
+  // siganls to be updated.
+  Setable = 'SetableSignalKind',
+  // Derived signals have a function and dependendies on other derived signals
+  // and setable siganls.
+  SyncDerived = 'SyncDerivedSignalKind',
+  LazyDerived = 'LazyDerivedSignalKind',
+}
 
 // ----------------------------------------------------------------------------
 //  Options specifying a dependency (relevant within a "get" in the context of a
@@ -113,15 +155,13 @@ export type ComputeContext =
       kind: ComputeContextKind.NoComputeContext;
     };
 
-export enum SignalKind {
-  // Setable signals contain root values that can be set, triggering derived
-  // siganls to be updated.
-  Setable = 'SetableSignalKind',
-  // Derived signals have a function and dependendies on other derived signals
-  // and setable siganls.
-  SyncDerived = 'SyncDerivedSignalKind',
-  LazyDerived = 'LazyDerivedSignalKind',
-}
+// ----------------------------------------------------------------------------
+// Manages a single update pass through the signalspace.
+export type SignalSpaceUpdate = {
+  // Values touched in this update. Used to track loops of setting values.
+  valuesUpdated: SetableNode<unknown>[];
+  counter: number;
+};
 
 // ----------------------------------------------------------------------------
 export class SignalSpace {
@@ -230,12 +270,14 @@ export class SignalSpace {
     }
   }
 
+  // Update a signal every time the async iter gets a new item.
   async pipeFromAsyncIter<T>(iter: AsyncIterable<T>, signal: SetableSignal<T>) {
     for await (const i of iter) {
       signal.set(i);
     }
   }
 
+  // Every update to the signal becomes an item in the async iterable.
   // CONSIDER: T must not be undefined?
   async *toIter<T>(s: SetableSignal<T> | DerivedSignal<T>): AsyncIterable<T> {
     // const self = this;
@@ -271,26 +313,12 @@ export class SignalSpace {
   }
 }
 
-// The forked value gets updated whenever 's' is updated, but you can also
-// change it (but your value will get changed whenever s does too).
-export function writableFork<T>(
-  s: AbstractSignal<T>,
-  options?: Partial<SetableOptions<T>>
-): SetableSignal<T> {
-  if (s.node instanceof SetableNode) {
-    options = { ...structuredClone(s.node.options), ...options };
-  }
-  const fork = s.space.setable(s(), options);
-  s.space.derived(() => fork.set(s()));
-  return fork;
-}
-
 // ----------------------------------------------------------------------------
 // Raw functions (CONSIDER moving into the space class)
 // ----------------------------------------------------------------------------
 // Note: we use the type-safe way to define the return value; as far as I know
 // this is the only way to do so in typescript; although it is more implicit than I would like.
-export function setable<T>(
+function setable<T>(
   space: SignalSpace,
   value: T,
   options?: Partial<SetableOptions<T>>
@@ -309,7 +337,7 @@ export function setable<T>(
   return signal;
 }
 
-export function derived<T>(
+function derived<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<DerivedOptions<T>>
@@ -326,7 +354,7 @@ export function derived<T>(
 }
 
 // A special case that allows for `nullme` operators on sub-signals to handle the null cases.
-export function derivedNullable<T>(
+function derivedNullable<T>(
   space: SignalSpace,
   f: () => T | null,
   options?: Partial<DerivedOptions<T>>
@@ -365,27 +393,10 @@ export function derivedNullable<T>(
   return signal;
 }
 
-// ----------------------------------------------------------------------------
-// This is an operator to wrap calls to sub-signals that should only be used
-// within derivedNullable signals. It will cause the parent derived signal to be
-// null when this signal is null. i.e. you can say only when this is defined
-// do we do this computation.
-//
-// This approach does not work when `s` is a setable signal (and there is not
-// special compute function for it in the derived computation chain... it
-// might be possible to make it work by also modifying setable nodes...)
-
-export function defined<T>(s: AbstractSignal<T | null>, depEvalKind?: DepKind): T {
-  // Note: this is a lie; but the contextualCompute computation will make up
-  // for it, and not actually depend on s's Result being nonNull, so all is
-  // ok.
-  return s({ downstreamNullIfNull: true, depKind: depEvalKind || DepKind.Sync }) as T;
-}
-
 // The key characteristic of effects is that they get updated per "set" of a
 // child. Computed signals have the option to only re-compute once per tick,
 // however many "set" calls of children happen.
-export function derivedLazy<T>(
+function derivedLazy<T>(
   space: SignalSpace,
   f: () => T,
   options?: Partial<DerivedOptions<T>>
@@ -397,7 +408,7 @@ export function derivedLazy<T>(
 // The key characteristic of effects is that they get updated per "set" of a
 // child. Computed signals have the option to only re-compute once per tick,
 // however many "set" calls of children happen.
-export function derivedLazyNullable<T>(
+function derivedLazyNullable<T>(
   space: SignalSpace,
   f: () => T | null,
   options?: Partial<DerivedOptions<T>>
@@ -406,6 +417,40 @@ export function derivedLazyNullable<T>(
   return derivedNullable(space, f, options);
 }
 
+// ----------------------------------------------------------------------------
+// Utilities...
+// ----------------------------------------------------------------------------
+// 'defined' is an operator to wrap calls to sub-signals that should only be
+// used within derivedNullable signals. It will cause the parent derived signal
+// to be null when this signal is null. i.e. you can say only when this is
+// defined do we do this computation.
+//
+// This approach does not work when `s` is a setable signal (and there is not
+// special compute function for it in the derived computation chain... it might
+// be possible to make it work by also modifying setable nodes...)
+
+export function defined<T>(s: AbstractSignal<T | null>, depEvalKind?: DepKind): T {
+  // Note: this is a lie; but the contextualCompute computation will make up
+  // for it, and not actually depend on s's Result being nonNull, so all is
+  // ok.
+  return s({ downstreamNullIfNull: true, depKind: depEvalKind || DepKind.Sync }) as T;
+}
+
+// The forked value gets updated whenever 's' is updated, but you can also
+// change it (but your value will get changed whenever s does too).
+export function writableFork<T>(
+  s: AbstractSignal<T>,
+  options?: Partial<SetableOptions<T>>
+): SetableSignal<T> {
+  if (s.node instanceof SetableNode) {
+    options = { ...structuredClone(s.node.options), ...options };
+  }
+  const fork = s.space.setable(s(), options);
+  s.space.derived(() => fork.set(s()));
+  return fork;
+}
+
+// A convenient way to track updates to a signal...
 export function promisifySignal<T>(
   s: AbstractSignal<T>
 ): DerivedSignal<{ cur: T; next: Promise<T> }> {

@@ -13,19 +13,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { AbstractOptions, defaultEqCheck } from './abstract-signal';
-import { SetableNode } from './setable-signal';
+import { SetableNode } from './setable-node';
 import {
   ComputeContextKind,
   defaultDepOptions,
   DepKind,
   SignalDepOptions,
-  SignalKind,
   SignalSpace,
-  SignalSpaceUpdate,
+  SignalKind,
+  defaultEqCheck,
+  BasicSignalOptions,
 } from './signalspace';
 
-export type DerivedOptions<T> = AbstractOptions<T> & {
+// ----------------------------------------------------------------------------
+//  Defaults
+// ----------------------------------------------------------------------------
+export enum DerivedNodeState {
+  RequiresRecomputing = 'RequiresRecomputing',
+  HasSomeUpstreamChanges = 'HasSomeUpstreamChanges',
+  UpToDate = 'UpToDate',
+}
+
+export type DerivedOptions<T> = BasicSignalOptions<T> & {
   // When true, the type `T` must be of the form `S | null` (null must extend
   // T). The idea is that the value of this derivedNode is `null` if any
   // dependency is wrapped in a `defined`, and that child dep's valuye is null.
@@ -34,17 +43,11 @@ export type DerivedOptions<T> = AbstractOptions<T> & {
   // It's a pooling operation with optional early exit.
   nullTyped: null extends T ? boolean : false;
 
-  // Sync means the signal is updated synchronously from its dependencies. Lazy
-  // means that it is computed only when needed (e.g. when there is an explicit
-  // signal.get() call).
-  //
-  // When something has alwaysUpdateSync, it gets updated every time it needs it
-  // be updated synchronously. And otherwise, values are updated only when the
-  // corresponding s.get() method is called, or an end-of-tick timeout happens.
+  // Sync means that dependencies in it's compute function definition by default
+  // are sync. Lazy means that dependencies in the cmompute function definition
+  // are by default lazy (i.e. we update this signal only when needed e.g. when
+  // there is an explicit call of signal.get()).
   kind: SignalKind.SyncDerived | SignalKind.LazyDerived;
-
-  // CONSIDER: add clobberBehavior here too. Useful is you have a alwaysUpdate
-  // that you want to merge later...
 };
 
 export function defaultDerivedOptions<T>(): DerivedOptions<T> {
@@ -53,12 +56,6 @@ export function defaultDerivedOptions<T>(): DerivedOptions<T> {
     kind: SignalKind.SyncDerived,
     eqCheck: defaultEqCheck,
   };
-}
-
-export enum DerivedNodeState {
-  RequiresRecomputing = 'RequiresRecomputing',
-  HasSomeUpstreamChanges = 'HasSomeUpstreamChanges',
-  UpToDate = 'UpToDate',
 }
 
 // ----------------------------------------------------------------------------

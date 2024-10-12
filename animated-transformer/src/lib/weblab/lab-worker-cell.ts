@@ -27,7 +27,7 @@ import {
   Subobj,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
-import { SetableSignal } from '../signalspace/abstract-signal';
+import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
 export class StatefulCell<
   Globals extends ValueStruct,

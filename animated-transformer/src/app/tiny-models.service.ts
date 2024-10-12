@@ -11,8 +11,8 @@ import {
 import { SignalSpace, defined } from 'src/lib/signalspace/signalspace';
 import { EnvModel, TrainConfig } from './web-colab/tiny-transformer-example/ailab';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
-import { DerivedSignal, SetableSignal } from 'src/lib/signalspace/abstract-signal';
-import { SetableUpdateKind } from 'src/lib/signalspace/setable-signal';
+import { DerivedSignal, SetableSignal } from 'src/lib/signalspace/signalspace';
+import { SetableUpdateKind } from 'src/lib/signalspace/setable-node';
 
 const modelMakerMap = {} as { [kind: string]: ConfigKind<TransformerConfig, TransformerModel> };
 const initModelConfigsMap = {} as { [id: string]: TransformerConfig };
