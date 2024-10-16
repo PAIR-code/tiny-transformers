@@ -45,6 +45,37 @@ describe('signalspace', () => {
     expect(c.get()).toEqual('Abc');
   });
 
+  it('Simple derived update with a new object', () => {
+    // This test might seem obvious, but new objects help check for loops in change detection flows.
+    const s = new SignalSpace();
+
+    class Foo {
+      constructor(public value: string) {}
+    }
+
+    const a = new SetableNode(s, 'a', { id: 'a' });
+    const b = new DerivedNode(
+      s,
+      () => {
+        return new Foo(a.get());
+      },
+      { id: 'b' }
+    );
+    const c = new DerivedNode(
+      s,
+      () => {
+        return b.get().value + 'c';
+      },
+      { id: 'c' }
+    );
+
+    expect(b.get().value).toEqual('a');
+    expect(c.get()).toEqual('ac');
+    a.set('A');
+    expect(b.get().value).toEqual('A');
+    expect(c.get()).toEqual('Ac');
+  });
+
   it('Compound signal graph with lazy node updates', async () => {
     const s = new SignalSpace();
     const a = new SetableNode(s, 'a', { id: 'a' });

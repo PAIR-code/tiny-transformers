@@ -28,8 +28,7 @@ import {
   SimpleMetrics,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { getUniGramTinyWorldConfig } from 'src/lib/seqtasks/tiny_worlds_ngram_configs';
-import { TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
+import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 xdescribe('Task-Cell', () => {
   beforeEach(() => {});
@@ -42,11 +41,9 @@ xdescribe('Task-Cell', () => {
     const space = new SignalSpace();
     const { setable, derived } = space;
 
-    const taskKinds = Object.keys(taskRegistry.kinds);
-    const taskKind = setable<string>(taskKinds[0]);
-    const taskConfig = derived(() =>
-      structuredClone(taskRegistry.kinds[taskKind()].defaultConfig as RandLmTaskConfig)
-    );
+    // const taskKinds = Object.keys(taskRegistry.kinds);
+    // const taskKind = setable<string>();
+    const taskConfig = setable(defaultTinyWorldTaskConfig);
     // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
     const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
     const batchSize = derived(() => 10);
@@ -62,16 +59,14 @@ xdescribe('Task-Cell', () => {
       maxBatchesQueueSize,
     });
     taskGenState.set({ kind: 'generating', lastBatchId: 0 });
-    console.log('taskGenState2', taskGenState());
+    console.log(`taskGenState: ${JSON.stringify(taskGenState())}`);
     const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
     const genForBatches = 5;
 
-    console.log('got first train Batch', nextTrainBatch());
+    console.log(`nextTrainBatch: ${JSON.stringify(nextTrainBatch().batchId)}`);
     derived(() => {
       const batch = nextTrainBatch();
       const state = taskGenState();
-      console.log('batch', batch);
-      console.log('state', state);
       if (state.kind === 'generating') {
         console.log('state', state);
         // TODO: we could if we wanted, directly pipe lastBatchId from trainer to

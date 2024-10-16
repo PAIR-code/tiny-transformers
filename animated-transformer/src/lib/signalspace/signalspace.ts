@@ -256,6 +256,9 @@ export class SignalSpace {
     // you cannot define loopy derived compute functions, and all compute
     // functions eventually depend on setables, and setables can only be updated
     // by set calls, and we loop-check setable set calls.
+    if (this.computeStack.length > 10) {
+      throw new Error('stack too big');
+    }
     if (this.update) {
       this.computeStack.push({
         kind: ComputeContextKind.Update,
@@ -456,14 +459,15 @@ export function promisifySignal<T>(
 ): DerivedSignal<{ cur: T; next: Promise<T> }> {
   let resolveFn: (v: T) => void = () => {};
 
-  const promisifiedSignal = s.space.derived(() => {
-    const oldResolveFn = resolveFn;
-    const next = new Promise<T>((resolve) => {
+  const nextFn = () =>
+    new Promise<T>((resolve) => {
       resolveFn = resolve;
     });
+
+  const promisifiedSignal = s.space.derived(() => {
     const cur = s();
-    oldResolveFn(cur);
-    return { cur, next };
+    resolveFn(cur);
+    return { cur, next: nextFn() };
   });
 
   return promisifiedSignal;

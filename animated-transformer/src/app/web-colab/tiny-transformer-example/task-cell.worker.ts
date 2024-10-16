@@ -42,14 +42,9 @@ cell.run(async () => {
   let batchId = 0;
   let curBatchesQueueSize = 0;
 
-  // TODO: this registry business is ugly. Make a better abstraction.
-  const task = derived(() => {
-    console.log('taskConfig: ', taskConfig());
-    console.log('taskRegistry: ', taskRegistry);
-    return taskRegistry.kinds[taskConfig().kind].makeFn(
-      stringifyJsonValue(taskConfig())
-    ) as BasicRandLmTask;
-  });
+  const task = derived(() => new TinyWorldTask(taskConfig()));
+
+  console.log(task.space);
 
   // TODO: make state iterator take in the state for easier random stream
   // management?
@@ -101,4 +96,10 @@ cell.run(async () => {
     }
     await state().next;
   }
+
+  // while (state().cur.kind !== 'finished') {
+  //   const st = state();
+  //   console.log(st);
+  //   await st.next;
+  // }
 });

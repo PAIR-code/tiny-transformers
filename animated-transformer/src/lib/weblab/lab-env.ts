@@ -108,17 +108,14 @@ export class LabEnvCell<
     // In addition, whenever any of the "uses" variables are updated, we send
     // the update to the worker.
     for (const key of Object.keys(uses)) {
-      console.log('for (const key of Object.keys(uses)):', key);
       this.space.derived(() => {
-        console.log('space.computeStack', [...space.computeStack]);
         const value = uses[key as I]();
         const message: ToWorkerMessage = {
           kind: 'setSignal',
           signalId: key,
           signalValue: value,
         };
-        console.log('sending signal: ', uses[key as I].node);
-        console.log('sending: ', message);
+        console.log('env sending: ', message);
         this.worker.postMessage(message);
       });
     }

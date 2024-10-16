@@ -75,6 +75,7 @@ export class StatefulCell<
     for (const inputName of spec.uses) {
       const promisedInput = this.initOnceInput<Globals[typeof inputName]>(inputName as string);
       this.inputPromises[inputName] = promisedInput.then((inputValue) => {
+        console.log(`inputPromises[${inputName}] has value: `, inputValue);
         const signal = this.space.setable(inputValue);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);

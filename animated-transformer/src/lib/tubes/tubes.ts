@@ -177,6 +177,7 @@ export interface StringifyConfig {
   // sortCmp?: (a: [string, JSONValue], b: [string, JSONValue]) => number;
 }
 
+// TODO: consider heap-based version that doesn't worry as much about stack size.
 export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
   if (isLeaf(t)) {
     return t.str;

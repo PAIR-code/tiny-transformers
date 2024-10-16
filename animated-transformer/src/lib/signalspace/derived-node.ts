@@ -134,15 +134,16 @@ export class DerivedNode<T> {
   checkUpstreamChanges(): void {
     // let upstreamDepChanged = false;
     for (const [dep, options] of this.dependsOnComputing.entries()) {
-      if (dep.state !== DerivedNodeState.UpToDate) {
-        //
-        dep.ensureUpToDate();
-        // Note: options.downstreamNullIfNull ==> this.options.nullTyped
-        if (this.options.nullTyped && options.downstreamNullIfNull && dep.lastValue === null) {
-          this.nullBecauseUpstreamNull = true;
-          break;
-        }
+      // if (dep.state !== DerivedNodeState.UpToDate) {
+      //
+      // console.warn(`[${this.id}].checkUpstreamChanges: dependsOnComputing: ${dep.id}`);
+      dep.ensureUpToDate();
+      // Note: options.downstreamNullIfNull ==> this.options.nullTyped
+      if (this.options.nullTyped && options.downstreamNullIfNull && dep.lastValue === null) {
+        this.nullBecauseUpstreamNull = true;
+        break;
       }
+      // }
     }
     if (this.nullBecauseUpstreamNull) {
       return;
@@ -171,6 +172,7 @@ export class DerivedNode<T> {
     // it does indeed require recomputing.
     this.checkUpstreamChanges();
     if (this.state === DerivedNodeState.RequiresRecomputing) {
+      // console.warn(`[${this.id}].recomputing...`);
       let newValue: T;
       if (this.nullBecauseUpstreamNull) {
         // This is a lie that has to be caught at runtime by the `defined`
@@ -180,9 +182,13 @@ export class DerivedNode<T> {
       } else {
         newValue = this.computeFunction();
       }
+      this.state = DerivedNodeState.UpToDate;
+      this.nullBecauseUpstreamNull = false;
+
       if (!this.options.eqCheck(this.lastValue, newValue)) {
         this.lastValue = newValue;
         for (const [depOnMe, options] of this.dependsOnMe.entries()) {
+          // console.warn(`[${this.id}].ensureUpToDate: depOnMe: ${depOnMe.id}`);
           depOnMe.noteRequiresRecomputing();
           if (options.depKind === DepKind.Sync) {
             depOnMe.ensureUpToDate();
@@ -190,11 +196,10 @@ export class DerivedNode<T> {
         }
       }
     }
+
     // Reset the possibility that a child is null, and wants me to be null
     // because of it.
-    this.nullBecauseUpstreamNull = false;
     this.signalSpace.noteEndedDerivedUpdate(this as DerivedNode<unknown>);
-    this.state = DerivedNodeState.UpToDate;
     return;
   }
 
@@ -231,8 +236,7 @@ export class DerivedNode<T> {
         });
         throw new Error('downstreamNullIfNull dependency must be in a nullType signal');
       }
-
-      console.warn(`[def ${defNode.id}] ${this.id}.get()`);
+      // console.warn(`[def ${defNode.id}] ${this.id}.get()`);
       // const dep = new DerivedDep(this as DerivedNode<unknown>, options);
       const depOptions = defNode.noteDependsOnComputing(this as DerivedNode<unknown>, options);
       this.dependsOnMe.set(defNode, depOptions);

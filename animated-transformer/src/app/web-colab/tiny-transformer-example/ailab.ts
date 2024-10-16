@@ -21,6 +21,7 @@ import { Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
 import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
+import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 export type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
 
@@ -104,7 +105,7 @@ export type TaskGenSate =
 
 export type TaskVars = {
   // The task to generate from.
-  taskConfig: RandLmTaskConfig;
+  taskConfig: TinyWorldTaskConfig;
   // Test set size + taskConfig is used to generated the test set.
   testSetSize: number;
   // Last seed allows us to restart from a given state/location.

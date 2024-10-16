@@ -110,7 +110,7 @@ export class SetableNode<T> {
         });
         throw new Error('downstreamNullIfNull dependency must be in a nullType signal');
       }
-      console.warn(`[def ${defNode.id}] ${this.id}.get(): value=${this.value}`);
+      // console.warn(`[def ${defNode.id}] ${this.id}.get(): value=${this.value}`);
       this.noteDependsOnMe(defNode, options);
     }
     return this.value;
