@@ -32,6 +32,7 @@ import {
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
+import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 function logMetrics(metrics: SimpleMetrics): void {
   console.log(
@@ -59,13 +60,9 @@ async function run() {
   // Consider... one liner... but maybe handy to have the 'space' object to debug.
   // const { writable, computed } = new SignalSpace();
   const space = new SignalSpace();
-  const { setable, derived, derivedEvery } = space;
+  const { setable, derived } = space;
 
-  const taskKinds = Object.keys(taskRegistry.kinds);
-  const taskKind = setable<string>(taskKinds[0]);
-  const taskConfig = derived(() =>
-    structuredClone(taskRegistry.kinds[taskKind()].defaultConfig as RandLmTaskConfig)
-  );
+  const taskConfig = derived(() => structuredClone(defaultTinyWorldTaskConfig));
   const trainConfig = setable<TrainConfig>({
     id: 'initial config',
     kind: 'basicSeqTrainer',
@@ -126,7 +123,7 @@ async function run() {
   // all the closures. CONSIDER: We could also introduce a promiseAlwaysDerived
   // that does the then, and then sets always derived. That would be prettier.
   const lastMetrics = await trainerCell.outputs.lastTrainMetric;
-  derivedEvery(() => {
+  derived(() => {
     const metrics = lastMetrics();
     const state = taskGenState();
     if (state.kind === 'generating') {
@@ -140,7 +137,7 @@ async function run() {
     }
   });
   const ckpt = await trainerCell.outputs.checkpoint;
-  derivedEvery(() => logCheckpoint(ckpt()));
+  derived(() => logCheckpoint(ckpt()));
 
   await taskCell.onceFinished;
   await trainerCell.onceFinished;
