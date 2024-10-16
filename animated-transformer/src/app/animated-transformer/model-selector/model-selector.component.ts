@@ -41,6 +41,7 @@ import {
   strSeqPrepFn,
 } from 'src/lib/tokens/token_gemb';
 import { GTensor } from 'src/lib/gtensor/gtensor';
+import { RandomStream, makeRandomStream} from 'src/lib/state-iter/random';
 
 export type JsonConfigData = DictTree<number | string | boolean>;
 
@@ -56,6 +57,7 @@ export type ModelData = {
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>;
   params: VarTransformerParams;
   paramCount: number;
+  generator: RandomStream;
 };
 
 export class ModelSpecAndData {
@@ -80,19 +82,20 @@ export class ModelSpecAndData {
 const layerSpec: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0.0 },
   layerNormFF: false,
   layerNormHeadsProjection: false,
   addLayerNormBias: false,
 };
 
 const defaultConfig: ModelConfig = {
-  name: 'd=8 l=1 h=4, !layerN',
+  name: 'd=8 l=1 h=4, !layerN !dropout',
   transformer: {
     spec: {
       inputRep: 8,
       kqvRep: 8,
       layers: [layerSpec],
+      dropoutRate: 0.0,
     },
     init: {
       stddev: 0.5,
@@ -105,19 +108,46 @@ const defaultConfig: ModelConfig = {
 const layerSpecWithNorm: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0.0 },
   layerNormFF: true,
   layerNormHeadsProjection: true,
   addLayerNormBias: false,
 };
 
 const transWithLayerNormed: ModelConfig = {
-  name: 'd=8 l=1 h=4 +layerN',
+  name: 'd=8 l=1 h=4 +layerN !dropout',
   transformer: {
     spec: {
       inputRep: 8,
       kqvRep: 8,
       layers: [layerSpecWithNorm],
+      dropoutRate: 0.0,
+    },
+    init: {
+      stddev: 0.5,
+      mean: 0,
+      seed: 96,
+    },
+  },
+};
+
+const layerSpecWithNormAndDropout: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true, dropoutRate: 0.1 },
+  layerNormFF: true,
+  layerNormHeadsProjection: true,
+  addLayerNormBias: false,
+};
+
+const transWithLayerNormedAndDropout: ModelConfig = {
+  name: 'd=8 l=1 h=4 +layerN +dropout',
+  transformer: {
+    spec: {
+      inputRep: 8,
+      kqvRep: 8,
+      layers: [layerSpecWithNormAndDropout],
+      dropoutRate: 0.1,
     },
     init: {
       stddev: 0.5,
@@ -131,11 +161,13 @@ const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
 
 const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
 
+const simpleTransformerWithLayerNormAndDropout = new ModelSpecAndData('transformer', transWithLayerNormedAndDropout)
+
 export interface ModelUpdate {
   model: ModelSpecAndData | null;
 }
 
-const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm];
+const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm, simpleTransformerWithLayerNormAndDropout];
 const initModelsMap: { [name: string]: ModelSpecAndData } = {};
 initModels.forEach((m) => (initModelsMap[m.config.name] = m));
 
@@ -274,12 +306,14 @@ export class ModelSelectorComponent {
       0,
       params
     );
+    const generator = makeRandomStream(config.transformer.init.seed);
     curModel.modelData.set({
       config,
       tokenRep,
       inputPrepFn: strSeqPrepFn,
       params,
       paramCount,
+      generator
     });
   }
 }
