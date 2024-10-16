@@ -16,7 +16,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace } from 'src/lib/signalspace/signalspace';
+import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import {
   EnvModel,
@@ -30,15 +30,15 @@ import {
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
-xdescribe('Task-Cell', () => {
+fdescribe('Task-Cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test', async () => {
     const env = new LabEnv();
+    const space = env.space;
 
     // Consider... one liner... but maybe handy to have the 'space' object to debug.
     // const { writable, computed } = new SignalSpace();
-    const space = new SignalSpace();
     const { setable, derived } = space;
 
     // const taskKinds = Object.keys(taskRegistry.kinds);
@@ -49,36 +49,41 @@ xdescribe('Task-Cell', () => {
     const batchSize = derived(() => 10);
     const lastBatchSeed = derived<number | null>(() => null);
     const testSetSize = setable(5);
-    const maxBatchesQueueSize = derived(() => 2);
     const taskCell = env.start(taskCellSpec, {
       taskConfig,
       testSetSize,
       batchSize,
       lastBatchSeed,
       taskGenState,
-      maxBatchesQueueSize,
     });
-    taskGenState.set({ kind: 'generating', lastBatchId: 0 });
+    const genState: TaskGenSate = {
+      kind: 'generating',
+      curBatchId: 0,
+      batchMaxQueueSize: 2,
+      maxBatches: 5,
+    };
+    taskGenState.set(genState);
     console.log(`taskGenState: ${JSON.stringify(taskGenState())}`);
+    console.log(`waiting for nextTrainBatch...`);
     const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
-    const genForBatches = 5;
 
+    // TODO: create a sensible queue abstraction.
     console.log(`nextTrainBatch: ${JSON.stringify(nextTrainBatch().batchId)}`);
     derived(() => {
       const batch = nextTrainBatch();
-      const state = taskGenState();
+      const state = taskGenState({ depKind: DepKind.Lazy });
       if (state.kind === 'generating') {
         console.log('state', state);
         // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
         // taskConfig?
-        taskGenState.set({ kind: 'generating', lastBatchId: batch.batchId });
-        if (batch.batchId >= genForBatches) {
+        taskGenState.set({ ...genState, curBatchId: batch.batchId });
+        if (batch.batchId >= genState.maxBatches - 1) {
           taskGenState.set({ kind: 'finished' });
         }
       }
     });
-    const outputVars = await taskCell.onceFinished;
-
-    expect(outputVars.nextTrainBatch().batchId).toEqual(3);
+    await taskCell.onceFinished;
+    console.log(`final batch id: ${nextTrainBatch().batchId}`);
+    expect(nextTrainBatch().batchId).toEqual(4);
   });
 });

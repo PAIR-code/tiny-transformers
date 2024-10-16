@@ -19,7 +19,7 @@ limitations under the License.
 
 import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { SignalSpace } from 'src/lib/signalspace/signalspace';
+import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import {
   EnvModel,
@@ -85,16 +85,12 @@ async function run() {
   const batchSize = derived(() => trainConfig().batchSize);
   const lastBatchSeed = derived<number | null>(() => null);
   const testSetSize = setable(200);
-  const maxBatchesQueueSize = derived(
-    () => trainConfig().metricReporting.metricFrequencyInBatches * 4
-  );
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
     testSetSize,
     batchSize,
     lastBatchSeed,
     taskGenState,
-    maxBatchesQueueSize,
   });
 
   const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
@@ -112,8 +108,13 @@ async function run() {
     nextTrainBatch,
     testSet,
   });
-
-  taskGenState.set({ kind: 'generating', lastBatchId: 0 });
+  const genState: TaskGenSate = {
+    kind: 'generating',
+    curBatchId: 0,
+    batchMaxQueueSize: trainConfig().metricReporting.metricFrequencyInBatches * 4,
+    maxBatches: 5,
+  };
+  taskGenState.set(genState);
   // We don't need the batch values.
   env.pipeSignal(taskCell, trainerCell, 'nextTrainBatch', { keepSignalPushesHereToo: false });
   // But we would like to have the testSet here.
@@ -124,14 +125,16 @@ async function run() {
   // that does the then, and then sets always derived. That would be prettier.
   const lastMetrics = await trainerCell.outputs.lastTrainMetric;
   derived(() => {
-    const metrics = lastMetrics();
-    const state = taskGenState();
+    const batch = nextTrainBatch();
+    const state = taskGenState({ depKind: DepKind.Lazy });
     if (state.kind === 'generating') {
+      const metrics = lastMetrics();
       logMetrics(metrics);
+      console.log('state', state);
       // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
       // taskConfig?
-      taskGenState.set({ kind: 'generating', lastBatchId: metrics.batchId });
-      if (metrics.batchId >= trainConfig().trainForBatches) {
+      taskGenState.set({ ...genState, curBatchId: batch.batchId });
+      if (batch.batchId >= genState.maxBatches) {
         taskGenState.set({ kind: 'finished' });
       }
     }

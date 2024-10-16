@@ -75,7 +75,7 @@ export class StatefulCell<
     for (const inputName of spec.uses) {
       const promisedInput = this.initOnceInput<Globals[typeof inputName]>(inputName as string);
       this.inputPromises[inputName] = promisedInput.then((inputValue) => {
-        console.log(`inputPromises[${inputName}] has value: `, inputValue);
+        console.log(`inputPromises[${inputName}] has value: ${JSON.stringify(inputValue)}`);
         const signal = this.space.setable(inputValue);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
@@ -119,7 +119,7 @@ export class StatefulCell<
     } else if (data.kind === 'setSignal') {
       const signal = this.inputSoFar[data.signalId as Uses];
       if (signal) {
-        console.log(`onMessage: setSignal: ${data.signalId}`, data.signalValue);
+        console.log(`onMessage: setSignal(${data.signalId}): ${JSON.stringify(data.signalValue)}`);
         signal.set(data.signalValue as Globals[Uses]);
       } else {
         if (data.signalId in this.inputResolvers) {

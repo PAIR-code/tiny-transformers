@@ -100,7 +100,15 @@ export const trainerCellSpec = cellSpec(
 
 export type TaskGenSate =
   | { kind: 'paused' }
-  | { kind: 'generating'; lastBatchId: number }
+  | {
+      kind: 'generating';
+      // Current batch seen
+      curBatchId: number;
+      // generate up to this many in the message queue
+      batchMaxQueueSize: number;
+      // max number of batches to generate
+      maxBatches: number;
+    }
   | { kind: 'finished' };
 
 export type TaskVars = {
@@ -130,13 +138,6 @@ export const taskCellSpec = cellSpec(
   taskVars,
   'Task cell',
   () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  [
-    'taskConfig',
-    'testSetSize',
-    'batchSize',
-    'lastBatchSeed',
-    'taskGenState',
-    'maxBatchesQueueSize',
-  ],
+  ['taskConfig', 'testSetSize', 'batchSize', 'lastBatchSeed', 'taskGenState'],
   ['nextTrainBatch', 'testSet']
 );

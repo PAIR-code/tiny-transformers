@@ -16,7 +16,7 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { Batch, taskVars, taskCellSpec } from './ailab';
+import { Batch, taskVars, taskCellSpec, TaskGenSate } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
@@ -35,13 +35,9 @@ cell.run(async () => {
   const batchSize = await cell.inputPromises.batchSize;
   const rawState = await cell.inputPromises.taskGenState;
 
-  derived(() => console.log('rawState', rawState()));
+  derived(() => console.log('rawState:', JSON.stringify(rawState())));
 
   const state = promisifySignal(rawState);
-  const maxBatchesQueueSize = await cell.inputPromises.maxBatchesQueueSize;
-  let batchId = 0;
-  let curBatchesQueueSize = 0;
-
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   console.log(task.space);
@@ -81,22 +77,36 @@ cell.run(async () => {
     return { batchId, nextSeed: batchSeed, inputs, outputs };
   }
 
-  // state = onceState();
-  while (state().cur.kind !== 'finished') {
-    console.log('in-worker-state: ', state());
-    for (
-      const st = state();
-      st.cur.kind === 'generating' && curBatchesQueueSize < maxBatchesQueueSize();
-      ++batchId
-    ) {
+  // TODO: make a queue abstraction.
+  let st: {
+    cur: TaskGenSate;
+    next: Promise<TaskGenSate>;
+  };
+  let curBatchesQueueSize = 0;
+  let batchId = 0;
+  while ((st = state()) && st.cur.kind !== 'finished') {
+    console.log(
+      `**task-cell** state.cur: ${JSON.stringify(
+        st.cur
+      )} && internal batchId: ${batchId}, curBatchesQueueSize: ${curBatchesQueueSize}`
+    );
+
+    while (st.cur.kind === 'generating') {
+      curBatchesQueueSize = batchId - st.cur.curBatchId;
+      if (curBatchesQueueSize >= st.cur.batchMaxQueueSize || batchId >= st.cur.maxBatches) {
+        break;
+      }
       const nextBatch = makeBatch(batchId, batchSize());
       // TODO: why not use the same syntax and have this be a setable signal?
       cell.output('nextTrainBatch', nextBatch);
-      curBatchesQueueSize = batchId - st.cur.lastBatchId;
+      batchId++;
+      st = state();
     }
-    await state().next;
+
+    await st.next;
   }
 
+  console.log(`**task-cell** state.cur: FINISHED!`);
   // while (state().cur.kind !== 'finished') {
   //   const st = state();
   //   console.log(st);

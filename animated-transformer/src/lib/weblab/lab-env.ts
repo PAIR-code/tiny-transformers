@@ -34,7 +34,8 @@ export class LabEnvCell<
   I extends keyof Globals & string,
   O extends keyof Globals & string
 > {
-  public onceFinished: Promise<SignalStructFn<Subobj<Globals, O>>>;
+  public onceFinished: Promise<void>;
+  public onceAllOutputs: Promise<SignalStructFn<Subobj<Globals, O>>>;
   public worker: Worker;
   public outputs: PromiseStructFn<SignalStructFn<Subobj<Globals, O>>>;
   public outputSoFar: Partial<SignalStructFn<Subobj<Globals, O>>>;
@@ -47,8 +48,12 @@ export class LabEnvCell<
     public uses: SignalStructFn<{ [Key in I]: Globals[Key] }>
   ) {
     let resolveWithAllOutputsFn: (output: SignalStructFn<Subobj<Globals, O>>) => void;
-    this.onceFinished = new Promise<SignalStructFn<Subobj<Globals, O>>>((resolve, reject) => {
+    this.onceAllOutputs = new Promise<SignalStructFn<Subobj<Globals, O>>>((resolve, reject) => {
       resolveWithAllOutputsFn = resolve;
+    });
+    let resolveWhenFinishedFn: () => void;
+    this.onceFinished = new Promise<void>((resolve, reject) => {
+      resolveWhenFinishedFn = resolve;
     });
     this.worker = spec.createWorker();
 
@@ -93,7 +98,8 @@ export class LabEnvCell<
         // only called when the webworker is really finished.
         case 'finished':
           // TODO: what if there are missing outputs?
-          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
+          resolveWhenFinishedFn();
+          // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
         case 'setSignal':
           const outputName = messageFromWorker.signalId as O;
@@ -115,7 +121,7 @@ export class LabEnvCell<
           signalId: key,
           signalValue: value,
         };
-        console.log('env sending: ', message);
+        console.log(`env sending: ${JSON.stringify(message)}`);
         this.worker.postMessage(message);
       });
     }
@@ -129,17 +135,18 @@ export class LabEnvCell<
     });
   }
 
-  // TODO: maybe send all at once?
-  sendInputs() {
-    for (const name of Object.keys(this.uses)) {
-      const message: ToWorkerMessage = {
-        kind: 'setSignal',
-        signalId: name,
-        signalValue: this.uses[name as I](),
-      };
-      this.worker.postMessage(message);
-    }
-  }
+  // // TODO: maybe send all at once?
+  // sendInputs() {
+  //   for (const name of Object.keys(this.uses)) {
+  //     const message: ToWorkerMessage = {
+  //       kind: 'setSignal',
+  //       signalId: name,
+  //       signalValue: this.uses[name as I](),
+  //     };
+  //     console.log(`env sendInputs: ${JSON.stringify(message)}`);
+  //     this.worker.postMessage(message);
+  //   }
+  // }
 
   public pipeInputSignal(signalId: string, port: MessagePort) {
     const message: ToWorkerMessage = {
@@ -230,7 +237,7 @@ export class LabEnv {
     // }
     console.log('cellUses', cellUses);
     const envCell = new LabEnvCell(this.space, spec, cellUses);
-    envCell.sendInputs();
+    // envCell.sendInputs();
     envCell.onceFinished.then(() => delete this.runningCells[spec.cellName]);
     return envCell;
   }
