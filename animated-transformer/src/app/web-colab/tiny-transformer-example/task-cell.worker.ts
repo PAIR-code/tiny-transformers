@@ -29,18 +29,11 @@ const cell = new StatefulCell(taskVars, taskCellSpec);
 const { derived, setable } = cell.space;
 
 cell.run(async () => {
-  const taskConfig = await cell.inputPromises.taskConfig;
-  const testSetSize = await cell.inputPromises.testSetSize;
-  const startFromBatchSeed = await cell.inputPromises.useBatchSeed;
-  const batchSize = await cell.inputPromises.batchSize;
-  const rawState = await cell.inputPromises.taskGenState;
+  const { taskConfig, testSetSize, useBatchSeed, batchSize, taskGenState } =
+    await cell.onceAllInputs;
 
-  derived(() => console.log('rawState:', JSON.stringify(rawState())));
-
-  const state = promisifySignal(rawState);
+  const state = promisifySignal(taskGenState);
   const task = derived(() => new TinyWorldTask(taskConfig()));
-
-  console.log(task.space);
 
   // TODO: make state iterator take in the state for easier random stream
   // management?
@@ -59,13 +52,12 @@ cell.run(async () => {
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
   derived(() => cell.output('testSet', dataSplitByTrainAndTest().testExamples));
 
-  // Update the batch seed if/as needed.
-  // Allows restarting generation from an earlier point.
+  // Update the batch seed if/as needed. Allows restarting generation from an
+  // earlier point.
   derived(() => {
-    const seed = startFromBatchSeed();
+    const seed = useBatchSeed();
     if (seed !== null) {
       dataSplitByTrainAndTest().trainExamplesIter.state.seed = seed;
-      // startFromBatchSeed.set(null, { updateStrategy: 'skipUpdate' });
     }
   });
 
@@ -85,11 +77,11 @@ cell.run(async () => {
   let curBatchesQueueSize = 0;
   let batchId = 0;
   while ((st = state()) && st.cur.kind !== 'finished') {
-    console.log(
-      `**task-cell** state.cur: ${JSON.stringify(
-        st.cur
-      )} && internal batchId: ${batchId}, curBatchesQueueSize: ${curBatchesQueueSize}`
-    );
+    // console.log(
+    //   `**task-cell** state.cur: ${JSON.stringify(
+    //     st.cur
+    //   )} && internal batchId: ${batchId}, curBatchesQueueSize: ${curBatchesQueueSize}`
+    // );
 
     while (st.cur.kind === 'generating') {
       curBatchesQueueSize = batchId - st.cur.curBatchId;
@@ -106,10 +98,5 @@ cell.run(async () => {
     await st.next;
   }
 
-  console.log(`**task-cell** state.cur: FINISHED!`);
-  // while (state().cur.kind !== 'finished') {
-  //   const st = state();
-  //   console.log(st);
-  //   await st.next;
-  // }
+  // console.log(`**task-cell** state.cur: FINISHED!`);
 });

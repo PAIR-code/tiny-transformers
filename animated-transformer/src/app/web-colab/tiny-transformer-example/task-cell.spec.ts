@@ -12,25 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-
-import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
-import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import {
-  EnvModel,
-  TrainConfig,
-  trainerCellSpec,
-  taskCellSpec,
-  Checkpoint,
-  TaskGenSate,
-  SimpleMetrics,
-} from './ailab';
+import { taskCellSpec, TaskGenSate } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
-fdescribe('Task-Cell', () => {
+describe('Task-Cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test: make 5 batches of data', async () => {

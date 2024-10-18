@@ -29,6 +29,8 @@ import {
   Checkpoint,
   TaskGenSate,
   SimpleMetrics,
+  ProvidedModel,
+  InitModelAction,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
@@ -72,9 +74,11 @@ async function run() {
       metricFrequencyInBatches: 10,
     },
   });
-  // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
   const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
-  const initModel = setable<EnvModel>({ config: defaultTransformerConfig() });
+  const providedModel = setable<ProvidedModel>({
+    kind: InitModelAction.ReinitFromConfig,
+    config: defaultTransformerConfig(),
+  });
   // Should be set by checkpoint...
   // const model = setable<EnvModel>({ config: defaultTransformerConfig() });
   const batchSize = derived(() => trainConfig().batchSize);
@@ -91,14 +95,16 @@ async function run() {
   const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
   const testSet = await taskCell.outputs.testSet;
 
-  // TODO: add data to each signal in a spec to say if the signal is tracked or
-  // untracked. Tracked means that the worker set ops, push the new value here.
-  // Untracked means every time we read the value, we made a fresh request to
-  // the worker for it's state.
+  // TODO: add data to each signal in a spec to say if the signal is pushed or
+  // pulled. Pushed means that every worker set on the signal pushes the new
+  // value here. Pulled means every time we read the value here, we make a fresh
+  // request to the worker for it's state for that signal. We could also call,
+  // or re-use the concept of Lazy vs Sync (although technically it would not be
+  // sync...)
   //
   // Note: we can make the semantics here match signalspace. That would be cool.
   const trainerCell = env.start(trainerCellSpec, {
-    initModel,
+    providedModel,
     trainConfig,
     nextTrainBatch,
     testSet,

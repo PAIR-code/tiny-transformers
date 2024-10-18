@@ -47,6 +47,29 @@ export type TrainConfig = {
   };
 };
 
+export enum InitModelAction {
+  ReinitFromConfig = 'ReinitFromConfig',
+  ReplaceParams = 'ReplaceParams',
+  ReplaceParamsAndConfig = 'ReplaceParamsAndConfig',
+  Null = 'Null',
+}
+
+export type ProvidedModel =
+  | {
+      kind: InitModelAction.ReplaceParams;
+      config: TransformerConfig;
+      serializedParams: SerializeTensorParams<TransformerParams>;
+    }
+  | {
+      kind: InitModelAction.ReinitFromConfig;
+      config: TransformerConfig;
+    }
+  | {
+      kind: InitModelAction.ReplaceParamsAndConfig;
+      config: TransformerConfig;
+      serializedParams: SerializeTensorParams<TransformerParams>;
+    };
+
 export type EnvModel = {
   config: TransformerConfig;
   serializedParams?: SerializeTensorParams<TransformerParams>;
@@ -82,7 +105,7 @@ export type Checkpoint = {
 export type TrainerVars = {
   // input...
   testSet: Example[];
-  initModel: EnvModel;
+  providedModel: ProvidedModel;
   trainConfig: TrainConfig;
   nextTrainBatch: Batch;
   // output...
@@ -94,7 +117,7 @@ export const trainerCellSpec = cellSpec(
   trainerVars,
   'Trainer cell',
   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  ['testSet', 'trainConfig', 'initModel', 'nextTrainBatch'],
+  ['testSet', 'trainConfig', 'providedModel', 'nextTrainBatch'],
   ['checkpoint', 'lastTrainMetric']
 );
 

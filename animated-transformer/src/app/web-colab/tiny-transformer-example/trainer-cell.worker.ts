@@ -21,13 +21,19 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
-import { Batch, TrainConfig, trainerCellSpec, trainerVars } from './ailab';
+import {
+  Batch,
+  InitModelAction,
+  ProvidedModel,
+  TrainConfig,
+  trainerCellSpec,
+  trainerVars,
+} from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
   TransformerConfig,
   lastTokenCrossEntropyLoss,
-  TransformerParams,
   TransformerModel,
   VarTransformerParams,
   initDecoderParams,
@@ -37,12 +43,12 @@ import {
   deserializeParams,
   disposeParams,
   listifyVarParams,
-  SerializeTensorParams,
   varifyParams,
 } from 'src/lib/gtensor/params';
+import { defined } from 'src/lib/signalspace/signalspace';
 
 const cell = new StatefulCell(trainerVars, trainerCellSpec);
-const { derived, setable } = cell.space;
+const { derived, setable, derivedNullable } = cell.space;
 
 const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
 const { reportMetrics } = makeMetricReporter(cell.space, metrics);
@@ -64,54 +70,55 @@ function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig)
   return entropyLoss;
 }
 
+type Model = { config: TransformerConfig; params: VarTransformerParams };
+
 // TODO: instead of updating all params at the same time, we should use some
 // streaming iterator through the parts... (and save memory), and allow
 // transfer to happen at the same time as we assign in the GPU.
-function updateModel(
-  newModel: { config?: TransformerConfig; params?: SerializeTensorParams<TransformerParams> },
-  oldModel?: { config: TransformerConfig; params: VarTransformerParams }
-): { config: TransformerConfig; params: VarTransformerParams } {
-  const { config, params } = newModel;
-  if (config) {
-    // Use the new params and config.
+function updateModel(newProvidedModel: ProvidedModel, oldModel: Model | null): Model | null {
+  if (newProvidedModel.kind === InitModelAction.ReinitFromConfig) {
     if (oldModel) {
       disposeParams(oldModel.params);
     }
-    if (params) {
-      return { config, params: varifyParams(deserializeParams(params)) };
-    } else {
-      return { config, params: varifyParams(initDecoderParams(config)) };
+    const config = newProvidedModel.config;
+    return { config, params: varifyParams(initDecoderParams(config)) };
+  } else if (newProvidedModel.kind === InitModelAction.ReplaceParamsAndConfig) {
+    const config = newProvidedModel.config;
+    return { config, params: varifyParams(deserializeParams(newProvidedModel.serializedParams)) };
+  } else if (newProvidedModel.kind === InitModelAction.ReplaceParams) {
+    if (!oldModel) {
+      throw new Error('updateModel with InitModelAction.ReplaceParams but model is null');
     }
+    assignParams(oldModel.params, deserializeParams(newProvidedModel.serializedParams));
+    return oldModel;
   } else {
-    if (params && oldModel) {
-      // new params for existing config.
-      assignParams(oldModel.params, deserializeParams(params));
-      return oldModel;
-    } else {
-      throw new Error('updateModel called with no params and no config, what do you expect?');
+    //  ProvidedModel === InitModelAction.Null
+    if (oldModel) {
+      disposeParams(oldModel.params);
     }
+    return null;
   }
 }
 
 cell.run(async () => {
-  const initModel = await cell.inputPromises.initModel;
-  const trainConfig = await cell.inputPromises.trainConfig;
-  const nextTrainBatch = await cell.inputPromises.nextTrainBatch;
+  const { providedModel, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
 
-  const model = setable(updateModel(initModel()));
-  derived(() => updateModel(initModel(), model()));
+  const model = setable<Model | null>(null);
+  derived(() => updateModel(providedModel(), model()));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.
-  const varParamList = derived(() => listifyVarParams(model().params).map((g) => g.variable));
+  const varParamList = derivedNullable(() =>
+    listifyVarParams(defined(model).params).map((g) => g.variable)
+  );
 
   let optimizer = tf.train.adam();
 
-  derived(() => {
+  derivedNullable(() => {
     optimizer.minimize(
-      () => computeLoss(model(), nextTrainBatch(), trainConfig()),
+      () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
       false,
-      varParamList()
+      defined(varParamList)
     );
   });
 
@@ -119,10 +126,12 @@ cell.run(async () => {
     if (optimizer) {
       optimizer.dispose();
     }
-    disposeParams(model().params);
+    const m = model();
+    if (m) {
+      disposeParams(m.params);
+    }
   });
 });
-
 // console.log(
 //   `batch: ${batchId} `.padEnd(15) +
 //     ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
