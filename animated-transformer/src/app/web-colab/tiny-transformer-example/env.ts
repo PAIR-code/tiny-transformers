@@ -52,14 +52,9 @@ lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
   );
 }
 
-const env = new LabEnv();
-
-// TODO: wrap signals here as namedSignals, with an optional saver, and then we
-// can directly provide outputs from one, to inputs of another.
 async function run() {
-  // Consider... one liner... but maybe handy to have the 'space' object to debug.
-  // const { writable, computed } = new SignalSpace();
-  const space = new SignalSpace();
+  const env = new LabEnv();
+  const space = env.space;
   const { setable, derived } = space;
 
   const taskConfig = derived(() => structuredClone(defaultTinyWorldTaskConfig));
@@ -83,13 +78,13 @@ async function run() {
   // Should be set by checkpoint...
   // const model = setable<EnvModel>({ config: defaultTransformerConfig() });
   const batchSize = derived(() => trainConfig().batchSize);
-  const lastBatchSeed = derived<number | null>(() => null);
+  const useBatchSeed = derived<number | null>(() => null);
   const testSetSize = setable(200);
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
     testSetSize,
     batchSize,
-    lastBatchSeed,
+    useBatchSeed,
     taskGenState,
   });
 

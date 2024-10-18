@@ -31,7 +31,7 @@ const { derived, setable } = cell.space;
 cell.run(async () => {
   const taskConfig = await cell.inputPromises.taskConfig;
   const testSetSize = await cell.inputPromises.testSetSize;
-  const startFromBatchSeed = await cell.inputPromises.lastBatchSeed;
+  const startFromBatchSeed = await cell.inputPromises.useBatchSeed;
   const batchSize = await cell.inputPromises.batchSize;
   const rawState = await cell.inputPromises.taskGenState;
 

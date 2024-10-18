@@ -117,7 +117,7 @@ export type TaskVars = {
   // Test set size + taskConfig is used to generated the test set.
   testSetSize: number;
   // Last seed allows us to restart from a given state/location.
-  lastBatchSeed: number | null;
+  useBatchSeed: number | null;
   // The size of the batch.
   batchSize: number;
   // A way to start/stop generation explicitly.
@@ -138,6 +138,6 @@ export const taskCellSpec = cellSpec(
   taskVars,
   'Task cell',
   () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  ['taskConfig', 'testSetSize', 'batchSize', 'lastBatchSeed', 'taskGenState'],
+  ['taskConfig', 'testSetSize', 'batchSize', 'useBatchSeed', 'taskGenState'],
   ['nextTrainBatch', 'testSet']
 );

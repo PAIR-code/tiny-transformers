@@ -33,27 +33,21 @@ import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 fdescribe('Task-Cell', () => {
   beforeEach(() => {});
 
-  it('simple task cell test', async () => {
+  it('simple task cell test: make 5 batches of data', async () => {
     const env = new LabEnv();
     const space = env.space;
-
-    // Consider... one liner... but maybe handy to have the 'space' object to debug.
-    // const { writable, computed } = new SignalSpace();
     const { setable, derived } = space;
 
-    // const taskKinds = Object.keys(taskRegistry.kinds);
-    // const taskKind = setable<string>();
     const taskConfig = setable(defaultTinyWorldTaskConfig);
-    // const batch = derived<Batch>(() => makeBatch(batchId(), trainConfig().batchSize));
     const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
-    const batchSize = derived(() => 10);
-    const lastBatchSeed = derived<number | null>(() => null);
+    const batchSize = setable(10);
+    const useBatchSeed = setable<number | null>(null);
     const testSetSize = setable(5);
     const taskCell = env.start(taskCellSpec, {
       taskConfig,
       testSetSize,
       batchSize,
-      lastBatchSeed,
+      useBatchSeed,
       taskGenState,
     });
     const genState: TaskGenSate = {
