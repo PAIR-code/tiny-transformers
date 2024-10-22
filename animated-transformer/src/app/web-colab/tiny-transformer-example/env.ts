@@ -17,12 +17,9 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { taskRegistry } from 'src/lib/seqtasks/task_registry';
+import { DepKind } from 'src/lib/signalspace/signalspace';
 import {
-  EnvModel,
   TrainConfig,
   trainerCellSpec,
   taskCellSpec,
@@ -33,7 +30,6 @@ import {
   InitModelAction,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { LabState } from 'src/lib/weblab/lab-state';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 function logMetrics(metrics: SimpleMetrics): void {
@@ -59,7 +55,9 @@ async function run() {
   const space = env.space;
   const { setable, derived } = space;
 
-  const taskConfig = derived(() => structuredClone(defaultTinyWorldTaskConfig));
+  const taskConfig = setable(structuredClone(defaultTinyWorldTaskConfig));
+  const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
+
   const trainConfig = setable<TrainConfig>({
     id: 'initial config',
     kind: 'basicSeqTrainer',
@@ -74,7 +72,6 @@ async function run() {
       metricFrequencyInBatches: 10,
     },
   });
-  const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
   const providedModel = setable<ProvidedModel>({
     kind: InitModelAction.ReinitFromConfig,
     config: defaultTransformerConfig(),
@@ -109,6 +106,7 @@ async function run() {
     nextTrainBatch,
     testSet,
   });
+
   const genState: TaskGenSate = {
     kind: 'generating',
     curBatchId: 0,

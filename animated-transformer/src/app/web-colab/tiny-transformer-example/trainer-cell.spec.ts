@@ -21,14 +21,16 @@ import {
   TaskGenSate,
   ProvidedModel,
   InitModelAction,
+  Batch,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
+import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
+import { indexExample } from 'src/lib/seqtasks/util';
 
 xdescribe('Trainer-Cell', () => {
   beforeEach(() => {});
 
-  it('simple task cell test: make 5 batches of data and trains a model', async () => {
+  it('Send a few batches to a trainer cell, and watch the loss', async () => {
     const env = new LabEnv();
     const space = env.space;
     const { setable, derived } = space;
@@ -44,112 +46,62 @@ xdescribe('Trainer-Cell', () => {
       maxInputLength: 10,
       trainForBatches: 100,
       // Reporting / eval
-      checkpointFrequencyInBatches: 100,
+      checkpointFrequencyInBatches: 1,
       metricReporting: {
-        metricFrequencyInBatches: 10,
+        metricFrequencyInBatches: 1,
       },
     });
     const providedModel = setable<ProvidedModel>({
       kind: InitModelAction.ReinitFromConfig,
       config: defaultTransformerConfig(),
     });
-    const batchSize = derived(() => trainConfig().batchSize);
 
     // ------------------------------------------------------------------------
     //  Task
-    const taskConfig = setable(defaultTinyWorldTaskConfig);
-    const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
-    // const batchSize = setable(10);
-    const useBatchSeed = setable<number | null>(null);
-    const testSetSize = setable(5);
-    const taskCell = env.start(taskCellSpec, {
-      taskConfig,
-      testSetSize,
-      batchSize,
-      useBatchSeed,
-      taskGenState,
-    });
-    const genState: TaskGenSate = {
-      kind: 'generating',
-      curBatchId: 0,
-      batchMaxQueueSize: trainConfig().metricReporting.metricFrequencyInBatches * 4,
-      maxBatches: 5,
-    };
-    taskGenState.set(genState);
-    console.log(`taskGenState: ${JSON.stringify(taskGenState())}`);
-    console.log(`waiting for nextTrainBatch...`);
+    const task = setable(new TinyWorldTask(defaultTinyWorldTaskConfig));
 
-    const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
-    const testSet = await taskCell.outputs.testSet;
+    // TODO: make state iterator take in the state for easier random stream
+    // management?
+    // CONSIDER: RandomStreamOf<Example> having a fork op. But also being savable.
+    const dataSplitByTrainAndTest = derived(() => {
+      const examplesIter = task().exampleIter.copy();
+      const testExamples = examplesIter.takeOutN(50);
+      const testSetIndex = new Set(testExamples.map(indexExample));
+      const trainExamplesIter = examplesIter.copy();
+      // With a generative synthetic world you can guarentee no duplicate example in
+      // the test set and train set by filtering the test from the train.
+      // This gives the optimal quality of test metric measurement.
+      trainExamplesIter.filter((example) => !testSetIndex.has(indexExample(example)));
+      return { testExamples, trainExamplesIter };
+    });
+    const trainExamplesIter = dataSplitByTrainAndTest().trainExamplesIter;
+    const testSet = setable(dataSplitByTrainAndTest().testExamples);
+
+    function makeBatch(batchId: number, batchSize: number): Batch {
+      const batchOriginal = trainExamplesIter.takeOutN(batchSize);
+      const inputs = batchOriginal.map((example) => example.input);
+      const outputs = batchOriginal.map((example) => example.output);
+      const batchSeed = trainExamplesIter.state.seed;
+      return { batchId, nextSeed: batchSeed, inputs, outputs };
+    }
+    const nextTrainBatch = setable(makeBatch(0, trainConfig().batchSize));
 
     // ------------------------------------------------------------------------
     // Trainer cell
-
-    // TODO: add data to each signal in a spec to say if the signal is pushed or
-    // pulled. Pushed means that every worker set on the signal pushes the new
-    // value here. Pulled means every time we read the value here, we make a fresh
-    // request to the worker for it's state for that signal. We could also call,
-    // or re-use the concept of Lazy vs Sync (although technically it would not be
-    // sync...)
-    //
-    // Note: we can make the semantics here match signalspace. That would be cool.
     const trainerCell = env.start(trainerCellSpec, {
       providedModel,
       trainConfig,
       nextTrainBatch,
       testSet,
     });
-
-    // ------------------------------------------------------------------------
-    // Connect the cells...
-
-    // We don't need the batch values.
-    env.pipeSignal(taskCell, trainerCell, 'nextTrainBatch', { keepSignalPushesHereToo: false });
-    // But we would like to have the testSet here.
-    env.pipeSignal(taskCell, trainerCell, 'testSet');
-
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-
     const lastMetrics = await trainerCell.outputs.lastTrainMetric;
-    derived(() => {
-      const batch = nextTrainBatch();
-      const state = taskGenState({ depKind: DepKind.Lazy });
-      if (state.kind === 'generating') {
-        console.log(lastMetrics());
-        // console.log('state', state);
-        // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
-        // taskConfig?
-        taskGenState.set({ ...genState, curBatchId: batch.batchId });
-        if (batch.batchId >= genState.maxBatches) {
-          taskGenState.set({ kind: 'finished' });
-        }
-      }
-    });
     const ckpt = await trainerCell.outputs.checkpoint;
-    // derived(() => logCheckpoint(ckpt()));
 
-    expect(nextTrainBatch().batchId).toEqual(4);
-
-    await taskCell.onceFinished;
-    await trainerCell.onceFinished;
-
-    // // TODO: create a sensible queue abstraction.
-    // console.log(`nextTrainBatch: ${JSON.stringify(nextTrainBatch().batchId)}`);
-    // derived(() => {
-    //   const batch = nextTrainBatch();
-    //   const state = taskGenState({ depKind: DepKind.Lazy });
-    //   if (state.kind === 'generating') {
-    //     console.log('state', state);
-    //     // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
-    //     // taskConfig?
-    //     taskGenState.set({ ...genState, curBatchId: batch.batchId });
-    //     if (batch.batchId >= genState.maxBatches - 1) {
-    //       taskGenState.set({ kind: 'finished' });
-    //     }
-    //   }
-    // });
-    // await taskCell.onceFinished;
-    // console.log(`final batch id: ${nextTrainBatch().batchId}`);
+    expect(lastMetrics().batchId).toEqual(0);
+    expect(ckpt().lastBatch.batchId).toEqual(0);
+    trainerCell.worker.terminate();
+    // await trainerCell.onceFinished;
   });
 });

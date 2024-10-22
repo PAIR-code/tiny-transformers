@@ -169,6 +169,8 @@ export class LabEnvCell<
     };
     this.worker.postMessage(message, [port]);
   }
+
+  // TODO: add some closing cleanup?
 }
 
 type SomeCellStateSpec = CellStateSpec<ValueStruct, string, string>;
