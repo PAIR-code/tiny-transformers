@@ -443,6 +443,51 @@ export function transformerLastTokenCrossEntropyLoss(
   // return loss.tensor;
 }
 
+/** Return logits for all tokens of the transformer.
+ *
+ * params: transformer parameters.
+ * tokenEmb: embeddings for all tokens.
+ */
+export function transformerLogits(
+  params: TransformerComputation,
+  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  const lastLayer = params.layers[params.layers.length - 1];
+  const seqOutput = lastLayer.seqOuput;
+  const logits = seqOutput.contract(tokenEmb, ['inputRep']);
+  return logits;
+}
+
+/**
+ * Returns the average per example loss for all tokens predicated.
+ * losses are summed over all positions.
+ */
+export function transformerAllTokensCrossEntropyLoss(
+  params: TransformerComputation,
+  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+  targetTokenIdxs: GTensor<'batch' | 'pos'>
+): tf.Scalar {
+  const logits = transformerLogits(params, tokenEmb);
+
+  const logProbs = logits.softmax('tokenId').log();
+  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, tokenEmb.dim.tokenId.size), [
+    'batch',
+    'pos',
+    'tokenId',
+  ]);
+
+  const crossEntopy = logProbs.pointwiseMul(oneHotToken);
+
+  const batchSizeScalar = tf.scalar(targetTokenIdxs.dim.batch.size * -1);
+  const posSizeScalar = tf.scalar(targetTokenIdxs.dim.pos.size * -1);
+
+  return (
+    crossEntopy
+      .sumOverDims(['batch', 'pos', 'tokenId'])
+      ._tfScalarDiv(tf.mul(batchSizeScalar, posSizeScalar)).tensor as tf.Scalar
+  );
+}
+
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.
