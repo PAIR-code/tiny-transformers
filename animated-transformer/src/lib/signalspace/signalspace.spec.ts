@@ -15,7 +15,7 @@ limitations under the License.
 
 import { DerivedNode, DerivedNodeState } from './derived-node';
 import { SetableNode } from './setable-node';
-import { SignalSpace, defined, promisifySignal, SignalKind } from './signalspace';
+import { SignalSpace, defined, promisifySignal, SignalKind, DepKind } from './signalspace';
 
 describe('signalspace', () => {
   it('Simple signal compute', () => {
@@ -108,13 +108,64 @@ describe('signalspace', () => {
   it('derivedNullable on value', () => {
     const s = new SignalSpace();
     const { setable, derivedNullable } = s;
-    const a = setable<string | null>('a');
+    const a = setable<{ str: string } | null>({ str: 'a' });
     const b = derivedNullable(() => {
-      return defined(a) + 'b';
+      return defined(a).str + 'b';
     });
     expect(b()).toEqual('ab');
     a.set(null);
     expect(b()).toEqual(null);
+  });
+
+  it('derivedNullable on derived', () => {
+    const s = new SignalSpace();
+    const { setable, derivedNullable } = s;
+    const a = setable<{ str: string } | null>({ str: 'a' });
+    const b = derivedNullable(() => {
+      return { bStr: defined(a).str + 'b' };
+    });
+    const c = derivedNullable(() => {
+      if (defined(b).bStr === 'b') {
+        return null;
+      }
+      const b2 = defined(b);
+      return b2.bStr + 'c';
+    });
+    expect(b()).toEqual({ bStr: 'ab' });
+    expect(c()).toEqual('abc');
+    a.set(null);
+    expect(b()).toEqual(null);
+    expect(c()).toEqual(null);
+    a.set({ str: '' });
+    expect(b()).toEqual({ bStr: 'b' });
+    expect(c()).toEqual(null);
+  });
+
+  fit('derivedNullable on derived, but null at init', () => {
+    const s = new SignalSpace();
+    const { setable, derivedNullable } = s;
+    const a = setable<{ str: string } | null>(null);
+    const b = derivedNullable(
+      () => {
+        return { bStr: defined(a).str + 'b' };
+      },
+      { preComputeDeps: new Map([[a, { depKind: DepKind.Sync, downstreamNullIfNull: true }]]) }
+    );
+    const c = derivedNullable(
+      () => {
+        if (defined(b).bStr === 'b') {
+          return null;
+        }
+        const b2 = defined(b);
+        return b2.bStr + 'c';
+      },
+      { preComputeDeps: new Map([[b, { depKind: DepKind.Sync, downstreamNullIfNull: true }]]) }
+    );
+    expect(b()).toEqual(null);
+    expect(c()).toEqual(null);
+    a.set({ str: 'a' });
+    expect(b()).toEqual({ bStr: 'ab' });
+    expect(c()).toEqual('abc');
   });
 
   it('defined in non nullable derived throws error', () => {

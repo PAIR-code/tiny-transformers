@@ -121,7 +121,6 @@ export class LabEnvCell<
           signalId: key,
           signalValue: value,
         };
-        console.log(`env sending: ${JSON.stringify(message)}`);
         this.worker.postMessage(message);
       });
     }

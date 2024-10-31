@@ -23,6 +23,7 @@ import {
   SignalKind,
   defaultEqCheck,
   BasicSignalOptions,
+  AbstractSignal,
 } from './signalspace';
 
 // ----------------------------------------------------------------------------
@@ -42,17 +43,19 @@ export type DerivedOptions<T> = BasicSignalOptions<T> & {
   // TODO: generalise nullTyped to it's algebraic nature:
   // It's a pooling operation with optional early exit.
   nullTyped: null extends T ? boolean : false;
+  preComputeDeps: Map<AbstractSignal<any>, SignalDepOptions>;
 
   // Sync means that dependencies in it's compute function definition by default
-  // are sync. Lazy means that dependencies in the cmompute function definition
-  // are by default lazy (i.e. we update this signal only when needed e.g. when
-  // there is an explicit call of signal.get()).
+  // are immidiate (sync). Lazy means that dependencies in the cmompute function
+  // definition are by default lazy (i.e. we update this signal only when needed
+  // e.g. when there is an explicit call of signal.get()).
   kind: SignalKind.SyncDerived | SignalKind.LazyDerived;
 };
 
 export function defaultDerivedOptions<T>(): DerivedOptions<T> {
   return {
     nullTyped: false,
+    preComputeDeps: new Map(),
     kind: SignalKind.SyncDerived,
     eqCheck: defaultEqCheck,
   };
@@ -90,8 +93,6 @@ export class DerivedNode<T> {
     return `d${this.nodeId}_${(this.options && this.options.id) || ''}`;
   }
 
-  noteChangedSetable(s: SetableNode<unknown>) {}
-
   constructor(
     public signalSpace: SignalSpace,
     public computeFunction: () => T,
@@ -104,10 +105,31 @@ export class DerivedNode<T> {
       kind: ComputeContextKind.Definition,
       node: this as DerivedNode<unknown>,
     });
-    // Note: this.lastValue should be set last, because...
-    // Within the `computeFunction()` call, we expect other siganls, s,
-    // to be called with s.get(), and these will add all
-    this.lastValue = computeFunction();
+    // TODO: think about this more... there are probably some subtle cases of
+    // updates in nested defintions... also, maybe we should just give up on the
+    // maybeMonad construction that nullable provides... it's rather a complex
+    // implementation...
+
+    // Manually provide some dependencies
+    for (const [dep, depOptions] of this.options.preComputeDeps) {
+      let finalDepOptions: SignalDepOptions;
+      if (dep.node instanceof DerivedNode) {
+        finalDepOptions = this.noteDependsOnComputing(dep.node, depOptions);
+      } else {
+        finalDepOptions = this.noteDependsOnSetable(dep.node, depOptions);
+      }
+      dep.node.dependsOnMe.set(this as DerivedNode<unknown>, finalDepOptions);
+    }
+    this.checkUpstreamChanges();
+    if (this.nullBecauseUpstreamNull) {
+      this.lastValue = null as T;
+    } else {
+      // Note: this.lastValue should be set last, because... Within the
+      // `computeFunction()` call, we expect other siganls, s, to be called with
+      // s.get(), and these get calls will add the relevant dependencies.
+      this.lastValue = computeFunction();
+    }
+    this.nullBecauseUpstreamNull = false;
     this.signalSpace.computeStack.pop();
     this.state = DerivedNodeState.UpToDate;
   }
@@ -133,14 +155,18 @@ export class DerivedNode<T> {
   //
   checkUpstreamChanges(): void {
     // let upstreamDepChanged = false;
-    for (const [dep, options] of this.dependsOnComputing.entries()) {
+    for (const [dep, depOptions] of this.dependsOnComputing.entries()) {
       // if (dep.state !== DerivedNodeState.UpToDate) {
       //
       // console.warn(`[${this.id}].checkUpstreamChanges: dependsOnComputing: ${dep.id}`);
       dep.ensureUpToDate();
       // Note: options.downstreamNullIfNull ==> this.options.nullTyped
-      if (this.options.nullTyped && options.downstreamNullIfNull && dep.lastValue === null) {
+      if (this.options.nullTyped && depOptions.downstreamNullIfNull && dep.lastValue === null) {
         this.nullBecauseUpstreamNull = true;
+        // TODO: consider: this can result in rather complex beaviours because
+        // depending on the ordering in the graph, different deps get
+        // computed... consider always doing all dep updates first? On the other
+        // hand, this is more efficient...
         break;
       }
       // }
@@ -172,7 +198,9 @@ export class DerivedNode<T> {
     // it does indeed require recomputing.
     this.checkUpstreamChanges();
     if (this.state === DerivedNodeState.RequiresRecomputing) {
-      // console.warn(`[${this.id}].recomputing...`);
+      console.warn(
+        `[${this.id}](nullTyped: ${this.options.nullTyped}; nullBecauseUpstreamNull: ${this.nullBecauseUpstreamNull}): RequiresRecomputing...`
+      );
       let newValue: T;
       if (this.nullBecauseUpstreamNull) {
         // This is a lie that has to be caught at runtime by the `defined`
@@ -203,10 +231,39 @@ export class DerivedNode<T> {
     return;
   }
 
+  noteDependsOnSetable(
+    node: SetableNode<unknown>,
+    depOptions?: Partial<SignalDepOptions>
+  ): SignalDepOptions {
+    // A derived dependency is Lazy or Sync depending on the default signal
+    // type; but it can be over-written by the dependency kind specified for
+    // this specific dependency.
+    const newOptions: SignalDepOptions = {
+      ...defaultDepOptions,
+      depKind: this.options.kind === SignalKind.LazyDerived ? DepKind.Lazy : DepKind.Sync,
+      ...depOptions,
+    };
+    const existingDep = this.dependsOnSetables.get(node);
+    // Any sync dep (past or present), means this is a sync dep.
+    if (existingDep) {
+      if (existingDep.depKind === DepKind.Sync || newOptions.depKind === DepKind.Sync) {
+        // update DepKind to be Sync.
+        newOptions.depKind = DepKind.Sync;
+      }
+      newOptions.downstreamNullIfNull =
+        existingDep.downstreamNullIfNull || newOptions.downstreamNullIfNull;
+    }
+    this.dependsOnSetables.set(node, newOptions);
+    return newOptions;
+  }
+
   noteDependsOnComputing(
     node: DerivedNode<unknown>,
     depOptions?: Partial<SignalDepOptions>
   ): SignalDepOptions {
+    // A derived dependency is Lazy or Sync depending on the default signal
+    // type; but it can be over-written by the dependency kind specified for
+    // this specific dependency.
     const newOptions: SignalDepOptions = {
       ...defaultDepOptions,
       depKind: this.options.kind === SignalKind.LazyDerived ? DepKind.Lazy : DepKind.Sync,
