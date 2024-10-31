@@ -35,7 +35,7 @@ export enum DerivedNodeState {
   UpToDate = 'UpToDate',
 }
 
-export type DerivedOptions<T> = BasicSignalOptions<T> & {
+export type DerivedNodeOptions<T> = BasicSignalOptions<T> & {
   // When true, the type `T` must be of the form `S | null` (null must extend
   // T). The idea is that the value of this derivedNode is `null` if any
   // dependency is wrapped in a `defined`, and that child dep's valuye is null.
@@ -52,7 +52,7 @@ export type DerivedOptions<T> = BasicSignalOptions<T> & {
   kind: SignalKind.SyncDerived | SignalKind.LazyDerived;
 };
 
-export function defaultDerivedOptions<T>(): DerivedOptions<T> {
+export function defaultDerivedOptions<T>(): DerivedNodeOptions<T> {
   return {
     nullTyped: false,
     preComputeDeps: new Map(),
@@ -86,7 +86,7 @@ export class DerivedNode<T> {
   // // Should only be possible to true when `this.options.nullTyped === true`.
   nullBecauseUpstreamNull = false;
   lastValue: T;
-  options: DerivedOptions<T>;
+  options: DerivedNodeOptions<T>;
   nodeId: number;
 
   get id() {
@@ -96,7 +96,7 @@ export class DerivedNode<T> {
   constructor(
     public signalSpace: SignalSpace,
     public computeFunction: () => T,
-    options?: Partial<DerivedOptions<T>>
+    options?: Partial<DerivedNodeOptions<T>>
   ) {
     this.nodeId = signalSpace.nodeCount++;
     this.options = { ...defaultDerivedOptions(), ...options };

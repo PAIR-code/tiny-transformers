@@ -27,7 +27,7 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
 
-xdescribe('Trainer-Cell', () => {
+fdescribe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {

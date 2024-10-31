@@ -108,19 +108,23 @@ cell.run(async () => {
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.
-  const varParamList = derivedNullable(() =>
-    listifyVarParams(defined(model).params).map((g) => g.variable)
+  const varParamList = derivedNullable(
+    () => listifyVarParams(defined(model).params).map((g) => g.variable),
+    { definedDeps: [model] }
   );
 
   let optimizer = tf.train.adam();
 
-  derivedNullable(() => {
-    optimizer.minimize(
-      () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
-      false,
-      defined(varParamList)
-    );
-  });
+  derivedNullable(
+    () => {
+      optimizer.minimize(
+        () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
+        false,
+        defined(varParamList)
+      );
+    },
+    { definedDeps: [model, varParamList] }
+  );
 
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {

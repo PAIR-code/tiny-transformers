@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { DerivedNode, DerivedNodeState, DerivedOptions } from './derived-node';
+import { DerivedNode, DerivedNodeState, DerivedNodeOptions } from './derived-node';
 import { SetableNode, SetableOptions, SignalSetOptions } from './setable-node';
 
 /**
@@ -192,15 +192,18 @@ export class SignalSpace {
   ) => DerivedSignal<T>;
   public derivedNullable = derivedNullable.bind(null, this) as <T>(
     f: () => T | null,
-    options?: Partial<DerivedOptions<T>>
+    options?: Partial<DerivedNullableOptions<T>>
   ) => DerivedSignal<T | null>;
+  // Note the Lazy definition just change the default dependency type to Lazy...
+  // we could remove these, and just use the above, but manually specify each
+  // dependency as Lazy when we want it.
   public derivedLazy = derivedLazy.bind(null, this) as <T>(
     f: () => T,
     options?: Partial<DerivedOptions<T>>
   ) => DerivedSignal<T>;
   public derivedLazyNullable = derivedLazyNullable.bind(null, this) as <T>(
     f: () => T | null,
-    options?: Partial<DerivedOptions<T>>
+    options?: Partial<DerivedNullableOptions<T>>
   ) => DerivedSignal<T | null>;
 
   constructor() {}
@@ -340,29 +343,53 @@ function setable<T>(
   return signal;
 }
 
-function derived<T>(
-  space: SignalSpace,
-  f: () => T,
-  options?: Partial<DerivedOptions<T>>
-): DerivedSignal<T> {
-  const derivedNode = new DerivedNode<T>(space, f, options);
-  const signal = function (options?: Partial<SignalDepOptions>) {
-    return derivedNode.get(options);
+// A conenience type for specifying DerivedNodeOptions<T>.
+export type DerivedOptions<T> = {
+  eqCheck: (x: T, y: T) => boolean;
+  id: string;
+  deps: AbstractSignal<any>[];
+  lazyDeps: AbstractSignal<any>[];
+};
+
+// A conenience type for specifying DerivedNodeOptions<T>.
+export type DerivedNullableOptions<T> = {
+  eqCheck: (x: T, y: T) => boolean;
+  id: string;
+  deps: AbstractSignal<any>[];
+  lazyDeps: AbstractSignal<any>[];
+  definedDeps: AbstractSignal<any>[];
+  definedLazyDeps: AbstractSignal<any>[];
+};
+
+function makeDerivedNodeOptions<T>(
+  opts?: Partial<DerivedNullableOptions<T>>
+): Partial<DerivedNodeOptions<T>> | undefined {
+  if (!opts) return;
+  const preComputeDeps = new Map<AbstractSignal<any>, SignalDepOptions>();
+  for (const dep of opts.lazyDeps || []) {
+    preComputeDeps.set(dep, { depKind: DepKind.Lazy, downstreamNullIfNull: false });
+  }
+  for (const dep of opts.definedLazyDeps || []) {
+    preComputeDeps.set(dep, { depKind: DepKind.Lazy, downstreamNullIfNull: true });
+  }
+  for (const dep of opts.deps || []) {
+    preComputeDeps.set(dep, { depKind: DepKind.Sync, downstreamNullIfNull: false });
+  }
+  for (const dep of opts.definedDeps || []) {
+    preComputeDeps.set(dep, { depKind: DepKind.Sync, downstreamNullIfNull: true });
+  }
+  return {
+    id: opts.id,
+    eqCheck: opts.eqCheck,
+    preComputeDeps,
   };
-  signal.node = derivedNode;
-  signal.lastValue = () => derivedNode.lastValue;
-  signal.space = space;
-  signal.options = options;
-  return signal;
 }
 
-// A special case that allows for `nullme` operators on sub-signals to handle the null cases.
-function derivedNullable<T>(
-  space: SignalSpace,
-  f: () => T | null,
-  options?: Partial<DerivedOptions<T>>
-): DerivedSignal<T | null> {
-  const definedEqCheck = (options && options.eqCheck) || defaultEqCheck;
+function makeDerivedNodeNullableOptions<T>(
+  opts?: Partial<DerivedNullableOptions<T>>
+): Partial<DerivedNodeOptions<T | null>> | undefined {
+  const nodeOptions = makeDerivedNodeOptions(opts);
+  const definedEqCheck = (nodeOptions && nodeOptions.eqCheck) || defaultEqCheck;
   let eqCheck: ((x: T | null, y: T | null) => boolean) | undefined;
   if (definedEqCheck) {
     eqCheck = (a, b) => {
@@ -375,25 +402,47 @@ function derivedNullable<T>(
       }
     };
   }
-
-  let nullableOptions: Partial<DerivedOptions<T | null>> = {
-    ...options,
+  let nullableOptions: Partial<DerivedNodeOptions<T | null>> = {
+    ...nodeOptions,
     eqCheck,
     nullTyped: true,
   };
+  return nullableOptions;
+}
 
-  const derivedNode = new DerivedNode<T | null>(space, f, nullableOptions);
-
-  // Note: in pure JS we could write `const signal = derivedSignal.get` But for
-  // typescript to do correct incremental type inference, we use the identity
-  // function wrapper.
-  const signal = function (options?: Partial<SignalDepOptions>) {
-    return derivedNode.get(options);
+function derivedNodeFn<T>(
+  space: SignalSpace,
+  f: () => T,
+  nodeOptions?: Partial<DerivedNodeOptions<T>>
+): DerivedSignal<T> {
+  const derivedNode = new DerivedNode<T>(space, f, nodeOptions);
+  const signal = function (getOptions?: Partial<SignalDepOptions>) {
+    return derivedNode.get(getOptions);
   };
   signal.node = derivedNode;
   signal.lastValue = () => derivedNode.lastValue;
   signal.space = space;
+  signal.options = nodeOptions;
   return signal;
+}
+
+function derived<T>(
+  space: SignalSpace,
+  f: () => T,
+  options?: Partial<DerivedOptions<T>>
+): DerivedSignal<T> {
+  const nodeOptions = makeDerivedNodeOptions(options as DerivedNullableOptions<T>);
+  return derivedNodeFn(space, f, nodeOptions);
+}
+
+// A special case that allows for `nullme` operators on sub-signals to handle the null cases.
+function derivedNullable<T>(
+  space: SignalSpace,
+  f: () => T | null,
+  options?: Partial<DerivedOptions<T>>
+): DerivedSignal<T | null> {
+  const nodeOptions = makeDerivedNodeNullableOptions(options) || {};
+  return derivedNodeFn(space, f, nodeOptions);
 }
 
 // The key characteristic of effects is that they get updated per "set" of a
@@ -404,8 +453,9 @@ function derivedLazy<T>(
   f: () => T,
   options?: Partial<DerivedOptions<T>>
 ): DerivedSignal<T> {
-  options = { ...options, kind: SignalKind.LazyDerived };
-  return derived(space, f, options);
+  const nodeOptions = makeDerivedNodeOptions(options) || {};
+  nodeOptions.kind = SignalKind.LazyDerived;
+  return derivedNodeFn(space, f, nodeOptions);
 }
 
 // The key characteristic of effects is that they get updated per "set" of a
@@ -416,8 +466,10 @@ function derivedLazyNullable<T>(
   f: () => T | null,
   options?: Partial<DerivedOptions<T>>
 ): DerivedSignal<T | null> {
-  options = { ...options, kind: SignalKind.LazyDerived };
-  return derivedNullable(space, f, options);
+  const nodeOptions = makeDerivedNodeNullableOptions(options) || {};
+  nodeOptions.kind = SignalKind.LazyDerived;
+  // options = { ...options, kind: SignalKind.LazyDerived };
+  return derivedNodeFn(space, f, nodeOptions);
 }
 
 // ----------------------------------------------------------------------------

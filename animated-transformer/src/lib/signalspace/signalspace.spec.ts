@@ -149,7 +149,7 @@ describe('signalspace', () => {
       () => {
         return { bStr: defined(a).str + 'b' };
       },
-      { preComputeDeps: new Map([[a, { depKind: DepKind.Sync, downstreamNullIfNull: true }]]) }
+      { definedDeps: [a] }
     );
     const c = derivedNullable(
       () => {
@@ -159,7 +159,7 @@ describe('signalspace', () => {
         const b2 = defined(b);
         return b2.bStr + 'c';
       },
-      { preComputeDeps: new Map([[b, { depKind: DepKind.Sync, downstreamNullIfNull: true }]]) }
+      { definedDeps: [b] }
     );
     expect(b()).toEqual(null);
     expect(c()).toEqual(null);
