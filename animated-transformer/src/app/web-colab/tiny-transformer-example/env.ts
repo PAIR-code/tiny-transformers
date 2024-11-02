@@ -26,8 +26,8 @@ import {
   Checkpoint,
   TaskGenSate,
   SimpleMetrics,
-  ProvidedModel,
-  InitModelAction,
+  ModelUpdate,
+  ModelUpdateKind,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
@@ -72,8 +72,8 @@ async function run() {
       metricFrequencyInBatches: 10,
     },
   });
-  const providedModel = setable<ProvidedModel>({
-    kind: InitModelAction.ReinitFromConfig,
+  const providedModel = setable<ModelUpdate>({
+    kind: ModelUpdateKind.ReinitFromConfig,
     config: defaultTransformerConfig(),
   });
   // Should be set by checkpoint...
@@ -101,7 +101,7 @@ async function run() {
   //
   // Note: we can make the semantics here match signalspace. That would be cool.
   const trainerCell = env.start(trainerCellSpec, {
-    providedModel,
+    modelUpdateEvents: modelUpdates,
     trainConfig,
     nextTrainBatch,
     testSet,

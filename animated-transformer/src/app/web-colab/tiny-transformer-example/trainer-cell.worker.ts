@@ -21,7 +21,13 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { StatefulCell, makeMetricReporter } from 'src/lib/weblab/lab-worker-cell';
-import { Batch, InitModelAction, ProvidedModel, TrainConfig, trainerCellSpec } from './ailab';
+import {
+  Batch,
+  ModelUpdateKind,
+  ModelUpdate as ModelUpdate,
+  TrainConfig,
+  trainerCellSpec,
+} from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -38,7 +44,7 @@ import {
   listifyVarParams,
   varifyParams,
 } from 'src/lib/gtensor/params';
-import { defined } from 'src/lib/signalspace/signalspace';
+import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
 
 const cell = new StatefulCell(trainerCellSpec);
 const { derived, setable, derivedNullable } = cell.space;
@@ -59,6 +65,7 @@ function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig)
   }
   if (batch.batchId % config.checkpointFrequencyInBatches === 0) {
     console.log('TODO: save checkpoint');
+    throw new Error('TODO: save checkpoint');
   }
   return entropyLoss;
 }
@@ -68,36 +75,44 @@ type Model = { config: TransformerConfig; params: VarTransformerParams };
 // TODO: instead of updating all params at the same time, we should use some
 // streaming iterator through the parts... (and save memory), and allow
 // transfer to happen at the same time as we assign in the GPU.
-function updateModel(newProvidedModel: ProvidedModel, oldModel: Model | null): Model | null {
-  if (newProvidedModel.kind === InitModelAction.ReinitFromConfig) {
-    if (oldModel) {
-      disposeParams(oldModel.params);
+function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model | null>) {
+  console.log(`...updateModel ${modelUpdate.kind}`);
+
+  const model = modelSignal.lastValue();
+
+  if (modelUpdate.kind === ModelUpdateKind.ReinitFromConfig) {
+    if (model) {
+      disposeParams(model.params);
     }
-    const config = newProvidedModel.config;
-    return { config, params: varifyParams(initDecoderParams(config)) };
-  } else if (newProvidedModel.kind === InitModelAction.ReplaceParamsAndConfig) {
-    const config = newProvidedModel.config;
-    return { config, params: varifyParams(deserializeParams(newProvidedModel.serializedParams)) };
-  } else if (newProvidedModel.kind === InitModelAction.ReplaceParams) {
-    if (!oldModel) {
+    const config = modelUpdate.config;
+    modelSignal.set({ config, params: varifyParams(initDecoderParams(config)) });
+  } else if (modelUpdate.kind === ModelUpdateKind.ReplaceParamsAndConfig) {
+    const config = modelUpdate.config;
+    modelSignal.set({
+      config,
+      params: varifyParams(deserializeParams(modelUpdate.serializedParams)),
+    });
+  } else if (modelUpdate.kind === ModelUpdateKind.ReplaceParams) {
+    if (!model) {
       throw new Error('updateModel with InitModelAction.ReplaceParams but model is null');
     }
-    assignParams(oldModel.params, deserializeParams(newProvidedModel.serializedParams));
-    return oldModel;
+    assignParams(model.params, deserializeParams(modelUpdate.serializedParams));
   } else {
-    //  ProvidedModel === InitModelAction.Null
-    if (oldModel) {
-      disposeParams(oldModel.params);
+    //  modelUpdate.kind === ModelUpdateKind.Null
+    if (model) {
+      disposeParams(model.params);
     }
-    return null;
+    modelSignal.set(null);
   }
 }
 
 cell.run(async () => {
-  const { providedModel, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
+  const { modelUpdateEvents: modelUpdates, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
+
+  console.log('trainer has all inputs...');
 
   const model = setable<Model | null>(null);
-  derived(() => updateModel(providedModel(), model()));
+  derived(() => updateModel(modelUpdates(), model));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.
@@ -110,11 +125,14 @@ cell.run(async () => {
 
   derivedNullable(
     () => {
+      console.log('optimizer.minimize...');
+
       optimizer.minimize(
         () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
         false,
         defined(varParamList)
       );
+      console.log('done a step!');
     },
     { definedDeps: [model, varParamList] }
   );

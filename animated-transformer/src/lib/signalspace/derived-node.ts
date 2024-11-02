@@ -198,9 +198,9 @@ export class DerivedNode<T> {
     // it does indeed require recomputing.
     this.checkUpstreamChanges();
     if (this.state === DerivedNodeState.RequiresRecomputing) {
-      console.warn(
-        `[${this.id}](nullTyped: ${this.options.nullTyped}; nullBecauseUpstreamNull: ${this.nullBecauseUpstreamNull}): RequiresRecomputing...`
-      );
+      // console.warn(
+      //   `[${this.id}](nullTyped: ${this.options.nullTyped}; nullBecauseUpstreamNull: ${this.nullBecauseUpstreamNull}): RequiresRecomputing...`
+      // );
       let newValue: T;
       if (this.nullBecauseUpstreamNull) {
         // This is a lie that has to be caught at runtime by the `defined`

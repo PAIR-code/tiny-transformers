@@ -47,25 +47,25 @@ export type TrainConfig = {
   };
 };
 
-export enum InitModelAction {
+export enum ModelUpdateKind {
   ReinitFromConfig = 'ReinitFromConfig',
   ReplaceParams = 'ReplaceParams',
   ReplaceParamsAndConfig = 'ReplaceParamsAndConfig',
   Null = 'Null',
 }
 
-export type ProvidedModel =
+export type ModelUpdate =
   | {
-      kind: InitModelAction.ReplaceParams;
+      kind: ModelUpdateKind.ReplaceParams;
       config: TransformerConfig;
       serializedParams: SerializeTensorParams<TransformerParams>;
     }
   | {
-      kind: InitModelAction.ReinitFromConfig;
+      kind: ModelUpdateKind.ReinitFromConfig;
       config: TransformerConfig;
     }
   | {
-      kind: InitModelAction.ReplaceParamsAndConfig;
+      kind: ModelUpdateKind.ReplaceParamsAndConfig;
       config: TransformerConfig;
       serializedParams: SerializeTensorParams<TransformerParams>;
     };
@@ -87,7 +87,7 @@ export const trainerCellSpec = new CellSpec({
   workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
   inputs: {
     testSet: Kind<Example[]>,
-    providedModel: Kind<ProvidedModel>,
+    modelUpdateEvents: Kind<ModelUpdate>,
     trainConfig: Kind<TrainConfig>,
     nextTrainBatch: Kind<Batch>,
   },

@@ -29,7 +29,9 @@ export type ItemMetaData = {
   timestamp: Date;
 };
 
+// Class wrapper to communicate with a cell in a webworker.
 export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
+  // Resolved once the webworker says it has finished.
   public onceFinished: Promise<void>;
   public onceAllOutputs: Promise<SignalStructFn<O>>;
   public worker: Worker;
@@ -175,9 +177,6 @@ type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct>;
 
 export class LabEnv {
   space = new SignalSpace();
-  // inputFileHandles: Map<keyof Globals, FileSystemFileHandle> = new Map();
-  // inputFiles: Map<keyof Globals, FileSystemFileHandle> = new Map();
-  // stateVars: Partial<SignalsStructFn<Globals>> = {};
   metadata: Map<string, ItemMetaData> = new Map();
   runningCells: {
     [name: string]: SomeCellStateSpec;
@@ -189,47 +188,12 @@ export class LabEnv {
     };
   } = {};
 
-  // constructor(public workerState: LabState) {
-  //   console.log('import.meta.url', import.meta.url.toString());
-  // }
-
   start<I extends ValueStruct, O extends ValueStruct>(
     spec: CellSpec<I, O>,
-    cellUses: SignalStructFn<I>
+    inputs: SignalStructFn<I>
   ): LabEnvCell<I, O> {
-    // TODO: CellVars !== Globals. Think about this.
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
-
-    // const cellUses = {} as SignalsStructFn<{ [Key in I]: Globals[Key] }>;
-
-    // if (inputs) {
-    //   for (const key of Object.keys(inputs)) {
-    //     const curSignal = this.stateVars[key as I] as WritableSignal<Globals[I]> | undefined;
-    //     if (curSignal) {
-    //       curSignal.set(inputs[key as I]);
-    //     } else {
-    //       this.stateVars[key as I] = this.space.writable(inputs[key as I]);
-    //     }
-    //   }
-    // }
-
-    // // Ensure inputs in memory.
-    // for (const inputName of spec.uses) {
-    //   // if (this.stateVars[inputName] === undefined) {
-    //   //   throw new Error(`Input '${inputName}' is not yet defined.`);
-    //   //   // const inputValue = await this.workerState.loadValue<Globals[I]>(inputName);
-    //   //   // if (!inputValue) {
-    //   //   //   throw new Error(`No state for op (${spec.createWorker}) for input: ${inputName}`);
-    //   //   // }
-    //   //   // cellUses[inputName] = this.space.writable(inputValue.data);
-    //   //   // this.stateVars[inputName] = cellUses[inputName];
-    //   // } else {
-    //   //   cellUses[inputName] = this.stateVars[inputName];
-    //   // }
-    // }
-    console.log('cellUses', cellUses);
-    const envCell = new LabEnvCell(this.space, spec, cellUses);
-    // envCell.sendInputs();
+    const envCell = new LabEnvCell(this.space, spec, inputs);
     envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
     return envCell;
   }
