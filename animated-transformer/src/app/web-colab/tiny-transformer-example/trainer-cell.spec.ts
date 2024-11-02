@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
+import { asyncSignalIter, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   TrainConfig,
   trainerCellSpec,
@@ -26,8 +26,9 @@ import {
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
+import { countSerializedParams } from 'src/lib/gtensor/params';
 
-fdescribe('Trainer-Cell', () => {
+describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {
@@ -42,11 +43,11 @@ fdescribe('Trainer-Cell', () => {
       kind: 'basicSeqTrainer',
       // training hyper-params
       learningRate: 0.5,
-      batchSize: 64,
-      maxInputLength: 10,
-      trainForBatches: 100,
+      batchSize: 16,
+      maxInputLength: 2,
+      trainForBatches: 3,
       // Reporting / eval
-      checkpointFrequencyInBatches: 1,
+      checkpointFrequencyInBatches: 3,
       metricReporting: {
         metricFrequencyInBatches: 1,
       },
@@ -65,7 +66,7 @@ fdescribe('Trainer-Cell', () => {
     // CONSIDER: RandomStreamOf<Example> having a fork op. But also being savable.
     const dataSplitByTrainAndTest = derived(() => {
       const examplesIter = task().exampleIter.copy();
-      const testExamples = examplesIter.takeOutN(50);
+      const testExamples = examplesIter.takeOutN(16);
       const testSetIndex = new Set(testExamples.map(indexExample));
       const trainExamplesIter = examplesIter.copy();
       // With a generative synthetic world you can guarentee no duplicate example in
@@ -97,19 +98,35 @@ fdescribe('Trainer-Cell', () => {
 
     nextTrainBatch.set(makeBatch(1, trainConfig().batchSize));
     nextTrainBatch.set(makeBatch(2, trainConfig().batchSize));
+    nextTrainBatch.set(makeBatch(3, trainConfig().batchSize));
 
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    console.log('waiting for lastMetrics...');
     const lastMetrics = await trainerCell.outputs.lastTrainMetric;
-    console.log('waiting for ckpt...');
+    derived(() => console.log(JSON.stringify(lastMetrics())));
     const ckpt = await trainerCell.outputs.checkpoint;
 
-    expect(lastMetrics().batchId).toEqual(0);
-    expect(ckpt().lastBatch.batchId).toEqual(0);
+    const lastMetricsIter = asyncSignalIter(lastMetrics);
+    const ckptIter = asyncSignalIter(ckpt);
 
-    console.log('waiting for terminate...');
-    trainerCell.worker.terminate();
+    const m0 = (await lastMetricsIter.next()).value;
+    const c0 = (await ckptIter.next()).value;
+    const m1 = (await lastMetricsIter.next()).value;
+    const m2 = (await lastMetricsIter.next()).value;
+    const m3 = (await lastMetricsIter.next()).value;
+    const c2 = (await ckptIter.next()).value;
+
+    expect(m0.batchId).toEqual(0);
+    expect(c0.lastBatch.batchId).toEqual(0);
+    // expect(countSerializedParams(c1.serializedParams)).toEqual(2);
+    expect(m1.batchId).toEqual(1);
+    expect(m2.batchId).toEqual(2);
+    expect(m3.batchId).toEqual(3);
+    expect(c2.lastBatch.batchId).toEqual(3);
+
+    trainerCell.requestStop();
+
+    // trainerCell.worker.terminate();
     // await trainerCell.onceFinished;
-  });
+  }, 10000);
 });

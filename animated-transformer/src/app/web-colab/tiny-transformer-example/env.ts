@@ -72,7 +72,7 @@ async function run() {
       metricFrequencyInBatches: 10,
     },
   });
-  const providedModel = setable<ModelUpdate>({
+  const modelUpdateEvents = setable<ModelUpdate>({
     kind: ModelUpdateKind.ReinitFromConfig,
     config: defaultTransformerConfig(),
   });
@@ -101,7 +101,7 @@ async function run() {
   //
   // Note: we can make the semantics here match signalspace. That would be cool.
   const trainerCell = env.start(trainerCellSpec, {
-    modelUpdateEvents: modelUpdates,
+    modelUpdateEvents,
     trainConfig,
     nextTrainBatch,
     testSet,

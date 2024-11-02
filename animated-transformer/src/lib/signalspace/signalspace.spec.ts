@@ -15,7 +15,14 @@ limitations under the License.
 
 import { DerivedNode, DerivedNodeState } from './derived-node';
 import { SetableNode } from './setable-node';
-import { SignalSpace, defined, promisifySignal, SignalKind, DepKind } from './signalspace';
+import {
+  SignalSpace,
+  defined,
+  promisifySignal,
+  SignalKind,
+  DepKind,
+  asyncSignalIter,
+} from './signalspace';
 
 describe('signalspace', () => {
   it('Simple signal compute', () => {
@@ -301,5 +308,24 @@ describe('signalspace', () => {
     a.set('b');
     expect(lazy.lastValue()).toEqual(2);
     expect(lazy()).toEqual(3);
+  });
+
+  it('asyncSignalIter', async () => {
+    const s = new SignalSpace();
+    const { setable } = s;
+    const n = setable(1);
+    const asyncIter = asyncSignalIter(n);
+    setTimeout(() => {
+      n.set(2);
+      setTimeout(() => {
+        n.set(3);
+      }, 0);
+    }, 0);
+    const v1 = await asyncIter.next();
+    const v2 = await asyncIter.next();
+    const v3 = await asyncIter.next();
+    expect(v1.value).toEqual(1);
+    expect(v2.value).toEqual(2);
+    expect(v3.value).toEqual(3);
   });
 });

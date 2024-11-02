@@ -20,7 +20,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { StatefulCell, makeMetricReporter } from 'src/lib/weblab/lab-worker-cell';
+import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import {
   Batch,
   ModelUpdateKind,
@@ -36,22 +36,57 @@ import {
   TransformerModel,
   VarTransformerParams,
   initDecoderParams,
+  TransformerComputation,
 } from 'src/lib/transformer/transformer_gtensor';
 import {
   assignParams,
   deserializeParams,
   disposeParams,
   listifyVarParams,
+  serializeParams,
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
+import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
+import { Metrics } from 'src/lib/weblab/cellspec';
+import { GTensor } from 'src/lib/gtensor/gtensor';
 
 const cell = new StatefulCell(trainerCellSpec);
 const { derived, setable, derivedNullable } = cell.space;
 
-const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });
-const { reportMetrics } = makeMetricReporter(cell.space, metrics);
-derived(() => cell.output('lastTrainMetric', metrics()));
+// { batchId: -1, values: { entropyLoss: -1, accuracy: -1 } }
+
+type MetricsToReport = Metrics<'entropyLoss' | 'accuracy'>;
+
+// const metrics = setable<Metrics<'entropyLoss' | 'accuracy'> | null>(null);
+// // const { reportMetrics } = makeMetricReporter(cell.space, metrics);
+// derivedNullable(() => cell.output('lastTrainMetric', defined(metrics)), { definedDeps: [metrics] });
+
+function shouldCheckpoint(batch: Batch, config: TrainConfig): boolean {
+  return batch.batchId % config.checkpointFrequencyInBatches === 0;
+}
+function shouldReportMetrics(batch: Batch, config: TrainConfig): boolean {
+  return (
+    batch.batchId % config.metricReporting.metricFrequencyInBatches === 0 ||
+    shouldCheckpoint(batch, config)
+  );
+}
+
+function reportMetrics(
+  batch: Batch,
+  model: TransformerModel,
+  computation: TransformerComputation,
+  nextTokenIdx: GTensor<'batch'>,
+  entropyLoss: tf.Scalar
+): MetricsToReport {
+  const accuracy = transformerAccuracy(model, computation, nextTokenIdx);
+  const nextMetrics = {
+    batchId: batch.batchId,
+    values: { entropyLoss: entropyLoss.arraySync(), accuracy: accuracy.arraySync() },
+  };
+  cell.output('lastTrainMetric', nextMetrics);
+  return nextMetrics;
+}
 
 function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig): tf.Scalar {
   const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
@@ -59,13 +94,16 @@ function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig)
   const computation = computeTransformer(model, gtensorInputs);
   const nextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
   const entropyLoss = lastTokenCrossEntropyLoss(model, computation, nextTokenIdx);
-  if (batch.batchId % config.metricReporting.metricFrequencyInBatches === 0) {
-    const accuracy = transformerAccuracy(model, computation, nextTokenIdx);
-    reportMetrics(batch.batchId, { entropyLoss, accuracy });
-  }
-  if (batch.batchId % config.checkpointFrequencyInBatches === 0) {
-    console.log('TODO: save checkpoint');
-    throw new Error('TODO: save checkpoint');
+  if (shouldReportMetrics(batch, config)) {
+    const nextMetrics = reportMetrics(batch, model, computation, nextTokenIdx, entropyLoss);
+    if (shouldCheckpoint(batch, config)) {
+      cell.output('checkpoint', {
+        config: model.config,
+        serializedParams: serializeParams(model.params),
+        lastBatch: batch,
+        metrics: nextMetrics,
+      });
+    }
   }
   return entropyLoss;
 }
@@ -138,6 +176,7 @@ cell.run(async () => {
   );
 
   await cell.onceFinishRequested.then(() => {
+    console.log('cell.onceFinishRequested: disposing stuff');
     if (optimizer) {
       optimizer.dispose();
     }

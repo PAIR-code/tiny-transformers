@@ -136,10 +136,18 @@ export function deserializeParams<SerialParams extends jstree.DictArrTree<Serial
 //   );
 // }
 
-export function listifyVarParams<VarParams extends jstree.DictArrTree<GVariable<any>>>(
-  p: VarParams
-) {
-  return jstree.flatten(p as jstree.DictArrTree<GVariable<any>>);
+export function listifyVarParams(p: jstree.DictArrTree<GVariable<any>>) {
+  return jstree.flatten(p);
+}
+
+export function countParams<VarParams extends jstree.DictArrTree<GVariable<any>>>(p: VarParams) {
+  return listifyVarParams(p).reduce((acc, g) => acc + g.tensor.size, 0);
+}
+
+export function countSerializedParams(p: jstree.DictArrTree<SerializedGTensor<any>>) {
+  return jstree
+    .flatten(p)
+    .reduce((acc, g) => acc + g.shape.reduce((paramCount, dimSize) => paramCount * dimSize, 1), 0);
 }
 
 export function assignParams<Params extends jstree.DictArrTree<GTensor<any>>>(

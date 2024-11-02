@@ -534,3 +534,21 @@ export function promisifySignal<T>(
 
   return promisifiedSignal;
 }
+
+// A convenient way to track updates to a signal...
+export function asyncSignalIter<T>(s: AbstractSignal<T>): AsyncIterator<T, T> {
+  const pSignal = promisifySignal(s);
+  async function laterNext(): Promise<IteratorResult<T, T>> {
+    return { value: await pSignal().next };
+  }
+  const myIterator = {
+    async next(): Promise<IteratorResult<T>> {
+      this.next = laterNext;
+      return { value: pSignal().cur };
+    },
+    [Symbol.asyncIterator]() {
+      return this;
+    },
+  };
+  return myIterator;
+}

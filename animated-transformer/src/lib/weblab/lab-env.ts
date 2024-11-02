@@ -77,7 +77,7 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
 
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {
-      console.log('main thread got worker.onmessage', data);
+      // console.log('main thread got worker.onmessage', data);
       const messageFromWorker: FromWorkerMessage = data;
       switch (messageFromWorker.kind) {
         // case 'requestInput':
@@ -121,6 +121,13 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
         this.worker.postMessage(message);
       });
     }
+  }
+
+  requestStop() {
+    const message: ToWorkerMessage = {
+      kind: 'finishRequest',
+    };
+    this.worker.postMessage(message);
   }
 
   initOnceOutput<T>(name: string): Promise<T> {
