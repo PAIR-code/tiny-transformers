@@ -141,7 +141,7 @@ describe('signalspace', () => {
     expect(c()).toEqual(null);
   });
 
-  fit('derivedNullable on derived, but null at init', () => {
+  it('derivedNullable on derived, but null at init', () => {
     const s = new SignalSpace();
     const { setable, derivedNullable } = s;
     const a = setable<{ str: string } | null>(null);

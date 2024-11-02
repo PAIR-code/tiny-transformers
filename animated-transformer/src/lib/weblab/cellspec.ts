@@ -23,6 +23,9 @@ limitations under the License.
 
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
+type TypeHolder<T> = (value: T) => void;
+export const Kind: <T>(value: T) => void = () => {};
+
 export type Metrics<Name extends string> = {
   batchId: number;
   values: { [name in Name]: number };
@@ -40,6 +43,10 @@ export type ValueStruct = {
   [key: string]: any;
 };
 
+export type ValueKindFnStruct = {
+  [key: string]: TypeHolder<any>;
+};
+
 // export type SignalStruct = {
 //   [key: string]: WritableSignal<any>;
 // };
@@ -52,6 +59,9 @@ export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
   [Key in Name]: Globals[Key];
 };
 
+export type ValueKindFnStructFn<S extends ValueStruct> = {
+  [Key in keyof S]: (value: S[Key]) => void;
+};
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
 export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: SetableSignal<S[Key]> };
 export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: DerivedSignal<S[Key]> };
@@ -76,33 +86,49 @@ export type PromisedSignalsFn<S extends ValueStruct> = {
 //   ) {}
 // }
 
-export class CellStateSpec<
-  Globals extends ValueStruct,
-  Uses extends keyof Globals,
-  Updates extends keyof Globals
-> {
+// export class CellStateSpec<
+//   Globals extends ValueStruct,
+//   Uses extends keyof Globals,
+//   Updates extends keyof Globals
+// > {
+//   constructor(
+//     public cellName: string,
+//     public createWorker: () => Worker,
+//     public uses: Uses[],
+//     public updates: Updates[]
+//   ) {}
+// }
+
+export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
+  readonly inputNames: (keyof Inputs)[];
+  readonly outputNames: (keyof Outputs)[];
   constructor(
-    public cellName: string,
-    public createWorker: () => Worker,
-    public uses: Uses[],
-    public updates: Updates[]
-  ) {}
+    public data: {
+      cellName: string;
+      workerFn: () => Worker;
+      inputs: ValueKindFnStructFn<Inputs>;
+      outputs: ValueKindFnStructFn<Outputs>;
+    }
+  ) {
+    this.inputNames = Object.keys(this.data.inputs);
+    this.outputNames = Object.keys(this.data.outputs);
+  }
 }
 
-// A bit of a hack to manage types... (we infer them from globals object that is not actually used)
-export function cellSpec<
-  Globals extends ValueStruct,
-  Uses extends keyof Globals & string,
-  Updates extends keyof Globals & string
->(
-  globals: Partial<Globals>,
-  cellName: string,
-  worker: () => Worker,
-  uses: Uses[],
-  updates: Updates[]
-) {
-  return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
-}
+// // A bit of a hack to manage types... (we infer them from globals object that is not actually used)
+// export function cellSpec<
+//   Globals extends ValueStruct,
+//   Uses extends keyof Globals & string,
+//   Updates extends keyof Globals & string
+// >(
+//   globals: Partial<Globals>,
+//   cellName: string,
+//   worker: () => Worker,
+//   uses: Uses[],
+//   updates: Updates[]
+// ) {
+//   return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
+// }
 
 // export type OpInputs<Op> = Op extends CellFuncSpec<infer I, any> ? I : never;
 // export type OpOutputs<Op> = Op extends CellFuncSpec<any, infer O> ? O : never;

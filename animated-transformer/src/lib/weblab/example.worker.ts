@@ -15,44 +15,14 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import * as lab from './lab-worker-cell';
+import { StatefulCell } from './lab-worker-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
-// console.log('example.worker', self.location);
+const cell = new StatefulCell(exampleWorkerSpec);
 
-// const cell = new lab.FuncCell(exampleWorkerSpec);
-// cell.run((inputs) => {
-//   const toyOutput = `webworker got input! ${inputs.toyInput}`;
-
-//   // TODO: consider using the packr for transfers too...
-//   return {
-//     toyOutputStr: toyOutput,
-//     toyOutputNumber: 3,
-//   };
-// });
-
-// Above is equivalent to...
-// async function run() {
-//   const cell = new lab.Cell(exampleWorkerSpec);
-
-//   const name = await cell.input.name;
-
-//   console.log(`webworker got input! ${name}`);
-
-//   const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-//   const v = t.contract(t, ['a']).tensor.arraySync() as number;
-
-//   // TODO: handle all transferable objects, and for objects that are
-//   // serializable (have a toSerialised, and a from Serialised), go via that
-//   // if/as needed.
-//   cell.output('tensor', {
-//     t: t.toSerialised(),
-//     v,
-//   });
-
-//   console.log('worker going to finish...');
-//   cell.finished();
-//   console.log('worker finished.');
-// }
-
-// run();
+cell.run(async () => {
+  const { toyInput } = await cell.onceAllInputs;
+  cell.output('num', 1);
+  cell.output('str', `hello ${toyInput()}`);
+  cell.finished();
+});

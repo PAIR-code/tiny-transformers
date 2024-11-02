@@ -14,18 +14,19 @@ limitations under the License.
 ==============================================================================*/
 
 import { LabEnv } from './lab-env';
-import { LabState } from './lab-state';
-
-import { exampleWorkerSpec, ExampleGlobals } from './example.ailab';
+import { exampleWorkerSpec } from './example.ailab';
 
 describe('lab-env', () => {
-  const state = new LabState();
   beforeEach(async () => {});
 
   it('Running a simple cell', async () => {
     const env = new LabEnv();
-    // env.stateVars.toyInput = 'some initial input';
-    // const outputs = await env.run(exampleWorkerSpec);
-    expect(true).toEqual(true);
+    const toyInput = env.space.setable('Foo');
+    const cell = env.start(exampleWorkerSpec, {
+      toyInput,
+    });
+    const { num, str } = await cell.onceAllOutputs;
+    expect(num()).toEqual(1);
+    expect(str()).toEqual('hello Foo');
   });
 });

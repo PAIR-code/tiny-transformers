@@ -17,7 +17,7 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { CellStateSpec } from './cellspec';
+import { CellSpec, Kind } from './cellspec';
 
 // export type Name = string;
 // export type TensorValue = {
@@ -52,14 +52,26 @@ export type ExampleGlobals = ExampleCellInput & ExampleCellOutput;
 //   inputs: ['name'] as const,
 //   outputs: ['t'] as const,
 // } as WorkerOp<'name', 't'>;
-export const exampleWorkerSpec = new CellStateSpec<
-  Partial<ExampleGlobals>,
-  keyof ExampleCellInput,
-  keyof ExampleCellOutput
->(
-  'an example cell',
-  // 'src/lib/weblab/example.worker.js' as never as URL,
-  () => new Worker(new URL('./example.worker', import.meta.url)),
-  ['toyInput'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
-  ['toyOutputStr', 'toyOutputNumber']
-);
+
+// export const exampleWorkerSpec = new CellStateSpec<
+//   Partial<ExampleGlobals>,
+//   keyof ExampleCellInput,
+//   keyof ExampleCellOutput
+// >(
+//   'an example cell',
+//   () => new Worker(new URL('./example.worker', import.meta.url)),
+//   ['toyInput'],
+//   ['toyOutputStr', 'toyOutputNumber']
+// );
+
+export const exampleWorkerSpec = new CellSpec({
+  cellName: 'an example cell',
+  workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
+  inputs: {
+    toyInput: Kind<string>,
+  },
+  outputs: {
+    str: Kind<string>,
+    num: Kind<number>,
+  },
+});

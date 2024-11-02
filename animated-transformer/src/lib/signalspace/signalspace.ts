@@ -378,18 +378,24 @@ function makeDerivedNodeOptions<T>(
   for (const dep of opts.definedDeps || []) {
     preComputeDeps.set(dep, { depKind: DepKind.Sync, downstreamNullIfNull: true });
   }
-  return {
-    id: opts.id,
-    eqCheck: opts.eqCheck,
-    preComputeDeps,
-  };
+  const options: Partial<DerivedNodeOptions<T>> = { preComputeDeps };
+  // Note: because we use  { ...defaultOptions, ...options } to set the options,
+  // we must not have any fields that are set to undefined (these fields should
+  // simply not exist).
+  if (opts.id) {
+    options.id = opts.id;
+  }
+  if (opts.eqCheck) {
+    options.eqCheck = opts.eqCheck;
+  }
+  return options;
 }
 
 function makeDerivedNodeNullableOptions<T>(
   opts?: Partial<DerivedNullableOptions<T>>
 ): Partial<DerivedNodeOptions<T | null>> | undefined {
   const nodeOptions = makeDerivedNodeOptions(opts);
-  const definedEqCheck = (nodeOptions && nodeOptions.eqCheck) || defaultEqCheck;
+  const definedEqCheck = nodeOptions && nodeOptions.eqCheck;
   let eqCheck: ((x: T | null, y: T | null) => boolean) | undefined;
   if (definedEqCheck) {
     eqCheck = (a, b) => {
@@ -407,6 +413,10 @@ function makeDerivedNodeNullableOptions<T>(
     eqCheck,
     nullTyped: true,
   };
+  // Avoid having undefined eqCheck entries.
+  if (!eqCheck) {
+    delete nullableOptions.eqCheck;
+  }
   return nullableOptions;
 }
 

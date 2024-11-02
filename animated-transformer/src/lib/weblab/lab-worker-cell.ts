@@ -20,7 +20,7 @@ import { FromWorkerMessage, ToWorkerMessage } from './messages';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
-  CellStateSpec,
+  CellSpec,
   WritableStructFn,
   PromisedSignalsFn,
   Metrics,
@@ -29,33 +29,29 @@ import {
 import { ExpandOnce } from '../ts-type-helpers';
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
-export class StatefulCell<
-  Globals extends ValueStruct,
-  Uses extends keyof Globals & string,
-  Updates extends keyof Globals & string
-> {
+export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   space = new SignalSpace();
   onceFinishRequested: Promise<void>;
-  inputPromises: PromisedSignalsFn<Subobj<Globals, Uses>>;
-  stillExpectedInputs: Set<Uses>;
-  inputSoFar: Partial<WritableStructFn<Subobj<Globals, Uses>>> = {};
-  onceAllInputs: Promise<WritableStructFn<Subobj<Globals, Uses>>>;
+  inputPromises: PromisedSignalsFn<Inputs>;
+  stillExpectedInputs: Set<keyof Inputs>;
+  inputSoFar: Partial<WritableStructFn<Inputs>> = {};
+  onceAllInputs: Promise<WritableStructFn<Inputs>>;
   inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
   onceFinishedFn!: () => void;
-  inputSet: Set<Uses>;
-  outputSet: Set<Updates>;
-  inputPorts: Map<Uses, { ports: MessagePort[] }>;
-  outputPorts: Map<Updates, { ports: MessagePort[]; postToParentToo: boolean }>;
+  inputSet: Set<keyof Inputs>;
+  outputSet: Set<keyof Outputs>;
+  inputPorts: Map<keyof Inputs, { ports: MessagePort[] }>;
+  outputPorts: Map<keyof Outputs, { ports: MessagePort[]; postToParentToo: boolean }>;
 
-  constructor(public global: Partial<Globals>, public spec: CellStateSpec<Globals, Uses, Updates>) {
-    this.inputSet = new Set(this.spec.uses);
-    this.outputSet = new Set(this.spec.updates);
+  constructor(public spec: CellSpec<Inputs, Outputs>) {
+    this.inputSet = new Set(Object.keys(this.spec.data.inputs));
+    this.outputSet = new Set(Object.keys(this.spec.data.outputs));
     this.inputPorts = new Map();
     this.outputPorts = new Map();
-    this.spec.uses.forEach((input) => {
+    this.inputSet.forEach((input) => {
       this.inputPorts.set(input, { ports: [] });
     });
-    this.spec.updates.forEach((output) => {
+    this.outputSet.forEach((output) => {
       this.outputPorts.set(output, { ports: [], postToParentToo: true });
     });
 
@@ -64,23 +60,23 @@ export class StatefulCell<
     });
     addEventListener('message', (m) => this.onMessage(m));
 
-    this.inputPromises = {} as PromisedSignalsFn<Subobj<Globals, Uses>>;
-    this.stillExpectedInputs = new Set(spec.uses);
+    this.inputPromises = {} as PromisedSignalsFn<Inputs>;
+    this.stillExpectedInputs = new Set(this.inputSet);
 
-    let onceAllInputsResolver: (allInput: WritableStructFn<Subobj<Globals, Uses>>) => void;
-    this.onceAllInputs = new Promise<WritableStructFn<Subobj<Globals, Uses>>>((resolve, reject) => {
+    let onceAllInputsResolver: (allInput: WritableStructFn<Inputs>) => void;
+    this.onceAllInputs = new Promise<WritableStructFn<Inputs>>((resolve, reject) => {
       onceAllInputsResolver = resolve;
     });
 
-    for (const inputName of spec.uses) {
-      const promisedInput = this.initOnceInput<Globals[typeof inputName]>(inputName as string);
+    for (const inputName of this.inputSet) {
+      const promisedInput = this.initOnceInput<Inputs[typeof inputName]>(inputName as string);
       this.inputPromises[inputName] = promisedInput.then((inputValue) => {
         // console.log(`inputPromises[${inputName}] has value: ${JSON.stringify(inputValue)}`);
         const signal = this.space.setable(inputValue);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
-          onceAllInputsResolver(this.inputSoFar as WritableStructFn<Subobj<Globals, Uses>>);
+          onceAllInputsResolver(this.inputSoFar as WritableStructFn<Inputs>);
         }
         delete this.inputResolvers[inputName as string];
         // // New inputs should now simply update the existing signal.
@@ -97,7 +93,7 @@ export class StatefulCell<
     if (data.kind === 'finishRequest') {
       this.onceFinishedFn();
     } else if (data.kind === 'pipeInputSignal') {
-      const inputPortConfig = this.inputPorts.get(data.signalId as Uses);
+      const inputPortConfig = this.inputPorts.get(data.signalId as keyof Inputs);
       if (!inputPortConfig) {
         throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
       }
@@ -106,7 +102,7 @@ export class StatefulCell<
       inputPortConfig.ports.push(data.port);
       data.port.onmessage = (m) => this.onMessage(m);
     } else if (data.kind === 'pipeOutputSignal') {
-      const outputPortConfig = this.outputPorts.get(data.signalId as Updates);
+      const outputPortConfig = this.outputPorts.get(data.signalId as keyof Outputs);
       if (!outputPortConfig) {
         throw new Error(`No output named ${data.signalId} to set pipeOutputSignal.`);
       }
@@ -117,10 +113,10 @@ export class StatefulCell<
         outputPortConfig.postToParentToo = true;
       }
     } else if (data.kind === 'setSignal') {
-      const signal = this.inputSoFar[data.signalId as Uses];
+      const signal = this.inputSoFar[data.signalId as keyof Inputs];
       if (signal) {
         console.log(`onMessage: setSignal(${data.signalId}): ${JSON.stringify(data.signalValue)}`);
-        signal.set(data.signalValue as Globals[Uses]);
+        signal.set(data.signalValue as Inputs[keyof Inputs]);
       } else {
         if (data.signalId in this.inputResolvers) {
           this.inputResolvers[data.signalId](data.signalValue);
@@ -155,11 +151,9 @@ export class StatefulCell<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async runOnceHaveInputs(
-    runFn: (input: ExpandOnce<WritableStructFn<Subobj<Globals, Uses>>>) => Promise<void>
-  ) {
+  async runOnceHaveInputs(runFn: (input: ExpandOnce<WritableStructFn<Inputs>>) => Promise<void>) {
     const inputs = await this.onceAllInputs;
-    await runFn(inputs as ExpandOnce<WritableStructFn<Subobj<Globals, Uses>>>);
+    await runFn(inputs as ExpandOnce<WritableStructFn<Inputs>>);
     this.finished();
   }
 
@@ -168,7 +162,7 @@ export class StatefulCell<
     this.finished();
   }
 
-  output<Key extends Updates>(signalId: Key, signalValue: Globals[Key]) {
+  output<Key extends keyof Outputs & string>(signalId: Key, signalValue: Outputs[Key]) {
     const message: FromWorkerMessage = { kind: 'setSignal', signalId, signalValue };
     const outputPortConfig = this.outputPorts.get(signalId);
     if (!outputPortConfig) {

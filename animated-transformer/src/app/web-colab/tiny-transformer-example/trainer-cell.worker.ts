@@ -20,15 +20,8 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { StatefulCell, makeMetricReporter } from '../../../lib/weblab/lab-worker-cell';
-import {
-  Batch,
-  InitModelAction,
-  ProvidedModel,
-  TrainConfig,
-  trainerCellSpec,
-  trainerVars,
-} from './ailab';
+import { StatefulCell, makeMetricReporter } from 'src/lib/weblab/lab-worker-cell';
+import { Batch, InitModelAction, ProvidedModel, TrainConfig, trainerCellSpec } from './ailab';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -47,7 +40,7 @@ import {
 } from 'src/lib/gtensor/params';
 import { defined } from 'src/lib/signalspace/signalspace';
 
-const cell = new StatefulCell(trainerVars, trainerCellSpec);
+const cell = new StatefulCell(trainerCellSpec);
 const { derived, setable, derivedNullable } = cell.space;
 
 const metrics = setable({ batchId: -1, values: { entropyLoss: -1, accuracy: -1 } });

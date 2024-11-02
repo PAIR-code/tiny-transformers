@@ -16,7 +16,7 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { Batch, taskVars, taskCellSpec, TaskGenSate } from './ailab';
+import { Batch, taskCellSpec, TaskGenSate } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
@@ -25,7 +25,7 @@ import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
 
 console.log(tinyWorldTaskKind);
 
-const cell = new StatefulCell(taskVars, taskCellSpec);
+const cell = new StatefulCell(taskCellSpec);
 const { derived, setable } = cell.space;
 
 cell.run(async () => {

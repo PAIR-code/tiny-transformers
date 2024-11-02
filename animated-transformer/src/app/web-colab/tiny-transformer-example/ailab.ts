@@ -19,7 +19,7 @@ limitations under the License.
 
 import { Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { cellSpec, Metrics } from 'src/lib/weblab/cellspec';
+import { CellSpec, Kind, Metrics } from 'src/lib/weblab/cellspec';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -82,44 +82,20 @@ export type Checkpoint = {
   metrics: SimpleMetrics;
 };
 
-// Note: one the advantages of this kind of global var namespace approach is
-// that you can work with partial global var namespace, and worker can simply
-// wait for objects to be constructed.
-//
-// The alternative require definition of empty/initial objects for all types,
-// and handling these dummy base-cases; which often feels like a distraction.
-// (although longer term you do want to be able to always have some kind of
-// dummy/test values...)
-//
-// CONSIDER: add some type annotations for things being for
-// Input/Ouput/StreamIn/StreamOut/Channel/etc.
-//
-// Then maybe all would be needed is cellSpec:
-//
-// ```
-// cellSpec(
-//   trainerVars,
-//   'Trainer cell',
-//   () => new Worker(new URL('./trainer-cell.worker', import.meta.url)));
-// ```
-export type TrainerVars = {
-  // input...
-  testSet: Example[];
-  providedModel: ProvidedModel;
-  trainConfig: TrainConfig;
-  nextTrainBatch: Batch;
-  // output...
-  lastTrainMetric: SimpleMetrics;
-  checkpoint: Checkpoint;
-};
-export const trainerVars: Partial<TrainerVars> = {};
-export const trainerCellSpec = cellSpec(
-  trainerVars,
-  'Trainer cell',
-  () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  ['testSet', 'trainConfig', 'providedModel', 'nextTrainBatch'],
-  ['checkpoint', 'lastTrainMetric']
-);
+export const trainerCellSpec = new CellSpec({
+  cellName: 'Trainer cell',
+  workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+  inputs: {
+    testSet: Kind<Example[]>,
+    providedModel: Kind<ProvidedModel>,
+    trainConfig: Kind<TrainConfig>,
+    nextTrainBatch: Kind<Batch>,
+  },
+  outputs: {
+    lastTrainMetric: Kind<SimpleMetrics>,
+    checkpoint: Kind<Checkpoint>,
+  },
+});
 
 export type TaskGenSate =
   | { kind: 'paused' }
@@ -134,33 +110,18 @@ export type TaskGenSate =
     }
   | { kind: 'finished' };
 
-export type TaskVars = {
-  // The task to generate from.
-  taskConfig: TinyWorldTaskConfig;
-  // Test set size + taskConfig is used to generated the test set.
-  testSetSize: number;
-  // Last seed allows us to restart from a given state/location.
-  useBatchSeed: number | null;
-  // The size of the batch.
-  batchSize: number;
-  // A way to start/stop generation explicitly.
-  taskGenState: TaskGenSate;
-  // When generating, limit generation to at most this many examples in queue.
-  maxBatchesQueueSize: number;
-  // Last Id is used to provide back-pressure to stop generating we training
-  // can't keep up with generation.
-  lastBatchId: number;
-
-  // These are output...
-  nextTrainBatch: Batch;
-  testSet: Example[];
-};
-export const taskVars: Partial<TaskVars> = {};
-
-export const taskCellSpec = cellSpec(
-  taskVars,
-  'Task cell',
-  () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  ['taskConfig', 'testSetSize', 'batchSize', 'useBatchSeed', 'taskGenState'],
-  ['nextTrainBatch', 'testSet']
-);
+export const taskCellSpec = new CellSpec({
+  cellName: 'Task cell',
+  workerFn: () => new Worker(new URL('./task-cell.worker', import.meta.url)),
+  inputs: {
+    taskConfig: Kind<TinyWorldTaskConfig>,
+    testSetSize: Kind<number>,
+    batchSize: Kind<number>,
+    useBatchSeed: Kind<number | null>,
+    taskGenState: Kind<TaskGenSate>,
+  },
+  outputs: {
+    nextTrainBatch: Kind<Batch>,
+    testSet: Kind<Example[]>,
+  },
+});

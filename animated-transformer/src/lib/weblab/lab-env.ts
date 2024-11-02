@@ -16,7 +16,7 @@ limitations under the License.
 import {
   SignalStructFn,
   ValueStruct,
-  CellStateSpec,
+  CellSpec,
   WritableStructFn,
   PromiseStructFn,
   PromisedSignalsFn,
@@ -29,50 +29,45 @@ export type ItemMetaData = {
   timestamp: Date;
 };
 
-export class LabEnvCell<
-  Globals extends ValueStruct,
-  I extends keyof Globals & string,
-  O extends keyof Globals & string
-> {
+export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
   public onceFinished: Promise<void>;
-  public onceAllOutputs: Promise<SignalStructFn<Subobj<Globals, O>>>;
+  public onceAllOutputs: Promise<SignalStructFn<O>>;
   public worker: Worker;
-  public outputs: PromiseStructFn<SignalStructFn<Subobj<Globals, O>>>;
-  public outputSoFar: Partial<SignalStructFn<Subobj<Globals, O>>>;
-  public stillExpectedOutputs: Set<O>;
+  public outputs: PromiseStructFn<SignalStructFn<O>>;
+  public outputSoFar: Partial<SignalStructFn<O>>;
+  public stillExpectedOutputs: Set<keyof O>;
   outputResolvers = {} as { [name: string]: (value: unknown) => void };
 
   constructor(
     public space: SignalSpace,
-    public spec: CellStateSpec<Globals, I, O>,
-    public uses: SignalStructFn<{ [Key in I]: Globals[Key] }>
+    public spec: CellSpec<I, O>,
+    public uses: SignalStructFn<I>
   ) {
-    let resolveWithAllOutputsFn: (output: SignalStructFn<Subobj<Globals, O>>) => void;
-    this.onceAllOutputs = new Promise<SignalStructFn<Subobj<Globals, O>>>((resolve, reject) => {
+    let resolveWithAllOutputsFn: (output: SignalStructFn<O>) => void;
+    this.onceAllOutputs = new Promise<SignalStructFn<O>>((resolve, reject) => {
       resolveWithAllOutputsFn = resolve;
     });
     let resolveWhenFinishedFn: () => void;
     this.onceFinished = new Promise<void>((resolve, reject) => {
       resolveWhenFinishedFn = resolve;
     });
-    this.worker = spec.createWorker();
-
-    this.outputs = {} as PromisedSignalsFn<Subobj<Globals, O>>;
+    this.worker = spec.data.workerFn();
+    this.outputs = {} as PromisedSignalsFn<O>;
     this.outputSoFar = {};
-    this.stillExpectedOutputs = new Set(spec.updates);
+    this.stillExpectedOutputs = new Set(spec.outputNames);
 
-    for (const outputName of spec.updates) {
-      const promisedInput = this.initOnceOutput<Globals[typeof outputName]>(outputName as string);
+    for (const outputName of spec.outputNames) {
+      const promisedInput = this.initOnceOutput<O[typeof outputName]>(outputName as string);
       this.outputs[outputName] = promisedInput.then((inputValue) => {
         const signal = this.space.setable(inputValue);
         this.outputSoFar[outputName] = signal;
         this.stillExpectedOutputs.delete(outputName);
         if (this.stillExpectedOutputs.size === 0) {
-          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
+          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<O>);
         }
         // New inputs should now simply update the existing signal.
         this.outputResolvers[outputName as string] = (value) => {
-          signal.set(value as Globals[typeof outputName]);
+          signal.set(value as O[typeof outputName]);
         };
         return signal;
       });
@@ -102,8 +97,8 @@ export class LabEnvCell<
           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
         case 'setSignal':
-          const outputName = messageFromWorker.signalId as O;
-          this.outputResolvers[outputName](messageFromWorker.signalValue as Globals[O]);
+          const outputName = messageFromWorker.signalId as keyof O & string;
+          this.outputResolvers[outputName](messageFromWorker.signalValue as O[keyof O]);
           break;
         default:
           console.error('main thread go unknown worker message: ', data);
@@ -113,12 +108,12 @@ export class LabEnvCell<
 
     // In addition, whenever any of the "uses" variables are updated, we send
     // the update to the worker.
-    for (const key of Object.keys(uses)) {
+    for (const key of spec.inputNames) {
       this.space.derived(() => {
-        const value = uses[key as I]();
+        const value = uses[key as keyof I]();
         const message: ToWorkerMessage = {
           kind: 'setSignal',
-          signalId: key,
+          signalId: key as keyof I & string,
           signalValue: value,
         };
         this.worker.postMessage(message);
@@ -172,8 +167,8 @@ export class LabEnvCell<
   // TODO: add some closing cleanup?
 }
 
-type SomeCellStateSpec = CellStateSpec<ValueStruct, string, string>;
-type SomeLabEnvCell = LabEnvCell<ValueStruct, string, string>;
+type SomeCellStateSpec = CellSpec<ValueStruct, ValueStruct>;
+type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct>;
 
 // TODO: maybe define a special type of serializable
 // object that includes things with a toSerialise function?
@@ -198,16 +193,12 @@ export class LabEnv {
   //   console.log('import.meta.url', import.meta.url.toString());
   // }
 
-  start<
-    CellVars extends ValueStruct,
-    I extends keyof CellVars & string,
-    O extends keyof CellVars & string
-  >(
-    spec: CellStateSpec<CellVars, I, O>,
-    cellUses: SignalStructFn<{ [Key in I]: CellVars[Key] }>
-  ): LabEnvCell<CellVars, I, O> {
+  start<I extends ValueStruct, O extends ValueStruct>(
+    spec: CellSpec<I, O>,
+    cellUses: SignalStructFn<I>
+  ): LabEnvCell<I, O> {
     // TODO: CellVars !== Globals. Think about this.
-    this.runningCells[spec.cellName] = spec as CellStateSpec<CellVars, I, O>;
+    this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
 
     // const cellUses = {} as SignalsStructFn<{ [Key in I]: Globals[Key] }>;
 
@@ -239,21 +230,19 @@ export class LabEnv {
     console.log('cellUses', cellUses);
     const envCell = new LabEnvCell(this.space, spec, cellUses);
     // envCell.sendInputs();
-    envCell.onceFinished.then(() => delete this.runningCells[spec.cellName]);
+    envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
     return envCell;
   }
 
   pipeSignal<
-    SourceVars extends ValueStruct,
-    SourceIn extends keyof SourceVars & string,
-    SourceOut extends keyof SourceVars & string,
-    TargetVars extends ValueStruct,
-    TargetIn extends keyof TargetVars & string,
-    TargetOut extends keyof TargetVars & string,
-    SignalId extends SourceOut & TargetIn
+    SourceIn extends ValueStruct,
+    SourceOut extends ValueStruct,
+    TargetIn extends ValueStruct,
+    TargetOut extends ValueStruct,
+    SignalId extends keyof SourceOut & keyof TargetIn & string
   >(
-    sourceCell: LabEnvCell<SourceVars, SourceIn, SourceOut>,
-    targetCell: LabEnvCell<TargetVars, TargetIn, TargetOut>,
+    sourceCell: LabEnvCell<SourceIn, SourceOut>,
+    targetCell: LabEnvCell<TargetIn, TargetOut>,
     signalId: SignalId,
     options?: { keepSignalPushesHereToo: boolean }
   ) {
