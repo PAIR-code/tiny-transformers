@@ -23,11 +23,11 @@ import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
 import { DepKind, promisifySignal } from 'src/lib/signalspace/signalspace';
 import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
 
-console.log(tinyWorldTaskKind);
-
+// ------------------------------------------------------------------------
 const cell = new StatefulCell(taskCellSpec);
 const { derived, setable } = cell.space;
 
+// ------------------------------------------------------------------------
 cell.run(async () => {
   const { taskConfig, testSetSize, useBatchSeed, batchSize, taskGenState } =
     await cell.onceAllInputs;
@@ -50,7 +50,7 @@ cell.run(async () => {
     return { testExamples, trainExamplesIter };
   });
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
-  derived(() => cell.output('testSet', dataSplitByTrainAndTest().testExamples));
+  derived(() => cell.output.testSet(dataSplitByTrainAndTest().testExamples));
 
   // Update the batch seed if/as needed. Allows restarting generation from an
   // earlier point.
@@ -90,7 +90,7 @@ cell.run(async () => {
       }
       const nextBatch = makeBatch(batchId, batchSize());
       // TODO: why not use the same syntax and have this be a setable signal?
-      cell.output('nextTrainBatch', nextBatch);
+      cell.output.nextTrainBatch(nextBatch);
       batchId++;
       st = state();
     }

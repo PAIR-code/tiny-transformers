@@ -23,25 +23,24 @@ import {
   CellSpec,
   WritableStructFn,
   PromisedSignalsFn,
-  Metrics,
-  Subobj,
+  CallValueFn,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
-import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
 export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   space = new SignalSpace();
-  onceFinishRequested: Promise<void>;
+  public onceFinishRequested: Promise<void>;
   inputPromises: PromisedSignalsFn<Inputs>;
   stillExpectedInputs: Set<keyof Inputs>;
   inputSoFar: Partial<WritableStructFn<Inputs>> = {};
-  onceAllInputs: Promise<WritableStructFn<Inputs>>;
+  public onceAllInputs: Promise<WritableStructFn<Inputs>>;
   inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
   onceFinishedFn!: () => void;
   inputSet: Set<keyof Inputs>;
   outputSet: Set<keyof Outputs>;
   inputPorts: Map<keyof Inputs, { ports: MessagePort[] }>;
   outputPorts: Map<keyof Outputs, { ports: MessagePort[]; postToParentToo: boolean }>;
+  output: CallValueFn<Outputs> = {} as CallValueFn<Outputs>;
 
   constructor(public spec: CellSpec<Inputs, Outputs>) {
     this.inputSet = new Set(Object.keys(this.spec.data.inputs));
@@ -85,6 +84,12 @@ export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruc
         // };
         return signal;
       });
+    }
+
+    for (const outputName of this.outputSet) {
+      this.output[outputName] = (value: Outputs[typeof outputName]) => {
+        this.outputSignal(outputName as keyof Outputs & string, value as Outputs[keyof Outputs]);
+      };
     }
   }
 
@@ -162,7 +167,7 @@ export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruc
     this.finished();
   }
 
-  output<Key extends keyof Outputs & string>(signalId: Key, signalValue: Outputs[Key]) {
+  outputSignal(signalId: keyof Outputs & string, signalValue: Outputs[keyof Outputs]) {
     const message: FromWorkerMessage = { kind: 'setSignal', signalId, signalValue };
     const outputPortConfig = this.outputPorts.get(signalId);
     if (!outputPortConfig) {

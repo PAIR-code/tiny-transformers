@@ -92,7 +92,7 @@ export const trainerCellSpec = new CellSpec({
     nextTrainBatch: Kind<Batch>,
   },
   outputs: {
-    lastTrainMetric: Kind<SimpleMetrics>,
+    metrics: Kind<SimpleMetrics>,
     checkpoint: Kind<Checkpoint>,
   },
 });

@@ -122,7 +122,7 @@ async function run() {
   // Note we could wrap the always derived in an then, but it's a bit ulgy with
   // all the closures. CONSIDER: We could also introduce a promiseAlwaysDerived
   // that does the then, and then sets always derived. That would be prettier.
-  const lastMetrics = await trainerCell.outputs.lastTrainMetric;
+  const lastMetrics = await trainerCell.outputs.metrics;
   derived(() => {
     const batch = nextTrainBatch();
     const state = taskGenState({ depKind: DepKind.Lazy });

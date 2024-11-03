@@ -28,5 +28,9 @@ describe('lab-env', () => {
     const { num, str } = await cell.onceAllOutputs;
     expect(num()).toEqual(1);
     expect(str()).toEqual('hello Foo');
+    expect(env.runningCells[cell.spec.data.cellName]).toBeDefined();
+    cell.requestStop();
+    await cell.onceFinished;
+    expect(env.runningCells[cell.spec.data.cellName]).toBeUndefined();
   });
 });

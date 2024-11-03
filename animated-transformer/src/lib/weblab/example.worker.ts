@@ -22,7 +22,6 @@ const cell = new StatefulCell(exampleWorkerSpec);
 
 cell.run(async () => {
   const { toyInput } = await cell.onceAllInputs;
-  cell.output('num', 1);
-  cell.output('str', `hello ${toyInput()}`);
-  cell.finished();
+  cell.output.num(1);
+  cell.output.str(`hello ${toyInput()}`);
 });

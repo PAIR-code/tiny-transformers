@@ -27,6 +27,7 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
 import { countSerializedParams } from 'src/lib/gtensor/params';
+import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 
 describe('Trainer-Cell', () => {
   beforeEach(() => {});
@@ -47,9 +48,9 @@ describe('Trainer-Cell', () => {
       maxInputLength: 2,
       trainForBatches: 3,
       // Reporting / eval
-      checkpointFrequencyInBatches: 3,
+      checkpointFrequencyInBatches: 4,
       metricReporting: {
-        metricFrequencyInBatches: 1,
+        metricFrequencyInBatches: 2,
       },
     });
     const modelUpdateEvents = setable<ModelUpdate>({
@@ -89,6 +90,7 @@ describe('Trainer-Cell', () => {
 
     // ------------------------------------------------------------------------
     // Trainer cell
+    console.log('startsing trainerCellSpec...');
     const trainerCell = env.start(trainerCellSpec, {
       modelUpdateEvents,
       trainConfig,
@@ -99,11 +101,13 @@ describe('Trainer-Cell', () => {
     nextTrainBatch.set(makeBatch(1, trainConfig().batchSize));
     nextTrainBatch.set(makeBatch(2, trainConfig().batchSize));
     nextTrainBatch.set(makeBatch(3, trainConfig().batchSize));
+    nextTrainBatch.set(makeBatch(4, trainConfig().batchSize));
 
+    console.log('waiting first metric...');
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetrics = await trainerCell.outputs.lastTrainMetric;
-    derived(() => console.log(JSON.stringify(lastMetrics())));
+    const lastMetrics = await trainerCell.outputs.metrics;
+    derived(() => console.log(stringifyJsonValue(lastMetrics())));
     const ckpt = await trainerCell.outputs.checkpoint;
 
     const lastMetricsIter = asyncSignalIter(lastMetrics);
@@ -113,20 +117,17 @@ describe('Trainer-Cell', () => {
     const c0 = (await ckptIter.next()).value;
     const m1 = (await lastMetricsIter.next()).value;
     const m2 = (await lastMetricsIter.next()).value;
-    const m3 = (await lastMetricsIter.next()).value;
     const c2 = (await ckptIter.next()).value;
 
     expect(m0.batchId).toEqual(0);
     expect(c0.lastBatch.batchId).toEqual(0);
     // expect(countSerializedParams(c1.serializedParams)).toEqual(2);
-    expect(m1.batchId).toEqual(1);
-    expect(m2.batchId).toEqual(2);
-    expect(m3.batchId).toEqual(3);
-    expect(c2.lastBatch.batchId).toEqual(3);
+    expect(m1.batchId).toEqual(2);
+    expect(m2.batchId).toEqual(4);
+    expect(c2.lastBatch.batchId).toEqual(4);
 
+    console.log('requesting stop...');
     trainerCell.requestStop();
-
-    // trainerCell.worker.terminate();
-    // await trainerCell.onceFinished;
+    await trainerCell.onceFinished;
   }, 10000);
 });

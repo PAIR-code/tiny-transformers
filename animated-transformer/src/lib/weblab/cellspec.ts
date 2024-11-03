@@ -23,7 +23,7 @@ limitations under the License.
 
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
-type TypeHolder<T> = (value: T) => void;
+type KindHolder<T> = (value: T) => void;
 export const Kind: <T>(value: T) => void = () => {};
 
 export type Metrics<Name extends string> = {
@@ -44,61 +44,18 @@ export type ValueStruct = {
 };
 
 export type ValueKindFnStruct = {
-  [key: string]: TypeHolder<any>;
-};
-
-// export type SignalStruct = {
-//   [key: string]: WritableSignal<any>;
-// };
-
-export type SpecificValueStruct<Names extends string> = {
-  [key in Names]: any;
-};
-
-export type Subobj<Globals extends ValueStruct, Name extends keyof Globals> = {
-  [Key in Name]: Globals[Key];
+  [key: string]: KindHolder<any>;
 };
 
 export type ValueKindFnStructFn<S extends ValueStruct> = {
-  [Key in keyof S]: (value: S[Key]) => void;
-};
-export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
-export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: SetableSignal<S[Key]> };
-export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: DerivedSignal<S[Key]> };
-export type SignalStructFn<S extends ValueStruct> = { [Key in keyof S]: AbstractSignal<S[Key]> };
-export type PromisedSignalsFn<S extends ValueStruct> = {
-  [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
+  [Key in keyof S]: KindHolder<S[Key]>;
 };
 
 // A cell specification is a very simply class that connects types to names for
-// the values that are the WebWorker cell inputs and outputs.
+// the values that are the WebWorker cell's inputs and outputs.
 //
 // Using a class instead of a type allows correct type inference to
-// happen for the inputs and outputs params; Maybe a constructor
-// function for a type instance would work as well?
-
-// export class CellFuncSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
-//   constructor(
-//     public name: string,
-//     public createWorker: () => Worker,
-//     public inputs: (keyof Inputs)[],
-//     public outputs: (keyof Outputs)[]
-//   ) {}
-// }
-
-// export class CellStateSpec<
-//   Globals extends ValueStruct,
-//   Uses extends keyof Globals,
-//   Updates extends keyof Globals
-// > {
-//   constructor(
-//     public cellName: string,
-//     public createWorker: () => Worker,
-//     public uses: Uses[],
-//     public updates: Updates[]
-//   ) {}
-// }
-
+// happen for the inputs and outputs params.
 export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   readonly inputNames: (keyof Inputs)[];
   readonly outputNames: (keyof Outputs)[];
@@ -115,20 +72,11 @@ export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
   }
 }
 
-// // A bit of a hack to manage types... (we infer them from globals object that is not actually used)
-// export function cellSpec<
-//   Globals extends ValueStruct,
-//   Uses extends keyof Globals & string,
-//   Updates extends keyof Globals & string
-// >(
-//   globals: Partial<Globals>,
-//   cellName: string,
-//   worker: () => Worker,
-//   uses: Uses[],
-//   updates: Updates[]
-// ) {
-//   return new CellStateSpec<Globals, Uses, Updates>(cellName, worker, uses, updates);
-// }
-
-// export type OpInputs<Op> = Op extends CellFuncSpec<infer I, any> ? I : never;
-// export type OpOutputs<Op> = Op extends CellFuncSpec<any, infer O> ? O : never;
+export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
+export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: SetableSignal<S[Key]> };
+export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: DerivedSignal<S[Key]> };
+export type SignalStructFn<S extends ValueStruct> = { [Key in keyof S]: AbstractSignal<S[Key]> };
+export type PromisedSignalsFn<S extends ValueStruct> = {
+  [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
+};
+export type CallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };

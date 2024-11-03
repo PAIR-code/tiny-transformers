@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 /// <reference lib="webworker" />
 
 import * as tf from '@tensorflow/tfjs';
@@ -47,20 +46,24 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
-import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
 import { Metrics } from 'src/lib/weblab/cellspec';
-import { GTensor } from 'src/lib/gtensor/gtensor';
 
+// ----------------------------------------------------------------------------
 const cell = new StatefulCell(trainerCellSpec);
 const { derived, setable, derivedNullable } = cell.space;
 
-// { batchId: -1, values: { entropyLoss: -1, accuracy: -1 } }
+// profiling variables.
+let optimiserBatchCount = 0;
+let optimiserTime = 0;
 
-type MetricsToReport = Metrics<'entropyLoss' | 'accuracy'>;
-
-// const metrics = setable<Metrics<'entropyLoss' | 'accuracy'> | null>(null);
-// // const { reportMetrics } = makeMetricReporter(cell.space, metrics);
-// derivedNullable(() => cell.output('lastTrainMetric', defined(metrics)), { definedDeps: [metrics] });
+type MetricsToReport = Metrics<
+  | 'entropyLoss'
+  | 'accuracy'
+  | 'metricTime'
+  | 'lossTime'
+  | 'avgOptimiserTime'
+  | 'optimiserBatchCount'
+>;
 
 function shouldCheckpoint(batch: Batch, config: TrainConfig): boolean {
   return batch.batchId % config.checkpointFrequencyInBatches === 0;
@@ -72,50 +75,57 @@ function shouldReportMetrics(batch: Batch, config: TrainConfig): boolean {
   );
 }
 
-function reportMetrics(
-  batch: Batch,
-  model: TransformerModel,
-  computation: TransformerComputation,
-  nextTokenIdx: GTensor<'batch'>,
-  entropyLoss: tf.Scalar
-): MetricsToReport {
-  const accuracy = transformerAccuracy(model, computation, nextTokenIdx);
-  const nextMetrics = {
-    batchId: batch.batchId,
-    values: { entropyLoss: entropyLoss.arraySync(), accuracy: accuracy.arraySync() },
-  };
-  cell.output('lastTrainMetric', nextMetrics);
-  return nextMetrics;
-}
-
+// ----------------------------------------------------------------------------
 function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig): tf.Scalar {
+  const lossComputeStartMs = Date.now();
   const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
   // const gtensorInputs = strSeqPrepFn(model, batch.inputs, options);
   const computation = computeTransformer(model, gtensorInputs);
-  const nextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
-  const entropyLoss = lastTokenCrossEntropyLoss(model, computation, nextTokenIdx);
+  const nextTokenTargetIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
+  const entropyLossTfScalar = lastTokenCrossEntropyLoss(model, computation, nextTokenTargetIdx);
+  const lossComputeEndMs = Date.now();
+  const lossTime = lossComputeEndMs - lossComputeStartMs;
+
   if (shouldReportMetrics(batch, config)) {
-    const nextMetrics = reportMetrics(batch, model, computation, nextTokenIdx, entropyLoss);
+    const accAndLossStartMs = Date.now();
+    const accuracyTfScalar = transformerAccuracy(model, computation, nextTokenTargetIdx);
+    const accuracy = accuracyTfScalar.arraySync();
+    const entropyLoss = entropyLossTfScalar.arraySync();
+    const metricTime = Date.now() - accAndLossStartMs;
+    const avgOptimiserTime = optimiserTime / optimiserBatchCount;
+    const nextMetrics: MetricsToReport = {
+      batchId: batch.batchId,
+      values: {
+        entropyLoss,
+        accuracy,
+        metricTime,
+        lossTime,
+        avgOptimiserTime,
+        optimiserBatchCount,
+      },
+    };
+    cell.output.metrics(nextMetrics);
     if (shouldCheckpoint(batch, config)) {
-      cell.output('checkpoint', {
+      cell.output.checkpoint({
         config: model.config,
         serializedParams: serializeParams(model.params),
         lastBatch: batch,
         metrics: nextMetrics,
       });
     }
+    optimiserBatchCount = 0;
+    optimiserTime = 0;
   }
-  return entropyLoss;
+  return entropyLossTfScalar;
 }
 
 type Model = { config: TransformerConfig; params: VarTransformerParams };
 
+// ----------------------------------------------------------------------------
 // TODO: instead of updating all params at the same time, we should use some
 // streaming iterator through the parts... (and save memory), and allow
 // transfer to happen at the same time as we assign in the GPU.
 function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model | null>) {
-  console.log(`...updateModel ${modelUpdate.kind}`);
-
   const model = modelSignal.lastValue();
 
   if (modelUpdate.kind === ModelUpdateKind.ReinitFromConfig) {
@@ -144,13 +154,14 @@ function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model 
   }
 }
 
+// ----------------------------------------------------------------------------
 cell.run(async () => {
-  const { modelUpdateEvents: modelUpdates, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
-
-  console.log('trainer has all inputs...');
+  // TODO: Test set should be used for metrics reporting at least, and/or evaluated
+  // per checkpoint?
+  const { testSet, modelUpdateEvents, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
 
   const model = setable<Model | null>(null);
-  derived(() => updateModel(modelUpdates(), model));
+  derived(() => updateModel(modelUpdateEvents(), model));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.
@@ -163,20 +174,19 @@ cell.run(async () => {
 
   derivedNullable(
     () => {
-      console.log('optimizer.minimize...');
-
+      const startAtMs = Date.now();
       optimizer.minimize(
         () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
         false,
         defined(varParamList)
       );
-      console.log('done a step!');
+      optimiserTime += Date.now() - startAtMs;
+      optimiserBatchCount++;
     },
     { definedDeps: [model, varParamList] }
   );
 
   await cell.onceFinishRequested.then(() => {
-    console.log('cell.onceFinishRequested: disposing stuff');
     if (optimizer) {
       optimizer.dispose();
     }
@@ -184,10 +194,6 @@ cell.run(async () => {
     if (m) {
       disposeParams(m.params);
     }
+    model.set(null);
   });
 });
-// console.log(
-//   `batch: ${batchId} `.padEnd(15) +
-//     ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
-//     ('accuracy: ' + accuracy.arraySync().toFixed(8)).padEnd(25)
-// );

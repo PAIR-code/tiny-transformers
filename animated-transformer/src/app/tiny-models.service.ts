@@ -112,13 +112,16 @@ export class TinyModelsService {
 
   constructor(private route: ActivatedRoute, private router: Router) {
     this.space = new SignalSpace();
-    const { derivedNullable: nullDerived, setable } = this.space;
+    const { derivedNullable, setable } = this.space;
     const taskId = Object.keys(this.taskConfigsMap)[0];
     this.taskConfig = setable<RandLmTaskConfig | null>(this.taskConfigsMap[taskId]);
-    this.task = nullDerived(() => {
-      const config = defined(this.taskConfig);
-      return taskMakerMap[config.kind].makeFn(JSON.stringify(config));
-    });
+    this.task = derivedNullable(
+      () => {
+        const config = defined(this.taskConfig);
+        return taskMakerMap[config.kind].makeFn(JSON.stringify(config));
+      },
+      { definedDeps: [this.taskConfig] }
+    );
     const modelId = Object.keys(this.modelConfigsMap)[0];
     this.modelConfig = setable<TransformerConfig | null>(this.modelConfigsMap[modelId]);
     // TODO: maybe store modelConfigStr as the source artefact.
@@ -126,10 +129,13 @@ export class TinyModelsService {
     const trainerId = Object.keys(this.modelConfigsMap)[0];
     this.trainerConfig = setable<TrainConfig | null>(this.trainerConfigsMap[trainerId]);
 
-    this.model = nullDerived<EnvModel>(() => {
-      // TODO: init params... load them?
-      return { config: defined(this.modelConfig) };
-    });
+    this.model = derivedNullable<EnvModel>(
+      () => {
+        // TODO: init params... load them?
+        return { config: defined(this.modelConfig) };
+      },
+      { definedDeps: [this.modelConfig] }
+    );
 
     this.route.queryParams.subscribe((params) => {
       this.selectModel(params['model'] || '');

@@ -17,10 +17,8 @@ import {
   SignalStructFn,
   ValueStruct,
   CellSpec,
-  WritableStructFn,
   PromiseStructFn,
   PromisedSignalsFn,
-  Subobj,
 } from './cellspec';
 import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
 import { SignalSpace } from '../signalspace/signalspace';
@@ -96,6 +94,8 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
         case 'finished':
           // TODO: what if there are missing outputs?
           resolveWhenFinishedFn();
+          this.worker.terminate();
+
           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
         case 'setSignal':
@@ -184,16 +184,16 @@ type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct>;
 
 export class LabEnv {
   space = new SignalSpace();
-  metadata: Map<string, ItemMetaData> = new Map();
-  runningCells: {
+  // metadata: Map<string, ItemMetaData> = new Map();
+  public runningCells: {
     [name: string]: SomeCellStateSpec;
   } = {};
-  cellChannels: {
-    [port1CellName: string]: {
-      port2CellName: string;
-      signalName: string;
-    };
-  } = {};
+  // cellChannels: {
+  //   [port1CellName: string]: {
+  //     port2CellName: string;
+  //     signalName: string;
+  //   };
+  // } = {};
 
   start<I extends ValueStruct, O extends ValueStruct>(
     spec: CellSpec<I, O>,
@@ -220,5 +220,6 @@ export class LabEnv {
     const channel = new MessageChannel();
     sourceCell.pipeOutputSignal(signalId, channel.port1, options);
     targetCell.pipeInputSignal(signalId, channel.port2);
+    // TODO: keep track of channels between cells.
   }
 }

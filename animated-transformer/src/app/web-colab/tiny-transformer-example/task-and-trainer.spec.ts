@@ -111,7 +111,7 @@ xdescribe('Trainer-Cell', () => {
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
 
-    const lastMetrics = await trainerCell.outputs.lastTrainMetric;
+    const lastMetrics = await trainerCell.outputs.metrics;
     derived(() => {
       const batch = nextTrainBatch();
       const state = taskGenState({ depKind: DepKind.Lazy });
