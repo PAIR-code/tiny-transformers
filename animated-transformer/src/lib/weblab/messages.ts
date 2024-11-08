@@ -26,6 +26,20 @@ export type FromWorkerMessage =
   | {
       kind: 'finished';
     };
+
+export enum ConjestionFeedbackMessageKind {
+  ConjestionIndex,
+}
+
+// Used to send feedback to a port that is sending stuff on which example was
+// last processed, so that internal queues don't explode.
+export type ConjestionFeedbackMessage = {
+  kind: ConjestionFeedbackMessageKind;
+  idx: number;
+};
+
+export type StreamValue<T> = { idx: number; value: T };
+
 export type ToWorkerMessage =
   | {
       kind: 'finishRequest';
@@ -44,9 +58,26 @@ export type ToWorkerMessage =
       options?: { keepSignalPushesHereToo: boolean };
     }
   | {
+      kind: 'conjestionState';
+      // The name of an output of the worker that
+      outputSignalId: string;
+      // A number representing the index of the last consumed value from the
+      // worker for the worker's outputSignalId output.
+      stateIdx: number;
+    }
+  | {
       kind: 'setSignal';
+      // The name of the signal being set.
       signalId: string;
+      // The value to set that signal to have.
       signalValue: unknown;
+    }
+  | {
+      kind: 'setStream';
+      // The name of the signal stream having its next value set.
+      streamId: string;
+      // A unique incremental number indicating the sent-stream value.
+      value: StreamValue<unknown>;
     }
   | {
       kind: 'providingInputStreamEntry';

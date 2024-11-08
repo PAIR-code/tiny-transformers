@@ -68,10 +68,10 @@ export const exampleWorkerSpec = new CellSpec({
   cellName: 'an example cell',
   workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
   inputs: {
-    toyInput: Kind<string>,
+    toyInput: Kind<string>(),
   },
   outputs: {
-    str: Kind<string>,
-    num: Kind<number>,
+    str: Kind<string>(),
+    num: Kind<number>(),
   },
 });

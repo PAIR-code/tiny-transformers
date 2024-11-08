@@ -15,49 +15,265 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import * as tf from '@tensorflow/tfjs';
-import { FromWorkerMessage, ToWorkerMessage } from './messages';
-import { SignalSpace } from '../signalspace/signalspace';
+import {
+  ConjestionFeedbackMessage,
+  ConjestionFeedbackMessageKind,
+  FromWorkerMessage,
+  StreamValue,
+  ToWorkerMessage,
+} from './messages';
+import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
   CellSpec,
   WritableStructFn,
   PromisedSignalsFn,
   CallValueFn,
+  SignalStructFn,
+  AsyncCallValueFn,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
 
-export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruct> {
-  space = new SignalSpace();
-  public onceFinishRequested: Promise<void>;
+// The value send over a streaming port.
+export type InputConfig = {
+  conjestionFeedback: boolean;
+  // Consider if we want feedback every N to minimise communication flow costs.
+};
+
+export type ConjestionControlConfig = {
+  // TODO: consider fancier conjestion control abstraction, e.g. function and
+  // data on returned values.
+  maxQueueSize: number;
+  resumeAtQueueSize: number; // Expected to be smaller than maxQueueSize;
+};
+
+type ConjestionState = {
+  lastReturnedId: number;
+  queueLength: number;
+  // When paused, this allows triggering of resuming.
+  resumeResolver: () => void;
+  resumeCancel: () => void;
+  onceResume: Promise<void>;
+};
+
+// ----------------------------------------------------------------------------
+export class WorkerOutputStream<Name extends string, T> {
+  portConjestion: Map<MessagePort, ConjestionState> = new Map();
+  lastMessageIdx: number = 0;
+
+  constructor(public space: SignalSpace, public id: Name, public config: ConjestionControlConfig) {}
+
+  addPort(messagePort: MessagePort) {
+    let resumeResolver!: () => void;
+    let resumeCancel!: () => void;
+    const onceResume = new Promise<void>((resolve, cancel) => {
+      resumeResolver = resolve as () => void;
+      resumeCancel = cancel;
+    });
+    const messagePortConjestionState: ConjestionState = {
+      lastReturnedId: 0,
+      queueLength: 0,
+      resumeCancel,
+      resumeResolver,
+      onceResume,
+    };
+    this.portConjestion.set(messagePort, messagePortConjestionState);
+    messagePort.onmessage = (event: MessageEvent) => {
+      const conjestionFeedback: ConjestionFeedbackMessage = event.data;
+      messagePortConjestionState.lastReturnedId = conjestionFeedback.idx;
+      messagePortConjestionState.queueLength--;
+      if (messagePortConjestionState.queueLength <= this.config.resumeAtQueueSize) {
+        messagePortConjestionState.resumeResolver();
+      }
+    };
+  }
+
+  // Stop all waiting promising for resumption.
+  cancel(): void {
+    for (const conjestionState of this.portConjestion.values()) {
+      conjestionState.resumeCancel();
+    }
+  }
+
+  async send(value: T): Promise<void> {
+    this.lastMessageIdx++;
+    for (const [port, conjestionState] of this.portConjestion.entries()) {
+      if (conjestionState.queueLength > this.config.maxQueueSize) {
+        await conjestionState.onceResume;
+      }
+      const streamValue: StreamValue<T> = {
+        idx: this.lastMessageIdx,
+        value,
+      };
+      conjestionState.queueLength++;
+      port.postMessage(streamValue);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+export class WorkerOutput<Name extends string, T> {
+  ports: MessagePort[] = [];
+
+  constructor(public space: SignalSpace, public id: Name) {}
+
+  addPort(messagePort: MessagePort) {
+    this.ports.push(messagePort);
+    messagePort.onmessage = (event: MessageEvent) => {
+      console.warn(`unexpected message on output port ${this.id}`);
+    };
+  }
+
+  send(signalValue: T): void {
+    const message: FromWorkerMessage = { kind: 'setSignal', signalId: this.id, signalValue };
+    for (const port of this.ports) {
+      port.postMessage(message);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+export class WorkerInputStream<Name extends string, T> {
+  readyResolver!: (signal: SetableSignal<T>) => void;
+  onceReady: Promise<SetableSignal<T>>;
+  ports: MessagePort[] = [];
+  onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
+
+  constructor(public space: SignalSpace, public id: Name, config: InputConfig) {
+    this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
+      // TODO: consider allowing parent to send stuff before we ask for it..
+      // this would just involved checking the inputResolvers here.
+      this.readyResolver = (_firstInput: SetableSignal<T>) => resolve;
+    });
+
+    // First input creates the signal, resolves the promise, posts the first
+    // conjestion control index, and then resets onNextInput for future cases to
+    // just set the signal, and posts the next conjestion control index.
+    this.onNextInput = (port: MessagePort | null, firstInput: StreamValue<T>) => {
+      const signal = this.space.setable(firstInput.value);
+      this.readyResolver(signal);
+      if (config.conjestionFeedback) {
+        this.postConjestionFeedback(port, firstInput.idx);
+        this.onNextInput = (port: MessagePort | null, nextInput: StreamValue<T>) => {
+          signal.set(nextInput!.value);
+          this.postConjestionFeedback(port, nextInput!.idx);
+        };
+      } else {
+        this.onNextInput = (port: MessagePort | null, nextInput: StreamValue<T>) => {
+          signal.set(nextInput!.value);
+        };
+      }
+    };
+  }
+
+  addPort(messagePort: MessagePort) {
+    this.ports.push(messagePort);
+    messagePort.onmessage = (event: MessageEvent) => {
+      const workerMessage: ToWorkerMessage = event.data;
+      if (workerMessage.kind !== 'setStream') {
+        throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
+      }
+      this.onNextInput(messagePort, workerMessage.value as StreamValue<T>);
+    };
+  }
+
+  postConjestionFeedback(port: MessagePort | null, idx: number) {
+    const message: ConjestionFeedbackMessage = {
+      kind: ConjestionFeedbackMessageKind.ConjestionIndex,
+      idx,
+    };
+    if (port) {
+      port.postMessage(message);
+    } else {
+      postMessage(message);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+export class WorkerInput<Name extends string, T> {
+  readyResolver!: (signal: SetableSignal<T>) => void;
+  onceReady: Promise<SetableSignal<T>>;
+  onNextInput: (input: StreamValue<T>) => void;
+
+  constructor(public space: SignalSpace, public id: Name) {
+    this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
+      // TODO: consider allowing parent to send stuff before we ask for it..
+      // this would just involved checking the inputResolvers here.
+      this.readyResolver = (_firstInput: SetableSignal<T>) => resolve;
+    });
+
+    // First input creates the signal, resolves the promise, posts the first
+    // conjestion control index, and then resets onNextInput for future cases to
+    // just set the signal, and posts the next conjestion control index.
+    this.onNextInput = (firstInput: StreamValue<T>) => {
+      const signal = this.space.setable(firstInput.value);
+      this.readyResolver(signal);
+      this.onNextInput = (nextInput: StreamValue<T>) => {
+        signal.set(nextInput.value);
+      };
+    };
+  }
+}
+
+// ----------------------------------------------------------------------------
+export class StatefulCell<
+  Inputs extends ValueStruct,
+  InputStreams extends ValueStruct,
+  Outputs extends ValueStruct,
+  OutputStreams extends ValueStruct
+> {
   inputPromises: PromisedSignalsFn<Inputs>;
   stillExpectedInputs: Set<keyof Inputs>;
   inputSoFar: Partial<WritableStructFn<Inputs>> = {};
-  public onceAllInputs: Promise<WritableStructFn<Inputs>>;
   inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
-  onceFinishedFn!: () => void;
+  onceFinishedResolver!: () => void;
+
   inputSet: Set<keyof Inputs>;
   outputSet: Set<keyof Outputs>;
-  inputPorts: Map<keyof Inputs, { ports: MessagePort[] }>;
-  outputPorts: Map<keyof Outputs, { ports: MessagePort[]; postToParentToo: boolean }>;
-  output: CallValueFn<Outputs> = {} as CallValueFn<Outputs>;
+  inputStreamSet: Set<keyof InputStreams>;
+  outputStreamSet: Set<keyof OutputStreams>;
 
-  constructor(public spec: CellSpec<Inputs, Outputs>) {
-    this.inputSet = new Set(Object.keys(this.spec.data.inputs));
-    this.outputSet = new Set(Object.keys(this.spec.data.outputs));
-    this.inputPorts = new Map();
-    this.outputPorts = new Map();
-    this.inputSet.forEach((input) => {
-      this.inputPorts.set(input, { ports: [] });
-    });
-    this.outputSet.forEach((output) => {
-      this.outputPorts.set(output, { ports: [], postToParentToo: true });
-    });
+  inputs: Map<keyof Inputs, WorkerInput<keyof Inputs & string, Inputs[keyof Inputs]>> = new Map();
+  inputStreams: Map<
+    keyof InputStreams,
+    WorkerInputStream<keyof InputStreams & string, InputStreams[keyof InputStreams]>
+  > = new Map();
+
+  outputStreams = {} as {
+    [Key in keyof OutputStreams]: WorkerOutputStream<Key & string, OutputStreams[Key]>;
+  };
+  public streamOutput = {} as AsyncCallValueFn<OutputStreams>;
+
+  outputs = {} as {
+    [Key in keyof Outputs]: WorkerOutput<Key & string, Outputs[Key]>;
+  };
+  public output = {} as CallValueFn<Outputs>;
+
+  public space = new SignalSpace();
+  public onceAllInputs: Promise<SignalStructFn<Inputs>>;
+
+  public finishRequested = false;
+  public onceFinishRequested: Promise<void>;
+
+  constructor(public spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>) {
+    type InputStreamKey = keyof InputStreams & string;
+    type InputStreamValue = InputStreams[keyof InputStreams];
+    type InputKey = keyof Inputs & string;
+    type InputValue = Inputs[keyof Inputs];
+    type OutputStreamKey = keyof OutputStreams & string;
+    type OutputStreamValue = OutputStreams[keyof OutputStreams];
+    type OutputKey = keyof Outputs & string;
+    type OutputValue = Outputs[keyof Outputs];
+
+    this.inputSet = new Set<InputKey>(Object.keys(this.spec.inputs));
+    this.outputSet = new Set<OutputKey>(Object.keys(this.spec.outputs));
+    this.inputStreamSet = new Set<InputStreamKey>(Object.keys(this.spec.inputStreams));
+    this.outputStreamSet = new Set<OutputStreamKey>(Object.keys(this.spec.outputStreams));
 
     this.onceFinishRequested = new Promise<void>((resolve) => {
-      this.onceFinishedFn = resolve;
+      this.onceFinishedResolver = resolve;
     });
-    addEventListener('message', (m) => this.onMessage(m));
 
     this.inputPromises = {} as PromisedSignalsFn<Inputs>;
     this.stillExpectedInputs = new Set(this.inputSet);
@@ -68,91 +284,86 @@ export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruc
     });
 
     for (const inputName of this.inputSet) {
-      const promisedInput = this.initOnceInput<Inputs[typeof inputName]>(inputName as string);
-      this.inputPromises[inputName] = promisedInput.then((inputValue) => {
-        // console.log(`inputPromises[${inputName}] has value: ${JSON.stringify(inputValue)}`);
-        const signal = this.space.setable(inputValue);
-        this.inputSoFar[inputName] = signal;
+      const workerInput = new WorkerInput<InputKey, InputValue>(this.space, inputName as InputKey);
+      this.inputs.set(inputName, workerInput);
+      workerInput.onceReady.then(() => {
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
           onceAllInputsResolver(this.inputSoFar as WritableStructFn<Inputs>);
         }
-        delete this.inputResolvers[inputName as string];
-        // // New inputs should now simply update the existing signal.
-        // this.inputResolvers[inputName as string] = (value) => {
-        //   signal.set(value as Globals[typeof inputName]);
-        // };
-        return signal;
       });
     }
 
-    for (const outputName of this.outputSet) {
-      this.output[outputName] = (value: Outputs[typeof outputName]) => {
-        this.outputSignal(outputName as keyof Outputs & string, value as Outputs[keyof Outputs]);
-      };
+    for (const inputName of this.inputStreamSet) {
+      const workerStreamInput = new WorkerInputStream<InputStreamKey, InputStreamValue>(
+        this.space,
+        inputName as InputStreamKey,
+        { conjestionFeedback: true }
+      );
+      this.inputStreams.set(inputName, workerStreamInput);
     }
+
+    for (const outputName of this.outputStreamSet) {
+      const workerOutputStream = new WorkerOutputStream<OutputStreamKey, OutputStreamValue>(
+        this.space,
+        outputName as OutputStreamKey,
+        { maxQueueSize: 20, resumeAtQueueSize: 10 }
+      );
+      this.outputStreams[outputName as OutputStreamKey] = workerOutputStream;
+      this.streamOutput[outputName as OutputStreamKey] = (value: OutputStreamValue) =>
+        workerOutputStream.send(value);
+    }
+
+    for (const outputName of this.outputSet) {
+      const workerOutput = new WorkerOutput<OutputKey, OutputValue>(
+        this.space,
+        outputName as OutputKey
+      );
+      this.outputs[outputName as OutputKey] = workerOutput;
+      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.send(value);
+    }
+
+    addEventListener('message', (m) => this.onMessage(m));
   }
 
   onMessage(message: { data: ToWorkerMessage }) {
     const { data } = message;
     if (data.kind === 'finishRequest') {
-      this.onceFinishedFn();
+      this.finishRequested = true;
+      this.onceFinishedResolver();
     } else if (data.kind === 'pipeInputSignal') {
-      const inputPortConfig = this.inputPorts.get(data.signalId as keyof Inputs);
-      if (!inputPortConfig) {
+      const workerInputStream = this.inputStreams.get(data.signalId as keyof InputStreams);
+      if (!workerInputStream) {
         throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
       }
-      // It might be cleaner to make a new onMessage function with some extra
-      // params for the port name it is linked to?
-      inputPortConfig.ports.push(data.port);
-      data.port.onmessage = (m) => this.onMessage(m);
+      workerInputStream.addPort(data.port);
     } else if (data.kind === 'pipeOutputSignal') {
-      const outputPortConfig = this.outputPorts.get(data.signalId as keyof Outputs);
-      if (!outputPortConfig) {
-        throw new Error(`No output named ${data.signalId} to set pipeOutputSignal.`);
+      const outputStream = this.outputStreams[data.signalId];
+      if (!outputStream) {
+        throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
       }
-      // TODO: consider bidirectional ports/signals, then we would also listen
-      // here too... but then loops get much harder to spot...
-      outputPortConfig.ports.push(data.port);
-      if (data.options && data.options.keepSignalPushesHereToo) {
-        outputPortConfig.postToParentToo = true;
-      }
+      outputStream.addPort(data.port);
     } else if (data.kind === 'setSignal') {
-      const signal = this.inputSoFar[data.signalId as keyof Inputs];
-      if (signal) {
-        // console.log(`onMessage: setSignal(${data.signalId}): ${JSON.stringify(data.signalValue)}`);
-        signal.set(data.signalValue as Inputs[keyof Inputs]);
-      } else {
-        if (data.signalId in this.inputResolvers) {
-          this.inputResolvers[data.signalId](data.signalValue);
-        } else {
-          console.warn('got sent an input we do not know about: ', data);
-        }
+      const workerInput = this.inputs.get(data.signalId as keyof Inputs);
+      if (!workerInput) {
+        throw new Error(`onMessage: setSignal(${data.signalId}): but there is no such input.`);
       }
+      workerInput.onNextInput(data.signalValue as Inputs[keyof Inputs]);
+    } else if (data.kind === 'setStream') {
+      const workerInputStream = this.inputStreams.get(data.streamId as keyof InputStreams);
+      if (!workerInputStream) {
+        throw new Error(
+          `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
+        );
+      }
+      workerInputStream.onNextInput(
+        null,
+        data.value as StreamValue<InputStreams[keyof InputStreams]>
+      );
     } else {
       console.warn('unknown message from the main thread: ', data);
     }
   }
-
-  initOnceInput<T>(signalId: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.inputResolvers[signalId] = resolve as (v: unknown) => void;
-    });
-  }
-
-  // // Note sure of the value of this separately... maybe handy if something isn't
-  // // initially set.
-  // requestInput<T>(signalId: string): Promise<T> {
-  //   const message: FromWorkerMessage = { kind: 'requestInput', signalId };
-  //   postMessage(message);
-  //   return new Promise<T>((resolve, reject) => {
-  //     // TODO: consider allowing parent to send stuff before we ask for it..
-  //     // this would just involved checking the inputResolvers here.
-  //     this.inputResolvers[signalId] = resolve as (v: unknown) => void;
-  //   });
-  // }
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
@@ -165,20 +376,6 @@ export class StatefulCell<Inputs extends ValueStruct, Outputs extends ValueStruc
   async run(runFn: () => Promise<void>) {
     await runFn();
     this.finished();
-  }
-
-  outputSignal(signalId: keyof Outputs & string, signalValue: Outputs[keyof Outputs]) {
-    const message: FromWorkerMessage = { kind: 'setSignal', signalId, signalValue };
-    const outputPortConfig = this.outputPorts.get(signalId);
-    if (!outputPortConfig) {
-      throw new Error('output signal does not exist in the output (when looking at outputPorts)');
-    }
-    for (const port of outputPortConfig.ports) {
-      port.postMessage(message);
-    }
-    if (outputPortConfig.postToParentToo) {
-      postMessage(message);
-    }
   }
 
   finished() {

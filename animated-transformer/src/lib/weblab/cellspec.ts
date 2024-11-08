@@ -23,8 +23,22 @@ limitations under the License.
 
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 
-type KindHolder<T> = (value: T) => void;
-export const Kind: <T>(value: T) => void = () => {};
+export enum CellValueKind {
+  Signal,
+  ConjectionFlow,
+}
+export type KindHolder<T> = ((value: T) => void) & { kind: CellValueKind };
+export function Kind<T>(): KindHolder<T> {
+  const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
+  fn.kind = CellValueKind.Signal;
+  return fn;
+}
+
+export function FlowKind<T>(): KindHolder<T> {
+  const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
+  fn.kind = CellValueKind.ConjectionFlow;
+  return fn;
+}
 
 export type Metrics<Name extends string> = {
   batchId: number;
@@ -54,21 +68,44 @@ export type ValueKindFnStructFn<S extends ValueStruct> = {
 // A cell specification is a very simply class that connects types to names for
 // the values that are the WebWorker cell's inputs and outputs.
 //
-// Using a class instead of a type allows correct type inference to
-// happen for the inputs and outputs params.
-export class CellSpec<Inputs extends ValueStruct, Outputs extends ValueStruct> {
-  readonly inputNames: (keyof Inputs)[];
-  readonly outputNames: (keyof Outputs)[];
+// Using a class instead of a type allows correct type inference to happen for
+// the inputs and outputs params.
+//
+// TODO: Don't let Inputs and StreamedInputs have overlapping names, that will
+// be confusing, even if it can work.
+export class CellSpec<
+  Inputs extends ValueStruct,
+  InputStreams extends ValueStruct,
+  Outputs extends ValueStruct,
+  OutputStreams extends ValueStruct
+> {
+  readonly inputNames: Set<keyof Inputs>;
+  readonly outputNames: Set<keyof Outputs>;
+  readonly inputStreamNames: Set<keyof InputStreams>;
+  readonly outputStreamNames: Set<keyof OutputStreams>;
+  inputs: ValueKindFnStructFn<Inputs>;
+  inputStreams: ValueKindFnStructFn<InputStreams>;
+  outputs: ValueKindFnStructFn<Outputs>;
+  outputStreams: ValueKindFnStructFn<OutputStreams>;
+
   constructor(
     public data: {
       cellName: string;
       workerFn: () => Worker;
-      inputs: ValueKindFnStructFn<Inputs>;
-      outputs: ValueKindFnStructFn<Outputs>;
+      inputs?: ValueKindFnStructFn<Inputs>;
+      inputStreams?: ValueKindFnStructFn<InputStreams>;
+      outputs?: ValueKindFnStructFn<Outputs>;
+      outputStreams?: ValueKindFnStructFn<OutputStreams>;
     }
   ) {
-    this.inputNames = Object.keys(this.data.inputs);
-    this.outputNames = Object.keys(this.data.outputs);
+    this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<Inputs>);
+    this.inputStreams = this.data.inputStreams || ({} as ValueKindFnStructFn<InputStreams>);
+    this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<Outputs>);
+    this.outputStreams = this.data.outputStreams || ({} as ValueKindFnStructFn<OutputStreams>);
+    this.inputNames = new Set(Object.keys(this.inputs));
+    this.inputStreamNames = new Set(Object.keys(this.inputStreams));
+    this.outputNames = new Set(Object.keys(this.outputs));
+    this.outputStreamNames = new Set(Object.keys(this.outputStreams));
   }
 }
 
@@ -80,3 +117,5 @@ export type PromisedSignalsFn<S extends ValueStruct> = {
   [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
 };
 export type CallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
+export type AsyncCallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
+export type ValueMapFn<S extends ValueStruct, T> = { [Key in keyof S]: T };

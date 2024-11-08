@@ -20,7 +20,7 @@ import { Batch, taskCellSpec, TaskGenSate } from './ailab';
 import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
-import { DepKind, promisifySignal } from 'src/lib/signalspace/signalspace';
+import { DepKind, DerivedSignal, promisifySignal } from 'src/lib/signalspace/signalspace';
 import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
 
 // ------------------------------------------------------------------------
@@ -69,6 +69,8 @@ cell.run(async () => {
     return { batchId, nextSeed: batchSeed, inputs, outputs };
   }
 
+  // cell.onceFinishRequested.then()
+
   // TODO: make a queue abstraction.
   let st: {
     cur: TaskGenSate;
@@ -76,7 +78,7 @@ cell.run(async () => {
   };
   let curBatchesQueueSize = 0;
   let batchId = 0;
-  while ((st = state()) && st.cur.kind !== 'finished') {
+  while ((st = state()) && !cell.finishRequested) {
     // console.log(
     //   `**task-cell** state.cur: ${JSON.stringify(
     //     st.cur

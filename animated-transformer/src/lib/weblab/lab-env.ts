@@ -28,21 +28,41 @@ export type ItemMetaData = {
 };
 
 // Class wrapper to communicate with a cell in a webworker.
-export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
+export class LabEnvCell<
+  I extends ValueStruct,
+  IStream extends ValueStruct,
+  O extends ValueStruct,
+  OStream extends ValueStruct
+> {
   // Resolved once the webworker says it has finished.
   public onceFinished: Promise<void>;
   public onceAllOutputs: Promise<SignalStructFn<O>>;
   public worker: Worker;
+
+  inputs: SignalStructFn<I>;
+  inputStreams: SignalStructFn<IStream>;
   public outputs: PromiseStructFn<SignalStructFn<O>>;
+  // The key difference for streams is that they are created by
+  public outputStreams: PromiseStructFn<SignalStructFn<OStream>>;
+
   public outputSoFar: Partial<SignalStructFn<O>>;
+
   public stillExpectedOutputs: Set<keyof O>;
-  outputResolvers = {} as { [name: string]: (value: unknown) => void };
+
+  setOutputSignalFn = {} as { [name: string]: (value: unknown) => void };
+  setOutputStreamSignalFn = {} as { [name: string]: (value: unknown) => void };
 
   constructor(
     public space: SignalSpace,
-    public spec: CellSpec<I, O>,
-    public uses: SignalStructFn<I>
+    public spec: CellSpec<I, IStream, O, OStream>,
+    public uses: {
+      inputs?: SignalStructFn<I>;
+      inputStreams?: SignalStructFn<IStream>;
+    }
   ) {
+    this.inputs = uses.inputs || ({} as SignalStructFn<I>);
+    this.inputStreams = uses.inputStreams || ({} as SignalStructFn<IStream>);
+
     let resolveWithAllOutputsFn: (output: SignalStructFn<O>) => void;
     this.onceAllOutputs = new Promise<SignalStructFn<O>>((resolve, reject) => {
       resolveWithAllOutputsFn = resolve;
@@ -53,12 +73,14 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
     });
     this.worker = spec.data.workerFn();
     this.outputs = {} as PromisedSignalsFn<O>;
+    this.outputStreams = {} as PromisedSignalsFn<OStream>;
+
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(spec.outputNames);
 
     for (const outputName of spec.outputNames) {
-      const promisedInput = this.initOnceOutput<O[typeof outputName]>(outputName as string);
-      this.outputs[outputName] = promisedInput.then((inputValue) => {
+      const promisedOutput = this.initOnceOutput<O[typeof outputName]>(outputName as string);
+      this.outputs[outputName] = promisedOutput.then((inputValue) => {
         const signal = this.space.setable(inputValue);
         this.outputSoFar[outputName] = signal;
         this.stillExpectedOutputs.delete(outputName);
@@ -66,8 +88,20 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
           resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<O>);
         }
         // New inputs should now simply update the existing signal.
-        this.outputResolvers[outputName as string] = (value) => {
+        this.setOutputSignalFn[outputName as string] = (value) => {
           signal.set(value as O[typeof outputName]);
+        };
+        return signal;
+      });
+    }
+
+    for (const outputName of spec.outputStreamNames) {
+      const promisedOutput = this.initOnceOutput<OStream[typeof outputName]>(outputName as string);
+      this.outputStreams[outputName] = promisedOutput.then((inputValue) => {
+        const signal = this.space.setable(inputValue);
+        // New inputs should now simply update the existing signal.
+        this.setOutputStreamSignalFn[outputName as string] = (value) => {
+          signal.set(value as OStream[typeof outputName]);
         };
         return signal;
       });
@@ -100,8 +134,9 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
           break;
         case 'setSignal':
           const outputName = messageFromWorker.signalId as keyof O & string;
-          this.outputResolvers[outputName](messageFromWorker.signalValue as O[keyof O]);
+          this.setOutputSignalFn[outputName](messageFromWorker.signalValue as O[keyof O]);
           break;
+
         default:
           console.error('main thread go unknown worker message: ', data);
           break;
@@ -112,7 +147,7 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
     // the update to the worker.
     for (const key of spec.inputNames) {
       this.space.derived(() => {
-        const value = uses[key as keyof I]();
+        const value = this.inputs[key as keyof I](); // Note signal dependency.
         const message: ToWorkerMessage = {
           kind: 'setSignal',
           signalId: key as keyof I & string,
@@ -134,7 +169,7 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
     return new Promise<T>((resolve, reject) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
       // this would just involved checking the inputResolvers here.
-      this.outputResolvers[name] = resolve as (v: unknown) => void;
+      this.setOutputSignalFn[name] = resolve as (v: unknown) => void;
     });
   }
 
@@ -157,11 +192,12 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
       signalId,
       port,
     };
+    // Note: ports are transferred to the worker.
     this.worker.postMessage(message, [port]);
   }
   public pipeOutputSignal(
     signalId: string,
-    port: MessagePort,
+    ports: MessagePort[],
     options?: { keepSignalPushesHereToo: boolean }
   ) {
     const message: ToWorkerMessage = {
@@ -170,14 +206,15 @@ export class LabEnvCell<I extends ValueStruct, O extends ValueStruct> {
       port,
       options,
     };
+    // Note ports are transferred to the worker.
     this.worker.postMessage(message, [port]);
   }
 
   // TODO: add some closing cleanup?
 }
 
-type SomeCellStateSpec = CellSpec<ValueStruct, ValueStruct>;
-type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct>;
+type SomeCellStateSpec = CellSpec<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
 // TODO: maybe define a special type of serializable
 // object that includes things with a toSerialise function?
@@ -195,10 +232,15 @@ export class LabEnv {
   //   };
   // } = {};
 
-  start<I extends ValueStruct, O extends ValueStruct>(
-    spec: CellSpec<I, O>,
+  start<
+    I extends ValueStruct,
+    IStreams extends ValueStruct,
+    O extends ValueStruct,
+    OStreams extends ValueStruct
+  >(
+    spec: CellSpec<I, IStreams, O, OStreams>,
     inputs: SignalStructFn<I>
-  ): LabEnvCell<I, O> {
+  ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
     const envCell = new LabEnvCell(this.space, spec, inputs);
     envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
@@ -206,14 +248,12 @@ export class LabEnv {
   }
 
   pipeSignal<
-    SourceIn extends ValueStruct,
     SourceOut extends ValueStruct,
     TargetIn extends ValueStruct,
-    TargetOut extends ValueStruct,
     SignalId extends keyof SourceOut & keyof TargetIn & string
   >(
-    sourceCell: LabEnvCell<SourceIn, SourceOut>,
-    targetCell: LabEnvCell<TargetIn, TargetOut>,
+    sourceCell: LabEnvCell<ValueStruct, ValueStruct, ValueStruct, SourceOut>,
+    targetCell: LabEnvCell<ValueStruct, TargetIn, ValueStruct, ValueStruct>,
     signalId: SignalId,
     options?: { keepSignalPushesHereToo: boolean }
   ) {
