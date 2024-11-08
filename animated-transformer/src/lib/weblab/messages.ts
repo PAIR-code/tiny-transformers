@@ -13,20 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-export type FromWorkerMessage =
-  | {
-      kind: 'requestInput';
-      signalId: string;
-    }
-  | {
-      kind: 'setSignal';
-      signalId: string;
-      signalValue: unknown;
-    }
-  | {
-      kind: 'finished';
-    };
-
+// ----------------------------------------------------------------------------
 export enum ConjestionFeedbackMessageKind {
   ConjestionIndex,
 }
@@ -40,6 +27,29 @@ export type ConjestionFeedbackMessage = {
 
 export type StreamValue<T> = { idx: number; value: T };
 
+// ----------------------------------------------------------------------------
+export type FromWorkerMessage =
+  | {
+      kind: 'requestInput';
+      signalId: string;
+    }
+  | {
+      kind: 'setSignal';
+      signalId: string;
+      signalValue: unknown;
+    }
+  | {
+      kind: 'setStream';
+      // The name of the signal stream having its next value set.
+      streamId: string;
+      // A unique incremental number indicating the sent-stream value.
+      value: StreamValue<unknown>;
+    }
+  | {
+      kind: 'finished';
+    };
+
+// ----------------------------------------------------------------------------
 export type ToWorkerMessage =
   | {
       kind: 'finishRequest';
@@ -47,23 +57,15 @@ export type ToWorkerMessage =
   | {
       kind: 'pipeInputSignal';
       signalId: string;
-      port: MessagePort;
+      ports: MessagePort[];
     }
   | {
       kind: 'pipeOutputSignal';
       signalId: string;
       // TODO: add 'push values' option for the port.
-      port: MessagePort;
+      ports: MessagePort[];
       // false; Approx = transfer signal, true = add a new signal target.
       options?: { keepSignalPushesHereToo: boolean };
-    }
-  | {
-      kind: 'conjestionState';
-      // The name of an output of the worker that
-      outputSignalId: string;
-      // A number representing the index of the last consumed value from the
-      // worker for the worker's outputSignalId output.
-      stateIdx: number;
     }
   | {
       kind: 'setSignal';
@@ -78,9 +80,4 @@ export type ToWorkerMessage =
       streamId: string;
       // A unique incremental number indicating the sent-stream value.
       value: StreamValue<unknown>;
-    }
-  | {
-      kind: 'providingInputStreamEntry';
-      signalId: string;
-      inputData: unknown;
     };

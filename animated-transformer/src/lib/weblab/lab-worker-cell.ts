@@ -15,13 +15,7 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import {
-  ConjestionFeedbackMessage,
-  ConjestionFeedbackMessageKind,
-  FromWorkerMessage,
-  StreamValue,
-  ToWorkerMessage,
-} from './messages';
+import { FromWorkerMessage, StreamValue, ToWorkerMessage } from './messages';
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
@@ -33,188 +27,12 @@ import {
   AsyncCallValueFn,
 } from './cellspec';
 import { ExpandOnce } from '../ts-type-helpers';
-
-// The value send over a streaming port.
-export type InputConfig = {
-  conjestionFeedback: boolean;
-  // Consider if we want feedback every N to minimise communication flow costs.
-};
-
-export type ConjestionControlConfig = {
-  // TODO: consider fancier conjestion control abstraction, e.g. function and
-  // data on returned values.
-  maxQueueSize: number;
-  resumeAtQueueSize: number; // Expected to be smaller than maxQueueSize;
-};
-
-type ConjestionState = {
-  lastReturnedId: number;
-  queueLength: number;
-  // When paused, this allows triggering of resuming.
-  resumeResolver: () => void;
-  resumeCancel: () => void;
-  onceResume: Promise<void>;
-};
-
-// ----------------------------------------------------------------------------
-export class WorkerOutputStream<Name extends string, T> {
-  portConjestion: Map<MessagePort, ConjestionState> = new Map();
-  lastMessageIdx: number = 0;
-
-  constructor(public space: SignalSpace, public id: Name, public config: ConjestionControlConfig) {}
-
-  addPort(messagePort: MessagePort) {
-    let resumeResolver!: () => void;
-    let resumeCancel!: () => void;
-    const onceResume = new Promise<void>((resolve, cancel) => {
-      resumeResolver = resolve as () => void;
-      resumeCancel = cancel;
-    });
-    const messagePortConjestionState: ConjestionState = {
-      lastReturnedId: 0,
-      queueLength: 0,
-      resumeCancel,
-      resumeResolver,
-      onceResume,
-    };
-    this.portConjestion.set(messagePort, messagePortConjestionState);
-    messagePort.onmessage = (event: MessageEvent) => {
-      const conjestionFeedback: ConjestionFeedbackMessage = event.data;
-      messagePortConjestionState.lastReturnedId = conjestionFeedback.idx;
-      messagePortConjestionState.queueLength--;
-      if (messagePortConjestionState.queueLength <= this.config.resumeAtQueueSize) {
-        messagePortConjestionState.resumeResolver();
-      }
-    };
-  }
-
-  // Stop all waiting promising for resumption.
-  cancel(): void {
-    for (const conjestionState of this.portConjestion.values()) {
-      conjestionState.resumeCancel();
-    }
-  }
-
-  async send(value: T): Promise<void> {
-    this.lastMessageIdx++;
-    for (const [port, conjestionState] of this.portConjestion.entries()) {
-      if (conjestionState.queueLength > this.config.maxQueueSize) {
-        await conjestionState.onceResume;
-      }
-      const streamValue: StreamValue<T> = {
-        idx: this.lastMessageIdx,
-        value,
-      };
-      conjestionState.queueLength++;
-      port.postMessage(streamValue);
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------
-export class WorkerOutput<Name extends string, T> {
-  ports: MessagePort[] = [];
-
-  constructor(public space: SignalSpace, public id: Name) {}
-
-  addPort(messagePort: MessagePort) {
-    this.ports.push(messagePort);
-    messagePort.onmessage = (event: MessageEvent) => {
-      console.warn(`unexpected message on output port ${this.id}`);
-    };
-  }
-
-  send(signalValue: T): void {
-    const message: FromWorkerMessage = { kind: 'setSignal', signalId: this.id, signalValue };
-    for (const port of this.ports) {
-      port.postMessage(message);
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------
-export class WorkerInputStream<Name extends string, T> {
-  readyResolver!: (signal: SetableSignal<T>) => void;
-  onceReady: Promise<SetableSignal<T>>;
-  ports: MessagePort[] = [];
-  onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
-
-  constructor(public space: SignalSpace, public id: Name, config: InputConfig) {
-    this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.readyResolver = (_firstInput: SetableSignal<T>) => resolve;
-    });
-
-    // First input creates the signal, resolves the promise, posts the first
-    // conjestion control index, and then resets onNextInput for future cases to
-    // just set the signal, and posts the next conjestion control index.
-    this.onNextInput = (port: MessagePort | null, firstInput: StreamValue<T>) => {
-      const signal = this.space.setable(firstInput.value);
-      this.readyResolver(signal);
-      if (config.conjestionFeedback) {
-        this.postConjestionFeedback(port, firstInput.idx);
-        this.onNextInput = (port: MessagePort | null, nextInput: StreamValue<T>) => {
-          signal.set(nextInput!.value);
-          this.postConjestionFeedback(port, nextInput!.idx);
-        };
-      } else {
-        this.onNextInput = (port: MessagePort | null, nextInput: StreamValue<T>) => {
-          signal.set(nextInput!.value);
-        };
-      }
-    };
-  }
-
-  addPort(messagePort: MessagePort) {
-    this.ports.push(messagePort);
-    messagePort.onmessage = (event: MessageEvent) => {
-      const workerMessage: ToWorkerMessage = event.data;
-      if (workerMessage.kind !== 'setStream') {
-        throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
-      }
-      this.onNextInput(messagePort, workerMessage.value as StreamValue<T>);
-    };
-  }
-
-  postConjestionFeedback(port: MessagePort | null, idx: number) {
-    const message: ConjestionFeedbackMessage = {
-      kind: ConjestionFeedbackMessageKind.ConjestionIndex,
-      idx,
-    };
-    if (port) {
-      port.postMessage(message);
-    } else {
-      postMessage(message);
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------
-export class WorkerInput<Name extends string, T> {
-  readyResolver!: (signal: SetableSignal<T>) => void;
-  onceReady: Promise<SetableSignal<T>>;
-  onNextInput: (input: StreamValue<T>) => void;
-
-  constructor(public space: SignalSpace, public id: Name) {
-    this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.readyResolver = (_firstInput: SetableSignal<T>) => resolve;
-    });
-
-    // First input creates the signal, resolves the promise, posts the first
-    // conjestion control index, and then resets onNextInput for future cases to
-    // just set the signal, and posts the next conjestion control index.
-    this.onNextInput = (firstInput: StreamValue<T>) => {
-      const signal = this.space.setable(firstInput.value);
-      this.readyResolver(signal);
-      this.onNextInput = (nextInput: StreamValue<T>) => {
-        signal.set(nextInput.value);
-      };
-    };
-  }
-}
+import {
+  SignalInput,
+  SignalInputStream,
+  SignalOutput,
+  SignalOutputStream,
+} from './signal-messages';
 
 // ----------------------------------------------------------------------------
 export class StatefulCell<
@@ -234,20 +52,21 @@ export class StatefulCell<
   inputStreamSet: Set<keyof InputStreams>;
   outputStreamSet: Set<keyof OutputStreams>;
 
-  inputs: Map<keyof Inputs, WorkerInput<keyof Inputs & string, Inputs[keyof Inputs]>> = new Map();
-  inputStreams: Map<
-    keyof InputStreams,
-    WorkerInputStream<keyof InputStreams & string, InputStreams[keyof InputStreams]>
-  > = new Map();
-
-  outputStreams = {} as {
-    [Key in keyof OutputStreams]: WorkerOutputStream<Key & string, OutputStreams[Key]>;
+  inputs = {} as {
+    [Key in keyof Inputs]: SignalInput<Key & string, Inputs[Key]>;
   };
-  public streamOutput = {} as AsyncCallValueFn<OutputStreams>;
+  inputStreams = {} as {
+    [Key in keyof InputStreams]: SignalInputStream<Key & string, InputStreams[Key]>;
+  };
 
   outputs = {} as {
-    [Key in keyof Outputs]: WorkerOutput<Key & string, Outputs[Key]>;
+    [Key in keyof Outputs]: SignalOutput<Key & string, Outputs[Key]>;
   };
+  outputStreams = {} as {
+    [Key in keyof OutputStreams]: SignalOutputStream<Key & string, OutputStreams[Key]>;
+  };
+
+  public streamOutput = {} as AsyncCallValueFn<OutputStreams>;
   public output = {} as CallValueFn<Outputs>;
 
   public space = new SignalSpace();
@@ -284,8 +103,8 @@ export class StatefulCell<
     });
 
     for (const inputName of this.inputSet) {
-      const workerInput = new WorkerInput<InputKey, InputValue>(this.space, inputName as InputKey);
-      this.inputs.set(inputName, workerInput);
+      const workerInput = new SignalInput<InputKey, InputValue>(this.space, inputName as InputKey);
+      this.inputs[inputName] = workerInput;
       workerInput.onceReady.then(() => {
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
@@ -295,16 +114,16 @@ export class StatefulCell<
     }
 
     for (const inputName of this.inputStreamSet) {
-      const workerStreamInput = new WorkerInputStream<InputStreamKey, InputStreamValue>(
+      const workerStreamInput = new SignalInputStream<InputStreamKey, InputStreamValue>(
         this.space,
         inputName as InputStreamKey,
-        { conjestionFeedback: true }
+        postMessage
       );
-      this.inputStreams.set(inputName, workerStreamInput);
+      this.inputStreams[inputName] = workerStreamInput;
     }
 
     for (const outputName of this.outputStreamSet) {
-      const workerOutputStream = new WorkerOutputStream<OutputStreamKey, OutputStreamValue>(
+      const workerOutputStream = new SignalOutputStream<OutputStreamKey, OutputStreamValue>(
         this.space,
         outputName as OutputStreamKey,
         { maxQueueSize: 20, resumeAtQueueSize: 10 }
@@ -315,7 +134,7 @@ export class StatefulCell<
     }
 
     for (const outputName of this.outputSet) {
-      const workerOutput = new WorkerOutput<OutputKey, OutputValue>(
+      const workerOutput = new SignalOutput<OutputKey, OutputValue>(
         this.space,
         outputName as OutputKey
       );
@@ -332,33 +151,33 @@ export class StatefulCell<
       this.finishRequested = true;
       this.onceFinishedResolver();
     } else if (data.kind === 'pipeInputSignal') {
-      const workerInputStream = this.inputStreams.get(data.signalId as keyof InputStreams);
-      if (!workerInputStream) {
+      const inputStream = this.inputStreams[data.signalId];
+      if (!inputStream) {
         throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
       }
-      workerInputStream.addPort(data.port);
+      data.ports.forEach((port) => inputStream.addPort(port));
     } else if (data.kind === 'pipeOutputSignal') {
       const outputStream = this.outputStreams[data.signalId];
       if (!outputStream) {
         throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
       }
-      outputStream.addPort(data.port);
+      data.ports.forEach((port) => outputStream.addPort(port));
     } else if (data.kind === 'setSignal') {
-      const workerInput = this.inputs.get(data.signalId as keyof Inputs);
-      if (!workerInput) {
+      const input = this.inputs[data.signalId];
+      if (!input) {
         throw new Error(`onMessage: setSignal(${data.signalId}): but there is no such input.`);
       }
-      workerInput.onNextInput(data.signalValue as Inputs[keyof Inputs]);
+      input.onNextInput(data.signalValue as Inputs[keyof Inputs]);
     } else if (data.kind === 'setStream') {
-      const workerInputStream = this.inputStreams.get(data.streamId as keyof InputStreams);
-      if (!workerInputStream) {
+      const inputStream = this.inputStreams[data.streamId];
+      if (!inputStream) {
         throw new Error(
           `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
         );
       }
-      workerInputStream.onNextInput(
+      inputStream.onNextInput(
         null,
-        data.value as StreamValue<InputStreams[keyof InputStreams]>
+        data.value as StreamValue<InputStreams[keyof InputStreams & string]>
       );
     } else {
       console.warn('unknown message from the main thread: ', data);
@@ -384,74 +203,3 @@ export class StatefulCell<
     close();
   }
 }
-
-// ============================================================================
-
-// Note: this cannot be done async in a timeout, because if it happens within a
-// minimise call of an optimise, the metrics values may have already been
-// disposed. Also we can't use Promise.all because that would make this async,
-// and tf.minimise requires a sync function.
-// export function prepareMetrics<Names extends string>(
-//   batchId: number,
-//   tfScalarMetrics: { [name in Names]: tf.Scalar }
-// ): Metrics<Names> {
-//   const nextMetrics = { batchId, values: {} } as Metrics<Names>;
-//   // const tfMetrics = Object.entries<tf.Scalar>(tfScalarMetrics);
-//   // const metricValues = Promise.all(tfMetrics.map(([metricName, scalar]) => scalar.array()));
-//   for (const [metricName, scalar] of Object.entries<tf.Scalar>(tfScalarMetrics)) {
-//     nextMetrics.values[metricName as Names] = scalar.arraySync();
-//   }
-//   return nextMetrics;
-// }
-
-// type PromisedMetrics<Name extends string> = {
-//   batchId: number;
-//   values: { [metricName in Name]: Promise<number> };
-// };
-
-// export function makeMetricReporter<Name extends string>(
-//   // space: SignalSpace,
-//   // metrics: SetableSignal<Metrics<Name>>
-// ): {
-//   reportMetrics: (batchId: number, tfScalarMetrics: { [names in Name]: tf.Scalar }) => void;
-// } {
-//   // const promisedMetrics = space.setable({ batchId: -1, values: {} } as PromisedMetrics<Name>);
-
-//   // Notes:
-//   // - We keep all tfjs values local, so there is no memory leakage.
-//   // - We avoid sync calls that slow down CPU/GPU communication.
-//   // - Return a promise once the metric has been reported.
-//   function reportMetrics(
-//     batchId: number,
-//     tfScalarMetrics: { [names in Name]: tf.Scalar }
-//   ): Promise<Metrics<Name>> {
-//     return new Promise<Metrics<Name>>((resolve, _) => {
-//       setTimeout(async () => {
-//         const nextMetrics = { batchId, values: {} } as Metrics<Name>;
-//         for (const [metricName, scalar] of Object.entries<tf.Scalar>(tfScalarMetrics)) {
-//           nextMetrics.values[metricName as Name] = await scalar.array();
-//         }
-//         // metrics.set(nextMetrics);
-//         resolve(nextMetrics);
-//       });
-//     });
-//     // const promised = { batchId, values: {} } as PromisedMetrics<Name>;
-//     // for (const [metricName, scalar] of Object.entries<tf.Scalar>(tfScalarMetrics)) {
-//     //   promised.values[metricName as Name] = scalar.array();
-//     // }
-//     // promisedMetrics.set(promised);
-//   }
-
-//   // // const lastMetrics = space.writable({ batchId: -1, values: {} } as Metrics<Name>);
-//   // space.derived(async () => {
-//   //   const promised = promisedMetrics();
-//   //   const metric = { batchId: promised.batchId, values: {} } as Metrics<Name>;
-//   //   console.log('promised', promised);
-//   //   for (const [metricName, promise] of Object.entries<Promise<number>>(promised.values)) {
-//   //     metric.values[metricName as Name] = await promise;
-//   //   }
-//   //   metrics.set(metric);
-//   // });
-
-//   return { reportMetrics };
-// }
