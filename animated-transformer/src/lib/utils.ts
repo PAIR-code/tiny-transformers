@@ -17,3 +17,17 @@ export async function waitTick<T>(f?: () => T): Promise<MaybeReturn<T>> {
     }, 0);
   }) as Promise<MaybeReturn<T>>;
 }
+
+export async function* asyncifyIter<T>(iter: Iterable<T>): AsyncIterable<T> {
+  for (const x of iter) {
+    yield x;
+  }
+}
+
+export function asyncIterify<T>(iter: Iterator<T>): AsyncIterator<T> {
+  return {
+    next: async () => {
+      return await iter.next();
+    },
+  };
+}

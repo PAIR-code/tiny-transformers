@@ -25,7 +25,8 @@ export type ConjestionFeedbackMessage = {
   idx: number;
 };
 
-export type StreamValue<T> = { idx: number; value: T };
+// null Indicates the end of the stream;
+export type StreamValue<T> = { idx: number; value: T } | null;
 
 // ----------------------------------------------------------------------------
 export type FromWorkerMessage =

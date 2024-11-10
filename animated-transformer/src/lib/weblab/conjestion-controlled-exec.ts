@@ -21,6 +21,7 @@ export class ConjestionControlledExec {
   public completed: DerivedSignal<{
     cur: number;
     next: Promise<number>;
+    rejectFn: () => void;
   }>;
 
   constructor(
@@ -99,5 +100,61 @@ export class ConjestionControlledExec {
 
   public stop() {
     this.state = ConjestionControlState.Stopped;
+  }
+}
+
+export class AsyncIterOnEvents<T> implements AsyncIterable<T, null>, AsyncIterator<T, null> {
+  // If there is no queue, then async iter has completed.
+  queue?: T[] = [];
+  // resolveFn is set when next() is waiting for a promise to complete, which
+  // will happen when the next event call is made providing the next value. This
+  // happens when events come in more slower than next() is called. When next()
+  // is called slower than events come in, then values are put on the queue, and
+  // there is no resolveFn set.
+  resolveFn?: (v: IteratorResult<T, null>) => void;
+
+  constructor() {}
+
+  nextEvent(value: T) {
+    // If done, return;
+    if (!this.queue) {
+      return;
+    }
+    if (this.resolveFn) {
+      this.resolveFn({ value });
+      delete this.resolveFn;
+    } else {
+      this.queue.push(value);
+    }
+  }
+
+  done() {
+    if (this.resolveFn) {
+      this.resolveFn({ done: true, value: null });
+      delete this.resolveFn;
+    }
+    delete this.queue;
+  }
+
+  nextPromise(): Promise<IteratorResult<T, null>> {
+    return new Promise<IteratorResult<T, null>>((resolve, reject) => {
+      this.resolveFn = resolve;
+    });
+  }
+
+  async next(): Promise<IteratorResult<T, null>> {
+    if (!this.queue) {
+      return { done: true, value: null };
+    }
+    const value = this.queue.shift();
+    if (value) {
+      return { value };
+    } else {
+      return this.nextPromise();
+    }
+  }
+
+  public [Symbol.asyncIterator]() {
+    return this;
   }
 }

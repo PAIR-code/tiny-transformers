@@ -333,7 +333,7 @@ function setable<T>(
   const signal = function (options?: Partial<SignalDepOptions>) {
     return valueNode.get(options);
   };
-  // const foo = {...writableSignal, { lastValue: 'foo' } };
+  // TODO: would be better if this was not a function...
   signal.lastValue = () => valueNode.value;
   signal.set = (value: T, options?: SignalSetOptions) => valueNode.set(value, options);
   signal.update = (f: (v: T) => T, options?: SignalSetOptions) => valueNode.update(f, options);
@@ -518,28 +518,42 @@ export function writableFork<T>(
 // A convenient way to track updates to a signal...
 export function promisifySignal<T>(
   s: AbstractSignal<T>
-): DerivedSignal<{ cur: T; next: Promise<T> }> {
+): DerivedSignal<{ cur: T; next: Promise<T>; rejectFn: () => void }> {
   let resolveFn: (v: T) => void = () => {};
+  let rejectFn: () => void = () => {};
 
   const nextFn = () =>
-    new Promise<T>((resolve) => {
+    new Promise<T>((resolve, reject) => {
       resolveFn = resolve;
+      rejectFn = reject;
     });
 
   const promisifiedSignal = s.space.derived(() => {
     const cur = s();
     resolveFn(cur);
-    return { cur, next: nextFn() };
+    return { cur, next: nextFn(), rejectFn };
   });
 
   return promisifiedSignal;
 }
 
 // A convenient way to track updates to a signal...
-export function asyncSignalIter<T>(s: AbstractSignal<T>): AsyncIterator<T, T> {
+export function asyncSignalIter<T>(s: AbstractSignal<T>): {
+  iter: AsyncIterator<T, null>;
+  stopNowFn: () => void;
+} {
   const pSignal = promisifySignal(s);
-  async function laterNext(): Promise<IteratorResult<T, T>> {
-    return { value: await pSignal().next };
+  let stopped = false;
+  let stopper = () => {
+    stopped = true;
+    pSignal.lastValue().rejectFn();
+  };
+  async function laterNext(): Promise<IteratorResult<T, null>> {
+    const p = pSignal();
+    if (stopped) {
+      return { done: true, value: null };
+    }
+    return { value: await p.next };
   }
   const myIterator = {
     async next(): Promise<IteratorResult<T>> {
@@ -550,5 +564,5 @@ export function asyncSignalIter<T>(s: AbstractSignal<T>): AsyncIterator<T, T> {
       return this;
     },
   };
-  return myIterator;
+  return { iter: myIterator, stopNowFn: stopper };
 }

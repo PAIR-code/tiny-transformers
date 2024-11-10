@@ -5,6 +5,7 @@
 // };
 
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 import {
   ConjestionFeedbackMessage,
   ConjestionFeedbackMessageKind,
@@ -39,7 +40,7 @@ export class SignalOutput<Name extends string, T> {
 export class SignalInput<Name extends string, T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
-  onNextInput: (input: StreamValue<T>) => void;
+  onNextInput: (input: T) => void;
 
   constructor(public space: SignalSpace, public id: Name) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
@@ -51,11 +52,11 @@ export class SignalInput<Name extends string, T> {
     // First input creates the signal, resolves the promise, posts the first
     // conjestion control index, and then resets onNextInput for future cases to
     // just set the signal, and posts the next conjestion control index.
-    this.onNextInput = (firstInput: StreamValue<T>) => {
-      const signal = this.space.setable(firstInput.value);
+    this.onNextInput = (firstInput: T) => {
+      const signal = this.space.setable(firstInput);
       this.readyResolver(signal);
-      this.onNextInput = (nextInput: StreamValue<T>) => {
-        signal.set(nextInput.value);
+      this.onNextInput = (nextInput: T) => {
+        signal.set(nextInput);
       };
     };
   }
@@ -76,41 +77,40 @@ export type ConjestionControlConfig = {
 type ConjestionState = {
   lastReturnedId: number;
   queueLength: number;
-  // When paused, this allows triggering of resuming.
-  resumeResolver: () => void;
-  resumeCancel: () => void;
-  onceResume: Promise<void>;
+  // When paused, this is set, and allows triggering of resuming.
+  resumeResolver?: () => void;
+  onceResume?: Promise<void>;
+  // True when completed.
+  done: boolean;
 };
 
 // ----------------------------------------------------------------------------
 export class SignalInputStream<Name extends string, T> {
-  readyResolver!: (signal: SetableSignal<T>) => void;
-  onceReady: Promise<SetableSignal<T>>;
+  // readyResolver!: (signal: SetableSignal<T>) => void;
+  // cancelResolver!: () => void;
+  // onceReady: Promise<SetableSignal<T>>;
   ports: MessagePort[] = [];
-  onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
+  public onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
+  public inputIter: AsyncIterOnEvents<T>;
 
   constructor(
     public space: SignalSpace,
     public id: Name,
     public defaultPostMessageFn: (m: ConjestionFeedbackMessage) => void
   ) {
-    this.onceReady = new Promise<SetableSignal<T>>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.readyResolver = (_firstInput: SetableSignal<T>) => resolve;
-    });
+    this.inputIter = new AsyncIterOnEvents<T>();
 
     // First input creates the signal, resolves the promise, posts the first
     // conjestion control index, and then resets onNextInput for future cases to
     // just set the signal, and posts the next conjestion control index.
     this.onNextInput = (port: MessagePort | null, firstInput: StreamValue<T>) => {
-      const signal = this.space.setable(firstInput.value);
-      this.readyResolver(signal);
+      // If stream was stopped.
+      if (firstInput === null) {
+        this.inputIter.done();
+        return;
+      }
+      this.inputIter.nextEvent(firstInput.value);
       this.postConjestionFeedback(port, firstInput.idx);
-      this.onNextInput = (port: MessagePort | null, nextInput: StreamValue<T>) => {
-        signal.set(nextInput!.value);
-        this.postConjestionFeedback(port, nextInput!.idx);
-      };
     };
   }
 
@@ -143,52 +143,76 @@ export class SignalOutputStream<Name extends string, T> {
   portConjestion: Map<MessagePort, ConjestionState> = new Map();
   lastMessageIdx: number = 0;
 
+  // Think about having a default output postMessage?
   constructor(public space: SignalSpace, public id: Name, public config: ConjestionControlConfig) {}
 
   addPort(messagePort: MessagePort) {
-    let resumeResolver!: () => void;
-    let resumeCancel!: () => void;
-    const onceResume = new Promise<void>((resolve, cancel) => {
-      resumeResolver = resolve as () => void;
-      resumeCancel = cancel;
-    });
     const messagePortConjestionState: ConjestionState = {
       lastReturnedId: 0,
       queueLength: 0,
-      resumeCancel,
-      resumeResolver,
-      onceResume,
+      done: false,
     };
     this.portConjestion.set(messagePort, messagePortConjestionState);
     messagePort.onmessage = (event: MessageEvent) => {
       const conjestionFeedback: ConjestionFeedbackMessage = event.data;
       messagePortConjestionState.lastReturnedId = conjestionFeedback.idx;
       messagePortConjestionState.queueLength--;
-      if (messagePortConjestionState.queueLength <= this.config.resumeAtQueueSize) {
+      if (
+        messagePortConjestionState.queueLength <= this.config.resumeAtQueueSize &&
+        messagePortConjestionState.resumeResolver
+      ) {
         messagePortConjestionState.resumeResolver();
       }
     };
   }
 
-  // Stop all waiting promising for resumption.
-  cancel(): void {
-    for (const conjestionState of this.portConjestion.values()) {
-      conjestionState.resumeCancel();
-    }
-  }
-
+  // Note: there's a rather sensitive assumtion that once resumeResolver is
+  // called, the very next tick, but be a thread that was stuck/awaiting on the
+  // promise; otherwise in theory a new send call could get inserted, and we may
+  // now send messages out of other. A rather sneaky race condition.
+  //
+  // TODO: verify the semantics, or rewrite the code to properly store
+  // configuration of values to send and ports to send them on, so that order of
+  // sends is always respected.
   async send(value: T): Promise<void> {
     this.lastMessageIdx++;
-    for (const [port, conjestionState] of this.portConjestion.entries()) {
-      if (conjestionState.queueLength > this.config.maxQueueSize) {
-        await conjestionState.onceResume;
+    for (const [port, state] of this.portConjestion.entries()) {
+      if (state.done) {
+        break;
+      }
+      if (state.queueLength > this.config.maxQueueSize) {
+        let resumeResolver!: () => void;
+        const onceResumed = new Promise<void>((resolve, cancel) => {
+          resumeResolver = resolve as () => void;
+        });
+        state.resumeResolver = resumeResolver;
+        await onceResumed;
+        if (state.done) {
+          break;
+        }
       }
       const streamValue: StreamValue<T> = {
         idx: this.lastMessageIdx,
         value,
       };
-      conjestionState.queueLength++;
+      state.queueLength++;
       port.postMessage(streamValue);
+    }
+  }
+
+  removePort(port: MessagePort, state: ConjestionState) {
+    const streamValue: StreamValue<T> = null;
+    port.postMessage(streamValue);
+    state.done = true;
+    if (state.resumeResolver) {
+      state.resumeResolver();
+    }
+    this.portConjestion.delete(port);
+  }
+
+  done() {
+    for (const [port, state] of this.portConjestion.entries()) {
+      this.removePort(port, state);
     }
   }
 }

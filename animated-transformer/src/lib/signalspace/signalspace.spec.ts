@@ -310,22 +310,64 @@ describe('signalspace', () => {
     expect(lazy()).toEqual(3);
   });
 
-  it('asyncSignalIter', async () => {
+  fit('asyncSignalIter', async () => {
     const s = new SignalSpace();
     const { setable } = s;
     const n = setable(1);
-    const asyncIter = asyncSignalIter(n);
+    const nAsync = asyncSignalIter(n);
     setTimeout(() => {
       n.set(2);
       setTimeout(() => {
         n.set(3);
       }, 0);
     }, 0);
-    const v1 = await asyncIter.next();
-    const v2 = await asyncIter.next();
-    const v3 = await asyncIter.next();
+    const v1 = await nAsync.iter.next();
+    const v2 = await nAsync.iter.next();
+    const v3 = await nAsync.iter.next();
     expect(v1.value).toEqual(1);
     expect(v2.value).toEqual(2);
     expect(v3.value).toEqual(3);
+  });
+
+  fit('asyncSignalIter with stop inline with final set', async () => {
+    const s = new SignalSpace();
+    const { setable } = s;
+    const n = setable(1);
+    const nAsync = asyncSignalIter(n);
+    setTimeout(() => {
+      n.set(2);
+      setTimeout(() => {
+        n.set(3);
+        nAsync.stopNowFn();
+      }, 0);
+    }, 0);
+    const v1 = await nAsync.iter.next();
+    const v2 = await nAsync.iter.next();
+    const v3 = await nAsync.iter.next();
+    expect(v1.value).toEqual(1);
+    expect(v2.value).toEqual(2);
+    expect(v3.done).toEqual(true);
+    expect(v3.value).toEqual(null);
+  });
+
+  fit('asyncSignalIter with early stopNow', async () => {
+    const s = new SignalSpace();
+    const { setable } = s;
+    const n = setable(1);
+    const nAsync = asyncSignalIter(n);
+    setTimeout(() => {
+      n.set(2);
+      setTimeout(() => {
+        n.set(3);
+      }, 0);
+    }, 0);
+    const v1 = await nAsync.iter.next();
+    const v2 = await nAsync.iter.next();
+    nAsync.stopNowFn();
+    const v3 = await nAsync.iter.next();
+    expect(v1.value).toEqual(1);
+    expect(v2.value).toEqual(2);
+    expect(v3.done).toEqual(true);
+    expect(v3.value).toEqual(null);
   });
 });

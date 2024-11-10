@@ -19,13 +19,74 @@ import {
   CellSpec,
   PromiseStructFn,
   PromisedSignalsFn,
+  WritableStructFn,
+  AsyncCallValueFn,
+  AsyncIterableFn,
 } from './cellspec';
-import { FromWorkerMessage, ToWorkerMessage } from 'src/lib/weblab/messages';
+import { FromWorkerMessage, StreamValue, ToWorkerMessage } from 'src/lib/weblab/messages';
 import { SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
   timestamp: Date;
 };
+
+import { SignalInput, SignalInputStream, SignalOutputStream } from './signal-messages';
+
+// class EnvCell<
+//   Inputs extends ValueStruct = {},
+//   InputStreams extends ValueStruct = {},
+//   Outputs extends ValueStruct = {},
+//   OutputStreams extends ValueStruct = {}
+// > extends SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
+//   public worker: Worker;
+
+//   constructor(spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>) {
+//     super(spec, () => {});
+//     this.worker = spec.data.workerFn();
+//     this.defaultPostMessageFn = this.worker.postMessage;
+
+//     this.onceFinishRequested
+
+//     this.worker.addEventListener('message',
+//       ({ data }) => {
+//         // console.log('main thread got worker.onmessage', data);
+//         const messageFromWorker: FromWorkerMessage = data;
+//         switch (messageFromWorker.kind) {
+//         case 'finished':
+//           // TODO: what if there are missing outputs?
+//           resolveWhenFinishedFn();
+//           this.worker.terminate();
+
+//           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
+//           break;
+
+//       this.onMessage(m));
+//   }
+
+//   requestStop() {
+//     const message: ToWorkerMessage = {
+//       kind: 'finishRequest',
+//     };
+//     this.worker.postMessage(message);
+//   }
+// }
+
+// export function envCell<
+//   Inputs extends ValueStruct = {},
+//   InputStreams extends ValueStruct = {},
+//   Outputs extends ValueStruct = {},
+//   OutputStreams extends ValueStruct = {}
+// >(
+//   spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>
+// ): SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
+//   const worker = spec.data.workerFn();
+//   const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(
+//     spec,
+//     worker.postMessage
+//   );
+//   worker.addEventListener('message', (m) => cell.onMessage(m));
+//   return cell;
+// }
 
 // Class wrapper to communicate with a cell in a webworker.
 export class LabEnvCell<
@@ -40,28 +101,37 @@ export class LabEnvCell<
   public worker: Worker;
 
   inputs: SignalStructFn<I>;
-  inputStreams: SignalStructFn<IStream>;
+
+  // inputStreams: SignalStructFn<IStream>;
+  streamsFromEnv = {} as {
+    [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
+  };
+  public asyncStream = {} as AsyncCallValueFn<IStream>;
+
+  signalsInToEnv = {} as {
+    [Key in keyof O]: SignalInput<Key & string, O[Key]>;
+  };
+  streamsInToEnv = {} as {
+    [Key in keyof OStream]: SignalInputStream<Key & string, OStream[Key]>;
+  };
+
   public outputs: PromiseStructFn<SignalStructFn<O>>;
-  // The key difference for streams is that they are created by
-  public outputStreams: PromiseStructFn<SignalStructFn<OStream>>;
+  public outStreams: AsyncIterableFn<OStream>;
 
   public outputSoFar: Partial<SignalStructFn<O>>;
-
   public stillExpectedOutputs: Set<keyof O>;
-
-  setOutputSignalFn = {} as { [name: string]: (value: unknown) => void };
-  setOutputStreamSignalFn = {} as { [name: string]: (value: unknown) => void };
 
   constructor(
     public space: SignalSpace,
     public spec: CellSpec<I, IStream, O, OStream>,
     public uses: {
+      // TODO: make better types: Maybe<SignalStructFn<I>> that is undefined when I={}
       inputs?: SignalStructFn<I>;
-      inputStreams?: SignalStructFn<IStream>;
+      inStreams?: AsyncIterableFn<IStream>;
     }
   ) {
     this.inputs = uses.inputs || ({} as SignalStructFn<I>);
-    this.inputStreams = uses.inputStreams || ({} as SignalStructFn<IStream>);
+    // this.inputStreams = uses.inputStreams || ({} as SignalStructFn<IStream>);
 
     let resolveWithAllOutputsFn: (output: SignalStructFn<O>) => void;
     this.onceAllOutputs = new Promise<SignalStructFn<O>>((resolve, reject) => {
@@ -73,38 +143,47 @@ export class LabEnvCell<
     });
     this.worker = spec.data.workerFn();
     this.outputs = {} as PromisedSignalsFn<O>;
-    this.outputStreams = {} as PromisedSignalsFn<OStream>;
+    this.outStreams = {} as AsyncIterableFn<OStream>;
 
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(spec.outputNames);
 
-    for (const outputName of spec.outputNames) {
-      const promisedOutput = this.initOnceOutput<O[typeof outputName]>(outputName as string);
-      this.outputs[outputName] = promisedOutput.then((inputValue) => {
-        const signal = this.space.setable(inputValue);
-        this.outputSoFar[outputName] = signal;
-        this.stillExpectedOutputs.delete(outputName);
-        if (this.stillExpectedOutputs.size === 0) {
-          resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<O>);
+    for (const streamName of spec.inStreamNames) {
+      const stream = new SignalOutputStream<keyof IStream & string, IStream[keyof IStream]>(
+        this.space,
+        streamName as keyof O & string,
+        {
+          maxQueueSize: 20,
+          resumeAtQueueSize: 10,
         }
-        // New inputs should now simply update the existing signal.
-        this.setOutputSignalFn[outputName as string] = (value) => {
-          signal.set(value as O[typeof outputName]);
-        };
-        return signal;
+      );
+      this.streamsFromEnv[streamName] = stream;
+      this.asyncStream[streamName] = stream.send;
+    }
+
+    for (const oName of spec.outputNames) {
+      const envInput = new SignalInput<keyof O & string, O[keyof O]>(
+        this.space,
+        oName as keyof O & string
+      );
+      this.signalsInToEnv[oName] = envInput;
+      this.outputs[oName] = envInput.onceReady;
+      envInput.onceReady.then(() => {
+        this.stillExpectedOutputs.delete(oName);
+        if (this.stillExpectedOutputs.size === 0) {
+          resolveWithAllOutputsFn(this.outputSoFar as WritableStructFn<O>);
+        }
       });
     }
 
-    for (const outputName of spec.outputStreamNames) {
-      const promisedOutput = this.initOnceOutput<OStream[typeof outputName]>(outputName as string);
-      this.outputStreams[outputName] = promisedOutput.then((inputValue) => {
-        const signal = this.space.setable(inputValue);
-        // New inputs should now simply update the existing signal.
-        this.setOutputStreamSignalFn[outputName as string] = (value) => {
-          signal.set(value as OStream[typeof outputName]);
-        };
-        return signal;
-      });
+    for (const oStreamName of spec.outStreamNames) {
+      const envStreamInput = new SignalInputStream<keyof OStream & string, OStream[keyof OStream]>(
+        this.space,
+        oStreamName as keyof OStream & string,
+        this.worker.postMessage
+      );
+      this.streamsInToEnv[oStreamName] = envStreamInput;
+      this.outStreams[oStreamName] = envStreamInput.inputIter;
     }
 
     // Protocall of stuff a worker can send us, and we respond to...
@@ -112,31 +191,25 @@ export class LabEnvCell<
       // console.log('main thread got worker.onmessage', data);
       const messageFromWorker: FromWorkerMessage = data;
       switch (messageFromWorker.kind) {
-        // case 'requestInput':
-        //   console.log(
-        //     'this.stateVars[messageFromWorker.name]: requestInput: ',
-        //     this.uses[messageFromWorker.signalId as I]()
-        //   );
-        //   const message: ToWorkerMessage = {
-        //     kind: 'setSignal',
-        //     signalId: messageFromWorker.signalId,
-        //     signalValue: this.uses[messageFromWorker.signalId as I](),
-        //   };
-        //   this.worker.postMessage(message);
-        //   break;
-        // only called when the webworker is really finished.
         case 'finished':
           // TODO: what if there are missing outputs?
           resolveWhenFinishedFn();
           this.worker.terminate();
-
           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
         case 'setSignal':
-          const outputName = messageFromWorker.signalId as keyof O & string;
-          this.setOutputSignalFn[outputName](messageFromWorker.signalValue as O[keyof O]);
+          const oName = messageFromWorker.signalId as keyof O & string;
+          this.signalsInToEnv[oName].onNextInput(
+            messageFromWorker.signalValue as O[keyof O & string]
+          );
           break;
-
+        case 'setStream':
+          const oStreamName = messageFromWorker.streamId as keyof OStream & string;
+          this.streamsInToEnv[oStreamName].onNextInput(
+            null,
+            messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>
+          );
+          break;
         default:
           console.error('main thread go unknown worker message: ', data);
           break;
@@ -165,35 +238,14 @@ export class LabEnvCell<
     this.worker.postMessage(message);
   }
 
-  initOnceOutput<T>(name: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      // TODO: consider allowing parent to send stuff before we ask for it..
-      // this would just involved checking the inputResolvers here.
-      this.setOutputSignalFn[name] = resolve as (v: unknown) => void;
-    });
-  }
-
-  // // TODO: maybe send all at once?
-  // sendInputs() {
-  //   for (const name of Object.keys(this.uses)) {
-  //     const message: ToWorkerMessage = {
-  //       kind: 'setSignal',
-  //       signalId: name,
-  //       signalValue: this.uses[name as I](),
-  //     };
-  //     console.log(`env sendInputs: ${JSON.stringify(message)}`);
-  //     this.worker.postMessage(message);
-  //   }
-  // }
-
-  public pipeInputSignal(signalId: string, port: MessagePort) {
+  public pipeInputSignal(signalId: string, ports: MessagePort[]) {
     const message: ToWorkerMessage = {
       kind: 'pipeInputSignal',
       signalId,
-      port,
+      ports,
     };
     // Note: ports are transferred to the worker.
-    this.worker.postMessage(message, [port]);
+    this.worker.postMessage(message, ports);
   }
   public pipeOutputSignal(
     signalId: string,
@@ -203,11 +255,11 @@ export class LabEnvCell<
     const message: ToWorkerMessage = {
       kind: 'pipeOutputSignal',
       signalId,
-      port,
+      ports,
       options,
     };
     // Note ports are transferred to the worker.
-    this.worker.postMessage(message, [port]);
+    this.worker.postMessage(message, ports);
   }
 
   // TODO: add some closing cleanup?
@@ -239,10 +291,13 @@ export class LabEnv {
     OStreams extends ValueStruct
   >(
     spec: CellSpec<I, IStreams, O, OStreams>,
-    inputs: SignalStructFn<I>
+    using: {
+      inputs?: SignalStructFn<I>;
+      inStreams?: AsyncIterableFn<IStreams>;
+    }
   ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
-    const envCell = new LabEnvCell(this.space, spec, inputs);
+    const envCell = new LabEnvCell(this.space, spec, using);
     envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
     return envCell;
   }
@@ -258,8 +313,8 @@ export class LabEnv {
     options?: { keepSignalPushesHereToo: boolean }
   ) {
     const channel = new MessageChannel();
-    sourceCell.pipeOutputSignal(signalId, channel.port1, options);
-    targetCell.pipeInputSignal(signalId, channel.port2);
+    sourceCell.pipeOutputSignal(signalId, [channel.port1], options);
+    targetCell.pipeInputSignal(signalId, [channel.port2]);
     // TODO: keep track of channels between cells.
   }
 }

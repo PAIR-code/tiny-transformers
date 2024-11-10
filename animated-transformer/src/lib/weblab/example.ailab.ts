@@ -70,8 +70,14 @@ export const exampleWorkerSpec = new CellSpec({
   inputs: {
     toyInput: Kind<string>(),
   },
+  inputStreams: {
+    numStream: Kind<number>(),
+  },
   outputs: {
     str: Kind<string>(),
     num: Kind<number>(),
+  },
+  outputStreams: {
+    foo: Kind<string>(),
   },
 });

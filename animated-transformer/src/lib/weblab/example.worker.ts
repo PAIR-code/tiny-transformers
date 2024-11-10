@@ -15,13 +15,19 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { StatefulCell } from './lab-worker-cell';
+import { workerCell } from './lab-worker-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
-const cell = new StatefulCell(exampleWorkerSpec);
+const cell = workerCell(exampleWorkerSpec);
 
 cell.run(async () => {
   const { toyInput } = await cell.onceAllInputs;
+
   cell.output.num(1);
   cell.output.str(`hello ${toyInput()}`);
+
+  for await (const i of cell.inStream.numStream) {
+    cell.outStream.foo('foo' + i);
+  }
+  cell.outStream.foo.done();
 });

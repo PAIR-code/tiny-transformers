@@ -22,6 +22,7 @@ limitations under the License.
  */
 
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
+import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 
 export enum CellValueKind {
   Signal,
@@ -81,12 +82,12 @@ export class CellSpec<
 > {
   readonly inputNames: Set<keyof Inputs>;
   readonly outputNames: Set<keyof Outputs>;
-  readonly inputStreamNames: Set<keyof InputStreams>;
-  readonly outputStreamNames: Set<keyof OutputStreams>;
+  readonly inStreamNames: Set<keyof InputStreams>;
+  readonly outStreamNames: Set<keyof OutputStreams>;
   inputs: ValueKindFnStructFn<Inputs>;
-  inputStreams: ValueKindFnStructFn<InputStreams>;
+  inStreams: ValueKindFnStructFn<InputStreams>;
   outputs: ValueKindFnStructFn<Outputs>;
-  outputStreams: ValueKindFnStructFn<OutputStreams>;
+  outStreams: ValueKindFnStructFn<OutputStreams>;
 
   constructor(
     public data: {
@@ -99,13 +100,13 @@ export class CellSpec<
     }
   ) {
     this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<Inputs>);
-    this.inputStreams = this.data.inputStreams || ({} as ValueKindFnStructFn<InputStreams>);
+    this.inStreams = this.data.inputStreams || ({} as ValueKindFnStructFn<InputStreams>);
     this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<Outputs>);
-    this.outputStreams = this.data.outputStreams || ({} as ValueKindFnStructFn<OutputStreams>);
+    this.outStreams = this.data.outputStreams || ({} as ValueKindFnStructFn<OutputStreams>);
     this.inputNames = new Set(Object.keys(this.inputs));
-    this.inputStreamNames = new Set(Object.keys(this.inputStreams));
+    this.inStreamNames = new Set(Object.keys(this.inStreams));
     this.outputNames = new Set(Object.keys(this.outputs));
-    this.outputStreamNames = new Set(Object.keys(this.outputStreams));
+    this.outStreamNames = new Set(Object.keys(this.outStreams));
   }
 }
 
@@ -119,3 +120,11 @@ export type PromisedSignalsFn<S extends ValueStruct> = {
 export type CallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
 export type AsyncCallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
 export type ValueMapFn<S extends ValueStruct, T> = { [Key in keyof S]: T };
+
+export type AsyncIterableFn<S extends ValueStruct> = {
+  [Key in keyof S]: AsyncIterable<S[Key], null>;
+};
+
+export type AsyncStreamFn<S extends ValueStruct> = {
+  [Key in keyof S]: ((value: S[Key]) => void) & { done: () => void };
+};

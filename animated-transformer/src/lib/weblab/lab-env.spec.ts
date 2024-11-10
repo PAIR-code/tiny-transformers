@@ -15,6 +15,7 @@ limitations under the License.
 
 import { LabEnv } from './lab-env';
 import { exampleWorkerSpec } from './example.ailab';
+import { asyncifyIter } from '../utils';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
@@ -22,12 +23,26 @@ describe('lab-env', () => {
   it('Running a simple cell', async () => {
     const env = new LabEnv();
     const toyInput = env.space.setable('Foo');
+    const numStream = asyncifyIter([1, 2, 3]);
     const cell = env.start(exampleWorkerSpec, {
-      toyInput,
+      inputs: { toyInput },
+      inStreams: { numStream },
     });
+
     const { num, str } = await cell.onceAllOutputs;
     expect(num()).toEqual(1);
     expect(str()).toEqual('hello Foo');
+
+    const vs = [];
+    for await (const v of cell.outStreams.foo) {
+      vs.push(v);
+    }
+    expect(vs.length).toEqual(3);
+
+    expect(vs[0]).toEqual('foo1');
+    expect(vs[1]).toEqual('foo2');
+    expect(vs[2]).toEqual('foo3');
+
     expect(env.runningCells[cell.spec.data.cellName]).toBeDefined();
     cell.requestStop();
     await cell.onceFinished;
