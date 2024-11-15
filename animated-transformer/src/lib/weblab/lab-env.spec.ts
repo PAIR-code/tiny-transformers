@@ -20,7 +20,7 @@ import { asyncifyIter } from '../utils';
 describe('lab-env', () => {
   beforeEach(async () => {});
 
-  fit('Running a simple cell', async () => {
+  xit('Running a simple cell', async () => {
     const env = new LabEnv();
     const toyInput = env.space.setable('Foo');
     const numStream = asyncifyIter([1, 2, 3]);

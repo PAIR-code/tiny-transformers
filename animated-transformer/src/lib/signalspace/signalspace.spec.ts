@@ -338,16 +338,18 @@ describe('signalspace', () => {
       n.set(2);
       setTimeout(() => {
         n.set(3);
-        nAsync.stopNowFn();
+        nAsync.done();
       }, 0);
     }, 0);
     const v1 = await nAsync.next();
     const v2 = await nAsync.next();
     const v3 = await nAsync.next();
+    const v4 = await nAsync.next();
     expect(v1.value).toEqual(1);
     expect(v2.value).toEqual(2);
-    expect(v3.done).toEqual(true);
-    expect(v3.value).toEqual(null);
+    expect(v3.value).toEqual(3);
+    expect(v4.done).toEqual(true);
+    expect(v4.value).toEqual(null);
   });
 
   fit('asyncSignalIter with early stopNow', async () => {
@@ -363,7 +365,7 @@ describe('signalspace', () => {
     }, 0);
     const v1 = await nAsync.next();
     const v2 = await nAsync.next();
-    nAsync.stopNowFn();
+    nAsync.done();
     const v3 = await nAsync.next();
     expect(v1.value).toEqual(1);
     expect(v2.value).toEqual(2);

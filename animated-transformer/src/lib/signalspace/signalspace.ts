@@ -51,6 +51,9 @@ import { SetableNode, SetableOptions, SignalSetOptions } from './setable-node';
  * See the unit tests for details and examples of the semantics.
  *
  * TODO: Make an explicit "transaction" for a set of updates.
+ *
+ * TODO: allow removal of signals (and make it safe from within a derived
+ * action)
  */
 
 // ----------------------------------------------------------------------------
@@ -540,26 +543,55 @@ export function promisifySignal<T>(
 // A convenient way to track updates to a signal...
 export function asyncSignalIter<T>(
   s: AbstractSignal<T>
-): AsyncIterator<T> & AsyncIterable<T> & { stopNowFn: () => void } {
-  const pSignal = promisifySignal(s);
+): AsyncIterator<T> & AsyncIterable<T> & { done: () => void } {
   let stopped = false;
+  let nextIsWaiting = false;
+  const queue: T[] = [];
+
+  let resolveFn: (v: IteratorResult<T, null>) => void;
+  const nextFn = () =>
+    new Promise<IteratorResult<T, null>>((resolve) => {
+      resolveFn = resolve;
+    });
+  let nextResult = nextFn();
+
+  const derivedPromiseUpdate = s.space.derived(() => {
+    if (!stopped) {
+      const cur = s();
+      if (nextIsWaiting) {
+        resolveFn({ value: cur });
+      } else {
+        queue.push(cur);
+      }
+    } else {
+      // TODO: dispose of the derived signal value?
+    }
+  });
+
   let stopper = () => {
     stopped = true;
-    pSignal.lastValue().rejectFn();
-  };
-  async function laterNext(): Promise<IteratorResult<T, null>> {
-    const p = pSignal();
-    if (stopped) {
-      return { done: true, value: null };
+    if (nextIsWaiting) {
+      resolveFn({ done: true, value: null });
     }
-    return { value: await p.next };
-  }
+  };
+
   const myIterator = {
     async next(): Promise<IteratorResult<T>> {
-      this.next = laterNext;
-      return { value: pSignal().cur };
+      const queuedValue = queue.shift();
+      if (queuedValue) {
+        return { value: queuedValue };
+      }
+      if (stopped) {
+        return { done: true, value: null };
+      } else {
+        nextIsWaiting = true;
+        nextResult = nextFn();
+        const result = await nextResult;
+        nextIsWaiting = false;
+        return result;
+      }
     },
-    stopNowFn: stopper,
+    done: stopper,
     [Symbol.asyncIterator]() {
       return this;
     },
