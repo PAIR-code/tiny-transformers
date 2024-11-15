@@ -16,23 +16,22 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { Batch, taskCellSpec, TaskGenSate } from './ailab';
-import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
+import { Batch, taskCellSpec } from './ailab';
+import { workerCell } from 'src/lib/weblab/lab-worker-cell';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
 import { DepKind, DerivedSignal, promisifySignal } from 'src/lib/signalspace/signalspace';
 import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
+import { ConjestionControlledExec } from 'src/lib/weblab/conjestion-controlled-exec';
 
 // ------------------------------------------------------------------------
-const cell = new StatefulCell(taskCellSpec);
+const cell = workerCell(taskCellSpec);
 const { derived, setable } = cell.space;
 
 // ------------------------------------------------------------------------
 cell.run(async () => {
-  const { taskConfig, testSetSize, useBatchSeed, batchSize, taskGenState } =
-    await cell.onceAllInputs;
+  const { taskConfig, genConfig } = await cell.onceAllInputs;
 
-  const state = promisifySignal(taskGenState);
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   // TODO: make state iterator take in the state for easier random stream
@@ -40,7 +39,7 @@ cell.run(async () => {
   // CONSIDER: RandomStreamOf<Example> having a fork op. But also being savable.
   const dataSplitByTrainAndTest = derived(() => {
     const examplesIter = task().exampleIter.copy();
-    const testExamples = examplesIter.takeOutN(testSetSize());
+    const testExamples = examplesIter.takeOutN(genConfig().testSetSize);
     const testSetIndex = new Set(testExamples.map(indexExample));
     const trainExamplesIter = examplesIter.copy();
     // With a generative synthetic world you can guarentee no duplicate example in
@@ -55,7 +54,7 @@ cell.run(async () => {
   // Update the batch seed if/as needed. Allows restarting generation from an
   // earlier point.
   derived(() => {
-    const seed = useBatchSeed();
+    const seed = genConfig().initBatchSeed;
     if (seed !== null) {
       dataSplitByTrainAndTest().trainExamplesIter.state.seed = seed;
     }
@@ -69,36 +68,12 @@ cell.run(async () => {
     return { batchId, nextSeed: batchSeed, inputs, outputs };
   }
 
-  // cell.onceFinishRequested.then()
-
-  // TODO: make a queue abstraction.
-  let st: {
-    cur: TaskGenSate;
-    next: Promise<TaskGenSate>;
-  };
-  let curBatchesQueueSize = 0;
   let batchId = 0;
-  while ((st = state()) && !cell.finishRequested) {
-    // console.log(
-    //   `**task-cell** state.cur: ${JSON.stringify(
-    //     st.cur
-    //   )} && internal batchId: ${batchId}, curBatchesQueueSize: ${curBatchesQueueSize}`
-    // );
-
-    while (st.cur.kind === 'generating') {
-      curBatchesQueueSize = batchId - st.cur.curBatchId;
-      if (curBatchesQueueSize >= st.cur.batchMaxQueueSize || batchId >= st.cur.maxBatches) {
-        break;
-      }
-      const nextBatch = makeBatch(batchId, batchSize());
-      // TODO: why not use the same syntax and have this be a setable signal?
-      cell.output.nextTrainBatch(nextBatch);
-      batchId++;
-      st = state();
-    }
-
-    await st.next;
+  while (!cell.finishRequested) {
+    const batch = makeBatch(batchId++, genConfig().batchSize);
+    await cell.outStream.trainBatches(batch);
   }
+  cell.outStream.trainBatches.done();
 
   // console.log(`**task-cell** state.cur: FINISHED!`);
 });

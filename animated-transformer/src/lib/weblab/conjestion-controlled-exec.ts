@@ -1,4 +1,11 @@
-import { AbstractSignal, DerivedSignal, promisifySignal } from '../signalspace/signalspace';
+import { Signal } from '@angular/core';
+import {
+  AbstractSignal,
+  DerivedSignal,
+  promisifySignal,
+  SetableSignal,
+  SignalSpace,
+} from '../signalspace/signalspace';
 
 enum ConjestionControlState {
   Running,
@@ -103,7 +110,40 @@ export class ConjestionControlledExec {
   }
 }
 
-export class AsyncIterOnEvents<T> implements AsyncIterable<T, null>, AsyncIterator<T, null> {
+// TODO: think about a canceller for this, e.g. return something like so:
+//   { cancel() => void; done: boolean, onceDone: Promise<void> }
+// export function asyncIterReduce<T, T2>(
+//   iter: AsyncIterable<T>,
+//   startFn: (firstValue: T) => T2,
+//   nextFn: (nextValue: T, cur: T2) => T2
+// ): { done: Promise<void>; cur: Promise<T2> } {
+//   let resolveDoneFn: () => void;
+//   const onceDone = new Promise<void>((resolve) => {
+//     resolveDoneFn = resolve;
+//   });
+//   let resolveFirstFn: (first:T2) => void;
+//   const onceFirst = new Promise<T2>((resolve) => {
+//     resolveFirstFn = resolve;
+//   });
+//   setTimeout(async () => {
+//     let first: T2 | undefined;
+//     for await (const i of iter) {
+//       if(!first) {
+//         first = startFn(i);
+//         resolveFirstFn(first);
+//       } else {
+//         signal.set(i);
+//       }
+//     }
+//     resolveDoneFn();
+//   }, 0);
+//   return onceDone;
+// }
+
+// This class connects an event function (someone cal call the nextEvent(X))
+// with an AsyncIter of the values that are called within nextEvent. It also
+// exposes a done() funtcion that ends the AsyncIterator.
+export class AsyncIterOnEvents<T> implements AsyncIterable<T>, AsyncIterator<T> {
   // If there is no queue, then async iter has completed.
   queue?: T[] = [];
   // resolveFn is set when next() is waiting for a promise to complete, which
@@ -115,7 +155,7 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T, null>, AsyncIterat
 
   constructor() {}
 
-  nextEvent(value: T) {
+  public nextEvent(value: T) {
     // If done, return;
     if (!this.queue) {
       return;
@@ -128,7 +168,7 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T, null>, AsyncIterat
     }
   }
 
-  done() {
+  public done() {
     if (this.resolveFn) {
       this.resolveFn({ done: true, value: null });
       delete this.resolveFn;
@@ -158,3 +198,8 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T, null>, AsyncIterat
     return this;
   }
 }
+
+// async function f(a: AsyncIterOnEvents<number>) {
+//   for await (const x of a) {
+//   }
+// }

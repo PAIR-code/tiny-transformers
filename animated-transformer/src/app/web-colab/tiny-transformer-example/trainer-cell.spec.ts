@@ -14,20 +14,10 @@ limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { asyncSignalIter, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import {
-  TrainConfig,
-  trainerCellSpec,
-  taskCellSpec,
-  TaskGenSate,
-  ModelUpdate,
-  ModelUpdateKind,
-  Batch,
-} from './ailab';
+import { TrainConfig, trainerCellSpec, ModelUpdate, ModelUpdateKind, Batch } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
-import { countSerializedParams } from 'src/lib/gtensor/params';
-import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 
 describe('Trainer-Cell', () => {
   beforeEach(() => {});
@@ -86,7 +76,8 @@ describe('Trainer-Cell', () => {
       const batchSeed = trainExamplesIter.state.seed;
       return { batchId, nextSeed: batchSeed, inputs, outputs };
     }
-    const nextTrainBatch = setable(makeBatch(0, trainConfig().batchSize));
+    const trainBatch = setable(makeBatch(0, trainConfig().batchSize));
+    const trainBatches = asyncSignalIter(trainBatch);
 
     // ------------------------------------------------------------------------
     // Trainer cell
@@ -94,24 +85,24 @@ describe('Trainer-Cell', () => {
     const trainerCell = env.start(trainerCellSpec, {
       modelUpdateEvents,
       trainConfig,
-      nextTrainBatch,
       testSet,
     });
 
-    nextTrainBatch.set(makeBatch(1, trainConfig().batchSize));
-    nextTrainBatch.set(makeBatch(2, trainConfig().batchSize));
-    nextTrainBatch.set(makeBatch(3, trainConfig().batchSize));
-    nextTrainBatch.set(makeBatch(4, trainConfig().batchSize));
+    // trainerCell.streamsFromEnv.trainBatches.
+
+    trainBatch.set(makeBatch(1, trainConfig().batchSize));
+    trainBatch.set(makeBatch(2, trainConfig().batchSize));
+    trainBatch.set(makeBatch(3, trainConfig().batchSize));
+    trainBatch.set(makeBatch(4, trainConfig().batchSize));
 
     console.log('waiting first metric...');
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetrics = await trainerCell.outputs.metrics;
-    derived(() => console.log(stringifyJsonValue(lastMetrics())));
-    const ckpt = await trainerCell.outputs.checkpoint;
 
-    const lastMetricsIter = asyncSignalIter(lastMetrics);
-    const ckptIter = asyncSignalIter(ckpt);
+    trainerCell.outStreams.metrics;
+
+    const lastMetricsIter = trainerCell.outStreams.metrics;
+    const ckptIter = trainerCell.outStreams.checkpoint;
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;

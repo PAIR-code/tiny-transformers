@@ -15,7 +15,7 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { ValueStruct, CellSpec } from './cellspec';
+import { ValueStruct, CellSpec } from './cell-types';
 import { SignalCell } from './signal-cell';
 
 export function workerCell<

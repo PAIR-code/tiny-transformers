@@ -24,7 +24,7 @@ import {
   trainerCellSpec,
   taskCellSpec,
   Checkpoint,
-  TaskGenSate,
+  TaskGenState,
   SimpleMetrics,
   ModelUpdate,
   ModelUpdateKind,
@@ -56,7 +56,7 @@ async function run() {
   const { setable, derived } = space;
 
   const taskConfig = setable(structuredClone(defaultTinyWorldTaskConfig));
-  const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
+  const taskGenState = setable<TaskGenState>({ kind: 'paused' });
 
   const trainConfig = setable<TrainConfig>({
     id: 'initial config',
@@ -107,7 +107,7 @@ async function run() {
     testSet,
   });
 
-  const genState: TaskGenSate = {
+  const genState: TaskGenState = {
     kind: 'generating',
     curBatchId: 0,
     batchMaxQueueSize: trainConfig().metricReporting.metricFrequencyInBatches * 4,

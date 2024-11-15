@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { FromWorkerMessage, StreamValue, ToWorkerMessage } from './messages';
+import { FromWorkerMessage, StreamValue, ToWorkerMessage } from './lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
@@ -22,9 +22,8 @@ import {
   PromisedSignalsFn,
   CallValueFn,
   SignalStructFn,
-  AsyncCallValueFn,
-  AsyncStreamFn,
-} from './cellspec';
+  AsyncOutStreamFn,
+} from './cell-types';
 import { ExpandOnce } from '../ts-type-helpers';
 import {
   SignalInput,
@@ -71,7 +70,7 @@ export class SignalCell<
     [Key in keyof InputStreams]: AsyncIterOnEvents<InputStreams[Key]>;
   };
 
-  public outStream = {} as AsyncStreamFn<OutputStreams>;
+  public outStream = {} as AsyncOutStreamFn<OutputStreams>;
   public output = {} as CallValueFn<Outputs>;
 
   public space = new SignalSpace();
@@ -138,12 +137,13 @@ export class SignalCell<
       );
       this.outputStreams[outputName as OutputStreamKey] = workerOutputStream;
 
-      function streamSendFn(value: OutputStreamValue) {
+      async function streamSendFn(value: OutputStreamValue) {
         // TODO: Make this take an async iterator, and send that until cancelled
         // (using a Promise.first(cancel, nextvalue) for each value)
-        workerOutputStream.send(value);
+        await workerOutputStream.send(value);
       }
       streamSendFn.done = workerOutputStream.done;
+      this.outStream[outputName] = streamSendFn;
     }
 
     for (const outputName of this.outputSet) {
@@ -202,15 +202,15 @@ export class SignalCell<
   async runOnceHaveInputs(runFn: (input: ExpandOnce<WritableStructFn<Inputs>>) => Promise<void>) {
     const inputs = await this.onceAllInputs;
     await runFn(inputs as ExpandOnce<WritableStructFn<Inputs>>);
-    this.finished();
+    this.close();
   }
 
   async run(runFn: () => Promise<void>) {
     await runFn();
-    this.finished();
+    this.close();
   }
 
-  finished() {
+  close() {
     const message: FromWorkerMessage = { kind: 'finished' };
     this.defaultPostMessageFn(message);
     close();

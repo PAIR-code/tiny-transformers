@@ -24,22 +24,27 @@ limitations under the License.
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
 import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 
-export enum CellValueKind {
-  Signal,
-  ConjectionFlow,
-}
-export type KindHolder<T> = ((value: T) => void) & { kind: CellValueKind };
-export function Kind<T>(): KindHolder<T> {
-  const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
-  fn.kind = CellValueKind.Signal;
-  return fn;
+// export enum CellValueKind {
+//   Signal,
+//   ConjectionFlow,
+// }
+// export type KindHolder<T> = ((value: T) => void) & { kind: CellValueKind };
+export type KindHolder<T> = (value: T) => void;
+export function Kind<T>(value: T): void {
+  return;
 }
 
-export function FlowKind<T>(): KindHolder<T> {
-  const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
-  fn.kind = CellValueKind.ConjectionFlow;
-  return fn;
-}
+// {
+//   const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
+//   fn.kind = CellValueKind.Signal;
+//   return fn;
+// }
+
+// export function FlowKind<T>(): KindHolder<T> {
+//   const fn: KindHolder<T> & { kind: CellValueKind } = (() => {}) as never as KindHolder<T>;
+//   fn.kind = CellValueKind.ConjectionFlow;
+//   return fn;
+// }
 
 export type Metrics<Name extends string> = {
   batchId: number;
@@ -94,15 +99,15 @@ export class CellSpec<
       cellName: string;
       workerFn: () => Worker;
       inputs?: ValueKindFnStructFn<Inputs>;
-      inputStreams?: ValueKindFnStructFn<InputStreams>;
+      inStreams?: ValueKindFnStructFn<InputStreams>;
       outputs?: ValueKindFnStructFn<Outputs>;
-      outputStreams?: ValueKindFnStructFn<OutputStreams>;
+      outStreams?: ValueKindFnStructFn<OutputStreams>;
     }
   ) {
     this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<Inputs>);
-    this.inStreams = this.data.inputStreams || ({} as ValueKindFnStructFn<InputStreams>);
+    this.inStreams = this.data.inStreams || ({} as ValueKindFnStructFn<InputStreams>);
     this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<Outputs>);
-    this.outStreams = this.data.outputStreams || ({} as ValueKindFnStructFn<OutputStreams>);
+    this.outStreams = this.data.outStreams || ({} as ValueKindFnStructFn<OutputStreams>);
     this.inputNames = new Set(Object.keys(this.inputs));
     this.inStreamNames = new Set(Object.keys(this.inStreams));
     this.outputNames = new Set(Object.keys(this.outputs));
@@ -118,13 +123,14 @@ export type PromisedSignalsFn<S extends ValueStruct> = {
   [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
 };
 export type CallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
-export type AsyncCallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
 export type ValueMapFn<S extends ValueStruct, T> = { [Key in keyof S]: T };
 
 export type AsyncIterableFn<S extends ValueStruct> = {
-  [Key in keyof S]: AsyncIterable<S[Key], null>;
+  [Key in keyof S]: AsyncIterable<S[Key]> & AsyncIterator<S[Key]>;
 };
 
-export type AsyncStreamFn<S extends ValueStruct> = {
-  [Key in keyof S]: ((value: S[Key]) => void) & { done: () => void };
+// export type AsyncCallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
+export type OutStreamSendFn<T> = ((value: T) => Promise<void>) & { done: () => void };
+export type AsyncOutStreamFn<S extends ValueStruct> = {
+  [Key in keyof S]: OutStreamSendFn<S[Key]>;
 };

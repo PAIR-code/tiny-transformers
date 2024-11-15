@@ -538,10 +538,9 @@ export function promisifySignal<T>(
 }
 
 // A convenient way to track updates to a signal...
-export function asyncSignalIter<T>(s: AbstractSignal<T>): {
-  iter: AsyncIterator<T, null>;
-  stopNowFn: () => void;
-} {
+export function asyncSignalIter<T>(
+  s: AbstractSignal<T>
+): AsyncIterator<T> & AsyncIterable<T> & { stopNowFn: () => void } {
   const pSignal = promisifySignal(s);
   let stopped = false;
   let stopper = () => {
@@ -560,9 +559,42 @@ export function asyncSignalIter<T>(s: AbstractSignal<T>): {
       this.next = laterNext;
       return { value: pSignal().cur };
     },
+    stopNowFn: stopper,
     [Symbol.asyncIterator]() {
       return this;
     },
   };
-  return { iter: myIterator, stopNowFn: stopper };
+  return myIterator;
+}
+
+export function asyncIterToSignal<T>(
+  iter: AsyncIterable<T>,
+  space: SignalSpace
+): { done: Promise<void>; signal: Promise<SetableSignal<T>> } {
+  let resolveDoneFn: () => void;
+  const onceDone = new Promise<void>((resolve) => {
+    resolveDoneFn = resolve;
+  });
+  let resolveSignalFn: (signal: SetableSignal<T>) => void;
+  let rejectSignalFn: () => void;
+  const onceSignal = new Promise<SetableSignal<T>>((resolve, reject) => {
+    resolveSignalFn = resolve;
+    rejectSignalFn = reject;
+  });
+  setTimeout(async () => {
+    let signal: SetableSignal<T> | undefined;
+    for await (const i of iter) {
+      if (!signal) {
+        signal = space.setable<T>(i);
+        resolveSignalFn(signal);
+      } else {
+        signal.set(i);
+      }
+    }
+    resolveDoneFn();
+    if (!signal) {
+      rejectSignalFn();
+    }
+  }, 0);
+  return { done: onceDone, signal: onceSignal };
 }

@@ -19,7 +19,7 @@ limitations under the License.
 
 import { Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { CellSpec, Kind, Metrics } from 'src/lib/weblab/cellspec';
+import { CellSpec, Kind, Metrics } from 'src/lib/weblab/cell-types';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -89,39 +89,35 @@ export const trainerCellSpec = new CellSpec({
     testSet: Kind<Example[]>,
     modelUpdateEvents: Kind<ModelUpdate>,
     trainConfig: Kind<TrainConfig>,
-    nextTrainBatch: Kind<Batch>,
   },
-  outputs: {
+  inStreams: {
+    trainBatches: Kind<Batch>,
+  },
+  outStreams: {
     metrics: Kind<SimpleMetrics>,
     checkpoint: Kind<Checkpoint>,
   },
 });
 
-export type TaskGenSate =
-  | { kind: 'paused' }
-  | {
-      kind: 'generating';
-      // Current batch seen
-      curBatchId: number;
-      // generate up to this many in the message queue
-      batchMaxQueueSize: number;
-      // max number of batches to generate
-      maxBatches: number;
-    }
-  | { kind: 'finished' };
+export type TaskGenConfig = {
+  initBatchId: number;
+  initBatchSeed: number;
+  testSetSize: number;
+  maxBatches: number;
+  batchSize: number;
+};
 
 export const taskCellSpec = new CellSpec({
   cellName: 'Task cell',
   workerFn: () => new Worker(new URL('./task-cell.worker', import.meta.url)),
   inputs: {
     taskConfig: Kind<TinyWorldTaskConfig>,
-    testSetSize: Kind<number>,
-    batchSize: Kind<number>,
-    useBatchSeed: Kind<number | null>,
-    taskGenState: Kind<TaskGenSate>,
+    genConfig: Kind<TaskGenConfig>,
   },
   outputs: {
-    nextTrainBatch: Kind<Batch>,
     testSet: Kind<Example[]>,
+  },
+  outStreams: {
+    trainBatches: Kind<Batch>,
   },
 });

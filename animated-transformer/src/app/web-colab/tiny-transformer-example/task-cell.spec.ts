@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { taskCellSpec, TaskGenSate } from './ailab';
+import { Batch, taskCellSpec, TaskGenConfig } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -26,45 +26,35 @@ describe('Task-Cell', () => {
     const { setable, derived } = space;
 
     const taskConfig = setable(defaultTinyWorldTaskConfig);
-    const taskGenState = setable<TaskGenSate>({ kind: 'paused' });
-    const batchSize = setable(10);
-    const useBatchSeed = setable<number | null>(null);
     const testSetSize = setable(5);
+    const genConfig = setable<TaskGenConfig>({
+      initBatchId: 0,
+      initBatchSeed: 0,
+      maxBatches: 5,
+      batchSize: 10,
+      testSetSize: 3,
+    });
     const taskCell = env.start(taskCellSpec, {
       taskConfig,
-      testSetSize,
-      batchSize,
-      useBatchSeed,
-      taskGenState,
+      genConfig,
     });
-    const genState: TaskGenSate = {
-      kind: 'generating',
-      curBatchId: 0,
-      batchMaxQueueSize: 2,
-      maxBatches: 5,
-    };
-    taskGenState.set(genState);
-    console.log(`taskGenState: ${JSON.stringify(taskGenState())}`);
+    console.log(`taskGenState: ${JSON.stringify(genConfig())}`);
     console.log(`waiting for nextTrainBatch...`);
-    const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
 
-    // TODO: create a sensible queue abstraction.
-    console.log(`nextTrainBatch: ${JSON.stringify(nextTrainBatch().batchId)}`);
-    derived(() => {
-      const batch = nextTrainBatch();
-      const state = taskGenState({ depKind: DepKind.Lazy });
-      if (state.kind === 'generating') {
-        console.log('state', state);
-        // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
-        // taskConfig?
-        taskGenState.set({ ...genState, curBatchId: batch.batchId });
-        if (batch.batchId >= genState.maxBatches - 1) {
-          taskGenState.set({ kind: 'finished' });
-        }
-      }
-    });
+    const testSet = await taskCell.outputs.testSet;
+    expect(testSet().length).toEqual(3);
+
+    const trainBatches: Batch[] = [];
+    for await (const trainBatch of taskCell.outStreams.trainBatches) {
+      trainBatches.push(trainBatch);
+    }
     await taskCell.onceFinished;
-    console.log(`final batch id: ${nextTrainBatch().batchId}`);
-    expect(nextTrainBatch().batchId).toEqual(4);
+
+    console.log(`final batch id: ${trainBatches[trainBatches.length - 1].batchId}`);
+    expect(trainBatches.length).toEqual(5);
+    expect(trainBatches[0].batchId).toEqual(0);
+    expect(trainBatches[0].inputs.length).toEqual(10);
+    expect(trainBatches[0].outputs.length).toEqual(10);
+    expect(trainBatches[trainBatches.length - 1].batchId).toEqual(4);
   });
 });

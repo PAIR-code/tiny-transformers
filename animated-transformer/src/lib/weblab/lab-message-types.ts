@@ -26,6 +26,7 @@ export type ConjestionFeedbackMessage = {
 };
 
 // null Indicates the end of the stream;
+// TODO: consider a "pause value".
 export type StreamValue<T> = { idx: number; value: T } | null;
 
 // ----------------------------------------------------------------------------

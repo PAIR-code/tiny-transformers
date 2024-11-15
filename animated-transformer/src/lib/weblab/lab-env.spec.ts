@@ -20,18 +20,20 @@ import { asyncifyIter } from '../utils';
 describe('lab-env', () => {
   beforeEach(async () => {});
 
-  it('Running a simple cell', async () => {
+  fit('Running a simple cell', async () => {
     const env = new LabEnv();
     const toyInput = env.space.setable('Foo');
     const numStream = asyncifyIter([1, 2, 3]);
-    const cell = env.start(exampleWorkerSpec, {
-      inputs: { toyInput },
-      inStreams: { numStream },
-    });
+    const cell = env.start(exampleWorkerSpec, { toyInput });
 
     const { num, str } = await cell.onceAllOutputs;
     expect(num()).toEqual(1);
     expect(str()).toEqual('hello Foo');
+
+    for (const i of [1, 2, 3]) {
+      await cell.inStream.numStream(i);
+    }
+    cell.inStream.numStream.done();
 
     const vs = [];
     for await (const v of cell.outStreams.foo) {

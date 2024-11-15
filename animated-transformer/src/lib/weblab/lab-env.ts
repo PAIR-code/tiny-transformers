@@ -20,10 +20,10 @@ import {
   PromiseStructFn,
   PromisedSignalsFn,
   WritableStructFn,
-  AsyncCallValueFn,
   AsyncIterableFn,
-} from './cellspec';
-import { FromWorkerMessage, StreamValue, ToWorkerMessage } from 'src/lib/weblab/messages';
+  AsyncOutStreamFn,
+} from './cell-types';
+import { FromWorkerMessage, StreamValue, ToWorkerMessage } from 'src/lib/weblab/lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
@@ -106,7 +106,7 @@ export class LabEnvCell<
   streamsFromEnv = {} as {
     [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
   };
-  public asyncStream = {} as AsyncCallValueFn<IStream>;
+  public inStream = {} as AsyncOutStreamFn<IStream>;
 
   signalsInToEnv = {} as {
     [Key in keyof O]: SignalInput<Key & string, O[Key]>;
@@ -127,7 +127,7 @@ export class LabEnvCell<
     public uses: {
       // TODO: make better types: Maybe<SignalStructFn<I>> that is undefined when I={}
       inputs?: SignalStructFn<I>;
-      inStreams?: AsyncIterableFn<IStream>;
+      // inStreams?: AsyncIterableFn<IStream>;
     }
   ) {
     this.inputs = uses.inputs || ({} as SignalStructFn<I>);
@@ -158,7 +158,7 @@ export class LabEnvCell<
         }
       );
       this.streamsFromEnv[streamName] = stream;
-      this.asyncStream[streamName] = stream.send;
+      this.inStream[streamName] = stream.sendFn;
     }
 
     for (const oName of spec.outputNames) {
@@ -291,13 +291,10 @@ export class LabEnv {
     OStreams extends ValueStruct
   >(
     spec: CellSpec<I, IStreams, O, OStreams>,
-    using: {
-      inputs?: SignalStructFn<I>;
-      inStreams?: AsyncIterableFn<IStreams>;
-    }
+    inputs?: SignalStructFn<I>
   ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
-    const envCell = new LabEnvCell(this.space, spec, using);
+    const envCell = new LabEnvCell(this.space, spec, { inputs });
     envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
     return envCell;
   }

@@ -17,7 +17,7 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { CellSpec, Kind } from './cellspec';
+import { CellSpec, Kind } from './cell-types';
 
 // export type Name = string;
 // export type TensorValue = {
@@ -68,16 +68,16 @@ export const exampleWorkerSpec = new CellSpec({
   cellName: 'an example cell',
   workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
   inputs: {
-    toyInput: Kind<string>(),
+    toyInput: Kind<string>,
   },
-  inputStreams: {
-    numStream: Kind<number>(),
+  inStreams: {
+    numStream: Kind<number>,
   },
   outputs: {
-    str: Kind<string>(),
-    num: Kind<number>(),
+    str: Kind<string>,
+    num: Kind<number>,
   },
-  outputStreams: {
-    foo: Kind<string>(),
+  outStreams: {
+    foo: Kind<string>,
   },
 });

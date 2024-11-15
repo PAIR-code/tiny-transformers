@@ -5,6 +5,7 @@
 // };
 
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import { OutStreamSendFn } from './cell-types';
 import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 import {
   ConjestionFeedbackMessage,
@@ -12,7 +13,7 @@ import {
   FromWorkerMessage,
   StreamValue,
   ToWorkerMessage,
-} from './messages';
+} from './lab-message-types';
 
 // ----------------------------------------------------------------------------
 // Consider: we could take in a signal, and have a derived send functionality
@@ -85,17 +86,29 @@ type ConjestionState = {
 };
 
 // ----------------------------------------------------------------------------
+// The key concept of an input stream is that it recieves events and posts
+// feedback on the last input recieved. It provides an inputIter (CONSIDER: we
+// could just set a signal too...? But then we wouldn't have information on when
+// the stream ends...?). If the worker/event system is very busy, then it will
+// report feedback less often, and this is how the sender knows to reduce/pause
+// the output flow. This conjestion control avoids inter-process/worker message
+// overflows.
 export class SignalInputStream<Name extends string, T> {
   // readyResolver!: (signal: SetableSignal<T>) => void;
   // cancelResolver!: () => void;
   // onceReady: Promise<SetableSignal<T>>;
+
+  // The MessagePorts to report feedback to on how busy we are.
   ports: MessagePort[] = [];
+  // The function that is to be called on every input.
   public onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
+  // The resulting iterator on inputs.
   public inputIter: AsyncIterOnEvents<T>;
 
   constructor(
     public space: SignalSpace,
     public id: Name,
+    // Used to post conjestion control feedback.
     public defaultPostMessageFn: (m: ConjestionFeedbackMessage) => void
   ) {
     this.inputIter = new AsyncIterOnEvents<T>();
@@ -143,8 +156,17 @@ export class SignalOutputStream<Name extends string, T> {
   portConjestion: Map<MessagePort, ConjestionState> = new Map();
   lastMessageIdx: number = 0;
 
+  sendFn: OutStreamSendFn<T>;
+
   // Think about having a default output postMessage?
-  constructor(public space: SignalSpace, public id: Name, public config: ConjestionControlConfig) {}
+  constructor(public space: SignalSpace, public id: Name, public config: ConjestionControlConfig) {
+    const sendFn = this.send;
+    function send(value: T) {
+      return sendFn(value);
+    }
+    send.done = () => this.done();
+    this.sendFn = send;
+  }
 
   addPort(messagePort: MessagePort) {
     const messagePortConjestionState: ConjestionState = {

@@ -19,7 +19,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { StatefulCell } from 'src/lib/weblab/lab-worker-cell';
+import { workerCell } from 'src/lib/weblab/lab-worker-cell';
 import {
   Batch,
   ModelUpdateKind,
@@ -46,10 +46,10 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
-import { Metrics } from 'src/lib/weblab/cellspec';
+import { Metrics } from 'src/lib/weblab/cell-types';
 
 // ----------------------------------------------------------------------------
-const cell = new StatefulCell(trainerCellSpec);
+const cell = workerCell(trainerCellSpec);
 const { derived, setable, derivedNullable } = cell.space;
 
 // profiling variables.
@@ -104,9 +104,13 @@ function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig)
         optimiserBatchCount,
       },
     };
-    cell.output.metrics(nextMetrics);
+    // TODO: we should move the output stuff into a cached object, and not
+    // output it within the loss function; that way we can do proper conjestion
+    // control; having said that, probability that consuming thread is slower
+    // than training is very unlikely, so in practice its unlikely to blow up.
+    cell.outStream.metrics(nextMetrics);
     if (shouldCheckpoint(batch, config)) {
-      cell.output.checkpoint({
+      cell.outStream.checkpoint({
         config: model.config,
         serializedParams: serializeParams(model.params),
         lastBatch: batch,
@@ -158,7 +162,7 @@ function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model 
 cell.run(async () => {
   // TODO: Test set should be used for metrics reporting at least, and/or evaluated
   // per checkpoint?
-  const { testSet, modelUpdateEvents, trainConfig, nextTrainBatch } = await cell.onceAllInputs;
+  const { testSet, modelUpdateEvents, trainConfig } = await cell.onceAllInputs;
 
   const model = setable<Model | null>(null);
   derived(() => updateModel(modelUpdateEvents(), model));
@@ -172,19 +176,25 @@ cell.run(async () => {
 
   let optimizer = tf.train.adam();
 
-  derivedNullable(
-    () => {
-      const startAtMs = Date.now();
-      optimizer.minimize(
-        () => computeLoss(defined(model), nextTrainBatch(), trainConfig()),
-        false,
-        defined(varParamList)
-      );
-      optimiserTime += Date.now() - startAtMs;
-      optimiserBatchCount++;
-    },
-    { definedDeps: [model, varParamList] }
-  );
+  for await (const trainBatch of cell.inStream.trainBatches) {
+    if (cell.finishRequested) {
+      break;
+    }
+    const startAtMs = Date.now();
+    optimizer.minimize(
+      () => computeLoss(defined(model), trainBatch, trainConfig()),
+      false,
+      defined(varParamList)
+    );
+    optimiserTime += Date.now() - startAtMs;
+    optimiserBatchCount++;
+  }
+  // derivedNullable(
+  //   () => {
+
+  //   },
+  //   { definedDeps: [model, varParamList] }
+  // );
 
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {
