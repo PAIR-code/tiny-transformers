@@ -177,7 +177,7 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T>, AsyncIterator<T> 
   }
 
   nextPromise(): Promise<IteratorResult<T, null>> {
-    return new Promise<IteratorResult<T, null>>((resolve, reject) => {
+    return new Promise<IteratorResult<T, null>>((resolve) => {
       this.resolveFn = resolve;
     });
   }

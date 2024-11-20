@@ -230,12 +230,12 @@ export class SignalSpace {
 
     // Error and stop updating if we are looping.
     if (this.update.valuesUpdated.includes(valueSignal)) {
-      console.error(
-        `A cyclic value update happened in a computation:`,
-        '\nvalueSignal & new value:',
-        valueSignal,
-        this.update.valuesUpdated
-      );
+      // console.error(
+      //   `A cyclic value update happened in a computation:`,
+      //   '\nvalueSignal & new value:',
+      //   valueSignal,
+      //   this.update.valuesUpdated
+      // );
       throw new Error('loopy setting of values');
     }
     //

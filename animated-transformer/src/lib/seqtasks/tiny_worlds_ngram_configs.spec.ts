@@ -24,7 +24,7 @@ describe('ngram_tiny_worlds', () => {
     let nIdentity = 10;
     let uniGramTinyWorldConfig = getUniGramTinyWorldConfig(nIdentity, seed);
 
-    console.log(JSON.stringify(uniGramTinyWorldConfig));
+    // console.log(JSON.stringify(uniGramTinyWorldConfig));
     uniGramTinyWorldConfig.maxInputLen = 20;
     let tinyWorld = new TinyWorldTask(uniGramTinyWorldConfig);
     const [example] = tinyWorld.exampleIter.takeOutN(1);

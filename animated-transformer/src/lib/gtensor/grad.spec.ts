@@ -57,7 +57,7 @@ describe('grad', () => {
       const bDot = inputVars.contract(paramVars.b, ['rep']);
       const delta = targetVars.pointwiseSub(aDot.pointwiseMul(bDot));
       const loss = delta.pointwiseMul(delta).sumOverDims(['batchExample']);
-      loss.tensor.print();
+      // loss.tensor.print();
       return loss.tensor as tf.Scalar;
     }
     const gradFn = gradsFunctor(

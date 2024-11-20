@@ -190,7 +190,7 @@ describe('signalspace', () => {
     let i = 0;
     derived(() => {
       a();
-      console.log('i:', i++);
+      i++;
     });
     expect(i).toEqual(1);
     a.set('A');

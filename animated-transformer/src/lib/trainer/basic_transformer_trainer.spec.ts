@@ -74,7 +74,7 @@ describe('basic_transformer_trainer', () => {
       config: decoderConfig,
       params,
     };
-    console.log('initTransformerTrainState...');
+    // console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
       model,

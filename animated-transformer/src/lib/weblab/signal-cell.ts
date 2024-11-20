@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { FromWorkerMessage, StreamValue, ToWorkerMessage } from './lab-message-types';
+import { LabMessage, LabMessageKind, StreamValue } from './lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
@@ -116,7 +116,6 @@ export class SignalCell<
       const workerInput = new SignalInput<InputKey, InputValue>(this.space, inputName as InputKey);
       this.inputs[inputName] = workerInput;
       workerInput.onceReady.then((signal) => {
-        console.log(`workerInput.onceReady: ${inputName as string}`);
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
@@ -161,46 +160,66 @@ export class SignalCell<
       this.outputs[outputName as OutputKey] = workerOutput;
       this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.send(value);
     }
-
-    addEventListener('message', (m) => this.onMessage(m));
   }
 
-  onMessage(message: { data: ToWorkerMessage }) {
+  onMessage(message: { data: LabMessage }) {
     const { data } = message;
-    if (data.kind === 'finishRequest') {
-      this.finishRequested = true;
-      this.onceFinishedResolver();
-    } else if (data.kind === 'pipeInputSignal') {
-      const inputStream = this.inputStreams[data.signalId];
-      if (!inputStream) {
-        throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
+    if (!data) {
+      console.warn('unexpected null data', message);
+      return;
+    }
+    switch (data.kind) {
+      case LabMessageKind.FinishRequest: {
+        this.finishRequested = true;
+        this.onceFinishedResolver();
+        break;
       }
-      data.ports.forEach((port) => inputStream.addPort(port));
-    } else if (data.kind === 'pipeOutputSignal') {
-      const outputStream = this.outputStreams[data.signalId];
-      if (!outputStream) {
-        throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
+      case LabMessageKind.PipeInputSignal: {
+        const inputStream = this.inputStreams[data.signalId];
+        if (!inputStream) {
+          throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
+        }
+        data.ports.forEach((port) => inputStream.addPort(port));
+        break;
       }
-      data.ports.forEach((port) => outputStream.addPort(port));
-    } else if (data.kind === 'setSignal') {
-      const input = this.inputs[data.signalId];
-      if (!input) {
-        throw new Error(`onMessage: setSignal(${data.signalId}): but there is no such input.`);
+      case LabMessageKind.PipeOutputSignal: {
+        const outputStream = this.outputStreams[data.signalId];
+        if (!outputStream) {
+          throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
+        }
+        data.ports.forEach((port) => outputStream.addPort(port));
+        break;
       }
-      input.onNextInput(data.signalValue as Inputs[keyof Inputs & string]);
-    } else if (data.kind === 'setStream') {
-      const inputStream = this.inputStreams[data.streamId];
-      if (!inputStream) {
-        throw new Error(
-          `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
+      case LabMessageKind.SetSignalValue: {
+        const input = this.inputs[data.signalId];
+        if (!input) {
+          throw new Error(`onMessage: setSignal(${data.signalId}): but there is no such input.`);
+        }
+        input.onSetInput(data.value as Inputs[keyof Inputs & string]);
+        break;
+      }
+      case LabMessageKind.ConjestionControl: {
+        const outStream = this.outStream[data.streamId];
+        outStream.conjestionFeedbackStateUpdate(data);
+        break;
+      }
+      case LabMessageKind.AddStreamValue: {
+        const inputStream = this.inputStreams[data.streamId];
+        if (!inputStream) {
+          throw new Error(
+            `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
+          );
+        }
+        inputStream.onAddValue(
+          null,
+          data.value as StreamValue<InputStreams[keyof InputStreams & string]>
         );
+        break;
       }
-      inputStream.onNextInput(
-        null,
-        data.value as StreamValue<InputStreams[keyof InputStreams & string]>
-      );
-    } else {
-      console.warn('unknown message from the main thread: ', data);
+      default: {
+        console.warn('unknown message from the main thread: ', data);
+        break;
+      }
     }
   }
 
@@ -220,8 +239,7 @@ export class SignalCell<
   }
 
   close() {
-    const message: FromWorkerMessage = { kind: 'finished' };
-    console.log(this);
+    const message: LabMessage = { kind: LabMessageKind.Finished };
     this.defaultPostMessageFn(message);
     close();
   }

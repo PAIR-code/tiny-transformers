@@ -15,7 +15,7 @@ limitations under the License.
 
 // ----------------------------------------------------------------------------
 export enum LabMessageKind {
-  ConjestionIndex = 'ConjestionIndex',
+  ConjestionControl = 'ConjestionIndex',
   RequestInput = 'RequestInput',
   AddStreamValue = 'AddStreamValue',
   SetSignalValue = 'SetSignalValue',
@@ -28,7 +28,7 @@ export enum LabMessageKind {
 // Used to send feedback to a port that is sending stuff on which example was
 // last processed, so that internal queues don't explode.
 export type ConjestionFeedbackMessage = {
-  kind: LabMessageKind.ConjestionIndex;
+  kind: LabMessageKind.ConjestionControl;
   idx: number;
   streamId: string;
 };
@@ -46,11 +46,11 @@ export type AddStreamValueMessage = {
 };
 
 export type SetSignalValueMessage = {
-  kind: LabMessageKind.AddStreamValue;
+  kind: LabMessageKind.SetSignalValue;
   // The name of the signal stream having its next value set.
-  streamId: string;
+  signalId: string;
   // A unique incremental number indicating the sent-stream value.
-  value: StreamValue<unknown>;
+  value: unknown;
 };
 
 // ----------------------------------------------------------------------------
@@ -58,8 +58,8 @@ export type LabMessage =
   | SetSignalValueMessage
   | AddStreamValueMessage
   | ConjestionFeedbackMessage
-  | { kind: LabMessageKind.Finished }
   | { kind: LabMessageKind.FinishRequest }
+  | { kind: LabMessageKind.Finished }
   | {
       kind: LabMessageKind.PipeInputSignal;
       signalId: string;

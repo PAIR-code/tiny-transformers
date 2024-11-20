@@ -61,7 +61,7 @@ export function initTrainer() {
   const task = new abtask.AorBisMaxTask(config);
   const tokenRep = prepareBasicTaskTokenRep(
     task.baseVocab, decoderConfig.spec.inputRep);
-  console.log('initTransformerTrainState...');
+  // console.log('initTransformerTrainState...');
   const trainState = initTransformerTrainState(
     task, examplePrepFinalMaskFn, tokenRep, trainStateConfig, decoderConfig
   );

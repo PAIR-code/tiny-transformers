@@ -104,10 +104,10 @@ export class SetableNode<T> {
     if (computeContext.kind === ComputeContextKind.Definition) {
       const defNode = computeContext.node;
       if (options && options.downstreamNullIfNull && !defNode.options.nullTyped) {
-        console.warn('downstreamNullIfNull dependency must be in a nullType signal', {
-          signal: this,
-          defNode,
-        });
+        // console.warn('downstreamNullIfNull dependency must be in a nullType signal', {
+        //   signal: this,
+        //   defNode,
+        // });
         throw new Error('downstreamNullIfNull dependency must be in a nullType signal');
       }
       // console.warn(`[def ${defNode.id}] ${this.id}.get(): value=${this.value}`);

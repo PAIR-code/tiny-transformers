@@ -21,18 +21,13 @@ import { exampleWorkerSpec } from './example.ailab';
 const cell = workerCell(exampleWorkerSpec);
 
 cell.run(async () => {
-  console.log('cell awaiting inputs');
   const { toyInput } = await cell.onceAllInputs;
 
-  console.log('cell sending outputs');
   cell.outputs.num.send(1);
   cell.outputs.str.send(`hello ${toyInput()}`);
 
-  console.log('cell input / output loop');
   for await (const i of cell.inStream.numStream) {
-    console.log(`cell got an input: ${i}`);
     await cell.outStream.foo.send('foo' + i);
   }
   cell.outStream.foo.done();
-  console.log('cell loop ended.');
 });

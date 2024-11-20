@@ -9,11 +9,10 @@ import { OutStreamSendFn } from './cell-types';
 import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 import {
   ConjestionFeedbackMessage,
-  ConjestionFeedbackMessageKind,
-  FromWorkerMessage,
-  StreamMessage,
+  LabMessage,
+  AddStreamValueMessage,
   StreamValue,
-  ToWorkerMessage,
+  LabMessageKind,
 } from './lab-message-types';
 
 // ----------------------------------------------------------------------------
@@ -25,7 +24,7 @@ export class SignalOutput<Name extends string, T> {
   constructor(
     public space: SignalSpace,
     public id: Name,
-    public defaultPostMessageFn?: (m: FromWorkerMessage) => void
+    public defaultPostMessageFn?: (m: LabMessage) => void
   ) {}
 
   addPort(messagePort: MessagePort) {
@@ -35,8 +34,8 @@ export class SignalOutput<Name extends string, T> {
     };
   }
 
-  send(signalValue: T): void {
-    const message: FromWorkerMessage = { kind: 'setSignal', signalId: this.id, signalValue };
+  send(value: T): void {
+    const message: LabMessage = { kind: LabMessageKind.SetSignalValue, signalId: this.id, value };
     for (const port of this.ports) {
       port.postMessage(message);
     }
@@ -50,7 +49,7 @@ export class SignalOutput<Name extends string, T> {
 export class SignalInput<Name extends string, T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
-  onNextInput: (input: T) => void;
+  onSetInput: (input: T) => void;
 
   constructor(public space: SignalSpace, public id: Name) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
@@ -62,10 +61,10 @@ export class SignalInput<Name extends string, T> {
     // First input creates the signal, resolves the promise, posts the first
     // conjestion control index, and then resets onNextInput for future cases to
     // just set the signal, and posts the next conjestion control index.
-    this.onNextInput = (firstInput: T) => {
+    this.onSetInput = (firstInput: T) => {
       const signal = this.space.setable(firstInput);
       this.readyResolver(signal);
-      this.onNextInput = (nextInput: T) => {
+      this.onSetInput = (nextInput: T) => {
         signal.set(nextInput);
       };
     };
@@ -110,7 +109,7 @@ export class SignalInputStream<Name extends string, T> {
   // The MessagePorts to report feedback to on how busy we are.
   ports: MessagePort[] = [];
   // The function that is to be called on every input.
-  public onNextInput: (port: MessagePort | null, input: StreamValue<T>) => void;
+  public onAddValue: (port: MessagePort | null, input: StreamValue<T>) => void;
   // The resulting iterator on inputs.
   public inputIter: AsyncIterOnEvents<T>;
 
@@ -125,31 +124,32 @@ export class SignalInputStream<Name extends string, T> {
     // First input creates the signal, resolves the promise, posts the first
     // conjestion control index, and then resets onNextInput for future cases to
     // just set the signal, and posts the next conjestion control index.
-    this.onNextInput = (port: MessagePort | null, firstInput: StreamValue<T>) => {
+    this.onAddValue = (port: MessagePort | null, value: StreamValue<T>) => {
       // If stream was stopped.
-      if (firstInput === null) {
+      if (value === null) {
         this.inputIter.done();
         return;
       }
-      this.inputIter.nextEvent(firstInput.value);
-      this.postConjestionFeedback(port, firstInput.idx);
+      this.inputIter.nextEvent(value.value);
+      this.postConjestionFeedback(port, value.idx);
     };
   }
 
   addPort(port: MessagePort) {
     this.ports.push(port);
     port.onmessage = (event: MessageEvent) => {
-      const workerMessage: ToWorkerMessage = event.data;
-      if (workerMessage.kind !== 'setStream') {
+      const workerMessage: LabMessage = event.data;
+      if (workerMessage.kind !== LabMessageKind.AddStreamValue) {
         throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
       }
-      this.onNextInput(port, workerMessage.value as StreamValue<T>);
+      this.onAddValue(port, workerMessage.value as StreamValue<T>);
     };
   }
 
   postConjestionFeedback(port: MessagePort | null, idx: number) {
-    const message: ConjestionFeedbackMessage = {
-      kind: ConjestionFeedbackMessageKind.ConjestionIndex,
+    const message: LabMessage = {
+      kind: LabMessageKind.ConjestionControl,
+      streamId: this.id,
       idx,
     };
     if (port) {
@@ -163,6 +163,11 @@ export class SignalInputStream<Name extends string, T> {
 // ----------------------------------------------------------------------------
 export class SignalOutputStream<Name extends string, T> {
   portConjestion: Map<MessagePort, ConjestionState> = new Map();
+  public default?: {
+    port: MessagePort;
+    // CONSIDER: use; { postMessage: (v: AddStreamValueMessage) => void };
+    state: ConjestionState;
+  };
   lastMessageIdx: number = 0;
 
   // sendFn: OutStreamSendFn<T>;
@@ -173,12 +178,19 @@ export class SignalOutputStream<Name extends string, T> {
     public id: Name,
     public config: {
       conjestionControl: ConjestionControlConfig;
-      defaultPostMessageFn?: (m: StreamMessage) => void;
+      defaultPostMessageFn?: (m: AddStreamValueMessage) => void;
     }
   ) {
     if (this.config.defaultPostMessageFn) {
+      const port = { postMessage: this.config.defaultPostMessageFn } as MessagePort;
       // Add a fake messagePort to default poster if one was provided.
-      this.addPort({ postMessage: this.config.defaultPostMessageFn } as MessagePort);
+      const state: ConjestionState = {
+        lastReturnedId: 0,
+        queueLength: 0,
+        done: false,
+      };
+      // const state = this.portConjestion.get(port as MessagePort)!;
+      this.default = { port, state };
     }
     // const sendFn = this.send;
     // function send(value: T) {
@@ -196,16 +208,32 @@ export class SignalOutputStream<Name extends string, T> {
     };
     this.portConjestion.set(messagePort, messagePortConjestionState);
     messagePort.onmessage = (event: MessageEvent) => {
-      const conjestionFeedback: ConjestionFeedbackMessage = event.data;
-      messagePortConjestionState.lastReturnedId = conjestionFeedback.idx;
-      messagePortConjestionState.queueLength--;
-      if (
-        messagePortConjestionState.queueLength <= this.config.conjestionControl.resumeAtQueueSize &&
-        messagePortConjestionState.resumeResolver
-      ) {
-        messagePortConjestionState.resumeResolver();
-      }
+      this.conjestionFeedbackStateUpdate(event.data, messagePortConjestionState);
     };
+  }
+
+  conjestionFeedbackStateUpdate(
+    conjestionFeedback: ConjestionFeedbackMessage,
+    state?: ConjestionState
+  ) {
+    if (!state) {
+      if (this.default) {
+        state = this.default.state;
+      } else {
+        throw new Error('conjestionFeedbackStateUpdate: no state to update');
+      }
+    }
+    if (state.done) {
+      return;
+    }
+    state.lastReturnedId = conjestionFeedback.idx;
+    state.queueLength--;
+    if (
+      state.queueLength <= this.config.conjestionControl.resumeAtQueueSize &&
+      state.resumeResolver
+    ) {
+      state.resumeResolver();
+    }
   }
 
   // Note: there's a rather sensitive assumtion that once resumeResolver is
@@ -219,40 +247,60 @@ export class SignalOutputStream<Name extends string, T> {
   async send(value: T): Promise<void> {
     this.lastMessageIdx++;
     for (const [port, state] of this.portConjestion.entries()) {
-      if (state.done) {
-        console.warn('Called send on a done stream.');
-        break;
+      const stop = await this.sendTo(value, { port, state });
+      if (stop) {
+        return;
       }
-      if (state.queueLength > this.config.conjestionControl.maxQueueSize) {
-        let resumeResolver!: () => void;
-        const onceResumed = new Promise<void>((resolve) => {
-          resumeResolver = resolve as () => void;
-        });
-        state.resumeResolver = resumeResolver;
-        await onceResumed;
-        if (state.done) {
-          break;
-        }
-      }
-      const streamValue: StreamValue<T> = {
-        idx: this.lastMessageIdx,
-        value,
-      };
-      const message: StreamMessage = {
-        kind: 'setStream',
-        // The name of the signal stream having its next value set.
-        streamId: this.id,
-        // A unique incremental number indicating the sent-stream value.
-        value: streamValue as StreamValue<unknown>,
-      };
-      state.queueLength++;
-      port.postMessage(message);
+    }
+    if (this.default) {
+      this.sendTo(value, this.default);
     }
   }
 
+  async sendTo(value: T, target: { port: MessagePort; state: ConjestionState }): Promise<boolean> {
+    const { port, state } = target;
+    if (state.done) {
+      throw new Error('Called sendTo(...) on a done stream.');
+    }
+    if (state.queueLength > this.config.conjestionControl.maxQueueSize) {
+      let resumeResolver!: () => void;
+      const onceResumed = new Promise<void>((resolve) => {
+        resumeResolver = resolve as () => void;
+      });
+      state.resumeResolver = resumeResolver;
+      await onceResumed;
+      if (state.done) {
+        return true;
+      }
+    }
+    const streamValue: StreamValue<T> = {
+      idx: this.lastMessageIdx,
+      value,
+    };
+    const message: AddStreamValueMessage = {
+      kind: LabMessageKind.AddStreamValue,
+      // The name of the signal stream having its next value set.
+      streamId: this.id,
+      // A unique incremental number indicating the sent-stream value.
+      value: streamValue as StreamValue<unknown>,
+    };
+    state.queueLength++;
+    // console.log(
+    //   `outStream(${this.id}@${state.queueLength}): value (${streamValue.idx}): ${streamValue.value}`
+    // );
+    port.postMessage(message);
+    return false;
+  }
+
   endPortStream(port: MessagePort, state: ConjestionState) {
-    const streamValue: StreamValue<T> = null;
-    port.postMessage(streamValue);
+    const message: AddStreamValueMessage = {
+      kind: LabMessageKind.AddStreamValue,
+      // The name of the signal stream having its next value set.
+      streamId: this.id,
+      // A unique incremental number indicating the sent-stream value.
+      value: null,
+    };
+    port.postMessage(message);
     state.done = true;
     if (state.resumeResolver) {
       state.resumeResolver();
@@ -261,13 +309,17 @@ export class SignalOutputStream<Name extends string, T> {
 
   removePort(port: MessagePort, state: ConjestionState) {
     this.endPortStream(port, state);
-    this.portConjestion.delete(port);
+    // this.portConjestion.delete(port);
   }
 
   done() {
     for (const [port, state] of this.portConjestion.entries()) {
       this.endPortStream(port, state);
     }
+    if (this.default) {
+      this.endPortStream(this.default.port, this.default.state);
+    }
+    // delete this.default;
     this.portConjestion = new Map();
   }
 }

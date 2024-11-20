@@ -23,7 +23,12 @@ import {
   AsyncIterableFn,
   AsyncOutStreamFn,
 } from './cell-types';
-import { FromWorkerMessage, StreamValue, ToWorkerMessage } from 'src/lib/weblab/lab-message-types';
+import {
+  LabMessage,
+  LabMessageKind,
+  SetSignalValueMessage,
+  StreamValue,
+} from 'src/lib/weblab/lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
@@ -103,9 +108,9 @@ export class LabEnvCell<
   inputs: AbstractSignalStructFn<I>;
 
   // inputStreams: SignalStructFn<IStream>;
-  streamsFromEnv = {} as {
-    [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
-  };
+  // streamsFromEnv = {} as {
+  //   [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
+  // };
   public inStream = {} as {
     [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
   };
@@ -115,11 +120,11 @@ export class LabEnvCell<
   signalsInToEnv = {} as {
     [Key in keyof O]: SignalInput<Key & string, O[Key]>;
   };
+  public outputs: PromiseStructFn<AbstractSignalStructFn<O>>;
+
   streamsInToEnv = {} as {
     [Key in keyof OStream]: SignalInputStream<Key & string, OStream[Key]>;
   };
-
-  public outputs: PromiseStructFn<AbstractSignalStructFn<O>>;
   public outStreams: AsyncIterableFn<OStream>;
 
   public outputSoFar: Partial<AbstractSignalStructFn<O>>;
@@ -164,7 +169,7 @@ export class LabEnvCell<
           defaultPostMessageFn: (v) => this.worker.postMessage(v),
         }
       );
-      this.streamsFromEnv[streamName] = stream;
+      // this.streamsFromEnv[streamName] = stream;
       this.inStream[streamName] = stream;
     }
 
@@ -188,7 +193,7 @@ export class LabEnvCell<
       const envStreamInput = new SignalInputStream<keyof OStream & string, OStream[keyof OStream]>(
         this.space,
         oStreamName as keyof OStream & string,
-        this.worker.postMessage
+        (m) => this.worker.postMessage(m)
       );
       this.streamsInToEnv[oStreamName] = envStreamInput;
       this.outStreams[oStreamName] = envStreamInput.inputIter;
@@ -197,26 +202,28 @@ export class LabEnvCell<
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {
       // console.log('main thread got worker.onmessage', data);
-      const messageFromWorker: FromWorkerMessage = data;
+      const messageFromWorker: LabMessage = data;
       switch (messageFromWorker.kind) {
-        case 'finished':
+        case LabMessageKind.Finished:
           // TODO: what if there are missing outputs?
           resolveWhenFinishedFn();
           this.worker.terminate();
           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
-        case 'setSignal':
+        case LabMessageKind.SetSignalValue:
           const oName = messageFromWorker.signalId as keyof O & string;
-          this.signalsInToEnv[oName].onNextInput(
-            messageFromWorker.signalValue as O[keyof O & string]
-          );
+          this.signalsInToEnv[oName].onSetInput(messageFromWorker.value as O[keyof O & string]);
           break;
-        case 'setStream':
+        case LabMessageKind.AddStreamValue:
           const oStreamName = messageFromWorker.streamId as keyof OStream & string;
-          this.streamsInToEnv[oStreamName].onNextInput(
+          this.streamsInToEnv[oStreamName].onAddValue(
             null,
             messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>
           );
+          break;
+        case LabMessageKind.ConjestionControl:
+          const id = messageFromWorker.streamId as keyof OStream & string;
+          this.inStream[id].conjestionFeedbackStateUpdate(messageFromWorker);
           break;
         default:
           console.error('main thread go unknown worker message: ', data);
@@ -229,10 +236,10 @@ export class LabEnvCell<
     for (const key of spec.inputNames) {
       this.space.derived(() => {
         const value = this.inputs[key as keyof I](); // Note signal dependency.
-        const message: ToWorkerMessage = {
-          kind: 'setSignal',
+        const message: SetSignalValueMessage = {
+          kind: LabMessageKind.SetSignalValue,
           signalId: key as keyof I & string,
-          signalValue: value,
+          value,
         };
         this.worker.postMessage(message);
       });
@@ -240,15 +247,15 @@ export class LabEnvCell<
   }
 
   requestStop() {
-    const message: ToWorkerMessage = {
-      kind: 'finishRequest',
+    const message: LabMessage = {
+      kind: LabMessageKind.FinishRequest,
     };
     this.worker.postMessage(message);
   }
 
   public pipeInputSignal(signalId: string, ports: MessagePort[]) {
-    const message: ToWorkerMessage = {
-      kind: 'pipeInputSignal',
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeInputSignal,
       signalId,
       ports,
     };
@@ -260,8 +267,8 @@ export class LabEnvCell<
     ports: MessagePort[],
     options?: { keepSignalPushesHereToo: boolean }
   ) {
-    const message: ToWorkerMessage = {
-      kind: 'pipeOutputSignal',
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeOutputSignal,
       signalId,
       ports,
       options,
