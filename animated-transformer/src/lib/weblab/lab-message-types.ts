@@ -14,72 +14,62 @@ limitations under the License.
 ==============================================================================*/
 
 // ----------------------------------------------------------------------------
-export enum ConjestionFeedbackMessageKind {
-  ConjestionIndex,
+export enum LabMessageKind {
+  ConjestionIndex = 'ConjestionIndex',
+  RequestInput = 'RequestInput',
+  AddStreamValue = 'AddStreamValue',
+  SetSignalValue = 'SetSignalValue',
+  Finished = 'Finished',
+  FinishRequest = 'FinishRequest',
+  PipeInputSignal = 'PipeInputSignal',
+  PipeOutputSignal = 'PipeOutputSignal',
 }
 
 // Used to send feedback to a port that is sending stuff on which example was
 // last processed, so that internal queues don't explode.
 export type ConjestionFeedbackMessage = {
-  kind: ConjestionFeedbackMessageKind;
+  kind: LabMessageKind.ConjestionIndex;
   idx: number;
+  streamId: string;
 };
 
 // null Indicates the end of the stream;
 // TODO: consider a "pause value".
 export type StreamValue<T> = { idx: number; value: T } | null;
 
-// ----------------------------------------------------------------------------
-export type FromWorkerMessage =
-  | {
-      kind: 'requestInput';
-      signalId: string;
-    }
-  | {
-      kind: 'setSignal';
-      signalId: string;
-      signalValue: unknown;
-    }
-  | {
-      kind: 'setStream';
-      // The name of the signal stream having its next value set.
-      streamId: string;
-      // A unique incremental number indicating the sent-stream value.
-      value: StreamValue<unknown>;
-    }
-  | {
-      kind: 'finished';
-    };
+export type AddStreamValueMessage = {
+  kind: LabMessageKind.AddStreamValue;
+  // The name of the signal stream having its next value set.
+  streamId: string;
+  // A unique incremental number indicating the sent-stream value.
+  value: StreamValue<unknown>;
+};
+
+export type SetSignalValueMessage = {
+  kind: LabMessageKind.AddStreamValue;
+  // The name of the signal stream having its next value set.
+  streamId: string;
+  // A unique incremental number indicating the sent-stream value.
+  value: StreamValue<unknown>;
+};
 
 // ----------------------------------------------------------------------------
-export type ToWorkerMessage =
+export type LabMessage =
+  | SetSignalValueMessage
+  | AddStreamValueMessage
+  | ConjestionFeedbackMessage
+  | { kind: LabMessageKind.Finished }
+  | { kind: LabMessageKind.FinishRequest }
   | {
-      kind: 'finishRequest';
-    }
-  | {
-      kind: 'pipeInputSignal';
+      kind: LabMessageKind.PipeInputSignal;
       signalId: string;
       ports: MessagePort[];
     }
   | {
-      kind: 'pipeOutputSignal';
+      kind: LabMessageKind.PipeOutputSignal;
       signalId: string;
       // TODO: add 'push values' option for the port.
       ports: MessagePort[];
       // false; Approx = transfer signal, true = add a new signal target.
       options?: { keepSignalPushesHereToo: boolean };
-    }
-  | {
-      kind: 'setSignal';
-      // The name of the signal being set.
-      signalId: string;
-      // The value to set that signal to have.
-      signalValue: unknown;
-    }
-  | {
-      kind: 'setStream';
-      // The name of the signal stream having its next value set.
-      streamId: string;
-      // A unique incremental number indicating the sent-stream value.
-      value: StreamValue<unknown>;
     };

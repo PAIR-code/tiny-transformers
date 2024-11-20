@@ -116,10 +116,16 @@ export class CellSpec<
 }
 
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
-export type WritableStructFn<S extends ValueStruct> = { [Key in keyof S]: SetableSignal<S[Key]> };
-export type ComputedStructFn<S extends ValueStruct> = { [Key in keyof S]: DerivedSignal<S[Key]> };
-export type SignalStructFn<S extends ValueStruct> = { [Key in keyof S]: AbstractSignal<S[Key]> };
-export type PromisedSignalsFn<S extends ValueStruct> = {
+export type SetableSignalStructFn<S extends ValueStruct> = {
+  [Key in keyof S]: SetableSignal<S[Key]>;
+};
+export type DerivedSignalStructFn<S extends ValueStruct> = {
+  [Key in keyof S]: DerivedSignal<S[Key]>;
+};
+export type AbstractSignalStructFn<S extends ValueStruct> = {
+  [Key in keyof S]: AbstractSignal<S[Key]>;
+};
+export type PromisedSetableSignalsFn<S extends ValueStruct> = {
   [Key in keyof S]: Promise<SetableSignal<S[Key]>>;
 };
 export type CallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };

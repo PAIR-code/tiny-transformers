@@ -14,12 +14,12 @@ limitations under the License.
 ==============================================================================*/
 
 import {
-  SignalStructFn,
+  AbstractSignalStructFn,
   ValueStruct,
   CellSpec,
   PromiseStructFn,
-  PromisedSignalsFn,
-  WritableStructFn,
+  PromisedSetableSignalsFn,
+  SetableSignalStructFn,
   AsyncIterableFn,
   AsyncOutStreamFn,
 } from './cell-types';
@@ -97,16 +97,20 @@ export class LabEnvCell<
 > {
   // Resolved once the webworker says it has finished.
   public onceFinished: Promise<void>;
-  public onceAllOutputs: Promise<SignalStructFn<O>>;
+  public onceAllOutputs: Promise<AbstractSignalStructFn<O>>;
   public worker: Worker;
 
-  inputs: SignalStructFn<I>;
+  inputs: AbstractSignalStructFn<I>;
 
   // inputStreams: SignalStructFn<IStream>;
   streamsFromEnv = {} as {
     [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
   };
-  public inStream = {} as AsyncOutStreamFn<IStream>;
+  public inStream = {} as {
+    [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
+  };
+
+  // {} as AsyncOutStreamFn<IStream>;
 
   signalsInToEnv = {} as {
     [Key in keyof O]: SignalInput<Key & string, O[Key]>;
@@ -115,10 +119,10 @@ export class LabEnvCell<
     [Key in keyof OStream]: SignalInputStream<Key & string, OStream[Key]>;
   };
 
-  public outputs: PromiseStructFn<SignalStructFn<O>>;
+  public outputs: PromiseStructFn<AbstractSignalStructFn<O>>;
   public outStreams: AsyncIterableFn<OStream>;
 
-  public outputSoFar: Partial<SignalStructFn<O>>;
+  public outputSoFar: Partial<AbstractSignalStructFn<O>>;
   public stillExpectedOutputs: Set<keyof O>;
 
   constructor(
@@ -126,15 +130,15 @@ export class LabEnvCell<
     public spec: CellSpec<I, IStream, O, OStream>,
     public uses: {
       // TODO: make better types: Maybe<SignalStructFn<I>> that is undefined when I={}
-      inputs?: SignalStructFn<I>;
+      inputs?: AbstractSignalStructFn<I>;
       // inStreams?: AsyncIterableFn<IStream>;
     }
   ) {
-    this.inputs = uses.inputs || ({} as SignalStructFn<I>);
+    this.inputs = uses.inputs || ({} as AbstractSignalStructFn<I>);
     // this.inputStreams = uses.inputStreams || ({} as SignalStructFn<IStream>);
 
-    let resolveWithAllOutputsFn: (output: SignalStructFn<O>) => void;
-    this.onceAllOutputs = new Promise<SignalStructFn<O>>((resolve, reject) => {
+    let resolveWithAllOutputsFn: (output: AbstractSignalStructFn<O>) => void;
+    this.onceAllOutputs = new Promise<AbstractSignalStructFn<O>>((resolve, reject) => {
       resolveWithAllOutputsFn = resolve;
     });
     let resolveWhenFinishedFn: () => void;
@@ -142,7 +146,7 @@ export class LabEnvCell<
       resolveWhenFinishedFn = resolve;
     });
     this.worker = spec.data.workerFn();
-    this.outputs = {} as PromisedSignalsFn<O>;
+    this.outputs = {} as PromisedSetableSignalsFn<O>;
     this.outStreams = {} as AsyncIterableFn<OStream>;
 
     this.outputSoFar = {};
@@ -153,12 +157,15 @@ export class LabEnvCell<
         this.space,
         streamName as keyof O & string,
         {
-          maxQueueSize: 20,
-          resumeAtQueueSize: 10,
+          conjestionControl: {
+            maxQueueSize: 20,
+            resumeAtQueueSize: 10,
+          },
+          defaultPostMessageFn: (v) => this.worker.postMessage(v),
         }
       );
       this.streamsFromEnv[streamName] = stream;
-      this.inStream[streamName] = stream.sendFn;
+      this.inStream[streamName] = stream;
     }
 
     for (const oName of spec.outputNames) {
@@ -168,10 +175,11 @@ export class LabEnvCell<
       );
       this.signalsInToEnv[oName] = envInput;
       this.outputs[oName] = envInput.onceReady;
-      envInput.onceReady.then(() => {
+      envInput.onceReady.then((signal) => {
+        this.outputSoFar[oName] = signal;
         this.stillExpectedOutputs.delete(oName);
         if (this.stillExpectedOutputs.size === 0) {
-          resolveWithAllOutputsFn(this.outputSoFar as WritableStructFn<O>);
+          resolveWithAllOutputsFn(this.outputSoFar as SetableSignalStructFn<O>);
         }
       });
     }
@@ -291,7 +299,7 @@ export class LabEnv {
     OStreams extends ValueStruct
   >(
     spec: CellSpec<I, IStreams, O, OStreams>,
-    inputs?: SignalStructFn<I>
+    inputs?: AbstractSignalStructFn<I>
   ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
     const envCell = new LabEnvCell(this.space, spec, { inputs });

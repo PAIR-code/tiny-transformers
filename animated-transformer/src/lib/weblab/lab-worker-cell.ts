@@ -26,7 +26,9 @@ export function workerCell<
 >(
   spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>
 ): SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
-  const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(spec, postMessage);
+  const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(spec, (...args) =>
+    postMessage(...args)
+  );
   addEventListener('message', (m) => cell.onMessage(m));
   return cell;
 }

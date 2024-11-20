@@ -30,8 +30,9 @@ const { derived, setable } = cell.space;
 
 // ------------------------------------------------------------------------
 cell.run(async () => {
+  console.log('task-cell.worker.ts');
   const { taskConfig, genConfig } = await cell.onceAllInputs;
-
+  console.log('got inputs: ', { taskConfig, genConfig });
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   // TODO: make state iterator take in the state for easier random stream
@@ -69,9 +70,13 @@ cell.run(async () => {
   }
 
   let batchId = 0;
-  while (!cell.finishRequested) {
+  while (
+    !cell.finishRequested &&
+    (genConfig().maxBatches === 0 || batchId < genConfig().maxBatches)
+  ) {
     const batch = makeBatch(batchId++, genConfig().batchSize);
-    await cell.outStream.trainBatches(batch);
+    console.log('sending batch: ' + batchId);
+    await cell.outStream.trainBatches.send(batch);
   }
   cell.outStream.trainBatches.done();
 

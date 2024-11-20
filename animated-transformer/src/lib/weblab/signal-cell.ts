@@ -18,10 +18,10 @@ import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
   CellSpec,
-  WritableStructFn,
-  PromisedSignalsFn,
+  SetableSignalStructFn,
+  PromisedSetableSignalsFn,
   CallValueFn,
-  SignalStructFn,
+  AbstractSignalStructFn,
   AsyncOutStreamFn,
 } from './cell-types';
 import { ExpandOnce } from '../ts-type-helpers';
@@ -40,9 +40,9 @@ export class SignalCell<
   Outputs extends ValueStruct,
   OutputStreams extends ValueStruct
 > {
-  inputPromises: PromisedSignalsFn<Inputs>;
+  inputPromises: PromisedSetableSignalsFn<Inputs>;
   stillExpectedInputs: Set<keyof Inputs>;
-  inputSoFar: Partial<WritableStructFn<Inputs>> = {};
+  inputSoFar: Partial<SetableSignalStructFn<Inputs>> = {};
   inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
   onceFinishedResolver!: () => void;
 
@@ -65,12 +65,16 @@ export class SignalCell<
     [Key in keyof OutputStreams]: SignalOutputStream<Key & string, OutputStreams[Key]>;
   };
 
-  public onceAllInputs: Promise<SignalStructFn<Inputs>>;
+  public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
   public inStream = {} as {
     [Key in keyof InputStreams]: AsyncIterOnEvents<InputStreams[Key]>;
   };
 
-  public outStream = {} as AsyncOutStreamFn<OutputStreams>;
+  public outStream = {} as {
+    [Key in keyof OutputStreams]: SignalOutputStream<Key & string, OutputStreams[Key]>;
+  };
+
+  // {} as AsyncOutStreamFn<OutputStreams>;
   public output = {} as CallValueFn<Outputs>;
 
   public space = new SignalSpace();
@@ -100,21 +104,23 @@ export class SignalCell<
       this.onceFinishedResolver = resolve;
     });
 
-    this.inputPromises = {} as PromisedSignalsFn<Inputs>;
+    this.inputPromises = {} as PromisedSetableSignalsFn<Inputs>;
     this.stillExpectedInputs = new Set(this.inputSet);
 
-    let onceAllInputsResolver: (allInput: WritableStructFn<Inputs>) => void;
-    this.onceAllInputs = new Promise<WritableStructFn<Inputs>>((resolve, reject) => {
+    let onceAllInputsResolver: (allInput: SetableSignalStructFn<Inputs>) => void;
+    this.onceAllInputs = new Promise<SetableSignalStructFn<Inputs>>((resolve, reject) => {
       onceAllInputsResolver = resolve;
     });
 
     for (const inputName of this.inputSet) {
       const workerInput = new SignalInput<InputKey, InputValue>(this.space, inputName as InputKey);
       this.inputs[inputName] = workerInput;
-      workerInput.onceReady.then(() => {
+      workerInput.onceReady.then((signal) => {
+        console.log(`workerInput.onceReady: ${inputName as string}`);
+        this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
-          onceAllInputsResolver(this.inputSoFar as WritableStructFn<Inputs>);
+          onceAllInputsResolver(this.inputSoFar as SetableSignalStructFn<Inputs>);
         }
       });
     }
@@ -123,7 +129,7 @@ export class SignalCell<
       const workerStreamInput = new SignalInputStream<InputStreamKey, InputStreamValue>(
         this.space,
         inputName as InputStreamKey,
-        this.defaultPostMessageFn
+        defaultPostMessageFn
       );
       this.inputStreams[inputName] = workerStreamInput;
       this.inStream[inputName] = workerStreamInput.inputIter;
@@ -133,23 +139,24 @@ export class SignalCell<
       const workerOutputStream = new SignalOutputStream<OutputStreamKey, OutputStreamValue>(
         this.space,
         outputName as OutputStreamKey,
-        { maxQueueSize: 20, resumeAtQueueSize: 10 }
+        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 }, defaultPostMessageFn }
       );
       this.outputStreams[outputName as OutputStreamKey] = workerOutputStream;
 
-      async function streamSendFn(value: OutputStreamValue) {
-        // TODO: Make this take an async iterator, and send that until cancelled
-        // (using a Promise.first(cancel, nextvalue) for each value)
-        await workerOutputStream.send(value);
-      }
-      streamSendFn.done = workerOutputStream.done;
-      this.outStream[outputName] = streamSendFn;
+      // async function streamSendFn(value: OutputStreamValue) {
+      //   // TODO: Make this take an async iterator, and send that until cancelled
+      //   // (using a Promise.first(cancel, nextvalue) for each value)
+      //   await workerOutputStream.send(value);
+      // }
+      // streamSendFn.done = workerOutputStream.done;
+      this.outStream[outputName] = workerOutputStream;
     }
 
     for (const outputName of this.outputSet) {
       const workerOutput = new SignalOutput<OutputKey, OutputValue>(
         this.space,
-        outputName as OutputKey
+        outputName as OutputKey,
+        defaultPostMessageFn
       );
       this.outputs[outputName as OutputKey] = workerOutput;
       this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.send(value);
@@ -199,9 +206,11 @@ export class SignalCell<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async runOnceHaveInputs(runFn: (input: ExpandOnce<WritableStructFn<Inputs>>) => Promise<void>) {
+  async runOnceHaveInputs(
+    runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>
+  ) {
     const inputs = await this.onceAllInputs;
-    await runFn(inputs as ExpandOnce<WritableStructFn<Inputs>>);
+    await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }
 
@@ -212,6 +221,7 @@ export class SignalCell<
 
   close() {
     const message: FromWorkerMessage = { kind: 'finished' };
+    console.log(this);
     this.defaultPostMessageFn(message);
     close();
   }

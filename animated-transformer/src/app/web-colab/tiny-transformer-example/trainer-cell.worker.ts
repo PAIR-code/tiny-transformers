@@ -108,9 +108,9 @@ function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig)
     // output it within the loss function; that way we can do proper conjestion
     // control; having said that, probability that consuming thread is slower
     // than training is very unlikely, so in practice its unlikely to blow up.
-    cell.outStream.metrics(nextMetrics);
+    cell.outStream.metrics.send(nextMetrics);
     if (shouldCheckpoint(batch, config)) {
-      cell.outStream.checkpoint({
+      cell.outStream.checkpoint.send({
         config: model.config,
         serializedParams: serializeParams(model.params),
         lastBatch: batch,

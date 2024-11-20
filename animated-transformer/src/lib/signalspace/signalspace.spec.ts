@@ -22,6 +22,7 @@ import {
   SignalKind,
   DepKind,
   asyncSignalIter,
+  asyncIterToSignal,
 } from './signalspace';
 
 describe('signalspace', () => {
@@ -310,7 +311,7 @@ describe('signalspace', () => {
     expect(lazy()).toEqual(3);
   });
 
-  fit('asyncSignalIter', async () => {
+  it('asyncSignalIter', async () => {
     const s = new SignalSpace();
     const { setable } = s;
     const n = setable(1);
@@ -329,7 +330,7 @@ describe('signalspace', () => {
     expect(v3.value).toEqual(3);
   });
 
-  fit('asyncSignalIter with stop inline with final set', async () => {
+  it('asyncSignalIter with stop inline with final set', async () => {
     const s = new SignalSpace();
     const { setable } = s;
     const n = setable(1);
@@ -352,7 +353,7 @@ describe('signalspace', () => {
     expect(v4.value).toEqual(null);
   });
 
-  fit('asyncSignalIter with early stopNow', async () => {
+  it('asyncSignalIter with early stopNow', async () => {
     const s = new SignalSpace();
     const { setable } = s;
     const n = setable(1);
@@ -371,5 +372,21 @@ describe('signalspace', () => {
     expect(v2.value).toEqual(2);
     expect(v3.done).toEqual(true);
     expect(v3.value).toEqual(null);
+  });
+
+  it('asyncIterToSignal', async () => {
+    const asyncIterFn = async function* (): AsyncGenerator<number> {
+      yield 1;
+      yield 2;
+      yield 3;
+    };
+    const space = new SignalSpace();
+    const { derived } = space;
+    const iterSignal = asyncIterToSignal(asyncIterFn(), space);
+    const s = await iterSignal.signal;
+    const fooList: string[] = [];
+    derived(() => fooList.push('foo' + s()));
+    await iterSignal.done;
+    expect(fooList).toEqual(['foo1', 'foo2', 'foo3']);
   });
 });

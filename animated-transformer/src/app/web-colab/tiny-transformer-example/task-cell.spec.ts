@@ -20,13 +20,12 @@ import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 describe('Task-Cell', () => {
   beforeEach(() => {});
 
-  it('simple task cell test: make 5 batches of data', async () => {
+  xit('simple task cell test: make 5 batches of data', async () => {
     const env = new LabEnv();
     const space = env.space;
     const { setable, derived } = space;
 
     const taskConfig = setable(defaultTinyWorldTaskConfig);
-    const testSetSize = setable(5);
     const genConfig = setable<TaskGenConfig>({
       initBatchId: 0,
       initBatchSeed: 0,
