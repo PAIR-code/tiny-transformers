@@ -267,7 +267,7 @@ export class LabEnvCell<
   public pipeOutputSignal(
     signalId: keyof O,
     ports: MessagePort[],
-    options?: { keepSignalPushesHereToo: boolean }
+    options?: { keepHereToo: boolean }
   ) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeOutputSignal,
@@ -291,7 +291,7 @@ export class LabEnvCell<
   public pipeOutputStream(
     signalId: keyof OStream,
     ports: MessagePort[],
-    options?: { keepSignalPushesHereToo: boolean }
+    options?: { keepHereToo: boolean }
   ) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeOutputStream,

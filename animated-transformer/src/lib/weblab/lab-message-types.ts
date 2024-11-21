@@ -67,7 +67,7 @@ export type PipeOutputSignalMessage = {
   // TODO: add 'push values' option for the port.
   ports: MessagePort[];
   // false; Approx = transfer signal, true = add a new signal target.
-  options?: { keepSignalPushesHereToo: boolean };
+  options?: { keepHereToo: boolean };
 };
 
 export type PipeInputStreamMessage = {
@@ -82,7 +82,7 @@ export type PipeOutputStreamMessage = {
   // TODO: add 'push values' option for the port.
   ports: MessagePort[];
   // false; Approx = transfer signal, true = add a new signal target.
-  options?: { keepSignalPushesHereToo: boolean };
+  options?: { keepHereToo: boolean };
 };
 
 // ----------------------------------------------------------------------------
