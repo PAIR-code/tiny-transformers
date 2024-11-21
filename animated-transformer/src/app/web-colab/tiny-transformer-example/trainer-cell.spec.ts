@@ -99,10 +99,10 @@ xdescribe('Trainer-Cell', () => {
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
 
-    trainerCell.outStreams.metrics;
+    trainerCell.outStream.metrics;
 
-    const lastMetricsIter = trainerCell.outStreams.metrics;
-    const ckptIter = trainerCell.outStreams.checkpoint;
+    const lastMetricsIter = trainerCell.outStream.metrics;
+    const ckptIter = trainerCell.outStream.checkpoint;
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;

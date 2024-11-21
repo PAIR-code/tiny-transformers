@@ -93,12 +93,13 @@ xdescribe('Trainer-Cell', () => {
     // inStreams signature to not have the pipe value. Or maybe a very fancy
     // joint definition thing that takes both out and in and has some kind of
     // connecting syntax that removes piped values from both...
-    env.pipeSignal(taskCell, trainerCell, 'trainBatches', { keepSignalPushesHereToo: false });
+    env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
+    env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
 
     // ------------------------------------------------------------------------
     // Two different ways to think about working with output streams...
     // 1. reactive by turning it into a signal.
-    const metrics = asyncIterToSignal(trainerCell.outStreams.metrics, space);
+    const metrics = asyncIterToSignal(trainerCell.outStream.metrics, space);
     // Note: only do this if you are sure that you will get some value.otherwise
     // you might get stuck waiting forever. If the metrics stream is empty, then
     // this will reject, which if not handled will crash stuff.
@@ -108,7 +109,7 @@ xdescribe('Trainer-Cell', () => {
     // 2. In thread, with async for loop. This is safer in the sense that the
     //    loop will end if the checkpoint stream is empty.
     const chpts = [];
-    for await (const chpt of trainerCell.outStreams.checkpoint) {
+    for await (const chpt of trainerCell.outStream.checkpoint) {
       chpts.push(chpt);
     }
 

@@ -50,6 +50,7 @@ export class SignalInput<Name extends string, T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
   onSetInput: (input: T) => void;
+  ports: MessagePort[] = [];
 
   constructor(public space: SignalSpace, public id: Name) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
@@ -67,6 +68,17 @@ export class SignalInput<Name extends string, T> {
       this.onSetInput = (nextInput: T) => {
         signal.set(nextInput);
       };
+    };
+  }
+
+  addPort(messagePort: MessagePort) {
+    this.ports.push(messagePort);
+    messagePort.onmessage = (event: MessageEvent) => {
+      const message = event.data as LabMessage;
+      if (message.kind !== LabMessageKind.SetSignalValue) {
+        throw new Error(`addPort (${this.id}) onMessage: unknown kind: ${event.data.kind}.`);
+      }
+      this.onSetInput(message.value as T);
     };
   }
 }
@@ -101,7 +113,7 @@ type ConjestionState = {
 // report feedback less often, and this is how the sender knows to reduce/pause
 // the output flow. This conjestion control avoids inter-process/worker message
 // overflows.
-export class SignalInputStream<Name extends string, T> {
+export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> {
   // readyResolver!: (signal: SetableSignal<T>) => void;
   // cancelResolver!: () => void;
   // onceReady: Promise<SetableSignal<T>>;
@@ -115,7 +127,7 @@ export class SignalInputStream<Name extends string, T> {
 
   constructor(
     public space: SignalSpace,
-    public id: Name,
+    public id: string,
     // Used to post conjestion control feedback.
     public defaultPostMessageFn: (m: ConjestionFeedbackMessage) => void
   ) {
@@ -158,10 +170,18 @@ export class SignalInputStream<Name extends string, T> {
       this.defaultPostMessageFn(message);
     }
   }
+
+  public async next(): Promise<IteratorResult<T, null>> {
+    return this.inputIter.next();
+  }
+
+  public [Symbol.asyncIterator]() {
+    return this.inputIter;
+  }
 }
 
 // ----------------------------------------------------------------------------
-export class SignalOutputStream<Name extends string, T> {
+export class SignalOutputStream<T> {
   portConjestion: Map<MessagePort, ConjestionState> = new Map();
   public default?: {
     port: MessagePort;
@@ -175,7 +195,7 @@ export class SignalOutputStream<Name extends string, T> {
   // Think about having a default output postMessage?
   constructor(
     public space: SignalSpace,
-    public id: Name,
+    public id: string,
     public config: {
       conjestionControl: ConjestionControlConfig;
       defaultPostMessageFn?: (m: AddStreamValueMessage) => void;

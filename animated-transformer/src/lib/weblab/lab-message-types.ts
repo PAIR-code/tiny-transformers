@@ -23,6 +23,8 @@ export enum LabMessageKind {
   FinishRequest = 'FinishRequest',
   PipeInputSignal = 'PipeInputSignal',
   PipeOutputSignal = 'PipeOutputSignal',
+  PipeInputStream = 'PipeInputStream',
+  PipeOutputStream = 'PipeOutputStream',
 }
 
 // Used to send feedback to a port that is sending stuff on which example was
@@ -53,6 +55,36 @@ export type SetSignalValueMessage = {
   value: unknown;
 };
 
+export type PipeInputSignalMessage = {
+  kind: LabMessageKind.PipeInputSignal;
+  signalId: string;
+  ports: MessagePort[];
+};
+
+export type PipeOutputSignalMessage = {
+  kind: LabMessageKind.PipeOutputSignal;
+  signalId: string;
+  // TODO: add 'push values' option for the port.
+  ports: MessagePort[];
+  // false; Approx = transfer signal, true = add a new signal target.
+  options?: { keepSignalPushesHereToo: boolean };
+};
+
+export type PipeInputStreamMessage = {
+  kind: LabMessageKind.PipeInputStream;
+  streamId: string;
+  ports: MessagePort[];
+};
+
+export type PipeOutputStreamMessage = {
+  kind: LabMessageKind.PipeOutputStream;
+  streamId: string;
+  // TODO: add 'push values' option for the port.
+  ports: MessagePort[];
+  // false; Approx = transfer signal, true = add a new signal target.
+  options?: { keepSignalPushesHereToo: boolean };
+};
+
 // ----------------------------------------------------------------------------
 export type LabMessage =
   | SetSignalValueMessage
@@ -60,16 +92,7 @@ export type LabMessage =
   | ConjestionFeedbackMessage
   | { kind: LabMessageKind.FinishRequest }
   | { kind: LabMessageKind.Finished }
-  | {
-      kind: LabMessageKind.PipeInputSignal;
-      signalId: string;
-      ports: MessagePort[];
-    }
-  | {
-      kind: LabMessageKind.PipeOutputSignal;
-      signalId: string;
-      // TODO: add 'push values' option for the port.
-      ports: MessagePort[];
-      // false; Approx = transfer signal, true = add a new signal target.
-      options?: { keepSignalPushesHereToo: boolean };
-    };
+  | PipeInputStreamMessage
+  | PipeOutputStreamMessage
+  | PipeInputSignalMessage
+  | PipeOutputSignalMessage;

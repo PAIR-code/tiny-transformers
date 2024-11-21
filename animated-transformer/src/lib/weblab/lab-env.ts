@@ -112,7 +112,7 @@ export class LabEnvCell<
   //   [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
   // };
   public inStream = {} as {
-    [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
+    [Key in keyof IStream]: SignalOutputStream<IStream[Key]>;
   };
 
   // {} as AsyncOutStreamFn<IStream>;
@@ -122,10 +122,14 @@ export class LabEnvCell<
   };
   public outputs: PromiseStructFn<AbstractSignalStructFn<O>>;
 
-  streamsInToEnv = {} as {
-    [Key in keyof OStream]: SignalInputStream<Key & string, OStream[Key]>;
+  // streamsInToEnv = {} as {
+  //   [Key in keyof OStream]: SignalInputStream<OStream[Key]>;
+  // };
+  public outStream = {} as {
+    [Key in keyof OStream]: SignalInputStream<OStream[Key]>;
   };
-  public outStreams: AsyncIterableFn<OStream>;
+
+  // SignalInputStream<OStream[Key]>  AsyncIterableFn<OStream>;
 
   public outputSoFar: Partial<AbstractSignalStructFn<O>>;
   public stillExpectedOutputs: Set<keyof O>;
@@ -152,13 +156,12 @@ export class LabEnvCell<
     });
     this.worker = spec.data.workerFn();
     this.outputs = {} as PromisedSetableSignalsFn<O>;
-    this.outStreams = {} as AsyncIterableFn<OStream>;
 
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(spec.outputNames);
 
     for (const streamName of spec.inStreamNames) {
-      const stream = new SignalOutputStream<keyof IStream & string, IStream[keyof IStream]>(
+      const stream = new SignalOutputStream<IStream[keyof IStream]>(
         this.space,
         streamName as keyof O & string,
         {
@@ -190,13 +193,12 @@ export class LabEnvCell<
     }
 
     for (const oStreamName of spec.outStreamNames) {
-      const envStreamInput = new SignalInputStream<keyof OStream & string, OStream[keyof OStream]>(
+      const envStreamInput = new SignalInputStream<OStream[keyof OStream]>(
         this.space,
         oStreamName as keyof OStream & string,
         (m) => this.worker.postMessage(m)
       );
-      this.streamsInToEnv[oStreamName] = envStreamInput;
-      this.outStreams[oStreamName] = envStreamInput.inputIter;
+      this.outStream[oStreamName] = envStreamInput;
     }
 
     // Protocall of stuff a worker can send us, and we respond to...
@@ -216,7 +218,7 @@ export class LabEnvCell<
           break;
         case LabMessageKind.AddStreamValue:
           const oStreamName = messageFromWorker.streamId as keyof OStream & string;
-          this.streamsInToEnv[oStreamName].onAddValue(
+          this.outStream[oStreamName].onAddValue(
             null,
             messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>
           );
@@ -253,23 +255,23 @@ export class LabEnvCell<
     this.worker.postMessage(message);
   }
 
-  public pipeInputSignal(signalId: string, ports: MessagePort[]) {
+  public pipeInputSignal(signalId: keyof I, ports: MessagePort[]) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeInputSignal,
-      signalId,
+      signalId: signalId as string,
       ports,
     };
     // Note: ports are transferred to the worker.
     this.worker.postMessage(message, ports);
   }
   public pipeOutputSignal(
-    signalId: string,
+    signalId: keyof O,
     ports: MessagePort[],
     options?: { keepSignalPushesHereToo: boolean }
   ) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeOutputSignal,
-      signalId,
+      signalId: signalId as string,
       ports,
       options,
     };
@@ -277,6 +279,29 @@ export class LabEnvCell<
     this.worker.postMessage(message, ports);
   }
 
+  public pipeInputStream(signalId: keyof IStream, ports: MessagePort[]) {
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeInputStream,
+      streamId: signalId as string,
+      ports,
+    };
+    // Note: ports are transferred to the worker.
+    this.worker.postMessage(message, ports);
+  }
+  public pipeOutputStream(
+    signalId: keyof OStream,
+    ports: MessagePort[],
+    options?: { keepSignalPushesHereToo: boolean }
+  ) {
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeOutputStream,
+      streamId: signalId as string,
+      ports,
+      options,
+    };
+    // Note ports are transferred to the worker.
+    this.worker.postMessage(message, ports);
+  }
   // TODO: add some closing cleanup?
 }
 
@@ -319,14 +344,30 @@ export class LabEnv {
     TargetIn extends ValueStruct,
     SignalId extends keyof SourceOut & keyof TargetIn & string
   >(
-    sourceCell: LabEnvCell<ValueStruct, ValueStruct, ValueStruct, SourceOut>,
-    targetCell: LabEnvCell<ValueStruct, TargetIn, ValueStruct, ValueStruct>,
+    sourceCell: LabEnvCell<ValueStruct, ValueStruct, SourceOut, ValueStruct>,
     signalId: SignalId,
-    options?: { keepSignalPushesHereToo: boolean }
+    targetCell: LabEnvCell<TargetIn, ValueStruct, ValueStruct, ValueStruct>,
+    options?: { keepHereToo: boolean }
   ) {
     const channel = new MessageChannel();
     sourceCell.pipeOutputSignal(signalId, [channel.port1], options);
     targetCell.pipeInputSignal(signalId, [channel.port2]);
+    // TODO: keep track of channels between cells.
+  }
+
+  pipeStream<
+    SourceOut extends ValueStruct,
+    TargetIn extends ValueStruct,
+    SignalId extends keyof SourceOut & keyof TargetIn & string
+  >(
+    sourceCell: LabEnvCell<ValueStruct, ValueStruct, ValueStruct, SourceOut>,
+    signalId: SignalId,
+    targetCell: LabEnvCell<ValueStruct, TargetIn, ValueStruct, ValueStruct>,
+    options?: { keepHereToo: boolean }
+  ) {
+    const channel = new MessageChannel();
+    sourceCell.pipeOutputStream(signalId, [channel.port1], options);
+    targetCell.pipeInputStream(signalId, [channel.port2]);
     // TODO: keep track of channels between cells.
   }
 }

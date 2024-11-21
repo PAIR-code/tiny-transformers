@@ -18,16 +18,15 @@ limitations under the License.
  */
 
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { DepKind } from 'src/lib/signalspace/signalspace';
 import {
   TrainConfig,
   trainerCellSpec,
   taskCellSpec,
   Checkpoint,
-  TaskGenState,
   SimpleMetrics,
   ModelUpdate,
   ModelUpdateKind,
+  TaskGenConfig,
 } from './ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
@@ -56,7 +55,6 @@ async function run() {
   const { setable, derived } = space;
 
   const taskConfig = setable(structuredClone(defaultTinyWorldTaskConfig));
-  const taskGenState = setable<TaskGenState>({ kind: 'paused' });
 
   const trainConfig = setable<TrainConfig>({
     id: 'initial config',
@@ -72,24 +70,26 @@ async function run() {
       metricFrequencyInBatches: 10,
     },
   });
+
+  const genConfig = setable<TaskGenConfig>({
+    initBatchId: 0,
+    initBatchSeed: 0,
+    maxBatches: 5,
+    batchSize: 10,
+    testSetSize: 3,
+  });
+
   const modelUpdateEvents = setable<ModelUpdate>({
     kind: ModelUpdateKind.ReinitFromConfig,
     config: defaultTransformerConfig(),
   });
   // Should be set by checkpoint...
   // const model = setable<EnvModel>({ config: defaultTransformerConfig() });
-  const batchSize = derived(() => trainConfig().batchSize);
-  const useBatchSeed = derived<number | null>(() => null);
-  const testSetSize = setable(200);
   const taskCell = env.start(taskCellSpec, {
     taskConfig,
-    testSetSize,
-    batchSize,
-    useBatchSeed,
-    taskGenState,
+    genConfig,
   });
 
-  const nextTrainBatch = await taskCell.outputs.nextTrainBatch;
   const testSet = await taskCell.outputs.testSet;
 
   // TODO: add data to each signal in a spec to say if the signal is pushed or
@@ -103,43 +103,21 @@ async function run() {
   const trainerCell = env.start(trainerCellSpec, {
     modelUpdateEvents,
     trainConfig,
-    nextTrainBatch,
     testSet,
   });
 
-  const genState: TaskGenState = {
-    kind: 'generating',
-    curBatchId: 0,
-    batchMaxQueueSize: trainConfig().metricReporting.metricFrequencyInBatches * 4,
-    maxBatches: 5,
-  };
-  taskGenState.set(genState);
   // We don't need the batch values.
-  env.pipeSignal(taskCell, trainerCell, 'nextTrainBatch', { keepSignalPushesHereToo: false });
+  env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
   // But we would like to have the testSet here.
-  env.pipeSignal(taskCell, trainerCell, 'testSet');
+  env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
 
-  // Note we could wrap the always derived in an then, but it's a bit ulgy with
-  // all the closures. CONSIDER: We could also introduce a promiseAlwaysDerived
-  // that does the then, and then sets always derived. That would be prettier.
-  const lastMetrics = await trainerCell.outputs.metrics;
-  derived(() => {
-    const batch = nextTrainBatch();
-    const state = taskGenState({ depKind: DepKind.Lazy });
-    if (state.kind === 'generating') {
-      const metrics = lastMetrics();
-      logMetrics(metrics);
-      console.log('state', state);
-      // TODO: we could if we wanted, directly pipe lastBatchId from trainer to
-      // taskConfig?
-      taskGenState.set({ ...genState, curBatchId: batch.batchId });
-      if (batch.batchId >= genState.maxBatches) {
-        taskGenState.set({ kind: 'finished' });
-      }
-    }
-  });
-  const ckpt = await trainerCell.outputs.checkpoint;
-  derived(() => logCheckpoint(ckpt()));
+  for await (const m of trainerCell.outStream.metrics) {
+    logMetrics(m);
+  }
+
+  for await (const c of trainerCell.outStream.checkpoint) {
+    logCheckpoint(c);
+  }
 
   await taskCell.onceFinished;
   await trainerCell.onceFinished;

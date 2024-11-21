@@ -35,7 +35,7 @@ describe('lab-env', () => {
     cell.inStream.numStream.done();
 
     const vs = [];
-    for await (const v of cell.outStreams.foo) {
+    for await (const v of cell.outStream.foo) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);

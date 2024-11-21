@@ -54,27 +54,19 @@ export class SignalCell<
   inputs = {} as {
     [Key in keyof Inputs]: SignalInput<Key & string, Inputs[Key]>;
   };
-  inputStreams = {} as {
-    [Key in keyof InputStreams]: SignalInputStream<Key & string, InputStreams[Key]>;
+  public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
+
+  public inStream = {} as {
+    [Key in keyof InputStreams]: SignalInputStream<InputStreams[Key]>;
   };
 
   outputs = {} as {
     [Key in keyof Outputs]: SignalOutput<Key & string, Outputs[Key]>;
   };
-  outputStreams = {} as {
-    [Key in keyof OutputStreams]: SignalOutputStream<Key & string, OutputStreams[Key]>;
-  };
-
-  public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
-  public inStream = {} as {
-    [Key in keyof InputStreams]: AsyncIterOnEvents<InputStreams[Key]>;
-  };
-
   public outStream = {} as {
-    [Key in keyof OutputStreams]: SignalOutputStream<Key & string, OutputStreams[Key]>;
+    [Key in keyof OutputStreams]: SignalOutputStream<OutputStreams[Key]>;
   };
 
-  // {} as AsyncOutStreamFn<OutputStreams>;
   public output = {} as CallValueFn<Outputs>;
 
   public space = new SignalSpace();
@@ -125,29 +117,20 @@ export class SignalCell<
     }
 
     for (const inputName of this.inputStreamSet) {
-      const workerStreamInput = new SignalInputStream<InputStreamKey, InputStreamValue>(
+      const workerStreamInput = new SignalInputStream<InputStreamValue>(
         this.space,
         inputName as InputStreamKey,
         defaultPostMessageFn
       );
-      this.inputStreams[inputName] = workerStreamInput;
-      this.inStream[inputName] = workerStreamInput.inputIter;
+      this.inStream[inputName] = workerStreamInput;
     }
 
     for (const outputName of this.outputStreamSet) {
-      const workerOutputStream = new SignalOutputStream<OutputStreamKey, OutputStreamValue>(
+      const workerOutputStream = new SignalOutputStream<OutputStreamValue>(
         this.space,
         outputName as OutputStreamKey,
         { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 }, defaultPostMessageFn }
       );
-      this.outputStreams[outputName as OutputStreamKey] = workerOutputStream;
-
-      // async function streamSendFn(value: OutputStreamValue) {
-      //   // TODO: Make this take an async iterator, and send that until cancelled
-      //   // (using a Promise.first(cancel, nextvalue) for each value)
-      //   await workerOutputStream.send(value);
-      // }
-      // streamSendFn.done = workerOutputStream.done;
       this.outStream[outputName] = workerOutputStream;
     }
 
@@ -175,17 +158,33 @@ export class SignalCell<
         break;
       }
       case LabMessageKind.PipeInputSignal: {
-        const inputStream = this.inputStreams[data.signalId];
-        if (!inputStream) {
+        const inputSignal = this.inputs[data.signalId];
+        if (!inputSignal) {
           throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
+        }
+        data.ports.forEach((port) => inputSignal.addPort(port));
+        break;
+      }
+      case LabMessageKind.PipeOutputSignal: {
+        const outputSignal = this.output[data.signalId];
+        if (!outputSignal) {
+          throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
+        }
+        data.ports.forEach((port) => outputSignal.addPort(port));
+        break;
+      }
+      case LabMessageKind.PipeInputStream: {
+        const inputStream = this.inStream[data.streamId];
+        if (!inputStream) {
+          throw new Error(`No input named ${data.streamId} to set pipeInputStream.`);
         }
         data.ports.forEach((port) => inputStream.addPort(port));
         break;
       }
-      case LabMessageKind.PipeOutputSignal: {
-        const outputStream = this.outputStreams[data.signalId];
+      case LabMessageKind.PipeOutputStream: {
+        const outputStream = this.outStream[data.streamId];
         if (!outputStream) {
-          throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
+          throw new Error(`No outputStreams entry named ${data.streamId} to set pipeOutputStream.`);
         }
         data.ports.forEach((port) => outputStream.addPort(port));
         break;
@@ -204,7 +203,7 @@ export class SignalCell<
         break;
       }
       case LabMessageKind.AddStreamValue: {
-        const inputStream = this.inputStreams[data.streamId];
+        const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
           throw new Error(
             `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
