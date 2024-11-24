@@ -242,6 +242,10 @@ function gelu(x: tf.Tensor) {
 // TODO: Fix residuals.
 // https://github.com/huggingface/transformers/blob/13493215abceafc1653af88b045120014fb4c1fc/src/transformers/models/gpt2/modeling_gpt2.py#L123
 //
+// Differences from current transformer model are:
+//  - Layer norm positioning (3 for GPT2 including outside the neural network)
+//  - 
+//
 // Idea: rename this fn.
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
@@ -355,6 +359,7 @@ export function initDecoderParams(
       layerNormHeadsProjection: layerSpec.layerNormHeadsProjection,
       // addLayerNormBias: AttentionIsAllYouNeed = true; T5 = false.
       addLayerNormBias: layerSpec.addLayerNormBias,
+      maxRelPosSeqLen: spec.relPosEncodingSeqLength,
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });
