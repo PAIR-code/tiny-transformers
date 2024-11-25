@@ -40,6 +40,7 @@ import {
   TensorOrVarKind,
   VariableKind,
   TensorKind,
+  makeRange,
 } from '../gtensor/gtensor';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import {
@@ -92,8 +93,6 @@ export type AttnHeadParamSpec = {
   value: number;
   // ffRep: number;
   // ffOut: number;
-  // Used for creating the relative position encodings.
-  maxRelPosSeqLen?: number;
   layerNormHeadsProjection: boolean;
   layerNormFF: boolean;
   addLayerNormBias: boolean;
@@ -140,8 +139,6 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
   layerNormPostFF?: LayerNormParams<T>;
   ff1: FfParams<T, 'inputRepToFF', 'hiddenRep'>;
   ff2: FfParams<T, 'inputRepToFF', 'inputRep'>;
-  // Relative position attention
-  relativePosAttention?: GTensorOrVar<T, 'heads' | 'relativePos'>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -149,6 +146,7 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
 export type CondTransformerParams<T extends TensorOrVarKind> = {
   layers: AttnHeadParams<T>[];
   tokenEmbedding: GTensorOrVar<T, 'tokenId' | 'inputRep'>;
+  posEmbedding?: GTensorOrVar<T, 'posId' | 'inputRep'>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -200,14 +198,6 @@ export function initAttnHeadParams(
   }
   if (spec.layerNormHeadsProjection) {
     attnHeadParams.layerNormHeadsProjection = initLayerNormParams(spec.addLayerNormBias);
-  }
-  // TODO; check if this really works.
-  if (spec.maxRelPosSeqLen) {
-    attnHeadParams.relativePosAttention = initRawRelativePosEncoding(
-      spec.maxRelPosSeqLen,
-      heads,
-      initConfig
-    );
   }
   return attnHeadParams;
 }
@@ -262,19 +252,6 @@ export function computeAttnHead(
   let rawAttention = keys
     .rename('pos', 'keyPos')
     .contract(queries.rename('pos', 'queryPos'), ['kq']);
-
-  if (params.relativePosAttention) {
-    const posAttentionMatrix = makePosAttentionMatrix(params.relativePosAttention);
-    // TODO: what to do if the inputSeq is longer than the relative pos?
-    //
-    // if (seqInput.dim.ps.size >
-    //     params.relativePosAttention.dim.relativePos.size) ...
-    // Batch the relativePos Matrix...
-    const batchedPosAttentionMatrix = posAttentionMatrix.broadcastToCombinedShape(rawAttention);
-    rawAttention = rawAttention
-      .pointwiseAdd(batchedPosAttentionMatrix)
-      .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
-  }
 
   const attention = rawAttention.softmax('queryPos');
 
@@ -359,7 +336,6 @@ export function initDecoderParams(
       layerNormHeadsProjection: layerSpec.layerNormHeadsProjection,
       // addLayerNormBias: AttentionIsAllYouNeed = true; T5 = false.
       addLayerNormBias: layerSpec.addLayerNormBias,
-      maxRelPosSeqLen: spec.relPosEncodingSeqLength,
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });
@@ -367,7 +343,20 @@ export function initDecoderParams(
     tokenId: tokenRep.tokens.length,
     inputRep: spec.inputRep,
   }, init);
-  return { layers, tokenEmbedding };
+
+  const transformerParams: TransformerParams = {
+    tokenEmbedding: tokenEmbedding,
+    layers: layers
+  };
+
+  // TODO: here it should not be relpos but rather simplepos
+  if (spec.relPosEncodingSeqLength) {
+    transformerParams.posEmbedding = makeTruncNormal({
+      posId: spec.relPosEncodingSeqLength,
+      inputRep: spec.inputRep,
+    });
+  }
+  return transformerParams;
 }
 
 export function initDecoderParamsTree(
@@ -393,9 +382,7 @@ export function computeTransformer(
   const compute: TransformerComputation = { layers: [] };
   // checked: Dropout on the input before going into heads.
   let currentLayerInput = dropout(spec.dropoutRate, seqInput, generator.random());
-  // currentLayerInput.tensor.print();
   params.layers.forEach((layerParams, i) => {
-    // This is actually a block?
     const layerCompute = computeAttnHead(
       spec.layers[i].computeSpec,
       layerParams,
@@ -506,7 +493,40 @@ export function computeDecoder(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
     0
   );
+  // TODO: we need to keep the input under the max positional encodings (1024 for gpt2).
+  // Add capping
+  // input prep fn would be subword tokenization?
   const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
+
+  // Then once we cap and mask it, we can apply positional encodings i think
+
+  // export function makeSimplePosEncoding(awRelativePosAttention: GTensor<'inputRep' | 'posRep'>): 
+  // GTensor<'inputRep'>  {
+  //   const indexes =
+  //     gtensor.makeRange('keyPos', 0, seqLength, 1, 'int32');
+  //   const oneHotToken = new GTensor(oneHot(indexes.tensor, posParams.dim.posId.size), [
+  //     'batch',
+  //     'tokenId',
+  //   ]);
+  //     // gshape()
+  //   return oneHotToken;
+  // }
+  // if (params.posEmbedding) {
+  //   const indexes =
+  //     makeRange('pos', 0, params.posEmbedding.dim.posId.size, 1, 'int32');
+  //   const posAttentionMatrix = new GTensor(oneHot(indexes.tensor, params.posEmbedding.dim.posId.size),
+  //     ['batch', 'pos', 'posId']);
+    
+  //   // TODO: what to do if the inputSeq is longer than the relative pos?
+  //   //
+  //   // if (seqInput.dim.ps.size >
+  //   //     params.relativePosAttention.dim.relativePos.size) ...
+  //   // Batch the relativePos Matrix...
+  //   const batchedPosAttentionMatrix = posAttentionMatrix.broadcastToCombinedShape(rawAttention);
+  //   rawAttention = rawAttention
+  //     .pointwiseAdd(batchedPosAttentionMatrix)
+  //     .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
+  // }
   return computeTransformer(spec, params, gtensorInputs, generator);
 }
 
