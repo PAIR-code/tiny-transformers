@@ -17,7 +17,7 @@ limitations under the License.
  * lab environment.
  */
 
-import { Example, RandLmTaskConfig } from 'src/lib/seqtasks/util';
+import { Example } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
 import { CellSpec, Kind, Metrics } from 'src/lib/weblab/cell-types';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';

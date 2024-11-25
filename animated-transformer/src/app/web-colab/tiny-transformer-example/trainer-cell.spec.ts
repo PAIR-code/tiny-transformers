@@ -19,7 +19,7 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
 
-xdescribe('Trainer-Cell', () => {
+describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {
@@ -76,31 +76,24 @@ xdescribe('Trainer-Cell', () => {
       const batchSeed = trainExamplesIter.state.seed;
       return { batchId, nextSeed: batchSeed, inputs, outputs };
     }
-    const trainBatch = setable(makeBatch(0, trainConfig().batchSize));
-    const trainBatches = asyncSignalIter(trainBatch);
 
     // ------------------------------------------------------------------------
     // Trainer cell
-    console.log('startsing trainerCellSpec...');
     const trainerCell = env.start(trainerCellSpec, {
       modelUpdateEvents,
       trainConfig,
       testSet,
     });
 
-    // trainerCell.streamsFromEnv.trainBatches.
+    trainerCell.inStream.trainBatches.send(makeBatch(0, trainConfig().batchSize));
+    trainerCell.inStream.trainBatches.send(makeBatch(1, trainConfig().batchSize));
+    trainerCell.inStream.trainBatches.send(makeBatch(2, trainConfig().batchSize));
+    trainerCell.inStream.trainBatches.send(makeBatch(3, trainConfig().batchSize));
+    trainerCell.inStream.trainBatches.send(makeBatch(4, trainConfig().batchSize));
+    trainerCell.inStream.trainBatches.done();
 
-    trainBatch.set(makeBatch(1, trainConfig().batchSize));
-    trainBatch.set(makeBatch(2, trainConfig().batchSize));
-    trainBatch.set(makeBatch(3, trainConfig().batchSize));
-    trainBatch.set(makeBatch(4, trainConfig().batchSize));
-
-    console.log('waiting first metric...');
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-
-    trainerCell.outStream.metrics;
-
     const lastMetricsIter = trainerCell.outStream.metrics;
     const ckptIter = trainerCell.outStream.checkpoint;
 
@@ -110,14 +103,13 @@ xdescribe('Trainer-Cell', () => {
     const m2 = (await lastMetricsIter.next()).value;
     const c2 = (await ckptIter.next()).value;
 
-    expect(m0.batchId).toEqual(0);
-    expect(c0.lastBatch.batchId).toEqual(0);
+    expect(m0!.batchId).toEqual(0);
+    expect(c0!.lastBatch.batchId).toEqual(0);
     // expect(countSerializedParams(c1.serializedParams)).toEqual(2);
-    expect(m1.batchId).toEqual(2);
-    expect(m2.batchId).toEqual(4);
-    expect(c2.lastBatch.batchId).toEqual(4);
+    expect(m1!.batchId).toEqual(2);
+    expect(m2!.batchId).toEqual(4);
+    expect(c2!.lastBatch.batchId).toEqual(4);
 
-    console.log('requesting stop...');
     trainerCell.requestStop();
     await trainerCell.onceFinished;
   }, 10000);

@@ -13,6 +13,7 @@ import {
   AddStreamValueMessage,
   StreamValue,
   LabMessageKind,
+  EndStreamMessage,
 } from './lab-message-types';
 
 // ----------------------------------------------------------------------------
@@ -136,25 +137,34 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
     // First input creates the signal, resolves the promise, posts the first
     // conjestion control index, and then resets onNextInput for future cases to
     // just set the signal, and posts the next conjestion control index.
-    this.onAddValue = (port: MessagePort | null, value: StreamValue<T>) => {
-      // If stream was stopped.
-      if (value === null) {
-        this.inputIter.done();
-        return;
-      }
-      this.inputIter.nextEvent(value.value);
-      this.postConjestionFeedback(port, value.idx);
+    this.onAddValue = (port: MessagePort | null, streamValue: StreamValue<T>) => {
+      // // If stream was stopped.
+      // if (value === null) {
+      //   this.inputIter.done();
+      //   return;
+      // }
+      this.inputIter.nextEvent(streamValue.value);
+      // TODO: smarter control for ConjestionFeedback is possible, e.g. report
+      // every N to save communication bandwidth.
+      this.postConjestionFeedback(port, streamValue.idx);
     };
+  }
+
+  onDone() {
+    this.inputIter.done();
   }
 
   addPort(port: MessagePort) {
     this.ports.push(port);
     port.onmessage = (event: MessageEvent) => {
       const workerMessage: LabMessage = event.data;
-      if (workerMessage.kind !== LabMessageKind.AddStreamValue) {
+      if (workerMessage.kind === LabMessageKind.AddStreamValue) {
+        this.onAddValue(port, workerMessage.value as StreamValue<T>);
+      } else if (workerMessage.kind === LabMessageKind.EndStream) {
+        this.onDone();
+      } else {
         throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
       }
-      this.onAddValue(port, workerMessage.value as StreamValue<T>);
     };
   }
 
@@ -256,10 +266,16 @@ export class SignalOutputStream<T> {
     }
   }
 
+  async asyncIterSend(iter: AsyncIterable<T>) {
+    for await (const i of iter) {
+      this.send(i);
+    }
+  }
+
   // Note: there's a rather sensitive assumtion that once resumeResolver is
   // called, the very next tick, but be a thread that was stuck/awaiting on the
   // promise; otherwise in theory a new send call could get inserted, and we may
-  // now send messages out of other. A rather sneaky race condition.
+  // now send messages out of other. A rather sneaky potential race condition.
   //
   // TODO: verify the semantics, or rewrite the code to properly store
   // configuration of values to send and ports to send them on, so that order of
@@ -313,12 +329,10 @@ export class SignalOutputStream<T> {
   }
 
   endPortStream(port: MessagePort, state: ConjestionState) {
-    const message: AddStreamValueMessage = {
-      kind: LabMessageKind.AddStreamValue,
+    const message: EndStreamMessage = {
+      kind: LabMessageKind.EndStream,
       // The name of the signal stream having its next value set.
       streamId: this.id,
-      // A unique incremental number indicating the sent-stream value.
-      value: null,
     };
     port.postMessage(message);
     state.done = true;

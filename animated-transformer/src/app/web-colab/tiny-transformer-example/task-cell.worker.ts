@@ -15,24 +15,19 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { Batch, taskCellSpec } from './ailab';
 import { workerCell } from 'src/lib/weblab/lab-worker-cell';
-import { stringifyJsonValue } from 'src/lib/json/pretty_json';
-import { BasicRandLmTask, indexExample } from 'src/lib/seqtasks/util';
-import { DepKind, DerivedSignal, promisifySignal } from 'src/lib/signalspace/signalspace';
-import { TinyWorldTask, tinyWorldTaskKind } from 'src/lib/seqtasks/tiny_worlds';
-import { ConjestionControlledExec } from 'src/lib/weblab/conjestion-controlled-exec';
+import { indexExample } from 'src/lib/seqtasks/util';
+import { DepKind } from 'src/lib/signalspace/signalspace';
+import { TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 
 // ------------------------------------------------------------------------
 const cell = workerCell(taskCellSpec);
-const { derived, setable } = cell.space;
+const { derived } = cell.space;
 
 // ------------------------------------------------------------------------
 cell.run(async () => {
-  console.log('task-cell.worker.ts');
   const { taskConfig, genConfig } = await cell.onceAllInputs;
-  console.log('got inputs: ', { taskConfig, genConfig });
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   // TODO: make state iterator take in the state for easier random stream
@@ -72,13 +67,10 @@ cell.run(async () => {
   let batchId = 0;
   while (
     !cell.finishRequested &&
-    (genConfig().maxBatches === 0 || batchId < genConfig().maxBatches)
+    (genConfig().maxBatches === -1 || batchId < genConfig().maxBatches)
   ) {
     const batch = makeBatch(batchId++, genConfig().batchSize);
-    console.log('sending batch: ' + batchId);
     await cell.outStream.trainBatches.send(batch);
   }
   cell.outStream.trainBatches.done();
-
-  // console.log(`**task-cell** state.cur: FINISHED!`);
 });

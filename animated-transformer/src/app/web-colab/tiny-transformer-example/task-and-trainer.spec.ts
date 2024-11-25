@@ -25,10 +25,10 @@ import {
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
-xdescribe('Trainer-Cell', () => {
+describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
-  it('simple task cell test: make 5 batches of data and trains a model', async () => {
+  fit('simple task cell test: make 5 batches of data and trains a model', async () => {
     const env = new LabEnv();
     const space = env.space;
     const { setable, derived } = space;

@@ -162,7 +162,6 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T>, AsyncIterator<T> 
     }
     if (this.resolveFn) {
       this.resolveFn({ value });
-      delete this.resolveFn;
     } else {
       this.queue.push(value);
     }
@@ -171,15 +170,18 @@ export class AsyncIterOnEvents<T> implements AsyncIterable<T>, AsyncIterator<T> 
   public done() {
     if (this.resolveFn) {
       this.resolveFn({ done: true, value: null });
-      delete this.resolveFn;
     }
     delete this.queue;
   }
 
   nextPromise(): Promise<IteratorResult<T, null>> {
-    return new Promise<IteratorResult<T, null>>((resolve) => {
+    const p = new Promise<IteratorResult<T, null>>((resolve) => {
       this.resolveFn = resolve;
     });
+    p.then(() => {
+      delete this.resolveFn;
+    });
+    return p;
   }
 
   async next(): Promise<IteratorResult<T, null>> {

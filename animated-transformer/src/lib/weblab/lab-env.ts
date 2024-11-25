@@ -212,21 +212,29 @@ export class LabEnvCell<
           this.worker.terminate();
           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
           break;
-        case LabMessageKind.SetSignalValue:
+        case LabMessageKind.SetSignalValue: {
           const oName = messageFromWorker.signalId as keyof O & string;
           this.signalsInToEnv[oName].onSetInput(messageFromWorker.value as O[keyof O & string]);
           break;
-        case LabMessageKind.AddStreamValue:
+        }
+        case LabMessageKind.AddStreamValue: {
           const oStreamName = messageFromWorker.streamId as keyof OStream & string;
           this.outStream[oStreamName].onAddValue(
             null,
             messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>
           );
           break;
-        case LabMessageKind.ConjestionControl:
+        }
+        case LabMessageKind.EndStream: {
+          const oStreamName = messageFromWorker.streamId as keyof OStream & string;
+          this.outStream[oStreamName].onDone();
+          break;
+        }
+        case LabMessageKind.ConjestionControl: {
           const id = messageFromWorker.streamId as keyof OStream & string;
           this.inStream[id].conjestionFeedbackStateUpdate(messageFromWorker);
           break;
+        }
         default:
           console.error('main thread go unknown worker message: ', data);
           break;

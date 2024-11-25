@@ -18,13 +18,14 @@ export enum LabMessageKind {
   ConjestionControl = 'ConjestionIndex',
   RequestInput = 'RequestInput',
   AddStreamValue = 'AddStreamValue',
+  EndStream = 'EndStream',
   SetSignalValue = 'SetSignalValue',
-  Finished = 'Finished',
-  FinishRequest = 'FinishRequest',
   PipeInputSignal = 'PipeInputSignal',
   PipeOutputSignal = 'PipeOutputSignal',
   PipeInputStream = 'PipeInputStream',
   PipeOutputStream = 'PipeOutputStream',
+  FinishRequest = 'FinishRequest',
+  Finished = 'Finished',
 }
 
 // Used to send feedback to a port that is sending stuff on which example was
@@ -37,7 +38,7 @@ export type ConjestionFeedbackMessage = {
 
 // null Indicates the end of the stream;
 // TODO: consider a "pause value".
-export type StreamValue<T> = { idx: number; value: T } | null;
+export type StreamValue<T> = { idx: number; value: T };
 
 export type AddStreamValueMessage = {
   kind: LabMessageKind.AddStreamValue;
@@ -45,6 +46,12 @@ export type AddStreamValueMessage = {
   streamId: string;
   // A unique incremental number indicating the sent-stream value.
   value: StreamValue<unknown>;
+};
+
+export type EndStreamMessage = {
+  kind: LabMessageKind.EndStream;
+  // The name of the signal stream having its next value set.
+  streamId: string;
 };
 
 export type SetSignalValueMessage = {
@@ -89,6 +96,7 @@ export type PipeOutputStreamMessage = {
 export type LabMessage =
   | SetSignalValueMessage
   | AddStreamValueMessage
+  | EndStreamMessage
   | ConjestionFeedbackMessage
   | { kind: LabMessageKind.FinishRequest }
   | { kind: LabMessageKind.Finished }

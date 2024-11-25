@@ -69,10 +69,10 @@ function shouldCheckpoint(batch: Batch, config: TrainConfig): boolean {
   return batch.batchId % config.checkpointFrequencyInBatches === 0;
 }
 function shouldReportMetrics(batch: Batch, config: TrainConfig): boolean {
-  return (
+  const report =
     batch.batchId % config.metricReporting.metricFrequencyInBatches === 0 ||
-    shouldCheckpoint(batch, config)
-  );
+    shouldCheckpoint(batch, config);
+  return report;
 }
 
 // ----------------------------------------------------------------------------
@@ -180,6 +180,7 @@ cell.run(async () => {
     if (cell.finishRequested) {
       break;
     }
+    optimiserBatchCount++;
     const startAtMs = Date.now();
     optimizer.minimize(
       () => computeLoss(defined(model), trainBatch, trainConfig()),
@@ -187,14 +188,7 @@ cell.run(async () => {
       defined(varParamList)
     );
     optimiserTime += Date.now() - startAtMs;
-    optimiserBatchCount++;
   }
-  // derivedNullable(
-  //   () => {
-
-  //   },
-  //   { definedDeps: [model, varParamList] }
-  // );
 
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {

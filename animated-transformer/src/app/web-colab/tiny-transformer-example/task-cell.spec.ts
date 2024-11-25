@@ -20,10 +20,10 @@ import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 describe('Task-Cell', () => {
   beforeEach(() => {});
 
-  xit('simple task cell test: make 5 batches of data', async () => {
+  it('simple task cell test: make 5 batches of data', async () => {
     const env = new LabEnv();
     const space = env.space;
-    const { setable, derived } = space;
+    const { setable } = space;
 
     const taskConfig = setable(defaultTinyWorldTaskConfig);
     const genConfig = setable<TaskGenConfig>({
@@ -37,9 +37,6 @@ describe('Task-Cell', () => {
       taskConfig,
       genConfig,
     });
-    console.log(`taskGenState: ${JSON.stringify(genConfig())}`);
-    console.log(`waiting for nextTrainBatch...`);
-
     const testSet = await taskCell.outputs.testSet;
     expect(testSet().length).toEqual(3);
 
@@ -49,7 +46,6 @@ describe('Task-Cell', () => {
     }
     await taskCell.onceFinished;
 
-    console.log(`final batch id: ${trainBatches[trainBatches.length - 1].batchId}`);
     expect(trainBatches.length).toEqual(5);
     expect(trainBatches[0].batchId).toEqual(0);
     expect(trainBatches[0].inputs.length).toEqual(10);

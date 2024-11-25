@@ -22,7 +22,6 @@ import {
   PromisedSetableSignalsFn,
   CallValueFn,
   AbstractSignalStructFn,
-  AsyncOutStreamFn,
 } from './cell-types';
 import { ExpandOnce } from '../ts-type-helpers';
 import {
@@ -31,7 +30,6 @@ import {
   SignalOutput,
   SignalOutputStream,
 } from './signal-messages';
-import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 
 // ----------------------------------------------------------------------------
 export class SignalCell<
@@ -166,7 +164,7 @@ export class SignalCell<
         break;
       }
       case LabMessageKind.PipeOutputSignal: {
-        const outputSignal = this.output[data.signalId];
+        const outputSignal = this.outputs[data.signalId];
         if (!outputSignal) {
           throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
         }
@@ -202,12 +200,18 @@ export class SignalCell<
         outStream.conjestionFeedbackStateUpdate(data);
         break;
       }
+      case LabMessageKind.EndStream: {
+        const inputStream = this.inStream[data.streamId];
+        if (!inputStream) {
+          throw new Error(`onMessage: EndStream(${data.streamId}): no such inStream.`);
+        }
+        inputStream.onDone();
+        break;
+      }
       case LabMessageKind.AddStreamValue: {
         const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
-          throw new Error(
-            `onMessage: setStream(${data.streamId}): but there is no such inputStream.`
-          );
+          throw new Error(`onMessage: AddStreamValue(${data.streamId}): no such inStream.`);
         }
         inputStream.onAddValue(
           null,
