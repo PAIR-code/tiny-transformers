@@ -18,13 +18,13 @@ import {
 
 // ----------------------------------------------------------------------------
 // Consider: we could take in a signal, and have a derived send functionality
-export class SignalOutput<Name extends string, T> {
+export class SignalOutput<T> {
   ports: MessagePort[] = [];
 
   // TODO: have a default sendMessage...
   constructor(
     public space: SignalSpace,
-    public id: Name,
+    public id: string,
     public defaultPostMessageFn?: (m: LabMessage) => void
   ) {}
 
@@ -35,7 +35,7 @@ export class SignalOutput<Name extends string, T> {
     };
   }
 
-  send(value: T): void {
+  set(value: T): void {
     const message: LabMessage = { kind: LabMessageKind.SetSignalValue, signalId: this.id, value };
     for (const port of this.ports) {
       port.postMessage(message);
@@ -47,13 +47,17 @@ export class SignalOutput<Name extends string, T> {
 }
 
 // ----------------------------------------------------------------------------
-export class SignalInput<Name extends string, T> {
+export class SignalInput<T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
   onSetInput: (input: T) => void;
   ports: MessagePort[] = [];
 
-  constructor(public space: SignalSpace, public id: Name) {
+  constructor(
+    public space: SignalSpace,
+    public id: string,
+    public defaultPostMessageFn: (v: LabMessage, ports: MessagePort[]) => void
+  ) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
       // this would just involved checking the inputResolvers here.

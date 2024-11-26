@@ -37,7 +37,7 @@ describe('Task-Cell', () => {
       taskConfig,
       genConfig,
     });
-    const testSet = await taskCell.outputs.testSet;
+    const testSet = await taskCell.outputs.testSet.onceReady;
     expect(testSet().length).toEqual(3);
 
     const trainBatches: Batch[] = [];

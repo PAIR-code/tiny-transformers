@@ -62,31 +62,29 @@ describe('Trainer-Cell', () => {
       testSetSize: 5,
       initBatchId: 0,
       batchSize: trainConfig().batchSize,
-      maxBatches: 5,
+      maxBatches: 20,
       initBatchSeed: 0,
     });
+
     // const batchSize = setable(10);
     // const useBatchSeed = setable<number | null>(null);
     // const testSetSize = setable(5);
-    const taskCell = env.start(taskCellSpec, {
+    console.log(`starting taskCell...`);
+    const taskCell = env.init(taskCellSpec, {
       taskConfig,
       genConfig,
     });
 
-    console.log(`waiting for testSet...`);
-    const testSet = await taskCell.outputs.testSet;
-    expect(testSet().length).toEqual(5);
-
     // ------------------------------------------------------------------------
     // Trainer cell
-    const trainerCell = env.start(trainerCellSpec, {
+    console.log(`starting trainerCell...`);
+    const trainerCell = env.init(trainerCellSpec, {
       modelUpdateEvents,
       trainConfig,
-      testSet,
+      testSet: taskCell.outputs.testSet,
     });
 
-    trainerCell.inStream.trainBatches;
-
+    console.log(`piping streams...`);
     // ------------------------------------------------------------------------
     // Directly connect the cells streams... TODO: consider a pipe value in the
     // start function that can take in a pipe stream, and that modifies the
@@ -95,6 +93,14 @@ describe('Trainer-Cell', () => {
     // connecting syntax that removes piped values from both...
     env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
     env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
+
+    console.log(`starting cells...`);
+    taskCell.start();
+    trainerCell.start();
+
+    console.log(`waiting for testSet...`);
+    const testSet = await taskCell.outputs.testSet.onceReady;
+    expect(testSet().length).toEqual(5);
 
     // ------------------------------------------------------------------------
     // Two different ways to think about working with output streams...

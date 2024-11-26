@@ -16,7 +16,7 @@ limitations under the License.
 // ----------------------------------------------------------------------------
 export enum LabMessageKind {
   ConjestionControl = 'ConjestionIndex',
-  RequestInput = 'RequestInput',
+  StartCellRun = 'StartCellRun',
   AddStreamValue = 'AddStreamValue',
   EndStream = 'EndStream',
   SetSignalValue = 'SetSignalValue',
@@ -98,6 +98,7 @@ export type LabMessage =
   | AddStreamValueMessage
   | EndStreamMessage
   | ConjestionFeedbackMessage
+  | { kind: LabMessageKind.StartCellRun }
   | { kind: LabMessageKind.FinishRequest }
   | { kind: LabMessageKind.Finished }
   | PipeInputStreamMessage

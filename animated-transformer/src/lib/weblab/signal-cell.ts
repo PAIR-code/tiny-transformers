@@ -42,7 +42,6 @@ export class SignalCell<
   stillExpectedInputs: Set<keyof Inputs>;
   inputSoFar: Partial<SetableSignalStructFn<Inputs>> = {};
   inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
-  onceFinishedResolver!: () => void;
 
   inputSet: Set<keyof Inputs>;
   outputSet: Set<keyof Outputs>;
@@ -50,7 +49,7 @@ export class SignalCell<
   outputStreamSet: Set<keyof OutputStreams>;
 
   inputs = {} as {
-    [Key in keyof Inputs]: SignalInput<Key & string, Inputs[Key]>;
+    [Key in keyof Inputs]: SignalInput<Inputs[Key]>;
   };
   public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
 
@@ -59,7 +58,7 @@ export class SignalCell<
   };
 
   outputs = {} as {
-    [Key in keyof Outputs]: SignalOutput<Key & string, Outputs[Key]>;
+    [Key in keyof Outputs]: SignalOutput<Outputs[Key]>;
   };
   public outStream = {} as {
     [Key in keyof OutputStreams]: SignalOutputStream<OutputStreams[Key]>;
@@ -70,7 +69,10 @@ export class SignalCell<
   public space = new SignalSpace();
 
   public finishRequested = false;
+  onceFinishedResolver!: () => void;
   public onceFinishRequested: Promise<void>;
+  onceStartedResolver!: () => void;
+  public onceStarted: Promise<void>;
 
   constructor(
     public spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>,
@@ -94,6 +96,10 @@ export class SignalCell<
       this.onceFinishedResolver = resolve;
     });
 
+    this.onceStarted = new Promise<void>((resolve) => {
+      this.onceStartedResolver = resolve;
+    });
+
     this.inputPromises = {} as PromisedSetableSignalsFn<Inputs>;
     this.stillExpectedInputs = new Set(this.inputSet);
 
@@ -103,7 +109,11 @@ export class SignalCell<
     });
 
     for (const inputName of this.inputSet) {
-      const workerInput = new SignalInput<InputKey, InputValue>(this.space, inputName as InputKey);
+      const workerInput = new SignalInput<InputValue>(
+        this.space,
+        inputName as InputKey,
+        defaultPostMessageFn
+      );
       this.inputs[inputName] = workerInput;
       workerInput.onceReady.then((signal) => {
         this.inputSoFar[inputName] = signal;
@@ -133,13 +143,13 @@ export class SignalCell<
     }
 
     for (const outputName of this.outputSet) {
-      const workerOutput = new SignalOutput<OutputKey, OutputValue>(
+      const workerOutput = new SignalOutput<OutputValue>(
         this.space,
         outputName as OutputKey,
         defaultPostMessageFn
       );
       this.outputs[outputName as OutputKey] = workerOutput;
-      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.send(value);
+      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.set(value);
     }
   }
 
@@ -150,6 +160,10 @@ export class SignalCell<
       return;
     }
     switch (data.kind) {
+      case LabMessageKind.StartCellRun: {
+        this.onceStartedResolver();
+        break;
+      }
       case LabMessageKind.FinishRequest: {
         this.finishRequested = true;
         this.onceFinishedResolver();
@@ -232,11 +246,13 @@ export class SignalCell<
     runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>
   ) {
     const inputs = await this.onceAllInputs;
+    await this.onceStarted;
     await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }
 
   async run(runFn: () => Promise<void>) {
+    await this.onceStarted;
     await runFn();
     this.close();
   }

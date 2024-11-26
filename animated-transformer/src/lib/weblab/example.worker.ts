@@ -20,11 +20,11 @@ import { exampleWorkerSpec } from './example.ailab';
 
 const cell = workerCell(exampleWorkerSpec);
 
-cell.run(async () => {
-  const { toyInput } = await cell.onceAllInputs;
+cell.runOnceHaveInputs(async (inputs) => {
+  const { toyInput } = inputs;
 
-  cell.outputs.num.send(1);
-  cell.outputs.str.send(`hello ${toyInput()}`);
+  cell.outputs.num.set(1);
+  cell.outputs.str.set(`hello ${toyInput()}`);
 
   for await (const i of cell.inStream.numStream) {
     await cell.outStream.foo.send('foo' + i);

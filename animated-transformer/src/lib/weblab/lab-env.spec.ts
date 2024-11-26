@@ -15,7 +15,6 @@ limitations under the License.
 
 import { LabEnv } from './lab-env';
 import { exampleWorkerSpec } from './example.ailab';
-import { asyncifyIter } from '../utils';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
