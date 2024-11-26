@@ -25,7 +25,7 @@ export class SignalOutput<T> {
   constructor(
     public space: SignalSpace,
     public id: string,
-    public defaultPostMessageFn?: (m: LabMessage) => void
+    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void
   ) {}
 
   addPort(messagePort: MessagePort) {
@@ -56,7 +56,7 @@ export class SignalInput<T> {
   constructor(
     public space: SignalSpace,
     public id: string,
-    public defaultPostMessageFn: (v: LabMessage, ports: MessagePort[]) => void
+    public defaultPostMessageFn: (v: LabMessage, ports?: MessagePort[]) => void
   ) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
@@ -134,7 +134,10 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
     public space: SignalSpace,
     public id: string,
     // Used to post conjestion control feedback.
-    public defaultPostMessageFn: (m: ConjestionFeedbackMessage) => void
+    public defaultPostMessageFn: (
+      m: ConjestionFeedbackMessage,
+      transerables?: Transferable[]
+    ) => void
   ) {
     this.inputIter = new AsyncIterOnEvents<T>();
 
@@ -212,7 +215,7 @@ export class SignalOutputStream<T> {
     public id: string,
     public config: {
       conjestionControl: ConjestionControlConfig;
-      defaultPostMessageFn?: (m: AddStreamValueMessage) => void;
+      defaultPostMessageFn?: (m: AddStreamValueMessage, transerables?: Transferable[]) => void;
     }
   ) {
     if (this.config.defaultPostMessageFn) {

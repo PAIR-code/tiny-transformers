@@ -42,11 +42,11 @@ describe('Trainer-Cell', () => {
       learningRate: 0.5,
       batchSize: 64,
       maxInputLength: 10,
-      trainForBatches: 100,
+      trainForBatches: 11,
       // Reporting / eval
-      checkpointFrequencyInBatches: 100,
+      checkpointFrequencyInBatches: 10,
       metricReporting: {
-        metricFrequencyInBatches: 10,
+        metricFrequencyInBatches: 2,
       },
     });
     const modelUpdateEvents = setable<ModelUpdate>({
@@ -62,14 +62,13 @@ describe('Trainer-Cell', () => {
       testSetSize: 5,
       initBatchId: 0,
       batchSize: trainConfig().batchSize,
-      maxBatches: 20,
+      maxBatches: 11,
       initBatchSeed: 0,
     });
 
     // const batchSize = setable(10);
     // const useBatchSeed = setable<number | null>(null);
     // const testSetSize = setable(5);
-    console.log(`starting taskCell...`);
     const taskCell = env.init(taskCellSpec, {
       taskConfig,
       genConfig,
@@ -77,14 +76,12 @@ describe('Trainer-Cell', () => {
 
     // ------------------------------------------------------------------------
     // Trainer cell
-    console.log(`starting trainerCell...`);
     const trainerCell = env.init(trainerCellSpec, {
       modelUpdateEvents,
       trainConfig,
       testSet: taskCell.outputs.testSet,
     });
 
-    console.log(`piping streams...`);
     // ------------------------------------------------------------------------
     // Directly connect the cells streams... TODO: consider a pipe value in the
     // start function that can take in a pipe stream, and that modifies the
@@ -94,11 +91,9 @@ describe('Trainer-Cell', () => {
     env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
     env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
 
-    console.log(`starting cells...`);
     taskCell.start();
     trainerCell.start();
 
-    console.log(`waiting for testSet...`);
     const testSet = await taskCell.outputs.testSet.onceReady;
     expect(testSet().length).toEqual(5);
 
@@ -110,7 +105,6 @@ describe('Trainer-Cell', () => {
     // you might get stuck waiting forever. If the metrics stream is empty, then
     // this will reject, which if not handled will crash stuff.
     const metric$ = await metrics.signal;
-    derived(() => console.log(metric$()));
 
     // 2. In thread, with async for loop. This is safer in the sense that the
     //    loop will end if the checkpoint stream is empty.
@@ -119,10 +113,13 @@ describe('Trainer-Cell', () => {
       chpts.push(chpt);
     }
 
+    taskCell.requestStop();
+    trainerCell.requestStop();
+
     await taskCell.onceFinished;
     await trainerCell.onceFinished;
 
-    expect(metric$().batchId).toEqual(4);
+    expect(metric$().batchId).toEqual(10);
     expect(chpts.length).toEqual(2);
-  });
+  }, 100000);
 });

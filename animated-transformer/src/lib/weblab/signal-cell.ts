@@ -172,7 +172,7 @@ export class SignalCell<
       case LabMessageKind.PipeInputSignal: {
         const inputSignal = this.inputs[data.signalId];
         if (!inputSignal) {
-          throw new Error(`No input named ${data.signalId} to set pipeInputSignal.`);
+          throw new Error(`No input to pipe named: ${data.signalId}.`);
         }
         data.ports.forEach((port) => inputSignal.addPort(port));
         break;
@@ -180,7 +180,7 @@ export class SignalCell<
       case LabMessageKind.PipeOutputSignal: {
         const outputSignal = this.outputs[data.signalId];
         if (!outputSignal) {
-          throw new Error(`No outputStreams entry named ${data.signalId} to set pipeOutputSignal.`);
+          throw new Error(`No output to pipe entry named: ${data.signalId}.`);
         }
         data.ports.forEach((port) => outputSignal.addPort(port));
         break;
@@ -188,7 +188,7 @@ export class SignalCell<
       case LabMessageKind.PipeInputStream: {
         const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
-          throw new Error(`No input named ${data.streamId} to set pipeInputStream.`);
+          throw new Error(`No input stream to pipe named ${data.streamId}.`);
         }
         data.ports.forEach((port) => inputStream.addPort(port));
         break;
@@ -196,7 +196,7 @@ export class SignalCell<
       case LabMessageKind.PipeOutputStream: {
         const outputStream = this.outStream[data.streamId];
         if (!outputStream) {
-          throw new Error(`No outputStreams entry named ${data.streamId} to set pipeOutputStream.`);
+          throw new Error(`No output streams to pipe named ${data.streamId}.`);
         }
         data.ports.forEach((port) => outputStream.addPort(port));
         break;

@@ -190,6 +190,9 @@ cell.run(async () => {
     optimiserTime += Date.now() - startAtMs;
   }
 
+  cell.outStream.metrics.done();
+  cell.outStream.checkpoint.done();
+
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {
       optimizer.dispose();

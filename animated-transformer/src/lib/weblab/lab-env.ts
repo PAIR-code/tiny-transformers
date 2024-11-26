@@ -127,9 +127,9 @@ class LoggingWorkerMessages implements BasicWorker {
     }
   }
 
-  postMessage(message: any, transfer: Transferable[]) {
+  postMessage(message: any, transfer?: Transferable[]) {
     console.log(`from env to ${this.id}: `, message);
-    this.worker.postMessage(message, transfer);
+    this.worker.postMessage(message, transfer || []);
   }
 
   terminate() {
@@ -221,7 +221,7 @@ export class LabEnvCell<
             maxQueueSize: 20,
             resumeAtQueueSize: 10,
           },
-          defaultPostMessageFn: (v) => this.worker.postMessage(v),
+          defaultPostMessageFn: (v, transerables) => this.worker.postMessage(v, transerables),
         }
       );
       // this.streamsFromEnv[streamName] = stream;
@@ -229,8 +229,10 @@ export class LabEnvCell<
     }
 
     for (const oName of spec.outputNames) {
-      const envInput = new SignalInput<O[keyof O]>(this.space, oName as keyof O & string, (v) =>
-        this.worker.postMessage(v)
+      const envInput = new SignalInput<O[keyof O]>(
+        this.space,
+        oName as keyof O & string,
+        (v, transerables) => this.worker.postMessage(v, transerables)
       );
       this.outputs[oName] = envInput;
 
@@ -300,13 +302,13 @@ export class LabEnvCell<
       if (input instanceof SignalInput) {
         const channel = new MessageChannel();
         // Note: ports are transferred to the worker.
-        this.pipeOutputSignal(k, [channel.port1]);
         const message: LabMessage = {
-          kind: LabMessageKind.PipeInputSignal,
+          kind: LabMessageKind.PipeOutputSignal,
           signalId: k,
           ports: [channel.port2],
         };
-        input.defaultPostMessageFn(message, [channel.port2]);
+        input.defaultPostMessageFn(message, message.ports);
+        this.pipeInputSignal(k, [channel.port1]);
       } else {
         //
         this.space.derived(() => {
@@ -432,8 +434,8 @@ export class LabEnv {
     const envCell = new LabEnvCell(
       this.space,
       spec,
-      { inputs },
-      { logCellMessagesName: spec.data.cellName }
+      { inputs }
+      // { logCellMessagesName: spec.data.cellName }
     );
     envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
     return envCell;
