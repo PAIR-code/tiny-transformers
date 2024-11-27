@@ -53,7 +53,6 @@ describe('Trainer-Cell', () => {
       kind: ModelUpdateKind.ReinitFromConfig,
       config: defaultTransformerConfig(),
     });
-    // const batchSize = derived(() => );
 
     // ------------------------------------------------------------------------
     //  Task
@@ -66,9 +65,6 @@ describe('Trainer-Cell', () => {
       initBatchSeed: 0,
     });
 
-    // const batchSize = setable(10);
-    // const useBatchSeed = setable<number | null>(null);
-    // const testSetSize = setable(5);
     const taskCell = env.init(taskCellSpec, {
       taskConfig,
       genConfig,
