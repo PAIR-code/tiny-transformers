@@ -101,7 +101,7 @@ import {
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
   // For printing error/debug messages, when provided.
-  logCellMessagesName: string;
+  logCellMessages: boolean;
   // When true, logs all messages to/from worker.
   // logMessagesToCell: boolean;
   // logMessagesFromCell: boolean;
@@ -113,7 +113,7 @@ interface BasicWorker {
   terminate(): void;
 }
 
-class LoggingWorkerMessages implements BasicWorker {
+class LoggingMessagesWorker implements BasicWorker {
   constructor(public worker: Worker, public id: string) {}
 
   set onmessage(m: ((ev: MessageEvent) => any) | null) {
@@ -135,12 +135,6 @@ class LoggingWorkerMessages implements BasicWorker {
   terminate() {
     this.worker.terminate();
   }
-}
-
-function makeMaybeLoggingWorker(worker: Worker, config?: LabEnvCellConfig): BasicWorker {
-  if (!config) {
-    return worker;
-  } else return new LoggingWorkerMessages(worker, config.logCellMessagesName);
 }
 
 export class LabEnvCell<
@@ -190,6 +184,7 @@ export class LabEnvCell<
   public stillExpectedOutputs: Set<keyof O>;
 
   constructor(
+    public id: string,
     public space: SignalSpace,
     public spec: CellSpec<I, IStream, O, OStream>,
     public uses: {
@@ -207,7 +202,12 @@ export class LabEnvCell<
     this.onceFinished = new Promise<void>((resolve, reject) => {
       resolveWhenFinishedFn = resolve;
     });
-    this.worker = makeMaybeLoggingWorker(spec.data.workerFn(), config);
+
+    if (config && config.logCellMessages) {
+      this.worker = new LoggingMessagesWorker(spec.data.workerFn(), this.id);
+    } else {
+      this.worker = spec.data.workerFn();
+    }
 
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(spec.outputNames);
@@ -414,12 +414,6 @@ export class LabEnv {
   public runningCells: {
     [name: string]: SomeCellStateSpec;
   } = {};
-  // cellChannels: {
-  //   [port1CellName: string]: {
-  //     port2CellName: string;
-  //     signalName: string;
-  //   };
-  // } = {};
 
   init<
     I extends ValueStruct,
@@ -432,6 +426,7 @@ export class LabEnv {
   ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
     const envCell = new LabEnvCell(
+      spec.data.cellName,
       this.space,
       spec,
       { inputs }
