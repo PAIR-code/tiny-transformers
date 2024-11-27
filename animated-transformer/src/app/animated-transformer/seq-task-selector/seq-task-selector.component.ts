@@ -54,7 +54,7 @@ import { ConfigKind, ConfigObj } from 'src/lib/json/config-obj';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import * as _ from 'underscore';
 import { nullableEqFn } from 'src/lib/utils';
-import { TinyModelsService } from 'src/app/tiny-models.service';
+// import { TinyModelsService } from 'src/app/tiny-models.service';
 
 // ----------------------------------------------------------------------------
 
@@ -78,17 +78,19 @@ export class SeqTaskSelectorComponent {
   datasetColumns: string[] = ['input', 'target'];
 
   get taskNames(): string[] {
-    return Object.keys(this.tmService.taskConfigsMap);
+    return [];
+    // return Object.keys(this.tmService.taskConfigsMap);
   }
 
-  constructor(public tmService: TinyModelsService) {}
+  constructor() {} // public tmService: TinyModelsService
 
   currentTaskConfigStr(): string {
-    return stringifyJsonValue(this.tmService.modelConfig());
+    return '';
+    // return stringifyJsonValue(this.tmService.modelConfig());
   }
 
   selectTask(maybeName: string | null): void {
-    this.tmService.selectTask(maybeName);
+    // this.tmService.selectTask(maybeName);
   }
 
   taskConfigUpdated(configUpdate: ConfigUpdate<RandLmTaskConfig>): void {
@@ -104,7 +106,7 @@ export class SeqTaskSelectorComponent {
     if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
       return;
     }
-    this.tmService.updateTaskConfig(configUpdate.obj);
+    // this.tmService.updateTaskConfig(configUpdate.obj);
   }
 
   toggleEditor() {

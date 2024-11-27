@@ -20,7 +20,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { ModelUpdate } from './model-selector/model-selector.component';
 import { ModelParamsUpdate } from './model-task-trainer/model-task-trainer.component';
-import { TinyModelsService } from '../tiny-models.service';
+// import { TinyModelsService } from '../tiny-models.service';
 
 @Component({
   selector: 'app-animated-transformer',

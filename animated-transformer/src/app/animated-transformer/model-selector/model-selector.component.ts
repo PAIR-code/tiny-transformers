@@ -45,7 +45,7 @@ import { GTensor, SerializedGTensor } from 'src/lib/gtensor/gtensor';
 import { ConfigKind } from 'src/lib/json/config-obj';
 import { nullableEqFn } from 'src/lib/utils';
 import { disposeParams } from 'src/lib/gtensor/params';
-import { TinyModelsService } from 'src/app/tiny-models.service';
+// import { TinyModelsService } from 'src/app/tiny-models.service';
 
 // export class ModelSpecAndData {
 //   public config: TransformerConfig;
@@ -81,6 +81,8 @@ export interface ModelUpdate {
   styleUrls: ['./model-selector.component.scss'],
 })
 export class ModelSelectorComponent {
+  constructor() {} // public tmService: TinyModelsService
+
   isTraining: boolean = false;
 
   public get tfjsMemory(): string {
@@ -88,7 +90,8 @@ export class ModelSelectorComponent {
   }
 
   get modelNames(): string[] {
-    return Object.keys(this.tmService.modelConfigsMap);
+    return [];
+    // return Object.keys(this.tmService.modelConfigsMap);
   }
 
   // lossGraphVegaSpec: vegaembed.VisualizationSpec;
@@ -98,28 +101,29 @@ export class ModelSelectorComponent {
   view: 'edit' | 'view' = 'view';
 
   get paramCount(): number {
-    const model = this.tmService.model();
-    if (!model || !model.serializedParams) {
-      return -1;
-    }
-    // TODO: kind of ugly to need the any here.
-    return jstree.reduce<SerializedGTensor<any>, number>(
-      (count, paramObj) => count + paramObj.shape.reduce((acc, cur) => cur * acc, 1),
-      0,
-      model.serializedParams
-    );
+    return 5;
+
+    // const model = this.tmService.model();
+    // if (!model || !model.serializedParams) {
+    //   return -1;
+    // }
+    // // TODO: kind of ugly to need the any here.
+    // return jstree.reduce<SerializedGTensor<any>, number>(
+    //   (count, paramObj) => count + paramObj.shape.reduce((acc, cur) => cur * acc, 1),
+    //   0,
+    //   model.serializedParams
+    // );
   }
   lastModelValue: TransformerModel | null = null;
 
-  constructor(public tmService: TinyModelsService) {}
-
   currentConfigStr(): string {
-    const curConfig = this.tmService.modelConfig();
-    if (curConfig) {
-      return stringifyJsonValue(curConfig);
-    } else {
-      return '<currentTaskConfigStr: undefined config>';
-    }
+    return '';
+    // const curConfig = this.tmService.modelConfig();
+    // if (curConfig) {
+    //   return stringifyJsonValue(curConfig);
+    // } else {
+    //   return '<currentTaskConfigStr: undefined config>';
+    // }
   }
 
   toggleModelEditor() {
@@ -162,6 +166,6 @@ export class ModelSelectorComponent {
       return;
     }
 
-    this.tmService.updateModelConfig(configUpdate.obj);
+    // this.tmService.updateModelConfig(configUpdate.obj);
   }
 }

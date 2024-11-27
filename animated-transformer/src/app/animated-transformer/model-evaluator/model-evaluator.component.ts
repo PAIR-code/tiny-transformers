@@ -54,7 +54,7 @@ import {
 } from 'rxjs';
 import { mapNonNull } from 'src/lib/rxjs/util';
 import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
-import { TinyModelsService } from 'src/app/tiny-models.service';
+// import { TinyModelsService } from 'src/app/tiny-models.service';
 
 function typedGetData<N extends string>(
   params: DictTree<GVariable<N>>
@@ -96,7 +96,8 @@ export class ModelEvaluatorComponent {
   }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
-  constructor(public tinyModelsService: TinyModelsService) {
+  constructor() // public tinyModelsService: TinyModelsService
+  {
     const strListValidator = jsonStrListValidator(this.validatorConfig);
     this.inputControl = new FormControl<string | null>('', strListValidator);
     this.inputControl.valueChanges.forEach((s) => {

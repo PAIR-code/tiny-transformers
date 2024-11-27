@@ -1,4 +1,4 @@
-<div class="row">
+<!-- <div class="row">
   <app-auto-completed-text-input class="dataset-form"
     [label]="'Model'"
     [selectedName]="this.tmService.modelId"
@@ -9,7 +9,7 @@
 
 <div class="row" *ngIf="this.tmService.model() as model">
   <div *ngIf="view != 'edit'" class="row">
-    <!-- <div class="json">{{modelConfigAsJson(model)}}</div> -->
+    <div class="json">{{modelConfigAsJson(model)}}</div>
     <div class='buttonrow'>
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>
@@ -37,4 +37,4 @@
       [config]="currentConfigStr()"></app-codemirror-config-editor>
   </div>
 
-</div>
+</div> -->

@@ -16,7 +16,7 @@ limitations under the License.
 import _ from 'underscore';
 import { DictArrTree } from '../js_tree/js_tree';
 import { stringifyJsonValue } from './pretty_json';
-import * as json5 from 'json5';
+import json5 from 'json5';
 
 export type JsonWithKind = DictArrTree<number | string | boolean> & { kind: string };
 
@@ -66,7 +66,8 @@ export class ConfigKindRegistry<T extends { config: JsonWithKind }> {
       let config: ConfigT;
       try {
         config = json5.parse(s);
-      } catch {
+      } catch (e) {
+        console.warn(e);
         console.error(`Cannot make '${kind}', string parsing failed... \n'''\n${s}\n'''`);
         throw new Error('register failed.');
       }
