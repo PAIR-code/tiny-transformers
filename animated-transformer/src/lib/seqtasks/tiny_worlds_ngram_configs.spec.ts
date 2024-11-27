@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { getUniGramTinyWorldConfig } from './ngram_tiny_worlds';
+import { getUniGramTinyWorldConfig } from './tiny_worlds_ngram_configs';
 import { TinyWorldTask } from './tiny_worlds';
 
 describe('ngram_tiny_worlds', () => {
@@ -24,7 +24,7 @@ describe('ngram_tiny_worlds', () => {
     let nIdentity = 10;
     let uniGramTinyWorldConfig = getUniGramTinyWorldConfig(nIdentity, seed);
 
-    console.log(JSON.stringify(uniGramTinyWorldConfig));
+    // console.log(JSON.stringify(uniGramTinyWorldConfig));
     uniGramTinyWorldConfig.maxInputLen = 20;
     let tinyWorld = new TinyWorldTask(uniGramTinyWorldConfig);
     const [example] = tinyWorld.exampleIter.takeOutN(1);

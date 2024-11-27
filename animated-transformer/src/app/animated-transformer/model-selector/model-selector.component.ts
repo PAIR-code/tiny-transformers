@@ -15,161 +15,66 @@ limitations under the License.
 
 import * as _ from 'underscore';
 
-import { Component, Input, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  Signal,
+  WritableSignal,
+  computed,
+  effect,
+  signal,
+} from '@angular/core';
 import json5 from 'json5';
 import { FormControl } from '@angular/forms';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import { DictTree } from '../../../lib/js_tree/js_tree';
 import * as jstree from '../../../lib/js_tree/js_tree';
 import {
-  transformerAccuracy,
   TransformerConfig,
-  TransformerParamLayerSpec,
-  TransformerParams,
-  TransformerParamSpec,
-  VarTransformerParams,
+  TransformerModel,
+  transformerModelKind,
 } from '../../../lib/transformer/transformer_gtensor';
 import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import { BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
 import * as tf from '@tensorflow/tfjs';
-import {
-  BasicTaskTokenRep,
-  StrSeqPrepFn,
-  prepareBasicTaskTokenRep,
-  strSeqPrepFn,
-} from 'src/lib/tokens/token_gemb';
-import { GTensor } from 'src/lib/gtensor/gtensor';
-import { RandomStream, makeRandomStream} from 'src/lib/state-iter/random';
+import { prepareBasicTaskTokenRep } from 'src/lib/tokens/token_gemb';
+import { GTensor, SerializedGTensor } from 'src/lib/gtensor/gtensor';
+import { ConfigKind } from 'src/lib/json/config-obj';
+import { nullableEqFn } from 'src/lib/utils';
+import { disposeParams } from 'src/lib/gtensor/params';
+// import { TinyModelsService } from 'src/app/tiny-models.service';
 
-export type JsonConfigData = DictTree<number | string | boolean>;
+// export class ModelSpecAndData {
+//   public config: TransformerConfig;
+//   public configStr: string;
+//   public defaultConfigStr: string;
 
-export type ModelConfig = {
-  name: string;
-  transformer: TransformerConfig;
-};
+//   public modelData: WritableSignal<TransformerModel | null> = signal(null);
 
-export type ModelData = {
-  // Locally cached version of the model config.
-  config: ModelConfig;
-  tokenRep: BasicTaskTokenRep;
-  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>;
-  params: VarTransformerParams;
-  paramCount: number;
-  generator: RandomStream;
-};
+//   constructor(public kind: 'transformer', public defaultConfig: TransformerConfig) {
+//     this.config = structuredClone(defaultConfig);
+//     this.configStr = stringifyJsonValue(this.config);
+//     this.defaultConfigStr = this.configStr;
+//   }
 
-export class ModelSpecAndData {
-  public config: ModelConfig;
-  public configStr: string;
-  public defaultConfigStr: string;
+//   updateFromStr(s: string): void {
+//     this.configStr = s;
+//     this.config = json5.parse(this.configStr);
+//   }
+// }
 
-  public modelData: WritableSignal<ModelData | null> = signal(null);
+// const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
 
-  constructor(public kind: 'transformer', public defaultConfig: ModelConfig) {
-    this.config = structuredClone(defaultConfig);
-    this.configStr = stringifyJsonValue(this.config);
-    this.defaultConfigStr = this.configStr;
-  }
+// const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
 
-  updateFromStr(s: string): void {
-    this.configStr = s;
-    this.config = json5.parse(this.configStr);
-  }
-}
-
-const layerSpec: TransformerParamLayerSpec = {
-  nHeads: 4,
-  hasPosEncoding: true,
-  computeSpec: { residuals: true, dropoutRate: 0.0 },
-  layerNormFF: false,
-  layerNormHeadsProjection: false,
-  addLayerNormBias: false,
-};
-
-const defaultConfig: ModelConfig = {
-  name: 'd=8 l=1 h=4, !layerN !dropout',
-  transformer: {
-    spec: {
-      inputRep: 8,
-      kqvRep: 8,
-      layers: [layerSpec],
-      dropoutRate: 0.0,
-    },
-    init: {
-      stddev: 0.5,
-      mean: 0,
-      seed: 76,
-    },
-  },
-};
-
-const layerSpecWithNorm: TransformerParamLayerSpec = {
-  nHeads: 4,
-  hasPosEncoding: true,
-  computeSpec: { residuals: true, dropoutRate: 0.0 },
-  layerNormFF: true,
-  layerNormHeadsProjection: true,
-  addLayerNormBias: false,
-};
-
-const transWithLayerNormed: ModelConfig = {
-  name: 'd=8 l=1 h=4 +layerN !dropout',
-  transformer: {
-    spec: {
-      inputRep: 8,
-      kqvRep: 8,
-      layers: [layerSpecWithNorm],
-      dropoutRate: 0.0,
-    },
-    init: {
-      stddev: 0.5,
-      mean: 0,
-      seed: 96,
-    },
-  },
-};
-
-const layerSpecWithNormAndDropout: TransformerParamLayerSpec = {
-  nHeads: 4,
-  hasPosEncoding: true,
-  computeSpec: { residuals: true, dropoutRate: 0.1 },
-  layerNormFF: true,
-  layerNormHeadsProjection: true,
-  addLayerNormBias: false,
-};
-
-const transWithLayerNormedAndDropout: ModelConfig = {
-  name: 'd=8 l=1 h=4 +layerN +dropout',
-  transformer: {
-    spec: {
-      inputRep: 8,
-      kqvRep: 8,
-      layers: [layerSpecWithNormAndDropout],
-      dropoutRate: 0.1,
-    },
-    init: {
-      stddev: 0.5,
-      mean: 0,
-      seed: 96,
-    },
-  },
-};
-
-const simpleTransformer = new ModelSpecAndData('transformer', defaultConfig);
-
-const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
-
-const simpleTransformerWithLayerNormAndDropout = new ModelSpecAndData('transformer', transWithLayerNormedAndDropout)
+// const simpleTransformerWithLayerNormAndDropout = new ModelSpecAndData('transformer', transWithLayerNormedAndDropout)
 
 export interface ModelUpdate {
-  model: ModelSpecAndData | null;
+  model: TransformerModel | null;
 }
-
-const initModels: ModelSpecAndData[] = [simpleTransformer, simpleTransformerWithLayerNorm, simpleTransformerWithLayerNormAndDropout];
-const initModelsMap: { [name: string]: ModelSpecAndData } = {};
-initModels.forEach((m) => (initModelsMap[m.config.name] = m));
 
 // ----------------------------------------------------------------------------
 @Component({
@@ -178,27 +83,17 @@ initModels.forEach((m) => (initModelsMap[m.config.name] = m));
   styleUrls: ['./model-selector.component.scss'],
 })
 export class ModelSelectorComponent {
-  task: BasicLmTask | null = null;
+  constructor() {} // public tmService: TinyModelsService
 
-  @Input()
-  set taskUpdate(update: BasicLmTaskUpdate) {
-    if (update.task) {
-      this.task = update.task;
-    } else {
-      this.task = null;
-    }
-  }
-
-  @Input()
-  set modelName(n: string) {
-    this.maybeSetModel(n);
-  }
-
-  @Output() modelChange = new EventEmitter<ModelUpdate>();
   isTraining: boolean = false;
 
   public get tfjsMemory(): string {
     return JSON.stringify(tf.memory(), null, 2);
+  }
+
+  get modelNames(): string[] {
+    return [];
+    // return Object.keys(this.tmService.modelConfigsMap);
   }
 
   // lossGraphVegaSpec: vegaembed.VisualizationSpec;
@@ -207,39 +102,48 @@ export class ModelSelectorComponent {
   modelNameControl = new FormControl<string>('');
   view: 'edit' | 'view' = 'view';
 
-  modelsMap = signal(initModelsMap);
-  currentModel = signal<ModelSpecAndData | null>(null);
-  currentModelName: Signal<string>;
-  modelNames: Signal<string[]>;
+  get paramCount(): number {
+    return 5;
 
-  constructor() {
-    this.currentModelName = computed(() => {
-      const model = this.currentModel();
-      return model ? model.config.name : '';
-    });
+    // const model = this.tmService.model();
+    // if (!model || !model.serializedParams) {
+    //   return -1;
+    // }
+    // // TODO: kind of ugly to need the any here.
+    // return jstree.reduce<SerializedGTensor<any>, number>(
+    //   (count, paramObj) => count + paramObj.shape.reduce((acc, cur) => cur * acc, 1),
+    //   0,
+    //   model.serializedParams
+    // );
+  }
+  lastModelValue: TransformerModel | null = null;
 
-    this.modelNames = computed(() => Object.keys(this.modelsMap()));
+  currentConfigStr(): string {
+    return '';
+    // const curConfig = this.tmService.modelConfig();
+    // if (curConfig) {
+    //   return stringifyJsonValue(curConfig);
+    // } else {
+    //   return '<currentTaskConfigStr: undefined config>';
+    // }
   }
 
   toggleModelEditor() {
     this.view = this.view === 'edit' ? 'view' : 'edit';
   }
 
-  maybeSetModel(maybeName: string | null) {
-    const newModel = this.modelsMap()[maybeName || ''] || null;
-    if (newModel !== this.currentModel()) {
-      this.currentModel.set(newModel);
-      this.modelChange.emit({ model: newModel });
-    }
-  }
-
-  modelConfigAsJson(model: ModelSpecAndData): string {
-    return model.configStr;
+  modelConfigAsJson(model: TransformerModel): string {
+    return stringifyJsonValue(model.config, {
+      arrWrapAt: 60,
+      objWrapAt: 60,
+      curIndent: '',
+      sortObjKeys: true,
+    });
     // stringifyJsonValue(model.config,
     // { wrapAt: 80, curIndent: '', sortObjKeys: true });
   }
 
-  modelDataAsJson(modelData: TransformerParamSpec): string {
+  modelDataAsJson(modelData: TransformerConfig): string {
     return stringifyJsonValue(modelData, {
       arrWrapAt: 60,
       objWrapAt: 60,
@@ -248,7 +152,7 @@ export class ModelSelectorComponent {
     });
   }
 
-  modelConfigUpdated(configUpdate: ConfigUpdate<TransformerParamSpec>): void {
+  modelConfigUpdated(configUpdate: ConfigUpdate<TransformerConfig>): void {
     // When configUpdate has a new object, we assume it to be correct.
     //
     // TODO: provide some runtime value type checking. Right now all that is
@@ -264,56 +168,6 @@ export class ModelSelectorComponent {
       return;
     }
 
-    const currentModel = this.currentModel();
-    if (!currentModel) {
-      console.error(`had null model for configUpdated: ${configUpdate}`);
-      return;
-    }
-
-    const newModel = new ModelSpecAndData(currentModel.kind, currentModel.defaultConfig);
-    newModel.updateFromStr(configUpdate.json);
-    // Model name was changed.
-    if (newModel.config.name !== currentModel.config.name) {
-      const newModelsMap = { ...this.modelsMap() };
-      delete newModelsMap[currentModel.config.name];
-      newModelsMap[newModel.config.name] = newModel;
-      this.modelsMap.set(newModelsMap);
-    }
-    this.currentModel.set(newModel);
-    this.modelChange.emit({ model: newModel });
-  }
-
-  initModelData() {
-    const curModel = this.currentModel();
-    if (!curModel) {
-      throw new Error('no model set');
-    }
-    if (!this.task) {
-      throw new Error('no task set');
-    }
-    const modelData = curModel.modelData();
-    if (modelData) {
-      // Dispose...
-      // curModel.modelData.tokenRep
-      jstree.forEach((g: GTensor<any>) => g.dispose(), modelData.params);
-    }
-
-    const config = _.clone(curModel.config);
-    const tokenRep = prepareBasicTaskTokenRep(this.task.baseVocab);
-    const params = transformer.initDecoderParamsTree(tokenRep, config.transformer);
-    const paramCount = jstree.reduce<GTensor<any>, number>(
-      (count, paramObj) => count + paramObj.tensor.size,
-      0,
-      params
-    );
-    const generator = makeRandomStream(config.transformer.init.seed);
-    curModel.modelData.set({
-      config,
-      tokenRep,
-      inputPrepFn: strSeqPrepFn,
-      params,
-      paramCount,
-      generator
-    });
+    // this.tmService.updateModelConfig(configUpdate.obj);
   }
 }

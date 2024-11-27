@@ -15,7 +15,6 @@ limitations under the License.
 
 import * as transformer from '../transformer/transformer_gtensor';
 import * as abtask from '../seqtasks/ab_task';
-import { BasicRandSeededTaskConfig } from '../seqtasks/util';
 import {
   prepareBasicTaskTokenRep,
   strSeqPrepFn,
@@ -25,55 +24,63 @@ import { initTransformerTrainState } from './basic_transformer_trainer';
 import { TrainStateConfig, trySgdTrainStep } from './train_state';
 import * as jstree from '../js_tree/js_tree';
 import { GTensor } from '../gtensor/gtensor';
+import { varifyParams } from '../gtensor/params';
 
 describe('basic_transformer_trainer', () => {
   it('AorBisMaxTask training', async () => {
+    const taskConfig: abtask.AorBisMaxTaskConfig = {
+      id: 'an AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      maxInputLen: 4,
+      maxOutputLen: 4,
+      genStateConfig: { seed: 0 },
+    };
+    const task = new abtask.AorBisMaxTask(taskConfig);
+
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: false,
-      computeSpec: { residuals: true, dropoutRate: 0},
+      computeSpec: { residuals: true, dropoutRate: 0 },
       // TODO: investigate: these make 0 gradients?
       layerNormFF: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
     };
     const decoderConfig: transformer.TransformerConfig = {
+      id: 'a toy transformer',
+      kind: 'Transformer',
       spec: {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
         dropoutRate: 0,
       },
+      tokenRep: prepareBasicTaskTokenRep(task.baseVocab),
       init: {
         stddev: 0.5,
         mean: 0,
         seed: 1,
       },
     };
-    const taskConfig: BasicRandSeededTaskConfig = {
-      name: 'AorBisMaxTask',
-      maxInputLen: 4,
-      maxOutputLen: 4,
-      seed: 0,
-    };
+
     const trainStateConfig: TrainStateConfig = {
       learningRate: 0.5,
       batchSize: 64,
-      maxInputlength: taskConfig.maxInputLen,
+      maxInputLength: taskConfig.maxInputLen,
       testSetSize: 0,
       trainSetSize: 64,
     };
-    const task = new abtask.AorBisMaxTask(taskConfig);
-    const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const initParams = transformer.initDecoderParamsTree(tokenRep, decoderConfig);
-    console.log('initTransformerTrainState...');
+    const params = varifyParams(transformer.initDecoderParams(decoderConfig));
+    const model = {
+      config: decoderConfig,
+      params,
+    };
+    // console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
-      tokenRep,
+      model,
       strSeqPrepFn,
       singleNextTokenIdxOutputPrepFn,
-      decoderConfig,
-      initParams,
       trainStateConfig
     );
     // Taking a couple of steps...
@@ -88,10 +95,19 @@ describe('basic_transformer_trainer', () => {
     expect(newLoss).toBeLessThan(initLoss);
 
     // Memory cleanup
-    jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);
+    jstree.forEach((g: GTensor<any>) => g.dispose(), params);
     trainState.dispose();
   });
   it('AorBisMaxTaskWithDropout training', async () => {
+    const taskConfig: abtask.AorBisMaxTaskConfig = {
+      id: 'an AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      maxInputLen: 4,
+      maxOutputLen: 4,
+      genStateConfig: { seed: 0 },
+    };
+    const task = new abtask.AorBisMaxTask(taskConfig);
+
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: true,
@@ -101,42 +117,41 @@ describe('basic_transformer_trainer', () => {
       addLayerNormBias: false,
     };
     const decoderConfig: transformer.TransformerConfig = {
+      id: 'a toy transformer',
+      kind: 'Transformer',
       spec: {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
         dropoutRate: 0.5,
       },
+      tokenRep: prepareBasicTaskTokenRep(task.baseVocab),
       init: {
         stddev: 0.5,
         mean: 0,
         seed: 2,
       },
     };
-    const taskConfig: BasicRandSeededTaskConfig = {
-      name: 'AorBisMaxTask',
-      maxInputLen: 4,
-      maxOutputLen: 4,
-      seed: 0,
-    };
+
     const trainStateConfig: TrainStateConfig = {
       learningRate: 0.5,
       batchSize: 64,
-      maxInputlength: taskConfig.maxInputLen,
+      maxInputLength: taskConfig.maxInputLen,
       testSetSize: 0,
       trainSetSize: 64,
     };
-    const task = new abtask.AorBisMaxTask(taskConfig);
     const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const initParams = transformer.initDecoderParamsTree(tokenRep, decoderConfig);
-    console.log('initTransformerTrainState...');
+    const params = varifyParams(transformer.initDecoderParams(decoderConfig));
+    const model = {
+      config: decoderConfig,
+      params,
+    };
+    // console.log('initTransformerTrainState...');
     const trainState = initTransformerTrainState(
       task,
-      tokenRep,
+      model,
       strSeqPrepFn,
       singleNextTokenIdxOutputPrepFn,
-      decoderConfig,
-      initParams,
       trainStateConfig
     );
     // Taking a couple of steps...
@@ -153,7 +168,7 @@ describe('basic_transformer_trainer', () => {
     expect(newLoss).toBeGreaterThanOrEqual(initLoss);
 
     // Memory cleanup
-    jstree.forEach((g: GTensor<any>) => g.dispose(), initParams);
+    jstree.forEach((g: GTensor<any>) => g.dispose(), params);
     trainState.dispose();
   });
 });

@@ -179,30 +179,45 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   };
 }
 
+export const toyTokenTep = prepareBasicTaskTokenRep(['a', 'b', 'c']);
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
+// Note: don't use  `GTensor<'tokenId' | 'inputRep'>,` here because we want
+// this type to be generic enough that a generic training state that knows
+// nothing about
+//
+// TODO: revisit.
 export type StrSeqPrepFn<Params, Dims extends DName> = (
-  tokenRep: BasicTaskTokenRep,
-  params: Params,
-  // tokenEmb: GTensor<'tokenId' | 'inputRep'>,
-  maxInputLength: number,
-  strSeqs: string[][]
+  model: {
+    config: { tokenRep: BasicTaskTokenRep };
+    params: Params;
+  },
+  strSeqs: string[][],
+  options: { maxInputLength: number }
 ) => GTensor<Dims>;
 
-export function strSeqPrepFn<Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }>(
-  tokenRep: BasicTaskTokenRep,
-  params: Params,
-  maxInputLength: number,
-  inputSeqs: string[][]
+export function strSeqPrepFn(
+  model: {
+    config: { tokenRep: BasicTaskTokenRep };
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  inputSeqs: string[][],
+  options: { maxInputLength: number }
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
-  const padTokenId = tokenRep.tokenToIdx[tokenRep.padToken];
-  const batchedInputEmb = embedBatch(tokenRep.tokenToIdx, params.tokenEmbedding, inputSeqs, {
-    paddingId: padTokenId,
-    padAt: 'start',
-    dtype: 'int32',
-    maxInputLength,
-  });
+  const padTokenId = model.config.tokenRep.tokenToIdx[model.config.tokenRep.padToken];
+  const batchedInputEmb = embedBatch(
+    model.config.tokenRep.tokenToIdx,
+    model.params.tokenEmbedding,
+    inputSeqs,
+    {
+      paddingId: padTokenId,
+      padAt: 'start',
+      dtype: 'int32',
+      maxInputLength: options.maxInputLength,
+    }
+  );
   return batchedInputEmb;
 }
 
@@ -214,20 +229,18 @@ export function strSeqPrepFn<Params extends { tokenEmbedding: GTensor<'tokenId' 
 // output is the prediction of the next token; but that requires causal
 // attention from the token forward. We use bi-dir attention throughout (no
 // causal masking of attention, yet).
-export function strSeqPrepFnAddingFinalMask<
-  Params extends { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> }
->(
-  tokenRep: BasicTaskTokenRep,
-  params: Params,
-  maxInputLength: number,
-  inputSeqs: string[][]
+export function strSeqPrepFnAddingFinalMask(
+  model: {
+    config: { tokenRep: BasicTaskTokenRep };
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  inputSeqs: string[][],
+  options: { maxInputLength: number }
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
-  return strSeqPrepFn(
-    tokenRep,
-    params,
-    maxInputLength,
-    inputSeqs.map((inputSeq) => inputSeq.concat(tokenRep.maskToken))
+  const inputsWithFinalMask = inputSeqs.map((inputSeq) =>
+    inputSeq.concat(model.config.tokenRep.maskToken)
   );
+  return strSeqPrepFn(model, inputsWithFinalMask, options);
 }
 
 // TODO: maybe change the type to somethinfg more specific and without tokenEmb
@@ -245,12 +258,12 @@ export function strSeqPrepFnAddingFinalMask<
 //
 // TODO: we'll want to generalise this for longer sequences...
 export function singleNextTokenIdxOutputPrepFn(
-  tokenRep: BasicTaskTokenRep,
+  model: { config: { tokenRep: BasicTaskTokenRep } },
   outputSeqs: string[][]
 ): GTensor<'batch'> {
   return new GTensor(
     tf.tensor(
-      outputSeqs.map((outputSeq) => tokenRep.tokenToIdx[outputSeq[0]]),
+      outputSeqs.map((outputSeq) => model.config.tokenRep.tokenToIdx[outputSeq[0]]),
       [outputSeqs.length],
       'int32'
     ),

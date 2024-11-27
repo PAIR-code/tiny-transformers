@@ -13,15 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  stringifyTube,
-  Tube,
-  LeafTube,
-  ArrTube,
-  ObjTube,
-  StringifyConfig,
-} from '../tubes/tubes';
-import { quote, JsonValue } from './json';
+import { stringifyTube, Tube, LeafTube, ArrTube, ObjTube, StringifyConfig } from '../tubes/tubes';
+import { JsonValue } from './json';
 
 // ----------------------------------------------------------------------------
 export function tubeifyJsonValue(value: JsonValue): Tube {
@@ -57,18 +50,13 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
   }
 }
 
-export function stringifyJsonValue(
-  o: JsonValue,
-  config?: StringifyConfig
-): string {
-  if (!config) {
-    config = {
-      curIndent: '',
-      arrWrapAt: 60,
-      objWrapAt: 60,
-      sortObjKeys: true,
-    };
-  }
+export function stringifyJsonValue(value: JsonValue, config?: StringifyConfig): string {
+  config = config || {
+    curIndent: '',
+    arrWrapAt: 60,
+    objWrapAt: 60,
+    sortObjKeys: true,
+  };
 
-  return stringifyTube(config, tubeifyJsonValue(o));
+  return stringifyTube(config, tubeifyJsonValue(value));
 }

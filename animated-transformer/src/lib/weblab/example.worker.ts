@@ -15,34 +15,19 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import * as tf from '@tensorflow/tfjs';
-import { GTensor } from 'src/lib/gtensor/gtensor';
-import * as lab from './workerlab';
+import { workerCell } from './lab-worker-cell';
 import { exampleWorkerSpec } from './example.ailab';
 
-console.log('example.worker', self.location);
+const cell = workerCell(exampleWorkerSpec);
 
-async function run() {
-  const cell = new lab.Cell(exampleWorkerSpec);
+cell.runOnceHaveInputs(async (inputs) => {
+  const { toyInput } = inputs;
 
-  const name = await cell.input.name;
+  cell.outputs.num.set(1);
+  cell.outputs.str.set(`hello ${toyInput()}`);
 
-  console.log(`webworker got input! ${name}`);
-
-  const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-  const v = t.contract(t, ['a']).tensor.arraySync() as number;
-
-  // TODO: handle all transferable objects, and for objects that are
-  // serializable (have a toSerialised, and a from Serialised), go via that
-  // if/as needed.
-  cell.output('tensor', {
-    t: t.toSerialised(),
-    v,
-  });
-
-  console.log('worker going to finish...');
-  cell.finished();
-  console.log('worker finished.');
-}
-
-run();
+  for await (const i of cell.inStream.numStream) {
+    await cell.outStream.foo.send('foo' + i);
+  }
+  cell.outStream.foo.done();
+});

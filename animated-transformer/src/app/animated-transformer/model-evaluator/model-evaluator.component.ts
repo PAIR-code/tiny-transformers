@@ -25,8 +25,8 @@ import {
   computed,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { BasicLmTask, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
-import { stringifyJsonValue } from '../../../lib/pretty_json/pretty_json';
+import { BasicLmTask, BasicLmTaskConfig, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
+import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 import {
   jsonStrListValidator,
   jsonStrListErrorFn,
@@ -38,11 +38,7 @@ import { computeDecoder, computePrediction } from 'src/lib/transformer/transform
 import { DictArrTree, DictTree } from 'src/lib/js_tree/js_tree';
 import * as jstree from 'src/lib/js_tree/js_tree';
 import { GTensor, GTensorOrScalar, GVariable } from 'src/lib/gtensor/gtensor';
-import {
-  ModelUpdate,
-  ModelSpecAndData,
-  ModelData,
-} from '../model-selector/model-selector.component';
+import { ModelUpdate } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import {
   BehaviorSubject,
@@ -57,6 +53,8 @@ import {
   tap,
 } from 'rxjs';
 import { mapNonNull } from 'src/lib/rxjs/util';
+import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
+// import { TinyModelsService } from 'src/app/tiny-models.service';
 
 function typedGetData<N extends string>(
   params: DictTree<GVariable<N>>
@@ -75,10 +73,10 @@ function typedGetData<N extends string>(
 export class ModelEvaluatorComponent {
   input = signal([] as string[]);
   inputControl: FormControl<string | null>;
-  currentModel = signal<ModelSpecAndData | null>(null);
-  currentTask = signal<BasicLmTask | null>(null);
+  currentModel = signal<EnvModel | null>(null);
+  currentTask = signal<BasicLmTask<BasicLmTaskConfig<{}>> | null>(null);
   // currentTask$: BehaviorSubject<BasicLmTask | null>;
-  modelData: Signal<ModelData | null>;
+  // modelData: Signal<EnvModel | null>;
   // taskAndModel$: Observable<{ model: ModelMetadata; task: BasicLmTask } | null>;
   validatorConfig = {} as JsonStrListConfig;
   modelOutput: string[] | null = null;
@@ -98,7 +96,7 @@ export class ModelEvaluatorComponent {
   }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
-  constructor() {
+  constructor() { // public tinyModelsService: TinyModelsService
     const strListValidator = jsonStrListValidator(this.validatorConfig);
     this.inputControl = new FormControl<string | null>('', strListValidator);
     this.inputControl.valueChanges.forEach((s) => {
@@ -108,18 +106,18 @@ export class ModelEvaluatorComponent {
       }
     });
 
-    this.modelData = computed(() => {
-      const model = this.currentModel();
-      if (!model) {
-        return null;
-      }
-      return model.modelData();
-    });
+    // this.modelData = computed(() => {
+    //   const model = this.currentModel();
+    //   if (!model) {
+    //     return null;
+    //   }
+    //   return model.modelData();
+    // });
 
     // effect(() => console.log(`input updated: ${this.input()}`));
   }
 
-  getCurrentTask(): BasicLmTask {
+  getCurrentTask(): BasicLmTask<BasicLmTaskConfig<{}>> {
     const currentTask = this.currentTask();
     if (!currentTask) {
       throw new Error('no currentTask');
@@ -133,34 +131,34 @@ export class ModelEvaluatorComponent {
     }
   }
 
-  downloadModel() {
-    const modelData = this.modelData();
-    if (!modelData) {
-      throw new Error('no current trainState');
-    }
+  // downloadModel() {
+  //   const modelData = this.modelData();
+  //   if (!modelData) {
+  //     throw new Error('no current trainState');
+  //   }
 
-    const spec = stringifyJsonValue(modelData.config.transformer.spec, {
-      arrWrapAt: 60,
-      objWrapAt: 60,
-      curIndent: '',
-      sortObjKeys: true,
-    });
-    const weights = modelData.params;
+  //   const spec = stringifyJsonValue(modelData.config.transformer.spec, {
+  //     arrWrapAt: 60,
+  //     objWrapAt: 60,
+  //     curIndent: '',
+  //     sortObjKeys: true,
+  //   });
+  //   const weights = modelData.params;
 
-    const tokenEmbedding = weights.tokenEmbedding.variable;
-    const tokenEmbeddingData = {
-      shape: tokenEmbedding.shape,
-      data: Array.from(tokenEmbedding.dataSync()),
-    };
+  //   const tokenEmbedding = weights.tokenEmbedding.variable;
+  //   const tokenEmbeddingData = {
+  //     shape: tokenEmbedding.shape,
+  //     data: Array.from(tokenEmbedding.dataSync()),
+  //   };
 
-    const layerData: any = [];
-    weights.layers.forEach((layer) => {
-      layerData.push(typedGetData(layer as DictTree<GVariable<any>>));
-    });
+  //   const layerData: any = [];
+  //   weights.layers.forEach((layer) => {
+  //     layerData.push(typedGetData(layer as DictTree<GVariable<any>>));
+  //   });
 
-    const serialized = { spec, tokenEmbeddingData, layerData };
-    this.downloadJSON(serialized, 'model.json');
-  }
+  //   const serialized = { spec, tokenEmbeddingData, layerData };
+  //   this.downloadJSON(serialized, 'model.json');
+  // }
 
   downloadJSON(data: any, fname: string) {
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -175,52 +173,49 @@ export class ModelEvaluatorComponent {
   }
 
   evaluate() {
-    const modelData = this.modelData();
-    if (!modelData) {
-      throw new Error('no current trainState');
-    }
-
-    const outputs = computePrediction(
-      modelData.tokenRep,
-      modelData.inputPrepFn,
-      modelData.config.transformer.spec,
-      modelData.params,
-      [this.input()],
-      modelData.generator
-    );
-    this.modelOutput = outputs[0];
+    // const modelData = this.modelData();
+    // if (!modelData) {
+    //   throw new Error('no current trainState');
+    // }
+    // const outputs = computePrediction(
+    //   modelData.tokenRep,
+    //   modelData.inputPrepFn,
+    //   modelData.config.transformer.spec,
+    //   modelData.params,
+    //   [this.input()]
+    // );
+    // this.modelOutput = outputs[0];
   }
 
-  downloadActivations() {
-    const modelData = this.modelData();
-    if (!modelData) {
-      throw new Error('no current trainState');
-    }
-    const currentTask = this.getCurrentTask();
+  // downloadActivations() {
+  //   const modelData = this.modelData();
+  //   if (!modelData) {
+  //     throw new Error('no current trainState');
+  //   }
+  //   const currentTask = this.getCurrentTask();
 
-    const trainingData = [];
-    for (const example of currentTask.exampleIter.takeOutN(1000)) {
-      const input = example.input;
+  //   const trainingData = [];
+  //   for (const example of currentTask.exampleIter.takeOutN(1000)) {
+  //     const input = example.input;
 
-      const decoderOutputs = computeDecoder(
-        modelData.tokenRep,
-        modelData.inputPrepFn,
-        modelData.config.transformer.spec,
-        modelData.params,
-        [input],
-        modelData.generator
-      );
+  //     const decoderOutputs = computeDecoder(
+  //       modelData.tokenRep,
+  //       modelData.inputPrepFn,
+  //       modelData.config.transformer.spec,
+  //       modelData.params,
+  //       [input]
+  //     );
 
-      const output = decoderOutputs.layers[0].seqOuput;
-      trainingData.push({
-        input: input,
-        mlpOutputs: {
-          shape: output.tensor.shape,
-          data: Array.from(output.tensor.dataSync()),
-        },
-      });
-    }
+  //     const output = decoderOutputs.layers[0].seqOuput;
+  //     trainingData.push({
+  //       input: input,
+  //       mlpOutputs: {
+  //         shape: output.tensor.shape,
+  //         data: Array.from(output.tensor.dataSync()),
+  //       },
+  //     });
+  //   }
 
-    this.downloadJSON(trainingData, 'sae_train_data.json');
-  }
+  //   this.downloadJSON(trainingData, 'sae_train_data.json');
+  // }
 }

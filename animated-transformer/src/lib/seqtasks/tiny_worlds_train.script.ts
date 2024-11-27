@@ -16,45 +16,36 @@ limitations under the License.
 
 Tiny Worlds, run with (gtensor-based) transformers.
 
+TODO: add yargs so this is a real command line tool example.
+
 Run:
   npx ts-node src/lib/seqtasks/tiny_worlds_train.script.ts
 */
 
 import * as tf from '@tensorflow/tfjs-node';
 
-import { GTensor, GVariable, makeTruncNormal } from '../gtensor/gtensor';
-import * as transformer from '../transformer/transformer_gtensor';
 import {
-  AttnHeadParamSpec,
-  AttnHeadComputeSpec,
   TransformerParamLayerSpec,
   TransformerParamSpec,
   TransformerConfig,
   TransformerParams,
-  initDecoderParams,
-  initDecoderParamsTree,
   TransformerComputation,
   computeDecoder,
-  transformerLastTokenLogits,
-  transformerLastTokenCrossEntropyLoss,
+  lastTokenLogits,
+  lastTokenCrossEntropyLoss,
   transformerAccuracy,
+  TransformerModel,
+  initDecoderParams,
 } from '../transformer/transformer_gtensor';
+import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
 import {
-  TinyWorldTask,
-  TinyWorldTaskConfig,
-  bayesianV1TinyWorldTaskConfig,
-  defaultTinyWorldTaskConfig,
-} from './tiny_worlds';
-import {
-  embedBatch,
   strSeqPrepFn,
-  strSeqPrepFnAddingFinalMask,
   singleNextTokenIdxOutputPrepFn,
   prepareBasicTaskTokenRep,
-  BasicTaskTokenRep,
 } from '../tokens/token_gemb';
-import { layer } from '@tensorflow/tfjs-vis/dist/show/model';
-import { example } from 'yargs';
+import * as yargs from 'yargs';
+import { varifyParams, listifyVarParams } from '../gtensor/params';
+import { RandomStream, makeRandomStream } from '../random/random';
 
 const tfjsBackendName = tf.getBackend();
 console.log('tfjs backend:', tfjsBackendName);
@@ -70,7 +61,7 @@ function getTaskConfig(): TinyWorldTaskConfig {
   return taskConfig;
 }
 
-function getTransformerConfig(): TransformerConfig {
+function initTransformerConfig(baseVocab: string[]): TransformerConfig {
   const layer_config: TransformerParamLayerSpec = {
     nHeads: 4,
     hasPosEncoding: false,
@@ -80,7 +71,7 @@ function getTransformerConfig(): TransformerConfig {
     layerNormFF: false,
     layerNormHeadsProjection: false,
     addLayerNormBias: false,
-    computeSpec: { residuals: true },
+    computeSpec: { residuals: true, dropoutRate: 0 },
   };
   const layer_config_first: TransformerParamLayerSpec = {
     ...layer_config,
@@ -89,10 +80,14 @@ function getTransformerConfig(): TransformerConfig {
   const spec: TransformerParamSpec = {
     inputRep: 64,
     kqvRep: 64,
+    dropoutRate: 0,
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
+    id: 'a simple transformer',
+    kind: 'Transformer',
     spec: spec,
+    tokenRep: prepareBasicTaskTokenRep(baseVocab),
     init: {
       stddev: 0.05, // default
       mean: 0,
@@ -102,44 +97,45 @@ function getTransformerConfig(): TransformerConfig {
   return config;
 }
 
-function* dataGenerator(task: TinyWorldTask, batchNum: number, batchSize: number) {
+type Batch = {
+  batchId: number;
+  inputs: string[][];
+  outputs: string[][];
+};
+
+function* batchGenerator(
+  task: TinyWorldTask,
+  batchNum: number,
+  batchSize: number
+): Iterable<Batch> {
   for (let batchId = 0; batchId < batchNum; batchId += 1) {
     let batchOriginal = task.exampleIter.takeOutN(batchSize);
-    let batchInput = batchOriginal.map((example) => example.input);
-    let batchOutput = batchOriginal.map((example) => example.output);
-    yield [batchInput, batchOutput];
+    let inputs = batchOriginal.map((example) => example.input);
+    let outputs = batchOriginal.map((example) => example.output);
+    yield { batchId, inputs, outputs };
   }
 }
 
-function unbindedLossFn(
+function computeLoss(
+  model: {
+    config: TransformerConfig;
+    params: TransformerParams;
+  },
+  randomStream: RandomStream,
   batchId: number,
   batchInput: string[][],
-  batchOutput: string[][],
-  tokenRep: BasicTaskTokenRep,
-  transformerConfig: TransformerConfig,
-  decoderParamsTree: TransformerParams
+  batchOutput: string[][]
 ): tf.Scalar {
-  let spec = transformerConfig.spec;
-  let computation: TransformerComputation = computeDecoder(
-    tokenRep,
+  const computation: TransformerComputation = computeDecoder(
+    model,
     strSeqPrepFn,
-    spec,
-    decoderParamsTree,
-    batchInput
+    batchInput,
+    randomStream
   );
-  let singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
-  let entropyLoss: tf.Scalar = transformerLastTokenCrossEntropyLoss(
-    computation,
-    decoderParamsTree.tokenEmbedding,
-    singleNextTokenIdx
-  );
-  let accuracy: tf.Scalar = transformerAccuracy(
-    computation,
-    decoderParamsTree.tokenEmbedding,
-    singleNextTokenIdx
-  );
-
+  const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
+  const entropyLoss: tf.Scalar = lastTokenCrossEntropyLoss(model, computation, singleNextTokenIdx);
   if (batchId % printEveryNBatches === 0) {
+    const accuracy: tf.Scalar = transformerAccuracy(model, computation, singleNextTokenIdx);
     console.log(
       `batch: ${batchId} `.padEnd(15) +
         ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25) +
@@ -155,9 +151,17 @@ function run() {
   const trainTask = new TinyWorldTask(trainTaskConfig);
 
   // define vocab & decoder
-  const transformerConfig = getTransformerConfig();
-  const tokenRep = prepareBasicTaskTokenRep(trainTask.baseVocab);
-  const decoderParamsTree = initDecoderParamsTree(tokenRep, transformerConfig);
+  const transformerConfig = initTransformerConfig(trainTask.baseVocab);
+  const decoderParams = varifyParams(initDecoderParams(transformerConfig));
+  const model: TransformerModel = {
+    config: transformerConfig,
+    params: decoderParams,
+  };
+  const randomStream = makeRandomStream(42);
+
+  // By manipulating decoderParams, you can selectively limit what parameters
+  // get tuned.
+  const paramsList = listifyVarParams(decoderParams).map((g) => g.variable);
 
   {
     // train with optimiztaion
@@ -165,19 +169,13 @@ function run() {
     const batchSize: number = 64;
 
     let optimizer = tf.train.adam();
-    let batchId = 0;
-    for (let batch of dataGenerator(trainTask, batchNum, batchSize)) {
-      let [batchInput, batchOutput] = batch;
-      let bindedLossFn = () =>
-        unbindedLossFn(
-          batchId,
-          batchInput,
-          batchOutput,
-          tokenRep,
-          transformerConfig,
-          decoderParamsTree
-        );
-      optimizer.minimize(bindedLossFn);
+    for (let batch of batchGenerator(trainTask, batchNum, batchSize)) {
+      let { batchId, inputs, outputs } = batch;
+      optimizer.minimize(
+        () => computeLoss(model, randomStream, batchId, inputs, outputs),
+        false,
+        paramsList
+      );
       batchId += 1;
     }
     optimizer.dispose();
@@ -205,17 +203,16 @@ function run() {
     const inferStep = 0;
     const spec = transformerConfig.spec;
     const computation: TransformerComputation = computeDecoder(
-      tokenRep,
+      model,
       strSeqPrepFn,
-      spec,
-      decoderParamsTree,
-      batchInput
+      batchInput,
+      randomStream
     );
     //
-    const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(tokenRep, batchOutput);
+    const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
     // [0] to look at only the first example in batch.
     const singleNextTokenIdxArrayData = (singleNextTokenIdx.tensor.arraySync() as number[])[0];
-    const logits = transformerLastTokenLogits(computation, decoderParamsTree.tokenEmbedding);
+    const logits = lastTokenLogits(model, computation);
     // TODO: tensor.arraySync() doesn't provide any guarentee for the ordering of outputs,
     // we need to use the right gtensor functions to get the output we want...
     // [0] to look at only the first example in batch.
@@ -226,7 +223,7 @@ function run() {
 
     // Create a sorted table of information for each token.
     const possibleTokenTable = probsArrayData.map((prob, i) => {
-      return { str: tokenRep.tokens[i], tokenId: i, prob: prob, logit: logitsArr[i] };
+      return { str: model.config.tokenRep.tokens[i], tokenId: i, prob: prob, logit: logitsArr[i] };
     });
     possibleTokenTable.sort((a, b) => b.prob - a.prob);
 
@@ -246,12 +243,6 @@ function run() {
       }
       console.log('   ', token.str.padEnd(10), ' ', token.prob.toFixed(8), ' ', mark);
     }
-
-    //   batchInput = batchInput.map((subArray, batchIndex) =>
-    //     subArray.slice(1).concat(batchOutput[batchIndex])
-    //   );
-    //   batchOutput = batchOutputAll.map((subArray) => subArray.slice(inferStep, inferStep + 1));
-    // }
   } // infer
 } // run
 

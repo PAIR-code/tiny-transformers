@@ -25,16 +25,13 @@ The strutcure has up-pointers to the parent, this can be used to take the
 This is an implementation for the "JSON"-fragment of JavaScript values, and
 it is used to support some slightly formatting of JSON (very pretty printing).
 ---------------------------------------------------------------------------- */
-import { quote } from '../pretty_json/json';
+import { quote } from '../json/json';
 
 // ----------------------------------------------------------------------------
 // Abstract Tube type has a parent.
 export abstract class AbsTube {
   // The path up...
-  public parent:
-    | null
-    | { idx: number; node: Tube }
-    | { key: string; node: Tube } = null;
+  public parent: null | { idx: number; node: Tube } | { key: string; node: Tube } = null;
 
   accessorString(): string {
     if (this.parent === null) {
@@ -180,6 +177,7 @@ export interface StringifyConfig {
   // sortCmp?: (a: [string, JSONValue], b: [string, JSONValue]) => number;
 }
 
+// TODO: consider heap-based version that doesn't worry as much about stack size.
 export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
   if (isLeaf(t)) {
     return t.str;
@@ -193,7 +191,7 @@ export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
     return (
       '{' +
       keys
-        .map((k) => `${k}: ${stringifyOneLine(config, t.obj[k])}`)
+        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyOneLine(config, t.obj[k])}`)
         .join(', ') +
       '}'
     );
@@ -208,14 +206,20 @@ function maxLineStrWidth(s: string): {
 } {
   const lines = s.split('\n');
   return {
-    maxLineWidth: lines.reduce(
-      (maxWidth, l) => (l.length > maxWidth ? l.length : maxWidth),
-      0
-    ),
+    maxLineWidth: lines.reduce((maxWidth, l) => (l.length > maxWidth ? l.length : maxWidth), 0),
     firstLineWidth: lines[0].length,
     lastLineWidth: lines[lines.length - 1].length,
     nLines: lines.length,
   };
+}
+
+const skipQuotingRegExp = /^[\_\d\w]+$/;
+function quoteObjectKeyIfNeeded(k: string): string {
+  if (skipQuotingRegExp.test(k)) {
+    return k;
+  } else {
+    return quote(k);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -234,9 +238,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       const joinStr = ',\n' + subConfig.curIndent;
       // IDEA: know the pre-string, to help define line break for first item
       // in list.
-      return `[ ${t.arr
-        .map((c) => stringifyTube(subConfig, c))
-        .join(joinStr)} ]`;
+      return `[ ${t.arr.map((c) => stringifyTube(subConfig, c)).join(joinStr)} ]`;
     } else {
       if (t.arr.length === 0) {
         return stringifyOneLine(config, t);
@@ -248,10 +250,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
         const s = stringifyOneLine(config, c);
         if (
           curLine.length > 2 &&
-          config.curIndent.length +
-            curLine.length +
-            s.length +
-            ARR_VALUE_SEP_LEN >=
+          config.curIndent.length + curLine.length + s.length + ARR_VALUE_SEP_LEN >=
             config.arrWrapAt
         ) {
           curStr += curLine + ',\n';
@@ -289,13 +288,12 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       subConfig.curIndent += '  ';
       let joinStr = ',\n' + subConfig.curIndent;
       const innerStr = keys
-        .map((k) => `${k}: ${stringifyTube(subConfig, t.obj[k])}`)
+        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyTube(subConfig, t.obj[k])}`)
         .join(joinStr);
       // TODO:
       let prefix = '{ ';
       const postfix = ' }';
-      const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } =
-        maxLineStrWidth(innerStr);
+      const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } = maxLineStrWidth(innerStr);
 
       // Ideas for smarter positioning...
       // (maxLineWidth > config.objWrapAt ||

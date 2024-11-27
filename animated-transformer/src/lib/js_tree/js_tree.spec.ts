@@ -26,7 +26,7 @@ describe('js_tree', () => {
     someField = 0;
   }
 
-  it('isSomeClass', () => {
+  it('isLeaf', () => {
     const keyM = new Foo();
     const queryM = new Bar();
     const aTree = {
@@ -36,7 +36,10 @@ describe('js_tree', () => {
       queryM,
       valueM: 7,
     };
-    expect(jstree.isSomeClass(aTree)).toBe(false);
+    expect(jstree.isLeaf(keyM)).toBe(true);
+    expect(jstree.isLeaf(queryM)).toBe(true);
+    expect(jstree.isLeaf(1)).toBe(true);
+    expect(jstree.isLeaf(aTree)).toBe(false);
   });
 
   it('raw flatten', () => {

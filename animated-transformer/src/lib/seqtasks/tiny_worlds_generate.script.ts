@@ -12,11 +12,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 /*
+
+TODO: add yargs so this is a real command line tool example.
+
 Run with:
   npx ts-node src/lib/seqtasks/tiny_worlds_generate.script.ts
 */
+import { boolean, number, string } from 'yargs';
 
 import {
   TinyWorldTask,
@@ -30,12 +33,12 @@ import {
   initConfig.maxInputLen = 0;
   initConfig.maxOutputLen = 60;
   const tinyWorld = new TinyWorldTask(initConfig);
-  console.log(`* Example 1: (rns.state: ${tinyWorld.rns.state.curSeedVal})`);
+  console.log(`* Example 1: (rns.state: ${tinyWorld.exampleIter.state.seed})`);
   const [example] = tinyWorld.exampleIter.takeOutN(1);
   console.log(' - input: ', JSON.stringify(example.input.join('')));
   console.log(' - output: ', JSON.stringify(example.output.join('')));
 
-  console.log(`* Example 2: (rns.state: ${tinyWorld.rns.state.curSeedVal})`);
+  console.log(`* Example 2: (rns.state: ${tinyWorld.exampleIter.state.seed})`);
   const [example2] = tinyWorld.exampleIter.takeOutN(1);
   console.log(' - input: ', JSON.stringify(example2.input.join('')));
   console.log(' - output: ', JSON.stringify(example2.output.join('')));
