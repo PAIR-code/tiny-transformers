@@ -96,8 +96,7 @@ export class ModelEvaluatorComponent {
   }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
-  constructor() // public tinyModelsService: TinyModelsService
-  {
+  constructor() { // public tinyModelsService: TinyModelsService
     const strListValidator = jsonStrListValidator(this.validatorConfig);
     this.inputControl = new FormControl<string | null>('', strListValidator);
     this.inputControl.valueChanges.forEach((s) => {

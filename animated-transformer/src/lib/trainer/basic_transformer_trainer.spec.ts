@@ -40,7 +40,7 @@ describe('basic_transformer_trainer', () => {
     const layerSpec: transformer.TransformerParamLayerSpec = {
       nHeads: 1,
       hasPosEncoding: false,
-      computeSpec: { residuals: true },
+      computeSpec: { residuals: true, dropoutRate: 0 },
       // TODO: investigate: these make 0 gradients?
       layerNormFF: false,
       layerNormHeadsProjection: false,
@@ -53,6 +53,7 @@ describe('basic_transformer_trainer', () => {
         inputRep: 4,
         kqvRep: 3,
         layers: [layerSpec, layerSpec],
+        dropoutRate: 0,
       },
       tokenRep: prepareBasicTaskTokenRep(task.baseVocab),
       init: {
@@ -92,6 +93,79 @@ describe('basic_transformer_trainer', () => {
     expect(trainState.nSteps).toBe(1);
     expect(trainState.nExamples).toBe(trainState.batchExamples.length);
     expect(newLoss).toBeLessThan(initLoss);
+
+    // Memory cleanup
+    jstree.forEach((g: GTensor<any>) => g.dispose(), params);
+    trainState.dispose();
+  });
+  it('AorBisMaxTaskWithDropout training', async () => {
+    const taskConfig: abtask.AorBisMaxTaskConfig = {
+      id: 'an AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      maxInputLen: 4,
+      maxOutputLen: 4,
+      genStateConfig: { seed: 0 },
+    };
+    const task = new abtask.AorBisMaxTask(taskConfig);
+
+    const layerSpec: transformer.TransformerParamLayerSpec = {
+      nHeads: 1,
+      hasPosEncoding: true,
+      computeSpec: { residuals: true, dropoutRate: 0.5 },
+      layerNormFF: false,
+      layerNormHeadsProjection: false,
+      addLayerNormBias: false,
+    };
+    const decoderConfig: transformer.TransformerConfig = {
+      id: 'a toy transformer',
+      kind: 'Transformer',
+      spec: {
+        inputRep: 4,
+        kqvRep: 3,
+        layers: [layerSpec, layerSpec],
+        dropoutRate: 0.5,
+      },
+      tokenRep: prepareBasicTaskTokenRep(task.baseVocab),
+      init: {
+        stddev: 0.5,
+        mean: 0,
+        seed: 2,
+      },
+    };
+
+    const trainStateConfig: TrainStateConfig = {
+      learningRate: 0.5,
+      batchSize: 64,
+      maxInputLength: taskConfig.maxInputLen,
+      testSetSize: 0,
+      trainSetSize: 64,
+    };
+    const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
+    const params = varifyParams(transformer.initDecoderParams(decoderConfig));
+    const model = {
+      config: decoderConfig,
+      params,
+    };
+    // console.log('initTransformerTrainState...');
+    const trainState = initTransformerTrainState(
+      task,
+      model,
+      strSeqPrepFn,
+      singleNextTokenIdxOutputPrepFn,
+      trainStateConfig
+    );
+    // Taking a couple of steps...
+    const initLoss = trainState.batchMeanLoss;
+    expect(trainState.nSteps).toBe(0);
+    expect(trainState.nExamples).toBe(0);
+    const stillTraining = trySgdTrainStep(trainState);
+    expect(stillTraining).toBe(true);
+    const newLoss = trainState.batchMeanLoss;
+    expect(trainState.nSteps).toBe(1);
+    expect(trainState.nExamples).toBe(trainState.batchExamples.length);
+    // Transformer with 50% dropout should not learn much. However notice that both of the
+    // tests here are very sensitive to the seed.
+    expect(newLoss).toBeGreaterThanOrEqual(initLoss);
 
     // Memory cleanup
     jstree.forEach((g: GTensor<any>) => g.dispose(), params);

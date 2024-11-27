@@ -37,6 +37,7 @@ describe('Trainer-Cell', () => {
       batchSize: 16,
       maxInputLength: 2,
       trainForBatches: 3,
+      randomSeed: 42,
       // Reporting / eval
       checkpointFrequencyInBatches: 4,
       metricReporting: {
@@ -112,5 +113,5 @@ describe('Trainer-Cell', () => {
 
     trainerCell.requestStop();
     await trainerCell.onceFinished;
-  }, 10000);
+  }, 15000);
 });

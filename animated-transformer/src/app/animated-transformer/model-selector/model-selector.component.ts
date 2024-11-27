@@ -70,6 +70,8 @@ import { disposeParams } from 'src/lib/gtensor/params';
 
 // const simpleTransformerWithLayerNorm = new ModelSpecAndData('transformer', transWithLayerNormed);
 
+// const simpleTransformerWithLayerNormAndDropout = new ModelSpecAndData('transformer', transWithLayerNormedAndDropout)
+
 export interface ModelUpdate {
   model: TransformerModel | null;
 }

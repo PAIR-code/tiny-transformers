@@ -27,6 +27,7 @@ import {
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { transformerAccuracy } from '../transformer/transformer_gtensor';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
+import { RandomStream, makeRandomStream } from '../random/random';
 // import { GTensorTree, GVariableTree } from 'src/lib/gtensor/gtensor_tree';
 
 // Handy abbreviation for a Transformer Training state.
@@ -69,9 +70,10 @@ export function initTransformerTrainState(
       params: transformer.VarTransformerParams;
     },
     inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
-    targets: GTensor<'batch'>
+    targets: GTensor<'batch'>,
+    generator: RandomStream
   ): tf.Scalar {
-    const decoderComputation = transformer.computeTransformer(model, inputs);
+    const decoderComputation = transformer.computeTransformer(model, inputs, generator);
     const loss = transformer.lastTokenCrossEntropyLoss(model, decoderComputation, targets);
     return loss as tf.Scalar;
   }
@@ -88,6 +90,9 @@ export function initTransformerTrainState(
     trainSetIter: trainExamples,
   };
 
+  // Create generator for neural network randomness (e.g. dropout).
+  const generator: RandomStream = makeRandomStream(model.config.init.seed);
+
   // console.log('testSetIndex.size:', testSetIndex.size);
   // console.log('testSetIndex.values:', [...testSetIndex.values()]);
 
@@ -100,7 +105,8 @@ export function initTransformerTrainState(
       transformerLastTokenLoss,
       taskDatasetSplit,
       inputPrepFn,
-      targetPrepFn
+      targetPrepFn,
+      generator
     ) as TransformerTrainState;
   });
   return state;
@@ -123,7 +129,11 @@ export function computeMetrics(state: TransformerTrainState): TrainMetrics {
 export function computeStateBatchAccuracy(state: TransformerTrainState): number {
   let meanAcc: number = -1;
   tf.tidy(() => {
-    const decoderComputation = transformer.computeTransformer(state.model, state.inputsVar);
+    const decoderComputation = transformer.computeTransformer(
+      state.model,
+      state.inputsVar,
+      state.generator
+    );
     meanAcc = transformerAccuracy(state.model, decoderComputation, state.targetsVar).dataSync()[0];
   });
   return meanAcc;
@@ -143,7 +153,11 @@ export function computeLossAndAccuracy(
     for (let i = 0; i < examples.length; i += state.config.batchSize) {
       const testSetBatch = examples.slice(i, i + state.config.batchSize);
       state.prepareBatch(testSetBatch);
-      const decoderComputation = transformer.computeTransformer(state.model, state.inputsVar);
+      const decoderComputation = transformer.computeTransformer(
+        state.model,
+        state.inputsVar,
+        state.generator
+      );
       const batchAcc = transformerAccuracy(
         state.model,
         decoderComputation,

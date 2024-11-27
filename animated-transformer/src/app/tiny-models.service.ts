@@ -13,6 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class TinyModelsService {}
+
 /* import { Injectable } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfigKind } from 'src/lib/json/config-obj';

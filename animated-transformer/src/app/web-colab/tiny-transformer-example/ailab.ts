@@ -36,6 +36,7 @@ export type TrainConfig = {
   id: string;
   kind: 'basicSeqTrainer';
   // Training hyper-params
+  randomSeed: number;
   learningRate: number;
   batchSize: number;
   maxInputLength: number;

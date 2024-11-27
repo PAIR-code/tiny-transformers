@@ -17,7 +17,6 @@ limitations under the License.
  * Transformers implemented using GTensor.
  *
  * TODO: encode-decoder. (currently only have decoder models)
- * TODO: dropout.
  * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
  * TODO: loss for all tokens (currently just the last token).
  * TODO: Adam optimiser / others (currently only have SGD).
@@ -54,10 +53,12 @@ import {
   makePosAttentionMatrix,
 } from './relative_pos_encoding';
 import { initLayerNormParams, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
+import { dropout } from './dropout';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
 import { makeModel, modelRegistry } from '../models/model_registry';
+import { RandomStream } from '../random/random';
 // import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,8 @@ export type TransformerParamSpec = {
   inputRep: number;
   kqvRep: number;
   layers: TransformerParamLayerSpec[];
+  // Dropout rate on the input before going into the stack.
+  dropoutRate: number;
   relPosEncodingSeqLength?: number;
 };
 
@@ -98,6 +101,7 @@ export type AttnHeadParamSpec = {
   addLayerNormBias: boolean;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
+  // Note: dropout spec don't introduce params, so they are not here either.
 };
 
 export type TransformerParamLayerSpec = {
@@ -112,6 +116,7 @@ export type TransformerParamLayerSpec = {
 export type AttnHeadComputeSpec = {
   // Whether to include or not the residual connections in the computation.
   residuals: boolean;
+  dropoutRate: number;
 };
 
 export function defaultTransformerConfig(): TransformerConfig {
@@ -124,7 +129,7 @@ export function defaultTransformerConfig(): TransformerConfig {
     layerNormFF: false,
     layerNormHeadsProjection: false,
     addLayerNormBias: false,
-    computeSpec: { residuals: true },
+    computeSpec: { residuals: true, dropoutRate: 0 },
   };
   const layer_config_first: TransformerParamLayerSpec = {
     ...layer_config,
@@ -133,6 +138,7 @@ export function defaultTransformerConfig(): TransformerConfig {
   const spec: TransformerParamSpec = {
     inputRep: 64,
     kqvRep: 64,
+    dropoutRate: 0,
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
@@ -152,7 +158,7 @@ export function defaultTransformerConfig(): TransformerConfig {
 export const simpleLayerSpec_nLN: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0 },
   layerNormFF: false,
   layerNormHeadsProjection: false,
   addLayerNormBias: false,
@@ -164,6 +170,7 @@ export const simpleTransfomerConfig_nLN: TransformerConfig = {
   spec: {
     inputRep: 8,
     kqvRep: 8,
+    dropoutRate: 0,
     layers: [simpleLayerSpec_nLN],
   },
   tokenRep: toyTokenTep,
@@ -177,7 +184,7 @@ export const simpleTransfomerConfig_nLN: TransformerConfig = {
 export const simpleLayerSpec_LN: TransformerParamLayerSpec = {
   nHeads: 4,
   hasPosEncoding: true,
-  computeSpec: { residuals: true },
+  computeSpec: { residuals: true, dropoutRate: 0 },
   layerNormFF: true,
   layerNormHeadsProjection: true,
   addLayerNormBias: false,
@@ -189,6 +196,7 @@ export const simpleTransfomerConfig_LN: TransformerConfig = {
   spec: {
     inputRep: 8,
     kqvRep: 8,
+    dropoutRate: 0,
     layers: [simpleLayerSpec_LN],
   },
   tokenRep: toyTokenTep,
@@ -317,7 +325,8 @@ function gelu(x: tf.Tensor) {
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams,
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  generator: RandomStream
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
@@ -343,17 +352,24 @@ export function computeAttnHead(
   }
 
   const attention = rawAttention.softmax('queryPos');
+
+  // Dropout on the attention weights.
+  const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
+
   const attendedValues = values
-    .contract(attention.rename('queryPos', 'pos'), ['pos'])
+    .contract(attentionAfterDropout.rename('queryPos', 'pos'), ['pos'])
     .rename('keyPos', 'pos');
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
-  let normedHeadReduction = headsReduction;
+  // Dropout before layer norm and residual connection.
+  let headsReductionAfterDropout = dropout(spec.dropoutRate, headsReduction, generator.random());
+
+  let normedHeadReduction = headsReductionAfterDropout;
   if (params.layerNormHeadsProjection) {
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
-      headsReduction,
+      headsReductionAfterDropout,
       'inputRepToFF'
     );
   }
@@ -366,15 +382,27 @@ export function computeAttnHead(
     inputToFF = normedHeadReduction.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
   }
 
+  // Skipped dropout in the FF, since the FF nn is a single layer with two biases.
   let unNormedSeqOuput = inputToFF
     .contract(ff.w, ['inputRepToFF'])
     .pointwiseAdd(ff.bIn)
     .applyPointWiseTfFn(gelu)
     .pointwiseAdd(ff.bOut);
+
+  // Dropout before layer norm and residual connection.
+  const unNormedSeqOuputAfterDropout = dropout(
+    spec.dropoutRate,
+    unNormedSeqOuput,
+    generator.random()
+  );
+
   if (spec.residuals) {
-    // FF residual
-    unNormedSeqOuput = unNormedSeqOuput.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
+    // FF residual.
+    unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(
+      inputToFF.rename('inputRepToFF', 'inputRep')
+    );
   }
+
   let seqOuput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
     seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
@@ -408,10 +436,13 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });
-  const tokenEmbedding = makeTruncNormal({
-    tokenId: config.tokenRep.tokens.length,
-    inputRep: spec.inputRep,
-  });
+  const tokenEmbedding = makeTruncNormal(
+    {
+      tokenId: config.tokenRep.tokens.length,
+      inputRep: spec.inputRep,
+    },
+    init
+  );
   return { layers, tokenEmbedding };
 }
 
@@ -424,19 +455,23 @@ export function computeTransformer(
     config: { spec: TransformerParamSpec };
     params: TransformerParams;
   },
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  generator: RandomStream
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
-  let currentLayerInput = seqInput;
+  let currentLayerInput = dropout(model.config.spec.dropoutRate, seqInput, generator.random());
   model.params.layers.forEach((layerParams, i) => {
     const layerCompute = computeAttnHead(
       model.config.spec.layers[i].computeSpec,
       layerParams,
-      currentLayerInput
+      currentLayerInput,
+      generator
     );
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
   });
+  // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
+  // this in the TransformerComputation output.
   return compute;
 }
 
@@ -530,14 +565,15 @@ export function computeDecoder(
     params: TransformerParams;
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  inputs: string[][]
+  inputs: string[][],
+  generator: RandomStream
 ): TransformerComputation {
   const maxInputLength = inputs.reduce(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
     0
   );
   const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
-  return computeTransformer(model, gtensorInputs);
+  return computeTransformer(model, gtensorInputs, generator);
 }
 
 export function computePrediction(
@@ -546,10 +582,11 @@ export function computePrediction(
     params: TransformerParams;
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  inputs: string[][]
+  inputs: string[][],
+  generator: RandomStream
 ): string[][] {
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(model, inputPrepFn, inputs);
+    const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
     const predictions = transformerTopPrediction(model, decoderComputation);
     return (predictions.tensor.arraySync() as number[]).map((idx) => [
       model.config.tokenRep.tokens[idx],

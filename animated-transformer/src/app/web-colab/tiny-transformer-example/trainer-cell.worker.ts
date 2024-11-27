@@ -47,6 +47,7 @@ import {
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
 import { Metrics } from 'src/lib/weblab/cell-types';
+import { makeRandomStream, RandomStream } from 'src/lib/random/random';
 
 // ----------------------------------------------------------------------------
 const cell = workerCell(trainerCellSpec);
@@ -76,11 +77,16 @@ function shouldReportMetrics(batch: Batch, config: TrainConfig): boolean {
 }
 
 // ----------------------------------------------------------------------------
-function computeLoss(model: TransformerModel, batch: Batch, config: TrainConfig): tf.Scalar {
+function computeLoss(
+  model: TransformerModel,
+  randomStream: RandomStream,
+  batch: Batch,
+  config: TrainConfig
+): tf.Scalar {
   const lossComputeStartMs = Date.now();
   const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
   // const gtensorInputs = strSeqPrepFn(model, batch.inputs, options);
-  const computation = computeTransformer(model, gtensorInputs);
+  const computation = computeTransformer(model, gtensorInputs, randomStream);
   const nextTokenTargetIdx = singleNextTokenIdxOutputPrepFn(model, batch.outputs);
   const entropyLossTfScalar = lastTokenCrossEntropyLoss(model, computation, nextTokenTargetIdx);
   const lossComputeEndMs = Date.now();
@@ -164,6 +170,8 @@ cell.run(async () => {
   // per checkpoint?
   const { testSet, modelUpdateEvents, trainConfig } = await cell.onceAllInputs;
 
+  const randomStream = makeRandomStream(trainConfig().randomSeed);
+
   const model = setable<Model | null>(null);
   derived(() => updateModel(modelUpdateEvents(), model));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
@@ -183,7 +191,7 @@ cell.run(async () => {
     optimiserBatchCount++;
     const startAtMs = Date.now();
     optimizer.minimize(
-      () => computeLoss(defined(model), trainBatch, trainConfig()),
+      () => computeLoss(defined(model), randomStream, trainBatch, trainConfig()),
       false,
       defined(varParamList)
     );

@@ -45,7 +45,7 @@ import {
 } from '../tokens/token_gemb';
 import * as yargs from 'yargs';
 import { varifyParams, listifyVarParams } from '../gtensor/params';
-import * as jstree from '../js_tree/js_tree';
+import { RandomStream, makeRandomStream } from '../random/random';
 
 const tfjsBackendName = tf.getBackend();
 console.log('tfjs backend:', tfjsBackendName);
@@ -71,7 +71,7 @@ function initTransformerConfig(baseVocab: string[]): TransformerConfig {
     layerNormFF: false,
     layerNormHeadsProjection: false,
     addLayerNormBias: false,
-    computeSpec: { residuals: true },
+    computeSpec: { residuals: true, dropoutRate: 0 },
   };
   const layer_config_first: TransformerParamLayerSpec = {
     ...layer_config,
@@ -80,6 +80,7 @@ function initTransformerConfig(baseVocab: string[]): TransformerConfig {
   const spec: TransformerParamSpec = {
     inputRep: 64,
     kqvRep: 64,
+    dropoutRate: 0,
     layers: [layer_config_first, layer_config, layer_config, layer_config],
   };
   const config: TransformerConfig = {
@@ -120,11 +121,17 @@ function computeLoss(
     config: TransformerConfig;
     params: TransformerParams;
   },
+  randomStream: RandomStream,
   batchId: number,
   batchInput: string[][],
   batchOutput: string[][]
 ): tf.Scalar {
-  const computation: TransformerComputation = computeDecoder(model, strSeqPrepFn, batchInput);
+  const computation: TransformerComputation = computeDecoder(
+    model,
+    strSeqPrepFn,
+    batchInput,
+    randomStream
+  );
   const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
   const entropyLoss: tf.Scalar = lastTokenCrossEntropyLoss(model, computation, singleNextTokenIdx);
   if (batchId % printEveryNBatches === 0) {
@@ -150,6 +157,8 @@ function run() {
     config: transformerConfig,
     params: decoderParams,
   };
+  const randomStream = makeRandomStream(42);
+
   // By manipulating decoderParams, you can selectively limit what parameters
   // get tuned.
   const paramsList = listifyVarParams(decoderParams).map((g) => g.variable);
@@ -162,7 +171,11 @@ function run() {
     let optimizer = tf.train.adam();
     for (let batch of batchGenerator(trainTask, batchNum, batchSize)) {
       let { batchId, inputs, outputs } = batch;
-      optimizer.minimize(() => computeLoss(model, batchId, inputs, outputs), false, paramsList);
+      optimizer.minimize(
+        () => computeLoss(model, randomStream, batchId, inputs, outputs),
+        false,
+        paramsList
+      );
       batchId += 1;
     }
     optimizer.dispose();
@@ -189,7 +202,12 @@ function run() {
     // for (let inferStep = 0; inferStep < inferSteps; inferStep += 1) {
     const inferStep = 0;
     const spec = transformerConfig.spec;
-    const computation: TransformerComputation = computeDecoder(model, strSeqPrepFn, batchInput);
+    const computation: TransformerComputation = computeDecoder(
+      model,
+      strSeqPrepFn,
+      batchInput,
+      randomStream
+    );
     //
     const singleNextTokenIdx = singleNextTokenIdxOutputPrepFn(model, batchOutput);
     // [0] to look at only the first example in batch.

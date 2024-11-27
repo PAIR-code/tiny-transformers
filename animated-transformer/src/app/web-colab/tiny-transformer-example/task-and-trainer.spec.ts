@@ -28,7 +28,7 @@ import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
-  fit('simple task cell test: make 5 batches of data and trains a model', async () => {
+  it('simple task cell test: make 5 batches of data and trains a model', async () => {
     const env = new LabEnv();
     const space = env.space;
     const { setable, derived } = space;
@@ -43,6 +43,7 @@ describe('Trainer-Cell', () => {
       batchSize: 64,
       maxInputLength: 10,
       trainForBatches: 11,
+      randomSeed: 42, // for things like dropout.
       // Reporting / eval
       checkpointFrequencyInBatches: 10,
       metricReporting: {
