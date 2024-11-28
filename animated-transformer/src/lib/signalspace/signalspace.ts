@@ -73,7 +73,10 @@ export type AbstractSignal<T> = {
 export type SetableSignal<T> = AbstractSignal<T> & {
   // Sets the value of the signal.
   set(newValue: T, options?: Partial<SignalSetOptions>): void;
+  // Note: propegate signal semantics by default does eqCheck.
   update(f: (oldValue: T) => T, options?: Partial<SignalSetOptions>): void;
+  // Note: always forces an update;
+  change(f: (changedValue: T) => void): void;
   node: SetableNode<T>;
 };
 
@@ -180,7 +183,7 @@ export class SignalSpace {
 
   public signalSet: Set<DerivedNode<unknown> | SetableNode<unknown>> = new Set();
 
-  // Set for the time between a value has been updated, and
+  // Set from the time between a value has been updated, and
   // when the update all effects has been completed.
   public update?: SignalSpaceUpdate;
 
@@ -340,6 +343,7 @@ function setable<T>(
   signal.lastValue = () => valueNode.value;
   signal.set = (value: T, options?: SignalSetOptions) => valueNode.set(value, options);
   signal.update = (f: (v: T) => T, options?: SignalSetOptions) => valueNode.update(f, options);
+  signal.change = (f: (v: T) => void) => valueNode.change(f);
   signal.space = space;
   signal.node = valueNode;
   signal.options = options;

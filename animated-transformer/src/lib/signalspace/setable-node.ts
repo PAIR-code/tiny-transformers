@@ -120,10 +120,16 @@ export class SetableNode<T> {
     return this.dependsOnMe.size > 0;
   }
 
-  // Note: for updates, the get part is silent and untracked...!
-  // CONSIDER: should this be semantically the same as get + set?
   update(f: (v: T) => T, setOptions?: SignalSetOptions) {
+    if (!setOptions || !setOptions.updateStrategy) {
+      setOptions = { updateStrategy: SetableUpdateKind.EqCheck };
+    }
     this.set(f(this.value), setOptions);
+  }
+
+  change(f: (v: T) => void) {
+    f(this.value);
+    this.signalSpace.propegateValueUpdate(this as SetableNode<unknown>);
   }
 
   set(v: T, setOptions?: SignalSetOptions) {
