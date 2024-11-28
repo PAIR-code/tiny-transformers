@@ -24,7 +24,7 @@ import {
     dropoutRate: number,
     g: GTensor<G>,
     seed?: number,
-    dimNames?: string[],
+    dimNames?: G[],
   ): GTensor<G> {
     if (dropoutRate == 0) {
       return g;
