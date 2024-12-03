@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ModelEvaluatorComponent } from './model-evaluator.component';
@@ -30,7 +29,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
-
+import { provideRouter } from '@angular/router';
 
 describe('ModelEvaluatorComponent', () => {
   let component: ModelEvaluatorComponent;
@@ -55,7 +54,8 @@ describe('ModelEvaluatorComponent', () => {
         // ---
         CodemirrorConfigEditorModule,
       ],
-      declarations: [ModelEvaluatorComponent]
+      providers: [provideRouter([])],
+      declarations: [ModelEvaluatorComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ModelEvaluatorComponent);

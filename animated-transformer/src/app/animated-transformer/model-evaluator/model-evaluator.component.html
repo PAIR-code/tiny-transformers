@@ -15,7 +15,7 @@
   </mat-form-field>
 </form>
 
-@if (modelData(); as modelData) {
+@if (currentModel(); as model) {
   <div>
     <button mat-flat-button color="primary" (click)="evaluate()">
       Evalute
@@ -31,17 +31,17 @@
   </div>
 }
 
-@if (modelData(); as modelData) {
+@if (currentModel(); as model) {
   <div class="button-row">
     <div>
-      <button mat-flat-button color="primary" (click)="downloadActivations()">
+      <!-- <button mat-flat-button color="primary" (click)="downloadActivations()">
         Download activations
-      </button>
+      </button> -->
     </div>
     <div>
-      <button mat-flat-button color="primary" (click)="downloadModel()">
+      <!-- <button mat-flat-button color="primary" (click)="downloadModel()">
         Download model
-      </button>
+      </button> -->
     </div>
   </div>
 }

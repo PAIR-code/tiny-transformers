@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomStream, makeRandomStream } from '../random/random';
 import * as swap_task from './swap_task';
 
 describe('swap_task', () => {
@@ -21,11 +21,12 @@ describe('swap_task', () => {
 
   beforeEach(() => {
     swapTask = new swap_task.SwapTask({
-      name: 'SwapTask',
+      id: 'a SwapTask',
+      kind: 'SwapTask',
       maxInputLen: 10,
       maxOutputLen: 1,
       valuesLessThan: swap_task.baseVocab.length + 1,
-      seed: 47,
+      genStateConfig: { seed: 47 },
     });
   });
 
@@ -59,7 +60,7 @@ describe('swap_task', () => {
 
   it('genRandExample', () => {
     const rng = makeRandomStream(0);
-    const example = swapTask.genRandExample(rng);
+    const example = swapTask.genRandExample(rng.state);
     // Strange bug:
     //   example.input.map(x => parseInt(x)) !==
     //   example.input.map(parseInt)
@@ -67,9 +68,7 @@ describe('swap_task', () => {
     //   example.input.map(parseInt)[1] === NaN
     const inputsAsNumbers = example.input.map((x) => parseInt(x));
     expect(example.input.length).toEqual(swapTask.config.maxInputLen);
-    expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan
-    );
+    expect(Math.max(...inputsAsNumbers)).toBeLessThan(swapTask.config.valuesLessThan);
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 
@@ -77,9 +76,7 @@ describe('swap_task', () => {
     const [example] = swapTask.exampleIter;
     const inputsAsNumbers = example.input.map((x) => parseInt(x));
     expect(example.input.length).toEqual(swapTask.config.maxInputLen);
-    expect(Math.max(...inputsAsNumbers)).toBeLessThan(
-      swapTask.config.valuesLessThan
-    );
+    expect(Math.max(...inputsAsNumbers)).toBeLessThan(swapTask.config.valuesLessThan);
     expect(Math.min(...inputsAsNumbers)).toBeGreaterThan(-1);
   });
 });

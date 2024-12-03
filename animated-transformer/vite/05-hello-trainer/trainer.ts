@@ -16,7 +16,7 @@ limitations under the License.
 
 import { trySgdTrainStep } from 'src/lib/trainer/train_state';
 import * as abtask from '../../src/lib/seqtasks/ab_task';
-import { BasicRandSeededTaskConfig, prepareBasicTaskTokenRep } from '../../src/lib/seqtasks/util';
+import { RandLmTaskConfig, prepareBasicTaskTokenRep } from '../../src/lib/seqtasks/util';
 import { TransformerConfig, initTransformerTrainState, examplePrepFinalMaskFn, } from '../../src/lib/trainer/basic_transformer_trainer';
 
 
@@ -45,8 +45,8 @@ export function initTrainer() {
     }
   };
 
-  const config: BasicRandSeededTaskConfig = {
-    name: 'AorBisMaxTask',
+  const config: RandLmTaskConfig = {
+    id: 'AorBisMaxTask',
     maxInputLen: 4,
     maxOutputLen: 4,
     seed: 47,
@@ -61,7 +61,7 @@ export function initTrainer() {
   const task = new abtask.AorBisMaxTask(config);
   const tokenRep = prepareBasicTaskTokenRep(
     task.baseVocab, decoderConfig.spec.inputRep);
-  console.log('initTransformerTrainState...');
+  // console.log('initTransformerTrainState...');
   const trainState = initTransformerTrainState(
     task, examplePrepFinalMaskFn, tokenRep, trainStateConfig, decoderConfig
   );

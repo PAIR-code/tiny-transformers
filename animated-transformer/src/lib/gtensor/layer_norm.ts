@@ -13,33 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  TensorOrVarKind,
-  TensorKind,
-  GTensor,
-  GTensorOrVar,
-  makeScalar,
-  VariableKind,
-} from './gtensor';
+import { GTensor, makeScalar } from './gtensor';
 
-export type LayerNormParams<T extends TensorOrVarKind> = {
-  gain: GTensorOrVar<T, never>;
-  bias?: GTensorOrVar<T, never>;
-  epsilon: GTensorOrVar<T, never>;
-} & {};
-// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
-type WorkAroundMakesThisTrue = LayerNormParams<VariableKind> extends LayerNormParams<TensorKind>
-  ? true
-  : false;
-// These are needed to get workaround to function accross files.
-export type VarLayerNormParams = LayerNormParams<VariableKind>;
-export type TensorLayerNormParams = LayerNormParams<TensorKind>;
+export type LayerNormParams = {
+  gain: GTensor<never>;
+  bias?: GTensor<never>;
+  epsilon: GTensor<never>;
+};
 
-export function initLayerNormParams(
-  includeBias: boolean,
-  epsilon = 1e5
-): LayerNormParams<TensorKind> {
-  const layerNormParams: LayerNormParams<TensorOrVarKind> = {
+export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerNormParams {
+  const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),
   };
@@ -50,7 +33,7 @@ export function initLayerNormParams(
 }
 
 export function layerNorm<G extends string, D extends G>(
-  layerNormParams: LayerNormParams<TensorOrVarKind>,
+  layerNormParams: LayerNormParams,
   g: GTensor<G>,
   dim: D
 ): GTensor<G> {

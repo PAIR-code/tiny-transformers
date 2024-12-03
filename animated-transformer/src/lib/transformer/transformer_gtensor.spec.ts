@@ -19,11 +19,13 @@ import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
+import { makeRandomStream } from '../random/random';
 
 describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {
     const spec: AttnHeadComputeSpec = {
       residuals: true,
+      dropoutRate: 0.0,
     };
     const paramSizes: AttnHeadParamSpec = {
       inputRep: 2,
@@ -45,7 +47,8 @@ describe('GTensor Transformers', () => {
       ]),
       ['batch', 'pos', 'inputRep']
     );
-    const parts = transformer.computeAttnHead(spec, params, inputExample1);
+    const generator = makeRandomStream(0);
+    const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
     expect(parts.attendedValues.dimNames).toEqual(
       jasmine.arrayContaining(['batch', 'heads', 'value', 'pos'])
     );
@@ -61,10 +64,11 @@ describe('GTensor Transformers', () => {
     const inputRep = 2;
     const batchSize = 4;
     const task = new abtask.AorBisMaxTask({
-      name: 'AorBisMaxTask',
+      kind: 'AorBisMaxTask',
+      id: 'an A or B is Max task',
       maxInputLen: 2,
       maxOutputLen: 2,
-      seed: 0,
+      genStateConfig: { seed: 0 },
       // Create a tokenEmbedding that also has [MASC] token & [PAD] token.
       // inputRepSize: inputRep,
     });

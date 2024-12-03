@@ -21,7 +21,8 @@ limitations under the License.
  * -
  */
 
-import { Copyable, StateIter, UnknownCopyable } from '../state-iter/state-iter';
+import { RandomState, RandomStream } from '../random/random';
+import { StateIter } from '../state-iter/state-iter';
 
 export interface Example {
   id: number;
@@ -36,26 +37,50 @@ export interface Example {
 // export type ExampleIter = ;
 // Generator<Example, undefined, undefined>;
 
-export type BasicLmTaskConfig = {
-  name: string;
+export type BasicLmTaskConfig<T> = {
+  id: string;
+  kind: string; // this part of a descriminated union.
   maxInputLen: number;
   maxOutputLen: number;
+  // All determistically generated tasks must have some data that defines the
+  // task. This lives in genStateConfig, and should be directly serializable,
+  // and uniquely defines how/what data examples get generated. This requirement
+  // allows a config to be saved and loaded later, while keeping generation
+  // deterministic, independently of when it is loaded/saved.
+  genStateConfig: T;
 };
 
-export type BasicRandSeededTaskConfig = BasicLmTaskConfig & {
-  seed: number;
-};
+// Many tasks depend solely on a random number.
+export type RandLmTaskConfig = BasicLmTaskConfig<RandomState>;
+
+export type GenStateOfTaskConfig<T> = T extends BasicLmTaskConfig<infer GenState>
+  ? GenState
+  : never;
+
+type ShouldBeTrue = GenStateOfTaskConfig<RandLmTaskConfig> extends RandomState ? true : false;
 
 /* Simple interface for classes that provide a task */
-export type BasicLmTask = {
-  config: BasicLmTaskConfig;
+export interface BasicLmTask<Config extends BasicLmTaskConfig<{}>> {
+  config: Config;
   baseVocab: string[];
-  exampleIter: StateIter<any, Example>;
-  // tokenRep: MaskedTaskTokenRep;
-  // genRandExample(): Example;
-  // Called after a config change to re-init.
-  // reInitFromConfig(): void;
-};
+  exampleIter: StateIter<GenStateOfTaskConfig<Config>, Example>;
+}
+
+// A way to get from a BasicLmTask back to a config that can be used to
+// reconstruct the same task state.
+export function configFromTaskIter<GenState extends {}, Config extends BasicLmTaskConfig<GenState>>(
+  task: BasicLmTask<Config>
+): Config {
+  const config: Config = {
+    ...structuredClone(task.config),
+    genStateConfig: structuredClone(task.exampleIter.state),
+  };
+  return config;
+}
+
+export type BasicRandLmTask = BasicLmTask<BasicLmTaskConfig<RandomState>>;
+export type SomeBasicLmTask = BasicLmTask<BasicLmTaskConfig<{}>>;
+export type BasicExtendsSome_True = BasicRandLmTask extends SomeBasicLmTask ? true : false;
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -66,7 +91,7 @@ export type BasicLmTask = {
 // that when we emit task changes, they always have a new top-level object so
 // that change detection sees that it's something new.
 export interface BasicLmTaskUpdate {
-  task?: BasicLmTask;
+  task?: BasicRandLmTask;
 }
 
 // ----------------------------------------------------------------------------
@@ -110,25 +135,25 @@ export function generateBatch(exampleGen: Iterator<Example>, batchSize: number):
 //
 // Split off a number of examples to form the test set, and make sure that is
 // never in the set of examples generated after.
-export function splitGenerativeTaskTestSet(
+export function splitGenerativeTaskTestSet<S>(
   firstN: number,
-  task: BasicLmTask
+  datasetExampleIter: StateIter<S, Example>
 ): {
   testSetExamples: Example[];
   testSetIndex: Set<string>;
-  testSetFilteredExamples: StateIter<UnknownCopyable, Example>;
+  trainExamples: StateIter<S, Example>;
 } {
-  const examplesIter = task.exampleIter.copy();
+  const examplesIter = datasetExampleIter.copy();
   const testSetExamples = examplesIter.takeOutN(firstN);
   const testSetIndex = new Set(testSetExamples.map(indexExample));
 
-  const testSetFilteredExamples = examplesIter.copy();
-  testSetFilteredExamples.filter((example) => !testSetIndex.has(indexExample(example)));
+  const trainExamples = examplesIter.copy();
+  trainExamples.filter((example) => !testSetIndex.has(indexExample(example)));
 
   return {
     testSetExamples,
     testSetIndex,
-    testSetFilteredExamples,
+    trainExamples,
   };
 }
 

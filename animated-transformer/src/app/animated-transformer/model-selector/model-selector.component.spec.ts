@@ -30,6 +30,7 @@ import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/cod
 
 import { ModelSelectorComponent } from './model-selector.component';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+import { provideRouter } from '@angular/router';
 
 describe('ModelSelectorComponent', () => {
   let component: ModelSelectorComponent;
@@ -55,6 +56,7 @@ describe('ModelSelectorComponent', () => {
         CodemirrorConfigEditorModule,
         AutoCompletedTextInputComponent,
       ],
+      providers: [provideRouter([])],
       declarations: [ModelSelectorComponent],
     }).compileComponents();
 

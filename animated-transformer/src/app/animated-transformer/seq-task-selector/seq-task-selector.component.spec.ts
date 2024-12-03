@@ -28,8 +28,9 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { RouterTestingModule } from '@angular/router/testing';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+import { TinyModelsService } from 'src/app/tiny-models.service';
+import { provideRouter } from '@angular/router';
 
 describe('SeqTaskSelectorComponent', () => {
   let component: SeqTaskSelectorComponent;
@@ -37,12 +38,12 @@ describe('SeqTaskSelectorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [TinyModelsService, provideRouter([])],
       imports: [
         CommonModule,
         BrowserAnimationsModule,
         FormsModule,
         ReactiveFormsModule,
-        RouterTestingModule,
         // ---
         MatButtonModule,
         MatIconModule,
