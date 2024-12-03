@@ -31,30 +31,25 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs';
 import { GTensor } from 'src/lib/gtensor/gtensor';
-import * as lab from '../../lib/weblab/workerlab';
-import { exampleWorkerSpec } from '../../lib/weblab/example.ailab';
+// import * as lab from '../../lib/weblab/lab-worker-cell';
+// import { exampleWorkerSpec } from './foo.ailab';
 
 console.log('app.worker', self.location);
 
 async function run() {
-  const cell = new lab.Cell(exampleWorkerSpec);
-
-  const name = await cell.input.name;
-
-  console.log(`webworker got input! ${name}`);
-
-  const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
-  const v = t.contract(t, ['a']).tensor.arraySync() as number;
-
-  // TODO: handle all transferable objects, and for objects that are
-  // serializable (have a toSerialised, and a from Serialised), go via that
-  // if/as needed.
-  cell.output('tensor', {
-    t: t.toSerialised(),
-    v,
-  });
-
-  cell.finished();
+  // const cell = new lab.StatefulCell(exampleWorkerSpec);
+  // const name = await cell.input.name;
+  // console.log(`webworker got input! ${name}`);
+  // const t = new GTensor(tf.tensor([1, 2, 3]), ['a']);
+  // const v = t.contract(t, ['a']).tensor.arraySync() as number;
+  // // TODO: handle all transferable objects, and for objects that are
+  // // serializable (have a toSerialised, and a from Serialised), go via that
+  // // if/as needed.
+  // cell.output('tensor', {
+  //   t: t.toSerialised(),
+  //   v,
+  // });
+  // cell.finished();
 }
 
 run();

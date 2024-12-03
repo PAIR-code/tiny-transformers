@@ -157,10 +157,7 @@ describe('gtensor', () => {
     const likeg2 = g1.transposeLike(g2);
     expect(likeg2.dimNames).toEqual(g2.dimNames);
     expect(likeg2.tensor.shape).toEqual(g2.tensor.shape);
-    tf.test_util.expectArraysClose(
-      likeg2.tensor.dataSync(),
-      g2.tensor.dataSync()
-    );
+    tf.test_util.expectArraysClose(likeg2.tensor.dataSync(), g2.tensor.dataSync());
   });
 
   // TODO: add exception test also.
@@ -645,9 +642,7 @@ describe('gtensor', () => {
       ['point_id', 'inputRepSize']
     );
 
-    const r = paramPositions.squaredDifference(
-      paramPositions.rename('point_id', 'point_id2')
-    );
+    const r = paramPositions.squaredDifference(paramPositions.rename('point_id', 'point_id2'));
 
     expect(r.gshape()).toEqual({ point_id: 3, point_id2: 3, inputRepSize: 2 });
     tf.test_util.expectArraysClose(await r.tensor.data(), [
@@ -836,15 +831,11 @@ describe('gtensor', () => {
     function attentionHeadFn(
       input: GTensor<'seqLen' | 'inputRep'>
     ): GTensor<'seqLen' | 'valueRep'> {
-      const inputKeys = input
-        .contract(keyM, ['inputRep'])
-        .rename('seqLen', 'keySeqLen');
+      const inputKeys = input.contract(keyM, ['inputRep']).rename('seqLen', 'keySeqLen');
       const inputQueries = input.contract(queryM, ['inputRep']);
       const attention = inputKeys.contract(inputQueries, ['kqRep']);
       const values = input.contract(valueM, ['inputRep']);
-      const attendedValues = values
-        .contract(attention, ['seqLen'])
-        .rename('keySeqLen', 'seqLen');
+      const attendedValues = values.contract(attention, ['seqLen']).rename('keySeqLen', 'seqLen');
       return attendedValues;
     }
 
@@ -854,10 +845,7 @@ describe('gtensor', () => {
       valueRep: 4,
     });
 
-    const batchedAttentionHeadFn = gtensor.liftGTensorFnOverDim(
-      'batchSize',
-      attentionHeadFn
-    );
+    const batchedAttentionHeadFn = gtensor.liftGTensorFnOverDim('batchSize', attentionHeadFn);
     const batchedAttendedValues = batchedAttentionHeadFn(batchedInput);
     expect(batchedAttendedValues.gshape()).toEqual({
       batchSize: 10,
@@ -894,15 +882,11 @@ describe('gtensor', () => {
       maybeInput: ExactGTensor<'seqLen' | 'inputRep', T>
     ): GTensor<'seqLen' | 'valueRep'> {
       const input = maybeInput as never as GTensor<'seqLen' | 'inputRep'>;
-      const inputKeys = input
-        .contract(keyM, ['inputRep'])
-        .rename('seqLen', 'keySeqLen');
+      const inputKeys = input.contract(keyM, ['inputRep']).rename('seqLen', 'keySeqLen');
       const inputQueries = input.contract(queryM, ['inputRep']);
       const attention = inputKeys.contract(inputQueries, ['kqRep']);
       const values = input.contract(valueM, ['inputRep']);
-      const attendedValues = values
-        .contract(attention, ['seqLen'])
-        .rename('keySeqLen', 'seqLen');
+      const attendedValues = values.contract(attention, ['seqLen']).rename('keySeqLen', 'seqLen');
       return attendedValues;
     }
     // Bug/TODO: extra dimensions don't get caught by type-checker. :(

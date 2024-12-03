@@ -1,31 +1,27 @@
-<div class="row">
+<!-- <div class="row">
   <app-auto-completed-text-input class="dataset-form"
     [label]="'Model'"
-    [selectedName]="currentModelName()"
-    [itemNames]="modelNames()"
-    (itemSelected)="maybeSetModel($event)">
+    [selectedName]="this.tmService.modelId"
+    [itemNames]="modelNames"
+    (itemSelected)="this.tmService.selectModel($event)">
     </app-auto-completed-text-input>
 </div>
 
-<div class="row" *ngIf="currentModel() as model">
+<div class="row" *ngIf="this.tmService.model() as model">
   <div *ngIf="view != 'edit'" class="row">
-    <!-- <div class="json">{{modelConfigAsJson(model)}}</div> -->
+    <div class="json">{{modelConfigAsJson(model)}}</div>
     <div class='buttonrow'>
       <button mat-icon-button (click)="toggleModelEditor()">
         <mat-icon>edit</mat-icon>
       </button>
-
-      <button *ngIf="!model.modelData" mat-flat-button color="warn" (click)="initModelData()">
-        init
-      </button>
-      <button *ngIf="model.modelData" mat-flat-button (click)="initModelData()">
+      <button *ngIf="model" mat-flat-button (click)="tmService.reInitModelParams()">
         re-init
       </button>
     </div>
-    @if (model.modelData(); as data) {
+    @if (model) {
       <div>
-        Model is initialised. Params: <span>{{data.paramCount}}</span>
-        Token vocab size: <span>{{data.tokenRep.tokens.length}}</span>
+        Model is initialised. Params: <span>{{paramCount}}</span>
+        Token vocab size: <span>{{model.config.tokenRep.tokens.length}}</span>
       </div>
     } @else {
       <div>
@@ -36,9 +32,9 @@
   <div *ngIf="view == 'edit'" class="code-full-screen full-width">
     <app-codemirror-config-editor
       (update)="modelConfigUpdated($event)"
-      [whatIsBeingEditedName]="model.config.name"
-      [defaultConfig]="model.defaultConfigStr"
-      [config]="model.configStr"></app-codemirror-config-editor>
+      [whatIsBeingEditedName]="this.tmService.modelId"
+      [defaultConfig]="this.tmService.modelConfigDefaultStr"
+      [config]="currentConfigStr()"></app-codemirror-config-editor>
   </div>
 
-</div>
+</div> -->

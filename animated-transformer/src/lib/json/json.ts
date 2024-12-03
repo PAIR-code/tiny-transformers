@@ -28,7 +28,7 @@ const jsonStrCharReplacements: { [s: string]: string } = {
 const rxEscapable =
   /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
 
-// Quoting string representations, so they camn be values in JSON outputs,
+// Quoting string representations, so they can be values in JSON outputs,
 // and when they get parsed, they come back to the original string.
 export function quote(s: string): string {
   // If the string contains no control characters, no quote characters, and no

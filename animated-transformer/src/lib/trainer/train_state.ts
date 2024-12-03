@@ -13,21 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  GTensor,
-  DName,
-  GVariable,
-  GTensorOrScalar,
-  makeScalar,
-  GTensorOrVar,
-  AnyGTensorOrVar,
-  TensorOrVarKind,
-} from '../gtensor/gtensor';
+import { GTensor, DName, GVariable, GTensorOrScalar, makeScalar } from '../gtensor/gtensor';
+
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, generateBatch } from '../seqtasks/util';
+import { BasicLmTask, BasicRandLmTask, Example, generateBatch } from '../seqtasks/util';
 import { gradsVarTreeFunctor } from '../gtensor/grad';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
+import { RandomStream } from '../random/random';
 
 export type TrainingBatch<InputDims extends DName, TargetDims extends DName> = {
   inputs: GTensor<InputDims>;
@@ -39,13 +32,13 @@ export type TrainingBatch<InputDims extends DName, TargetDims extends DName> = {
 export type TrainStateConfig = {
   learningRate: number;
   batchSize: number;
-  maxInputlength: number;
+  maxInputLength: number;
   testSetSize: number;
   trainSetSize: number;
 };
 
 export type TaskDatasetSplit = {
-  task: BasicLmTask;
+  task: BasicRandLmTask;
   testSetIndex: Set<string>;
   testSetExamples: Example[];
   trainSetIter: Iterator<Example>;
@@ -75,17 +68,24 @@ export type LossFn<
   // The inputed dimension names of the model
   InputDims extends DName,
   // The outputed dimension names of the model
-  TargetDims extends DName
+  TargetDims extends DName,
+  // Random generator.
+  RandomStream
 > = (
-  spec: SpecKind,
-  params: ParamsKind,
+  model: {
+    config: { spec: SpecKind };
+    params: ParamsKind;
+  },
   inputs: GTensor<InputDims>,
-  targets: GTensor<TargetDims>
+  targets: GTensor<TargetDims>,
+  generator: RandomStream
 ) => tf.Scalar;
 
-type TensorParams = jstree.DictArrTree<GTensor<any>>;
 type VarParams = jstree.DictArrTree<GVariable<any>>;
-type TensorOrVarParams<T extends TensorOrVarKind> = jstree.DictArrTree<AnyGTensorOrVar<T>>;
+// You might think we'd need this:
+//   type TensorOrVarParams<T extends TensorOrVarKind> = jstree.DictArrTree<AnyGTensorOrVar<T>>;
+// but we don't because
+//   jstree.DictArrTree<GVariable<any>> extends jstree.DictArrTree<GTensor<any>>
 
 // Class to hold state, primarily for memory management.
 export class TrainState<
@@ -122,27 +122,29 @@ export class TrainState<
    * its memory cleanup.
    */
   constructor(
-    // SpecKind defines the meta-data for the model's specification, e.g.
-    // what model is it and what hyper-params does it have.
-    // (dimension size, nLayers, etc).
-    public spec: SpecKind,
-    // This is a JS object that contains the actual parameters.
-    // Note: this class, the TrainState, does not own the params tree.
-    // It's caller is responsible for initialization and cleanup.
-    public params: Params,
+    public model: {
+      // SpecKind defines the meta-data for the model's specification, e.g.
+      // what model is it and what hyper-params does it have.
+      // (dimension size, nLayers, etc).
+      config: { spec: SpecKind; tokenRep: BasicTaskTokenRep };
+      // This is a JS object that contains the actual parameters.
+      // Note: this class, the TrainState, does not own the params tree.
+      // It's caller is responsible for initialization and cleanup.
+      params: Params;
+    },
     // Config is
     public config: TrainStateConfig,
-    public lossFn: LossFn<SpecKind, Params, InputDims, TargetDims>,
-    public tokenRep: BasicTaskTokenRep,
+    public lossFn: LossFn<SpecKind, Params, InputDims, TargetDims, RandomStream>,
     public taskSplit: TaskDatasetSplit,
     public inputPrepFn: StrSeqPrepFn<Params, InputDims>,
     public targetPrepFn: (
-      tokenRep: BasicTaskTokenRep,
+      model: { config: { tokenRep: BasicTaskTokenRep } },
       outputSeqs: string[][]
-    ) => GTensor<TargetDims>
+    ) => GTensor<TargetDims>,
+    public generator: RandomStream
   ) {
     // Make a copy of params with GVariables of zero value. init grad = 0
-    this.grads = jstree.map(this.params, (t: GTensor<any>) => new GVariable(t.zero()));
+    this.grads = jstree.map(this.model.params, (t: GTensor<any>) => new GVariable(t.zero()));
 
     // Note: creating the function (gradsFunctor) doesn't create or do any
     // tensor computation, that's why we don't need a tf.tidy here, but when we
@@ -154,8 +156,8 @@ export class TrainState<
     // the same shape as the params. Ater all, we only need the shape after the
     // number of training steps when the caller wants to programatically do
     // stuff with the udpated params.
-    this._calculateGradsAndLoss = gradsVarTreeFunctor(this.params, () =>
-      this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar)
+    this._calculateGradsAndLoss = gradsVarTreeFunctor(this.model.params, () =>
+      this.lossFn(this.model, this.inputsVar, this.targetsVar, this.generator)
     );
 
     this.initInputsAndTargets();
@@ -186,13 +188,12 @@ export class TrainState<
     }
     tf.tidy(() => {
       const inputs = this.inputPrepFn(
-        this.tokenRep,
-        this.params,
-        this.config.maxInputlength,
-        examples.map((e) => e.input)
+        this.model,
+        examples.map((e) => e.input),
+        { maxInputLength: this.config.maxInputLength }
       );
       const targets = this.targetPrepFn(
-        this.tokenRep,
+        this.model,
         examples.map((e) => e.output)
       );
       if (this.inputsVar && !this.inputsVar.tensor.isDisposed) {
@@ -232,7 +233,7 @@ export class TrainState<
 
   updateLoss(): number {
     tf.tidy(() => {
-      const loss = this.lossFn(this.spec, this.params, this.inputsVar, this.targetsVar);
+      const loss = this.lossFn(this.model, this.inputsVar, this.targetsVar, this.generator);
       this.batchMeanLoss = loss.dataSync()[0];
     });
     return this.batchMeanLoss;
@@ -268,7 +269,7 @@ export class TrainState<
       jstree.forEachZip(
         (paramVar: GVariable<string>, grad: GTensor<string>, i) =>
           paramVar.assign(f(paramVar, grad, i)),
-        this.params,
+        this.model.params,
         this.grads
       );
     });

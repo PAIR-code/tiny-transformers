@@ -58,6 +58,7 @@ const defaultAppConfig: AppConfig = {
 
 export const appConfigStr = JSON.stringify(defaultAppConfig, null, 2);
 
+// ============================================================================
 @Injectable({
   providedIn: 'root',
 })
@@ -65,8 +66,7 @@ export class ConfigStoreService {
   public appConfig: ConfigState<AppConfig> = this.newDefaultAppConfig();
   public defaultStr = appConfigStr.slice();
 
-  public modelKindInit: { [kind: string]: jstree.DictArrTree<GVariable<any>> } =
-    {};
+  public modelKindInit: { [kind: string]: jstree.DictArrTree<GVariable<any>> } = {};
 
   constructor() {}
 

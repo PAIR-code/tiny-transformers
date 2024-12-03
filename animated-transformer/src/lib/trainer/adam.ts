@@ -15,17 +15,22 @@ limitations under the License.
 /*
   An implementation of the Adam optimizer.
 */
+
+/* 
+
+
 import { GTensor, GVariable, makeScalar, one } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { GVariableTree } from '../gtensor/gtensor_tree';
 import { TrainState } from './train_state';
+import * as jstree from '../js_tree/js_tree';
+type VarParams = jstree.DictArrTree<GVariable<any>>;
 
 // Idea: create a per-layer-scaled adam optimizer for transformers. This will use far fewer
 // parameters, saving lots of memory, and maybe work just as well.
 
 export class AdamOptimizer<
   SpecKind,
-  ParamsKind,
+  ParamsKind extends VarParams,
   InputDims extends string,
   TargetDims extends string
 > {
@@ -44,9 +49,9 @@ export class AdamOptimizer<
   public b1tInv: GVariable<never>; // 1 - b1t
   public b2tInv: GVariable<never>; // 1 - b2t
   // The first moment, per param (~ the running accumulation for the gradient)
-  public m: GVariableTree<ParamsKind>;
+  public m: VarParams;
   // The second moment, per param (~ the running accumulation for gradient^2)
-  public v: GVariableTree<ParamsKind>;
+  public v: VarParams;
 
   //
   constructor(
@@ -55,8 +60,8 @@ export class AdamOptimizer<
     b2: number = 0.999,
     epsilon: number = 10 ** -8
   ) {
-    this.m = state.grads.map((t) => new GVariable(t.zero()));
-    this.v = state.grads.map((t) => new GVariable(t.zero()));
+    this.m = jstree.map(state.grads, (t) => new GVariable(t.zero()));
+    this.v = jstree.map(state.grads, (t) => new GVariable(t.zero()));
     this.b1 = makeScalar(b1);
     this.b2 = makeScalar(b2);
     this.epsilon = makeScalar(epsilon);
@@ -82,12 +87,10 @@ export class AdamOptimizer<
     });
 
     this.state.updateParamsFn((p, g, i) => {
-      const m = this.m.list[i] as GVariable<string>;
+      const m = jstree. this.m.list[i] as GVariable<string>;
       const v = this.m.list[i] as GVariable<string>;
       const m2 = m.scalarMul(this.b1).pointwiseAdd(g.scalarMul(this.b1Inv));
-      const v2 = v
-        .scalarMul(this.b2)
-        .pointwiseAdd(g.pointwiseMul(g).scalarMul(this.b2Inv));
+      const v2 = v.scalarMul(this.b2).pointwiseAdd(g.pointwiseMul(g).scalarMul(this.b2Inv));
       m.assign(m2);
       v.assign(v2);
       const mhat = m.scalarDiv(this.b1tInv);
@@ -116,3 +119,5 @@ export class AdamOptimizer<
     this.v.forEach((g) => g.dispose());
   }
 }
+
+*/

@@ -15,24 +15,24 @@ limitations under the License.
 
 // TODO: add regulariztion methods, e.g. weight decay/L2/L1/Ln regularization.
 
-import { TensorOrVarKind, GTensor, GVariable, VariableKind, TensorKind } from '../gtensor/gtensor';
+import { GTensor } from '../gtensor/gtensor';
 import * as transformer from '../transformer/transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, Example, splitGenerativeTaskTestSet } from '../seqtasks/util';
+import {
+  BasicLmTask,
+  BasicRandLmTask,
+  Example,
+  splitGenerativeTaskTestSet,
+} from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { transformerAccuracy } from '../transformer/transformer_gtensor';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
+import { RandomStream, makeRandomStream } from '../random/random';
 // import { GTensorTree, GVariableTree } from 'src/lib/gtensor/gtensor_tree';
 
 // Handy abbreviation for a Transformer Training state.
 // This lets us write `new TransformerTrainState(...)`
 export type TransformerTrainState = TrainState<
-  transformer.TransformerParamSpec,
-  transformer.VarTransformerParams,
-  'batch' | 'pos' | 'inputRep',
-  'batch'
->;
-export const TransformerTrainState = TrainState<
   transformer.TransformerParamSpec,
   transformer.VarTransformerParams,
   'batch' | 'pos' | 'inputRep',
@@ -52,41 +52,46 @@ export interface TrainMetrics {
 }
 
 export function initTransformerTrainState(
-  task: BasicLmTask,
-  tokenRep: BasicTaskTokenRep,
-  inputPrepFn: StrSeqPrepFn<transformer.TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  targetPrepFn: (tokenRep: BasicTaskTokenRep, outputSeqs: string[][]) => GTensor<'batch'>,
-  transformerConfig: transformer.TransformerConfig,
-  transformerInitParams: transformer.VarTransformerParams,
+  task: BasicRandLmTask,
+  model: {
+    config: transformer.TransformerConfig;
+    params: transformer.VarTransformerParams;
+  },
+  inputPrepFn: StrSeqPrepFn<transformer.VarTransformerParams, 'batch' | 'pos' | 'inputRep'>,
+  targetPrepFn: (
+    model: { config: { tokenRep: BasicTaskTokenRep } },
+    outputSeqs: string[][]
+  ) => GTensor<'batch'>,
   trainStateConfig: TrainStateConfig
 ): TransformerTrainState {
   function transformerLastTokenLoss(
-    spec: transformer.TransformerParamSpec,
-    params: transformer.TransformerParams,
+    model: {
+      config: { spec: transformer.TransformerParamSpec };
+      params: transformer.VarTransformerParams;
+    },
     inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
-    targets: GTensor<'batch'>
+    targets: GTensor<'batch'>,
+    generator: RandomStream
   ): tf.Scalar {
-    const decoderComputation = transformer.computeTransformer(spec, params, inputs);
-    const loss = transformer.transformerLastTokenCrossEntropyLoss(
-      decoderComputation,
-      params.tokenEmbedding,
-      targets
-    );
+    const decoderComputation = transformer.computeTransformer(model, inputs, generator);
+    const loss = transformer.lastTokenCrossEntropyLoss(model, decoderComputation, targets);
     return loss as tf.Scalar;
   }
 
-  const {
-    testSetExamples,
-    testSetIndex,
-    testSetFilteredExamples: testFilteredExampleGenerator,
-  } = splitGenerativeTaskTestSet(trainStateConfig.testSetSize, task);
+  const { testSetExamples, testSetIndex, trainExamples } = splitGenerativeTaskTestSet(
+    trainStateConfig.testSetSize,
+    task.exampleIter
+  );
 
   const taskDatasetSplit: TaskDatasetSplit = {
     task,
     testSetIndex,
     testSetExamples,
-    trainSetIter: testFilteredExampleGenerator,
+    trainSetIter: trainExamples,
   };
+
+  // Create generator for neural network randomness (e.g. dropout).
+  const generator: RandomStream = makeRandomStream(model.config.init.seed);
 
   // console.log('testSetIndex.size:', testSetIndex.size);
   // console.log('testSetIndex.values:', [...testSetIndex.values()]);
@@ -94,15 +99,14 @@ export function initTransformerTrainState(
   // We use ! because assignment is inside tf.tidy.
   let state!: TransformerTrainState;
   tf.tidy(() => {
-    state = new TransformerTrainState(
-      transformerConfig.spec,
-      transformerInitParams,
+    state = new TrainState(
+      model,
       trainStateConfig,
       transformerLastTokenLoss,
-      tokenRep,
       taskDatasetSplit,
       inputPrepFn,
-      targetPrepFn
+      targetPrepFn,
+      generator
     ) as TransformerTrainState;
   });
   return state;
@@ -126,15 +130,11 @@ export function computeStateBatchAccuracy(state: TransformerTrainState): number 
   let meanAcc: number = -1;
   tf.tidy(() => {
     const decoderComputation = transformer.computeTransformer(
-      state.spec,
-      state.params,
-      state.inputsVar
+      state.model,
+      state.inputsVar,
+      state.generator
     );
-    meanAcc = transformerAccuracy(
-      decoderComputation,
-      state.params.tokenEmbedding,
-      state.targetsVar
-    ).dataSync()[0];
+    meanAcc = transformerAccuracy(state.model, decoderComputation, state.targetsVar).dataSync()[0];
   });
   return meanAcc;
 }
@@ -154,13 +154,13 @@ export function computeLossAndAccuracy(
       const testSetBatch = examples.slice(i, i + state.config.batchSize);
       state.prepareBatch(testSetBatch);
       const decoderComputation = transformer.computeTransformer(
-        state.spec,
-        state.params,
-        state.inputsVar
+        state.model,
+        state.inputsVar,
+        state.generator
       );
       const batchAcc = transformerAccuracy(
+        state.model,
         decoderComputation,
-        state.params.tokenEmbedding,
         state.targetsVar
       ).dataSync()[0];
       meanAccPerBatch.push(batchAcc);

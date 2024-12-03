@@ -55,9 +55,7 @@ export interface ConfigUpdate<T> {
   templateUrl: './codemirror-config-editor.component.html',
   styleUrls: ['./codemirror-config-editor.component.scss'],
 })
-export class CodemirrorConfigEditorComponent
-  implements OnInit, AfterContentInit
-{
+export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
   @Input() whatIsBeingEditedName: string = '';
   @Input() defaultConfig: string = '';
   @Input() closable: boolean = true;
@@ -126,7 +124,7 @@ export class CodemirrorConfigEditorComponent
 
   ngOnInit() {
     const language = new Compartment();
-    console.log('this.editorState.create...');
+    // console.log('this.editorState.create...');
     this.editorState = EditorState.create({
       doc: this.lastValidConfig,
       extensions: [
@@ -135,8 +133,7 @@ export class CodemirrorConfigEditorComponent
         EditorView.updateListener.of((updateEvent) => {
           // Unclear if this ngZone is needed...
           this.ngZone.run(() => {
-            let changedNow =
-              this.lastValidConfig !== updateEvent.state.doc.toString();
+            let changedNow = this.lastValidConfig !== updateEvent.state.doc.toString();
             if (this.changed !== changedNow) {
               this.changed = changedNow;
               this.changed$.next(this.changed);

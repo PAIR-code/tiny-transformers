@@ -29,16 +29,10 @@ import {
   untracked,
 } from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
-import {
-  mkVisTensor,
-  TensorImageComponent,
-} from '../tensor-image/tensor-image.component';
+import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
 // import json5 from 'json5';
 // import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import {
-  basicGatesMap,
-  TwoVarGTensorDataset,
-} from '../../lib/gtensor/the_16_two_var_bool_fns';
+import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
 import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
 // import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
@@ -71,9 +65,7 @@ export class ActivationVisComponent implements OnInit {
   selectedDatasetTable!: Signal<DatasetExample[] | null>;
   datasetVisTensor!: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
-  @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<
-    gtensor.GTensor<never>
-  >;
+  @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<gtensor.GTensor<never>>;
   datasetColumns: string[] = ['input', 'output'];
 
   constructor() {
@@ -92,7 +84,6 @@ export class ActivationVisComponent implements OnInit {
 
     this.datasetVisTensor = computed(() => {
       const d = this.selectedDataset();
-      console.log(`datasetVisTensor`, d);
       if (!d) {
         return null;
       }
@@ -113,9 +104,7 @@ export class ActivationVisComponent implements OnInit {
     // Set the dynamic model sub-component, and connect it to the dataset.
     const viewContainerRef = this.activationManager.viewContainerRef;
     viewContainerRef.clear();
-    const componentRef = viewContainerRef.createComponent(
-      CornerActivationComponent
-    );
+    const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
     componentRef.setInput('view', this.view);
     componentRef.setInput('dataset', this.selectedDataset);
   }

@@ -15,19 +15,16 @@ limitations under the License.
 
 import { Component } from '@angular/core';
 import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
-import * as tf from '@tensorflow/tfjs';
-import { LabState } from 'src/lib/weblab/lab-state';
+import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
+import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
+import { TrainStateConfig } from 'src/lib/trainer/train_state';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
+import { taskRegistry } from 'src/lib/seqtasks/task_registry';
+import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
+import { Batch, EnvModel, TrainConfig, trainerCellSpec } from './tiny-transformer-example/ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { exampleWorkerSpec, Globals } from './foo.ailab';
-
-// Create a new
-async function onceOutput<T>(worker: Worker): Promise<T> {
-  return new Promise<T>((resolve) => {
-    worker.onmessage = ({ data }) => {
-      resolve(data as T);
-    };
-  });
-}
+import { LabState } from 'src/lib/weblab/lab-state';
+import { varifyParams } from 'src/lib/gtensor/params';
 
 @Component({
   selector: 'app-web-colab',
@@ -37,35 +34,22 @@ async function onceOutput<T>(worker: Worker): Promise<T> {
   styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
-  // public worker2: Worker;
+  env: LabEnv;
+  space: SignalSpace;
 
   constructor() {
-    // This works...
-    // this.worker2 = new Worker(new URL('./app.worker', import.meta.url));
-  }
-
-  async foo() {
-    const urlPath = './foo.worker';
-    console.log(urlPath);
-    const worker2 = new Worker(new URL(urlPath, import.meta.url));
-
-    worker2.postMessage('hello, are you there webworker2?');
-    console.log('worker2 says:', await onceOutput<string>(worker2));
+    this.env = new LabEnv();
+    this.space = new SignalSpace();
+    // Consider... one liner... but maybe handy to have the object to debug.
+    // const { writable, computed } = new SignalSpace();
+    const { setable, derived } = this.space;
   }
 
   async doRun() {
-    if (typeof Worker === 'undefined') {
-      console.error('We require webworkers. Sorry.');
-      return;
-    }
-    const state = new LabState();
-    const env = new LabEnv<Globals>(state);
-    env.stateVars.name = 'initial fake name';
-    const outputs = await env.run(exampleWorkerSpec);
-    console.log(outputs);
-    console.log(
-      GTensor.fromSerialised(outputs.tensor!.t).scalarDiv(makeScalar(3)).tensor.arraySync()
-    );
+    // const cell = this.env.start(trainerCellSpec, this.globals);
+    // const lastTrainMetric = await cell.outputs.lastTrainMetric;
+    // console.log(lastTrainMetric);
+    // cell.worker.terminate();
   }
 
   async doOpen() {

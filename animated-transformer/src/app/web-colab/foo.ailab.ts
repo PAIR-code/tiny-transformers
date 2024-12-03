@@ -17,25 +17,25 @@ limitations under the License.
  * the types for a cell.
  */
 
-import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
-import { CellSpec } from '../../lib/weblab/cellspec';
+// import { SerializedGTensor } from 'src/lib/gtensor/gtensor';
+// import { CellSpec } from '../../lib/weblab/cellspec';
 
-export type Name = string;
-export type TensorValue = {
-  t: SerializedGTensor<'a'>;
-  v: number;
-} | null;
+// export type Name = string;
+// export type TensorValue = {
+//   t: SerializedGTensor<'a'>;
+//   v: number;
+// } | null;
 
-export type Globals = {
-  name: Name;
-  tensor: TensorValue;
-};
+// const globals: Partial<Globals> = {
+//   name: 'some silly fake initial name',
+// };
 
-export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
+// export type Globals = {
+//   name: Name;
+//   tensor: TensorValue;
+// };
 
-const globals: Partial<Globals> = {
-  name: 'some silly fake initial name',
-};
+// export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
 
 // export const exampleWorkerOp = {
 //   workerPath: './app.worker',
@@ -43,13 +43,13 @@ const globals: Partial<Globals> = {
 //   outputs: ['t'] as const,
 // } as WorkerOp<'name', 't'>;
 
-export const exampleWorkerSpec = new CellSpec<GlobalValue<'name'>, GlobalValue<'tensor'>>(
-  'example app worker',
-  // 'src/lib/weblab/example.worker.js' as never as URL,
-  // Hack because angular dev builder does a regexp replacement, so we need the full string of
-  // new Worker(new URL('<literal path>', import.meta.url)) in order for dev server and prod
-  // build to correctly create these paths.
-  () => new Worker(new URL('./app.worker', import.meta.url)),
-  ['name'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
-  ['tensor']
-);
+// export const exampleWorkerSpec = new CellSpec<Globals, 'name', 'tensor'>(
+//   'example app worker',
+//   // 'src/lib/weblab/example.worker.js' as never as URL,
+//   // Hack because angular dev builder does a regexp replacement, so we need the full string of
+//   // new Worker(new URL('<literal path>', import.meta.url)) in order for dev server and prod
+//   // build to correctly create these paths.
+//   () => new Worker(new URL('./app.worker', import.meta.url)),
+//   ['name'], // new URL('http://localhost:9876/_karma_webpack_/example.worker'),
+//   ['tensor']
+// );
