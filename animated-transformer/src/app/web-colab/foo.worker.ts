@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-/// <reference lib="webworker" />
+// /// <reference lib="webworker" />
 
 // import { inputting, outputting } from '../../lib/weblab/signalspace';
 
@@ -32,4 +32,4 @@ limitations under the License.
 
 // run();
 
-console.log('foo');
+// console.log('foo');

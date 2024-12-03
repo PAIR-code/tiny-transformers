@@ -10,8 +10,8 @@
 <div class="row" *ngIf="currentTrainer() as currentTrainer">
   <div *ngIf="view != 'edit'">
     <div>
-      <div *ngIf="currentTask() as task">Selected task: <span class="json">{{task.config.name}}</span></div>
-      <div *ngIf="currentModel() as model">Selected model: <span class="json">{{model.config.name}}</span></div>
+      <div *ngIf="currentTask() as task">Selected task: <span class="json">{{task.config.id}}</span></div>
+      <div *ngIf="currentModel() as model">Selected model: <span class="json">{{model.config.id}}</span></div>
       <div *ngIf="trainState() as trainState">
         <div>state.nExamples: <span class="json">{{trainState.nExamples}}</span></div>
         <div>state.nSteps: <span class="json">{{trainState.nSteps}}</span></div>
@@ -38,7 +38,7 @@
         <mat-slide-toggle color="primary" (change)="toggleTraining($event)">Training</mat-slide-toggle>
       </div>
       <ng-template #noTrainState><div>
-        <button *ngIf="currentTask() && currentModelData()" color="warn" mat-flat-button (click)="initTrainer()">
+        <button *ngIf="currentTask() && currentModel()" color="warn" mat-flat-button (click)="initTrainer()">
           init trainer
         </button>
       </div></ng-template>
@@ -47,11 +47,11 @@
   </div>
 
   <div *ngIf="view == 'edit'" class="code-full-screen full-width">
-    <app-codemirror-config-editor
+    <!-- <app-codemirror-config-editor
       (update)="trainerConfigUpdated($event)"
       [whatIsBeingEditedName]="currentTrainer.config.name"
       [defaultConfig]="currentTrainer.defaultConfigStr"
-      [config]="currentTrainer.configStr"></app-codemirror-config-editor>
+      [config]="currentTrainer.configStr"></app-codemirror-config-editor> -->
   </div>
 
   @if (hasPlots()) {

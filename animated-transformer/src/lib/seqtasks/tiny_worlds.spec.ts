@@ -49,10 +49,11 @@ describe('tiny_worlds', () => {
       ...defaultTinyWorldTaskConfig,
       maxInputLen: 100,
       maxOutputLen: 1,
+      genStateConfig: { seed: 0 },
     };
-    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
-    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig, seed: 0 };
-    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, seed: 1 };
+    const initConfig_1: TinyWorldTaskConfig = { ...commonConfig };
+    const initConfig_2: TinyWorldTaskConfig = { ...commonConfig };
+    const initConfig_3: TinyWorldTaskConfig = { ...commonConfig, genStateConfig: { seed: 1 } };
 
     const tinyWorld_1 = new TinyWorldTask(initConfig_1);
     const tinyWorld_2 = new TinyWorldTask(initConfig_2);
@@ -66,33 +67,33 @@ describe('tiny_worlds', () => {
   });
 
   it('genRandExample', () => {
-    const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
+    const initConfig: TinyWorldTaskConfig = structuredClone(defaultTinyWorldTaskConfig);
     initConfig.maxOutputLen = 20;
+    initConfig.genStateConfig.seed = 42;
     const tinyWorld = new TinyWorldTask(initConfig);
 
     const [example] = tinyWorld.exampleIter.takeOutN(1);
     expect(example.id).toEqual(0);
     expect(example.input.length).toEqual(initConfig.maxInputLen);
-    expect(example.input.join('')).toEqual('is _a:monkey, is _b:');
-    expect(example.output.join('')).toEqual('cat, is _c:tree, is _d:elephant, jumps _a, jumps ');
+    expect(example.input.join('')).toEqual('is _a:flower, is _b:');
+    expect(example.output.join('')).toEqual('tree, runsAway _b, is _c:flower|rock|tree, is _d:');
+    // expect(example.output.join('')).toEqual('cat, is _c:tree, is _d:elephant, jumps _a, jumps ');
 
     const [example2] = tinyWorld.exampleIter.takeOutN(1);
     expect(example2.id).toEqual(1);
-    console.log('INPUT:' + JSON.stringify(example2.input.join('')));
-    console.log('OUTPUT' + JSON.stringify(example2.output.join('')));
-
-    expect(example2.input.join('')).toEqual('is _a:flower, is _b:');
+    expect(example2.input.join('')).toEqual('is _a:tree, is _b:');
     // TODO: make types get printed as their most general form...
     expect(example2.output.join('')).toEqual(
-      'cat|elephant|monkey, is _c:flower|rock|tree, jumps _b, '
+      'elephant, jumps _b, runsAway _a, is _c:flower|rock|tree, '
     );
   });
 
   // Special case that causes "runsAway _a" to be generated more than once.
   xit('bad world example', () => {
-    const initConfig: TinyWorldTaskConfig = { ...defaultTinyWorldTaskConfig };
+    const initConfig: TinyWorldTaskConfig = structuredClone(defaultTinyWorldTaskConfig);
     initConfig.maxInputLen = 0;
     initConfig.maxOutputLen = 50;
+    initConfig.genStateConfig.seed = 42;
     initConfig.baseStory = [
       'is _a:squishable',
       'is _b:rock',

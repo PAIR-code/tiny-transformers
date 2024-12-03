@@ -17,7 +17,6 @@ limitations under the License.
  * Transformers implemented using GTensor.
  *
  * TODO: encode-decoder. (currently only have decoder models)
- * TODO: dropout.
  * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
  * TODO: loss for all tokens (currently just the last token).
  * TODO: Adam optimiser / others (currently only have SGD).
@@ -33,31 +32,42 @@ import {
   makeOnes,
   makeScalar,
   GVariable,
-  GTensorOrVar,
-  TensorOrVarKind,
-  VariableKind,
-  TensorKind,
+  SerializedGTensor,
 } from '../gtensor/gtensor';
+import {
+  ConstTKind,
+  serializeParams,
+  GTensorKindFn,
+  SerializeTensorParams,
+  SerialTKind,
+  deserializeParams,
+  TensorKind,
+  VarifyTensorParams,
+  VarTKind,
+} from '../gtensor/params';
+
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import {
   BatchedRelativePosAttention,
   initRawRelativePosEncoding,
   makePosAttentionMatrix,
 } from './relative_pos_encoding';
-import {
-  initLayerNormParams,
-  layerNorm,
-  TensorLayerNormParams,
-  VarLayerNormParams,
-} from '../gtensor/layer_norm';
+import { initLayerNormParams, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
+import { dropout } from './dropout';
 // import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
-import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
+import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
+import { makeModel, modelRegistry } from '../models/model_registry';
+import { RandomStream } from '../random/random';
+// import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
+  id: string;
+  kind: 'Transformer';
   // Defines how the transformer is created.
   spec: TransformerParamSpec;
+  tokenRep: BasicTaskTokenRep;
   init: {
     // === tf_init.TruncatedNormalArgs
     stddev: number;
@@ -70,6 +80,8 @@ export type TransformerParamSpec = {
   inputRep: number;
   kqvRep: number;
   layers: TransformerParamLayerSpec[];
+  // Dropout rate on the input before going into the stack.
+  dropoutRate: number;
   relPosEncodingSeqLength?: number;
 };
 
@@ -89,6 +101,7 @@ export type AttnHeadParamSpec = {
   addLayerNormBias: boolean;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
+  // Note: dropout spec don't introduce params, so they are not here either.
 };
 
 export type TransformerParamLayerSpec = {
@@ -103,64 +116,151 @@ export type TransformerParamLayerSpec = {
 export type AttnHeadComputeSpec = {
   // Whether to include or not the residual connections in the computation.
   residuals: boolean;
+  dropoutRate: number;
+};
+
+export function defaultTransformerConfig(): TransformerConfig {
+  const layer_config: TransformerParamLayerSpec = {
+    nHeads: 4,
+    hasPosEncoding: false,
+    // There may be a problem with layer norm; it seems to stop it from learning.
+    // With laynorm off, we get entropyLoss: 1.05391383  accuracy: 0.53125000
+    // with it on, we get lowest entropyLoss: 1.7 ish, and accuracy: ~0.35
+    layerNormFF: false,
+    layerNormHeadsProjection: false,
+    addLayerNormBias: false,
+    computeSpec: { residuals: true, dropoutRate: 0 },
+  };
+  const layer_config_first: TransformerParamLayerSpec = {
+    ...layer_config,
+    hasPosEncoding: false,
+  };
+  const spec: TransformerParamSpec = {
+    inputRep: 64,
+    kqvRep: 64,
+    dropoutRate: 0,
+    layers: [layer_config_first, layer_config, layer_config, layer_config],
+  };
+  const config: TransformerConfig = {
+    id: 'defaultTransformerConfig',
+    kind: 'Transformer',
+    spec: spec,
+    tokenRep: toyTokenTep,
+    init: {
+      stddev: 0.05, // default
+      mean: 0,
+      seed: 42,
+    },
+  };
+  return config;
+}
+
+export const simpleLayerSpec_nLN: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true, dropoutRate: 0 },
+  layerNormFF: false,
+  layerNormHeadsProjection: false,
+  addLayerNormBias: false,
+};
+
+export const simpleTransfomerConfig_nLN: TransformerConfig = {
+  id: 'd=8 l=1 h=4, !layerN',
+  kind: 'Transformer',
+  spec: {
+    inputRep: 8,
+    kqvRep: 8,
+    dropoutRate: 0,
+    layers: [simpleLayerSpec_nLN],
+  },
+  tokenRep: toyTokenTep,
+  init: {
+    stddev: 0.5,
+    mean: 0,
+    seed: 76,
+  },
+};
+
+export const simpleLayerSpec_LN: TransformerParamLayerSpec = {
+  nHeads: 4,
+  hasPosEncoding: true,
+  computeSpec: { residuals: true, dropoutRate: 0 },
+  layerNormFF: true,
+  layerNormHeadsProjection: true,
+  addLayerNormBias: false,
+};
+
+export const simpleTransfomerConfig_LN: TransformerConfig = {
+  id: 'd=8 l=1 h=4 +layerN',
+  kind: 'Transformer',
+  spec: {
+    inputRep: 8,
+    kqvRep: 8,
+    dropoutRate: 0,
+    layers: [simpleLayerSpec_LN],
+  },
+  tokenRep: toyTokenTep,
+  init: {
+    stddev: 0.5,
+    mean: 0,
+    seed: 96,
+  },
 };
 
 // ---------------------------------------------------------------------------
-export type FfParams<T extends TensorOrVarKind, Input extends DName, Output extends DName> = {
-  w: GTensorOrVar<T, Input | Output>;
-  bIn: GTensorOrVar<T, Output>;
-  bOut: GTensorOrVar<T, Output>;
-} & {};
-// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
-
-// More workaround for https://github.com/microsoft/TypeScript/issues/48070
-export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
-  ? VarLayerNormParams
-  : TensorLayerNormParams;
+export type FfParams<Input extends DName, Output extends DName> = {
+  w: GTensor<Input | Output>;
+  bIn: GTensor<Output>;
+  bOut: GTensor<Output>;
+};
 
 // Use of type here to be compatible with generic params.
-export type AttnHeadParams<T extends TensorOrVarKind> = {
-  queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  keyM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  valueM: GTensorOrVar<T, 'heads' | 'inputRep' | 'value'>;
-  headsToInputRepM: GTensorOrVar<T, 'heads' | 'value' | 'inputRepToFF'>;
+export type AttnHeadParams = {
+  queryM: GTensor<'heads' | 'inputRep' | 'kq'>;
+  keyM: GTensor<'heads' | 'inputRep' | 'kq'>;
+  valueM: GTensor<'heads' | 'inputRep' | 'value'>;
+  headsToInputRepM: GTensor<'heads' | 'value' | 'inputRepToFF'>;
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
-  layerNormHeadsProjection?: LayerNormParams<T>;
-  layerNormPostFF?: LayerNormParams<T>;
-  ff: FfParams<T, 'inputRepToFF', 'inputRep'>;
+  layerNormHeadsProjection?: LayerNormParams;
+  layerNormPostFF?: LayerNormParams;
+  ff: FfParams<'inputRepToFF', 'inputRep'>;
   // ff2: FfParams<'ffRep', 'ffOut'>;
   // Relative position attention
-  relativePosAttention?: GTensorOrVar<T, 'heads' | 'relativePos'>;
-} & {};
-// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
+  relativePosAttention?: GTensor<'heads' | 'relativePos'>;
+};
 
 // Use of type here to be compatible with generic params.
-export type CondTransformerParams<T extends TensorOrVarKind> = {
-  layers: AttnHeadParams<T>[];
-  tokenEmbedding: GTensorOrVar<T, 'tokenId' | 'inputRep'>;
-} & {};
-// & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
+export type TransformerParams = {
+  layers: AttnHeadParams[];
+  tokenEmbedding: GTensor<'tokenId' | 'inputRep'>;
+};
 
-// Checks for workaround for https://github.com/microsoft/TypeScript/issues/48070
-type FfParamsCheck<I extends DName, O extends DName> = FfParams<
-  VariableKind,
-  I,
-  O
-> extends FfParams<TensorKind, I, O>
-  ? true
-  : false;
+export type VarTransformerParams = VarifyTensorParams<TransformerParams>;
+export type SerialTransformerParams = SerializeTensorParams<TransformerParams>;
 
-type LayerNormParamsCheck = LayerNormParams<VariableKind> extends LayerNormParams<TensorKind>
-  ? true
-  : false;
-type AttnHeadParamsCheck = AttnHeadParams<VariableKind> extends AttnHeadParams<TensorKind>
-  ? true
-  : false;
+// type TransformerParamsCheck = VarTransformerParams extends TransformerParams ? true : false;
 
-export type VarTransformerParams = CondTransformerParams<VariableKind>;
-export type TransformerParams = CondTransformerParams<TensorKind>;
+export type TransformerModel = {
+  // Locally cached version of the model.
+  config: TransformerConfig;
+  params: TransformerParams;
+};
 
-type TransformerParamsCheck = VarTransformerParams extends TransformerParams ? true : false;
+// export const savableTransformerModelKind = new SavableValueKind(
+//   'SVKind_TransformerModel',
+//   (x: TransformerModel) => {
+//     return {
+//       config: x.config as TransformerConfig,
+//       params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
+//     };
+//   },
+//   (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
+//     return {
+//       config: s.config as TransformerConfig,
+//       params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
+//     };
+//   }
+// );
 
 // ---------------------------------------------------------------------------
 
@@ -168,9 +268,9 @@ export function initAttnHeadParams(
   spec: AttnHeadParamSpec,
   // TODO: take in param initializers, instead of one for all.
   initConfig?: tf_init.TruncatedNormalArgs
-): AttnHeadParams<TensorKind> {
+): AttnHeadParams {
   const { inputRep, kq, value, heads } = spec;
-  const attnHeadParams: AttnHeadParams<TensorKind> = {
+  const attnHeadParams: AttnHeadParams = {
     queryM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     keyM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     valueM: makeTruncNormal({ inputRep, value, heads }, initConfig),
@@ -224,8 +324,9 @@ function gelu(x: tf.Tensor) {
 // TODO: Add residuals and layer-norm.
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
-  params: AttnHeadParams<TensorKind>,
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  params: AttnHeadParams,
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  generator: RandomStream
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
@@ -251,17 +352,24 @@ export function computeAttnHead(
   }
 
   const attention = rawAttention.softmax('queryPos');
+
+  // Dropout on the attention weights.
+  const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
+
   const attendedValues = values
-    .contract(attention.rename('queryPos', 'pos'), ['pos'])
+    .contract(attentionAfterDropout.rename('queryPos', 'pos'), ['pos'])
     .rename('keyPos', 'pos');
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
 
-  let normedHeadReduction = headsReduction;
+  // Dropout before layer norm and residual connection.
+  let headsReductionAfterDropout = dropout(spec.dropoutRate, headsReduction, generator.random());
+
+  let normedHeadReduction = headsReductionAfterDropout;
   if (params.layerNormHeadsProjection) {
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
-      headsReduction,
+      headsReductionAfterDropout,
       'inputRepToFF'
     );
   }
@@ -274,15 +382,27 @@ export function computeAttnHead(
     inputToFF = normedHeadReduction.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
   }
 
+  // Skipped dropout in the FF, since the FF nn is a single layer with two biases.
   let unNormedSeqOuput = inputToFF
     .contract(ff.w, ['inputRepToFF'])
     .pointwiseAdd(ff.bIn)
     .applyPointWiseTfFn(gelu)
     .pointwiseAdd(ff.bOut);
+
+  // Dropout before layer norm and residual connection.
+  const unNormedSeqOuputAfterDropout = dropout(
+    spec.dropoutRate,
+    unNormedSeqOuput,
+    generator.random()
+  );
+
   if (spec.residuals) {
-    // FF residual
-    unNormedSeqOuput = unNormedSeqOuput.pointwiseAdd(inputToFF.rename('inputRepToFF', 'inputRep'));
+    // FF residual.
+    unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(
+      inputToFF.rename('inputRepToFF', 'inputRep')
+    );
   }
+
   let seqOuput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
     seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
@@ -300,13 +420,10 @@ export function computeAttnHead(
   };
 }
 
-export function initDecoderParams(
-  tokenRep: BasicTaskTokenRep,
-  config: TransformerConfig
-): TransformerParams {
+export function initDecoderParams(config: TransformerConfig): TransformerParams {
   const { spec, init } = config;
   // const paramInitializerConfig = config.init;
-  const layers: AttnHeadParams<TensorKind>[] = spec.layers.map((layerSpec) => {
+  const layers: AttnHeadParams[] = spec.layers.map((layerSpec) => {
     const attnHeadSpec: AttnHeadParamSpec = {
       inputRep: spec.inputRep,
       kq: spec.kqvRep,
@@ -319,21 +436,14 @@ export function initDecoderParams(
     };
     return initAttnHeadParams(attnHeadSpec, init);
   });
-  const tokenEmbedding = makeTruncNormal({
-    tokenId: tokenRep.tokens.length,
-    inputRep: spec.inputRep,
-  });
+  const tokenEmbedding = makeTruncNormal(
+    {
+      tokenId: config.tokenRep.tokens.length,
+      inputRep: spec.inputRep,
+    },
+    init
+  );
   return { layers, tokenEmbedding };
-}
-
-export function initDecoderParamsTree(
-  tokenRep: BasicTaskTokenRep,
-  config: TransformerConfig
-): VarTransformerParams {
-  const initParams = initDecoderParams(tokenRep, config);
-  // Maybe make a nice initializer variable trees from tensor trees?
-  const params = jstree.map(initParams, (t: GTensor<any>) => new GVariable(t));
-  return params as VarTransformerParams;
 }
 
 export type TransformerComputation = {
@@ -341,21 +451,27 @@ export type TransformerComputation = {
 };
 
 export function computeTransformer(
-  spec: TransformerParamSpec,
-  params: TransformerParams,
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>
+  model: {
+    config: { spec: TransformerParamSpec };
+    params: TransformerParams;
+  },
+  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
+  generator: RandomStream
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
-  let currentLayerInput = seqInput;
-  params.layers.forEach((layerParams, i) => {
+  let currentLayerInput = dropout(model.config.spec.dropoutRate, seqInput, generator.random());
+  model.params.layers.forEach((layerParams, i) => {
     const layerCompute = computeAttnHead(
-      spec.layers[i].computeSpec,
+      model.config.spec.layers[i].computeSpec,
       layerParams,
-      currentLayerInput
+      currentLayerInput,
+      generator
     );
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
   });
+  // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
+  // this in the TransformerComputation output.
   return compute;
 }
 
@@ -371,40 +487,34 @@ export function computeTransformer(
  * tokenEmb: embeddings for all tokens.
  * targetTokenIdxs: a one-hot token vector for the correct token.
  */
-export function transformerLastTokenLogits(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+export function lastTokenLogits(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
 ): GTensor<'batch' | 'tokenId'> {
-  const lastLayer = params.layers[params.layers.length - 1];
+  const lastLayer = computation.layers[computation.layers.length - 1];
   const positionParams = lastLayer.seqOuput.unstack('pos');
   const lastPosParams = positionParams[positionParams.length - 1];
-  const logits = lastPosParams.contract(tokenEmb, ['inputRep']);
+  const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
   return logits;
 }
 
 /**
  * Returns the average per example loss for the last token prediction.
  */
-export function transformerLastTokenCrossEntropyLoss(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+export function lastTokenCrossEntropyLoss(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
   targetTokenIdxs: GTensor<'batch'>
 ): tf.Scalar {
-  const logits = transformerLastTokenLogits(params, tokenEmb);
-
+  const logits = lastTokenLogits(model, computation);
   const logProbs = logits.softmax('tokenId').log();
-  //
-  // const logProbs = logits.softmax('token');
-
-  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, tokenEmb.dim.tokenId.size), [
-    'batch',
-    'tokenId',
-  ]);
-
+  const nTokens = model.params.tokenEmbedding.dim.tokenId.size;
+  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, nTokens), ['batch', 'tokenId']);
   const crossEntopy = logProbs.pointwiseMul(oneHotToken);
-  // const crossEntopy = logProbs.squaredDifference(oneHotToken).sqrt();
-  // const loss = signedDelta.pointwiseMul(signedDelta);
-
   return (
     crossEntopy
       .sumOverDims(['batch', 'tokenId'])
@@ -423,20 +533,23 @@ export function transformerLastTokenCrossEntropyLoss(
  * targetTokenIdxs: a one-hot token vector for the correct token.
  */
 export function transformerTopPrediction(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
 ): GTensor<'batch'> {
-  const dotProd = transformerLastTokenLogits(params, tokenEmb);
+  const dotProd = lastTokenLogits(model, computation);
   return dotProd.argMax('tokenId');
 }
 
 export function transformerAccuracy(
-  params: TransformerComputation,
-  tokenEmb: GTensor<'tokenId' | 'inputRep'>,
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
   targetTokenIdxs: GTensor<'batch'>
 ): tf.Scalar {
-  const predictions = transformerTopPrediction(params, tokenEmb);
-
+  const predictions = transformerTopPrediction(model, computation);
   return predictions
     .pointwiseEqual(targetTokenIdxs)
     .sumOverDims(['batch'])
@@ -444,31 +557,51 @@ export function transformerAccuracy(
 }
 
 export function computeDecoder(
-  tokenRep: BasicTaskTokenRep,
+  model: {
+    config: {
+      spec: TransformerParamSpec;
+      tokenRep: BasicTaskTokenRep;
+    };
+    params: TransformerParams;
+  },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  spec: TransformerParamSpec,
-  params: TransformerParams,
-  inputs: string[][]
+  inputs: string[][],
+  generator: RandomStream
 ): TransformerComputation {
   const maxInputLength = inputs.reduce(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
     0
   );
-  const gtensorInputs = inputPrepFn(tokenRep, params, maxInputLength, inputs);
-  return computeTransformer(spec, params, gtensorInputs);
+  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
+  return computeTransformer(model, gtensorInputs, generator);
 }
 
 export function computePrediction(
-  tokenRep: BasicTaskTokenRep,
+  model: {
+    config: { spec: TransformerParamSpec; tokenRep: BasicTaskTokenRep };
+    params: TransformerParams;
+  },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  spec: TransformerParamSpec,
-  params: TransformerParams,
-  inputs: string[][]
+  inputs: string[][],
+  generator: RandomStream
 ): string[][] {
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(tokenRep, inputPrepFn, spec, params, inputs);
-    const predictions = transformerTopPrediction(decoderComputation, params.tokenEmbedding);
-    return (predictions.tensor.arraySync() as number[]).map((idx, i) => [tokenRep.tokens[idx]]);
+    const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
+    const predictions = transformerTopPrediction(model, decoderComputation);
+    return (predictions.tensor.arraySync() as number[]).map((idx) => [
+      model.config.tokenRep.tokens[idx],
+    ]);
   });
   return examplePredictions;
 }
+
+export function makeTransformer(transformerConfig: TransformerConfig): TransformerModel {
+  const config = structuredClone(transformerConfig);
+  const params = initDecoderParams(config);
+  return { config, params };
+}
+
+export const transformerModelKind = modelRegistry.register(
+  defaultTransformerConfig(),
+  makeTransformer
+);

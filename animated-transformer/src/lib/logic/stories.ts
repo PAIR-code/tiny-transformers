@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomStream, makeRandomStream } from '../random/random';
 import {
   applyUnifSubstToRel,
   emptyUnifState,

@@ -1,8 +1,8 @@
-<div class="row">
+<!-- <div class="row">
   <app-auto-completed-text-input class="dataset-form"
         [label]="'Task'"
-        [selectedName]="currentTaskName()"
-        [itemNames]="taskNames()"
+        [selectedName]="tmService.taskId"
+        [itemNames]="taskNames"
         (itemSelected)="selectTask($event)">
         </app-auto-completed-text-input>
 </div>
@@ -10,7 +10,7 @@
   <div class="row">
   @if(view == 'view') {
     <div>
-      <!-- <div class="json">{{taskConfigAsJson(task.config)}}</div> -->
+      <div class="json">{{taskConfigAsJson(task.config)}}</div>
       <button mat-icon-button (click)="toggleEditor()">
         <mat-icon>edit</mat-icon>
       </button>
@@ -32,9 +32,9 @@
     <div class="code-full-screen full-width">
       <app-codemirror-config-editor
         (update)="taskConfigUpdated($event)"
-        [whatIsBeingEditedName]="task.config.name"
-        [defaultConfig]="task.defaultConfigStr"
-        [config]="task.configStr"></app-codemirror-config-editor>
+        [whatIsBeingEditedName]="task.config.id"
+        [defaultConfig]="this.tmService.modelConfigDefaultStr"
+        [config]="currentTaskConfigStr()"></app-codemirror-config-editor>
     </div>
   }
   </div>
@@ -61,4 +61,4 @@
     </table>
   </div>
   }
-}
+} -->

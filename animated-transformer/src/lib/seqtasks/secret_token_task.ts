@@ -42,15 +42,16 @@ Obvoiusly there are many further generalizations:
 */
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicRandSeededTaskConfig, Example } from './util';
+import { BasicLmTask, RandLmTaskConfig, Example, BasicRandLmTask } from './util';
 import { StateIter } from '../state-iter/state-iter';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
+import { taskRegistry } from './task_registry';
 
 export type BoolToken = 'T' | 'F';
 export const boolVocab: BoolToken[] = ['T', 'F'];
 
-export interface SecretTokenTaskConfig<Vocab extends string>
-  extends BasicRandSeededTaskConfig {
+export type SecretTokenTaskConfig<Vocab extends string> = RandLmTaskConfig & {
+  kind: 'SecretTokenTask';
   // Vocab for the random tokens, and also from which the secret value is
   // chosen.
   randomTokensVocab: Vocab[];
@@ -58,14 +59,24 @@ export interface SecretTokenTaskConfig<Vocab extends string>
   //   (s: Vocab, t: Vocab) => boolean
   //   e.g. 'return s > t'
   tokenToBoolFnStr: string;
-}
+};
 
-export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
+export const defaultSecretTokenTaskConfig: SecretTokenTaskConfig<string> = {
+  id: 'mod secret token === 0',
+  kind: 'SecretTokenTask',
+  maxInputLen: 5,
+  maxOutputLen: 1,
+  genStateConfig: { seed: 0 },
+  randomTokensVocab: ['1', '2', '3', '4', '5'],
+  tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
+};
+
+export class SecretTokenTask<Vocab extends string> implements BasicRandLmTask {
   // TODO: consider doing programatically in the constructor?
   public baseVocab: string[];
   private exampleId = 0;
   private tokenToBoolFn: (s: Vocab, t: Vocab) => BoolToken;
-  public exampleIter: StateIter<RandomStream, Example>;
+  public exampleIter: StateIter<RandomState, Example>;
 
   constructor(public config: SecretTokenTaskConfig<Vocab>) {
     this.baseVocab = [...boolVocab, ...config.randomTokensVocab];
@@ -74,12 +85,13 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
       s: Vocab,
       t: Vocab
     ) => BoolToken;
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+    this.exampleIter = new StateIter(structuredClone(config.genStateConfig), (r) =>
+      this.examplesGen(r)
     );
   }
 
-  genRandExample(rng: RandomStream): Example {
+  genRandExample(r: RandomState): Example {
+    const rng = new RandomStream(r);
     // The secret token
     const secretToken = rng.randomEntryFromList(this.config.randomTokensVocab);
     // console.log('secretToken:', secretToken);
@@ -105,10 +117,7 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
     const input = randomTokenIds
       .map((i) => {
         const thisToken = this.config.randomTokensVocab[i];
-        return [
-          thisToken,
-          this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F',
-        ];
+        return [thisToken, this.tokenToBoolFn(secretToken, thisToken) ? 'T' : 'F'];
       })
       .flat();
     const finalToken = this.config.randomTokensVocab[finalId];
@@ -124,9 +133,11 @@ export class SecretTokenTask<Vocab extends string> implements BasicLmTask {
     };
   }
 
-  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
+  *examplesGen(r: RandomState): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(r);
     }
   }
 }
+
+taskRegistry.register(defaultSecretTokenTaskConfig, (c) => new SecretTokenTask(c));

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { RandomStream } from '../state-iter/random';
+import { RandomStream } from '../random/random';
 
 /*
 Classifier that detects if parenthesis are matched.
@@ -46,11 +46,7 @@ function closeOfOpen(s: OpenParen): CloseParen {
 }
 
 function parenMatch(c1: OpenParen, c2: CloseParen): boolean {
-  return (
-    (c1 === '[' && c2 === ']') ||
-    (c1 === '(' && c2 === ')') ||
-    (c1 === '{' && c2 === '}')
-  );
+  return (c1 === '[' && c2 === ']') || (c1 === '(' && c2 === ')') || (c1 === '{' && c2 === '}');
 }
 
 export function isMatched(s: Vocab[]): boolean {
@@ -75,11 +71,7 @@ export function generateMatchingString(rng: RandomStream): Vocab[] {
 
   // Empty pstack means, generate charcters or open-paren.
   if (pstack.length === 0) {
-    const choice = rng.randomEntryFromList([
-      'open-paren',
-      'non-paren-chars',
-      'end',
-    ]);
+    const choice = rng.randomEntryFromList(['open-paren', 'non-paren-chars', 'end']);
     if (choice === 'open-paren') {
       const c = rng.randomEntryFromList(OPEN_PAREN_VOCAB);
       s.push(c);
@@ -93,11 +85,7 @@ export function generateMatchingString(rng: RandomStream): Vocab[] {
     }
     // There are open parens.
   } else {
-    const choice = rng.randomEntryFromList([
-      'open-paren',
-      'non-paren-chars',
-      'close-paren',
-    ]);
+    const choice = rng.randomEntryFromList(['open-paren', 'non-paren-chars', 'close-paren']);
     if (choice === 'open-paren') {
       const c = rng.randomEntryFromList(OPEN_PAREN_VOCAB);
       s.push(c);
@@ -109,10 +97,7 @@ export function generateMatchingString(rng: RandomStream): Vocab[] {
       // 'close-paren'
       const c = pstack.pop();
       if (!c) {
-        throw Error(
-          `Bug: close-paren case with an empty pstack; this should ` +
-            `be impossible`
-        );
+        throw Error(`Bug: close-paren case with an empty pstack; this should ` + `be impossible`);
       }
       s.push(closeOfOpen(c));
     }

@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { CopyableData, StateIter } from '../state-iter/state-iter';
+// import { makeClonableIter, StateIter } from '../state-iter/state-iter';
+import { StateIter } from '../state-iter/state-iter';
 import {
   Example,
   generateBatch,
@@ -21,6 +22,7 @@ import {
   BasicLmTask,
   splitGenerativeTaskTestSet,
   indexExample,
+  BasicLmTaskConfig,
 } from './util';
 
 describe('seqtasks/util', () => {
@@ -55,22 +57,29 @@ describe('seqtasks/util', () => {
   });
 
   it('takeFirstN of makeExampleGenerator', () => {
-    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
+    function* iterFn(state: { idx: number }): Iterator<Example> {
       while (true) {
-        const i = state.data;
+        const i = state.idx;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
-        state.data++;
+        state.idx++;
       }
     }
     /* Simple interface for classes that provide a task */
-    const task: BasicLmTask = {
+    const exampleIter = new StateIter({ idx: 0 }, iterFn);
+    const task: BasicLmTask<BasicLmTaskConfig<{ idx: number }>> = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
-      config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: new StateIter(new CopyableData(0), iterateExample),
+      config: {
+        id: 'fooTask',
+        kind: 'foo',
+        maxInputLen: 2,
+        maxOutputLen: 1,
+        genStateConfig: { idx: 0 },
+      },
+      exampleIter: exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       '0 0 \\--> 0',
@@ -90,21 +99,29 @@ describe('seqtasks/util', () => {
   });
 
   it('splitGenerativeTaskTestSet', () => {
-    function* iterateExample(state: CopyableData<number>): Iterator<Example> {
+    function* iterFn(state: { idx: number }): Iterator<Example> {
       while (true) {
-        const i = state.data++;
+        const i = state.idx;
         yield {
           id: i,
           input: [`${i % 4}`, `${i % 3}`],
           output: [`${((i % 4) + (i % 3)) % 4}`],
         };
+        state.idx++;
       }
     }
     /* Simple interface for classes that provide a task */
-    const task: BasicLmTask = {
+    const exampleIter = new StateIter({ idx: 0 }, iterFn);
+    const task: BasicLmTask<BasicLmTaskConfig<{ idx: number }>> = {
       baseVocab: ['0', '1', '2', '3', '4'], //'5', '6', '7', '8', '9',
-      config: { name: 'fooTask', maxInputLen: 2, maxOutputLen: 1 },
-      exampleIter: new StateIter(new CopyableData(0), iterateExample),
+      config: {
+        id: 'fooTask',
+        kind: 'foo',
+        maxInputLen: 2,
+        maxOutputLen: 1,
+        genStateConfig: { idx: 0 },
+      },
+      exampleIter: exampleIter,
     };
     expect(task.exampleIter.copy().takeOutN(13).map(indexExample)).toEqual([
       // Test set = first 7
@@ -124,7 +141,7 @@ describe('seqtasks/util', () => {
       // Back to Test set...
       '0 0 \\--> 0',
     ]);
-    const split = splitGenerativeTaskTestSet(7, task);
+    const split = splitGenerativeTaskTestSet(7, task.exampleIter);
     const testValuesIndex = [...split.testSetIndex.values()];
     expect(testValuesIndex).toEqual([
       '0 0 \\--> 0',
@@ -136,9 +153,7 @@ describe('seqtasks/util', () => {
       '2 0 \\--> 2',
     ]);
 
-    const nextExamples1 = split.testSetFilteredExamples
-      .takeOutN(6)
-      .map(indexExample);
+    const nextExamples1 = split.trainExamples.takeOutN(6).map(indexExample);
     expect(nextExamples1).toEqual([
       '3 1 \\--> 0',
       '0 2 \\--> 2',
@@ -149,9 +164,7 @@ describe('seqtasks/util', () => {
       // test set, so we loop back onto the start of the training set now.
       '3 1 \\--> 0',
     ]);
-    const nextExamples2 = split.testSetFilteredExamples
-      .takeOutN(6)
-      .map(indexExample);
+    const nextExamples2 = split.trainExamples.takeOutN(6).map(indexExample);
     expect(nextExamples2).toEqual([
       '0 2 \\--> 2',
       '1 0 \\--> 1',

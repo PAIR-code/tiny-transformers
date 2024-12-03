@@ -15,34 +15,23 @@ limitations under the License.
 
 import { gradsFunctor } from './grad';
 
-import {
-  GTensor,
-  GVariable,
-  GTensorOrVar,
-  TensorKind,
-  VariableKind,
-  TensorOrVarKind,
-} from './gtensor';
+import { GTensor, GVariable } from './gtensor';
 import * as tf from '@tensorflow/tfjs';
-import * as jstree from '../js_tree/js_tree';
+import { varifyParams } from './params';
 
-type ParamShape<T extends TensorOrVarKind> = {
-  a: GTensorOrVar<T, 'rep'>;
-  b: GTensorOrVar<T, 'rep'>;
+type ParamShape = {
+  a: GTensor<'rep'>;
+  b: GTensor<'rep'>;
 };
 
 describe('grad', () => {
   it('gradsFunctor', async () => {
     // const scalarLr = tf.scalar(0.5);
-    const initParams: ParamShape<TensorKind> = {
+    const initParams: ParamShape = {
       a: new GTensor(tf.tensor1d([1, 1], 'float32'), ['rep']),
       b: new GTensor(tf.tensor1d([1, 1], 'float32'), ['rep']),
     };
-    const paramVars = jstree.map(
-      initParams,
-      (t: GTensor<any>) => new GVariable(t)
-    ) as ParamShape<VariableKind>;
-
+    const paramVars = varifyParams(initParams);
     const batchInput = {
       inputs: new GTensor(
         tf.tensor2d(
@@ -68,7 +57,7 @@ describe('grad', () => {
       const bDot = inputVars.contract(paramVars.b, ['rep']);
       const delta = targetVars.pointwiseSub(aDot.pointwiseMul(bDot));
       const loss = delta.pointwiseMul(delta).sumOverDims(['batchExample']);
-      loss.tensor.print();
+      // loss.tensor.print();
       return loss.tensor as tf.Scalar;
     }
     const gradFn = gradsFunctor(

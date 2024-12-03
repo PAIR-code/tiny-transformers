@@ -33,19 +33,14 @@ module.exports = function (config) {
       ]
     },
     reporters: ['progress', 'kjhtml'],
-    browsers: ['Chrome'],
-    restartOnFileChange: true,
-    proxies: {
-      '/src/': './src/'
+    // browsers: ['Chrome'],
+    browsers: ["MyChromeWithoutSearchSelect"],
+    customLaunchers: {
+      MyChromeWithoutSearchSelect: {
+        base: "Chrome",
+        flags: ["--disable-search-engine-choice-screen"],
+      },
     },
-    files: [
-      {
-        pattern: './src/**/*.ts',
-        watched: true,
-        included: false,
-        nocache: true,
-        served: true,
-      }
-    ]
+    restartOnFileChange: true,
   });
 };

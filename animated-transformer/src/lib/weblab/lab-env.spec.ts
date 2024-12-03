@@ -14,18 +14,38 @@ limitations under the License.
 ==============================================================================*/
 
 import { LabEnv } from './lab-env';
-import { LabState } from './lab-state';
-
-import { exampleWorkerSpec, Globals } from './example.ailab';
+import { exampleWorkerSpec } from './example.ailab';
 
 describe('lab-env', () => {
-  const state = new LabState();
   beforeEach(async () => {});
 
-  it('worker-op', async () => {
-    const env = new LabEnv<Globals>(state);
-    env.stateVars.name = 'initial fake name';
-    const outputs = await env.run(exampleWorkerSpec);
-    expect(outputs.tensor).toBeTruthy();
+  it('Running a simple cell', async () => {
+    const env = new LabEnv();
+    const toyInput = env.space.setable('Foo');
+    const cell = env.start(exampleWorkerSpec, { toyInput });
+
+    const { num, str } = await cell.onceAllOutputs;
+    expect(num()).toEqual(1);
+    expect(str()).toEqual('hello Foo');
+
+    for (const i of [1, 2, 3]) {
+      await cell.inStream.numStream.send(i);
+    }
+    cell.inStream.numStream.done();
+
+    const vs = [];
+    for await (const v of cell.outStream.foo) {
+      vs.push(v);
+    }
+    expect(vs.length).toEqual(3);
+
+    expect(vs[0]).toEqual('foo1');
+    expect(vs[1]).toEqual('foo2');
+    expect(vs[2]).toEqual('foo3');
+
+    expect(env.runningCells[cell.spec.data.cellName]).toBeDefined();
+    cell.requestStop();
+    await cell.onceFinished;
+    expect(env.runningCells[cell.spec.data.cellName]).toBeUndefined();
   });
 });

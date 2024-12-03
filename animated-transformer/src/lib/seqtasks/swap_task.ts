@@ -25,13 +25,14 @@ what pair have the biggest difference?
 */
 
 import * as tf from '@tensorflow/tfjs';
-import { BasicLmTask, BasicLmTaskConfig, Example } from './util';
+import { BasicLmTask, RandLmTaskConfig, BasicRandLmTask, Example } from './util';
 import { StateIter } from '../state-iter/state-iter';
-import { RandomStream, makeRandomStream } from '../state-iter/random';
+import { RandomState, RandomStream, makeRandomStream } from '../random/random';
+import { taskRegistry } from './task_registry';
 
-export type SwapTaskConfig = BasicLmTaskConfig & {
+export type SwapTaskConfig = RandLmTaskConfig & {
+  kind: 'SwapTask';
   valuesLessThan: number;
-  seed: number;
 };
 
 export type Action = 'l' | 'r' | 'i';
@@ -79,20 +80,29 @@ export function makeOutput(input: number[]): Action[] {
   return output;
 }
 
-export class SwapTask implements BasicLmTask {
+export const defaultSwapTaskConfig: SwapTaskConfig = {
+  id: 'a swap task',
+  kind: 'SwapTask',
+  maxInputLen: 4,
+  maxOutputLen: 1,
+  valuesLessThan: baseVocab.length + 1,
+  genStateConfig: { seed: 47 },
+};
+
+export class SwapTask implements BasicRandLmTask {
   // TODO: consider doing programatically in the constructor?
   public name: string;
   private exampleId: number;
-  public exampleIter: StateIter<RandomStream, Example>;
+  public exampleIter: StateIter<RandomState, Example>;
 
   public baseVocab = baseVocab;
   // ! because initialied in reInitFromConfig.
 
   constructor(public config: SwapTaskConfig) {
-    this.name = this.config.name;
+    this.name = this.config.id;
     this.exampleId = 0;
-    this.exampleIter = new StateIter(makeRandomStream(config.seed), (rng) =>
-      this.examplesGen(rng)
+    this.exampleIter = new StateIter(structuredClone(this.config.genStateConfig), (r) =>
+      this.examplesGen(r)
     );
   }
 
@@ -101,7 +111,8 @@ export class SwapTask implements BasicLmTask {
   // to improve the ordering of the list.
   // * Of all pairs that you can swap to improve the ascending ordering of the list,
   // what pair have the biggest difference?
-  genRandExample(rng: RandomStream): Example {
+  genRandExample(r: RandomState): Example {
+    const rng = new RandomStream(r);
     const input = tf
       .randomUniform(
         [this.config.maxInputLen],
@@ -121,9 +132,11 @@ export class SwapTask implements BasicLmTask {
     };
   }
 
-  *examplesGen(rng: RandomStream): Generator<Example, undefined, undefined> {
+  *examplesGen(r: RandomState): Generator<Example, undefined, undefined> {
     while (true) {
-      yield this.genRandExample(rng);
+      yield this.genRandExample(r);
     }
   }
 }
+
+taskRegistry.register(defaultSwapTaskConfig, (c) => new SwapTask(c));

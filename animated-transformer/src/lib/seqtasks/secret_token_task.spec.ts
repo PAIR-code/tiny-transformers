@@ -25,10 +25,11 @@ describe('secret_token_task', () => {
 
   it('genRandExample: DecisionBoundaryTask', () => {
     task = new SecretTokenTask({
-      name: 'DecisionBoundaryTask',
+      id: 'a SecretTokenTask',
+      kind: 'SecretTokenTask',
       maxInputLen: 5,
       maxOutputLen: 1,
-      seed: 0,
+      genStateConfig: { seed: 0 },
       randomTokensVocab: ['1', '2', '3', '4', '5'],
       tokenToBoolFnStr: 'return s >= t',
     });
@@ -62,10 +63,11 @@ describe('secret_token_task', () => {
 
   it('genRandExample: ModIsZero', () => {
     task = new SecretTokenTask({
-      name: 'ModIsZero',
+      id: 'ModIsZero',
+      kind: 'SecretTokenTask',
       maxInputLen: 5,
       maxOutputLen: 1,
-      seed: 0,
+      genStateConfig: { seed: 0 },
       randomTokensVocab: ['1', '2', '3', '4', '5'],
       tokenToBoolFnStr: 'return (parseInt(t) % parseInt(s) === 0)',
       // tokenToBoolFnStr: 'return String(parseInt(t) % parseInt(s))'

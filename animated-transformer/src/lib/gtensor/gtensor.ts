@@ -40,7 +40,6 @@ import * as tf from '@tensorflow/tfjs';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { contract, ContractSpec } from './contract';
 import { range } from './gtensor_util';
-import { DictArrTree } from '../js_tree/js_tree';
 
 // export type DName = string | number | symbol;
 
@@ -297,6 +296,9 @@ export function stack<G extends string, NewD extends string>(
 }
 
 export type SerializedGTensor<G extends DName> = {
+  // Used so that when walking a jstree one can identify a distinguish a
+  // SerializedGTensor from named sub-parts of the tree of GTensors...
+  __kind__: 'SerializedGTensor';
   buffer: Uint8Array;
   shape: number[];
   dimNames: G[];
@@ -355,6 +357,7 @@ export class GTensor<G extends DName> {
 
   toSerialised(): SerializedGTensor<G> {
     return {
+      __kind__: 'SerializedGTensor',
       buffer: new Uint8Array(this.tensor.bufferSync().values),
       shape: this.tensor.shape,
       dimNames: this.dimNames,
@@ -952,29 +955,3 @@ export function makeScalar(
 
 export const one = makeScalar(1);
 export const zero = makeScalar(0);
-
-// ----------------------------------------------------------------------------
-// Note: the key idea here is that we can parameterise other types so that a
-// given instance knows if it has Variable (imperitively editable) parameter
-// values, or if the tensors might be fixed constant tensors.
-export type TensorKind = 'tensor';
-export type VariableKind = 'varTensor';
-export type TensorOrVarKind = TensorKind | VariableKind;
-
-export type AnyGTensorOrVar<T extends TensorOrVarKind> = T extends TensorKind
-  ? GTensor<any>
-  : T extends VariableKind
-  ? GVariable<any>
-  : never;
-
-export type GTensorOrVar<T extends TensorOrVarKind, D extends DName> = T extends TensorKind
-  ? GTensor<D>
-  : T extends VariableKind
-  ? GVariable<D>
-  : never;
-
-// type ShouldBeTrue = DictArrTree<AnyGTensorOrVar<VariableKind>> extends DictArrTree<
-//   AnyGTensorOrVar<TensorKind>
-// >
-//   ? true
-//   : never;
