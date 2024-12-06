@@ -15,7 +15,7 @@ limitations under the License.
 /**
  * This file provides some simple meta types to define a Cell's behvaiour in a
  * way that can be pulled into a webworker, or the environment that runs the
- * webworker. Both can then share the same types that specify the Cell's (aka
+ * webworker. Both can then share the same types that define the Cell's (aka
  * worker's) behaviour.
  *
  * Runs in webworker AND in main browser or node context.
@@ -71,7 +71,7 @@ export type ValueKindFnStructFn<S extends ValueStruct> = {
   [Key in keyof S]: KindHolder<S[Key]>;
 };
 
-// A cell specification is a very simply class that connects types to names for
+// A cell definition is a very simply class that connects types to names for
 // the values that are the WebWorker cell's inputs and outputs.
 //
 // Using a class instead of a type allows correct type inference to happen for
@@ -79,7 +79,7 @@ export type ValueKindFnStructFn<S extends ValueStruct> = {
 //
 // TODO: Don't let Inputs and StreamedInputs have overlapping names, that will
 // be confusing, even if it can work.
-export class CellSpec<
+export class CellKind<
   Inputs extends ValueStruct,
   InputStreams extends ValueStruct,
   Outputs extends ValueStruct,

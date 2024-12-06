@@ -15,7 +15,7 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { ValueStruct, CellSpec } from './cell-types';
+import { ValueStruct, CellKind } from './cell-types';
 import { SignalCell } from './signal-cell';
 
 export function workerCell<
@@ -24,7 +24,7 @@ export function workerCell<
   Outputs extends ValueStruct = {},
   OutputStreams extends ValueStruct = {}
 >(
-  spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>
+  spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>
 ): SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
   const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(spec, (...args) =>
     postMessage(...args)

@@ -19,7 +19,7 @@ limitations under the License.
 
 import { Example } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { CellSpec, Kind, Metrics } from 'src/lib/weblab/cell-types';
+import { CellKind, Kind, Metrics } from 'src/lib/weblab/cell-types';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -83,7 +83,7 @@ export type Checkpoint = {
   metrics: SimpleMetrics;
 };
 
-export const trainerCellSpec = new CellSpec({
+export const trainerCellSpec = new CellKind({
   cellName: 'Trainer cell',
   workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
   inputs: {
@@ -108,7 +108,7 @@ export type TaskGenConfig = {
   batchSize: number;
 };
 
-export const taskCellSpec = new CellSpec({
+export const taskCellSpec = new CellKind({
   cellName: 'Task cell',
   workerFn: () => new Worker(new URL('./task-cell.worker', import.meta.url)),
   inputs: {

@@ -16,7 +16,7 @@ limitations under the License.
 import {
   AbstractSignalStructFn,
   ValueStruct,
-  CellSpec,
+  CellKind,
   PromiseStructFn,
   PromisedSetableSignalsFn,
   SetableSignalStructFn,
@@ -41,62 +41,6 @@ import {
   SignalOutput,
   SignalOutputStream,
 } from './signal-messages';
-
-// class EnvCell<
-//   Inputs extends ValueStruct = {},
-//   InputStreams extends ValueStruct = {},
-//   Outputs extends ValueStruct = {},
-//   OutputStreams extends ValueStruct = {}
-// > extends SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
-//   public worker: Worker;
-
-//   constructor(spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>) {
-//     super(spec, () => {});
-//     this.worker = spec.data.workerFn();
-//     this.defaultPostMessageFn = this.worker.postMessage;
-
-//     this.onceFinishRequested
-
-//     this.worker.addEventListener('message',
-//       ({ data }) => {
-//         // console.log('main thread got worker.onmessage', data);
-//         const messageFromWorker: FromWorkerMessage = data;
-//         switch (messageFromWorker.kind) {
-//         case 'finished':
-//           // TODO: what if there are missing outputs?
-//           resolveWhenFinishedFn();
-//           this.worker.terminate();
-
-//           // resolveWithAllOutputsFn(this.outputSoFar as SignalStructFn<Subobj<Globals, O>>);
-//           break;
-
-//       this.onMessage(m));
-//   }
-
-//   requestStop() {
-//     const message: ToWorkerMessage = {
-//       kind: 'finishRequest',
-//     };
-//     this.worker.postMessage(message);
-//   }
-// }
-
-// export function envCell<
-//   Inputs extends ValueStruct = {},
-//   InputStreams extends ValueStruct = {},
-//   Outputs extends ValueStruct = {},
-//   OutputStreams extends ValueStruct = {}
-// >(
-//   spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>
-// ): SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
-//   const worker = spec.data.workerFn();
-//   const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(
-//     spec,
-//     worker.postMessage
-//   );
-//   worker.addEventListener('message', (m) => cell.onMessage(m));
-//   return cell;
-// }
 
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
@@ -186,7 +130,7 @@ export class LabEnvCell<
   constructor(
     public id: string,
     public space: SignalSpace,
-    public spec: CellSpec<I, IStream, O, OStream>,
+    public cellKind: CellKind<I, IStream, O, OStream>,
     public uses: {
       // TODO: make better types: Maybe<SignalStructFn<I>> that is undefined when I={}
       inputs?: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalInput<I[Key]> };
@@ -204,15 +148,15 @@ export class LabEnvCell<
     });
 
     if (config && config.logCellMessages) {
-      this.worker = new LoggingMessagesWorker(spec.data.workerFn(), this.id);
+      this.worker = new LoggingMessagesWorker(cellKind.data.workerFn(), this.id);
     } else {
-      this.worker = spec.data.workerFn();
+      this.worker = cellKind.data.workerFn();
     }
 
     this.outputSoFar = {};
-    this.stillExpectedOutputs = new Set(spec.outputNames);
+    this.stillExpectedOutputs = new Set(cellKind.outputNames);
 
-    for (const streamName of spec.inStreamNames) {
+    for (const streamName of cellKind.inStreamNames) {
       const stream = new SignalOutputStream<IStream[keyof IStream]>(
         this.space,
         streamName as keyof O & string,
@@ -228,7 +172,7 @@ export class LabEnvCell<
       this.inStream[streamName] = stream;
     }
 
-    for (const oName of spec.outputNames) {
+    for (const oName of cellKind.outputNames) {
       const envInput = new SignalInput<O[keyof O]>(
         this.space,
         oName as keyof O & string,
@@ -246,7 +190,7 @@ export class LabEnvCell<
       });
     }
 
-    for (const oStreamName of spec.outStreamNames) {
+    for (const oStreamName of cellKind.outStreamNames) {
       const envStreamInput = new SignalInputStream<OStream[keyof OStream]>(
         this.space,
         oStreamName as keyof OStream & string,
@@ -402,7 +346,7 @@ export class LabEnvCell<
   // TODO: add some closing cleanup?
 }
 
-type SomeCellStateSpec = CellSpec<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+type SomeCellStateSpec = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
 // TODO: maybe define a special type of serializable
@@ -421,7 +365,7 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct
   >(
-    spec: CellSpec<I, IStreams, O, OStreams>,
+    spec: CellKind<I, IStreams, O, OStreams>,
     inputs?: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalInput<I[Key]> }
   ): LabEnvCell<I, IStreams, O, OStreams> {
     this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
@@ -442,7 +386,7 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct
   >(
-    spec: CellSpec<I, IStreams, O, OStreams>,
+    spec: CellKind<I, IStreams, O, OStreams>,
     inputs?: AbstractSignalStructFn<I>
   ): LabEnvCell<I, IStreams, O, OStreams> {
     const envCell = this.init(spec, inputs);

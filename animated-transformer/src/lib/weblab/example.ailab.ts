@@ -14,70 +14,16 @@ limitations under the License.
 ==============================================================================*/
 /**
  * This is a simple example (web) ailab. This provides an example of defining
- * the types for a cell.
+ * the types for a cell (called the cell's abstract).
  */
 
-import { CellSpec, Kind } from './cell-types';
+import { CellKind, Kind } from './cell-types';
 
-// export type Name = string;
-// export type TensorValue = {
-//   t: SerializedGTensor<'a'>;
-//   v: number;
-// } | null;
-
-// export type Globals = {
-//   name: Name;
-//   tensor: TensorValue;
-// };
-
-// export type GlobalValue<Name extends string> = { [Key in keyof Globals & Name]: Globals[Key] };
-
-export type ExampleCellInput = {
-  toyInput: string;
-};
-
-export type ExampleCellOutput = {
-  toyOutputStr: string;
-  toyOutputNumber: number;
-};
-
-export type ExampleGlobals = ExampleCellInput & ExampleCellOutput;
-
-// const initialState: Partial<ExampleGlobals> = {
-//   toyInput: 'some initial input',
-// };
-
-// export const exampleWorkerOp = {
-//   workerPath: './app.worker',
-//   inputs: ['name'] as const,
-//   outputs: ['t'] as const,
-// } as WorkerOp<'name', 't'>;
-
-// export const exampleWorkerSpec = new CellStateSpec<
-//   Partial<ExampleGlobals>,
-//   keyof ExampleCellInput,
-//   keyof ExampleCellOutput
-// >(
-//   'an example cell',
-//   () => new Worker(new URL('./example.worker', import.meta.url)),
-//   ['toyInput'],
-//   ['toyOutputStr', 'toyOutputNumber']
-// );
-
-export const exampleWorkerSpec = new CellSpec({
-  cellName: 'an example cell',
+export const exampleCellAbstract = new CellKind({
+  cellName: 'an example cell that says hello to stuff',
   workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
-  inputs: {
-    toyInput: Kind<string>,
-  },
-  inStreams: {
-    numStream: Kind<number>,
-  },
-  outputs: {
-    str: Kind<string>,
-    num: Kind<number>,
-  },
-  outStreams: {
-    foo: Kind<string>,
-  },
+  inputs: { sayHiToName: Kind<string> },
+  outputs: { helloStr: Kind<string>, num: Kind<number> },
+  inStreams: { numStream: Kind<number> },
+  outStreams: { helloNumStream: Kind<string> },
 });

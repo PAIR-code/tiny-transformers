@@ -17,7 +17,7 @@ import { LabMessage, LabMessageKind, StreamValue } from './lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
-  CellSpec,
+  CellKind,
   SetableSignalStructFn,
   PromisedSetableSignalsFn,
   CallValueFn,
@@ -75,7 +75,7 @@ export class SignalCell<
   public onceStarted: Promise<void>;
 
   constructor(
-    public spec: CellSpec<Inputs, InputStreams, Outputs, OutputStreams>,
+    public spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
     public defaultPostMessageFn: (value: object) => void
   ) {
     type InputStreamKey = keyof InputStreams & string;
