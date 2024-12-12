@@ -39,6 +39,8 @@ import json5 from 'json5';
 import {
   AbstractControl,
   FormControl,
+  FormsModule,
+  ReactiveFormsModule,
   UntypedFormControl,
   ValidationErrors,
   ValidatorFn,
@@ -88,6 +90,11 @@ import { JsonValue } from 'src/lib/json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import * as _ from 'underscore';
+import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
+import { MatInputModule } from '@angular/material/input';
+import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 
 interface ActivationVizConfig {
   // Values of the parameters.
@@ -136,6 +143,18 @@ const floatValidator = boundedFloatValidator(validatorConfig);
 
 @Component({
   selector: 'app-corner-activation',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    CodemirrorConfigEditorModule,
+    MatInputModule,
+    MatButtonModule,
+    TensorImageComponent,
+    AxisWrapperComponent,
+    ActivationManagerComponent,
+  ],
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
 })

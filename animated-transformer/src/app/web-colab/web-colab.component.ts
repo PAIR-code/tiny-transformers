@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component } from '@angular/core';
+import { Component, computed, input, Signal, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
 import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
@@ -26,23 +27,128 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
 
+// import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTableModule } from '@angular/material/table';
+import { MatCardModule } from '@angular/material/card';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+// import { TensorImageModule } from '../tensor-image/tensor-image.module';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSelectModule } from '@angular/material/select';
+
+import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
+// import { VegaChartModule } from '../vega-chart/vega-chart.module';
+import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
+import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
+
+import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-validator.directive';
+import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display.component';
+import { ActivatedRoute, Router } from '@angular/router';
+import {
+  ExpCellDisplayKind,
+  ExpDefKind,
+  Experiment,
+  ExpSectionDataDef,
+  SectionDataDef,
+  SectionKind,
+} from './experiment';
+
 @Component({
   selector: 'app-web-colab',
   standalone: true,
-  imports: [],
+  imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    // --
+    MatSidenavModule,
+    MatProgressBarModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatMenuModule,
+    MatSlideToggleModule,
+    MatTableModule,
+    MatSelectModule,
+    MatButtonToggleModule,
+    // // ---
+    CodemirrorConfigEditorModule,
+    // // VegaChartModule,
+    D3LineChartModule,
+    AutoCompletedTextInputComponent,
+    TokenSeqDisplayComponent,
+  ],
   templateUrl: './web-colab.component.html',
   styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
   env: LabEnv;
   space: SignalSpace;
+  experiment = signal<Experiment | null>(null);
+  path: Signal<Experiment[]>;
 
-  constructor() {
+  ExpDefKind = ExpDefKind;
+  SectionKind = SectionKind;
+
+  constructor(private route: ActivatedRoute, public router: Router) {
     this.env = new LabEnv();
     this.space = new SignalSpace();
+
+    this.path = computed(() => {
+      const exp = this.experiment();
+      if (!exp) {
+        return [];
+      } else {
+        return exp.ancestors;
+      }
+    });
+
+    // const curPath = signal('/');
+
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
     const { setable, derived } = this.space;
+  }
+
+  async newExperiment() {
+    const initExpDef: ExpSectionDataDef = {
+      kind: ExpDefKind.Data,
+      id: 'top level exp name/id',
+      timestamp: Date.now(),
+      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+      sectionData: {
+        sectionKind: SectionKind.SubExperiment,
+        sections: [],
+      },
+      displayKind: ExpCellDisplayKind.SubExperimentSummary,
+    };
+    const exp = new Experiment(this.space, [], initExpDef);
+    const sec1: SectionDataDef = {
+      kind: ExpDefKind.Data,
+      id: 'about',
+      timestamp: Date.now(),
+      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+      sectionData: {
+        sectionKind: SectionKind.Markdown,
+        markdown: 'foo',
+      },
+      displayKind: ExpCellDisplayKind.SubExperimentSummary,
+    };
+    exp.appendLeafSectionFromDataDef(sec1);
+    this.experiment.set(exp);
+
+    console.log('this.experiment set');
   }
 
   async doRun() {

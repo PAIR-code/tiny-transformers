@@ -1,31 +1,7 @@
-<style>
-  :host {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-    font-size: 14px;
-    color: #333;
-    box-sizing: border-box;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    display: flex;
-    margin: 0px;
-    padding: 0px;
-
-    flex-wrap: nowrap;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: stretch;
-  }
-</style>
-
-<!-- Toolbar -->
-<div class="toolbar" role="banner">
-  <a class="small-logo" aria-label="Home" [routerLink]="['/']" title="Home">
-    <img src="/assets/pair-logo.svg">
-  </a> <span class="title">Visualizing Activations of Boolean Circuits</span>
+<div class="content">
+  <span class="title">Visualizing Activations of Boolean Circuits</span>
 </div>
-
-<!-- <div *ngIf="view == 'vis'" class="content" role="main" > -->
-<div class="content" role="main">
+<div class="content">
   <mat-card class="card">
     <mat-card-header class="row">
       <mat-card-title>
@@ -49,35 +25,52 @@
     <mat-card-content>
       <div class="row">
         <app-auto-completed-text-input
-        [label]="'Select Dataset'"
-        [itemNames]="datasetNames()"
-        (itemSelected)="selectDataset($event)">
+          [label]="'Select Dataset'"
+          [itemNames]="datasetNames()"
+          (itemSelected)="selectDataset($event)"
+        >
         </app-auto-completed-text-input>
       </div>
       <div class="row">
         <div *ngIf="selectedDatasetTable() as selectedDataset">
-          <table #datasetTable mat-table [dataSource]="selectedDataset" class="mat-elevation-z0">
+          <table
+            #datasetTable
+            mat-table
+            [dataSource]="selectedDataset"
+            class="mat-elevation-z0"
+          >
             <ng-container matColumnDef="input">
-              <th mat-header-cell *matHeaderCellDef class="table-header"> [Inputs] </th>
-              <td mat-cell *matCellDef="let element"> {{exampleToString(element.input)}} </td>
+              <th mat-header-cell *matHeaderCellDef class="table-header">
+                [Inputs]
+              </th>
+              <td mat-cell *matCellDef="let element">
+                {{ exampleToString(element.input) }}
+              </td>
             </ng-container>
             <ng-container matColumnDef="output">
-              <th mat-header-cell *matHeaderCellDef class="table-header"> [Output] </th>
-              <td mat-cell *matCellDef="let element"> {{exampleToString(element.output)}} </td>
+              <th mat-header-cell *matHeaderCellDef class="table-header">
+                [Output]
+              </th>
+              <td mat-cell *matCellDef="let element">
+                {{ exampleToString(element.output) }}
+              </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="datasetColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: datasetColumns;"></tr>
+            <tr mat-row *matRowDef="let row; columns: datasetColumns"></tr>
           </table>
         </div>
         <div class="card" *ngIf="datasetVisTensor() as datasetVisTensor">
           Outputs (black=0, white=1):
           <app-axis-wrapper>
-            <app-tensor-image #tensorImg [seenWidth]="100" [seenHeight]="100"
-              [tensor]="datasetVisTensor"></app-tensor-image>
+            <app-tensor-image
+              #tensorImg
+              [seenWidth]="100"
+              [seenHeight]="100"
+              [tensor]="datasetVisTensor"
+            ></app-tensor-image>
           </app-axis-wrapper>
         </div>
       </div>
     </mat-card-content>
   </mat-card>
-
 </div>

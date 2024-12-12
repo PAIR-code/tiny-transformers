@@ -1,15 +1,35 @@
 <div class="buttons">
-  <div class="whatIsBeingEditedName">{{whatIsBeingEditedName}}<span *ngIf="(changed$ | async)"> (edited)</span></div>
+  <div class="whatIsBeingEditedName">
+    {{ whatIsBeingEditedName }}<span *ngIf="changed()"> (edited)</span>
+  </div>
 
   <div class="spacer"></div>
 
   <div>
-    <button *ngIf="changed$ | async" color="accent" mat-raised-button (click)="tryEmitConfig()">save</button>
-    <button *ngIf="closable && !(changed$ | async)" color="primary" mat-raised-button
-      (click)="justClose()">close</button>
-    <button *ngIf="(changed$ | async) && closable" color="primary" mat-raised-button
-      (click)="tryEmitConfigAndClose()">save &
-      close</button>
+    <button
+      *ngIf="changed()"
+      color="accent"
+      mat-raised-button
+      (click)="tryEmitConfig()"
+    >
+      save
+    </button>
+    <button
+      *ngIf="closable && !changed()"
+      color="primary"
+      mat-raised-button
+      (click)="justClose()"
+    >
+      close
+    </button>
+    <button
+      *ngIf="changed() && closable"
+      color="primary"
+      mat-raised-button
+      (click)="tryEmitConfigAndClose()"
+    >
+      save & close
+    </button>
   </div>
 
   <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Options">
@@ -20,18 +40,22 @@
       <mat-icon>settings_backup_restore</mat-icon>
       <span>Reset to default</span>
     </button>
-    <button mat-menu-item (click)="undoChanges()" [disabled]="!(changed$ | async)">
+    <button mat-menu-item (click)="undoChanges()" [disabled]="!changed()">
       <mat-icon>restore</mat-icon>
       <span>Restore last saved</span>
     </button>
-    <button mat-menu-item (click)="redoChanges()" [disabled]="(changed$ | async) || !tmpConfigString">
+    <button
+      mat-menu-item
+      (click)="redoChanges()"
+      [disabled]="changed() || !tmpConfigString"
+    >
       <mat-icon>redo</mat-icon>
       <span>Return to last changed</span>
     </button>
   </mat-menu>
 </div>
 
-<div *ngIf="configError" class="hint-error">{{configError}}</div>
+<div *ngIf="configError" class="hint-error">{{ configError }}</div>
 
 <div class="code">
   <div #codemirror></div>

@@ -25,13 +25,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { TensorImageModule } from '../tensor-image/tensor-image.module';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
-import { RouterTestingModule } from '@angular/router/testing';
-
 import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
 import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
 import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
@@ -50,7 +47,6 @@ describe('ActivationVisComponent', () => {
         CommonModule,
         FormsModule,
         ReactiveFormsModule,
-        RouterTestingModule,
         // ---
         MatButtonModule,
         MatIconModule,
@@ -62,17 +58,15 @@ describe('ActivationVisComponent', () => {
         MatCardModule,
         // ---
         CodemirrorConfigEditorModule,
-        TensorImageModule,
         AutoCompletedTextInputComponent,
-      ],
-      declarations: [
-        ActivationVisComponent,
         AxisWrapperComponent,
+        ActivationVisComponent,
         ActivationManagerDirective,
-        CornerActivationComponent,
         NanValidatorDirective,
         BoundedFloatValidatorDirective,
+        CornerActivationComponent,
       ],
+      declarations: [],
     }).compileComponents();
   });
 

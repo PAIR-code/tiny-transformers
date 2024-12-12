@@ -19,11 +19,12 @@ import {
   Input,
   Output,
   EventEmitter,
-  AfterViewInit,
   AfterContentInit,
   ViewChild,
   ElementRef,
-  NgZone,
+  Signal,
+  signal,
+  WritableSignal,
 } from '@angular/core';
 import json5 from 'json5';
 import * as codemirror from 'codemirror';
@@ -84,17 +85,16 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
 
   configError?: string;
 
-  changed$: BehaviorSubject<boolean>;
-  changed: boolean = false;
+  // changed$: BehaviorSubject<boolean>;
+  changed: WritableSignal<boolean> = signal(false);
 
-  constructor(private ngZone: NgZone) {
+  constructor() {
     this.codemirrorOptions = {
       lineNumbers: true,
       theme: 'material',
       mode: 'javascript',
       // viewportMargin: 100
     };
-    this.changed$ = new BehaviorSubject(this.changed);
   }
 
   getCodeMirrorValue(): string {
@@ -132,13 +132,12 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
         language.of(jsonlang()),
         EditorView.updateListener.of((updateEvent) => {
           // Unclear if this ngZone is needed...
-          this.ngZone.run(() => {
-            let changedNow = this.lastValidConfig !== updateEvent.state.doc.toString();
-            if (this.changed !== changedNow) {
-              this.changed = changedNow;
-              this.changed$.next(this.changed);
-            }
-          });
+          // this.ngZone.run(() => {
+          let changedNow = this.lastValidConfig !== updateEvent.state.doc.toString();
+          if (this.changed() !== changedNow) {
+            this.changed.set(changedNow);
+          }
+          // });
         }),
       ],
     });
@@ -192,7 +191,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
     if (!this.tmpConfigString) {
       return false;
     }
-    if (this.changed) {
+    if (this.changed()) {
       return false;
     }
     return this.tmpConfigString != this.getCodeMirrorValue();
@@ -230,8 +229,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       this.lastValidConfig = configString.slice();
 
       // Set for next time...
-      this.changed = false;
-      this.changed$.next(this.changed);
+      this.changed.set(false);
 
       return {
         obj: parsedConfig,

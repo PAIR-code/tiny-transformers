@@ -13,12 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
-import { AppRoutingModule } from './app-routing.module';
-import { RouterModule } from '@angular/router';
+// import { AppRoutingModule } from './app-routing.module';
+// import { RouterModule } from '@angular/router';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,24 +26,23 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { AppRoutingModule } from './app-routing.module';
+import { MatSidenavModule } from '@angular/material/sidenav';
 
-import { ActivationVisModule } from './activation-vis/activation-vis.module';
-import { AnimatedTransformerModule } from './animated-transformer/animated-transformer.module';
-import { LandingPageComponent } from './landing-page/landing-page.component';
-import { ErrorPageComponent } from './error-page/error-page.component';
-import { D3LineChartModule } from './d3-line-chart/d3-line-chart.module';
+// import { ActivationVisModule } from './activation-vis/activation-vis.module';
+// import { AnimatedTransformerModule } from './animated-transformer/animated-transformer.module';
+// import { LandingPageComponent } from './landing-page/landing-page.component';
+// import { ErrorPageComponent } from './error-page/error-page.component';
+// import { D3LineChartModule } from './d3-line-chart/d3-line-chart.module';
 
 @NgModule({
-  declarations: [
-    AppComponent,
-    LandingPageComponent,
-    ErrorPageComponent,
-  ],
+  declarations: [AppComponent],
   imports: [
     BrowserModule,
-    RouterModule,
-    AppRoutingModule,
     BrowserAnimationsModule,
+    AppRoutingModule,
+    MatSidenavModule,
     // ---
     MatButtonModule,
     MatIconModule,
@@ -53,11 +51,11 @@ import { D3LineChartModule } from './d3-line-chart/d3-line-chart.module';
     MatListModule,
     FormsModule,
     // ---
-    ActivationVisModule,
-    AnimatedTransformerModule,
-    D3LineChartModule,
+    // ActivationVisModule,
+    // AnimatedTransformerModule,
+    // D3LineChartModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}

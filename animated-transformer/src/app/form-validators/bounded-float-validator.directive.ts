@@ -13,9 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Directive, Input } from '@angular/core';
-import { AbstractControl, NG_VALIDATORS, ValidationErrors, Validator, ValidatorFn } from '@angular/forms';
+import {
+  AbstractControl,
+  NG_VALIDATORS,
+  ValidationErrors,
+  Validator,
+  ValidatorFn,
+} from '@angular/forms';
 
 export interface BoundsConfig {
   lowerBound?: number;
@@ -27,34 +32,36 @@ export interface BoundedFloatError {
     value: string;
     config: BoundsConfig;
     message: string;
-  }
+  };
 }
 
 /** A float that must be between 0 and 1 */
-export function boundedFloatErrorFn(config: BoundsConfig, value: string)
-  : BoundedFloatError | null {
+export function boundedFloatErrorFn(config: BoundsConfig, value: string): BoundedFloatError | null {
   const maybeNanFloat = parseFloat(value);
   const { lowerBound, upperBound } = config;
   if (isNaN(maybeNanFloat)) {
     return { data: { value, config, message: `nan` } };
-  } else if (upperBound != undefined && (maybeNanFloat > upperBound)) {
+  } else if (upperBound != undefined && maybeNanFloat > upperBound) {
     return {
       data: {
-        value, config, message: `_ > ${upperBound}`
-      }
+        value,
+        config,
+        message: `_ > ${upperBound}`,
+      },
     };
-  } else if (lowerBound !== undefined && (maybeNanFloat < lowerBound)) {
+  } else if (lowerBound !== undefined && maybeNanFloat < lowerBound) {
     return {
       data: {
-        value, config, message: `_ < ${lowerBound}`
-      }
+        value,
+        config,
+        message: `_ < ${lowerBound}`,
+      },
     };
   }
   return null;
 }
 
-export function boundedFloatValidator(
-  config: BoundsConfig): ValidatorFn {
+export function boundedFloatValidator(config: BoundsConfig): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     return boundedFloatErrorFn(config, control.value);
   };
@@ -62,11 +69,15 @@ export function boundedFloatValidator(
 
 @Directive({
   selector: '[appBoundedFloatValidator]',
+  standalone: true,
   inputs: ['config'],
-  providers: [{
-    provide: NG_VALIDATORS,
-    useExisting: BoundedFloatValidatorDirective, multi: true
-  }]
+  providers: [
+    {
+      provide: NG_VALIDATORS,
+      useExisting: BoundedFloatValidatorDirective,
+      multi: true,
+    },
+  ],
 })
 export class BoundedFloatValidatorDirective implements Validator {
   @Input() config: BoundsConfig = {};

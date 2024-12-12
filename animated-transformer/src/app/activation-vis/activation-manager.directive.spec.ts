@@ -13,13 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ViewContainerRef } from '@angular/core';
 import { ActivationManagerDirective } from './activation-manager.directive';
 
 describe('ActivationManagerDirective', () => {
   it('should create an instance', () => {
-
     // const directive = new ActivationManagerDirective();
     // expect(directive).toBeTruthy();
     expect(true).toBeTruthy();
