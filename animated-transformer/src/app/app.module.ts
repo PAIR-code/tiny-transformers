@@ -29,6 +29,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AppRoutingModule } from './app-routing.module';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { provideMarkdown } from 'ngx-markdown';
 
 // import { ActivationVisModule } from './activation-vis/activation-vis.module';
 // import { AnimatedTransformerModule } from './animated-transformer/animated-transformer.module';
@@ -55,7 +56,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
     // AnimatedTransformerModule,
     // D3LineChartModule,
   ],
-  providers: [],
+  providers: [provideMarkdown()],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

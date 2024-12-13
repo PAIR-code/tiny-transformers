@@ -29,7 +29,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
-import { provideRouter } from '@angular/router';
+import { RouterModule } from '@angular/router';
 
 describe('ModelEvaluatorComponent', () => {
   let component: ModelEvaluatorComponent;
@@ -54,7 +54,7 @@ describe('ModelEvaluatorComponent', () => {
         // ---
         CodemirrorConfigEditorModule,
       ],
-      providers: [provideRouter([])],
+      providers: [RouterModule.forRoot([])],
       declarations: [ModelEvaluatorComponent],
     }).compileComponents();
 

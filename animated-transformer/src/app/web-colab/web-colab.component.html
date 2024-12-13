@@ -67,7 +67,9 @@
             <mat-card-content>
               @if(data.kind === ExpDefKind.Data) {
               @if(data.sectionData.sectionKind === SectionKind.Markdown) {
-              <div>{{ data.sectionData.markdown }}</div>
+              <div>
+                <markdown>{{ data.sectionData.markdown }}</markdown>
+              </div>
               } @else {
               <div>
                 Unknown sectionDataKind {{ data.sectionData.sectionKind }}

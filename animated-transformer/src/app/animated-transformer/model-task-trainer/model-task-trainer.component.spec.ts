@@ -30,7 +30,7 @@ import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/cod
 
 import { ModelTaskTrainerComponent } from './model-task-trainer.component';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
-import { provideRouter } from '@angular/router';
+import { RouterModule } from '@angular/router';
 
 describe('ModelTaskTrainerComponent', () => {
   let component: ModelTaskTrainerComponent;
@@ -56,7 +56,7 @@ describe('ModelTaskTrainerComponent', () => {
         CodemirrorConfigEditorModule,
         AutoCompletedTextInputComponent,
       ],
-      providers: [provideRouter([])],
+      providers: [RouterModule.forRoot([])],
       declarations: [ModelTaskTrainerComponent],
     }).compileComponents();
 

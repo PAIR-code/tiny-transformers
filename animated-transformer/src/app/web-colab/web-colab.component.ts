@@ -65,6 +65,7 @@ import {
   SectionDataDef,
   SectionKind,
 } from './experiment';
+import { MarkdownModule } from 'ngx-markdown';
 
 // ============================================================================
 // TODO: maybe this should just be path <--> object ?
@@ -92,34 +93,35 @@ export class BrowserDirDataResolver implements AbstractDataResolver {
 }
 
 @Component({
-    selector: 'app-web-colab',
-    imports: [
-        FormsModule,
-        ReactiveFormsModule,
-        // --
-        MatSidenavModule,
-        MatProgressBarModule,
-        MatButtonModule,
-        MatCardModule,
-        MatFormFieldModule,
-        MatIconModule,
-        MatInputModule,
-        MatListModule,
-        MatMenuModule,
-        MatSlideToggleModule,
-        MatTableModule,
-        MatSelectModule,
-        MatButtonToggleModule,
-        MatDialogModule,
-        // // ---
-        CodemirrorConfigEditorModule,
-        // // VegaChartModule,
-        D3LineChartModule,
-        AutoCompletedTextInputComponent,
-        TokenSeqDisplayComponent,
-    ],
-    templateUrl: './web-colab.component.html',
-    styleUrl: './web-colab.component.scss'
+  selector: 'app-web-colab',
+  imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    // --
+    MatSidenavModule,
+    MatProgressBarModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatMenuModule,
+    MatSlideToggleModule,
+    MatTableModule,
+    MatSelectModule,
+    MatButtonToggleModule,
+    MatDialogModule,
+    // // ---
+    CodemirrorConfigEditorModule,
+    // // VegaChartModule,
+    D3LineChartModule,
+    AutoCompletedTextInputComponent,
+    TokenSeqDisplayComponent,
+    MarkdownModule,
+  ],
+  templateUrl: './web-colab.component.html',
+  styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
   error?: string;
@@ -144,11 +146,6 @@ export class WebColabComponent {
         return exp.ancestors;
       }
     });
-
-    // const curPath = signal('/');
-
-    // Consider... one liner... but maybe handy to have the object to debug.
-    // const { writable, computed } = new SignalSpace();
     const { setable, derived } = this.space;
   }
 
@@ -176,7 +173,7 @@ export class WebColabComponent {
       // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
       sectionData: {
         sectionKind: SectionKind.Markdown,
-        markdown: 'foo',
+        markdown: '# foo is a title\nAnd this is some normal text, *bold*, and _italic_.',
       },
       displayKind: ExpCellDisplayKind.SubExperimentSummary,
     };
