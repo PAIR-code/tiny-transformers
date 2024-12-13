@@ -99,9 +99,9 @@ export type ExpSectionDataDef = {
 
 export type SectionDef = SectionRefDef | SectionPathDef | SectionDataDef;
 
-export type DistrSerialization<T> = {
+export type DistrSerialization<T, T2> = {
   data: T;
-  subpathData?: { [path: string]: T };
+  subpathData?: { [path: string]: T2 };
 };
 
 // ============================================================================
@@ -113,11 +113,11 @@ export class Section {
 
   constructor(public def: SectionDef, public data: SetableSignal<SectionDataDef>) {}
 
-  serialise(): DistrSerialization<SectionDef> {
+  serialise(): DistrSerialization<SectionDef, SectionDataDef> {
     if (this.def.kind === ExpDefKind.Ref) {
       return { data: this.def };
     } else if (this.def.kind === ExpDefKind.Path) {
-      const subpathData = {} as { [path: string]: SectionDef };
+      const subpathData = {} as { [path: string]: SectionDataDef };
       subpathData[this.def.dataPath] = this.data();
       return {
         data: this.def,
@@ -195,16 +195,17 @@ export class Experiment {
     return this.data().id;
   }
 
-  appendSectionFromRefDef(node: SectionRefDef): Section {
-    const existingSection = this.sectionMap.get(node.refId);
+  appendSectionFromRefDef(secRefDef: SectionRefDef): Section {
+    const existingSection = this.sectionMap.get(secRefDef.refId);
     let section: Section;
     if (!existingSection) {
-      throw new Error(`No such reference id to ${node.refId}`);
+      throw new Error(`No such reference id to ${secRefDef.refId}`);
     }
-    section = new Section(node, existingSection.data);
+    section = new Section(secRefDef, existingSection.data);
     section.data = existingSection.data;
     existingSection.references.add(section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.sections.push(secRefDef));
     return section;
   }
 
@@ -212,14 +213,14 @@ export class Experiment {
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
   async appendLeafSectionFromPathDef(
-    dataResolver: AbstractDataResolver,
-    def: SectionPathDef
+    secPathDef: SectionPathDef,
+    resolvedDataDef: SectionDataDef
   ): Promise<Section> {
-    const data = await dataResolver.load(def.dataPath);
-    const setableData = this.space.setable(data);
-    const section = new Section(def, setableData);
-    this.sectionMap.set(def.id, section);
+    const setableData = this.space.setable(resolvedDataDef);
+    const section = new Section(secPathDef, setableData);
+    this.sectionMap.set(secPathDef.id, section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.sections.push(secPathDef));
     return section;
   }
 
@@ -231,29 +232,28 @@ export class Experiment {
     const section = new Section(def, setableData);
     this.sectionMap.set(def.id, section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.sections.push(def));
     return section;
   }
 
   // Note: this.data() should contain the same as serialisedSections.map((s) => s.data);
-  serialise(): DistrSerialization<SectionDef> {
-    const allSubPathData = {} as { [path: string]: SectionDef };
-
+  serialise(): DistrSerialization<SectionDataDef, SectionDataDef> {
+    const allSubPathData = {} as { [path: string]: SectionDataDef };
     const serialisedSections = this.sections().map((s) => s.serialise());
     for (const section of serialisedSections) {
-      // console.log(`exp serialise section: ${JSON.stringify(section.data, null, 2)}`);
       if (section.subpathData) {
         for (const subpath of Object.keys(section.subpathData)) {
           if (subpath in allSubPathData) {
             throw new Error(
-              `There should only ever be one reference to a subpath, but got too for: ${subpath}`
+              `There should only ever be one reference to a subpath, but got two for: ${subpath}`
             );
           }
           allSubPathData[subpath] = section.subpathData[subpath];
         }
       }
     }
-    const expData: SectionDef = this.data();
 
+    const expData: SectionDataDef = this.data();
     return {
       data: expData,
       subpathData: allSubPathData,
@@ -355,4 +355,19 @@ export async function loadExperiment(
   }
 
   return topLevelExperiment;
+}
+
+export async function saveExperiment(
+  dataResolver: AbstractDataResolver,
+  path: string,
+  distrSectionDef: DistrSerialization<SectionDataDef, SectionDataDef>
+): Promise<void> {
+  dataResolver.save(path, distrSectionDef.data);
+  const pathsAndData = distrSectionDef.subpathData;
+  if (!pathsAndData) {
+    return;
+  }
+  for (const [p, d] of Object.entries(pathsAndData)) {
+    dataResolver.save(p, d);
+  }
 }

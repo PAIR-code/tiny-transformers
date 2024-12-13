@@ -1,7 +1,16 @@
 @let exp = experiment(); @if( exp === null) {
 <div>
   <button mat-button (click)="newExperiment()">New experiment</button>
-  <button mat-button>Load</button>
+  <button mat-button (click)="loadExperiment()">Load</button>
+  @if(error) {
+  <div class="error">
+    <div class="buttons">
+      <div class="spacer"></div>
+      <button mat-button (click)="clearError()">X</button>
+    </div>
+    <div class="errorMessage">{{ error }}</div>
+  </div>
+  }
 </div>
 } @else { @let sections = exp.sections();
 
@@ -10,7 +19,25 @@
     <div class="path">{{ exp.id }}</div>
     <div class="buttons">
       <div class="spacer"></div>
-      <button mat-button>Save</button>
+      <button
+        mat-icon-button
+        matTooltip=""
+        [matMenuTriggerFor]="experimentMenu"
+      >
+        <mat-icon>...</mat-icon>
+        <mat-menu #experimentMenu class="vmenu">
+          <div>
+            <button mat-button matTooltip="Save" (click)="saveExperiment(exp)">
+              save
+            </button>
+          </div>
+          <div>
+            <button mat-button matTooltip="Close" (click)="closeExperiment()">
+              close
+            </button>
+          </div>
+        </mat-menu>
+      </button>
     </div>
   </div>
 
@@ -35,26 +62,27 @@
       <div class="sections hoverButtons">
         @for (section of sections; track section.def.id) { @let data =
         section.data();
-        <mat-card class="section">
-          <mat-card-content>
-            @if(data.kind === ExpDefKind.Data) {
-            @if(data.sectionData.sectionKind === SectionKind.Markdown) {
-            <div>{{ data.sectionData.markdown }}</div>
-            } @else {
-            <div>
-              Unknown sectionDataKind {{ data.sectionData.sectionKind }}
-            </div>
-            } } @else {
-            <div>Unknown data.kind {{ data.kind }}</div>
-            }
-
-            <div class="buttons">
-              <button mat-button>+</button>
-              <span class="'spacer"></span>
-              <button mat-button>...</button>
-            </div>
-          </mat-card-content>
-        </mat-card>
+        <div class="section">
+          <mat-card>
+            <mat-card-content>
+              @if(data.kind === ExpDefKind.Data) {
+              @if(data.sectionData.sectionKind === SectionKind.Markdown) {
+              <div>{{ data.sectionData.markdown }}</div>
+              } @else {
+              <div>
+                Unknown sectionDataKind {{ data.sectionData.sectionKind }}
+              </div>
+              } } @else {
+              <div>Unknown data.kind {{ data.kind }}</div>
+              }
+            </mat-card-content>
+          </mat-card>
+          <div class="buttons">
+            <button mat-button>+</button>
+            <span class="'spacer"></span>
+            <button mat-button>...</button>
+          </div>
+        </div>
         }
       </div>
     </mat-sidenav-content>

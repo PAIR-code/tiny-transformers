@@ -44,6 +44,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 
 import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
 // import { VegaChartModule } from '../vega-chart/vega-chart.module';
@@ -54,13 +55,41 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
 import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
+  AbstractDataResolver,
   ExpCellDisplayKind,
   ExpDefKind,
   Experiment,
   ExpSectionDataDef,
+  loadExperiment,
+  saveExperiment,
   SectionDataDef,
   SectionKind,
 } from './experiment';
+
+// ============================================================================
+// TODO: maybe this should just be path <--> object ?
+export class BrowserDirDataResolver implements AbstractDataResolver {
+  constructor(public dirHandle: FileSystemDirectoryHandle) {}
+
+  async load(path: string): Promise<SectionDataDef> {
+    const fileHandle = await this.dirHandle.getFileHandle(path);
+    const file = await fileHandle.getFile();
+    const fileBuffer = await file.arrayBuffer();
+    const dec = new TextDecoder('utf-8');
+    const contents = dec.decode(fileBuffer);
+    // TODO: add better file contents verification.
+    const dataObject = JSON.parse(contents);
+    return dataObject;
+  }
+
+  async save(path: string, nodeData: SectionDataDef): Promise<void> {
+    const fileHandle = await this.dirHandle.getFileHandle(path);
+    fileHandle.requestPermission({ mode: 'readwrite' });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(nodeData, null, 2));
+    await writable.close();
+  }
+}
 
 @Component({
   selector: 'app-web-colab',
@@ -82,6 +111,7 @@ import {
     MatTableModule,
     MatSelectModule,
     MatButtonToggleModule,
+    MatDialogModule,
     // // ---
     CodemirrorConfigEditorModule,
     // // VegaChartModule,
@@ -93,19 +123,21 @@ import {
   styleUrl: './web-colab.component.scss',
 })
 export class WebColabComponent {
+  error?: string;
   env: LabEnv;
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
-  path: Signal<Experiment[]>;
+  viewPath: Signal<Experiment[]>;
+  dataResolver?: BrowserDirDataResolver;
 
   ExpDefKind = ExpDefKind;
   SectionKind = SectionKind;
 
-  constructor(private route: ActivatedRoute, public router: Router) {
+  constructor(private route: ActivatedRoute, public router: Router, public dialog: MatDialog) {
     this.env = new LabEnv();
     this.space = new SignalSpace();
 
-    this.path = computed(() => {
+    this.viewPath = computed(() => {
       const exp = this.experiment();
       if (!exp) {
         return [];
@@ -119,6 +151,10 @@ export class WebColabComponent {
     // Consider... one liner... but maybe handy to have the object to debug.
     // const { writable, computed } = new SignalSpace();
     const { setable, derived } = this.space;
+  }
+
+  clearError() {
+    delete this.error;
   }
 
   async newExperiment() {
@@ -158,6 +194,34 @@ export class WebColabComponent {
     // cell.worker.terminate();
   }
 
+  async saveExperiment(experiment: Experiment) {
+    if (!this.dataResolver) {
+      const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
+      this.dataResolver = new BrowserDirDataResolver(dirHandle);
+    }
+    saveExperiment(this.dataResolver, 'experiment.json', experiment.serialise());
+  }
+
+  closeExperiment() {
+    this.experiment.set(null);
+    delete this.dataResolver;
+  }
+
+  async loadExperiment() {
+    try {
+      const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
+      this.dataResolver = new BrowserDirDataResolver(dirHandle);
+      const secDataDef = await this.dataResolver.load('experiment.json');
+      // TODO: actually do some validation...
+      const expDef = secDataDef as ExpSectionDataDef;
+      const exp = await loadExperiment(this.dataResolver, this.space, expDef);
+      this.experiment.set(exp);
+    } catch (error) {
+      this.error = (error as Error).message;
+      console.log(error);
+    }
+  }
+
   async doOpen() {
     const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
     const testFile = await dirHandle.getFileHandle('test.txt', {
@@ -179,13 +243,3 @@ export class WebColabComponent {
     }
   }
 }
-
-// // fileHandle is an instance of FileSystemFileHandle..
-// async function writeFile(fileHandle, contents) {
-//   // Create a FileSystemWritableFileStream to write to.
-//   const writable = await fileHandle.createWritable();
-//   // Write the contents of the file to the stream.
-//   await writable.write(contents);
-//   // Close the file and write the contents to disk.
-//   await writable.close();
-// }
