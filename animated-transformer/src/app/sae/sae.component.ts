@@ -30,19 +30,18 @@ import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
 import * as sampleData from './sae_sample_data_boundary.json';
 
 @Component({
-  selector: 'app-sae',
-  standalone: true,
-  templateUrl: './sae.component.html',
-  styleUrls: ['./sae.component.scss'],
-  imports: [
-    MatFormFieldModule,
-    D3LineChartModule,
-    CommonModule,
-    MatButtonModule,
-    FormsModule,
-    MatInputModule,
-    ReactiveFormsModule,
-  ],
+    selector: 'app-sae',
+    templateUrl: './sae.component.html',
+    styleUrls: ['./sae.component.scss'],
+    imports: [
+        MatFormFieldModule,
+        D3LineChartModule,
+        CommonModule,
+        MatButtonModule,
+        FormsModule,
+        MatInputModule,
+        ReactiveFormsModule,
+    ]
 })
 export class SAEComponent {
   public saeModel: any;

@@ -52,9 +52,10 @@ export interface ConfigUpdate<T> {
 }
 
 @Component({
-  selector: 'app-codemirror-config-editor',
-  templateUrl: './codemirror-config-editor.component.html',
-  styleUrls: ['./codemirror-config-editor.component.scss'],
+    selector: 'app-codemirror-config-editor',
+    templateUrl: './codemirror-config-editor.component.html',
+    styleUrls: ['./codemirror-config-editor.component.scss'],
+    standalone: false
 })
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
   @Input() whatIsBeingEditedName: string = '';

@@ -18,11 +18,10 @@ import { TwoVarGTensorDataset } from '../../../lib/gtensor/the_16_two_var_bool_f
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-activation-manager',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './activation-manager.component.html',
-  styleUrls: ['./activation-manager.component.scss'],
+    selector: 'app-activation-manager',
+    imports: [CommonModule],
+    templateUrl: './activation-manager.component.html',
+    styleUrls: ['./activation-manager.component.scss']
 })
 export class ActivationManagerComponent {
   @Input()

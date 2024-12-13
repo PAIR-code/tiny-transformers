@@ -92,9 +92,10 @@ function nullOrComputed<T, T2>(
 
 // ----------------------------------------------------------------------------
 @Component({
-  selector: 'app-model-task-trainer',
-  templateUrl: './model-task-trainer.component.html',
-  styleUrls: ['./model-task-trainer.component.scss'],
+    selector: 'app-model-task-trainer',
+    templateUrl: './model-task-trainer.component.html',
+    styleUrls: ['./model-task-trainer.component.scss'],
+    standalone: false
 })
 export class ModelTaskTrainerComponent {
   // lastModelUpdate: ModelUpdate = { model: null };

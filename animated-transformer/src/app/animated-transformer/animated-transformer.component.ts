@@ -23,9 +23,10 @@ import { ModelParamsUpdate } from './model-task-trainer/model-task-trainer.compo
 // import { TinyModelsService } from '../tiny-models.service';
 
 @Component({
-  selector: 'app-animated-transformer',
-  templateUrl: './animated-transformer.component.html',
-  styleUrls: ['./animated-transformer.component.scss'],
+    selector: 'app-animated-transformer',
+    templateUrl: './animated-transformer.component.html',
+    styleUrls: ['./animated-transformer.component.scss'],
+    standalone: false
 })
 export class AnimatedTransformerComponent {
   jsonComputation = '';

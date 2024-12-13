@@ -47,35 +47,34 @@ interface DatasetExample {
 }
 
 @Component({
-  selector: 'app-activation-vis',
-  standalone: true,
-  imports: [
-    CommonModule,
-    AutoCompletedTextInputComponent,
-    FormsModule,
-    ReactiveFormsModule,
-    RouterModule,
-    // ---
-    MatAutocompleteModule,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatInputModule,
-    MatListModule,
-    MatMenuModule,
-    MatTableModule,
-    // ---
-    ActivationManagerComponent,
-    CornerActivationComponent,
-    CodemirrorConfigEditorModule,
-    TensorImageComponent,
-    AxisWrapperComponent,
-    ActivationManagerDirective,
-    NanValidatorDirective,
-    BoundedFloatValidatorDirective,
-  ],
-  templateUrl: './activation-vis.component.html',
-  styleUrls: ['./activation-vis.component.scss'],
+    selector: 'app-activation-vis',
+    imports: [
+        CommonModule,
+        AutoCompletedTextInputComponent,
+        FormsModule,
+        ReactiveFormsModule,
+        RouterModule,
+        // ---
+        MatAutocompleteModule,
+        MatButtonModule,
+        MatCardModule,
+        MatIconModule,
+        MatInputModule,
+        MatListModule,
+        MatMenuModule,
+        MatTableModule,
+        // ---
+        ActivationManagerComponent,
+        CornerActivationComponent,
+        CodemirrorConfigEditorModule,
+        TensorImageComponent,
+        AxisWrapperComponent,
+        ActivationManagerDirective,
+        NanValidatorDirective,
+        BoundedFloatValidatorDirective,
+    ],
+    templateUrl: './activation-vis.component.html',
+    styleUrls: ['./activation-vis.component.scss']
 })
 export class ActivationVisComponent implements OnInit {
   view = signal('vis' as 'edit' | 'vis');

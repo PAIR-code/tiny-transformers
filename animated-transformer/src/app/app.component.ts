@@ -18,9 +18,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { loadExperiment } from './web-colab/experiment';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss'],
+    standalone: false
 })
 export class AppComponent {
   constructor(private route: ActivatedRoute, public router: Router) {}

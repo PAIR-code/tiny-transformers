@@ -60,11 +60,10 @@ export function mkVisTensor(
 }
 
 @Component({
-  selector: 'app-tensor-image',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './tensor-image.component.html',
-  styleUrls: ['./tensor-image.component.scss'],
+    selector: 'app-tensor-image',
+    imports: [CommonModule],
+    templateUrl: './tensor-image.component.html',
+    styleUrls: ['./tensor-image.component.scss']
 })
 export class TensorImageComponent implements OnInit, AfterViewInit {
   @Input() seenWidth!: number;

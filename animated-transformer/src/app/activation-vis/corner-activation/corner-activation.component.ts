@@ -142,21 +142,20 @@ const validatorConfig = { lowerBound: 0, upperBound: 1 };
 const floatValidator = boundedFloatValidator(validatorConfig);
 
 @Component({
-  selector: 'app-corner-activation',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
-    CodemirrorConfigEditorModule,
-    MatInputModule,
-    MatButtonModule,
-    TensorImageComponent,
-    AxisWrapperComponent,
-    ActivationManagerComponent,
-  ],
-  templateUrl: './corner-activation.component.html',
-  styleUrls: ['./corner-activation.component.scss'],
+    selector: 'app-corner-activation',
+    imports: [
+        CommonModule,
+        FormsModule,
+        ReactiveFormsModule,
+        CodemirrorConfigEditorModule,
+        MatInputModule,
+        MatButtonModule,
+        TensorImageComponent,
+        AxisWrapperComponent,
+        ActivationManagerComponent,
+    ],
+    templateUrl: './corner-activation.component.html',
+    styleUrls: ['./corner-activation.component.scss']
 })
 export class CornerActivationComponent extends ActivationManagerComponent implements OnDestroy {
   updateParamsFromControlsEffect?: EffectRef;

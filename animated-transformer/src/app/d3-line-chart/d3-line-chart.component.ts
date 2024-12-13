@@ -91,9 +91,10 @@ interface DrawData {
 }
 
 @Component({
-  selector: 'app-d3-line-chart',
-  templateUrl: './d3-line-chart.component.html',
-  styleUrls: ['./d3-line-chart.component.scss']
+    selector: 'app-d3-line-chart',
+    templateUrl: './d3-line-chart.component.html',
+    styleUrls: ['./d3-line-chart.component.scss'],
+    standalone: false
 })
 export class D3LineChartComponent {
   dataPoints: NamedChartPoint[] = [];

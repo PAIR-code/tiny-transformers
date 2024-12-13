@@ -92,35 +92,34 @@ export class BrowserDirDataResolver implements AbstractDataResolver {
 }
 
 @Component({
-  selector: 'app-web-colab',
-  standalone: true,
-  imports: [
-    FormsModule,
-    ReactiveFormsModule,
-    // --
-    MatSidenavModule,
-    MatProgressBarModule,
-    MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatListModule,
-    MatMenuModule,
-    MatSlideToggleModule,
-    MatTableModule,
-    MatSelectModule,
-    MatButtonToggleModule,
-    MatDialogModule,
-    // // ---
-    CodemirrorConfigEditorModule,
-    // // VegaChartModule,
-    D3LineChartModule,
-    AutoCompletedTextInputComponent,
-    TokenSeqDisplayComponent,
-  ],
-  templateUrl: './web-colab.component.html',
-  styleUrl: './web-colab.component.scss',
+    selector: 'app-web-colab',
+    imports: [
+        FormsModule,
+        ReactiveFormsModule,
+        // --
+        MatSidenavModule,
+        MatProgressBarModule,
+        MatButtonModule,
+        MatCardModule,
+        MatFormFieldModule,
+        MatIconModule,
+        MatInputModule,
+        MatListModule,
+        MatMenuModule,
+        MatSlideToggleModule,
+        MatTableModule,
+        MatSelectModule,
+        MatButtonToggleModule,
+        MatDialogModule,
+        // // ---
+        CodemirrorConfigEditorModule,
+        // // VegaChartModule,
+        D3LineChartModule,
+        AutoCompletedTextInputComponent,
+        TokenSeqDisplayComponent,
+    ],
+    templateUrl: './web-colab.component.html',
+    styleUrl: './web-colab.component.scss'
 })
 export class WebColabComponent {
   error?: string;

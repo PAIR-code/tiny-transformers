@@ -16,11 +16,10 @@ limitations under the License.
 import { Component, OnInit } from '@angular/core';
 
 @Component({
-  selector: 'app-axis-wrapper',
-  standalone: true,
-  imports: [],
-  templateUrl: './axis-wrapper.component.html',
-  styleUrls: ['./axis-wrapper.component.scss'],
+    selector: 'app-axis-wrapper',
+    imports: [],
+    templateUrl: './axis-wrapper.component.html',
+    styleUrls: ['./axis-wrapper.component.scss']
 })
 export class AxisWrapperComponent implements OnInit {
   constructor() {}

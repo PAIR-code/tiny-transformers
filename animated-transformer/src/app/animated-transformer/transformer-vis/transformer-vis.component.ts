@@ -26,9 +26,10 @@ import {
 import * as d3 from 'd3';
 
 @Component({
-  selector: 'app-transformer-vis',
-  templateUrl: './transformer-vis.component.html',
-  styleUrls: ['./transformer-vis.component.scss'],
+    selector: 'app-transformer-vis',
+    templateUrl: './transformer-vis.component.html',
+    styleUrls: ['./transformer-vis.component.scss'],
+    standalone: false
 })
 export class TransformerVisComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() tensorData!: string;

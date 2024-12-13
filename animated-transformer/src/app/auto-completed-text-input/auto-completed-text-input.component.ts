@@ -30,12 +30,11 @@ import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@an
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
-  selector: 'app-auto-completed-text-input',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule,
-    MatAutocompleteModule, MatInputModule],
-  templateUrl: './auto-completed-text-input.component.html',
-  styleUrl: './auto-completed-text-input.component.scss'
+    selector: 'app-auto-completed-text-input',
+    imports: [CommonModule, FormsModule, ReactiveFormsModule,
+        MatAutocompleteModule, MatInputModule],
+    templateUrl: './auto-completed-text-input.component.html',
+    styleUrl: './auto-completed-text-input.component.scss'
 })
 export class AutoCompletedTextInputComponent {
   itemSelectorControl = new FormControl<string>('');

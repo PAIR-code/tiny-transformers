@@ -60,9 +60,10 @@ import { nullableEqFn } from 'src/lib/utils';
 
 // ----------------------------------------------------------------------------
 @Component({
-  selector: 'app-seq-task-selector',
-  templateUrl: './seq-task-selector.component.html',
-  styleUrls: ['./seq-task-selector.component.scss'],
+    selector: 'app-seq-task-selector',
+    templateUrl: './seq-task-selector.component.html',
+    styleUrls: ['./seq-task-selector.component.scss'],
+    standalone: false
 })
 export class SeqTaskSelectorComponent {
   view: 'edit' | 'view' = 'view';

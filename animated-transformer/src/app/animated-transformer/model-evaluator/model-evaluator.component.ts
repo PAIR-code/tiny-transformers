@@ -66,9 +66,10 @@ function typedGetData<N extends string>(
 }
 
 @Component({
-  selector: 'app-model-evaluator',
-  templateUrl: './model-evaluator.component.html',
-  styleUrls: ['./model-evaluator.component.scss'],
+    selector: 'app-model-evaluator',
+    templateUrl: './model-evaluator.component.html',
+    styleUrls: ['./model-evaluator.component.scss'],
+    standalone: false
 })
 export class ModelEvaluatorComponent {
   input = signal([] as string[]);

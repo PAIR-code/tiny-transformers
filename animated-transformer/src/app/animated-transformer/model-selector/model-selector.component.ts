@@ -78,9 +78,10 @@ export interface ModelUpdate {
 
 // ----------------------------------------------------------------------------
 @Component({
-  selector: 'app-model-selector',
-  templateUrl: './model-selector.component.html',
-  styleUrls: ['./model-selector.component.scss'],
+    selector: 'app-model-selector',
+    templateUrl: './model-selector.component.html',
+    styleUrls: ['./model-selector.component.scss'],
+    standalone: false
 })
 export class ModelSelectorComponent {
   constructor() {} // public tmService: TinyModelsService
