@@ -27,7 +27,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { pointWiseEval } from '../../lib/gtensor/boolfns';
-import { CommonModule } from '@angular/common';
+
 
 // Make a visualization tensor for a set of params given a set of inputs,
 // with extra points to show value changes/gradients added according to
@@ -61,7 +61,7 @@ export function mkVisTensor(
 
 @Component({
     selector: 'app-tensor-image',
-    imports: [CommonModule],
+    imports: [],
     templateUrl: './tensor-image.component.html',
     styleUrls: ['./tensor-image.component.scss']
 })

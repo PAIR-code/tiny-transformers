@@ -16,7 +16,7 @@ limitations under the License.
 import { Component } from '@angular/core';
 
 import * as tf from '@tensorflow/tfjs';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormControl } from '@angular/forms';
@@ -28,20 +28,22 @@ import { MatInputModule } from '@angular/material/input';
 import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
 
 import * as sampleData from './sae_sample_data_boundary.json';
+import { CommonModule } from '@angular/common';
 
 @Component({
-    selector: 'app-sae',
-    templateUrl: './sae.component.html',
-    styleUrls: ['./sae.component.scss'],
-    imports: [
-        MatFormFieldModule,
-        D3LineChartModule,
-        CommonModule,
-        MatButtonModule,
-        FormsModule,
-        MatInputModule,
-        ReactiveFormsModule,
-    ]
+  selector: 'app-sae',
+  standalone: true,
+  templateUrl: './sae.component.html',
+  styleUrls: ['./sae.component.scss'],
+  imports: [
+    CommonModule,
+    MatFormFieldModule,
+    D3LineChartModule,
+    MatButtonModule,
+    FormsModule,
+    MatInputModule,
+    ReactiveFormsModule,
+  ],
 })
 export class SAEComponent {
   public saeModel: any;
@@ -66,7 +68,10 @@ export class SAEComponent {
 
   neuronIndexToInspect: FormControl<string>;
 
-  constructor(private route: ActivatedRoute, private router: Router) {
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+  ) {
     this.dictionaryMultiplier = new FormControl('4') as FormControl<string>;
     this.l1Coeff = new FormControl('0.003') as FormControl<string>;
     this.batchSize = new FormControl('8') as FormControl<string>;
@@ -109,7 +114,7 @@ export class SAEComponent {
     const activationsForFeatureToInspect = Array.from(
       this.predictedDictionaryFeatures
         .slice([0, parseInt(this.neuronIndexToInspect.value)], [-1, 1])
-        .dataSync()
+        .dataSync(),
     );
     const indexedActivations = activationsForFeatureToInspect.map((value, index) => ({
       value,
@@ -142,7 +147,7 @@ export class SAEComponent {
           token: d,
           sequence: item.input,
           tokenPos: i,
-        }))
+        })),
       )
       .reduce((acc: any, curr: any) => acc.concat(curr), []); // flatten.
 
@@ -152,8 +157,8 @@ export class SAEComponent {
 
     this.trainingData = tf.concat(
       this.trainingData.map((item: any) =>
-        tf.tensor(item.mlpOutputs.data, item.mlpOutputs.shape).squeeze()
-      )
+        tf.tensor(item.mlpOutputs.data, item.mlpOutputs.shape).squeeze(),
+      ),
     );
     const nTrainingData = this.trainingData.shape[0];
 
@@ -199,7 +204,7 @@ export class SAEComponent {
         const l2Loss = tf.losses.meanSquaredError(trueReconstruction, outputReconstruction);
         const l1Loss = tf.mul(
           parseFloat(this.l1Coeff.value),
-          tf.sum(tf.abs(outputDictionaryFeatures))
+          tf.sum(tf.abs(outputDictionaryFeatures)),
         );
         return tf.add(l2Loss, l1Loss);
       },
@@ -211,7 +216,7 @@ export class SAEComponent {
     for (let i = 0; i < Math.floor(nTrainingData / batchSize); i++) {
       const batch = this.trainingData.slice(
         i * batchSize,
-        Math.min(batchSize, nTrainingData - i * batchSize)
+        Math.min(batchSize, nTrainingData - i * batchSize),
       );
       let batchPlaceholderDictionaryFeatures = placeholderDictionaryFeatures;
       if (batchPlaceholderDictionaryFeatures.shape[0] !== batch.shape[0]) {
@@ -223,7 +228,7 @@ export class SAEComponent {
         {
           batchSize: batchSize,
           epochs: parseInt(this.epochs.value),
-        }
+        },
       );
       this.lossPoints = this.lossPoints.concat([{ x: i, y: h.history['loss'][0], name: 'Loss' }]);
     }

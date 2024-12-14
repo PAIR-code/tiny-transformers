@@ -44,18 +44,35 @@ import {
   Subscription,
 } from 'rxjs';
 
-export interface ConfigUpdate<T> {
-  json?: string;
-  obj?: T;
-  error?: string;
-  close?: boolean;
+export enum ConfigUpdateKind {
+  JustClose = 'JustClose',
+  Error = 'Error',
+  UpdatedValue = 'UpdatedValue',
 }
 
+export type ConfigUpdate<T> =
+  | {
+      kind: ConfigUpdateKind.UpdatedValue;
+      json: string;
+      obj: T;
+      close: boolean;
+    }
+  | {
+      kind: ConfigUpdateKind.Error;
+      json: string;
+      error: string;
+      close: false;
+    }
+  | {
+      kind: ConfigUpdateKind.JustClose;
+      close: true;
+    };
+
 @Component({
-    selector: 'app-codemirror-config-editor',
-    templateUrl: './codemirror-config-editor.component.html',
-    styleUrls: ['./codemirror-config-editor.component.scss'],
-    standalone: false
+  selector: 'app-codemirror-config-editor',
+  templateUrl: './codemirror-config-editor.component.html',
+  styleUrls: ['./codemirror-config-editor.component.scss'],
+  standalone: false,
 })
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
   @Input() whatIsBeingEditedName: string = '';
@@ -114,13 +131,15 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       return;
     }
 
-    this.codeMirror.state.update({
+    const transaction = this.codeMirror.state.update({
       changes: {
         from: 0,
         to: this.codeMirror.state.doc.length,
         insert: s,
       },
     });
+
+    this.codeMirror.dispatch(transaction);
   }
 
   ngOnInit() {
@@ -173,6 +192,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
     }
     this.tmpConfigString = this.getCodeMirrorValue();
     this.setCodeMirrorValue(this.lastValidConfig.slice());
+    delete this.configError;
   }
 
   public get isDefault() {
@@ -181,7 +201,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       // setup this.codeMirror.
       return this.defaultConfig === this.lastValidConfig;
     }
-    return this.defaultConfig == this.getCodeMirrorValue();
+    return this.defaultConfig === this.getCodeMirrorValue();
   }
 
   public get canReDoChanges() {
@@ -216,8 +236,10 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
     if (!this.codeMirror) {
       console.warn('Missing codeMirror object.');
       return {
+        kind: ConfigUpdateKind.Error,
         json: '{}',
         error: 'Missing codeMirror object.',
+        close: false,
       };
     }
 
@@ -233,43 +255,48 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       this.changed.set(false);
 
       return {
+        kind: ConfigUpdateKind.UpdatedValue,
         obj: parsedConfig,
         json: configString,
+        close: false,
       };
     } catch (e) {
       return {
+        kind: ConfigUpdateKind.Error,
         json: configString,
         error: (e as Error).message,
+        close: false,
       };
     }
   }
 
-  tryEmitConfig() {
-    const configUpdate = this.makeConfigUpdate();
-    console.log('configUpdate:', JSON.stringify(configUpdate, null, 2));
-    configUpdate.close = false;
-    this.configError = configUpdate.error;
-    console.log('this.configError:', JSON.stringify(this.configError, null, 2));
-    if (!this.configError) {
+  emitConfigUpdate(configUpdate: ConfigUpdate<{}>) {
+    if (configUpdate.kind === ConfigUpdateKind.Error) {
+      this.configError = configUpdate.error;
+    } else {
+      delete this.configError;
       delete this.tmpConfigString;
-      // console.log('saved and set changed to false');
-      // this.changed = false;
     }
     this.update.emit(configUpdate);
+  }
+
+  tryEmitConfig() {
+    this.emitConfigUpdate(this.makeConfigUpdate());
   }
 
   tryEmitConfigAndClose() {
     const configUpdate = this.makeConfigUpdate();
-    configUpdate.close = true;
-    this.configError = configUpdate.error;
-    this.update.emit(configUpdate);
+    if (configUpdate.kind !== ConfigUpdateKind.Error) {
+      configUpdate.close = true;
+    }
+    this.emitConfigUpdate(configUpdate);
   }
 
   justClose() {
-    const configUpdate = {
+    const configUpdate: ConfigUpdate<{}> = {
+      kind: ConfigUpdateKind.JustClose,
       close: true,
-    }; // this.makeConfigUpdate();
-    // this.configError = configUpdate.error;
+    };
     this.update.emit(configUpdate);
   }
 }

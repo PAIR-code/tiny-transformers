@@ -21,7 +21,7 @@ making things harder to easier.
 */
 
 import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocomplete, MatAutocompleteModule } from '@angular/material/autocomplete';
 // import { MatIconModule } from '@angular/material/icon';
@@ -31,8 +31,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
     selector: 'app-auto-completed-text-input',
-    imports: [CommonModule, FormsModule, ReactiveFormsModule,
-        MatAutocompleteModule, MatInputModule],
+    imports: [FormsModule, ReactiveFormsModule, MatAutocompleteModule, MatInputModule],
     templateUrl: './auto-completed-text-input.component.html',
     styleUrl: './auto-completed-text-input.component.scss'
 })

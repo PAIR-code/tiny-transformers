@@ -14,12 +14,12 @@ limitations under the License.
 ==============================================================================*/
 
 import { Component, computed, input, Signal, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
 import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { TrainStateConfig } from 'src/lib/trainer/train_state';
-import { SignalSpace } from 'src/lib/signalspace/signalspace';
+import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { taskRegistry } from 'src/lib/seqtasks/task_registry';
 import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
 import { Batch, EnvModel, TrainConfig, trainerCellSpec } from './tiny-transformer-example/ailab';
@@ -56,16 +56,25 @@ import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AbstractDataResolver,
-  ExpCellDisplayKind,
+  // ExpCellDisplayKind,
   ExpDefKind,
   Experiment,
   ExpSectionDataDef,
+  JsonSectionData,
   loadExperiment,
   saveExperiment,
+  SectionData,
   SectionDataDef,
+  SectionDef,
   SectionKind,
 } from './experiment';
 import { MarkdownModule } from 'ngx-markdown';
+import { stringifyJsonValue } from 'src/lib/json/pretty_json';
+import { JsonValue } from 'src/lib/json/json';
+import {
+  ConfigUpdate,
+  ConfigUpdateKind,
+} from '../codemirror-config-editor/codemirror-config-editor.component';
 
 // ============================================================================
 // TODO: maybe this should just be path <--> object ?
@@ -134,7 +143,11 @@ export class WebColabComponent {
   ExpDefKind = ExpDefKind;
   SectionKind = SectionKind;
 
-  constructor(private route: ActivatedRoute, public router: Router, public dialog: MatDialog) {
+  constructor(
+    private route: ActivatedRoute,
+    public router: Router,
+    public dialog: MatDialog,
+  ) {
     this.env = new LabEnv();
     this.space = new SignalSpace();
 
@@ -161,9 +174,8 @@ export class WebColabComponent {
       // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
       sectionData: {
         sectionKind: SectionKind.SubExperiment,
-        sections: [],
+        content: [],
       },
-      displayKind: ExpCellDisplayKind.SubExperimentSummary,
     };
     const exp = new Experiment(this.space, [], initExpDef);
     const sec1: SectionDataDef = {
@@ -173,14 +185,36 @@ export class WebColabComponent {
       // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
       sectionData: {
         sectionKind: SectionKind.Markdown,
-        markdown: '# foo is a title\nAnd this is some normal text, *bold*, and _italic_.',
+        content: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
       },
-      displayKind: ExpCellDisplayKind.SubExperimentSummary,
+    };
+    const sec2: SectionDataDef = {
+      kind: ExpDefKind.Data,
+      id: 'some data',
+      timestamp: Date.now(),
+      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+      sectionData: {
+        sectionKind: SectionKind.JsonObj,
+        content: {
+          hello: 'foo',
+        },
+      },
     };
     exp.appendLeafSectionFromDataDef(sec1);
+    exp.appendLeafSectionFromDataDef(sec2);
     this.experiment.set(exp);
+  }
 
-    console.log('this.experiment set');
+  //
+  stringifyJsonValue(x: JsonValue): string {
+    return stringifyJsonValue(x);
+  }
+
+  handleSectionJsonUpdate(update: ConfigUpdate<JsonValue>, contentSignal: SetableSignal<{}>) {
+    if (update.kind !== ConfigUpdateKind.UpdatedValue) {
+      return;
+    }
+    contentSignal.set(update.obj as {});
   }
 
   async doRun() {

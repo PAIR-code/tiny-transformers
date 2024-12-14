@@ -51,5 +51,5 @@ export function quote(s: string): string {
 // ----------------------------------------------------------------------------
 // A type for JSON-stringifiable objects.
 export type JsonLeaf = string | number | boolean | null;
-export type JsonValue = JsonLeaf | JsonObj | Array<JsonValue>;
 export type JsonObj = { [x: string]: JsonValue };
+export type JsonValue = JsonLeaf | JsonObj | Array<JsonValue>;

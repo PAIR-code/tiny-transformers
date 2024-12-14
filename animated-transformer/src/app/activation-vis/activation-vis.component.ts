@@ -21,7 +21,7 @@ import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 
-import { CommonModule } from '@angular/common';
+
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -49,30 +49,27 @@ interface DatasetExample {
 @Component({
     selector: 'app-activation-vis',
     imports: [
-        CommonModule,
-        AutoCompletedTextInputComponent,
-        FormsModule,
-        ReactiveFormsModule,
-        RouterModule,
-        // ---
-        MatAutocompleteModule,
-        MatButtonModule,
-        MatCardModule,
-        MatIconModule,
-        MatInputModule,
-        MatListModule,
-        MatMenuModule,
-        MatTableModule,
-        // ---
-        ActivationManagerComponent,
-        CornerActivationComponent,
-        CodemirrorConfigEditorModule,
-        TensorImageComponent,
-        AxisWrapperComponent,
-        ActivationManagerDirective,
-        NanValidatorDirective,
-        BoundedFloatValidatorDirective,
-    ],
+    AutoCompletedTextInputComponent,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatCardModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatMenuModule,
+    MatTableModule,
+    ActivationManagerComponent,
+    CornerActivationComponent,
+    CodemirrorConfigEditorModule,
+    TensorImageComponent,
+    AxisWrapperComponent,
+    ActivationManagerDirective,
+    NanValidatorDirective,
+    BoundedFloatValidatorDirective
+],
     templateUrl: './activation-vis.component.html',
     styleUrls: ['./activation-vis.component.scss']
 })

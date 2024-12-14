@@ -7,38 +7,39 @@
       <mat-card-title>
         <span>Model</span>
         <!-- <app-auto-completed-text-input
-          [itemNames]="modelNames()"
-          (selectedItem)="selectModel($event)">
-        </app-auto-completed-text-input> -->
-      </mat-card-title>
-      <div class="spacer"></div>
-      <button mat-icon-button (click)="toggleModelConfig()">
-        <mat-icon>settings</mat-icon>
-      </button>
-    </mat-card-header>
-    <mat-card-content>
-      <ng-template appActivationManager></ng-template>
-    </mat-card-content>
-  </mat-card>
+        [itemNames]="modelNames()"
+        (selectedItem)="selectModel($event)">
+      </app-auto-completed-text-input> -->
+    </mat-card-title>
+    <div class="spacer"></div>
+    <button mat-icon-button (click)="toggleModelConfig()">
+      <mat-icon>settings</mat-icon>
+    </button>
+  </mat-card-header>
+  <mat-card-content>
+    <ng-template appActivationManager></ng-template>
+  </mat-card-content>
+</mat-card>
 
-  <mat-card class="card">
-    <mat-card-content>
-      <div class="row">
-        <app-auto-completed-text-input
-          [label]="'Select Dataset'"
-          [itemNames]="datasetNames()"
-          (itemSelected)="selectDataset($event)"
+<mat-card class="card">
+  <mat-card-content>
+    <div class="row">
+      <app-auto-completed-text-input
+        [label]="'Select Dataset'"
+        [itemNames]="datasetNames()"
+        (itemSelected)="selectDataset($event)"
         >
-        </app-auto-completed-text-input>
-      </div>
-      <div class="row">
-        <div *ngIf="selectedDatasetTable() as selectedDataset">
+      </app-auto-completed-text-input>
+    </div>
+    <div class="row">
+      @if (selectedDatasetTable(); as selectedDataset) {
+        <div>
           <table
             #datasetTable
             mat-table
             [dataSource]="selectedDataset"
             class="mat-elevation-z0"
-          >
+            >
             <ng-container matColumnDef="input">
               <th mat-header-cell *matHeaderCellDef class="table-header">
                 [Inputs]
@@ -59,7 +60,9 @@
             <tr mat-row *matRowDef="let row; columns: datasetColumns"></tr>
           </table>
         </div>
-        <div class="card" *ngIf="datasetVisTensor() as datasetVisTensor">
+      }
+      @if (datasetVisTensor(); as datasetVisTensor) {
+        <div class="card">
           Outputs (black=0, white=1):
           <app-axis-wrapper>
             <app-tensor-image
@@ -70,7 +73,8 @@
             ></app-tensor-image>
           </app-axis-wrapper>
         </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+      }
+    </div>
+  </mat-card-content>
+</mat-card>
 </div>

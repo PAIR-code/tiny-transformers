@@ -29,7 +29,10 @@ import {
   EffectRef,
 } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
+import {
+  ConfigUpdate,
+  ConfigUpdateKind,
+} from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { ConfigStoreService } from '../../config-store.service';
 import { TfvisService } from '../../tfvis.service';
 import * as tf from '@tensorflow/tfjs';
@@ -93,7 +96,7 @@ import * as _ from 'underscore';
 import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
 import { MatInputModule } from '@angular/material/input';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 
 interface ActivationVizConfig {
@@ -126,7 +129,7 @@ function makeDefaultActivationVizConfig(): ActivationVizConfig {
 
 function isSameGTensorValue<T extends gtensor.DName>(
   a: gtensor.GTensor<T>,
-  b: gtensor.GTensor<T>
+  b: gtensor.GTensor<T>,
 ): boolean {
   if (!_.isEqual(a.gshape(), b.gshape())) {
     return false;
@@ -142,20 +145,19 @@ const validatorConfig = { lowerBound: 0, upperBound: 1 };
 const floatValidator = boundedFloatValidator(validatorConfig);
 
 @Component({
-    selector: 'app-corner-activation',
-    imports: [
-        CommonModule,
-        FormsModule,
-        ReactiveFormsModule,
-        CodemirrorConfigEditorModule,
-        MatInputModule,
-        MatButtonModule,
-        TensorImageComponent,
-        AxisWrapperComponent,
-        ActivationManagerComponent,
-    ],
-    templateUrl: './corner-activation.component.html',
-    styleUrls: ['./corner-activation.component.scss']
+  selector: 'app-corner-activation',
+  imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    CodemirrorConfigEditorModule,
+    MatInputModule,
+    MatButtonModule,
+    TensorImageComponent,
+    AxisWrapperComponent,
+    ActivationManagerComponent,
+  ],
+  templateUrl: './corner-activation.component.html',
+  styleUrls: ['./corner-activation.component.scss'],
 })
 export class CornerActivationComponent extends ActivationManagerComponent implements OnDestroy {
   updateParamsFromControlsEffect?: EffectRef;
@@ -178,7 +180,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
   // These get set right before we open the config panel, so that we can use the config panel to
   // configure models, or global app settings.
   defaultConfigStr: string = stringifyJsonValue(
-    makeDefaultActivationVizConfig() as never as JsonValue
+    makeDefaultActivationVizConfig() as never as JsonValue,
   );
   currentConfigStr: string = this.defaultConfigStr.slice();
   currentConfig: WritableSignal<ActivationVizConfig>; // json5.parse(this.currentConfigStr));
@@ -191,7 +193,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
 
   // ----------------------------------------------------------------------------------------------
   constructor(
-    private injector: Injector // private tfvisService: TfvisService
+    private injector: Injector, // private tfvisService: TfvisService
   ) {
     super();
 
@@ -204,10 +206,13 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
       new gtensor.GTensor(tf.tensor(this.currentConfig().paramPositions), [
         'pointId',
         'inputRepSize',
-      ])
+      ]),
     );
     this.paramsValuesTensor = signal(
-      new gtensor.GTensor(tf.tensor(this.currentConfig().paramValues), ['pointId', 'outputRepSize'])
+      new gtensor.GTensor(tf.tensor(this.currentConfig().paramValues), [
+        'pointId',
+        'outputRepSize',
+      ]),
     );
 
     // config chnages update the param values and positions.
@@ -217,7 +222,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
         this.updateParamPositions(conf.paramPositions);
         this.updateParamValues(conf.paramValues);
       },
-      { allowSignalWrites: true }
+      { allowSignalWrites: true },
     );
 
     this.paramVisResolution = computed(() => this.currentConfig().paramVisResolution);
@@ -227,9 +232,9 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
         mkVisTensor(
           this.paramVisResolution(),
           this.paramsValuesTensor(),
-          this.paramPositionsTensor()
+          this.paramPositionsTensor(),
         ),
-      { equal: isSameGTensorValue }
+      { equal: isSameGTensorValue },
     );
 
     // controls are updated only when dim size changes
@@ -247,12 +252,12 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
           controls.push(
             new FormControl(`${JSON.stringify(paramValues[i][0])}` as string, [
               floatValidator,
-            ]) as FormControl<string>
+            ]) as FormControl<string>,
           );
         }
         this.paramValueControls.set(controls);
       },
-      { allowSignalWrites: true }
+      { allowSignalWrites: true },
     );
 
     effect(
@@ -269,15 +274,15 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
                     return !isNaN(f) && f >= 0 && f <= 1;
                   }),
                   startWith(c.value),
-                  distinctUntilChanged()
-                )
-              )
+                  distinctUntilChanged(),
+                ),
+              ),
             ),
             {
               requireSync: true,
               // initialValue: this.paramValueControls().map(c => c.value),
               injector: this.injector,
-            }
+            },
           );
 
           if (this.updateParamsFromControlsEffect) {
@@ -305,11 +310,11 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
             {
               allowSignalWrites: true,
               injector: this.injector,
-            }
+            },
           );
         });
       },
-      { allowSignalWrites: true }
+      { allowSignalWrites: true },
     );
 
     // paramValues --> value controls
@@ -340,13 +345,13 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
               directParamStr.length < directParamStrFixed.length
                 ? directParamStr
                 : directParamStrFixed,
-              { emitEvent: true }
+              { emitEvent: true },
             );
           }
           // const emitEvent = false; // controls[i].value !== paramValue;
         }
       }, // Because setValue add to valueChanges observable, and that sets the controlsArr signal.
-      { allowSignalWrites: true }
+      { allowSignalWrites: true },
     );
 
     this.grad = computed(() => {
@@ -419,8 +424,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
       this.view.set('vis');
     }
 
-    if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
-      console.log(`configUpdated with no update: ${configUpdate}`);
+    if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {
       return;
     }
 
