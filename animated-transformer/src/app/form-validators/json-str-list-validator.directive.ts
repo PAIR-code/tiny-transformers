@@ -39,7 +39,7 @@ export interface JsonStrListError {
 
 export function jsonStrListErrorFn(
   config: JsonStrListConfig,
-  value: string
+  value: string,
 ): JsonStrListError | null {
   let parsedValue: Array<string> | unknown;
   if (!value) {
@@ -111,16 +111,15 @@ export function jsonStrListValidator(config: JsonStrListConfig): ValidatorFn {
 }
 
 @Directive({
-    selector: '[appJsonStrListValidator]',
-    inputs: ['config'],
-    providers: [
-        {
-            provide: NG_VALIDATORS,
-            useExisting: JsonStrListValidatorDirective,
-            multi: true,
-        },
-    ],
-    standalone: false
+  selector: '[appJsonStrListValidator]',
+  inputs: ['config'],
+  providers: [
+    {
+      provide: NG_VALIDATORS,
+      useExisting: JsonStrListValidatorDirective,
+      multi: true,
+    },
+  ],
 })
 export class JsonStrListValidatorDirective {
   @Input() config: JsonStrListConfig = {};

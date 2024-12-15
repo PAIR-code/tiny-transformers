@@ -15,7 +15,6 @@ limitations under the License.
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   ExpDefKind,
-  ExpCellDisplayKind,
   SectionKind,
   InMemoryDataResolver,
   loadExperiment,
@@ -33,9 +32,8 @@ describe('experiment', () => {
       timestamp: Date.now(),
       sectionData: {
         sectionKind: SectionKind.Markdown,
-        markdown: '# Section 1! \nThis is the start.',
+        content: '# Section 1! \nThis is the start.',
       },
-      displayKind: ExpCellDisplayKind.RenderedMarkdown,
     };
 
     const section2_1: SectionDef = {
@@ -44,9 +42,8 @@ describe('experiment', () => {
       timestamp: Date.now(),
       sectionData: {
         sectionKind: SectionKind.Markdown,
-        markdown: '# Preamble! \nThis is before the start in the sub exp.',
+        content: '# Preamble! \nThis is before the start in the sub exp.',
       },
-      displayKind: ExpCellDisplayKind.RenderedMarkdown,
     };
 
     const section2_2: SectionDef = {
@@ -62,9 +59,8 @@ describe('experiment', () => {
       sectionData: {
         sectionKind: SectionKind.SubExperiment,
         // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-        sections: [section2_1, section2_2],
+        content: [section2_1, section2_2],
       },
-      displayKind: ExpCellDisplayKind.SubExperimentSummary,
     };
 
     const section3: SectionDef = {
@@ -79,9 +75,8 @@ describe('experiment', () => {
       timestamp: Date.now(),
       sectionData: {
         sectionKind: SectionKind.SubExperiment,
-        sections: [section1, section2, section3],
+        content: [section1, section2, section3],
       },
-      displayKind: ExpCellDisplayKind.SubExperimentSummary,
     };
 
     const sec3Node: SectionDef = {
@@ -91,9 +86,8 @@ describe('experiment', () => {
       sectionData: {
         sectionKind: SectionKind.Markdown,
         // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-        markdown: '# Section 3! This is the end.',
+        content: '# Section 3! This is the end.',
       },
-      displayKind: ExpCellDisplayKind.RenderedMarkdown,
     };
 
     const dataResolver = new InMemoryDataResolver({

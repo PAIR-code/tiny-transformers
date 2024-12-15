@@ -19,7 +19,7 @@ import { exampleCellAbstract } from './example.ailab';
 describe('lab-env', () => {
   beforeEach(async () => {});
 
-  fit('Running a simple cell', async () => {
+  it('Running a simple cell', async () => {
     const env = new LabEnv();
     const sayHiToName = env.space.setable('Foo');
     const cell = env.start(exampleCellAbstract, { sayHiToName });

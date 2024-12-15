@@ -16,25 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivationVisComponent } from './activation-vis.component';
-
-import { CommonModule } from '@angular/common';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatTableModule } from '@angular/material/table';
-import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
-import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
-import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
-import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
-import { ActivationManagerDirective } from './activation-manager.directive';
-import { CornerActivationComponent } from './corner-activation/corner-activation.component';
-import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
 
 describe('ActivationVisComponent', () => {
   let component: ActivationVisComponent;
@@ -42,30 +24,7 @@ describe('ActivationVisComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [
-        NoopAnimationsModule,
-        CommonModule,
-        FormsModule,
-        ReactiveFormsModule,
-        // ---
-        MatButtonModule,
-        MatIconModule,
-        MatInputModule,
-        MatMenuModule,
-        MatListModule,
-        MatAutocompleteModule,
-        MatTableModule,
-        MatCardModule,
-        // ---
-        CodemirrorConfigEditorModule,
-        AutoCompletedTextInputComponent,
-        AxisWrapperComponent,
-        ActivationVisComponent,
-        ActivationManagerDirective,
-        NanValidatorDirective,
-        BoundedFloatValidatorDirective,
-        CornerActivationComponent,
-      ],
+      imports: [NoopAnimationsModule, ActivationVisComponent],
       declarations: [],
     }).compileComponents();
   });

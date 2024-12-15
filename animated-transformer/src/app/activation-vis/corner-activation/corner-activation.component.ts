@@ -216,14 +216,11 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     );
 
     // config chnages update the param values and positions.
-    effect(
-      () => {
-        const conf = this.currentConfig();
-        this.updateParamPositions(conf.paramPositions);
-        this.updateParamValues(conf.paramValues);
-      },
-      { allowSignalWrites: true },
-    );
+    effect(() => {
+      const conf = this.currentConfig();
+      this.updateParamPositions(conf.paramPositions);
+      this.updateParamValues(conf.paramValues);
+    });
 
     this.paramVisResolution = computed(() => this.currentConfig().paramVisResolution);
 
@@ -239,120 +236,108 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
 
     // controls are updated only when dim size changes
     this.paramValueControls = signal([], { equal: _.isEqual });
-    effect(
-      () => {
-        const values = this.paramsValuesTensor();
-        if (this.lastParams && this.lastParams.dim.pointId.size === values.dim.pointId.size) {
-          return;
-        }
-        this.lastParams = values;
-        const paramValues = values.tensor.arraySync() as number[][];
-        const controls = [] as FormControl<string>[];
-        for (let i = 0; i < values.dim.pointId.size; i++) {
-          controls.push(
-            new FormControl(`${JSON.stringify(paramValues[i][0])}` as string, [
-              floatValidator,
-            ]) as FormControl<string>,
-          );
-        }
-        this.paramValueControls.set(controls);
-      },
-      { allowSignalWrites: true },
-    );
+    effect(() => {
+      const values = this.paramsValuesTensor();
+      if (this.lastParams && this.lastParams.dim.pointId.size === values.dim.pointId.size) {
+        return;
+      }
+      this.lastParams = values;
+      const paramValues = values.tensor.arraySync() as number[][];
+      const controls = [] as FormControl<string>[];
+      for (let i = 0; i < values.dim.pointId.size; i++) {
+        controls.push(
+          new FormControl(`${JSON.stringify(paramValues[i][0])}` as string, [
+            floatValidator,
+          ]) as FormControl<string>,
+        );
+      }
+      this.paramValueControls.set(controls);
+    });
 
-    effect(
-      () => {
-        const valueControls = this.paramValueControls();
-        // controls --> controlValuesArr
-        untracked(() => {
-          this.controlValuesArr = toSignal(
-            combineLatest(
-              valueControls.map((c) =>
-                c.valueChanges.pipe(
-                  filter((v) => {
-                    const f = parseFloat(v);
-                    return !isNaN(f) && f >= 0 && f <= 1;
-                  }),
-                  startWith(c.value),
-                  distinctUntilChanged(),
-                ),
+    effect(() => {
+      const valueControls = this.paramValueControls();
+      // controls --> controlValuesArr
+      untracked(() => {
+        this.controlValuesArr = toSignal(
+          combineLatest(
+            valueControls.map((c) =>
+              c.valueChanges.pipe(
+                filter((v) => {
+                  const f = parseFloat(v);
+                  return !isNaN(f) && f >= 0 && f <= 1;
+                }),
+                startWith(c.value),
+                distinctUntilChanged(),
               ),
             ),
-            {
-              requireSync: true,
-              // initialValue: this.paramValueControls().map(c => c.value),
-              injector: this.injector,
-            },
-          );
+          ),
+          {
+            requireSync: true,
+            // initialValue: this.paramValueControls().map(c => c.value),
+            injector: this.injector,
+          },
+        );
 
-          if (this.updateParamsFromControlsEffect) {
-            this.updateParamsFromControlsEffect.destroy();
-          }
+        if (this.updateParamsFromControlsEffect) {
+          this.updateParamsFromControlsEffect.destroy();
+        }
 
-          // controlValuesArr --> paramValues.
-          this.updateParamsFromControlsEffect = effect(
-            () => {
-              const controlValues = this.controlValuesArr();
-              const curValues = untracked(this.paramsValuesTensor).tensor.arraySync() as number[][];
-              let needToUpdate = false;
-              for (let i = 0; i < curValues.length; i++) {
-                const s = controlValues[i];
-                const newValue = parseFloat(s);
-                if (!isNaN(newValue) && curValues[i][0] !== newValue) {
-                  curValues[i][0] = newValue;
-                  needToUpdate = true;
-                }
+        // controlValuesArr --> paramValues.
+        this.updateParamsFromControlsEffect = effect(
+          () => {
+            const controlValues = this.controlValuesArr();
+            const curValues = untracked(this.paramsValuesTensor).tensor.arraySync() as number[][];
+            let needToUpdate = false;
+            for (let i = 0; i < curValues.length; i++) {
+              const s = controlValues[i];
+              const newValue = parseFloat(s);
+              if (!isNaN(newValue) && curValues[i][0] !== newValue) {
+                curValues[i][0] = newValue;
+                needToUpdate = true;
               }
-              if (needToUpdate) {
-                this.updateParamValues(curValues);
-              }
-            },
-            {
-              allowSignalWrites: true,
-              injector: this.injector,
-            },
-          );
-        });
-      },
-      { allowSignalWrites: true },
-    );
+            }
+            if (needToUpdate) {
+              this.updateParamValues(curValues);
+            }
+          },
+          { injector: this.injector },
+        );
+      });
+    });
 
     // paramValues --> value controls
-    effect(
-      () => {
-        // TODO: assumes controls and values are same length.
-        const values = this.paramsValuesTensor();
-        const controls = this.paramValueControls();
-        const valuesArr = values.tensor.arraySync() as number[][];
-        for (let i = 0; i < controls.length; i++) {
-          // Used to make sure that when a value is changed by gradient update,
-          // the controller knows the new value, and if the user makes an edit
-          // that put the value back to the last user-provided value, the value
-          // is still changed.
-          //
-          // TODO: this is where the dependency on a single output value is,
-          // the [0] implies outputRepSize = 1
-          //
-          // Update the value only when it's sufficiently different
-          const PRECISION = 4;
-          const newValue = valuesArr[i][0].toFixed(PRECISION);
-          const oldValue = parseFloat(controls[i].value).toFixed(PRECISION);
-          if (newValue !== oldValue) {
-            // console.log(`valuesArr[i][0].toFixed(PRECISION): ${valuesArr[i][0].toFixed(PRECISION)}`);
-            const directParamStr = `${valuesArr[i][0]}`;
-            const directParamStrFixed = newValue;
-            controls[i].setValue(
-              directParamStr.length < directParamStrFixed.length
-                ? directParamStr
-                : directParamStrFixed,
-              { emitEvent: true },
-            );
-          }
-          // const emitEvent = false; // controls[i].value !== paramValue;
+    effect(() => {
+      // TODO: assumes controls and values are same length.
+      const values = this.paramsValuesTensor();
+      const controls = this.paramValueControls();
+      const valuesArr = values.tensor.arraySync() as number[][];
+      for (let i = 0; i < controls.length; i++) {
+        // Used to make sure that when a value is changed by gradient update,
+        // the controller knows the new value, and if the user makes an edit
+        // that put the value back to the last user-provided value, the value
+        // is still changed.
+        //
+        // TODO: this is where the dependency on a single output value is,
+        // the [0] implies outputRepSize = 1
+        //
+        // Update the value only when it's sufficiently different
+        const PRECISION = 4;
+        const newValue = valuesArr[i][0].toFixed(PRECISION);
+        const oldValue = parseFloat(controls[i].value).toFixed(PRECISION);
+        if (newValue !== oldValue) {
+          // console.log(`valuesArr[i][0].toFixed(PRECISION): ${valuesArr[i][0].toFixed(PRECISION)}`);
+          const directParamStr = `${valuesArr[i][0]}`;
+          const directParamStrFixed = newValue;
+          controls[i].setValue(
+            directParamStr.length < directParamStrFixed.length
+              ? directParamStr
+              : directParamStrFixed,
+            { emitEvent: true },
+          );
         }
-      }, // Because setValue add to valueChanges observable, and that sets the controlsArr signal.
-      { allowSignalWrites: true },
-    );
+        // const emitEvent = false; // controls[i].value !== paramValue;
+      }
+    });
 
     this.grad = computed(() => {
       const positions = this.paramPositionsTensor();

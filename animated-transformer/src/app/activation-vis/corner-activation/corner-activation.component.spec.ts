@@ -13,23 +13,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CornerActivationComponent } from './corner-activation.component';
 
-import { signal, Component, Input, OnInit, ViewChild, OnDestroy, Signal, WritableSignal } from '@angular/core';
+import {
+  signal,
+  Component,
+  Input,
+  OnInit,
+  ViewChild,
+  OnDestroy,
+  Signal,
+  WritableSignal,
+} from '@angular/core';
 
 import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 import { CommonModule } from '@angular/common';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
-import { TensorImageModule } from 'src/app/tensor-image/tensor-image.module';
+import { TensorImageComponent } from 'src/app/tensor-image/tensor-image.component';
 import { MatInputModule } from '@angular/material/input';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 describe('CornerActivationComponent', () => {
   let component: CornerActivationComponent;
@@ -37,19 +44,17 @@ describe('CornerActivationComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
+      providers: [provideNoopAnimations()],
       imports: [
         CommonModule,
-        BrowserAnimationsModule,
         FormsModule,
         ReactiveFormsModule,
         MatInputModule,
         CodemirrorConfigEditorModule,
-        TensorImageModule,
-      ],
-      declarations: [
+        TensorImageComponent,
         AxisWrapperComponent,
         ActivationManagerComponent,
-        CornerActivationComponent
+        CornerActivationComponent,
       ],
     });
     fixture = TestBed.createComponent(CornerActivationComponent);

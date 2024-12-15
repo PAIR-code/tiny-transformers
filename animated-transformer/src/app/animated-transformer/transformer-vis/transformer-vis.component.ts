@@ -23,13 +23,15 @@ import {
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
+
 import * as d3 from 'd3';
 
 @Component({
-    selector: 'app-transformer-vis',
-    templateUrl: './transformer-vis.component.html',
-    styleUrls: ['./transformer-vis.component.scss'],
-    standalone: false
+  selector: 'app-transformer-vis',
+  templateUrl: './transformer-vis.component.html',
+  styleUrls: ['./transformer-vis.component.scss'],
+  standalone: true,
+  imports: [],
 })
 export class TransformerVisComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() tensorData!: string;

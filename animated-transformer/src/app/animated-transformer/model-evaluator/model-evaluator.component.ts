@@ -24,6 +24,17 @@ import {
   Signal,
   computed,
 } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTableModule } from '@angular/material/table';
+import { MatCardModule } from '@angular/material/card';
+import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
 import { FormControl } from '@angular/forms';
 import { BasicLmTask, BasicLmTaskConfig, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
@@ -57,7 +68,7 @@ import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
 // import { TinyModelsService } from 'src/app/tiny-models.service';
 
 function typedGetData<N extends string>(
-  params: DictTree<GVariable<N>>
+  params: DictTree<GVariable<N>>,
 ): DictArrTree<{ shape: number[]; data: number[] }> {
   return jstree.map(params, (g: GTensorOrScalar) => ({
     shape: g.tensor.shape as number[],
@@ -66,10 +77,26 @@ function typedGetData<N extends string>(
 }
 
 @Component({
-    selector: 'app-model-evaluator',
-    templateUrl: './model-evaluator.component.html',
-    styleUrls: ['./model-evaluator.component.scss'],
-    standalone: false
+  selector: 'app-model-evaluator',
+  templateUrl: './model-evaluator.component.html',
+  styleUrls: ['./model-evaluator.component.scss'],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    // ---
+    MatButtonModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatListModule,
+    MatAutocompleteModule,
+    MatTableModule,
+    MatCardModule,
+    // ---
+    CodemirrorConfigEditorModule,
+  ],
+  standalone: true,
 })
 export class ModelEvaluatorComponent {
   input = signal([] as string[]);
@@ -97,7 +124,8 @@ export class ModelEvaluatorComponent {
   }
   @Output() evalInputUpdate = new EventEmitter<string>();
 
-  constructor() { // public tinyModelsService: TinyModelsService
+  constructor() {
+    // public tinyModelsService: TinyModelsService
     const strListValidator = jsonStrListValidator(this.validatorConfig);
     this.inputControl = new FormControl<string | null>('', strListValidator);
     this.inputControl.valueChanges.forEach((s) => {

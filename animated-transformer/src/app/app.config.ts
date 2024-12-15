@@ -12,17 +12,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+import { ApplicationConfig } from '@angular/core';
 
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { provideMarkdown } from 'ngx-markdown';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+
+import { provideRouter, Routes, withComponentInputBinding } from '@angular/router';
+
+// import { RouterLink, RouterModule, RouterOutlet } from '@angular/router';
 import { ActivationVisComponent } from './activation-vis/activation-vis.component';
 // import { AnimatedTransformerComponent } from './animated-transformer/animated-transformer.component';
 import { SAEComponent } from 'src/app/sae/sae.component';
 // import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
-const routes: Routes = [
+export const routes: Routes = [
   { path: '', component: WebColabComponent, pathMatch: 'full' },
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
@@ -33,8 +39,24 @@ const routes: Routes = [
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 
-@NgModule({
-  imports: [RouterModule.forRoot(routes, { useHash: true })],
-  exports: [RouterModule],
-})
-export class AppRoutingModule {}
+// @NgModule({
+//   imports: [RouterModule.forRoot(routes, { useHash: true }), RouterLink, RouterOutlet],
+//   exports: [RouterModule],
+// })
+// export class AppRoutingModule {}
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes, withComponentInputBinding()),
+    provideAnimationsAsync(),
+    provideMarkdown(),
+  ],
+};
+
+// export const testConfig: ApplicationConfig = {
+//   providers: [
+//     provideRouter(routes, withComponentInputBinding()),
+//     provideNoopAnimations(),
+//     provideMarkdown(),
+//   ],
+// };

@@ -20,7 +20,24 @@ TODO: consider just using mat-menu, it's unclear if auto-complete is actually
 making things harder to easier.
 */
 
-import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnDestroy, ComponentRef, signal, Injector, effect, Signal, WritableSignal, computed, untracked, ElementRef } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  ViewChild,
+  OnDestroy,
+  ComponentRef,
+  signal,
+  Injector,
+  effect,
+  Signal,
+  WritableSignal,
+  computed,
+  untracked,
+  ElementRef,
+} from '@angular/core';
 
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocomplete, MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -30,10 +47,10 @@ import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@an
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
-    selector: 'app-auto-completed-text-input',
-    imports: [FormsModule, ReactiveFormsModule, MatAutocompleteModule, MatInputModule],
-    templateUrl: './auto-completed-text-input.component.html',
-    styleUrl: './auto-completed-text-input.component.scss'
+  selector: 'app-auto-completed-text-input',
+  imports: [FormsModule, ReactiveFormsModule, MatAutocompleteModule, MatInputModule],
+  templateUrl: './auto-completed-text-input.component.html',
+  styleUrl: './auto-completed-text-input.component.scss',
 })
 export class AutoCompletedTextInputComponent {
   itemSelectorControl = new FormControl<string>('');
@@ -64,22 +81,24 @@ export class AutoCompletedTextInputComponent {
 
     this.filteredNames = computed(() => {
       const name = datasetNameSignal();
-      if (!name) { return this.itemNamesList(); }
+      if (!name) {
+        return this.itemNamesList();
+      }
       const filterStringLc = name.toLowerCase();
-      return this.itemNamesList().filter(
-        n => n.toLocaleLowerCase().includes(filterStringLc));;
+      return this.itemNamesList().filter((n) => n.toLocaleLowerCase().includes(filterStringLc));
     });
 
     this.exactMatchName = computed(() => {
       const name = datasetNameSignal();
       const names = this.filteredNames();
-      return names.filter(n => n === name).length > 0 ? name || null : null;
+      return names.filter((n) => n === name).length > 0 ? name || null : null;
     });
 
     // If there is one option only, and that is the current selected item,
     // show all possible items
     this.suggestedNames = computed(() =>
-      this.exactMatchName() ? this.itemNamesList() : this.filteredNames());
+      this.exactMatchName() ? this.itemNamesList() : this.filteredNames(),
+    );
 
     effect(() => {
       if (this.exactMatchName()) {
@@ -87,7 +106,7 @@ export class AutoCompletedTextInputComponent {
       } else {
         this.maybeEmit(null);
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   // Avoid emitting the same thing twice.

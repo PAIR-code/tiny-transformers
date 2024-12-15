@@ -13,11 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+// import { AppModule } from './app/app.module';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+import { appConfig } from './app/app.config';
 
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+bootstrapApplication(AppComponent, appConfig);
 
-import { AppModule } from './app/app.module';
-
-
-platformBrowserDynamic().bootstrapModule(AppModule)
-  .catch(err => console.error(err));
+// platformBrowserDynamic()
+//   .bootstrapModule(AppModule)
+//   .catch((err) => console.error(err));

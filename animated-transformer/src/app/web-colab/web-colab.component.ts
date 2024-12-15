@@ -27,7 +27,6 @@ import { LabEnv } from 'src/lib/weblab/lab-env';
 import { LabState } from 'src/lib/weblab/lab-state';
 import { varifyParams } from 'src/lib/gtensor/params';
 
-// import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';

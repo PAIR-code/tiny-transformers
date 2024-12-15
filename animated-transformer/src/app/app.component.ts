@@ -14,17 +14,38 @@ limitations under the License.
 ==============================================================================*/
 
 import { Component } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { loadExperiment } from './web-colab/experiment';
+import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule } from '@angular/forms';
+import { MatSidenavModule } from '@angular/material/sidenav';
 
 @Component({
-    selector: 'app-root',
-    templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss'],
-    standalone: false
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss'],
+  standalone: true,
+  imports: [
+    RouterLink,
+    RouterOutlet,
+    MatSidenavModule,
+    // ---
+    MatButtonModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatListModule,
+    FormsModule,
+  ],
 })
 export class AppComponent {
-  constructor(private route: ActivatedRoute, public router: Router) {}
+  constructor(
+    private route: ActivatedRoute,
+    public router: Router,
+  ) {}
 
   async loadExperiment() {
     const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });

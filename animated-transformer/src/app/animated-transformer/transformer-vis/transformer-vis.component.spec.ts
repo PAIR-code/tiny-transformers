@@ -13,11 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TransformerVisComponent } from './transformer-vis.component';
-import { AnimatedTransformerComponent } from '../animated-transformer.component';
 
 describe('TransformerVisComponent', () => {
   let component: TransformerVisComponent;
@@ -25,10 +23,8 @@ describe('TransformerVisComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [
-        TransformerVisComponent,
-        AnimatedTransformerComponent
-      ]
+      imports: [TransformerVisComponent],
+      declarations: [],
     }).compileComponents();
   });
 
