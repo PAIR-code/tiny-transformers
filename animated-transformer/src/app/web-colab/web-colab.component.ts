@@ -228,7 +228,9 @@ export class WebColabComponent {
       const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
       this.dataResolver = new BrowserDirDataResolver(dirHandle);
     }
-    saveExperiment(this.dataResolver, 'experiment.json', experiment.serialise());
+    const distrS = experiment.serialise();
+    console.log(distrS);
+    saveExperiment(this.dataResolver, 'experiment.json', distrS);
   }
 
   closeExperiment() {

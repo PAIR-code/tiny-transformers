@@ -17,7 +17,7 @@
   @let sections = exp.sections();
 
   <div clas="page">
-    <div class="header hoverButtons">
+    <div class="header">
       <div class="path">{{ exp.id }}</div>
       <div class="buttons">
         <div class="spacer"></div>
@@ -25,25 +25,30 @@
           mat-icon-button
           matTooltip=""
           [matMenuTriggerFor]="experimentMenu"
+          aria-label="Options"
         >
-          <mat-icon>...</mat-icon>
-          <mat-menu #experimentMenu class="vmenu">
-            <div>
-              <button
-                mat-button
-                matTooltip="Save"
-                (click)="saveExperiment(exp)"
-              >
-                save
-              </button>
-            </div>
-            <div>
-              <button mat-button matTooltip="Close" (click)="closeExperiment()">
-                close
-              </button>
-            </div>
-          </mat-menu>
+          <mat-icon>more_vert</mat-icon>
         </button>
+        <mat-menu #experimentMenu class="vmenu">
+          <div>
+            <button
+              mat-menu-item
+              matTooltip="Save"
+              (click)="saveExperiment(exp)"
+            >
+              save
+            </button>
+          </div>
+          <div>
+            <button
+              mat-menu-item
+              matTooltip="Close"
+              (click)="closeExperiment()"
+            >
+              close
+            </button>
+          </div>
+        </mat-menu>
       </div>
     </div>
 

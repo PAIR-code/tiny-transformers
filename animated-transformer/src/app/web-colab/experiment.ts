@@ -60,7 +60,7 @@ export type SubExpSectionData = {
   content: SectionDef[];
 };
 
-export type SomeSectionData = SectionData<SectionKind, {}>;
+export type SomeSectionData = SectionData<SectionKind, any>;
 
 // export enum ExpCellDisplayKind {
 //   RenderedMarkdown = 'RenderedMarkdown',
@@ -126,7 +126,13 @@ export class Section {
     public def: SectionDef,
     public data: SetableSignal<SectionDataDef>,
     public content: SetableSignal<{}>,
-  ) {}
+  ) {
+    data.space.derived(() => {
+      const curContent = this.content();
+      const f = (oldData: SectionDataDef) => (oldData.sectionData.content = curContent);
+      this.data.change(f);
+    });
+  }
 
   serialise(): DistrSerialization<SectionDef, SectionDataDef> {
     if (this.def.kind === ExpDefKind.Ref) {
@@ -148,6 +154,10 @@ export class Section {
         };
       }
     }
+  }
+
+  dispose() {
+    // TODO: remove the now un-needed derivedLazy dep.
   }
 }
 
