@@ -16,18 +16,25 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { workerCell } from './lab-worker-cell';
-import { exampleWorkerSpec } from './example.ailab';
+import { exampleCellAbstract as exampleCellKind } from './example.ailab';
 
-const cell = workerCell(exampleWorkerSpec);
+const cell = workerCell(exampleCellKind);
+const { derived } = cell.space;
 
 cell.runOnceHaveInputs(async (inputs) => {
-  const { toyInput } = inputs;
+  const { sayHiToName } = inputs;
 
   cell.outputs.num.set(1);
-  cell.outputs.str.set(`hello ${toyInput()}`);
+
+  // for every input, add hello to it.
+  derived(() => {
+    cell.outputs.helloStr.set(`hello ${sayHiToName()}`);
+  });
 
   for await (const i of cell.inStream.numStream) {
-    await cell.outStream.foo.send('foo' + i);
+    await cell.outStream.helloNumStream.send('hello number ' + i);
   }
-  cell.outStream.foo.done();
+  cell.outStream.helloNumStream.done();
+
+  await cell.onceFinishRequested;
 });

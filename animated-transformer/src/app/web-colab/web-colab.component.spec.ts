@@ -16,6 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WebColabComponent } from './web-colab.component';
+import { provideRouter } from '@angular/router';
 
 describe('WebColabComponent', () => {
   let component: WebColabComponent;
@@ -23,6 +24,7 @@ describe('WebColabComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideRouter([])],
       imports: [WebColabComponent],
     }).compileComponents();
 

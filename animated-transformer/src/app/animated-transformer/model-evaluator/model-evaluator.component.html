@@ -5,13 +5,15 @@
     <mat-label>Input</mat-label>
     <input matInput jsonStrListValidator
       maxlength="30" [formControl]="inputControl">
-    <mat-error class="error"
-      *ngIf="
+    @if (
       inputControl.invalid
       && (inputControl.dirty || inputControl.touched)
-      && inputControl.errors?.['data']">
+      && inputControl.errors?.['data']) {
+      <mat-error class="error"
+        >
         {{inputControl.errors?.['data'].message}}
-    </mat-error>
+      </mat-error>
+    }
   </mat-form-field>
 </form>
 
@@ -35,13 +37,13 @@
   <div class="button-row">
     <div>
       <!-- <button mat-flat-button color="primary" (click)="downloadActivations()">
-        Download activations
-      </button> -->
-    </div>
-    <div>
-      <!-- <button mat-flat-button color="primary" (click)="downloadModel()">
-        Download model
-      </button> -->
-    </div>
+      Download activations
+    </button> -->
   </div>
+  <div>
+    <!-- <button mat-flat-button color="primary" (click)="downloadModel()">
+    Download model
+  </button> -->
+</div>
+</div>
 }

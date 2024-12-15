@@ -17,20 +17,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SeqTaskSelectorComponent } from './seq-task-selector.component';
 
-import { CommonModule } from '@angular/common';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatTableModule } from '@angular/material/table';
-import { MatCardModule } from '@angular/material/card';
-import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 import { TinyModelsService } from 'src/app/tiny-models.service';
-import { provideRouter } from '@angular/router';
+import { provideRouter, RouterModule, withComponentInputBinding } from '@angular/router';
+import { routes } from 'src/app/app.config';
 
 describe('SeqTaskSelectorComponent', () => {
   let component: SeqTaskSelectorComponent;
@@ -38,25 +27,9 @@ describe('SeqTaskSelectorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [TinyModelsService, provideRouter([])],
-      imports: [
-        CommonModule,
-        BrowserAnimationsModule,
-        FormsModule,
-        ReactiveFormsModule,
-        // ---
-        MatButtonModule,
-        MatIconModule,
-        MatInputModule,
-        MatMenuModule,
-        MatListModule,
-        MatAutocompleteModule,
-        MatTableModule,
-        MatCardModule,
-        AutoCompletedTextInputComponent,
-        // ---
-      ],
-      declarations: [SeqTaskSelectorComponent],
+      providers: [TinyModelsService, provideRouter(routes, withComponentInputBinding())],
+      imports: [SeqTaskSelectorComponent],
+      declarations: [],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SeqTaskSelectorComponent);

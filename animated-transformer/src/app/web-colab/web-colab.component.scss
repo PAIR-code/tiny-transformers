@@ -1,0 +1,58 @@
+.page {
+
+}
+
+.path {
+  padding: 5px;
+}
+  
+.vmenu {
+  display: block;
+}
+
+.error {
+  border: 1px solid;
+  border-color: #880000;
+  color: #880000;
+  background-color: #FFAAAA;
+  font-size: 10pt;
+  margin: 10px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex: 1 1 auto;
+}
+
+.hoverButtons {
+  &:hover {
+    .buttons {
+      opacity: 1 !important;
+    }
+  }
+
+  .buttons {
+    opacity: 0;
+    transition: 0.2s opacity;
+  }
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex: 1 1 auto;
+}
+
+.section {
+}
+
+.spacer {
+  flex: 1;
+}

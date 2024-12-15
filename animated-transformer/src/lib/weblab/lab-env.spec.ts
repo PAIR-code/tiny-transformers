@@ -14,19 +14,19 @@ limitations under the License.
 ==============================================================================*/
 
 import { LabEnv } from './lab-env';
-import { exampleWorkerSpec } from './example.ailab';
+import { exampleCellAbstract } from './example.ailab';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
 
   it('Running a simple cell', async () => {
     const env = new LabEnv();
-    const toyInput = env.space.setable('Foo');
-    const cell = env.start(exampleWorkerSpec, { toyInput });
+    const sayHiToName = env.space.setable('Foo');
+    const cell = env.start(exampleCellAbstract, { sayHiToName });
 
-    const { num, str } = await cell.onceAllOutputs;
+    const { num, helloStr } = await cell.onceAllOutputs;
     expect(num()).toEqual(1);
-    expect(str()).toEqual('hello Foo');
+    expect(helloStr()).toEqual('hello Foo');
 
     for (const i of [1, 2, 3]) {
       await cell.inStream.numStream.send(i);
@@ -34,18 +34,39 @@ describe('lab-env', () => {
     cell.inStream.numStream.done();
 
     const vs = [];
-    for await (const v of cell.outStream.foo) {
+    for await (const v of cell.outStream.helloNumStream) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);
 
-    expect(vs[0]).toEqual('foo1');
-    expect(vs[1]).toEqual('foo2');
-    expect(vs[2]).toEqual('foo3');
+    expect(vs[0]).toEqual('hello number 1');
+    expect(vs[1]).toEqual('hello number 2');
+    expect(vs[2]).toEqual('hello number 3');
 
-    expect(env.runningCells[cell.spec.data.cellName]).toBeDefined();
+    const onceHiFoo = new Promise((resolve) => {
+      env.space.derived(() => {
+        if (helloStr() === 'hello Foo') {
+          resolve(helloStr());
+        }
+      });
+    });
+    await onceHiFoo;
+
+    const onceHiBob = new Promise((resolve) => {
+      env.space.derived(() => {
+        if (helloStr() === 'hello Bob') {
+          resolve(helloStr());
+        }
+      });
+    });
+
+    sayHiToName.set('Bob');
+
+    expect(await onceHiBob).toEqual('hello Bob');
+
+    expect(env.runningCells[cell.cellKind.data.cellName]).toBeDefined();
     cell.requestStop();
     await cell.onceFinished;
-    expect(env.runningCells[cell.spec.data.cellName]).toBeUndefined();
+    expect(env.runningCells[cell.cellKind.data.cellName]).toBeUndefined();
   });
 });

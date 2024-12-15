@@ -1,36 +1,74 @@
-<div *ngIf="view() == 'edit'" class="code-full-screen">
-  <app-codemirror-config-editor (update)="configUpdated($event)" whatIsBeingEditedName="Configuration"
-    [defaultConfig]="defaultConfigStr" [config]="currentConfigStr"></app-codemirror-config-editor>
-</div>
+@if(view() == 'edit') {
+  <div class="code-full-screen">
+    <app-codemirror-config-editor
+      (update)="configUpdated($event)"
+      whatIsBeingEditedName="Configuration"
+      [defaultConfig]="defaultConfigStr"
+      [config]="currentConfigStr"
+    ></app-codemirror-config-editor>
+  </div>
+}
 
 <!-- <ng-template *ngIf="currentConfig() as config"> -->
-<form class="param-form" *ngIf="paramValueControls().length > 0">
-  Model Params:
-  <mat-form-field *ngFor="let c of paramValueControls(); index as i" class="short-width" appearance="fill">
-    <mat-label>i<sub>{{currentConfig().paramPositions[i]}}</sub></mat-label>
-    <input matInput required boundedFloatValidator maxlength="6" [formControl]="c">
-    <mat-error *ngIf="c.invalid && (c.dirty || c.touched) && c.errors" class="error">
-      {{paramValueErrorString(c.errors)}};
-    </mat-error>
-  </mat-form-field>
-</form>
+@if (paramValueControls().length > 0) {
+  <form class="param-form">
+    Model Params:
+    @for (c of paramValueControls(); track c; let i = $index) {
+      <mat-form-field
+        class="short-width"
+        appearance="fill"
+        >
+        <mat-label
+          >i<sub>{{ currentConfig().paramPositions[i] }}</sub></mat-label
+          >
+          <input
+            matInput
+            required
+            boundedFloatValidator
+            maxlength="6"
+            [formControl]="c"
+            />
+          @if (c.invalid && (c.dirty || c.touched) && c.errors) {
+            <mat-error
+              class="error"
+              >
+              {{ paramValueErrorString(c.errors) }};
+            </mat-error>
+          }
+        </mat-form-field>
+      }
+    </form>
+  }
 <!-- </ng-template> -->
 
-<div class="row" *ngIf="paramsVisTensor() as paramsVisTensor">
-  <div>Param eval matrix (black=0, white=1):
-    <!-- TODO: figure out right way to do axis -->
-    <app-axis-wrapper>
-      <app-tensor-image #tensorImg [seenWidth]="100" [seenHeight]="100" [tensor]="paramsVisTensor"></app-tensor-image>
-    </app-axis-wrapper>
+@if (paramsVisTensor(); as paramsVisTensor) {
+  <div class="row">
+    <div>
+      Param eval matrix (black=0, white=1):
+      <!-- TODO: figure out right way to do axis -->
+      <app-axis-wrapper>
+        <app-tensor-image
+          #tensorImg
+          [seenWidth]="100"
+          [seenHeight]="100"
+          [tensor]="paramsVisTensor"
+        ></app-tensor-image>
+      </app-axis-wrapper>
+    </div>
   </div>
-</div>
-<div class="row" *ngIf="grad() as grad">
-  <form class="learning-form">
-    <!-- <button mat-button color="primary" (click)="computeGrad()">gradients</button> -->
-    <div>Gradient {{grad.tensor.toString()}}</div>
-    Learning rate: <mat-form-field class="short-width" appearance="fill">
-      <input matInput maxlength="5" [formControl]="learningRateControl">
-    </mat-form-field>
-    <button mat-button color="primary" (click)="applyGrad()">apply gradient step</button>
-  </form>
-</div>
+}
+@if (grad(); as grad) {
+  <div class="row">
+    <form class="learning-form">
+      <!-- <button mat-button color="primary" (click)="computeGrad()">gradients</button> -->
+      <div>Gradient {{ grad.tensor.toString() }}</div>
+      Learning rate:
+      <mat-form-field class="short-width" appearance="fill">
+        <input matInput maxlength="5" [formControl]="learningRateControl" />
+      </mat-form-field>
+      <button mat-button color="primary" (click)="applyGrad()">
+        apply gradient step
+      </button>
+    </form>
+  </div>
+}

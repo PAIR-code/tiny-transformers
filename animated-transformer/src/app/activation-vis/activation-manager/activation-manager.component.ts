@@ -13,25 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { Component, Input, Signal, WritableSignal } from '@angular/core';
+import { TwoVarGTensorDataset } from '../../../lib/gtensor/the_16_two_var_bool_fns';
 
-import { signal, Component, Input, OnInit, ViewChild, OnDestroy, Signal, WritableSignal } from '@angular/core';
-import { basicGatesAsGTensor, TwoVarGTensorDataset } from '../../../lib/gtensor/the_16_two_var_bool_fns';
-import { Observable } from 'rxjs';
-import { toObservable } from '@angular/core/rxjs-interop';
 
 @Component({
-  selector: 'app-activation-manager',
-  templateUrl: './activation-manager.component.html',
-  styleUrls: ['./activation-manager.component.scss']
+    selector: 'app-activation-manager',
+    imports: [],
+    templateUrl: './activation-manager.component.html',
+    styleUrls: ['./activation-manager.component.scss']
 })
 export class ActivationManagerComponent {
-
   @Input()
   view!: WritableSignal<'edit' | 'vis'>;
 
   @Input()
   dataset!: Signal<TwoVarGTensorDataset | null>;
-
-  // // view = signal('vis' as 'edit' | 'vis');
-  // currentDataset = signal(null as TwoVarGTensorDataset | null);
 }

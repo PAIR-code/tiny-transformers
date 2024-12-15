@@ -13,14 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Directive, ViewContainerRef } from '@angular/core';
 
 @Directive({
-  selector: '[appActivationManager]'
+  selector: '[appActivationManager]',
+  standalone: true,
 })
 export class ActivationManagerDirective {
-  constructor(
-    public viewContainerRef: ViewContainerRef
-  ) { }
+  constructor(public viewContainerRef: ViewContainerRef) {}
 }

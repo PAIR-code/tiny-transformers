@@ -13,32 +13,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  Component,
-  Input,
-  OnInit,
-  ViewChild,
-  OnDestroy,
-  ComponentRef,
-  signal,
-  Injector,
-  effect,
-  Signal,
-  WritableSignal,
-  computed,
-  untracked,
-} from '@angular/core';
+import { Component, OnInit, ViewChild, signal, Signal, computed } from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
-// import json5 from 'json5';
-// import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
 import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
-// import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
-// import { toSignal } from '@angular/core/rxjs-interop';
-// import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTableModule } from '@angular/material/table';
+import { MatCardModule } from '@angular/material/card';
+import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
+import { RouterModule } from '@angular/router';
+
+import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
+import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
+import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
+import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
+import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
 
 interface DatasetExample {
   input: number[];
@@ -47,6 +47,29 @@ interface DatasetExample {
 
 @Component({
   selector: 'app-activation-vis',
+  standalone: true,
+  imports: [
+    AutoCompletedTextInputComponent,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatCardModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatMenuModule,
+    MatTableModule,
+    ActivationManagerComponent,
+    CornerActivationComponent,
+    CodemirrorConfigEditorModule,
+    TensorImageComponent,
+    AxisWrapperComponent,
+    ActivationManagerDirective,
+    NanValidatorDirective,
+    BoundedFloatValidatorDirective,
+  ],
   templateUrl: './activation-vis.component.html',
   styleUrls: ['./activation-vis.component.scss'],
 })
@@ -90,7 +113,7 @@ export class ActivationVisComponent implements OnInit {
       return mkVisTensor(
         1,
         d.outputs.rename('example', 'pointId'),
-        d.inputs.rename('example', 'pointId')
+        d.inputs.rename('example', 'pointId'),
       );
     });
   }

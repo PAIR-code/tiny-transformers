@@ -30,28 +30,42 @@ limitations under the License.
  * Loading and Saving and inverse. (e.g. save(load()) === identity).
  */
 
+import { JsonValue } from 'src/lib/json/json';
 import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
   Markdown = 'Markdown',
+  JsonObj = 'JsonObj',
   // todo: add more...
 }
 
-export type SectionData =
-  | {
-      sectionKind: SectionKind.Markdown;
-      markdown: string;
-    }
-  | {
-      sectionKind: SectionKind.SubExperiment;
-      sections: SectionDef[];
-    };
+export type SectionData<Kind extends SectionKind, T> = {
+  sectionKind: Kind;
+  content: T;
+};
 
-export enum ExpCellDisplayKind {
-  RenderedMarkdown = 'RenderedMarkdown',
-  SubExperimentSummary = 'SubExperimentSummary',
-}
+export type JsonSectionData = {
+  sectionKind: SectionKind.JsonObj;
+  content: JsonValue;
+};
+
+export type MarkdownSectionData = {
+  sectionKind: SectionKind.Markdown;
+  content: string;
+};
+
+export type SubExpSectionData = {
+  sectionKind: SectionKind.SubExperiment;
+  content: SectionDef[];
+};
+
+export type SomeSectionData = SectionData<SectionKind, {}>;
+
+// export enum ExpCellDisplayKind {
+//   RenderedMarkdown = 'RenderedMarkdown',
+//   SubExperimentSummary = 'SubExperimentSummary',
+// }
 
 // export enum ExpCellDataStatus {
 //   Resolving,
@@ -81,8 +95,8 @@ export type SectionDataDef = {
   id: string;
   timestamp: number;
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  sectionData: SectionData;
-  displayKind: ExpCellDisplayKind;
+  sectionData: SomeSectionData;
+  // displayKind: ExpCellDisplayKind;
 };
 
 export type ExpSectionDataDef = {
@@ -90,18 +104,15 @@ export type ExpSectionDataDef = {
   id: string;
   timestamp: number;
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  sectionData: {
-    sectionKind: SectionKind.SubExperiment;
-    sections: SectionDef[];
-  };
-  displayKind: ExpCellDisplayKind;
+  sectionData: SubExpSectionData;
+  // displayKind: ExpCellDisplayKind;
 };
 
 export type SectionDef = SectionRefDef | SectionPathDef | SectionDataDef;
 
-export type DistrSerialization<T> = {
+export type DistrSerialization<T, T2> = {
   data: T;
-  subpathData?: { [path: string]: T };
+  subpathData?: { [path: string]: T2 };
 };
 
 // ============================================================================
@@ -111,19 +122,24 @@ export class Section {
   // References to this section.
   references: Set<Section> = new Set();
 
-  constructor(public def: SectionDef, public data: SetableSignal<SectionDataDef>) {}
+  constructor(
+    public def: SectionDef,
+    public data: SetableSignal<SectionDataDef>,
+    public content: SetableSignal<{}>,
+  ) {}
 
-  serialise(): DistrSerialization<SectionDef> {
+  serialise(): DistrSerialization<SectionDef, SectionDataDef> {
     if (this.def.kind === ExpDefKind.Ref) {
       return { data: this.def };
     } else if (this.def.kind === ExpDefKind.Path) {
-      const subpathData = {} as { [path: string]: SectionDef };
+      const subpathData = {} as { [path: string]: SectionDataDef };
       subpathData[this.def.dataPath] = this.data();
       return {
         data: this.def,
         subpathData,
       };
     } else {
+      //
       if (this.subExperiment) {
         return this.subExperiment.serialise();
       } else {
@@ -186,7 +202,7 @@ export class Experiment {
   constructor(
     public space: SignalSpace,
     public ancestors: Experiment[],
-    public initData: ExpSectionDataDef
+    public initData: ExpSectionDataDef,
   ) {
     this.data = this.space.setable<ExpSectionDataDef>(initData);
   }
@@ -195,16 +211,17 @@ export class Experiment {
     return this.data().id;
   }
 
-  appendSectionFromRefDef(node: SectionRefDef): Section {
-    const existingSection = this.sectionMap.get(node.refId);
+  appendSectionFromRefDef(secRefDef: SectionRefDef): Section {
+    const existingSection = this.sectionMap.get(secRefDef.refId);
     let section: Section;
     if (!existingSection) {
-      throw new Error(`No such reference id to ${node.refId}`);
+      throw new Error(`No such reference id to ${secRefDef.refId}`);
     }
-    section = new Section(node, existingSection.data);
+    section = new Section(secRefDef, existingSection.data, existingSection.content);
     section.data = existingSection.data;
     existingSection.references.add(section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.content.push(secRefDef));
     return section;
   }
 
@@ -212,14 +229,17 @@ export class Experiment {
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
   async appendLeafSectionFromPathDef(
-    dataResolver: AbstractDataResolver,
-    def: SectionPathDef
+    secPathDef: SectionPathDef,
+    resolvedDataDef: SectionDataDef,
   ): Promise<Section> {
-    const data = await dataResolver.load(def.dataPath);
-    const setableData = this.space.setable(data);
-    const section = new Section(def, setableData);
-    this.sectionMap.set(def.id, section);
+    // TODO: some subtly here about when what gets updated & how. e.g.
+    // Users of setableDataDef should not be changing sectionData or sectionData.content
+    const setableDataDef = this.space.setable(resolvedDataDef);
+    const setableDataContent = this.space.setable(resolvedDataDef.sectionData.content);
+    const section = new Section(secPathDef, setableDataDef, setableDataContent);
+    this.sectionMap.set(secPathDef.id, section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.content.push(secPathDef));
     return section;
   }
 
@@ -227,33 +247,33 @@ export class Experiment {
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
   appendLeafSectionFromDataDef(def: SectionDataDef): Section {
-    const setableData = this.space.setable(def);
-    const section = new Section(def, setableData);
+    const setableDataDef = this.space.setable(def);
+    const setableDataContent = this.space.setable(def.sectionData.content);
+    const section = new Section(def, setableDataDef, setableDataContent);
     this.sectionMap.set(def.id, section);
     this.sections.change((sections) => sections.push(section));
+    this.data.change((data) => data.sectionData.content.push(def));
     return section;
   }
 
   // Note: this.data() should contain the same as serialisedSections.map((s) => s.data);
-  serialise(): DistrSerialization<SectionDef> {
-    const allSubPathData = {} as { [path: string]: SectionDef };
-
+  serialise(): DistrSerialization<SectionDataDef, SectionDataDef> {
+    const allSubPathData = {} as { [path: string]: SectionDataDef };
     const serialisedSections = this.sections().map((s) => s.serialise());
     for (const section of serialisedSections) {
-      // console.log(`exp serialise section: ${JSON.stringify(section.data, null, 2)}`);
       if (section.subpathData) {
         for (const subpath of Object.keys(section.subpathData)) {
           if (subpath in allSubPathData) {
             throw new Error(
-              `There should only ever be one reference to a subpath, but got too for: ${subpath}`
+              `There should only ever be one reference to a subpath, but got two for: ${subpath}`,
             );
           }
           allSubPathData[subpath] = section.subpathData[subpath];
         }
       }
     }
-    const expData: SectionDef = this.data();
 
+    const expData: SectionDataDef = this.data();
     return {
       data: expData,
       subpathData: allSubPathData,
@@ -271,7 +291,7 @@ type NodeBeingLoaded = {
 export async function loadExperiment(
   dataResolver: AbstractDataResolver,
   space: SignalSpace,
-  data: ExpSectionDataDef
+  data: ExpSectionDataDef,
 ): Promise<Experiment> {
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
@@ -292,18 +312,19 @@ export async function loadExperiment(
   const loadNodeStack: NodeBeingLoaded[] = [];
   let cur = topLevelNodeTree as NodeBeingLoaded | undefined;
   while (cur) {
-    for (const sectionData of cur.exp.data().sectionData.sections) {
+    for (const sectionData of cur.exp.data().sectionData.content) {
       cur.subSections.push(sectionData.id);
       if (sectionData.kind === ExpDefKind.Data) {
-        const setableData = space.setable(sectionData);
-        nodeDataMap.set(sectionData.id, setableData);
-        const expSection = new Section(sectionData, setableData);
+        const setableDataDef = space.setable(sectionData);
+        const setableDataContent = space.setable(sectionData.sectionData.content);
+        nodeDataMap.set(sectionData.id, setableDataDef);
+        const expSection = new Section(sectionData, setableDataDef, setableDataContent);
         sectionMap.set(sectionData.id, expSection);
         if (sectionData.sectionData.sectionKind === SectionKind.SubExperiment) {
           expSection.subExperiment = new Experiment(
             space,
             [...cur.exp.ancestors, cur.exp],
-            sectionData as ExpSectionDataDef
+            sectionData as ExpSectionDataDef,
           );
           const beingLoaded = {
             // TODO: all subexp share the same section map, and
@@ -316,9 +337,10 @@ export async function loadExperiment(
         }
       } else if (sectionData.kind === ExpDefKind.Path) {
         const data = await dataResolver.load(sectionData.dataPath);
-        const setableData = space.setable(data);
-        nodeDataMap.set(sectionData.id, setableData);
-        const expSection = new Section(sectionData, setableData);
+        const setableDataDef = space.setable(data);
+        const setableDataContent = space.setable(data.sectionData.content);
+        nodeDataMap.set(sectionData.id, setableDataDef);
+        const expSection = new Section(sectionData, setableDataDef, setableDataContent);
         sectionMap.set(sectionData.id, expSection);
       } else if (sectionData.kind === ExpDefKind.Ref) {
         refMap.set(sectionData.id, sectionData);
@@ -338,10 +360,10 @@ export async function loadExperiment(
           const maybeSection = sectionMap.get(refData.refId);
           if (!maybeSection) {
             throw new Error(
-              `Can not resolve ref section (${id}) to ${refData.refId}: no such section found.`
+              `Can not resolve ref section (${id}) to ${refData.refId}: no such section found.`,
             );
           }
-          return new Section(refData, maybeSection.data);
+          return new Section(refData, maybeSection.data, maybeSection.content);
         } else {
           const maybeSection = sectionMap.get(id);
           if (!maybeSection) {
@@ -349,10 +371,25 @@ export async function loadExperiment(
           }
           return maybeSection;
         }
-      })
+      }),
     );
     toResolve.exp.sectionMap = sectionMap;
   }
 
   return topLevelExperiment;
+}
+
+export async function saveExperiment(
+  dataResolver: AbstractDataResolver,
+  path: string,
+  distrSectionDef: DistrSerialization<SectionDataDef, SectionDataDef>,
+): Promise<void> {
+  dataResolver.save(path, distrSectionDef.data);
+  const pathsAndData = distrSectionDef.subpathData;
+  if (!pathsAndData) {
+    return;
+  }
+  for (const [p, d] of Object.entries(pathsAndData)) {
+    dataResolver.save(p, d);
+  }
 }

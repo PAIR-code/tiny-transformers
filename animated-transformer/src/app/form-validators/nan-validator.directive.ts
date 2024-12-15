@@ -13,9 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { Directive } from '@angular/core';
-import { AbstractControl, NG_VALIDATORS, ValidationErrors, Validator, ValidatorFn } from '@angular/forms';
+import {
+  AbstractControl,
+  NG_VALIDATORS,
+  ValidationErrors,
+  Validator,
+  ValidatorFn,
+} from '@angular/forms';
 
 /** A hero's name can't match the given regular expression */
 export function nanValidator(): ValidatorFn {
@@ -27,7 +32,8 @@ export function nanValidator(): ValidatorFn {
 
 @Directive({
   selector: '[appNanValidator]',
-  providers: [{ provide: NG_VALIDATORS, useExisting: NanValidatorDirective, multi: true }]
+  standalone: true,
+  providers: [{ provide: NG_VALIDATORS, useExisting: NanValidatorDirective, multi: true }],
 })
 export class NanValidatorDirective implements Validator {
   validate(control: AbstractControl): ValidationErrors | null {

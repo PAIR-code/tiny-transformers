@@ -1,1 +1,66 @@
-<router-outlet></router-outlet>
+<!-- Toolbar -->
+<div class="toolbar" role="banner">
+  <button mat-icon-button (click)="sidenav.toggle()">
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <!-- <button mat-button (click)="doOpen()">open</button>
+  <button mat-button (click)="doRun()">run</button> -->
+  <div class="spacer"></div>
+  <span class="title">Web Colab For Tiny Animated Transformers</span>
+  <a class="small-logo" aria-label="Home" [routerLink]="['/']" title="Home">
+    <img src="/assets/pair-logo.svg" />
+  </a>
+</div>
+
+<mat-sidenav-container class="content">
+  <mat-sidenav #sidenav mode="side" opened="true">
+    <mat-nav-list>
+      <mat-list-item
+        [activated]="router.url == '/'"
+        matListItemTitle
+        routerLink="/"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+      >
+        Home
+      </mat-list-item>
+
+      <mat-list-item
+        [activated]="router.url == '/settings'"
+        matListItemTitle
+        routerLink="/settings"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+      >
+        Settings
+      </mat-list-item>
+
+      <mat-list-item
+        [activated]="router.url == '/activations'"
+        matListItemTitle
+        routerLink="/activations"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+      >
+        Activations
+      </mat-list-item>
+
+      <mat-list-item
+        [activated]="router.url == '/sae'"
+        matListItemTitle
+        routerLink="/sae"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+      >
+        sae
+      </mat-list-item>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <div class="page">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

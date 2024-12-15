@@ -25,6 +25,19 @@ import {
   Signal,
   computed,
 } from '@angular/core';
+
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTableModule } from '@angular/material/table';
+import { MatCardModule } from '@angular/material/card';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+
 import json5 from 'json5';
 import * as swap_task from '../../../lib/seqtasks/swap_task';
 import {
@@ -42,7 +55,10 @@ import {
   BasicRandLmTask,
 } from 'src/lib/seqtasks/util';
 import { Output, EventEmitter } from '@angular/core';
-import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+import {
+  ConfigUpdate,
+  ConfigUpdateKind,
+} from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { SecretTokenTask, SecretTokenTaskConfig } from 'src/lib/seqtasks/secret_token_task';
 import {
   TinyWorldTask,
@@ -63,6 +79,21 @@ import { nullableEqFn } from 'src/lib/utils';
   selector: 'app-seq-task-selector',
   templateUrl: './seq-task-selector.component.html',
   styleUrls: ['./seq-task-selector.component.scss'],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    // ---
+    MatButtonModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatListModule,
+    MatAutocompleteModule,
+    MatTableModule,
+    MatCardModule,
+    AutoCompletedTextInputComponent,
+  ],
 })
 export class SeqTaskSelectorComponent {
   view: 'edit' | 'view' = 'view';
@@ -103,7 +134,7 @@ export class SeqTaskSelectorComponent {
     if (configUpdate.close) {
       this.view = 'view';
     }
-    if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
+    if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {
       return;
     }
     // this.tmService.updateTaskConfig(configUpdate.obj);

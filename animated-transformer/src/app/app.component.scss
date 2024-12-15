@@ -1,16 +1,21 @@
 .content {
-  display: flex;
+  // display: flex;
   margin: 0;
   margin-top: 60px;
-  padding: 0 16px;
-  max-width: 960px;
-  flex-wrap: wrap;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex: 1 1 auto;
-  overflow: scroll;
+  width: 100%;
+  // padding: 0 0;
+  // flex-wrap: wrap;
+  // flex-direction: row;
+  // justify-content: space-between;
+  // align-items: flex-start;
+  // flex: 1 1 auto;
+  // overflow: scroll;
   // background-color: rgba(0,255,0,.87);
+}
+
+.page {
+  min-height: 400px;
+  flex: 1 1 auto;
 }
 
 .small-logo {

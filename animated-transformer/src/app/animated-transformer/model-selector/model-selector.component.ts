@@ -25,6 +25,20 @@ import {
   effect,
   signal,
 } from '@angular/core';
+
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTableModule } from '@angular/material/table';
+import { MatCardModule } from '@angular/material/card';
+import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+
 import json5 from 'json5';
 import { FormControl } from '@angular/forms';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
@@ -35,7 +49,10 @@ import {
   TransformerModel,
   transformerModelKind,
 } from '../../../lib/transformer/transformer_gtensor';
-import { ConfigUpdate } from '../../codemirror-config-editor/codemirror-config-editor.component';
+import {
+  ConfigUpdate,
+  ConfigUpdateKind,
+} from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
 import { BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
@@ -81,6 +98,24 @@ export interface ModelUpdate {
   selector: 'app-model-selector',
   templateUrl: './model-selector.component.html',
   styleUrls: ['./model-selector.component.scss'],
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    // ---
+    MatButtonModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatListModule,
+    MatAutocompleteModule,
+    MatTableModule,
+    MatCardModule,
+    // ---
+    CodemirrorConfigEditorModule,
+    AutoCompletedTextInputComponent,
+  ],
 })
 export class ModelSelectorComponent {
   constructor() {} // public tmService: TinyModelsService
@@ -163,8 +198,7 @@ export class ModelSelectorComponent {
       this.view = 'view';
     }
 
-    if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
-      // console.log(`configUpdated with no update: ${configUpdate}`);
+    if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {
       return;
     }
 

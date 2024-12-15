@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivationManagerComponent } from './activation-manager.component';
@@ -24,7 +23,7 @@ describe('ActivationManagerComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [ActivationManagerComponent]
+      imports: [ActivationManagerComponent],
     });
     fixture = TestBed.createComponent(ActivationManagerComponent);
     component = fixture.componentInstance;

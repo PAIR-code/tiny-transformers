@@ -14,7 +14,24 @@ limitations under the License.
 ==============================================================================*/
 
 import { Component, EventEmitter, Input, Output, Signal, computed, signal } from '@angular/core';
-import { ConfigUpdate } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
+import { D3LineChartModule } from '../../d3-line-chart/d3-line-chart.module';
+import { AutoCompletedTextInputComponent } from '../../auto-completed-text-input/auto-completed-text-input.component';
+
+import {
+  ConfigUpdate,
+  ConfigUpdateKind,
+} from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { ModelUpdate } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -34,6 +51,7 @@ import { strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/tok
 import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { ConfigObj } from 'src/lib/json/config-obj';
 import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
+import { CommonModule } from '@angular/common';
 
 export type TrainerConfig = {
   name: string;
@@ -79,7 +97,7 @@ export interface ModelParamsUpdate {}
 
 function nullOrComputed<T, T2>(
   maybeNullSignal: Signal<null | T>,
-  f: (x: T) => T2
+  f: (x: T) => T2,
 ): Signal<T2 | null> {
   return computed(() => {
     const maybeNull = maybeNullSignal();
@@ -95,6 +113,22 @@ function nullOrComputed<T, T2>(
   selector: 'app-model-task-trainer',
   templateUrl: './model-task-trainer.component.html',
   styleUrls: ['./model-task-trainer.component.scss'],
+  imports: [
+    CommonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatSlideToggleModule,
+    MatListModule,
+    MatMenuModule,
+    MatAutocompleteModule,
+    CodemirrorConfigEditorModule,
+    D3LineChartModule,
+    AutoCompletedTextInputComponent,
+  ],
 })
 export class ModelTaskTrainerComponent {
   // lastModelUpdate: ModelUpdate = { model: null };
@@ -203,8 +237,7 @@ export class ModelTaskTrainerComponent {
       this.view = 'view';
     }
 
-    if (configUpdate.error || !configUpdate.obj || !configUpdate.json) {
-      // console.log(`configUpdated with no update: ${configUpdate}`);
+    if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {
       return;
     }
 

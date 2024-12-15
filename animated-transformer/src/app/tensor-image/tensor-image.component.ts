@@ -13,12 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
-import { AfterViewInit, ElementRef, Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  ElementRef,
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges,
+  ViewChild,
+} from '@angular/core';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { pointWiseEval } from '../../lib/gtensor/boolfns';
+
 
 // Make a visualization tensor for a set of params given a set of inputs,
 // with extra points to show value changes/gradients added according to
@@ -31,32 +40,32 @@ export function mkVisTensor(
 ): gtensor.GTensor<'x' | 'y' | 'rgb'> {
   // Create grid
   const examplesGrid = new gtensor.GTensor(
-    tf.tensor(gtensor_util.grid(
-      [0, 0], [1, 1], [1 / resolution, 1 / resolution])),
-    ['example', 'inputRepSize']);
+    tf.tensor(gtensor_util.grid([0, 0], [1, 1], [1 / resolution, 1 / resolution])),
+    ['example', 'inputRepSize']
+  );
   const gridSize = Math.sqrt(examplesGrid.dim.example.size);
 
-  const outValues = pointWiseEval(params, positions,
-    examplesGrid);
+  const outValues = pointWiseEval(params, positions, examplesGrid);
 
   // pointWiseEval(params, positions,
   //   examplesGrid);
 
-  const rgbM = new gtensor.GTensor(
-    tf.ones([params.dim.outputRepSize.size, 3]),
-    ['outputRepSize', 'rgb']);
-  return outValues.contract(rgbM, ['outputRepSize'])
+  const rgbM = new gtensor.GTensor(tf.ones([params.dim.outputRepSize.size, 3]), [
+    'outputRepSize',
+    'rgb',
+  ]);
+  return outValues
+    .contract(rgbM, ['outputRepSize'])
     .splitDim('example', { x: gridSize, y: gridSize });
 }
 
-
 @Component({
-  selector: 'app-tensor-image',
-  templateUrl: './tensor-image.component.html',
-  styleUrls: ['./tensor-image.component.scss']
+    selector: 'app-tensor-image',
+    imports: [],
+    templateUrl: './tensor-image.component.html',
+    styleUrls: ['./tensor-image.component.scss']
 })
 export class TensorImageComponent implements OnInit, AfterViewInit {
-
   @Input() seenWidth!: number;
   @Input() seenHeight!: number;
   @ViewChild('canvas', { static: false })
@@ -72,7 +81,7 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
     this.rawCanvas = document.createElement('canvas');
   }
 
-  ngOnInit(): void { }
+  ngOnInit(): void {}
 
   @Input() set tensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
     this.rawTensor = rawTensor;
@@ -96,8 +105,9 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
 
   public async rawCanvasFromTensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
     // Condition this because the setting will re-create and blank the canvas.
-    if (this.rawCanvas.width !== rawTensor.dim.x.size
-      || this.rawCanvas.height !== rawTensor.dim.y.size
+    if (
+      this.rawCanvas.width !== rawTensor.dim.x.size ||
+      this.rawCanvas.height !== rawTensor.dim.y.size
     ) {
       this.rawCanvas.width = rawTensor.dim.x.size;
       this.rawCanvas.height = rawTensor.dim.y.size;
@@ -114,8 +124,7 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
       console.warn(e);
       return;
     }
-    const imageData = rawCtxt.createImageData(
-      this.rawCanvas.width, this.rawCanvas.height);
+    const imageData = rawCtxt.createImageData(this.rawCanvas.width, this.rawCanvas.height);
     imageData.data.set(pixelsA);
     rawCtxt.putImageData(imageData, 0, 0);
     this.process();
@@ -148,7 +157,7 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
         var g = data[i + 1];
         var b = data[i + 2];
         var a = data[i + 3];
-        seenCtxt.fillStyle = "rgba(" + r + "," + g + "," + b + "," + (a / 255) + ")";
+        seenCtxt.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a / 255 + ')';
         seenCtxt.fillRect(x * factor, y * factor, factor, factor);
       }
     }
