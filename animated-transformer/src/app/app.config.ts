@@ -32,9 +32,6 @@ export const routes: Routes = [
   { path: '', component: WebColabComponent, pathMatch: 'full' },
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
-  // { path: 'transformers', component: AnimatedTransformerComponent },
-  // { path: 'wcolab', component: WebColabComponent },
-  { path: 'settings', component: WebColabComponent, pathMatch: 'full' },
   { path: 'sae', component: SAEComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];

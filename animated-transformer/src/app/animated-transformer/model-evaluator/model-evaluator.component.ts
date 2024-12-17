@@ -16,13 +16,12 @@ limitations under the License.
 import {
   signal,
   Component,
-  EventEmitter,
   Input,
   OnInit,
-  Output,
   effect,
   Signal,
   computed,
+  output
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -122,7 +121,7 @@ export class ModelEvaluatorComponent {
   set task(taskUpdate: BasicLmTaskUpdate) {
     this.currentTask.set(taskUpdate.task || null);
   }
-  @Output() evalInputUpdate = new EventEmitter<string>();
+  readonly evalInputUpdate = output<string>();
 
   constructor() {
     // public tinyModelsService: TinyModelsService

@@ -24,18 +24,20 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
-import { D3LineChartModule } from '../../d3-line-chart/d3-line-chart.module';
 import { AutoCompletedTextInputComponent } from '../../auto-completed-text-input/auto-completed-text-input.component';
 
 import {
+  CodemirrorConfigEditorComponent,
   ConfigUpdate,
   ConfigUpdateKind,
 } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { ModelUpdate } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
-import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
+import {
+  D3LineChartComponent,
+  NamedChartPoint,
+} from 'src/app/d3-line-chart/d3-line-chart.component';
 
 import {
   computeMetrics,
@@ -125,8 +127,8 @@ function nullOrComputed<T, T2>(
     MatListModule,
     MatMenuModule,
     MatAutocompleteModule,
-    CodemirrorConfigEditorModule,
-    D3LineChartModule,
+    CodemirrorConfigEditorComponent,
+    D3LineChartComponent,
     AutoCompletedTextInputComponent,
   ],
 })

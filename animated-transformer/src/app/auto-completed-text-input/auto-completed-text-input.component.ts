@@ -23,8 +23,6 @@ making things harder to easier.
 import {
   Component,
   Input,
-  Output,
-  EventEmitter,
   OnInit,
   ViewChild,
   OnDestroy,
@@ -37,6 +35,8 @@ import {
   computed,
   untracked,
   ElementRef,
+  input,
+  output
 } from '@angular/core';
 
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -60,7 +60,7 @@ export class AutoCompletedTextInputComponent {
   exactMatchName: Signal<string | null>;
   lastEmittedValue: string | null = null;
 
-  @Input() label?: string;
+  readonly label = input<string>();
 
   @Input()
   set selectedName(n: string | null) {
@@ -74,7 +74,7 @@ export class AutoCompletedTextInputComponent {
     this.itemNamesList.set(ns);
   }
 
-  @Output() itemSelected = new EventEmitter<string | null>();
+  readonly itemSelected = output<string | null>();
 
   constructor() {
     const datasetNameSignal = toSignal(this.itemSelectorControl.valueChanges);

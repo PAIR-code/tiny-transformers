@@ -21,7 +21,8 @@ import {
   OnChanges,
   OnInit,
   SimpleChanges,
-  ViewChild,
+  input,
+  viewChild
 } from '@angular/core';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../lib/gtensor/gtensor';
@@ -66,10 +67,9 @@ export function mkVisTensor(
     styleUrls: ['./tensor-image.component.scss']
 })
 export class TensorImageComponent implements OnInit, AfterViewInit {
-  @Input() seenWidth!: number;
-  @Input() seenHeight!: number;
-  @ViewChild('canvas', { static: false })
-  canvasRef!: ElementRef<HTMLCanvasElement>;
+  readonly seenWidth = input.required<number>();
+  readonly seenHeight = input.required<number>();
+  readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   rawCanvas: HTMLCanvasElement;
   // rawCtxt!: CanvasRenderingContext2D;
 
@@ -98,9 +98,9 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
     // }
     // this.rawTensor = this.rawTensor.withNewNames(['x', 'y', 'rgb']);
 
-    this.seenCanvas = this.canvasRef.nativeElement;
-    this.seenCanvas.width = this.seenWidth;
-    this.seenCanvas.height = this.seenHeight;
+    this.seenCanvas = this.canvasRef().nativeElement;
+    this.seenCanvas.width = this.seenWidth();
+    this.seenCanvas.height = this.seenHeight();
   }
 
   public async rawCanvasFromTensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {

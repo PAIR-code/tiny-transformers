@@ -1,51 +1,79 @@
 <div class="row">
-  <app-auto-completed-text-input class="dataset-form"
+  <app-auto-completed-text-input
+    class="dataset-form"
     [label]="'Trainer'"
     [selectedName]="currentTrainerName()"
     [itemNames]="trainerNames()"
-    (itemSelected)="selectTrainer($event)">
+    (itemSelected)="selectTrainer($event)"
+  >
   </app-auto-completed-text-input>
 </div>
 
 @if (currentTrainer(); as currentTrainer) {
   <div class="row">
-    @if (view != 'edit') {
+    @if (view != "edit") {
       <div>
         <div>
           @if (currentTask(); as task) {
-            <div>Selected task: <span class="json">{{task.config.id}}</span></div>
+            <div>
+              Selected task: <span class="json">{{ task.config.id }}</span>
+            </div>
           }
           @if (currentModel(); as model) {
-            <div>Selected model: <span class="json">{{model.config.id}}</span></div>
+            <div>
+              Selected model: <span class="json">{{ model.config.id }}</span>
+            </div>
           }
           @if (trainState(); as trainState) {
             <div>
-              <div>state.nExamples: <span class="json">{{trainState.nExamples}}</span></div>
-              <div>state.nSteps: <span class="json">{{trainState.nSteps}}</span></div>
-              <div>state.batchLoss: <span class="json">{{trainState.batchMeanLoss}}</span></div>
-              <div>curMetrics.trainBatchAcc: <span class="json">{{curMetrics.trainBatchAcc}}</span></div>
-              <div>curMetrics.testAcc: <span class="json">{{curMetrics.testAcc}}</span></div>
-              <div>layerNormHeadsProjectionGain: <span class="json">{{layerNormHeadsProjectionGain}}</span></div>
-              <div>layerNormPostFFGain: <span class="json">{{layerNormPostFFGain}}</span></div>
+              <div>
+                state.nExamples:
+                <span class="json">{{ trainState.nExamples }}</span>
+              </div>
+              <div>
+                state.nSteps: <span class="json">{{ trainState.nSteps }}</span>
+              </div>
+              <div>
+                state.batchLoss:
+                <span class="json">{{ trainState.batchMeanLoss }}</span>
+              </div>
+              <div>
+                curMetrics.trainBatchAcc:
+                <span class="json">{{ curMetrics.trainBatchAcc }}</span>
+              </div>
+              <div>
+                curMetrics.testAcc:
+                <span class="json">{{ curMetrics.testAcc }}</span>
+              </div>
+              <div>
+                layerNormHeadsProjectionGain:
+                <span class="json">{{ layerNormHeadsProjectionGain }}</span>
+              </div>
+              <div>
+                layerNormPostFFGain:
+                <span class="json">{{ layerNormPostFFGain }}</span>
+              </div>
             </div>
           }
         </div>
         <!-- <div class="json">{{currentTrainer.configStr}}</div> -->
-        <div class='buttonrow'>
+        <div class="buttonrow">
           <button mat-icon-button (click)="toggleModelEditor()">
             <mat-icon>edit</mat-icon>
           </button>
           @if (trainState(); as trainState) {
             <div>
               @if (currentTask() && currentModel()) {
-                <button mat-flat-button (click)="initTrainer()">
-                  re-init
-                </button>
+                <button mat-flat-button (click)="initTrainer()">re-init</button>
               }
-              <button  mat-flat-button color="primary" (click)="trainStep()">
+              <button mat-flat-button color="primary" (click)="trainStep()">
                 train-step
               </button>
-              <mat-slide-toggle color="primary" (change)="toggleTraining($event)">Training</mat-slide-toggle>
+              <mat-slide-toggle
+                color="primary"
+                (change)="toggleTraining($event)"
+                >Training</mat-slide-toggle
+              >
             </div>
           } @else {
             <div>
@@ -60,34 +88,31 @@
         <!-- <div>Memory usage: <span class="json">{{tfjsMemory}}</span></div> -->
       </div>
     }
-    @if (view == 'edit') {
+    @if (view == "edit") {
       <div class="code-full-screen full-width">
         <!-- <app-codemirror-config-editor
         (update)="trainerConfigUpdated($event)"
         [whatIsBeingEditedName]="currentTrainer.config.name"
         [defaultConfig]="currentTrainer.defaultConfigStr"
       [config]="currentTrainer.configStr"></app-codemirror-config-editor> -->
-    </div>
-  }
-  @if (hasPlots()) {
-    <div>
-      <button mat-flat-button (click)="clearPlots()">
-        clear metrics
-      </button>
-      @if(lossPoints.length > 0) {
-        <div>
-          <div>Loss:</div>
-          <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
-        </div>
-      }
-      @if(accPoints.length > 0) {
-        <div>
-          <div>Accuracy:</div>
-          <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
-        </div>
-      }
-    </div>
-  }
-</div>
+      </div>
+    }
+    @if (hasPlots()) {
+      <div>
+        <button mat-flat-button (click)="clearPlots()">clear metrics</button>
+        @if (lossPoints.length > 0) {
+          <div>
+            <div>Loss:</div>
+            <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+          </div>
+        }
+        @if (accPoints.length > 0) {
+          <div>
+            <div>Accuracy:</div>
+            <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
+          </div>
+        }
+      </div>
+    }
+  </div>
 }
-

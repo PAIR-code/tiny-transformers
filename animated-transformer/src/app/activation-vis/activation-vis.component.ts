@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, OnInit, ViewChild, signal, Signal, computed } from '@angular/core';
+import { Component, OnInit, signal, Signal, computed, viewChild } from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
 import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
@@ -21,7 +21,6 @@ import { MatTable } from '@angular/material/table';
 import { ActivationManagerDirective } from './activation-manager.directive';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -31,7 +30,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from '../codemirror-config-editor/codemirror-config-editor.component';
 import { RouterModule } from '@angular/router';
 
 import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
@@ -63,7 +62,7 @@ interface DatasetExample {
     MatTableModule,
     ActivationManagerComponent,
     CornerActivationComponent,
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     TensorImageComponent,
     AxisWrapperComponent,
     ActivationManagerDirective,
@@ -76,8 +75,7 @@ interface DatasetExample {
 export class ActivationVisComponent implements OnInit {
   view = signal('vis' as 'edit' | 'vis');
 
-  @ViewChild(ActivationManagerDirective, { static: true })
-  activationManager!: ActivationManagerDirective;
+  readonly activationManager = viewChild.required(ActivationManagerDirective);
 
   // componentRef!: ComponentRef<CornerActivationComponent>;
   datasetNames = signal(Object.keys(basicGatesMap));
@@ -88,7 +86,7 @@ export class ActivationVisComponent implements OnInit {
   selectedDatasetTable!: Signal<DatasetExample[] | null>;
   datasetVisTensor!: Signal<gtensor.GTensor<'x' | 'y' | 'rgb'> | null>;
 
-  @ViewChild('datasetTable', { static: false }) datasetTable!: MatTable<gtensor.GTensor<never>>;
+  readonly datasetTable = viewChild.required<MatTable<gtensor.GTensor<never>>>('datasetTable');
   datasetColumns: string[] = ['input', 'output'];
 
   constructor() {
@@ -125,7 +123,7 @@ export class ActivationVisComponent implements OnInit {
 
   ngOnInit(): void {
     // Set the dynamic model sub-component, and connect it to the dataset.
-    const viewContainerRef = this.activationManager.viewContainerRef;
+    const viewContainerRef = this.activationManager().viewContainerRef;
     viewContainerRef.clear();
     const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
     componentRef.setInput('view', this.view);

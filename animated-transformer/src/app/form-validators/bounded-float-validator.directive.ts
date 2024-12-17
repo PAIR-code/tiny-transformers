@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Directive, Input } from '@angular/core';
+import { Directive, input } from '@angular/core';
 import {
   AbstractControl,
   NG_VALIDATORS,
@@ -70,7 +70,6 @@ export function boundedFloatValidator(config: BoundsConfig): ValidatorFn {
 @Directive({
   selector: '[appBoundedFloatValidator]',
   standalone: true,
-  inputs: ['config'],
   providers: [
     {
       provide: NG_VALIDATORS,
@@ -80,9 +79,9 @@ export function boundedFloatValidator(config: BoundsConfig): ValidatorFn {
   ],
 })
 export class BoundedFloatValidatorDirective implements Validator {
-  @Input() config: BoundsConfig = {};
+  readonly config = input<BoundsConfig>({});
 
   validate(control: AbstractControl): ValidationErrors | null {
-    return boundedFloatValidator(this.config)(control);
+    return boundedFloatValidator(this.config())(control);
   }
 }

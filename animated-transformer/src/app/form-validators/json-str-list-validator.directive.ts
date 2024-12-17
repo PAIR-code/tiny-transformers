@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Directive, Input } from '@angular/core';
+import { Directive, input } from '@angular/core';
 import {
   AbstractControl,
   NG_VALIDATORS,
@@ -122,9 +122,9 @@ export function jsonStrListValidator(config: JsonStrListConfig): ValidatorFn {
   ],
 })
 export class JsonStrListValidatorDirective {
-  @Input() config: JsonStrListConfig = {};
+  readonly config = input<JsonStrListConfig>({});
 
   validate(control: AbstractControl): ValidationErrors | null {
-    return jsonStrListValidator(this.config)(control);
+    return jsonStrListValidator(this.config())(control);
   }
 }

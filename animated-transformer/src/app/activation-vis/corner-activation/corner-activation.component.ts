@@ -18,7 +18,6 @@ import {
   Component,
   Input,
   OnInit,
-  ViewChild,
   OnDestroy,
   computed,
   WritableSignal,
@@ -27,6 +26,7 @@ import {
   Injector,
   untracked,
   EffectRef,
+  viewChild,
 } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import {
@@ -93,7 +93,7 @@ import { JsonValue } from 'src/lib/json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import * as _ from 'underscore';
-import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { MatInputModule } from '@angular/material/input';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 
@@ -149,7 +149,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     MatInputModule,
     MatButtonModule,
     TensorImageComponent,
@@ -187,7 +187,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
 
   grad: Signal<gtensor.GTensor<'pointId' | 'outputRepSize'> | null>;
 
-  @ViewChild('tensorImg', { static: false }) tensorImg!: TensorImageComponent;
+  readonly tensorImg = viewChild.required<TensorImageComponent>('tensorImg');
 
   posInputs: FormControl<string> | null = null;
 
@@ -342,7 +342,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     this.grad = computed(() => {
       const positions = this.paramPositionsTensor();
       const params = this.paramsValuesTensor();
-      const dataset = this.dataset();
+      const dataset = this.dataset()();
       if (!dataset || !params || !positions) {
         return null;
       }
@@ -406,7 +406,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     const configUpdate = event as ConfigUpdate<ActivationVizConfig>;
 
     if (configUpdate.close) {
-      this.view.set('vis');
+      this.view().set('vis');
     }
 
     if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {

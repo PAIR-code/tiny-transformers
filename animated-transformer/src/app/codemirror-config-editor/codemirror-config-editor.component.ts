@@ -17,32 +17,24 @@ import {
   Component,
   OnInit,
   Input,
-  Output,
-  EventEmitter,
   AfterContentInit,
-  ViewChild,
   ElementRef,
   Signal,
   signal,
   WritableSignal,
+  input,
+  output,
+  viewChild,
 } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import json5 from 'json5';
 import * as codemirror from 'codemirror';
 import { EditorState, Compartment } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { json as jsonlang } from '@codemirror/lang-json';
-import {
-  firstValueFrom,
-  Observable,
-  tap,
-  of,
-  EMPTY,
-  OperatorFunction,
-  combineLatest,
-  BehaviorSubject,
-  ReplaySubject,
-  Subscription,
-} from 'rxjs';
 
 export enum ConfigUpdateKind {
   JustClose = 'JustClose',
@@ -72,13 +64,13 @@ export type ConfigUpdate<T> =
   selector: 'app-codemirror-config-editor',
   templateUrl: './codemirror-config-editor.component.html',
   styleUrls: ['./codemirror-config-editor.component.scss'],
-  standalone: false,
+  imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
 })
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
-  @Input() whatIsBeingEditedName: string = '';
-  @Input() defaultConfig: string = '';
-  @Input() closable: boolean = true;
-  @Output() update = new EventEmitter<ConfigUpdate<any>>();
+  readonly whatIsBeingEditedName = input<string>('');
+  readonly defaultConfig = input<string>('');
+  readonly closable = input<boolean>(true);
+  readonly update = output<ConfigUpdate<any>>();
   @Input()
   set config(value: string) {
     // if (this.codeMirror) {
@@ -91,8 +83,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
 
   tmpConfigString?: string;
 
-  @ViewChild('codemirror')
-  codemirrorElementRef: ElementRef | undefined;
+  readonly codemirrorElementRef = viewChild<ElementRef>('codemirror');
   codemirrorOptions: {};
 
   codeMirror: EditorView | undefined;
@@ -166,13 +157,14 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
   ngAfterContentInit() {}
 
   ngAfterViewInit() {
-    if (!this.codemirrorElementRef) {
+    const codemirrorElementRef = this.codemirrorElementRef();
+    if (!codemirrorElementRef) {
       console.warn('ngAfterContentInit: missing codemirror element.');
       return;
     }
     this.codeMirror = new EditorView({
       state: this.editorState,
-      parent: this.codemirrorElementRef.nativeElement,
+      parent: codemirrorElementRef.nativeElement,
     });
   }
 
@@ -182,7 +174,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       return;
     }
     this.tmpConfigString = this.getCodeMirrorValue();
-    this.setCodeMirrorValue(this.defaultConfig.slice());
+    this.setCodeMirrorValue(this.defaultConfig().slice());
   }
 
   undoChanges() {
@@ -199,9 +191,9 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
     if (!this.codeMirror) {
       // Note: we have to return a value consistent with what we have once we
       // setup this.codeMirror.
-      return this.defaultConfig === this.lastValidConfig;
+      return this.defaultConfig() === this.lastValidConfig;
     }
-    return this.defaultConfig === this.getCodeMirrorValue();
+    return this.defaultConfig() === this.getCodeMirrorValue();
   }
 
   public get canReDoChanges() {

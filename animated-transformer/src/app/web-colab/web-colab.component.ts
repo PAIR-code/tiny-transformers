@@ -15,18 +15,8 @@ limitations under the License.
 
 import { Component, computed, input, Signal, signal } from '@angular/core';
 
-import { GTensor, SerializedGTensor, makeScalar } from 'src/lib/gtensor/gtensor';
-import { BasicLmTaskConfig, Example, indexExample, RandLmTaskConfig } from 'src/lib/seqtasks/util';
-import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { TrainStateConfig } from 'src/lib/trainer/train_state';
 import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { taskRegistry } from 'src/lib/seqtasks/task_registry';
-import { prepareBasicTaskTokenRep, strSeqPrepFnAddingFinalMask } from 'src/lib/tokens/token_gemb';
-import { Batch, EnvModel, TrainConfig, trainerCellSpec } from './tiny-transformer-example/ailab';
 import { LabEnv } from 'src/lib/weblab/lab-env';
-import { LabState } from 'src/lib/weblab/lab-state';
-import { varifyParams } from 'src/lib/gtensor/params';
-
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,7 +25,6 @@ import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -45,12 +34,9 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 
-import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
 // import { VegaChartModule } from '../vega-chart/vega-chart.module';
-import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
+import { D3LineChartComponent } from '../d3-line-chart/d3-line-chart.component';
 import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
-
-import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-validator.directive';
 import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -71,6 +57,7 @@ import { MarkdownModule } from 'ngx-markdown';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { JsonValue } from 'src/lib/json/json';
 import {
+  CodemirrorConfigEditorComponent,
   ConfigUpdate,
   ConfigUpdateKind,
 } from '../codemirror-config-editor/codemirror-config-editor.component';
@@ -121,9 +108,9 @@ export class BrowserDirDataResolver implements AbstractDataResolver {
     MatButtonToggleModule,
     MatDialogModule,
     // // ---
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     // // VegaChartModule,
-    D3LineChartModule,
+    D3LineChartComponent,
     AutoCompletedTextInputComponent,
     TokenSeqDisplayComponent,
     MarkdownModule,

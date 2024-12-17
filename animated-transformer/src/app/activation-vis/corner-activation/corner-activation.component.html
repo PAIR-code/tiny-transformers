@@ -1,4 +1,4 @@
-@if(view() == 'edit') {
+@if(view()() == 'edit') {
   <div class="code-full-screen">
     <app-codemirror-config-editor
       (update)="configUpdated($event)"
