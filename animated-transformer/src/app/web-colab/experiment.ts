@@ -32,6 +32,7 @@ limitations under the License.
 
 import { JsonValue } from 'src/lib/json/json';
 import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
+import { AbstractDataResolver } from './data-resolver';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
@@ -161,27 +162,6 @@ export class Section {
   }
 }
 
-// ============================================================================
-// TODO: maybe this should just be path <--> object ?
-export abstract class AbstractDataResolver {
-  abstract load(path: string): Promise<SectionDataDef>;
-  abstract save(path: string, nodeData: SectionDataDef): Promise<void>;
-}
-
-export class InMemoryDataResolver implements AbstractDataResolver {
-  constructor(public nodes: { [id: string]: SectionDataDef }) {}
-
-  async load(path: string): Promise<SectionDataDef> {
-    if (!(path in this.nodes)) {
-      throw new Error(`no such cell path entry: ${path}`);
-    }
-    return structuredClone(this.nodes[path]);
-  }
-  async save(path: string, sectionDataDef: SectionDataDef): Promise<void> {
-    this.nodes[path] = structuredClone(sectionDataDef);
-  }
-}
-
 function sectionListEqCheck(sections1: Section[], sections2: Section[]): boolean {
   if (sections1.length !== sections2.length) {
     return false;
@@ -299,7 +279,7 @@ type NodeBeingLoaded = {
 };
 
 export async function loadExperiment(
-  dataResolver: AbstractDataResolver,
+  dataResolver: AbstractDataResolver<SectionDataDef>,
   space: SignalSpace,
   data: ExpSectionDataDef,
 ): Promise<Experiment> {
@@ -390,7 +370,7 @@ export async function loadExperiment(
 }
 
 export async function saveExperiment(
-  dataResolver: AbstractDataResolver,
+  dataResolver: AbstractDataResolver<SectionDataDef>,
   path: string,
   distrSectionDef: DistrSerialization<SectionDataDef, SectionDataDef>,
 ): Promise<void> {

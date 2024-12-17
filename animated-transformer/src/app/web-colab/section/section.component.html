@@ -1,0 +1,27 @@
+@let sec = section();
+@let data = sec.data();
+
+@switch (data.sectionData.sectionKind) {
+  @case (SectionKind.Markdown) {
+    <div>
+      <markdown>{{ data.sectionData.content }}</markdown>
+    </div>
+  }
+  @case (SectionKind.JsonObj) {
+    <div>
+      <app-codemirror-config-editor
+        [whatIsBeingEditedName]="sec.def.id"
+        [defaultConfig]="'{}'"
+        [config]="stringifyJsonValue(data.sectionData.content)"
+        [closable]="false"
+        (update)="handleSectionJsonUpdate($event, sec.content)"
+      ></app-codemirror-config-editor>
+    </div>
+  }
+  @case (SectionKind.SubExperiment) {
+    <div>SubExperiment</div>
+  }
+  @default {
+    <div>Impossible/unknown sectionDataKind</div>
+  }
+}

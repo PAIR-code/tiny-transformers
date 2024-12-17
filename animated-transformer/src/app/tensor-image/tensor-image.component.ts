@@ -18,17 +18,14 @@ import {
   ElementRef,
   Component,
   Input,
-  OnChanges,
   OnInit,
-  SimpleChanges,
   input,
-  viewChild
+  viewChild,
 } from '@angular/core';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { pointWiseEval } from '../../lib/gtensor/boolfns';
-
 
 // Make a visualization tensor for a set of params given a set of inputs,
 // with extra points to show value changes/gradients added according to
@@ -37,12 +34,12 @@ export function mkVisTensor(
   // resolution = number of separations to show between points.
   resolution: number,
   params: gtensor.GTensor<'pointId' | 'outputRepSize'>,
-  positions: gtensor.GTensor<'pointId' | 'inputRepSize'>
+  positions: gtensor.GTensor<'pointId' | 'inputRepSize'>,
 ): gtensor.GTensor<'x' | 'y' | 'rgb'> {
   // Create grid
   const examplesGrid = new gtensor.GTensor(
     tf.tensor(gtensor_util.grid([0, 0], [1, 1], [1 / resolution, 1 / resolution])),
-    ['example', 'inputRepSize']
+    ['example', 'inputRepSize'],
   );
   const gridSize = Math.sqrt(examplesGrid.dim.example.size);
 
@@ -61,15 +58,21 @@ export function mkVisTensor(
 }
 
 @Component({
-    selector: 'app-tensor-image',
-    imports: [],
-    templateUrl: './tensor-image.component.html',
-    styleUrls: ['./tensor-image.component.scss']
+  selector: 'app-tensor-image',
+  imports: [],
+  templateUrl: './tensor-image.component.html',
+  styleUrls: ['./tensor-image.component.scss'],
 })
 export class TensorImageComponent implements OnInit, AfterViewInit {
   readonly seenWidth = input.required<number>();
   readonly seenHeight = input.required<number>();
   readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+
+  @Input() set tensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
+    this.rawTensor = rawTensor;
+    this.rawCanvasFromTensor(rawTensor);
+  }
+
   rawCanvas: HTMLCanvasElement;
   // rawCtxt!: CanvasRenderingContext2D;
 
@@ -82,11 +85,6 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {}
-
-  @Input() set tensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
-    this.rawTensor = rawTensor;
-    this.rawCanvasFromTensor(rawTensor);
-  }
 
   ngAfterViewInit(): void {
     // const dims = Object.values(this.rawTensor.dim);

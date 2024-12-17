@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, computed, input, Signal, signal } from '@angular/core';
+import { Component, computed, Signal, signal } from '@angular/core';
 
-import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/weblab/lab-env';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -33,59 +33,24 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-
-// import { VegaChartModule } from '../vega-chart/vega-chart.module';
-import { D3LineChartComponent } from '../d3-line-chart/d3-line-chart.component';
-import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/auto-completed-text-input.component';
-import { TokenSeqDisplayComponent } from '../token-seq-display/token-seq-display.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  AbstractDataResolver,
   // ExpCellDisplayKind,
   ExpDefKind,
   Experiment,
   ExpSectionDataDef,
-  JsonSectionData,
   loadExperiment,
   saveExperiment,
-  SectionData,
   SectionDataDef,
-  SectionDef,
   SectionKind,
 } from './experiment';
-import { MarkdownModule } from 'ngx-markdown';
-import { stringifyJsonValue } from 'src/lib/json/pretty_json';
-import { JsonValue } from 'src/lib/json/json';
+import { LocalCacheStoreService } from '../localcache-store.service';
 import {
-  CodemirrorConfigEditorComponent,
-  ConfigUpdate,
-  ConfigUpdateKind,
-} from '../codemirror-config-editor/codemirror-config-editor.component';
-
-// ============================================================================
-// TODO: maybe this should just be path <--> object ?
-export class BrowserDirDataResolver implements AbstractDataResolver {
-  constructor(public dirHandle: FileSystemDirectoryHandle) {}
-
-  async load(path: string): Promise<SectionDataDef> {
-    const fileHandle = await this.dirHandle.getFileHandle(path);
-    const file = await fileHandle.getFile();
-    const fileBuffer = await file.arrayBuffer();
-    const dec = new TextDecoder('utf-8');
-    const contents = dec.decode(fileBuffer);
-    // TODO: add better file contents verification.
-    const dataObject = JSON.parse(contents);
-    return dataObject;
-  }
-
-  async save(path: string, nodeData: SectionDataDef): Promise<void> {
-    const fileHandle = await this.dirHandle.getFileHandle(path);
-    fileHandle.requestPermission({ mode: 'readwrite' });
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(nodeData, null, 2));
-    await writable.close();
-  }
-}
+  AbstractDataResolver,
+  BrowserDirDataResolver,
+  LocalCacheDataResolver,
+} from './data-resolver';
+import { SectionComponent } from './section/section.component';
 
 @Component({
   selector: 'app-web-colab',
@@ -107,13 +72,7 @@ export class BrowserDirDataResolver implements AbstractDataResolver {
     MatSelectModule,
     MatButtonToggleModule,
     MatDialogModule,
-    // // ---
-    CodemirrorConfigEditorComponent,
-    // // VegaChartModule,
-    D3LineChartComponent,
-    AutoCompletedTextInputComponent,
-    TokenSeqDisplayComponent,
-    MarkdownModule,
+    SectionComponent,
   ],
   templateUrl: './web-colab.component.html',
   styleUrl: './web-colab.component.scss',
@@ -124,15 +83,15 @@ export class WebColabComponent {
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
   viewPath: Signal<Experiment[]>;
-  dataResolver?: BrowserDirDataResolver;
+  dataResolver?: AbstractDataResolver<SectionDataDef>;
 
-  ExpDefKind = ExpDefKind;
-  SectionKind = SectionKind;
+  loading: boolean = true;
 
   constructor(
     private route: ActivatedRoute,
     public router: Router,
     public dialog: MatDialog,
+    public localCache: LocalCacheStoreService,
   ) {
     this.env = new LabEnv();
     this.space = new SignalSpace();
@@ -145,7 +104,27 @@ export class WebColabComponent {
         return exp.ancestors;
       }
     });
-    const { setable, derived } = this.space;
+
+    this.loadDefault();
+  }
+
+  async loadDefault() {
+    this.loading = true;
+    this.dataResolver = new LocalCacheDataResolver(this.localCache);
+    const cachedFilePath = await this.localCache.getDefaultFile();
+    if (!cachedFilePath) {
+      this.loading = false;
+      return;
+    }
+    const cachedExpData = await this.localCache.loadFileCache<ExpSectionDataDef>(cachedFilePath);
+    if (!cachedExpData) {
+      console.warn(`No cached data at local cached file path: ${cachedFilePath}`);
+      this.loading = false;
+      return;
+    }
+    const exp = await loadExperiment(this.dataResolver, this.space, cachedExpData);
+    this.experiment.set(exp);
+    this.loading = false;
   }
 
   clearError() {
@@ -191,18 +170,6 @@ export class WebColabComponent {
     this.experiment.set(exp);
   }
 
-  //
-  stringifyJsonValue(x: JsonValue): string {
-    return stringifyJsonValue(x);
-  }
-
-  handleSectionJsonUpdate(update: ConfigUpdate<JsonValue>, contentSignal: SetableSignal<{}>) {
-    if (update.kind !== ConfigUpdateKind.UpdatedValue) {
-      return;
-    }
-    contentSignal.set(update.obj as {});
-  }
-
   async doRun() {
     // const cell = this.env.start(trainerCellSpec, this.globals);
     // const lastTrainMetric = await cell.outputs.lastTrainMetric;
@@ -226,6 +193,7 @@ export class WebColabComponent {
   }
 
   async loadExperiment() {
+    this.loading = true;
     try {
       const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
       this.dataResolver = new BrowserDirDataResolver(dirHandle);
@@ -238,6 +206,7 @@ export class WebColabComponent {
       this.error = (error as Error).message;
       console.log(error);
     }
+    this.loading = false;
   }
 
   async doOpen() {
