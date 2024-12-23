@@ -358,7 +358,9 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
-  const attention = rawAttention.softmax('queryPos');
+  const maskedAffinities = ComputeMaskedAffinities(rawAttention); // Uncomment this and the next lines to compute Masked Attention
+  const attention = maskedAffinities.softmax('queryPos'); // Uncomment this and the previous lines to compute Masked Attention
+  //const attention = rawAttention.softmax('queryPos'); // Uncomment this line to compute Unmasked self attention
 
   // Dropout on the attention weights.
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
