@@ -896,4 +896,66 @@ describe('gtensor', () => {
     // const attendedValues2 = attentionHeadFn2(batchedInput); // Has error, yay, but what a mess...
     const attendedValues3 = attentionHeadFn2(oneInput);
   });
+
+  it('simple Lower triangular -Inf mask', async () => {
+    const g1 = new gtensor.GTensor(
+      tf.tensor([[[
+        [1, 2, 3],
+        [3, 4, 5],
+        [5, 6, 7]]
+      ]]),
+      ['heads', 'batch', 'Pos1', 'Pos2']
+    );
+    const g1tril = g1.TriangularMask(['batch', 'Pos1', 'Pos2'], -Infinity, 0);
+
+    expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
+    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(),
+      [[[[0, -Infinity, -Infinity],
+      [0, 0, -Infinity],
+      [0, 0, 0]]
+    ]]);
+  });
+
+  it('Multiple heads Lower triangular -Inf mask', async () => {
+    const g1 = new gtensor.GTensor(
+      tf.tensor([
+        [
+        [[1, 2, 3],
+        [3, 4, 5],
+        [5, 6, 7]],
+        [[8, 9, 10],
+      [11, 12, 13],
+      [14, 15, 16]]
+    ],
+    [
+      [[1, 2, 3],
+      [3, 4, 5],
+      [5, 6, 7]],
+      [[8, 9, 10],
+    [11, 12, 13],
+    [14, 15, 16]]
+  ]]),
+      ['heads', 'batch', 'Pos1', 'Pos2']
+    );
+    const g1tril = g1.TriangularMask(['batch', 'Pos1', 'Pos2'], 42, 1);
+
+    expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
+    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(),
+    [[[[1 , 42, 42],
+    [1 , 1        , 42],
+    [1 , 1        , 1        ]],
+
+   [[1 , 42, 42],
+   [1 , 1        , 42],
+   [1 , 1        , 1        ]]],
+
+
+  [[[1 , 42, 42],
+  [1 , 1        , 42],
+  [1 , 1        , 1        ]],
+
+   [[1 , 42, 42],
+   [1 , 1        , 42],
+   [1 , 1        , 1        ]]]]);
+  });
 });
