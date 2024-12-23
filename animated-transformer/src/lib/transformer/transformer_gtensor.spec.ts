@@ -15,7 +15,7 @@ limitations under the License.
 
 import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as transformer from './transformer_gtensor';
-import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
+import { AttnHeadParamSpec, AttnHeadComputeSpec, ComputeMaskedAffinities } from './transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
@@ -95,5 +95,26 @@ describe('GTensor Transformers', () => {
       pos: task.config.maxInputLen + 1,
       inputRep,
     });
+  });
+
+  it('Compute masked self attention', () => {
+    const exampleAffinities = new GTensor(
+      tf.tensor([[
+        [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+        ],
+      ]]),
+      ['batch', 'heads', 'keyPos', 'queryPos']
+    );
+    const masked = ComputeMaskedAffinities(exampleAffinities).softmax('queryPos');
+
+    expect(masked.dimNames).toEqual(['batch', 'heads', 'keyPos', 'queryPos']);
+    tf.test_util.expectArraysClose(masked.tensor.arraySync(),
+      [[[[1, 0, 0],
+      [0.5, 0.5, 0],
+      [0.33, 0.33, 0.33]]
+    ]]);
   });
 });
