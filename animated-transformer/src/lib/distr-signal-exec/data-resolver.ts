@@ -1,7 +1,7 @@
 // ============================================================================
 
 import { JsonValue } from 'src/lib/json/json';
-import { LocalCacheStoreService } from '../localcache-store.service';
+import { LocalCacheStoreService } from '../../app/localcache-store.service';
 
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {

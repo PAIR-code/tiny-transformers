@@ -66,7 +66,7 @@ export class SetableNode<T> {
   constructor(
     public signalSpace: SignalSpace,
     public value: T,
-    options?: Partial<SetableOptions<T>>
+    options?: Partial<SetableOptions<T>>,
   ) {
     this.nodeId = signalSpace.nodeCount++;
     this.options = { ...defaultSetableOptions(), ...options };
@@ -75,7 +75,7 @@ export class SetableNode<T> {
 
   noteDependsOnMe(
     node: DerivedNode<unknown>,
-    depOptions?: Partial<SignalDepOptions>
+    depOptions?: Partial<SignalDepOptions>,
   ): SignalDepOptions {
     const newOptions: SignalDepOptions = {
       ...defaultDepOptions,
@@ -145,5 +145,14 @@ export class SetableNode<T> {
     }
     this.value = v;
     this.signalSpace.propegateValueUpdate(this as SetableNode<unknown>);
+  }
+
+  // Remove from the space, removing all things that depend on it in the space.
+  dispose() {
+    this.signalSpace.signalSet.delete(this as SetableNode<unknown>);
+
+    for (const d of this.dependsOnMe.keys()) {
+      d.dispose();
+    }
   }
 }

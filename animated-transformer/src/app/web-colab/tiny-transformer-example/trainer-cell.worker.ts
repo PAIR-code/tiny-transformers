@@ -19,7 +19,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { workerCell } from 'src/lib/weblab/lab-worker-cell';
+import { workerCell } from 'src/lib/distr-signal-exec/lab-worker-cell';
 import {
   Batch,
   ModelUpdateKind,
@@ -46,7 +46,7 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
-import { Metrics } from 'src/lib/weblab/cell-types';
+import { Metrics } from 'src/lib/distr-signal-exec/cell-types';
 import { makeRandomStream, RandomStream } from 'src/lib/random/random';
 
 // ----------------------------------------------------------------------------
@@ -81,7 +81,7 @@ function computeLoss(
   model: TransformerModel,
   randomStream: RandomStream,
   batch: Batch,
-  config: TrainConfig
+  config: TrainConfig,
 ): tf.Scalar {
   const lossComputeStartMs = Date.now();
   const gtensorInputs = strSeqPrepFnAddingFinalMask(model, batch.inputs, config);
@@ -179,7 +179,7 @@ cell.run(async () => {
   // you wanted.
   const varParamList = derivedNullable(
     () => listifyVarParams(defined(model).params).map((g) => g.variable),
-    { definedDeps: [model] }
+    { definedDeps: [model] },
   );
 
   let optimizer = tf.train.adam();
@@ -193,7 +193,7 @@ cell.run(async () => {
     optimizer.minimize(
       () => computeLoss(defined(model), randomStream, trainBatch, trainConfig()),
       false,
-      defined(varParamList)
+      defined(varParamList),
     );
     optimiserTime += Date.now() - startAtMs;
   }

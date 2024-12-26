@@ -22,7 +22,6 @@ limitations under the License.
  */
 
 import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/signalspace';
-import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 
 // export enum CellValueKind {
 //   Signal,
@@ -31,7 +30,7 @@ import { AsyncIterOnEvents } from './conjestion-controlled-exec';
 // export type KindHolder<T> = ((value: T) => void) & { kind: CellValueKind };
 export type KindHolder<T> = (value: T) => void;
 export function Kind<T>(value: T): void {
-  return;
+  throw Error('a Kind function should never be called; it is just a type holder');
 }
 
 // {
@@ -83,7 +82,7 @@ export class CellKind<
   Inputs extends ValueStruct,
   InputStreams extends ValueStruct,
   Outputs extends ValueStruct,
-  OutputStreams extends ValueStruct
+  OutputStreams extends ValueStruct,
 > {
   readonly inputNames: Set<keyof Inputs>;
   readonly outputNames: Set<keyof Outputs>;
@@ -102,7 +101,7 @@ export class CellKind<
       inStreams?: ValueKindFnStructFn<InputStreams>;
       outputs?: ValueKindFnStructFn<Outputs>;
       outStreams?: ValueKindFnStructFn<OutputStreams>;
-    }
+    },
   ) {
     this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<Inputs>);
     this.inStreams = this.data.inStreams || ({} as ValueKindFnStructFn<InputStreams>);
@@ -114,6 +113,8 @@ export class CellKind<
     this.outStreamNames = new Set(Object.keys(this.outStreams));
   }
 }
+
+export type SomeCellKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
 export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
 export type SetableSignalStructFn<S extends ValueStruct> = {

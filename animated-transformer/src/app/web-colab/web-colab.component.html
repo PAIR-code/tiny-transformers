@@ -22,6 +22,20 @@
     <div clas="page">
       <div class="header">
         <div class="path">{{ exp.id }}</div>
+        @switch (saveState) {
+          @case (SaveState.Empty) {
+            <div>[no project loaded]</div>
+          }
+          @case (SaveState.UncachedAndEdited) {
+            <div>[edited, uncached]</div>
+          }
+          @case (SaveState.CachedAndEdited) {
+            <div>[edited, cached]</div>
+          }
+          @case (SaveState.SavedToDisk) {
+            <div>[saved]</div>
+          }
+        }
         <div class="buttons">
           <div class="spacer"></div>
           <button
@@ -79,6 +93,7 @@
                 <mat-card>
                   <mat-card-content>
                     <app-section
+                      [(edited)]="edited"
                       [experiment]="exp"
                       [section]="section"
                     ></app-section>

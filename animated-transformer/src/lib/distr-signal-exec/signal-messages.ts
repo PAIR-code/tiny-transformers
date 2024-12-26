@@ -1,12 +1,25 @@
-// // The value send over a streaming port.
-// export type InputConfig = {
-//   conjestionFeedback: boolean;
-//   // Consider if we want feedback every N to minimise communication flow costs.
-// };
+/* Copyright 2023 Google LLC. All Rights Reserved.
 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+/**
+ * A set of class wrappers for signal-based communication over a web-worker like
+ * abstraction. This includes both signal values and streams of values.
+ * Input/Output is relative to the environment it is being executed in.
+ */
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
-import { OutStreamSendFn } from './cell-types';
-import { AsyncIterOnEvents } from './conjestion-controlled-exec';
+import { AsyncIterOnEvents } from './async-iter-on-events';
 import {
   ConjestionFeedbackMessage,
   LabMessage,
@@ -25,7 +38,7 @@ export class SignalOutput<T> {
   constructor(
     public space: SignalSpace,
     public id: string,
-    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void
+    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void,
   ) {}
 
   addPort(messagePort: MessagePort) {
@@ -56,7 +69,7 @@ export class SignalInput<T> {
   constructor(
     public space: SignalSpace,
     public id: string,
-    public defaultPostMessageFn: (v: LabMessage, ports?: MessagePort[]) => void
+    public defaultPostMessageFn: (v: LabMessage, ports?: MessagePort[]) => void,
   ) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
@@ -136,8 +149,8 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
     // Used to post conjestion control feedback.
     public defaultPostMessageFn: (
       m: ConjestionFeedbackMessage,
-      transerables?: Transferable[]
-    ) => void
+      transerables?: Transferable[],
+    ) => void,
   ) {
     this.inputIter = new AsyncIterOnEvents<T>();
 
@@ -216,7 +229,7 @@ export class SignalOutputStream<T> {
     public config: {
       conjestionControl: ConjestionControlConfig;
       defaultPostMessageFn?: (m: AddStreamValueMessage, transerables?: Transferable[]) => void;
-    }
+    },
   ) {
     if (this.config.defaultPostMessageFn) {
       const port = { postMessage: this.config.defaultPostMessageFn } as MessagePort;
@@ -251,7 +264,7 @@ export class SignalOutputStream<T> {
 
   conjestionFeedbackStateUpdate(
     conjestionFeedback: ConjestionFeedbackMessage,
-    state?: ConjestionState
+    state?: ConjestionState,
   ) {
     if (!state) {
       if (this.default) {

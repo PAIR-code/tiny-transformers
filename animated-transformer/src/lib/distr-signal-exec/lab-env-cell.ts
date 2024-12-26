@@ -28,7 +28,7 @@ import {
   LabMessageKind,
   SetSignalValueMessage,
   StreamValue,
-} from 'src/lib/weblab/lab-message-types';
+} from 'src/lib/distr-signal-exec/lab-message-types';
 import { AbstractSignal, SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
@@ -58,7 +58,10 @@ interface BasicWorker {
 }
 
 class LoggingMessagesWorker implements BasicWorker {
-  constructor(public worker: Worker, public id: string) {}
+  constructor(
+    public worker: Worker,
+    public id: string,
+  ) {}
 
   set onmessage(m: ((ev: MessageEvent) => any) | null) {
     if (m === null) {
@@ -85,44 +88,31 @@ export class LabEnvCell<
   I extends ValueStruct,
   IStream extends ValueStruct,
   O extends ValueStruct,
-  OStream extends ValueStruct
+  OStream extends ValueStruct,
 > {
   // Resolved once the webworker says it has finished.
   public onceFinished: Promise<void>;
   public onceAllOutputs: Promise<AbstractSignalStructFn<O>>;
   public worker: BasicWorker;
 
+  // Inputs to the worker can either be signal values from the environment, or
+  // they can be outputs from another cell (outputs from another cell as
+  // "SignalInput"s to the environment).
   inputs: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalInput<I[Key]> };
-
-  // { [Key in keyof I]: AbstractSignal<I[Key]> };
-
-  // inputStreams: SignalStructFn<IStream>;
-  // streamsFromEnv = {} as {
-  //   [Key in keyof IStream]: SignalOutputStream<Key & string, IStream[Key]>;
-  // };
+  // Note: From the environment's view, streams being given in to the worker are
+  // coming out of the environment.
   public inStream = {} as {
     [Key in keyof IStream]: SignalOutputStream<IStream[Key]>;
   };
 
-  // {} as AsyncOutStreamFn<IStream>;
-
-  // signalsInToEnv = {} as {
-  //   [Key in keyof O]: SignalInput<O[Key]>;
-  // };
+  // Note: from the environmnts perspective, worker cell outputs, are inputs to
+  // the environment.
   public outputs = {} as {
     [Key in keyof O]: SignalInput<O[Key]>;
   };
-
-  // PromiseStructFn<AbstractSignalStructFn<O>>;
-
-  // streamsInToEnv = {} as {
-  //   [Key in keyof OStream]: SignalInputStream<OStream[Key]>;
-  // };
   public outStream = {} as {
     [Key in keyof OStream]: SignalInputStream<OStream[Key]>;
   };
-
-  // SignalInputStream<OStream[Key]>  AsyncIterableFn<OStream>;
 
   public outputSoFar: Partial<AbstractSignalStructFn<O>>;
   public stillExpectedOutputs: Set<keyof O>;
@@ -132,11 +122,10 @@ export class LabEnvCell<
     public space: SignalSpace,
     public cellKind: CellKind<I, IStream, O, OStream>,
     public uses: {
-      // TODO: make better types: Maybe<SignalStructFn<I>> that is undefined when I={}
       inputs?: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalInput<I[Key]> };
       // inStreams?: AsyncIterableFn<IStream>;
     },
-    config?: LabEnvCellConfig
+    config?: LabEnvCellConfig,
   ) {
     let resolveWithAllOutputsFn: (output: AbstractSignalStructFn<O>) => void;
     this.onceAllOutputs = new Promise<AbstractSignalStructFn<O>>((resolve, reject) => {
@@ -166,9 +155,8 @@ export class LabEnvCell<
             resumeAtQueueSize: 10,
           },
           defaultPostMessageFn: (v, transerables) => this.worker.postMessage(v, transerables),
-        }
+        },
       );
-      // this.streamsFromEnv[streamName] = stream;
       this.inStream[streamName] = stream;
     }
 
@@ -176,11 +164,10 @@ export class LabEnvCell<
       const envInput = new SignalInput<O[keyof O]>(
         this.space,
         oName as keyof O & string,
-        (v, transerables) => this.worker.postMessage(v, transerables)
+        (v, transerables) => this.worker.postMessage(v, transerables),
       );
       this.outputs[oName] = envInput;
 
-      // this.outputs[oName] = envInput.onceReady;
       envInput.onceReady.then((signal) => {
         this.outputSoFar[oName] = signal;
         this.stillExpectedOutputs.delete(oName);
@@ -194,7 +181,7 @@ export class LabEnvCell<
       const envStreamInput = new SignalInputStream<OStream[keyof OStream]>(
         this.space,
         oStreamName as keyof OStream & string,
-        (m) => this.worker.postMessage(m)
+        (m) => this.worker.postMessage(m),
       );
       this.outStream[oStreamName] = envStreamInput;
     }
@@ -219,7 +206,7 @@ export class LabEnvCell<
           const oStreamName = messageFromWorker.streamId as keyof OStream & string;
           this.outStream[oStreamName].onAddValue(
             null,
-            messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>
+            messageFromWorker.value as StreamValue<OStream[keyof OStream & string]>,
           );
           break;
         }
@@ -244,32 +231,14 @@ export class LabEnvCell<
     for (const k of Object.keys(this.inputs)) {
       const input = this.inputs[k];
       if (input instanceof SignalInput) {
-        const channel = new MessageChannel();
-        // Note: ports are transferred to the worker.
-        const message: LabMessage = {
-          kind: LabMessageKind.PipeOutputSignal,
-          signalId: k,
-          ports: [channel.port2],
-        };
-        input.defaultPostMessageFn(message, message.ports);
-        this.pipeInputSignal(k, [channel.port1]);
+        this.assignInputViaPiping(k, input);
       } else {
-        //
-        this.space.derived(() => {
-          const value = input(); // Note signal dependency.
-          const message: SetSignalValueMessage = {
-            kind: LabMessageKind.SetSignalValue,
-            signalId: k,
-            value,
-          };
-          this.worker.postMessage(message);
-        });
+        this.assignInputFromSignal(k, input);
       }
     }
-
     // // In addition, whenever any of the "uses" variables are updated, we send
     // // the update to the worker.
-    // for (const key of spec.inputNames) {
+    // for (const key of kind.inputNames) {
     //   this.space.derived(() => {
     //     const value = this.inputs[key as keyof I](); // Note signal dependency.
     //     const message: SetSignalValueMessage = {
@@ -280,6 +249,30 @@ export class LabEnvCell<
     //     this.worker.postMessage(message);
     //   });
     // }
+  }
+
+  public assignInputViaPiping<K extends keyof I>(k: K, input: SignalInput<I[K]>) {
+    const channel = new MessageChannel();
+    // Note: ports are transferred to the worker.
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeOutputSignal,
+      signalId: k as string,
+      ports: [channel.port2],
+    };
+    input.defaultPostMessageFn(message, message.ports);
+    this.pipeInputSignal(k, [channel.port1]);
+  }
+
+  public assignInputFromSignal<K extends keyof I>(k: K, input: AbstractSignal<I[K]>) {
+    this.space.derived(() => {
+      const value = input(); // Note signal dependency.
+      const message: SetSignalValueMessage = {
+        kind: LabMessageKind.SetSignalValue,
+        signalId: k as string,
+        value,
+      };
+      this.worker.postMessage(message);
+    });
   }
 
   start() {
@@ -308,7 +301,7 @@ export class LabEnvCell<
   public pipeOutputSignal(
     signalId: keyof O,
     ports: MessagePort[],
-    options?: { keepHereToo: boolean }
+    options?: { keepHereToo: boolean },
   ) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeOutputSignal,
@@ -332,7 +325,7 @@ export class LabEnvCell<
   public pipeOutputStream(
     streamId: keyof OStream,
     ports: MessagePort[],
-    options?: { keepHereToo: boolean }
+    options?: { keepHereToo: boolean },
   ) {
     const message: LabMessage = {
       kind: LabMessageKind.PipeOutputStream,
@@ -346,83 +339,5 @@ export class LabEnvCell<
   // TODO: add some closing cleanup?
 }
 
-type SomeCellStateSpec = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
-type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
-
-// TODO: maybe define a special type of serializable
-// object that includes things with a toSerialise function?
-
-export class LabEnv {
-  space = new SignalSpace();
-  // metadata: Map<string, ItemMetaData> = new Map();
-  public runningCells: {
-    [name: string]: SomeCellStateSpec;
-  } = {};
-
-  init<
-    I extends ValueStruct,
-    IStreams extends ValueStruct,
-    O extends ValueStruct,
-    OStreams extends ValueStruct
-  >(
-    spec: CellKind<I, IStreams, O, OStreams>,
-    inputs?: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalInput<I[Key]> }
-  ): LabEnvCell<I, IStreams, O, OStreams> {
-    this.runningCells[spec.data.cellName] = spec as SomeCellStateSpec;
-    const envCell = new LabEnvCell(
-      spec.data.cellName,
-      this.space,
-      spec,
-      { inputs }
-      // { logCellMessagesName: spec.data.cellName }
-    );
-    envCell.onceFinished.then(() => delete this.runningCells[spec.data.cellName]);
-    return envCell;
-  }
-
-  start<
-    I extends ValueStruct,
-    IStreams extends ValueStruct,
-    O extends ValueStruct,
-    OStreams extends ValueStruct
-  >(
-    spec: CellKind<I, IStreams, O, OStreams>,
-    inputs?: AbstractSignalStructFn<I>
-  ): LabEnvCell<I, IStreams, O, OStreams> {
-    const envCell = this.init(spec, inputs);
-    envCell.start();
-    return envCell;
-  }
-
-  pipeSignal<
-    SourceOut extends ValueStruct,
-    TargetIn extends ValueStruct,
-    SignalId extends keyof SourceOut & keyof TargetIn & string
-  >(
-    sourceCell: LabEnvCell<ValueStruct, ValueStruct, SourceOut, ValueStruct>,
-    signalId: SignalId,
-    targetCell: LabEnvCell<TargetIn, ValueStruct, ValueStruct, ValueStruct>,
-    options?: { keepHereToo: boolean }
-  ) {
-    const channel = new MessageChannel();
-    sourceCell.pipeOutputSignal(signalId, [channel.port1], options);
-    targetCell.pipeInputSignal(signalId, [channel.port2]);
-    // TODO: keep track of channels between cells.
-  }
-
-  pipeStream<
-    SourceOut extends ValueStruct,
-    TargetIn extends ValueStruct,
-    SignalId extends keyof SourceOut & keyof TargetIn & string
-  >(
-    sourceCell: LabEnvCell<ValueStruct, ValueStruct, ValueStruct, SourceOut>,
-    signalId: SignalId,
-    targetCell: LabEnvCell<ValueStruct, TargetIn, ValueStruct, ValueStruct>,
-    options?: { keepHereToo: boolean }
-  ) {
-    const channel = new MessageChannel();
-    sourceCell.pipeOutputStream(signalId, [channel.port1], options);
-    targetCell.pipeInputStream(signalId, [channel.port2]);
-    // TODO: keep track of channels between cells.
-  }
-}
+export type SomeCellStateKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+export type SomeLabEnvCell = LabEnvCell<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;

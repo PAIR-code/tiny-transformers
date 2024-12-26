@@ -1,0 +1,68 @@
+<div #cellstatus class="cellStatus">
+  @if (status === CellStatus.NotStarted) {
+    <button icon-button matTooltip="Start" aria-label="Start" (click)="start()">
+      <mat-icon>start</mat-icon>
+    </button>
+  } @else if (status === CellStatus.Running && !stopRequested) {
+    <button
+      icon-button
+      matTooltip="Request Stop"
+      aria-label="Request Stop"
+      (click)="requestStop()"
+    >
+      <mat-icon>stop</mat-icon>
+    </button>
+  } @else if (status === CellStatus.Running && stopRequested) {
+    <button
+      icon-button
+      matTooltip="Force Stop"
+      aria-label="Force Stop"
+      (click)="forceStop()"
+    >
+      <mat-icon>force stop</mat-icon>
+    </button>
+  }
+  <button
+    icon-button
+    matTooltip="Restart"
+    aria-label="Restart"
+    (click)="restart()"
+  >
+    <mat-icon>restart</mat-icon>
+  </button>
+</div>
+<div>
+  <!-- @let data =  -->
+  <div>
+    Inputs:
+    <div>
+      @for (i of inputs(); track $index) {
+        {{ i }}
+      }
+    </div>
+  </div>
+  <div>
+    Outputs:
+    <div>
+      @for (i of outputs(); track $index) {
+        {{ i }}
+      }
+    </div>
+  </div>
+  <div>
+    InStreams:
+    <div>
+      @for (i of inStreams(); track $index) {
+        {{ i }}
+      }
+    </div>
+  </div>
+  <div>
+    OuStreams:
+    <div>
+      @for (i of outStreams(); track $index) {
+        {{ i }}
+      }
+    </div>
+  </div>
+</div>

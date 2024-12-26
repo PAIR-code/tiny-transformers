@@ -15,12 +15,13 @@ limitations under the License.
 
 import { LabEnv } from './lab-env';
 import { exampleCellAbstract } from './example.ailab';
+import { SignalSpace } from '../signalspace/signalspace';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
 
   it('Running a simple cell', async () => {
-    const env = new LabEnv();
+    const env = new LabEnv(new SignalSpace());
     const sayHiToName = env.space.setable('Foo');
     const cell = env.start(exampleCellAbstract, { sayHiToName });
 

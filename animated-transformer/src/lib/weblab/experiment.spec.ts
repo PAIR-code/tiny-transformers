@@ -16,11 +16,11 @@ import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   ExpDefKind,
   SectionKind,
-  InMemoryDataResolver,
   loadExperiment,
   ExpSectionDataDef,
   SectionDef,
 } from './experiment';
+import { InMemoryDataResolver } from '../distr-signal-exec/data-resolver';
 
 describe('experiment', () => {
   beforeEach(() => {});

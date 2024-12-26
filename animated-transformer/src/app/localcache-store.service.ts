@@ -45,14 +45,14 @@ export class LocalCacheStoreService {
   }
 
   async deleteFileCache(path: string): Promise<void> {
-    localStorage.removeItem(path);
+    localStorage.removeItem(itemPathToId(path));
   }
 
-  async setDefaultFile(path: string): Promise<void> {
+  async setDefaultPath(path: string): Promise<void> {
     localStorage.setItem(DEFAULT_STORAGE_ID, path);
   }
 
-  async getDefaultFile(): Promise<string | null> {
+  async getDefaultPath(): Promise<string | null> {
     return localStorage.getItem(DEFAULT_STORAGE_ID);
   }
 }

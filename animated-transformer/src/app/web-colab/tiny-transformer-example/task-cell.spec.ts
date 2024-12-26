@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { Batch, taskCellSpec, TaskGenConfig } from './ailab';
-import { LabEnv } from 'src/lib/weblab/lab-env';
+import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 describe('Task-Cell', () => {

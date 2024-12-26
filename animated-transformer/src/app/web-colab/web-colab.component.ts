@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, computed, Signal, signal } from '@angular/core';
+import { Component, computed, effect, Signal, signal } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { LabEnv } from 'src/lib/weblab/lab-env';
+import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,22 +35,32 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
+  DistrSerialization,
   // ExpCellDisplayKind,
   ExpDefKind,
   Experiment,
-  ExpSectionDataDef,
   loadExperiment,
   saveExperiment,
-  SectionDataDef,
-  SectionKind,
-} from './experiment';
+} from '../../lib/weblab/experiment';
 import { LocalCacheStoreService } from '../localcache-store.service';
 import {
   AbstractDataResolver,
   BrowserDirDataResolver,
   LocalCacheDataResolver,
-} from './data-resolver';
+} from '../../lib/distr-signal-exec/data-resolver';
 import { SectionComponent } from './section/section.component';
+import { ExpSectionDataDef, SectionDataDef, SectionKind } from 'src/lib/weblab/section';
+
+type Timeout = {};
+
+// TODO: record the edited timestamp, and path, and then check with localfile to
+// see if this is latest, or edited.
+enum SaveState {
+  Empty, // not experiment is opened
+  UncachedAndEdited, // opened, but latest edits not saved or cached.
+  CachedAndEdited, // opened, cached, but not saved.
+  SavedToDisk, // opened, cached and saved to disk.
+}
 
 @Component({
   selector: 'app-web-colab',
@@ -82,10 +92,17 @@ export class WebColabComponent {
   env: LabEnv;
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
+  edited = signal<boolean>(false);
+  saveState: SaveState = SaveState.Empty;
   viewPath: Signal<Experiment[]>;
-  dataResolver?: AbstractDataResolver<SectionDataDef>;
+  fileDataResolver?: AbstractDataResolver<SectionDataDef>;
+  cacheDataResolver: LocalCacheDataResolver<SectionDataDef>;
+  saveToCachePlannedCallback?: Timeout;
 
-  loading: boolean = true;
+  loading: boolean = false;
+  saving: boolean = false;
+
+  SaveState = SaveState;
 
   constructor(
     private route: ActivatedRoute,
@@ -93,8 +110,8 @@ export class WebColabComponent {
     public dialog: MatDialog,
     public localCache: LocalCacheStoreService,
   ) {
-    this.env = new LabEnv();
     this.space = new SignalSpace();
+    this.env = new LabEnv(this.space);
 
     this.viewPath = computed(() => {
       const exp = this.experiment();
@@ -105,26 +122,80 @@ export class WebColabComponent {
       }
     });
 
-    this.loadDefault();
+    this.cacheDataResolver = new LocalCacheDataResolver<SectionDataDef>(this.localCache);
+    // Idea: save as a directory, not a file?
+    // TODO: avoid race condition and make later stuff happen after this...?
+    this.localCache.setDefaultPath('experiment.json');
+
+    this.tryLoadExperimentFromCache();
+
+    effect(() => {
+      if (this.edited() && !this.saveToCachePlannedCallback) {
+        this.saveState = SaveState.UncachedAndEdited;
+        this.saveToCachePlannedCallback = setTimeout(() => {
+          this.saveExperimentToCache();
+        }, 5000);
+      }
+    });
   }
 
-  async loadDefault() {
-    this.loading = true;
-    this.dataResolver = new LocalCacheDataResolver(this.localCache);
-    const cachedFilePath = await this.localCache.getDefaultFile();
+  async deleteExperimentCache(): Promise<void> {
+    const cachedFilePath = await this.localCache.getDefaultPath();
     if (!cachedFilePath) {
-      this.loading = false;
+      throw new Error('deleteCached: no getDefaultFile');
+    }
+    const experiment = this.experiment();
+    if (!experiment) {
+      console.log('deleteCached: no experiment');
+      // No error because this might happen with timeout cache saving callbacks.
       return;
+    }
+    await this.localCache.deleteFileCache(cachedFilePath);
+    console.log(`deleteCached: deleted: ${cachedFilePath}`);
+    const distrS = experiment.serialise();
+    if (distrS.subpathData) {
+      for (const kPath of Object.keys(distrS.subpathData)) {
+        await this.localCache.deleteFileCache(kPath);
+        console.log(`deleteCached: deleted: ${kPath}`);
+      }
+    }
+  }
+
+  async tryLoadExperimentFromCache() {
+    const cachedFilePath = await this.localCache.getDefaultPath();
+    if (!cachedFilePath) {
+      throw new Error(`missing localCache.getDefaultPath`);
     }
     const cachedExpData = await this.localCache.loadFileCache<ExpSectionDataDef>(cachedFilePath);
     if (!cachedExpData) {
-      console.warn(`No cached data at local cached file path: ${cachedFilePath}`);
-      this.loading = false;
       return;
     }
-    const exp = await loadExperiment(this.dataResolver, this.space, cachedExpData);
+    this.loading = true;
+    const exp = await loadExperiment(this.cacheDataResolver, this.env, cachedExpData);
     this.experiment.set(exp);
     this.loading = false;
+    this.saveState = SaveState.CachedAndEdited;
+  }
+
+  async saveExperimentToCache(): Promise<DistrSerialization<
+    SectionDataDef,
+    SectionDataDef
+  > | null> {
+    const experiment = this.experiment();
+    if (
+      !experiment ||
+      this.saveState === SaveState.CachedAndEdited ||
+      this.saveState === SaveState.SavedToDisk
+    ) {
+      // No error because this might happen with timeout cache saving callbacks.
+      return null;
+    }
+    this.saving = true;
+    const distrS = experiment.serialise();
+    await saveExperiment(this.cacheDataResolver, 'experiment.json', distrS);
+    this.saveState = SaveState.CachedAndEdited;
+    this.saving = false;
+    return distrS;
   }
 
   clearError() {
@@ -142,7 +213,7 @@ export class WebColabComponent {
         content: [],
       },
     };
-    const exp = new Experiment(this.space, [], initExpDef);
+    const exp = new Experiment(this.env, [], initExpDef);
     const sec1: SectionDataDef = {
       kind: ExpDefKind.Data,
       id: 'about',
@@ -168,6 +239,9 @@ export class WebColabComponent {
     exp.appendLeafSectionFromDataDef(sec1);
     exp.appendLeafSectionFromDataDef(sec2);
     this.experiment.set(exp);
+    await this.saveExperimentToCache();
+    this.edited.set(true);
+    this.saveState = SaveState.CachedAndEdited;
   }
 
   async doRun() {
@@ -177,35 +251,47 @@ export class WebColabComponent {
     // cell.worker.terminate();
   }
 
-  async saveExperiment(experiment: Experiment) {
-    if (!this.dataResolver) {
-      const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
-      this.dataResolver = new BrowserDirDataResolver(dirHandle);
-    }
-    const distrS = experiment.serialise();
-    console.log(distrS);
-    saveExperiment(this.dataResolver, 'experiment.json', distrS);
+  async closeExperiment() {
+    await this.deleteExperimentCache();
+    this.experiment.set(null);
+    delete this.fileDataResolver;
+    this.saveState = SaveState.Empty;
   }
 
-  closeExperiment() {
-    this.experiment.set(null);
-    delete this.dataResolver;
+  async saveExperiment(experiment: Experiment) {
+    this.saving = true;
+    const distrS = await this.saveExperimentToCache();
+    if (!distrS) {
+      this.saving = false;
+      this.saveState = SaveState.SavedToDisk;
+      return;
+    }
+    if (!this.fileDataResolver) {
+      const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
+      this.fileDataResolver = new BrowserDirDataResolver(dirHandle);
+    }
+    await saveExperiment(this.fileDataResolver, 'experiment.json', distrS);
+    this.saving = false;
+    this.saveState = SaveState.SavedToDisk;
   }
 
   async loadExperiment() {
     this.loading = true;
     try {
       const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
-      this.dataResolver = new BrowserDirDataResolver(dirHandle);
-      const secDataDef = await this.dataResolver.load('experiment.json');
+      this.fileDataResolver = new BrowserDirDataResolver(dirHandle);
+      const secDataDef = await this.fileDataResolver.load('experiment.json');
       // TODO: actually do some validation...
       const expDef = secDataDef as ExpSectionDataDef;
-      const exp = await loadExperiment(this.dataResolver, this.space, expDef);
+      const exp = await loadExperiment(this.fileDataResolver, this.env, expDef);
+      await this.deleteExperimentCache();
       this.experiment.set(exp);
     } catch (error) {
       this.error = (error as Error).message;
       console.log(error);
     }
+    await this.saveExperimentToCache();
+    this.saveState = SaveState.SavedToDisk;
     this.loading = false;
   }
 
