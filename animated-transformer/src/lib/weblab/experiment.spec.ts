@@ -12,15 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import {
-  ExpDefKind,
-  SectionKind,
-  loadExperiment,
-  ExpSectionDataDef,
-  SectionDef,
-} from './experiment';
+import { ExpDefKind, loadExperiment } from './experiment';
 import { InMemoryDataResolver } from '../distr-signal-exec/data-resolver';
+import { ExpSectionDataDef, SectionDef, SectionKind } from './section';
+import { LabEnv } from '../distr-signal-exec/lab-env';
 
 describe('experiment', () => {
   beforeEach(() => {});
@@ -96,7 +93,8 @@ describe('experiment', () => {
     });
 
     const space = new SignalSpace();
-    const exp1 = await loadExperiment(dataResolver, space, exp1Data);
+    const env = new LabEnv(space);
+    const exp1 = await loadExperiment(dataResolver, env, exp1Data);
 
     const { data, subpathData } = exp1.serialise();
 

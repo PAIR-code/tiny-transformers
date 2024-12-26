@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { AsyncIterOnEvents } from './conjestion-controlled-exec';
+import { AsyncIterOnEvents } from './async-iter-on-events';
 
-describe('conjestion-controlled-exec.ts', () => {
+describe('async-iter-on-events', () => {
   beforeEach(async () => {});
 
   function sleep(ms: number): Promise<void> {
