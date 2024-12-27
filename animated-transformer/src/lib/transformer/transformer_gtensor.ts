@@ -535,6 +535,20 @@ export function lastTokenCrossEntropyLoss(
   // return loss.tensor;
 }
 
+/**
+ * Compute the logits for all the past tokens of a transformer
+ */
+export function AllPastTokensLogits(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  const lastLayer = computation.layers[computation.layers.length - 1];
+  const logits = lastLayer.seqOuput.contract(model.params.tokenEmbedding, ['inputRep']);
+  return logits;
+}
+
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.
