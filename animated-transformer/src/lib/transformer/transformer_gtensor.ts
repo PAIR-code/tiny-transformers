@@ -549,6 +549,21 @@ export function AllPastTokensLogits(
   return logits;
 }
 
+/**
+ * Returns the Softmax Cross Entropy Loss between the logits and the oneHotEncoded targets
+ * Batch compute the loss for all the past tokens of a transformer.
+ */
+export function AllPastTokensCrossEntropyLoss(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
+  oneHotToken: GTensor<'batch'| 'pos'| 'tokenId'>
+): tf.Scalar {
+  const logits = AllPastTokensLogits(model, computation);
+  const crossEntropyLoss = tf.losses.softmaxCrossEntropy(oneHotToken.tensor,logits.tensor);
+  return crossEntropyLoss.asScalar()
+}
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.
