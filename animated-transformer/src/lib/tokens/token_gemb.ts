@@ -165,7 +165,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   const padToken = '[PAD]';
   const eosToken = '[EOS]';
   const spaceToken = ' '
-  const vocab = [...baseVocab, maskToken, padToken, eosToken];
+  const vocab = [spaceToken, ...baseVocab, maskToken, padToken, eosToken];
   const tokenToIdx: { [token: string]: number } = {};
   vocab.forEach((t, i) => (tokenToIdx[t] = i));
 
@@ -173,6 +173,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   //   vocab,
   //   makeTruncNormal({ token: vocab.length, inputRep: repSize })
   // );
+
   const idxToOneHot : {[tokenIdx: number]: number[] } = {};
   const oneHotTokens : number[] | any[] = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync()];
   Object.values(tokenToIdx).forEach((i) => (idxToOneHot[i] = oneHotTokens[0][i]));
@@ -278,17 +279,16 @@ export function singleNextTokenIdxOutputPrepFn(
     ['batch']
   );
 }
-
 /*
  Creates two GTensors:
  - One contains the list of targets per token/position in each sample of the batch
  - The other contains the tokenId representation of the tokens on the previous list
 */
-export function NextTokenPerPosIdxOutputPrepFn(
+ export function NextTokenPerPosIdxOutputPrepFn(
   model: { config: { tokenRep: BasicTaskTokenRep } },
   inputSeqs: string[][],
   expectedOutputs: string[][],
-): [GTensor<'batch' | 'pos' | 'tokenId'>, GTensor<'batch' | 'pos'>] {
+): GTensor<'batch' | 'pos' | 'tokenId'> {
   // Compute Token rep for inputSeq
   const inputTokenRep = inputSeqs.map((SingleSample) => SingleSample.map((token) => model.config.tokenRep.tokenToIdx[token]))
    // Compute Token rep for inputSeq
@@ -297,9 +297,9 @@ export function NextTokenPerPosIdxOutputPrepFn(
   let shiftedInputs = inputTokenRep.map((x) => x.slice(1, ))
   const idxTargets = outTokenRep.map((y, index) => shiftedInputs[index].concat(y))
   const oneHotTargets = idxTargets.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
-  return [new GTensor(tf.tensor(oneHotTargets),['batch', 'pos', 'tokenId']),
-    new GTensor(tf.tensor(idxTargets),['batch', 'pos'])];
+  return new GTensor(tf.tensor(oneHotTargets),['batch', 'pos', 'tokenId']);
 }
+
 
 export function padInputSeqStart(
   paddingToken: string,
