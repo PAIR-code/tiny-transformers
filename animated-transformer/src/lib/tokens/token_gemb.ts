@@ -165,7 +165,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   const padToken = '[PAD]';
   const eosToken = '[EOS]';
   const spaceToken = ' '
-  const vocab = [spaceToken, ...baseVocab, maskToken, padToken, eosToken];
+  const vocab = [ ...baseVocab, maskToken, padToken, eosToken, spaceToken];
   const tokenToIdx: { [token: string]: number } = {};
   vocab.forEach((t, i) => (tokenToIdx[t] = i));
 
