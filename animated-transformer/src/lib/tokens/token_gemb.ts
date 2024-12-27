@@ -149,6 +149,7 @@ export type BasicTaskTokenRep = {
   maskToken: string;
   padToken: string;
   eosToken: string;
+  spaceToken: string;
   // tokens is all tokens, including mask, pod, eos, etc
   tokens: string[];
   tokenToIdx: { [token: string]: number };
@@ -162,6 +163,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   const maskToken = '[MASK]';
   const padToken = '[PAD]';
   const eosToken = '[EOS]';
+  const spaceToken = ' '
   const vocab = [...baseVocab, maskToken, padToken, eosToken];
   const tokenToIdx: { [token: string]: number } = {};
   vocab.forEach((t, i) => (tokenToIdx[t] = i));
@@ -174,6 +176,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
     maskToken,
     padToken,
     eosToken,
+    spaceToken,
     tokens: vocab,
     tokenToIdx,
   };
