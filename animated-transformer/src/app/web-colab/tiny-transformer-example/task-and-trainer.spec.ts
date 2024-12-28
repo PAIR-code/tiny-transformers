@@ -97,7 +97,7 @@ describe('Trainer-Cell', () => {
     // ------------------------------------------------------------------------
     // Two different ways to think about working with output streams...
     // 1. reactive by turning it into a signal.
-    const metrics = asyncIterToSignal(trainerCell.outStream.metrics, space);
+    const metrics = asyncIterToSignal(trainerCell.outStreams.metrics, space);
     // Note: only do this if you are sure that you will get some value.otherwise
     // you might get stuck waiting forever. If the metrics stream is empty, then
     // this will reject, which if not handled will crash stuff.
@@ -106,7 +106,7 @@ describe('Trainer-Cell', () => {
     // 2. In thread, with async for loop. This is safer in the sense that the
     //    loop will end if the checkpoint stream is empty.
     const chpts = [];
-    for await (const chpt of trainerCell.outStream.checkpoint) {
+    for await (const chpt of trainerCell.outStreams.checkpoint) {
       chpts.push(chpt);
     }
 

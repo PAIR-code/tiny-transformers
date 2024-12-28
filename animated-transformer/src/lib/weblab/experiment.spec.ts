@@ -15,7 +15,7 @@ limitations under the License.
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { ExpDefKind, loadExperiment } from './experiment';
-import { InMemoryDataResolver } from '../distr-signal-exec/data-resolver';
+import { InMemoryDataResolver } from './data-resolver';
 import { ExpSectionDataDef, SectionDef, SectionKind } from './section';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 

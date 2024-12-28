@@ -31,12 +31,29 @@ limitations under the License.
  */
 
 import { JsonValue } from 'src/lib/json/json';
-import { DerivedSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { AbstractDataResolver } from '../distr-signal-exec/data-resolver';
+import {
+  AbstractSignal,
+  DerivedSignal,
+  SetableSignal,
+  SignalSpace,
+} from 'src/lib/signalspace/signalspace';
+import { AbstractDataResolver } from './data-resolver';
 import { SomeLabEnvCell } from '../distr-signal-exec/lab-env-cell';
 import { LabEnv } from '../distr-signal-exec/lab-env';
-import { SomeCellKind } from '../distr-signal-exec/cell-types';
+import {
+  CellKind,
+  Kind,
+  SomeCellKind,
+  ValueKindFnStruct,
+  ValueStruct,
+} from '../distr-signal-exec/cell-types';
 import { ExpDefKind, Experiment } from './experiment';
+import {
+  AbstractSignalReceiveEnd,
+  AbstractStreamReceiveEnd,
+  AbstractSignalSendEnd,
+  AbstractStreamSendEnd,
+} from '../distr-signal-exec/signal-messages';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
@@ -62,17 +79,75 @@ export type CellSectionInput =
       cellOutSignalId: string;
     };
 
+export enum CellRefKind {
+  Registry = 'Registry',
+  Url = 'Url',
+}
+
+export type cellRefKind =
+  | {
+      kind: CellRefKind.Registry;
+      registryCellKindId: string;
+    }
+  | {
+      kind: CellRefKind.Url;
+      url: string;
+    };
+
 export type CellSectionContent = {
   // ID of the cell, to lookup from a table of registered cell kinds.
-  cellRef: string;
+  cellRef: cellRefKind;
   // How inputs to this cell map to either outputs from other cells, or raw
   // JsonObj values.
   inputs: { [inputId: string]: CellSectionInput };
   // Names of the outputs for
   outputIds: string[];
-  inStreams: { [inStreamId: string]: { cellId: string; cellOutStreamId: string } };
+  inStreams: { [inStreamId: string]: { cellSectionId: string; cellOutStreamId: string } };
   outStreamIds: string[];
 };
+
+function cellKindFromContent(
+  c: CellSectionContent,
+  registry: Map<string, SomeCellKind>,
+  sectionId: string,
+): SomeCellKind {
+  const cRef = c.cellRef;
+  if (cRef.kind === CellRefKind.Registry) {
+    const cellKind = registry.get(cRef.registryCellKindId);
+    if (!cellKind) {
+      throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
+    }
+    return cellKind;
+  } else if (cRef.kind === CellRefKind.Url) {
+    const url = cRef.url;
+    const inputs: ValueKindFnStruct = {};
+    for (const [k, _] of Object.entries(c.inputs)) {
+      inputs[k] = Kind<unknown>;
+    }
+    const inStreams: ValueKindFnStruct = {};
+    for (const [k, _] of Object.entries(c.inStreams)) {
+      inStreams[k] = Kind<unknown>;
+    }
+    const outputs: ValueKindFnStruct = {};
+    for (const k of c.outputIds) {
+      outputs[k] = Kind<unknown>;
+    }
+    const outStreams: ValueKindFnStruct = {};
+    for (const k of c.outStreamIds) {
+      outStreams[k] = Kind<unknown>;
+    }
+    return new CellKind({
+      cellKindId: sectionId,
+      workerFn: () => new Worker(url),
+      inputs,
+      inStreams,
+      outputs,
+      outStreams,
+    });
+  } else {
+    throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
+  }
+}
 
 export type SectionData<Kind extends SectionKind, T> = {
   sectionKind: Kind;
@@ -150,7 +225,72 @@ export enum CellSectionStatus {
   Static = 'Static',
 }
 
+export type SectionInterface<
+  I extends ValueStruct,
+  IStream extends ValueStruct,
+  O extends ValueStruct,
+  OStream extends ValueStruct,
+> = {
+  // Inputs to this section are inputs from somewhere else, or a signal value.
+  inputs: { [Key in keyof I]: AbstractSignal<I[Key]> | AbstractSignalReceiveEnd<I[Key]> };
+  // Note: From the section's view, streams being given in must be coming out of
+  // the somewhere else.
+  inStream: {
+    [Key in keyof IStream]: AbstractStreamSendEnd<IStream[Key]>;
+  };
+  // Note: outputs are possible inputs to other places.
+  outputs: {
+    [Key in keyof O]: AbstractSignalReceiveEnd<O[Key]>;
+  };
+  outStream: {
+    [Key in keyof OStream]: AbstractStreamReceiveEnd<OStream[Key]>;
+  };
+};
+
+export const EmptyInterface = {
+  inputs: {},
+  outputs: {},
+  inStream: {},
+  outStream: {},
+};
+
+export type SomeSectionInterface = SectionInterface<
+  ValueStruct,
+  ValueStruct,
+  ValueStruct,
+  ValueStruct
+>;
+
 // ============================================================================
+// CONSIDER: Have a few different kinds of sections, one for cells, etc.
+export abstract class AbstractSection<
+  I extends ValueStruct,
+  IStream extends ValueStruct,
+  O extends ValueStruct,
+  OStream extends ValueStruct,
+> {
+  // The experiment this section is part of.
+  abstract experiment: Experiment;
+
+  // Any other sections in the experiment that reference this one.
+  public references: Set<Section> = new Set();
+
+  // The definition data.
+  abstract def: SectionDef;
+
+  // The Section data (loaded from path of def, or dereferenced), including
+  // meta-data.
+  abstract data: SetableSignal<SectionDataDef>;
+  // The content part of the data.
+  abstract content: SetableSignal<ContentOf<SomeSectionData>>;
+
+  abstract interface: SectionInterface<I, IStream, O, OStream>;
+
+  abstract serialise(): DistrSerialization<SectionDef, SectionDataDef>;
+}
+
+// ============================================================================
+// CONSIDER: Have a few different kinds of sections, one for cells, etc.
 export class Section {
   // References to this section.
   references: Set<Section> = new Set();
@@ -167,6 +307,8 @@ export class Section {
   // operation? To think about.
   dataUpdateDep: DerivedSignal<void>;
 
+  // interface: SomeSectionInterface;
+
   constructor(
     public experiment: Experiment,
     public def: SectionDef,
@@ -175,10 +317,25 @@ export class Section {
   ) {
     // Consider if this needs to be a dynamic signal.
     if (this.data().sectionData.sectionKind === SectionKind.Cell) {
+      // this.status === CellSectionStatus.NotStarted ==> content(): CellSectionContent
       this.status = CellSectionStatus.NotStarted;
+      const contentAsCellKind: CellSectionContent = this.content() as CellSectionContent;
+      const cellKind = cellKindFromContent(contentAsCellKind, experiment.cellRegistry, this.def.id);
       this.cell = this.experiment.env.init(cellKind);
+      // this.interface = this.cell;
     } else {
       this.status = CellSectionStatus.Static;
+      // if (this.data().sectionData.sectionKind === SectionKind.JsonObj) {
+      //   const content: AbstractSignal<JsonValue> = this.content as AbstractSignal<JsonValue>;
+      //   this.interface = {
+      //     inputs: {},
+      //     outputs: { jsonObj: { onceReady: Promise.resolve(content) } },
+      //     inStream: {},
+      //     outStream: {},
+      //   };
+      // } else {
+      //   this.interface = EmptyInterface
+      // }
     }
 
     // Note: assumes that this.data is made up of it's parts, and not the parts
@@ -190,44 +347,34 @@ export class Section {
     });
   }
 
-  startCell() {
+  // Connect the cell in this section to it's inputs/outputs in the experiment.
+  connectCell() {
     if (this.status !== CellSectionStatus.NotStarted) {
-      throw new Error('Can only start a not-started cell');
+      throw new Error('Can only start a connect a not-started cell');
     }
-
-    // this.status === CellSectionStatus.NotStarted ==>
+    if (!this.cell) {
+      throw new Error('Can only connect a section with a cell');
+    }
+    // this.status === CellSectionStatus.NotStarted ==> content(): CellSectionContent
     const contentAsCellKind: CellSectionContent = this.content() as CellSectionContent;
     for (const [inputId, cellInputRef] of Object.entries(contentAsCellKind.inputs)) {
       if (cellInputRef.kind === CellSectionInputKind.FromJsonSection) {
-        const section = this.experiment.sectionMap.get(cellInputRef.sectionId);
-        if (!section) {
-          throw Error(`No such section: ${cellInputRef.sectionId}`);
-        }
-        if (section.data().sectionData.sectionKind !== SectionKind.JsonObj) {
-          throw Error(
-            `Section Id (${cellInputRef.sectionId}) was not JsonObj (was: ${section.data().sectionData.sectionKind})`,
-          );
-        }
-        this.cell.assignInputFromSignal(inputId, section.content);
+        const jsonObjSignal = this.experiment.getJsonSectionContent(cellInputRef.sectionId);
+        this.cell.assignInputFromSignal(inputId, jsonObjSignal);
       } else if (cellInputRef.kind === CellSectionInputKind.FromCellOutput) {
-        const section = this.experiment.sectionMap.get(cellInputRef.cellSectionId);
-        if (!section) {
-          throw Error(`No such section: ${cellInputRef.cellSectionId}`);
-        }
-        if (section.data().sectionData.sectionKind !== SectionKind.Cell) {
-          throw Error(
-            `Section Id (${cellInputRef.cellSectionId}) was not Cell (was: ${section.data().sectionData.sectionKind})`,
-          );
-        }
-        const sectionCellContent = section.content() as CellSectionContent;
-        // TODO:
-        this.cell.assignInputViaPiping(inputId, sectionCellContent.outputIds);
+        const secLabCell = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
+        this.cell.assignInputViaPiping(inputId, secLabCell.outputs[cellInputRef.cellOutSignalId]);
       } else {
         throw Error(`Unknown CellSectionInput (${inputId}): ${JSON.stringify(cellInputRef)}`);
       }
     }
-    this.cellData().content.inStreams;
-    this.cell.start();
+    for (const [inputId, cellInputRef] of Object.entries(contentAsCellKind.inStreams)) {
+      const secLabCell = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
+      this.cell.assignInStreamViaPiping(
+        inputId,
+        secLabCell.outStreams[cellInputRef.cellOutStreamId],
+      );
+    }
   }
 
   serialise(): DistrSerialization<SectionDef, SectionDataDef> {

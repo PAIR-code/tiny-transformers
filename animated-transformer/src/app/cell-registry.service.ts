@@ -11,7 +11,7 @@ export class CellRegistryService {
   public registry = new Map<string, SomeCellKind>();
 
   constructor() {
-    this.registry.set(taskCellSpec.data.cellName, taskCellSpec);
-    this.registry.set(trainerCellSpec.data.cellName, trainerCellSpec);
+    this.registry.set(taskCellSpec.data.cellKindId, taskCellSpec);
+    this.registry.set(trainerCellSpec.data.cellKindId, trainerCellSpec);
   }
 }

@@ -31,8 +31,8 @@ limitations under the License.
  */
 
 import { JsonValue } from 'src/lib/json/json';
-import { SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { AbstractDataResolver } from '../distr-signal-exec/data-resolver';
+import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
+import { AbstractDataResolver } from './data-resolver';
 import { SomeLabEnvCell } from '../distr-signal-exec/lab-env-cell';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import { SomeCellKind } from '../distr-signal-exec/cell-types';
@@ -75,6 +75,11 @@ function sectionListEqCheck(sections1: Section[], sections2: Section[]): boolean
 // ============================================================================
 export class Experiment {
   space: SignalSpace;
+
+  // Map from a cellKind Id to a CellKind obj Set during/before creation of
+  // experiment to allow creation of cellKinds needed in a section to create a
+  // cell.
+  cellRegistry: Map<string, SomeCellKind> = new Map();
 
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
@@ -149,6 +154,33 @@ export class Experiment {
     return section;
   }
 
+  getJsonSectionContent(sectionId: string): AbstractSignal<JsonValue> {
+    const section = this.sectionMap.get(sectionId);
+    if (!section) {
+      throw Error(`No such section: ${sectionId}`);
+    }
+    const sectionKind = section.data().sectionData.sectionKind;
+    if (sectionKind !== SectionKind.JsonObj) {
+      throw Error(`Section Id (${sectionId}) was not JsonObj (was: ${sectionKind})`);
+    }
+    return section.content;
+  }
+
+  getSectionLabCell(sectionId: string): SomeLabEnvCell {
+    const section = this.sectionMap.get(sectionId);
+    if (!section) {
+      throw Error(`No such section: ${sectionId}`);
+    }
+    const sectionKind = section.data().sectionData.sectionKind;
+    if (sectionKind !== SectionKind.Cell) {
+      throw Error(`Section Id (${sectionId}) was not Cell (was: ${sectionKind})`);
+    }
+    if (!section.cell) {
+      throw Error(`Section Id (${sectionId}) was missing cell property`);
+    }
+    return section.cell;
+  }
+
   // Note: this.data() should contain the same as serialisedSections.map((s) => s.data);
   serialise(): DistrSerialization<SectionDataDef, SectionDataDef> {
     const allSubPathData = {} as { [path: string]: SectionDataDef };
@@ -201,6 +233,10 @@ export async function loadExperiment(
   const loadingMap: Map<string, NodeBeingLoaded> = new Map();
   loadingMap.set(data.id, topLevelNodeTree);
 
+  // Tracking these to connect them (the various input/output
+  // connections/streams) after.
+  const cellSections: Section[] = [];
+
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
   const loadNodeStack: NodeBeingLoaded[] = [];
@@ -212,15 +248,17 @@ export async function loadExperiment(
         const setableDataDef = space.setable(sectionData);
         const setableDataContent = space.setable(sectionData.sectionData.content);
         nodeDataMap.set(sectionData.id, setableDataDef);
-        const expSection = new Section(
+        const section = new Section(
           topLevelExperiment,
           sectionData,
           setableDataDef,
           setableDataContent,
         );
-        sectionMap.set(sectionData.id, expSection);
+        sectionMap.set(sectionData.id, section);
         if (sectionData.sectionData.sectionKind === SectionKind.SubExperiment) {
-          expSection.subExperiment = new Experiment(
+          // TODO: think about if we really want sub-experiments..., maybe
+          // better just subsections?
+          section.subExperiment = new Experiment(
             env,
             [...cur.exp.ancestors, cur.exp],
             sectionData as ExpSectionDataDef,
@@ -228,11 +266,13 @@ export async function loadExperiment(
           const beingLoaded = {
             // TODO: all subexp share the same section map, and
             // this would then make sections have, essentially, module imports?
-            exp: expSection.subExperiment,
+            exp: section.subExperiment,
             subSections: [],
           };
           loadNodeStack.push(beingLoaded);
           loadingMap.set(sectionData.id, beingLoaded);
+        } else if (sectionData.sectionData.sectionKind === SectionKind.Cell) {
+          cellSections.push(section);
         }
       } else if (sectionData.kind === ExpDefKind.Path) {
         const data = await dataResolver.load(sectionData.dataPath);
@@ -278,6 +318,10 @@ export async function loadExperiment(
       }),
     );
     toResolve.exp.sectionMap = sectionMap;
+  }
+
+  for (const cellSection of cellSections) {
+    cellSection.connectCell();
   }
 
   return topLevelExperiment;

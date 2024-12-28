@@ -114,11 +114,11 @@ async function run() {
   // But we would like to have the testSet here.
   env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
 
-  for await (const m of trainerCell.outStream.metrics) {
+  for await (const m of trainerCell.outStreams.metrics) {
     logMetrics(m);
   }
 
-  for await (const c of trainerCell.outStream.checkpoint) {
+  for await (const c of trainerCell.outStreams.checkpoint) {
     logCheckpoint(c);
   }
 

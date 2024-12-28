@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { LabEnv, LabEnvCell, SomeLabEnvCell } from 'src/lib/distr-signal-exec/lab-env';
+import { CellStatus, SomeLabEnvCell } from 'src/lib/distr-signal-exec/lab-env-cell';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -27,16 +27,11 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
-import {
-  CellSectionContent,
-  CellSectionData,
-  CellSectionDataDef,
-  CellSectionInputKind,
-  Experiment,
-  SectionKind,
-} from '../../../lib/weblab/experiment';
+import { Experiment } from '../../../lib/weblab/experiment';
+import { CellSectionData } from '../../../lib/weblab/section';
 import { CellRegistryService } from 'src/app/cell-registry.service';
 import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-types';
+import { Section } from 'src/lib/weblab/section';
 
 @Component({
   selector: 'app-cell-section',
@@ -64,29 +59,19 @@ import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-types';
 })
 export class CellSectionComponent {
   readonly experiment = input.required<Experiment>();
+  readonly section = input.required<Section>();
   readonly cellData = input.required<CellSectionData>();
-
-enum CellStatus {
-  NotStarted = 'NotStarted',
-  Running = 'Running',
-  Finished = 'Finished',
-}
-
-  readonly status: CellStatus = CellStatus.NotStarted;
-  readonly CellStatus = CellStatus;
-  cellKind: SomeCellKind;
   cell: SomeLabEnvCell;
-  stopRequested: boolean = false;
 
-  constructor(public cellRegistry: CellRegistryService) {
-    // TODO: consider putting into a signal.
-    const cellKindId = this.cellData().content.cellRef;
-    const cellKind = cellRegistry.registry.get(cellKindId);
-    if (!cellKind) {
-      throw new Error(`no such cell kind ID in registry: ${cellKindId}`);
-    }
-    this.cellKind = cellKind;
-    this.cell = this.experiment().env.init(cellKind);
+  CellStatus = CellStatus;
+
+  constructor() {
+    // Should only be constructable when/if cell is defined.
+    this.cell = this.section().cell as SomeLabEnvCell;
+  }
+
+  get status(): CellStatus {
+    return this.cell.status;
   }
 
   inputs() {
@@ -102,9 +87,7 @@ enum CellStatus {
     return this.cellData().content.outStreamIds;
   }
 
-  start() {
-    
-  }
+  start() {}
 
   requestStop() {
     this.cell.requestStop();

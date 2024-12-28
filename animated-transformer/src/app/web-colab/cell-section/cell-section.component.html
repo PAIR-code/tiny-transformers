@@ -1,9 +1,11 @@
 <div #cellstatus class="cellStatus">
+  [ {{ status }} ]
+  <div class="spacer"></div>
   @if (status === CellStatus.NotStarted) {
     <button icon-button matTooltip="Start" aria-label="Start" (click)="start()">
       <mat-icon>start</mat-icon>
     </button>
-  } @else if (status === CellStatus.Running && !stopRequested) {
+  } @else if (status === CellStatus.Running) {
     <button
       icon-button
       matTooltip="Request Stop"
@@ -12,7 +14,7 @@
     >
       <mat-icon>stop</mat-icon>
     </button>
-  } @else if (status === CellStatus.Running && stopRequested) {
+  } @else if (status === CellStatus.Stopping) {
     <button
       icon-button
       matTooltip="Force Stop"

@@ -84,7 +84,7 @@ export type Checkpoint = {
 };
 
 export const trainerCellSpec = new CellKind({
-  cellName: 'Trainer cell',
+  cellKindId: 'Trainer cell',
   workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
   inputs: {
     testSet: Kind<Example[]>,
@@ -109,7 +109,7 @@ export type TaskGenConfig = {
 };
 
 export const taskCellSpec = new CellKind({
-  cellName: 'Task cell',
+  cellKindId: 'Task cell',
   workerFn: () => new Worker(new URL('./task-cell.worker', import.meta.url)),
   inputs: {
     taskConfig: Kind<TinyWorldTaskConfig>,

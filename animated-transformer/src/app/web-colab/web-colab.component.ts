@@ -47,7 +47,7 @@ import {
   AbstractDataResolver,
   BrowserDirDataResolver,
   LocalCacheDataResolver,
-} from '../../lib/distr-signal-exec/data-resolver';
+} from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
 import { ExpSectionDataDef, SectionDataDef, SectionKind } from 'src/lib/weblab/section';
 

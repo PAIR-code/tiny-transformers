@@ -86,17 +86,17 @@ describe('Trainer-Cell', () => {
       testSet,
     });
 
-    trainerCell.inStream.trainBatches.send(makeBatch(0, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(1, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(2, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(3, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(4, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.done();
+    trainerCell.inStreams.trainBatches.send(makeBatch(0, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(1, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(2, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(3, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(4, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.done();
 
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetricsIter = trainerCell.outStream.metrics;
-    const ckptIter = trainerCell.outStream.checkpoint;
+    const lastMetricsIter = trainerCell.outStreams.metrics;
+    const ckptIter = trainerCell.outStreams.checkpoint;
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;

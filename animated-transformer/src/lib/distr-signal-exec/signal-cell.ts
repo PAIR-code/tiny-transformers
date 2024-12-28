@@ -25,10 +25,10 @@ import {
 } from './cell-types';
 import { ExpandOnce } from '../ts-type-helpers';
 import {
-  SignalInput,
-  SignalInputStream,
-  SignalOutput,
-  SignalOutputStream,
+  SignalReceiveEnd,
+  StreamReceiveEnd,
+  SignalSendEnd,
+  StreamSendEnd,
 } from './signal-messages';
 
 // ----------------------------------------------------------------------------
@@ -36,7 +36,7 @@ export class SignalCell<
   Inputs extends ValueStruct,
   InputStreams extends ValueStruct,
   Outputs extends ValueStruct,
-  OutputStreams extends ValueStruct
+  OutputStreams extends ValueStruct,
 > {
   inputPromises: PromisedSetableSignalsFn<Inputs>;
   stillExpectedInputs: Set<keyof Inputs>;
@@ -49,19 +49,19 @@ export class SignalCell<
   outputStreamSet: Set<keyof OutputStreams>;
 
   inputs = {} as {
-    [Key in keyof Inputs]: SignalInput<Inputs[Key]>;
+    [Key in keyof Inputs]: SignalReceiveEnd<Inputs[Key]>;
   };
   public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
 
   public inStream = {} as {
-    [Key in keyof InputStreams]: SignalInputStream<InputStreams[Key]>;
+    [Key in keyof InputStreams]: StreamReceiveEnd<InputStreams[Key]>;
   };
 
   outputs = {} as {
-    [Key in keyof Outputs]: SignalOutput<Outputs[Key]>;
+    [Key in keyof Outputs]: SignalSendEnd<Outputs[Key]>;
   };
   public outStream = {} as {
-    [Key in keyof OutputStreams]: SignalOutputStream<OutputStreams[Key]>;
+    [Key in keyof OutputStreams]: StreamSendEnd<OutputStreams[Key]>;
   };
 
   public output = {} as CallValueFn<Outputs>;
@@ -76,7 +76,7 @@ export class SignalCell<
 
   constructor(
     public spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
-    public defaultPostMessageFn: (value: object) => void
+    public defaultPostMessageFn: (value: LabMessage) => void,
   ) {
     type InputStreamKey = keyof InputStreams & string;
     type InputStreamValue = InputStreams[keyof InputStreams];
@@ -84,7 +84,7 @@ export class SignalCell<
     type InputValue = Inputs[keyof Inputs];
     type OutputStreamKey = keyof OutputStreams & string;
     type OutputStreamValue = OutputStreams[keyof OutputStreams];
-    type OutputKey = keyof Outputs & string;
+    type OutputKey = keyof Outputs;
     type OutputValue = Outputs[keyof Outputs];
 
     this.inputSet = new Set<InputKey>(Object.keys(this.spec.inputs));
@@ -99,6 +99,9 @@ export class SignalCell<
     this.onceStarted = new Promise<void>((resolve) => {
       this.onceStartedResolver = resolve;
     });
+    this.onceStarted.then(() => {
+      defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
+    });
 
     this.inputPromises = {} as PromisedSetableSignalsFn<Inputs>;
     this.stillExpectedInputs = new Set(this.inputSet);
@@ -109,10 +112,10 @@ export class SignalCell<
     });
 
     for (const inputName of this.inputSet) {
-      const workerInput = new SignalInput<InputValue>(
+      const workerInput = new SignalReceiveEnd<InputValue>(
         this.space,
         inputName as InputKey,
-        defaultPostMessageFn
+        defaultPostMessageFn,
       );
       this.inputs[inputName] = workerInput;
       workerInput.onceReady.then((signal) => {
@@ -125,28 +128,29 @@ export class SignalCell<
     }
 
     for (const inputName of this.inputStreamSet) {
-      const workerStreamInput = new SignalInputStream<InputStreamValue>(
+      const workerStreamInput = new StreamReceiveEnd<InputStreamValue>(
         this.space,
         inputName as InputStreamKey,
-        defaultPostMessageFn
+        defaultPostMessageFn,
       );
       this.inStream[inputName] = workerStreamInput;
     }
 
     for (const outputName of this.outputStreamSet) {
-      const workerOutputStream = new SignalOutputStream<OutputStreamValue>(
+      const workerOutputStream = new StreamSendEnd<OutputStreamValue>(
         this.space,
         outputName as OutputStreamKey,
-        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 }, defaultPostMessageFn }
+        defaultPostMessageFn,
+        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 } },
       );
       this.outStream[outputName] = workerOutputStream;
     }
 
     for (const outputName of this.outputSet) {
-      const workerOutput = new SignalOutput<OutputValue>(
+      const workerOutput = new SignalSendEnd<OutputValue>(
         this.space,
-        outputName as OutputKey,
-        defaultPostMessageFn
+        outputName as string,
+        defaultPostMessageFn,
       );
       this.outputs[outputName as OutputKey] = workerOutput;
       this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.set(value);
@@ -229,7 +233,7 @@ export class SignalCell<
         }
         inputStream.onAddValue(
           null,
-          data.value as StreamValue<InputStreams[keyof InputStreams & string]>
+          data.value as StreamValue<InputStreams[keyof InputStreams & string]>,
         );
         break;
       }
@@ -242,9 +246,7 @@ export class SignalCell<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async runOnceHaveInputs(
-    runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>
-  ) {
+  async start(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
     const inputs = await this.onceAllInputs;
     await this.onceStarted;
     await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);

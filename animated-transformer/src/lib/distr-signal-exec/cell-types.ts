@@ -95,7 +95,7 @@ export class CellKind<
 
   constructor(
     public data: {
-      cellName: string;
+      cellKindId: string;
       workerFn: () => Worker;
       inputs?: ValueKindFnStructFn<Inputs>;
       inStreams?: ValueKindFnStructFn<InputStreams>;

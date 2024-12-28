@@ -18,7 +18,7 @@ limitations under the License.
  * abstraction. This includes both signal values and streams of values.
  * Input/Output is relative to the environment it is being executed in.
  */
-import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import { AsyncIterOnEvents } from './async-iter-on-events';
 import {
   ConjestionFeedbackMessage,
@@ -27,40 +27,34 @@ import {
   StreamValue,
   LabMessageKind,
   EndStreamMessage,
+  PipeOutputStreamMessage,
 } from './lab-message-types';
 
+// TODO: rename to sending / receiving to more directly represent the action,
+// and avoid the confusion of an input being an output type.
+
 // ----------------------------------------------------------------------------
-// Consider: we could take in a signal, and have a derived send functionality
-export class SignalOutput<T> {
-  ports: MessagePort[] = [];
+export abstract class AbstractSignalReceiveEnd<T> {
+  abstract onceReady: Promise<AbstractSignal<T>>;
+}
 
-  // TODO: have a default sendMessage...
-  constructor(
-    public space: SignalSpace,
-    public id: string,
-    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void,
-  ) {}
+export abstract class AbstractSignalSendEnd<T> {
+  abstract set(x: T): void;
+}
 
-  addPort(messagePort: MessagePort) {
-    this.ports.push(messagePort);
-    messagePort.onmessage = (event: MessageEvent) => {
-      console.warn(`unexpected message on output port ${this.id}`);
-    };
-  }
+export abstract class AbstractStreamSendEnd<T> {
+  abstract send(x: T): Promise<void>;
+  abstract done(): void;
+}
 
-  set(value: T): void {
-    const message: LabMessage = { kind: LabMessageKind.SetSignalValue, signalId: this.id, value };
-    for (const port of this.ports) {
-      port.postMessage(message);
-    }
-    if (this.defaultPostMessageFn) {
-      this.defaultPostMessageFn(message);
-    }
-  }
+export abstract class AbstractStreamReceiveEnd<T> implements AsyncIterable<T>, AsyncIterator<T> {
+  abstract inputIter: AsyncIterOnEvents<T>;
+  abstract next(): Promise<IteratorResult<T, null>>;
+  abstract [Symbol.asyncIterator](): AsyncIterable<T> & AsyncIterator<T>;
 }
 
 // ----------------------------------------------------------------------------
-export class SignalInput<T> {
+export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
   onSetInput: (input: T) => void;
@@ -99,6 +93,70 @@ export class SignalInput<T> {
       this.onSetInput(message.value as T);
     };
   }
+
+  // Send a message to all senders who send stuff to this Receive End
+  pipeSendersTo(newPort: MessagePort, options?: { keepHereToo: boolean }): void {
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeOutputSignal,
+      signalId: this.id,
+      ports: [newPort],
+      options,
+    };
+
+    for (const senderPort of this.ports) {
+      senderPort.postMessage(message, message.ports);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Consider: we could take in a signal, and have a derived send functionality
+export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
+  ports: MessagePort[] = [];
+
+  // TODO: have a default sendMessage...
+  constructor(
+    public space: SignalSpace,
+    public id: string,
+    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void,
+  ) {}
+
+  addPort(messagePort: MessagePort) {
+    this.ports.push(messagePort);
+    messagePort.onmessage = (event: MessageEvent) => {
+      console.warn(`unexpected message on output port ${this.id}`);
+    };
+  }
+
+  set(value: T): void {
+    const message: LabMessage = { kind: LabMessageKind.SetSignalValue, signalId: this.id, value };
+    for (const port of this.ports) {
+      port.postMessage(message);
+    }
+    if (this.defaultPostMessageFn) {
+      this.defaultPostMessageFn(message);
+    }
+  }
+
+  // Pipe everywhere that sends to recEnd, to now send to everywhere that this
+  // send end sends to.
+  pipeFrom(recEnd: SignalReceiveEnd<T>, options?: { keepHereToo: boolean }) {
+    const channel = new MessageChannel();
+
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeInputSignal,
+      signalId: this.id as string,
+      ports: [channel.port1],
+    };
+
+    for (const port of this.ports) {
+      // Pipe the input stream at the far end of the SendEnd to start handling
+      // inputs from the new port.
+      port.postMessage(message, message.ports);
+
+      recEnd.pipeSendersTo(channel.port2, options);
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -131,11 +189,13 @@ type ConjestionState = {
 // report feedback less often, and this is how the sender knows to reduce/pause
 // the output flow. This conjestion control avoids inter-process/worker message
 // overflows.
-export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> {
-  // readyResolver!: (signal: SetableSignal<T>) => void;
-  // cancelResolver!: () => void;
-  // onceReady: Promise<SetableSignal<T>>;
+// ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// Receive End of Streams listen to messages on many ports, and handle messages
+// from each port, pulling them all into the iterator.
+// ----------------------------------------------------------------------------
+export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
   // The MessagePorts to report feedback to on how busy we are.
   ports: MessagePort[] = [];
   // The function that is to be called on every input.
@@ -145,10 +205,13 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
 
   constructor(
     public space: SignalSpace,
+    // The id of the inStream this is recieving into.
     public id: string,
-    // Used to post conjestion control feedback.
+    // Used to post conjestion control feedback, or to pipe output from the
+    // worker to other locations.
     public defaultPostMessageFn: (
-      m: ConjestionFeedbackMessage,
+      m: ConjestionFeedbackMessage | PipeOutputStreamMessage,
+      // Typically these are ports.
       transerables?: Transferable[],
     ) => void,
   ) {
@@ -201,6 +264,20 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
     }
   }
 
+  // Send a message to all senders who send stuff to this Receive End
+  pipeSendersTo(newPort: MessagePort, options?: { keepHereToo: boolean }): void {
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeOutputStream,
+      streamId: this.id,
+      ports: [newPort],
+      options,
+    };
+
+    for (const senderPort of this.ports) {
+      senderPort.postMessage(message, message.ports);
+    }
+  }
+
   public async next(): Promise<IteratorResult<T, null>> {
     return this.inputIter.next();
   }
@@ -211,43 +288,38 @@ export class SignalInputStream<T> implements AsyncIterable<T>, AsyncIterator<T> 
 }
 
 // ----------------------------------------------------------------------------
-export class SignalOutputStream<T> {
+// SendEnd of streams have a set of destinations where things get sent to. The
+// send end also has a ConjestionState, so that if the send end doesn't hear
+// from a receieve end for too long, then it stops sending to avoid
+// over-conjesting communication flows.
+// ----------------------------------------------------------------------------
+export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
   portConjestion: Map<MessagePort, ConjestionState> = new Map();
   public default?: {
     port: MessagePort;
-    // CONSIDER: use; { postMessage: (v: AddStreamValueMessage) => void };
     state: ConjestionState;
   };
   lastMessageIdx: number = 0;
-
-  // sendFn: OutStreamSendFn<T>;
 
   // Think about having a default output postMessage?
   constructor(
     public space: SignalSpace,
     public id: string,
+    public defaultPostMessageFn: (m: AddStreamValueMessage, transerables?: Transferable[]) => void,
     public config: {
       conjestionControl: ConjestionControlConfig;
-      defaultPostMessageFn?: (m: AddStreamValueMessage, transerables?: Transferable[]) => void;
     },
   ) {
-    if (this.config.defaultPostMessageFn) {
-      const port = { postMessage: this.config.defaultPostMessageFn } as MessagePort;
+    if (this.defaultPostMessageFn) {
+      const port = { postMessage: this.defaultPostMessageFn } as MessagePort;
       // Add a fake messagePort to default poster if one was provided.
       const state: ConjestionState = {
         lastReturnedId: 0,
         queueLength: 0,
         done: false,
       };
-      // const state = this.portConjestion.get(port as MessagePort)!;
       this.default = { port, state };
     }
-    // const sendFn = this.send;
-    // function send(value: T) {
-    //   return sendFn(value);
-    // }
-    // send.done = () => this.done();
-    // this.sendFn = send;
   }
 
   addPort(messagePort: MessagePort) {
@@ -310,6 +382,26 @@ export class SignalOutputStream<T> {
     }
     if (this.default) {
       this.sendTo(value, this.default);
+    }
+  }
+
+  // Pipe everywhere that sends to recEnd, to now send to everywhere that this
+  // send end sends to.
+  pipeFrom(recEnd: StreamReceiveEnd<T>, options?: { keepHereToo: boolean }) {
+    const channel = new MessageChannel();
+
+    const message: LabMessage = {
+      kind: LabMessageKind.PipeInputStream,
+      streamId: this.id as string,
+      ports: [channel.port1],
+    };
+
+    for (const port of this.portConjestion.keys()) {
+      // Pipe the input stream at the far end of the SendEnd to start handling
+      // inputs from the new port.
+      port.postMessage(message, message.ports);
+
+      recEnd.pipeSendersTo(channel.port2, options);
     }
   }
 

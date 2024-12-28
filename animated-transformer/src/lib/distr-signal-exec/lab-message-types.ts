@@ -14,17 +14,33 @@ limitations under the License.
 ==============================================================================*/
 
 // ----------------------------------------------------------------------------
+// Messages sent between cells and environments.
 export enum LabMessageKind {
-  ConjestionControl = 'ConjestionIndex',
+  // Sent from env to cell to tell is to start.
   StartCellRun = 'StartCellRun',
+  // Sent from cell to env to tell it that it has started with all inputs.
+  // TODO: think about required vs lazy inputs...
+  ReceivedAllInputsAndStarting = 'ReceivedAllInputsAndStarting',
+  // From env or cell to env to cell, when adding a value to a stream send end.
   AddStreamValue = 'AddStreamValue',
+  // From env or cell to env to cell, when ending a stream.
   EndStream = 'EndStream',
+  // From env or cell to env to cell, when setting a value via a signal send
+  // end.
   SetSignalValue = 'SetSignalValue',
+  // From env to cell to tell it to listen to inputs from new source signal.
   PipeInputSignal = 'PipeInputSignal',
+  // From env to cell to tell it to send outputs to a new source signal.
   PipeOutputSignal = 'PipeOutputSignal',
+  // From env to cell to tell it to listen to instream from new source.
   PipeInputStream = 'PipeInputStream',
+  // From env to cell to tell it to send to a new output stream.
   PipeOutputStream = 'PipeOutputStream',
+  // From a receive end of a stream to tell the sender it has received stuff.
+  ConjestionControl = 'ConjestionControl',
+  // From Env to cell to tell it to finish.
   FinishRequest = 'FinishRequest',
+  // From Cell to env to tell it that it has finished.
   Finished = 'Finished',
 }
 
@@ -94,14 +110,15 @@ export type PipeOutputStreamMessage = {
 
 // ----------------------------------------------------------------------------
 export type LabMessage =
+  | { kind: LabMessageKind.StartCellRun }
+  | { kind: LabMessageKind.ReceivedAllInputsAndStarting }
   | SetSignalValueMessage
   | AddStreamValueMessage
-  | EndStreamMessage
   | ConjestionFeedbackMessage
-  | { kind: LabMessageKind.StartCellRun }
-  | { kind: LabMessageKind.FinishRequest }
-  | { kind: LabMessageKind.Finished }
+  | EndStreamMessage
   | PipeInputStreamMessage
   | PipeOutputStreamMessage
   | PipeInputSignalMessage
-  | PipeOutputSignalMessage;
+  | PipeOutputSignalMessage
+  | { kind: LabMessageKind.FinishRequest }
+  | { kind: LabMessageKind.Finished };
