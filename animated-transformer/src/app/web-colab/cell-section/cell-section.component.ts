@@ -87,7 +87,9 @@ export class CellSectionComponent {
     return this.cellData().content.outStreamIds;
   }
 
-  start() {}
+  start() {
+    this.cell.start();
+  }
 
   requestStop() {
     this.cell.requestStop();
