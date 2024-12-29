@@ -160,7 +160,6 @@ export class LabEnvCell<
     this.onceFinished = new Promise<void>((resolve, reject) => {
       resolveWhenFinishedFn = resolve;
     }).then(() => {
-      console.log(`# Env: onceFinished & status = Stopped.`);
       this.status = CellStatus.Stopped;
     });
 
@@ -181,6 +180,7 @@ export class LabEnvCell<
 
     for (const inputSignalId of cellKind.inputNames) {
       const signalSendEnd = new SignalSendEnd<I[keyof I]>(
+        this.id,
         this.space,
         inputSignalId as keyof O & string,
         postFn,
@@ -190,6 +190,7 @@ export class LabEnvCell<
 
     for (const inStreamId of cellKind.inStreamNames) {
       const inStreamSendEnd = new StreamSendEnd<IStreams[keyof IStreams]>(
+        this.id,
         this.space,
         inStreamId as keyof OStreams & string,
         postFn,
@@ -205,6 +206,7 @@ export class LabEnvCell<
 
     for (const oName of cellKind.outputNames) {
       const envInput = new SignalReceiveEnd<O[keyof O]>(
+        this.id,
         this.space,
         oName as keyof O & string,
         postFn,
@@ -222,9 +224,10 @@ export class LabEnvCell<
 
     for (const oStreamName of cellKind.outStreamNames) {
       const envStreamInput = new StreamReceiveEnd<OStreams[keyof OStreams]>(
+        this.id,
         this.space,
         oStreamName as keyof OStreams & string,
-        (m) => this.worker.postMessage(m),
+        postFn,
       );
       this.outStreams[oStreamName] = envStreamInput;
     }
@@ -252,8 +255,9 @@ export class LabEnvCell<
         }
         case LabMessageKind.AddStreamValue: {
           const oStreamName = messageFromWorker.streamId as keyof OStreams & string;
-          this.outStreams[oStreamName].onAddValue(
-            null,
+          const recieveEnd = this.outStreams[oStreamName];
+          recieveEnd.onAddValue(
+            recieveEnd.defaultPort,
             messageFromWorker.value as StreamValue<OStreams[keyof OStreams & string]>,
           );
           break;
@@ -265,7 +269,11 @@ export class LabEnvCell<
         }
         case LabMessageKind.ConjestionControl: {
           const id = messageFromWorker.streamId as keyof OStreams & string;
-          this.inStreams[id].conjestionFeedbackStateUpdate(messageFromWorker);
+          const sendStreamEnd = this.inStreams[id];
+          sendStreamEnd.conjestionFeedbackStateUpdate(
+            messageFromWorker,
+            sendStreamEnd.defaultState,
+          );
           break;
         }
         default:
@@ -274,10 +282,8 @@ export class LabEnvCell<
       }
     };
 
-    console.log(`# Env: thinking about pipeling/connecting...`, this.uses);
     // Inputs either are pipes, or signal values... make sure to connect stuff.
     if (this.uses && this.uses.inputs) {
-      console.log(`# Env: piping/connecting initial inputs...`, this.uses.inputs);
       for (const [k, input] of Object.entries(this.uses.inputs)) {
         if (input instanceof SignalReceiveEnd) {
           this.assignInputViaPiping(k, input);
@@ -301,14 +307,12 @@ export class LabEnvCell<
     options?: { keepHereToo: boolean },
   ) {
     this.stillExpectedInputs.delete(k);
-    this.inputs[k].pipeFrom(recEnd);
+    this.inputs[k].pipeFrom(recEnd, options);
   }
 
   public assignInputFromSignal<K extends keyof I>(k: K, input: AbstractSignal<I[K]>) {
-    console.log(`# Env: assignInputFromSignal (${k as string})`, input());
     this.stillExpectedInputs.delete(k);
     this.space.derived(() => {
-      console.log(`# Env: set input (${k as string})`, input());
       this.inputs[k].set(input());
     });
   }
@@ -332,14 +336,13 @@ export class LabEnvCell<
 
   async requestStop(): Promise<void> {
     if (this.status !== CellStatus.Stopped) {
-      console.log(`# Env: requesting stop`);
       const message: LabMessage = {
         kind: LabMessageKind.FinishRequest,
       };
       this.status = CellStatus.Stopping;
       this.worker.postMessage(message);
     } else {
-      console.info('#Env: requestStop: but already stopped');
+      console.warn('#Env: requestStop: but already stopped');
     }
   }
 

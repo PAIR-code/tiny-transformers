@@ -73,4 +73,6 @@ cell.run(async () => {
     await cell.outStream.trainBatches.send(batch);
   }
   cell.outStream.trainBatches.done();
+
+  await cell.onceFinishRequested;
 });

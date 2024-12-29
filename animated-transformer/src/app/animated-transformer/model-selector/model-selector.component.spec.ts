@@ -17,6 +17,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ModelSelectorComponent } from './model-selector.component';
 import { RouterModule } from '@angular/router';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 xdescribe('ModelSelectorComponent', () => {
   let component: ModelSelectorComponent;
@@ -24,8 +25,8 @@ xdescribe('ModelSelectorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection(), RouterModule.forRoot([])],
       imports: [ModelSelectorComponent],
-      providers: [RouterModule.forRoot([])],
       declarations: [],
     }).compileComponents();
 

@@ -34,7 +34,7 @@
     <mat-icon>more_vert</mat-icon>
   </button>
   <mat-menu #menu="matMenu">
-    <button mat-menu-item (click)="resetConfig()" [disabled]="isDefault">
+    <button mat-menu-item (click)="resetConfig()" [disabled]="isDefault()">
       <mat-icon>settings_backup_restore</mat-icon>
       <span>Reset to default</span>
     </button>

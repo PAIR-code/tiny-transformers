@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { EditableMarkdownComponent } from './editable-markdown.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('EditableMarkdownComponent', () => {
   let component: EditableMarkdownComponent;
@@ -8,9 +9,9 @@ describe('EditableMarkdownComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [EditableMarkdownComponent]
-    })
-    .compileComponents();
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [EditableMarkdownComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(EditableMarkdownComponent);
     component = fixture.componentInstance;

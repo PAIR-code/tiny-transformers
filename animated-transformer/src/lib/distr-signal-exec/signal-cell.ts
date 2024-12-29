@@ -65,7 +65,7 @@ export class SignalCell<
     [Key in keyof Inputs]: SignalReceiveEnd<Inputs[Key]>;
   };
   // A promise that resolves when all inputs are given.
-  public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
+  public onceAllInputs!: Promise<AbstractSignalStructFn<Inputs>>;
 
   // The receive end of input streams.
   public inStream = {} as {
@@ -120,56 +120,6 @@ export class SignalCell<
 
     this.inputPromises = {} as PromisedSetableSignalsFn<Inputs>;
     this.stillExpectedInputs = new Set(this.inputSet);
-
-    let onceAllInputsResolver: (allInput: SetableSignalStructFn<Inputs>) => void;
-    this.onceAllInputs = new Promise<SetableSignalStructFn<Inputs>>((resolve, reject) => {
-      onceAllInputsResolver = resolve;
-    });
-
-    for (const inputName of this.inputSet) {
-      const workerInput = new SignalReceiveEnd<InputValue>(
-        this.space,
-        inputName as InputKey,
-        defaultPostMessageFn,
-      );
-      this.inputs[inputName] = workerInput;
-      workerInput.onceReady.then((signal) => {
-        this.inputSoFar[inputName] = signal;
-        this.stillExpectedInputs.delete(inputName);
-        if (this.stillExpectedInputs.size === 0) {
-          onceAllInputsResolver(this.inputSoFar as SetableSignalStructFn<Inputs>);
-        }
-      });
-    }
-
-    for (const inputName of this.inputStreamSet) {
-      const workerStreamInput = new StreamReceiveEnd<InputStreamValue>(
-        this.space,
-        inputName as InputStreamKey,
-        defaultPostMessageFn,
-      );
-      this.inStream[inputName] = workerStreamInput;
-    }
-
-    for (const outputName of this.outputStreamSet) {
-      const workerOutputStream = new StreamSendEnd<OutputStreamValue>(
-        this.space,
-        outputName as OutputStreamKey,
-        defaultPostMessageFn,
-        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 } },
-      );
-      this.outStream[outputName] = workerOutputStream;
-    }
-
-    for (const outputName of this.outputSet) {
-      const workerOutput = new SignalSendEnd<OutputValue>(
-        this.space,
-        outputName as string,
-        defaultPostMessageFn,
-      );
-      this.outputs[outputName as OutputKey] = workerOutput;
-      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.set(value);
-    }
   }
 
   onMessage(message: { data: LabMessage }) {
@@ -178,14 +128,13 @@ export class SignalCell<
       console.warn('unexpected null data', message);
       return;
     }
-    // console.log('* Worker: got message: ', JSON.stringify(message));
     switch (data.kind) {
       case LabMessageKind.InitIdMessage: {
         this.id = data.id; //`${data.id}.${this.id}`;
+        this.initInputsAndOutputs();
         break;
       }
       case LabMessageKind.StartCellRun: {
-        console.log('onceStartedResolver');
         this.onceStartedResolver();
         break;
       }
@@ -203,10 +152,6 @@ export class SignalCell<
         break;
       }
       case LabMessageKind.PipeOutputSignal: {
-        console.log(
-          `* Worker (${this.id}): LabMessageKind.PipeOutputSignal: `,
-          JSON.stringify(data),
-        );
         const outputSignal = this.outputs[data.signalId];
         if (!outputSignal) {
           throw new Error(`${this.id}: No output to pipe entry named: ${data.signalId}.`);
@@ -245,7 +190,7 @@ export class SignalCell<
       }
       case LabMessageKind.ConjestionControl: {
         const outStream = this.outStream[data.streamId];
-        outStream.conjestionFeedbackStateUpdate(data);
+        outStream.conjestionFeedbackStateUpdate(data, outStream.defaultState);
         break;
       }
       case LabMessageKind.EndStream: {
@@ -264,7 +209,7 @@ export class SignalCell<
           );
         }
         inputStream.onAddValue(
-          null,
+          inputStream.defaultPort,
           data.value as StreamValue<InputStreams[keyof InputStreams & string]>,
         );
         break;
@@ -273,6 +218,71 @@ export class SignalCell<
         console.warn(`${this.id}: unknown message from the main thread: `, data);
         break;
       }
+    }
+  }
+
+  initInputsAndOutputs() {
+    type InputStreamKey = keyof InputStreams & string;
+    type InputStreamValue = InputStreams[keyof InputStreams];
+    type InputKey = keyof Inputs & string;
+    type InputValue = Inputs[keyof Inputs];
+    type OutputStreamKey = keyof OutputStreams & string;
+    type OutputStreamValue = OutputStreams[keyof OutputStreams];
+    type OutputKey = keyof Outputs;
+    type OutputValue = Outputs[keyof Outputs];
+
+    let onceAllInputsResolver: (allInput: SetableSignalStructFn<Inputs>) => void;
+    this.onceAllInputs = new Promise<SetableSignalStructFn<Inputs>>((resolve, reject) => {
+      onceAllInputsResolver = resolve;
+    });
+
+    for (const inputName of this.inputSet) {
+      const workerInput = new SignalReceiveEnd<InputValue>(
+        this.id,
+        this.space,
+        inputName as InputKey,
+        this.defaultPostMessageFn,
+      );
+      this.inputs[inputName] = workerInput;
+      workerInput.onceReady.then((signal) => {
+        this.inputSoFar[inputName] = signal;
+        this.stillExpectedInputs.delete(inputName);
+        if (this.stillExpectedInputs.size === 0) {
+          onceAllInputsResolver(this.inputSoFar as SetableSignalStructFn<Inputs>);
+        }
+      });
+    }
+
+    for (const inputName of this.inputStreamSet) {
+      const workerStreamInput = new StreamReceiveEnd<InputStreamValue>(
+        this.id,
+        this.space,
+        inputName as InputStreamKey,
+        this.defaultPostMessageFn,
+      );
+      this.inStream[inputName] = workerStreamInput;
+    }
+
+    for (const outputName of this.outputStreamSet) {
+      const workerOutputStream = new StreamSendEnd<OutputStreamValue>(
+        this.id,
+        this.space,
+        outputName as OutputStreamKey,
+        this.defaultPostMessageFn,
+        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 } },
+      );
+      this.outStream[outputName] = workerOutputStream;
+    }
+
+    for (const outputName of this.outputSet) {
+      const workerOutput = new SignalSendEnd<OutputValue>(
+        this.id,
+        this.space,
+        outputName as string,
+        this.defaultPostMessageFn,
+      );
+      this.outputs[outputName as OutputKey] = workerOutput;
+      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.set(value);
     }
   }
 

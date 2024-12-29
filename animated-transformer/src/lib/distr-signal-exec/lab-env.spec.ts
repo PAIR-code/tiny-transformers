@@ -75,7 +75,7 @@ describe('lab-env', () => {
     expect(cell.status).toEqual(CellStatus.Stopped);
   });
 
-  fit('Running two cells, with delayed piping', async () => {
+  it('Running two cells, with delayed piping', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
     const cell = env.init(exampleCellAbstract, { config: { id: 'cell1' } });
@@ -102,11 +102,13 @@ describe('lab-env', () => {
     }
     expect(vs.length).toEqual(3);
 
-    expect(vs[0]).toEqual('ooF name_1');
-    expect(vs[1]).toEqual('ooF name_2');
-    expect(vs[2]).toEqual('ooF name_3');
+    expect(vs[0]).toEqual('ooF Foo name_1');
+    expect(vs[1]).toEqual('ooF Foo name_2');
+    expect(vs[2]).toEqual('ooF Foo name_3');
 
-    expect(await cell2.outputs.prefixRev.onceReady).toEqual('Foo');
+    const cell2prefixRevSignal = await cell2.outputs.prefixRev.onceReady;
+
+    expect(cell2prefixRevSignal()).toEqual('Foo');
 
     cell.requestStop();
     cell2.requestStop();

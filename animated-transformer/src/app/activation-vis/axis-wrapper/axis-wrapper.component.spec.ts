@@ -16,6 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AxisWrapperComponent } from './axis-wrapper.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('AxisWrapperComponent', () => {
   let component: AxisWrapperComponent;
@@ -23,6 +24,7 @@ describe('AxisWrapperComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
       imports: [AxisWrapperComponent],
     }).compileComponents();
   });

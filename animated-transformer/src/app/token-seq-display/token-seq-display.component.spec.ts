@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TokenSeqDisplayComponent } from './token-seq-display.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('TokenSeqDisplayComponent', () => {
   let component: TokenSeqDisplayComponent;
@@ -8,10 +9,10 @@ describe('TokenSeqDisplayComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TokenSeqDisplayComponent]
-    })
-    .compileComponents();
-    
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [TokenSeqDisplayComponent],
+    }).compileComponents();
+
     fixture = TestBed.createComponent(TokenSeqDisplayComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

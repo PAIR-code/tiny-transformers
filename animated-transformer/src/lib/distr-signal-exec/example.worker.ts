@@ -22,7 +22,6 @@ const cell = workerCell(exampleCellKind);
 const { derived } = cell.space;
 
 cell.start(async (inputs) => {
-  console.log(`** ${cell.id}: worker started`);
   const { prefix } = inputs;
 
   cell.outputs.prefixLen.set(prefix().length);
@@ -32,12 +31,10 @@ cell.start(async (inputs) => {
     cell.outputs.prefixRev.set(prefix().split('').reverse().join(''));
   });
 
-  console.log(`** ${cell.id}: worker waiting for input stream`);
   for await (const n of cell.inStream.strStream) {
     await cell.outStream.prefixedStream.send(`${prefix()} ${n}`);
   }
   cell.outStream.prefixedStream.done();
 
-  console.log(`** ${cell.id}: worker waiting for finish request`);
   await cell.onceFinishRequested;
 });

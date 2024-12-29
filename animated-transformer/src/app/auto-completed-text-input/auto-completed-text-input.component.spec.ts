@@ -21,6 +21,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('AutoCompletedTextInputComponent', () => {
   let component: AutoCompletedTextInputComponent;
@@ -28,10 +29,13 @@ describe('AutoCompletedTextInputComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
       imports: [NoopAnimationsModule, AutoCompletedTextInputComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AutoCompletedTextInputComponent);
+    // fixture.componentRef.setInput('label', '');
+    // fixture.componentRef.setInput('selectedName', null);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

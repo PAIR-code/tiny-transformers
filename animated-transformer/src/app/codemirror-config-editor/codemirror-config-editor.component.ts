@@ -16,15 +16,17 @@ limitations under the License.
 import {
   Component,
   OnInit,
-  Input,
   AfterContentInit,
   ElementRef,
-  Signal,
   signal,
   WritableSignal,
   input,
   output,
   viewChild,
+  effect,
+  Signal,
+  computed,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -65,32 +67,28 @@ export type ConfigUpdate<T> =
   templateUrl: './codemirror-config-editor.component.html',
   styleUrls: ['./codemirror-config-editor.component.scss'],
   imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
-  readonly whatIsBeingEditedName = input<string>('');
-  readonly defaultConfig = input<string>('');
+  readonly whatIsBeingEditedName = input<string>('{}');
+  readonly defaultConfig = input<string>('{}');
   readonly closable = input<boolean>(true);
+  readonly config = input.required<string>();
+
+  lastValidConfig = signal<string>('{}');
+  isDefault: Signal<boolean> = signal(true);
+
   readonly update = output<ConfigUpdate<any>>();
-  @Input()
-  set config(value: string) {
-    // if (this.codeMirror) {
-    //   this.setCodeMirrorValue(value);
-    // } else {
-    // this.tmpConfigString = value;
-    this.lastValidConfig = value;
-    // }
-  }
 
   tmpConfigString?: string;
 
-  readonly codemirrorElementRef = viewChild<ElementRef>('codemirror');
+  readonly codemirrorElementRef = viewChild.required<ElementRef>('codemirror');
+
   codemirrorOptions: {};
 
   codeMirror: EditorView | undefined;
   editorState?: EditorState;
   // codemirror.EditorFromTextArea | undefined;
-
-  lastValidConfig: string = '{}';
 
   configError?: string;
 
@@ -104,6 +102,17 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       mode: 'javascript',
       // viewportMargin: 100
     };
+
+    this.isDefault = computed(() => {
+      if (!this.codeMirror) {
+        // Note: we have to return a value consistent with what we have once we
+        // setup this.codeMirror.
+        return this.defaultConfig() === this.lastValidConfig();
+      }
+      return this.defaultConfig() === this.getCodeMirrorValue();
+    });
+
+    effect(() => this.setCodeMirrorValue(this.config()));
   }
 
   getCodeMirrorValue(): string {
@@ -118,7 +127,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
 
   setCodeMirrorValue(s: string): void {
     if (!this.codeMirror) {
-      this.lastValidConfig = s;
+      this.lastValidConfig.set(s);
       return;
     }
 
@@ -137,14 +146,14 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
     const language = new Compartment();
     // console.log('this.editorState.create...');
     this.editorState = EditorState.create({
-      doc: this.lastValidConfig,
+      doc: this.lastValidConfig(),
       extensions: [
         codemirror.basicSetup,
         language.of(jsonlang()),
         EditorView.updateListener.of((updateEvent) => {
           // Unclear if this ngZone is needed...
           // this.ngZone.run(() => {
-          let changedNow = this.lastValidConfig !== updateEvent.state.doc.toString();
+          let changedNow = this.lastValidConfig() !== updateEvent.state.doc.toString();
           if (this.changed() !== changedNow) {
             this.changed.set(changedNow);
           }
@@ -166,6 +175,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       state: this.editorState,
       parent: codemirrorElementRef.nativeElement,
     });
+    this.setCodeMirrorValue(this.config());
   }
 
   resetConfig() {
@@ -183,17 +193,8 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       return;
     }
     this.tmpConfigString = this.getCodeMirrorValue();
-    this.setCodeMirrorValue(this.lastValidConfig.slice());
+    this.setCodeMirrorValue(this.lastValidConfig().slice());
     delete this.configError;
-  }
-
-  public get isDefault() {
-    if (!this.codeMirror) {
-      // Note: we have to return a value consistent with what we have once we
-      // setup this.codeMirror.
-      return this.defaultConfig() === this.lastValidConfig;
-    }
-    return this.defaultConfig() === this.getCodeMirrorValue();
   }
 
   public get canReDoChanges() {
@@ -241,7 +242,7 @@ export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit
       parsedConfig = json5.parse(configString);
       // This line must be after the parse; if there's an error, we don't want
       // update the last valid config.
-      this.lastValidConfig = configString.slice();
+      this.lastValidConfig.set(configString.slice());
 
       // Set for next time...
       this.changed.set(false);

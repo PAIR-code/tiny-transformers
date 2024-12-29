@@ -37,8 +37,7 @@
     "ts-node": "^10.9.2",
     "tslib": "^2.3.0",
     "underscore": "^1.13.6",
-    "yargs": "^17.7.2",
-    "zone.js": "~0.15.0"
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.0.5",

@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { D3LineChartComponent } from './d3-line-chart.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('D3LineChartComponent', () => {
   let component: D3LineChartComponent;
@@ -24,9 +24,9 @@ describe('D3LineChartComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ D3LineChartComponent ]
-    })
-    .compileComponents();
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [D3LineChartComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(D3LineChartComponent);
     component = fixture.componentInstance;

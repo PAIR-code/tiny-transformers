@@ -20,6 +20,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('CodemirrorConfigEditorComponent', () => {
   let component: CodemirrorConfigEditorComponent;
@@ -27,21 +28,23 @@ describe('CodemirrorConfigEditorComponent', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
-      declarations: [CodemirrorConfigEditorComponent],
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [
+        CommonModule,
+        MatButtonModule,
+        MatIconModule,
+        MatMenuModule,
+        CodemirrorConfigEditorComponent,
+      ],
     }).compileComponents();
   });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CodemirrorConfigEditorComponent);
     component = fixture.componentInstance;
-
-    fixture.componentRef.setInput('whatIsBeingEditedName', '');
-    fixture.componentRef.setInput('defaultConfig', '');
-    fixture.componentRef.setInput('lastValidConfig', '');
-    // component.whatIsBeingEditedName. .set('');
-    // component.defaultConfig = '';
-    // component.lastValidConfig = '';
+    fixture.componentRef.setInput('whatIsBeingEditedName', '{}');
+    fixture.componentRef.setInput('defaultConfig', '{}');
+    fixture.componentRef.setInput('config', '{}');
     fixture.detectChanges();
   });
 

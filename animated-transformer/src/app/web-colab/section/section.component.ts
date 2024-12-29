@@ -1,6 +1,6 @@
 import { Component, ElementRef, input, model, viewChild } from '@angular/core';
 import { ExpDefKind, Experiment } from '../../../lib/weblab/experiment';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownModule, MarkdownService } from 'ngx-markdown';
 import {
   CodemirrorConfigEditorComponent,
   ConfigUpdate,
@@ -15,6 +15,7 @@ import { Section, SectionKind } from 'src/lib/weblab/section';
 @Component({
   selector: 'app-section',
   imports: [MarkdownModule, CodemirrorConfigEditorComponent, CellSectionComponent],
+  providers: [MarkdownService],
   templateUrl: './section.component.html',
   styleUrl: './section.component.scss',
 })

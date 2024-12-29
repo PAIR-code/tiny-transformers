@@ -16,6 +16,9 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TensorImageComponent } from './tensor-image.component';
+import { GTensor } from 'src/lib/gtensor/gtensor';
+import * as tf from '@tensorflow/tfjs';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('TensorImageComponent', () => {
   let component: TensorImageComponent;
@@ -23,12 +26,17 @@ describe('TensorImageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
       imports: [TensorImageComponent],
     }).compileComponents();
   });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(TensorImageComponent);
+    const gtensor = new GTensor<'x' | 'y' | 'rgb'>(tf.tensor([[[255]]]), ['x', 'y', 'rgb']);
+    fixture.componentRef.setInput('gtensor', gtensor);
+    fixture.componentRef.setInput('seenWidth', 10);
+    fixture.componentRef.setInput('seenHeight', 10);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

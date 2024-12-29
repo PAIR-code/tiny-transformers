@@ -41,6 +41,7 @@ describe('Task-Cell', () => {
     for await (const trainBatch of taskCell.outStreams.trainBatches) {
       trainBatches.push(trainBatch);
     }
+    await taskCell.requestStop();
     await taskCell.onceFinished;
 
     expect(trainBatches.length).toEqual(5);

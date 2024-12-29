@@ -17,6 +17,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivationVisComponent } from './activation-vis.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { CornerActivationComponent } from './corner-activation/corner-activation.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('ActivationVisComponent', () => {
   let component: ActivationVisComponent;
@@ -24,15 +26,14 @@ describe('ActivationVisComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [NoopAnimationsModule, ActivationVisComponent],
-      declarations: [],
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [NoopAnimationsModule, ActivationVisComponent, CornerActivationComponent],
     }).compileComponents();
   });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ActivationVisComponent);
     component = fixture.componentInstance;
-
     fixture.detectChanges();
   });
 

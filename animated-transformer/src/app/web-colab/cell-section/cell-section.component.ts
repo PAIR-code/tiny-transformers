@@ -7,6 +7,7 @@ import {
   Signal,
   signal,
   viewChild,
+  WritableSignal,
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
@@ -61,17 +62,15 @@ export class CellSectionComponent {
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<Section>();
   readonly cellData = input.required<CellSectionData>();
-  cell: SomeLabEnvCell;
+  cell: Signal<SomeLabEnvCell>;
+  status: Signal<CellStatus>;
 
   CellStatus = CellStatus;
 
   constructor() {
     // Should only be constructable when/if cell is defined.
-    this.cell = this.section().cell as SomeLabEnvCell;
-  }
-
-  get status(): CellStatus {
-    return this.cell.status;
+    this.cell = computed(() => this.section().cell as SomeLabEnvCell);
+    this.status = computed(() => this.cell().status);
   }
 
   inputs() {
@@ -88,11 +87,11 @@ export class CellSectionComponent {
   }
 
   start() {
-    this.cell.start();
+    this.cell().start();
   }
 
   requestStop() {
-    this.cell.requestStop();
+    this.cell().requestStop();
   }
 
   forceStop() {

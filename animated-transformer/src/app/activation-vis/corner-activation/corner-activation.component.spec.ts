@@ -26,6 +26,7 @@ import {
   OnDestroy,
   Signal,
   WritableSignal,
+  provideExperimentalZonelessChangeDetection,
 } from '@angular/core';
 
 import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
@@ -44,7 +45,7 @@ describe('CornerActivationComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideNoopAnimations()],
+      providers: [provideExperimentalZonelessChangeDetection(), provideNoopAnimations()],
       imports: [
         CommonModule,
         FormsModule,
@@ -59,8 +60,8 @@ describe('CornerActivationComponent', () => {
     });
     fixture = TestBed.createComponent(CornerActivationComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('view', 'vis');
-    fixture.componentRef.setInput('dataset', null);
+    // fixture.componentRef.setInput('view', 'vis');
+    // fixture.componentRef.setInput('dataset', null);
     fixture.detectChanges();
   });
 

@@ -13,7 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, OnInit, signal, Signal, computed, viewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  signal,
+  Signal,
+  computed,
+  viewChild,
+  ChangeDetectionStrategy,
+  effect,
+} from '@angular/core';
 import * as gtensor from '../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../tensor-image/tensor-image.component';
 import { basicGatesMap, TwoVarGTensorDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
@@ -71,6 +80,7 @@ interface DatasetExample {
   ],
   templateUrl: './activation-vis.component.html',
   styleUrls: ['./activation-vis.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ActivationVisComponent implements OnInit {
   view = signal('vis' as 'edit' | 'vis');
@@ -117,17 +127,16 @@ export class ActivationVisComponent implements OnInit {
   }
 
   selectDataset(datasetName: string | null) {
-    console.log('selectDataset', datasetName);
     this.selectedDataset.set(datasetName ? basicGatesMap[datasetName] : null);
   }
 
   ngOnInit(): void {
-    // Set the dynamic model sub-component, and connect it to the dataset.
-    const viewContainerRef = this.activationManager().viewContainerRef;
-    viewContainerRef.clear();
-    const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
-    componentRef.setInput('view', this.view);
-    componentRef.setInput('dataset', this.selectedDataset);
+    // // Set the dynamic model sub-component, and connect it to the dataset.
+    // const viewContainerRef = this.activationManager().viewContainerRef;
+    // viewContainerRef.clear();
+    // const componentRef = viewContainerRef.createComponent(CornerActivationComponent);
+    // effect(() => componentRef.setInput('view', this.view()));
+    // effect(() => componentRef.setInput('dataset', this.selectedDataset()));
   }
 
   exampleToString(example: number[]): string {

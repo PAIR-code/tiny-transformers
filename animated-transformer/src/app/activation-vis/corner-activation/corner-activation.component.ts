@@ -25,6 +25,9 @@ import {
   untracked,
   EffectRef,
   viewChild,
+  ChangeDetectionStrategy,
+  input,
+  model,
 } from '@angular/core';
 import {
   ConfigUpdate,
@@ -54,6 +57,7 @@ import { MatInputModule } from '@angular/material/input';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 
 import { MatButtonModule } from '@angular/material/button';
+import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
 
 interface ActivationVizConfig {
   // Values of the parameters.
@@ -114,8 +118,12 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   ],
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CornerActivationComponent extends ActivationManagerComponent implements OnDestroy {
+  readonly view = model<'edit' | 'vis'>('vis');
+  readonly dataset = input<TwoVarGTensorDataset | null>(null);
+
   updateParamsFromControlsEffect?: EffectRef;
 
   paramValueControls: WritableSignal<FormControl<string>[]>;
@@ -296,7 +304,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     this.grad = computed(() => {
       const positions = this.paramPositionsTensor();
       const params = this.paramsValuesTensor();
-      const dataset = this.dataset()();
+      const dataset = this.dataset();
       if (!dataset || !params || !positions) {
         return null;
       }
@@ -360,7 +368,8 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     const configUpdate = event as ConfigUpdate<ActivationVizConfig>;
 
     if (configUpdate.close) {
-      this.view().set('vis');
+      console.log(`this.view (was: ${this.view()}) is being set to vis`);
+      this.view.set('vis');
     }
 
     if (configUpdate.kind !== ConfigUpdateKind.UpdatedValue) {
@@ -376,12 +385,12 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
   }
 
   applyGrad(): void {
-    const curConfig = this.currentConfig();
+    // const curConfig = this.currentConfig();
     const curGradient = this.grad();
     const curParams = this.paramsValuesTensor();
-    console.log(`curParams: ${JSON.stringify(curParams.tensor.arraySync())}`);
-    console.log(`curGradient: ${JSON.stringify(!curGradient || curGradient.tensor.arraySync())}`);
-    console.log(`curConfig: ${JSON.stringify(curConfig)}`);
+    // console.log(`curParams: ${JSON.stringify(curParams.tensor.arraySync())}`);
+    // console.log(`curGradient: ${JSON.stringify(!curGradient || curGradient.tensor.arraySync())}`);
+    // console.log(`curConfig: ${JSON.stringify(curConfig)}`);
     if (!curGradient) {
       console.warn('applyGrad called when gradient was not defined.');
       return;
