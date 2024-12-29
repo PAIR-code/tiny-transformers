@@ -20,6 +20,7 @@ import { SeqTaskSelectorComponent } from './seq-task-selector.component';
 import { TinyModelsService } from 'src/app/tiny-models.service';
 import { provideRouter, RouterModule, withComponentInputBinding } from '@angular/router';
 import { routes } from 'src/app/app.config';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('SeqTaskSelectorComponent', () => {
   let component: SeqTaskSelectorComponent;
@@ -27,7 +28,11 @@ describe('SeqTaskSelectorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [TinyModelsService, provideRouter(routes, withComponentInputBinding())],
+      providers: [
+        provideExperimentalZonelessChangeDetection(),
+        TinyModelsService,
+        provideRouter(routes, withComponentInputBinding()),
+      ],
       imports: [SeqTaskSelectorComponent],
       declarations: [],
     }).compileComponents();

@@ -18,16 +18,16 @@ import {
   ElementRef,
   Component,
   Input,
-  OnChanges,
   OnInit,
-  SimpleChanges,
-  ViewChild,
+  input,
+  viewChild,
+  computed,
+  effect,
 } from '@angular/core';
 import * as tf from '@tensorflow/tfjs';
-import * as gtensor from '../../lib/gtensor/gtensor';
+import { GTensor } from '../../lib/gtensor/gtensor';
 import * as gtensor_util from '../../lib/gtensor/gtensor_util';
 import { pointWiseEval } from '../../lib/gtensor/boolfns';
-
 
 // Make a visualization tensor for a set of params given a set of inputs,
 // with extra points to show value changes/gradients added according to
@@ -35,13 +35,13 @@ import { pointWiseEval } from '../../lib/gtensor/boolfns';
 export function mkVisTensor(
   // resolution = number of separations to show between points.
   resolution: number,
-  params: gtensor.GTensor<'pointId' | 'outputRepSize'>,
-  positions: gtensor.GTensor<'pointId' | 'inputRepSize'>
-): gtensor.GTensor<'x' | 'y' | 'rgb'> {
+  params: GTensor<'pointId' | 'outputRepSize'>,
+  positions: GTensor<'pointId' | 'inputRepSize'>,
+): GTensor<'x' | 'y' | 'rgb'> {
   // Create grid
-  const examplesGrid = new gtensor.GTensor(
+  const examplesGrid = new GTensor(
     tf.tensor(gtensor_util.grid([0, 0], [1, 1], [1 / resolution, 1 / resolution])),
-    ['example', 'inputRepSize']
+    ['example', 'inputRepSize'],
   );
   const gridSize = Math.sqrt(examplesGrid.dim.example.size);
 
@@ -50,43 +50,39 @@ export function mkVisTensor(
   // pointWiseEval(params, positions,
   //   examplesGrid);
 
-  const rgbM = new gtensor.GTensor(tf.ones([params.dim.outputRepSize.size, 3]), [
-    'outputRepSize',
-    'rgb',
-  ]);
+  const rgbM = new GTensor(tf.ones([params.dim.outputRepSize.size, 3]), ['outputRepSize', 'rgb']);
   return outValues
     .contract(rgbM, ['outputRepSize'])
     .splitDim('example', { x: gridSize, y: gridSize });
 }
 
 @Component({
-    selector: 'app-tensor-image',
-    imports: [],
-    templateUrl: './tensor-image.component.html',
-    styleUrls: ['./tensor-image.component.scss']
+  selector: 'app-tensor-image',
+  imports: [],
+  templateUrl: './tensor-image.component.html',
+  styleUrls: ['./tensor-image.component.scss'],
 })
 export class TensorImageComponent implements OnInit, AfterViewInit {
-  @Input() seenWidth!: number;
-  @Input() seenHeight!: number;
-  @ViewChild('canvas', { static: false })
-  canvasRef!: ElementRef<HTMLCanvasElement>;
+  readonly seenWidth = input.required<number>();
+  readonly seenHeight = input.required<number>();
+  readonly gtensor = input.required<GTensor<'x' | 'y' | 'rgb'>>();
+
+  readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+
   rawCanvas: HTMLCanvasElement;
   // rawCtxt!: CanvasRenderingContext2D;
 
-  rawTensor!: gtensor.GTensor<'x' | 'y' | 'rgb'>;
+  // rawTensor!: gtensor.GTensor<'x' | 'y' | 'rgb'>;
   seenCanvas!: HTMLCanvasElement;
   // seenCtxt!: CanvasRenderingContext2D;
 
   constructor() {
     this.rawCanvas = document.createElement('canvas');
+
+    effect(() => this.rawCanvasFromTensor(this.gtensor()));
   }
 
   ngOnInit(): void {}
-
-  @Input() set tensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
-    this.rawTensor = rawTensor;
-    this.rawCanvasFromTensor(rawTensor);
-  }
 
   ngAfterViewInit(): void {
     // const dims = Object.values(this.rawTensor.dim);
@@ -98,12 +94,12 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
     // }
     // this.rawTensor = this.rawTensor.withNewNames(['x', 'y', 'rgb']);
 
-    this.seenCanvas = this.canvasRef.nativeElement;
-    this.seenCanvas.width = this.seenWidth;
-    this.seenCanvas.height = this.seenHeight;
+    this.seenCanvas = this.canvasRef().nativeElement;
+    this.seenCanvas.width = this.seenWidth();
+    this.seenCanvas.height = this.seenHeight();
   }
 
-  public async rawCanvasFromTensor(rawTensor: gtensor.GTensor<'x' | 'y' | 'rgb'>) {
+  public async rawCanvasFromTensor(rawTensor: GTensor<'x' | 'y' | 'rgb'>) {
     // Condition this because the setting will re-create and blank the canvas.
     if (
       this.rawCanvas.width !== rawTensor.dim.x.size ||
@@ -119,7 +115,7 @@ export class TensorImageComponent implements OnInit, AfterViewInit {
     // this.rawTensor.tensor.print();
     let pixelsA: Uint8ClampedArray;
     try {
-      pixelsA = await tf.browser.toPixels(this.rawTensor.tensor as tf.Tensor3D);
+      pixelsA = await tf.browser.toPixels(this.gtensor().tensor as tf.Tensor3D);
     } catch (e) {
       console.warn(e);
       return;

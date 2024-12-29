@@ -12,23 +12,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+/**
+ * This is a simple example (web) ailab. This provides an example of defining
+ * the types for a cell (called the cell's abstract).
+ */
 
+import { CellKind, Kind } from './cell-types';
 
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { D3LineChartComponent } from './d3-line-chart.component';
-
-
-
-@NgModule({
-  declarations: [
-    D3LineChartComponent
-  ],
-  imports: [
-    CommonModule
-  ],
-  exports: [
-    D3LineChartComponent
-  ]
-})
-export class D3LineChartModule { }
+export const exampleCellAbstract = new CellKind({
+  cellKindId: `testing cell: prefixing strStream, and outputs a reverse each prefix set, and outputs the first prefix's length`,
+  workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
+  inputs: { prefix: Kind<string> },
+  outputs: { prefixRev: Kind<string>, prefixLen: Kind<number> },
+  inStreams: { strStream: Kind<string> },
+  outStreams: { prefixedStream: Kind<string> },
+});

@@ -1,6 +1,6 @@
 <mat-form-field class="full-width" appearance="fill">
-  @if (label) {
-    <mat-label>{{ label }}</mat-label>
+  @if (label()) {
+    <mat-label>{{ label() }}</mat-label>
   }
   <input
     #textInput

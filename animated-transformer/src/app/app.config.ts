@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 import { provideMarkdown } from 'ngx-markdown';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -32,9 +32,6 @@ export const routes: Routes = [
   { path: '', component: WebColabComponent, pathMatch: 'full' },
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
-  // { path: 'transformers', component: AnimatedTransformerComponent },
-  // { path: 'wcolab', component: WebColabComponent },
-  { path: 'settings', component: WebColabComponent, pathMatch: 'full' },
   { path: 'sae', component: SAEComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
@@ -47,6 +44,7 @@ export const routes: Routes = [
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideExperimentalZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding()),
     provideAnimationsAsync(),
     provideMarkdown(),

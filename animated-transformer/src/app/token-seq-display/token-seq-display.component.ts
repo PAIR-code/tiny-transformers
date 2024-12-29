@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 @Component({
     selector: 'app-token-seq-display',
@@ -7,5 +7,5 @@ import { Component, Input } from '@angular/core';
     styleUrl: './token-seq-display.component.scss'
 })
 export class TokenSeqDisplayComponent {
-  @Input() tokens: string[] = [];
+  readonly tokens = input<string[]>([]);
 }

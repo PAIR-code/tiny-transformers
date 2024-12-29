@@ -13,17 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  signal,
-  Component,
-  EventEmitter,
-  Input,
-  OnInit,
-  Output,
-  effect,
-  Signal,
-  computed,
-} from '@angular/core';
+import { signal, Component, Input, OnInit, effect, Signal, computed, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -34,7 +24,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { FormControl } from '@angular/forms';
 import { BasicLmTask, BasicLmTaskConfig, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
@@ -94,7 +84,7 @@ function typedGetData<N extends string>(
     MatTableModule,
     MatCardModule,
     // ---
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
   ],
   standalone: true,
 })
@@ -122,7 +112,7 @@ export class ModelEvaluatorComponent {
   set task(taskUpdate: BasicLmTaskUpdate) {
     this.currentTask.set(taskUpdate.task || null);
   }
-  @Output() evalInputUpdate = new EventEmitter<string>();
+  readonly evalInputUpdate = output<string>();
 
   constructor() {
     // public tinyModelsService: TinyModelsService

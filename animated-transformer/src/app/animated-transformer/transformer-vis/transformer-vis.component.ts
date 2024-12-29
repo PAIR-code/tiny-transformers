@@ -17,11 +17,11 @@ import {
   AfterViewInit,
   ElementRef,
   Component,
-  Input,
   OnChanges,
   OnInit,
   SimpleChanges,
   ViewChild,
+  input
 } from '@angular/core';
 
 import * as d3 from 'd3';
@@ -34,7 +34,7 @@ import * as d3 from 'd3';
   imports: [],
 })
 export class TransformerVisComponent implements OnChanges, OnInit, AfterViewInit {
-  @Input() tensorData!: string;
+  readonly tensorData = input.required<string>();
 
   tensorJson!: { [key: string]: number[][] | number[][][] };
 

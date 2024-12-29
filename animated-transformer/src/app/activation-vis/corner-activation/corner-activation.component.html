@@ -1,4 +1,4 @@
-@if(view() == 'edit') {
+@if (view() === "edit") {
   <div class="code-full-screen">
     <app-codemirror-config-editor
       (update)="configUpdated($event)"
@@ -14,31 +14,26 @@
   <form class="param-form">
     Model Params:
     @for (c of paramValueControls(); track c; let i = $index) {
-      <mat-form-field
-        class="short-width"
-        appearance="fill"
-        >
+      <mat-form-field class="short-width" appearance="fill">
         <mat-label
           >i<sub>{{ currentConfig().paramPositions[i] }}</sub></mat-label
-          >
-          <input
-            matInput
-            required
-            boundedFloatValidator
-            maxlength="6"
-            [formControl]="c"
-            />
-          @if (c.invalid && (c.dirty || c.touched) && c.errors) {
-            <mat-error
-              class="error"
-              >
-              {{ paramValueErrorString(c.errors) }};
-            </mat-error>
-          }
-        </mat-form-field>
-      }
-    </form>
-  }
+        >
+        <input
+          matInput
+          required
+          boundedFloatValidator
+          maxlength="6"
+          [formControl]="c"
+        />
+        @if (c.invalid && (c.dirty || c.touched) && c.errors) {
+          <mat-error class="error">
+            {{ paramValueErrorString(c.errors) }};
+          </mat-error>
+        }
+      </mat-form-field>
+    }
+  </form>
+}
 <!-- </ng-template> -->
 
 @if (paramsVisTensor(); as paramsVisTensor) {
@@ -51,7 +46,7 @@
           #tensorImg
           [seenWidth]="100"
           [seenHeight]="100"
-          [tensor]="paramsVisTensor"
+          [gtensor]="paramsVisTensor"
         ></app-tensor-image>
       </app-axis-wrapper>
     </div>

@@ -16,9 +16,6 @@ limitations under the License.
 import {
   signal,
   Component,
-  Input,
-  OnInit,
-  ViewChild,
   OnDestroy,
   computed,
   WritableSignal,
@@ -27,77 +24,40 @@ import {
   Injector,
   untracked,
   EffectRef,
+  viewChild,
+  ChangeDetectionStrategy,
+  input,
+  model,
 } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
 import {
   ConfigUpdate,
   ConfigUpdateKind,
 } from '../../codemirror-config-editor/codemirror-config-editor.component';
-import { ConfigStoreService } from '../../config-store.service';
-import { TfvisService } from '../../tfvis.service';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../../tensor-image/tensor-image.component';
-import json5 from 'json5';
-import {
-  AbstractControl,
-  FormControl,
-  FormsModule,
-  ReactiveFormsModule,
-  UntypedFormControl,
-  ValidationErrors,
-  ValidatorFn,
-} from '@angular/forms';
-import {
-  firstValueFrom,
-  Observable,
-  of,
-  EMPTY,
-  OperatorFunction,
-  combineLatest,
-  BehaviorSubject,
-  ReplaySubject,
-  Subscription,
-} from 'rxjs';
-import {
-  map,
-  startWith,
-  shareReplay,
-  take,
-  mergeMap,
-  distinctUntilChanged,
-  tap,
-  skip,
-  pairwise,
-  combineAll,
-  filter,
-} from 'rxjs/operators';
-import { mapNonNull } from '../../../lib/rxjs/util';
-// import { basicGatesAsIoArrays, basicGatesAsGTensor, TwoVarGTensorDataset, TwoVarBoolListDataset } from '../../lib/gtensor/the_16_two_var_bool_fns';
-import {
-  basicGatesAsGTensor,
-  TwoVarGTensorDataset,
-} from '../../../lib/gtensor/the_16_two_var_bool_fns';
+import { FormControl, FormsModule, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
+import { combineLatest, Subscription } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { startWith, distinctUntilChanged, filter } from 'rxjs/operators';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
 
 // import { pointWiseEval, softVoronoiEval, pointwiseGrad } from '../../lib/gtensor/boolfns';
-import { pointWiseEval, pointwiseGrad } from '../../../lib/gtensor/boolfns';
-import { MatTable } from '@angular/material/table';
+import { pointwiseGrad } from '../../../lib/gtensor/boolfns';
 import {
   boundedFloatValidator,
-  boundedFloatErrorFn,
   BoundedFloatError,
 } from '../../form-validators/bounded-float-validator.directive';
 // import { nanValidator } from '../nan-validator.directive';
 import { JsonValue } from 'src/lib/json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
-import { toSignal } from '@angular/core/rxjs-interop';
 import * as _ from 'underscore';
-import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { MatInputModule } from '@angular/material/input';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 
 import { MatButtonModule } from '@angular/material/button';
+import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
 
 interface ActivationVizConfig {
   // Values of the parameters.
@@ -149,7 +109,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     MatInputModule,
     MatButtonModule,
     TensorImageComponent,
@@ -158,8 +118,12 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   ],
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CornerActivationComponent extends ActivationManagerComponent implements OnDestroy {
+  readonly view = model<'edit' | 'vis'>('vis');
+  readonly dataset = input<TwoVarGTensorDataset | null>(null);
+
   updateParamsFromControlsEffect?: EffectRef;
 
   paramValueControls: WritableSignal<FormControl<string>[]>;
@@ -187,9 +151,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
 
   grad: Signal<gtensor.GTensor<'pointId' | 'outputRepSize'> | null>;
 
-  @ViewChild('tensorImg', { static: false }) tensorImg!: TensorImageComponent;
-
-  posInputs: FormControl<string> | null = null;
+  readonly tensorImg = viewChild.required<TensorImageComponent>('tensorImg');
 
   // ----------------------------------------------------------------------------------------------
   constructor(
@@ -406,6 +368,7 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     const configUpdate = event as ConfigUpdate<ActivationVizConfig>;
 
     if (configUpdate.close) {
+      console.log(`this.view (was: ${this.view()}) is being set to vis`);
       this.view.set('vis');
     }
 
@@ -422,12 +385,12 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
   }
 
   applyGrad(): void {
-    const curConfig = this.currentConfig();
+    // const curConfig = this.currentConfig();
     const curGradient = this.grad();
     const curParams = this.paramsValuesTensor();
-    console.log(`curParams: ${JSON.stringify(curParams.tensor.arraySync())}`);
-    console.log(`curGradient: ${JSON.stringify(!curGradient || curGradient.tensor.arraySync())}`);
-    console.log(`curConfig: ${JSON.stringify(curConfig)}`);
+    // console.log(`curParams: ${JSON.stringify(curParams.tensor.arraySync())}`);
+    // console.log(`curGradient: ${JSON.stringify(!curGradient || curGradient.tensor.arraySync())}`);
+    // console.log(`curConfig: ${JSON.stringify(curConfig)}`);
     if (!curGradient) {
       console.warn('applyGrad called when gradient was not defined.');
       return;

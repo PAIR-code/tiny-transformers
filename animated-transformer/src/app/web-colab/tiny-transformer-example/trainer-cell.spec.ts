@@ -15,7 +15,7 @@ limitations under the License.
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { asyncSignalIter, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { TrainConfig, trainerCellSpec, ModelUpdate, ModelUpdateKind, Batch } from './ailab';
-import { LabEnv } from 'src/lib/weblab/lab-env';
+import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
 
@@ -23,8 +23,8 @@ describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {
-    const env = new LabEnv();
-    const space = env.space;
+    const space = new SignalSpace();
+    const env = new LabEnv(space);
     const { setable, derived } = space;
 
     // ------------------------------------------------------------------------
@@ -81,22 +81,24 @@ describe('Trainer-Cell', () => {
     // ------------------------------------------------------------------------
     // Trainer cell
     const trainerCell = env.start(trainerCellSpec, {
-      modelUpdateEvents,
-      trainConfig,
-      testSet,
+      inputs: {
+        modelUpdateEvents,
+        trainConfig,
+        testSet,
+      },
     });
 
-    trainerCell.inStream.trainBatches.send(makeBatch(0, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(1, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(2, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(3, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.send(makeBatch(4, trainConfig().batchSize));
-    trainerCell.inStream.trainBatches.done();
+    trainerCell.inStreams.trainBatches.send(makeBatch(0, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(1, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(2, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(3, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.send(makeBatch(4, trainConfig().batchSize));
+    trainerCell.inStreams.trainBatches.done();
 
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetricsIter = trainerCell.outStream.metrics;
-    const ckptIter = trainerCell.outStream.checkpoint;
+    const lastMetricsIter = trainerCell.outStreams.metrics;
+    const ckptIter = trainerCell.outStreams.checkpoint;
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;

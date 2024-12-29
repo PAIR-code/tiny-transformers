@@ -46,27 +46,4 @@ export class AppComponent {
     private route: ActivatedRoute,
     public router: Router,
   ) {}
-
-  async loadExperiment() {
-    const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
-    const projectFile = await dirHandle.getFileHandle('project.json', {
-      create: true,
-    });
-
-    // const writable = await projectFile.createWritable();
-    // await writable.write('hello there');
-    // await writable.close();
-    // console.log(dirHandle.name);
-    // console.log(dirHandle.getFileHandle(''));
-
-    for await (const entry of dirHandle.values()) {
-      const perm = await entry.requestPermission({ mode: 'read' });
-      console.log(entry.kind, entry.name, perm);
-      if (entry.kind === 'file') {
-        const file = await entry.getFile();
-        const dec = new TextDecoder('utf-8');
-        console.log('file contains:', dec.decode(await file.arrayBuffer()));
-      }
-    }
-  }
 }

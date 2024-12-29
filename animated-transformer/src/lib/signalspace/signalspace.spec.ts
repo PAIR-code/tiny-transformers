@@ -53,6 +53,65 @@ describe('signalspace', () => {
     expect(c.get()).toEqual('Abc');
   });
 
+  it('Dispose setable in simple two step signal update', () => {
+    const s = new SignalSpace();
+    const a = new SetableNode(s, 'a');
+    const b = new DerivedNode(s, () => {
+      return a.get() + 'b';
+    });
+    const c = new DerivedNode(s, () => {
+      return b.get() + 'c';
+    });
+    a.dispose();
+
+    expect(c.get()).toEqual('abc');
+    a.set('A');
+    expect(b.get()).toEqual('ab');
+    expect(c.get()).toEqual('abc');
+
+    expect(s.signalSet.size).toEqual(0);
+  });
+
+  it('Dispose middle derived in simple two step signal update', () => {
+    const s = new SignalSpace();
+
+    const a = new SetableNode(s, 'a');
+    const b = new DerivedNode(s, () => {
+      return a.get() + 'b';
+    });
+    const c = new DerivedNode(s, () => {
+      return b.get() + 'c';
+    });
+    b.dispose();
+
+    expect(c.get()).toEqual('abc');
+    a.set('A');
+    expect(b.get()).toEqual('ab');
+    expect(c.get()).toEqual('abc');
+
+    expect([...s.signalSet]).toEqual([a]);
+  });
+
+  it('Dispose final derived in simple two step signal update', () => {
+    const s = new SignalSpace();
+
+    const a = new SetableNode(s, 'a');
+    const b = new DerivedNode(s, () => {
+      return a.get() + 'b';
+    });
+    const c = new DerivedNode(s, () => {
+      return b.get() + 'c';
+    });
+    c.dispose();
+
+    expect(c.get()).toEqual('abc');
+    a.set('A');
+    expect(b.get()).toEqual('Ab');
+    expect(c.get()).toEqual('abc');
+
+    expect(s.signalSet).toEqual(new Set([a, b]));
+  });
+
   it('Simple derived update with a new object', () => {
     // This test might seem obvious, but new objects help check for loops in change detection flows.
     const s = new SignalSpace();
@@ -67,14 +126,14 @@ describe('signalspace', () => {
       () => {
         return new Foo(a.get());
       },
-      { id: 'b' }
+      { id: 'b' },
     );
     const c = new DerivedNode(
       s,
       () => {
         return b.get().value + 'c';
       },
-      { id: 'c' }
+      { id: 'c' },
     );
 
     expect(b.get().value).toEqual('a');
@@ -157,7 +216,7 @@ describe('signalspace', () => {
       () => {
         return { bStr: defined(a).str + 'b' };
       },
-      { definedDeps: [a] }
+      { definedDeps: [a] },
     );
     const c = derivedNullable(
       () => {
@@ -167,7 +226,7 @@ describe('signalspace', () => {
         const b2 = defined(b);
         return b2.bStr + 'c';
       },
-      { definedDeps: [b] }
+      { definedDeps: [b] },
     );
     expect(b()).toEqual(null);
     expect(c()).toEqual(null);
@@ -270,7 +329,7 @@ describe('signalspace', () => {
         m();
         n.update((v) => v + 1);
       },
-      { id: 'e' }
+      { id: 'e' },
     );
     // The initial definiton of 'e' updates n
     expect(n()).toEqual(2);
@@ -288,7 +347,7 @@ describe('signalspace', () => {
     expect(() =>
       derived(() => {
         n.set(n() + 1);
-      })
+      }),
     ).toThrow();
   });
 

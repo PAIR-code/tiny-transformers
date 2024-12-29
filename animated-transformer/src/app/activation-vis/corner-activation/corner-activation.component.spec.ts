@@ -26,6 +26,7 @@ import {
   OnDestroy,
   Signal,
   WritableSignal,
+  provideExperimentalZonelessChangeDetection,
 } from '@angular/core';
 
 import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
@@ -33,7 +34,7 @@ import { ActivationManagerComponent } from '../activation-manager/activation-man
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { CodemirrorConfigEditorModule } from 'src/app/codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
 import { TensorImageComponent } from 'src/app/tensor-image/tensor-image.component';
 import { MatInputModule } from '@angular/material/input';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -44,13 +45,13 @@ describe('CornerActivationComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideNoopAnimations()],
+      providers: [provideExperimentalZonelessChangeDetection(), provideNoopAnimations()],
       imports: [
         CommonModule,
         FormsModule,
         ReactiveFormsModule,
         MatInputModule,
-        CodemirrorConfigEditorModule,
+        CodemirrorConfigEditorComponent,
         TensorImageComponent,
         AxisWrapperComponent,
         ActivationManagerComponent,
@@ -59,8 +60,8 @@ describe('CornerActivationComponent', () => {
     });
     fixture = TestBed.createComponent(CornerActivationComponent);
     component = fixture.componentInstance;
-    component.view = signal<'edit' | 'vis'>('vis');
-    component.dataset = signal<TwoVarGTensorDataset | null>(null);
+    // fixture.componentRef.setInput('view', 'vis');
+    // fixture.componentRef.setInput('dataset', null);
     fixture.detectChanges();
   });
 

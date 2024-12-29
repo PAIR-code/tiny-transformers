@@ -28,12 +28,13 @@ import {
   ModelUpdateKind,
   TaskGenConfig,
 } from './ailab';
-import { LabEnv } from 'src/lib/weblab/lab-env';
+import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 
 function logMetrics(metrics: SimpleMetrics): void {
   console.log(
-    `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`
+    `(batchid: ${metrics.batchId}) acc: ${metrics.values.accuracy}; loss: ${metrics.values.entropyLoss}`,
   );
 }
 
@@ -45,13 +46,14 @@ batchid: ${metrics.batchId}
 acc: ${metrics.values.accuracy}
 loss: ${metrics.values.entropyLoss}
 lastBatch.batchId: ${JSON.stringify(checkpoint.lastBatch.batchId)}
-lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`
+lastBatch.seed: ${JSON.stringify(checkpoint.lastBatch.nextSeed)}`,
   );
 }
 
 async function run() {
-  const env = new LabEnv();
-  const space = env.space;
+  const space = new SignalSpace();
+  const env = new LabEnv(space);
+
   const { setable, derived } = space;
 
   const taskConfig = setable(structuredClone(defaultTinyWorldTaskConfig));
@@ -60,6 +62,7 @@ async function run() {
     id: 'initial config',
     kind: 'basicSeqTrainer',
     // training hyper-params
+    randomSeed: 0,
     learningRate: 0.5,
     batchSize: 64,
     maxInputLength: 10,
@@ -90,7 +93,7 @@ async function run() {
     genConfig,
   });
 
-  const testSet = await taskCell.outputs.testSet;
+  const testSet = await taskCell.outputs.testSet.onceReady;
 
   // TODO: add data to each signal in a spec to say if the signal is pushed or
   // pulled. Pushed means that every worker set on the signal pushes the new
@@ -111,11 +114,11 @@ async function run() {
   // But we would like to have the testSet here.
   env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
 
-  for await (const m of trainerCell.outStream.metrics) {
+  for await (const m of trainerCell.outStreams.metrics) {
     logMetrics(m);
   }
 
-  for await (const c of trainerCell.outStream.checkpoint) {
+  for await (const c of trainerCell.outStreams.checkpoint) {
     logCheckpoint(c);
   }
 

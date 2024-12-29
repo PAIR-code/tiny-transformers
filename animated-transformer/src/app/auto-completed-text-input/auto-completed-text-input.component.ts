@@ -20,30 +20,13 @@ TODO: consider just using mat-menu, it's unclear if auto-complete is actually
 making things harder to easier.
 */
 
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  OnInit,
-  ViewChild,
-  OnDestroy,
-  ComponentRef,
-  signal,
-  Injector,
-  effect,
-  Signal,
-  WritableSignal,
-  computed,
-  untracked,
-  ElementRef,
-} from '@angular/core';
+import { Component, effect, Signal, computed, input, output } from '@angular/core';
 
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocomplete, MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 // import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { AbstractControl, FormControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { FormControl } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
@@ -54,27 +37,17 @@ import { toSignal } from '@angular/core/rxjs-interop';
 })
 export class AutoCompletedTextInputComponent {
   itemSelectorControl = new FormControl<string>('');
-  itemNamesList = signal([] as string[]);
+
   filteredNames: Signal<string[]>;
   suggestedNames: Signal<string[]>;
   exactMatchName: Signal<string | null>;
   lastEmittedValue: string | null = null;
 
-  @Input() label?: string;
+  readonly label = input<string>('');
+  readonly selectedName = input<string | null>(null);
+  readonly itemNames = input<string[]>([]);
 
-  @Input()
-  set selectedName(n: string | null) {
-    if (this.itemSelectorControl.value !== n) {
-      this.itemSelectorControl.setValue(n || '');
-    }
-  }
-
-  @Input()
-  set itemNames(ns: string[]) {
-    this.itemNamesList.set(ns);
-  }
-
-  @Output() itemSelected = new EventEmitter<string | null>();
+  readonly itemSelected = output<string | null>();
 
   constructor() {
     const datasetNameSignal = toSignal(this.itemSelectorControl.valueChanges);
@@ -82,10 +55,10 @@ export class AutoCompletedTextInputComponent {
     this.filteredNames = computed(() => {
       const name = datasetNameSignal();
       if (!name) {
-        return this.itemNamesList();
+        return this.itemNames();
       }
       const filterStringLc = name.toLowerCase();
-      return this.itemNamesList().filter((n) => n.toLocaleLowerCase().includes(filterStringLc));
+      return this.itemNames().filter((n) => n.toLocaleLowerCase().includes(filterStringLc));
     });
 
     this.exactMatchName = computed(() => {
@@ -97,8 +70,15 @@ export class AutoCompletedTextInputComponent {
     // If there is one option only, and that is the current selected item,
     // show all possible items
     this.suggestedNames = computed(() =>
-      this.exactMatchName() ? this.itemNamesList() : this.filteredNames(),
+      this.exactMatchName() ? this.itemNames() : this.filteredNames(),
     );
+
+    effect(() => {
+      const n = this.selectedName();
+      if (this.itemSelectorControl.value !== n) {
+        this.itemSelectorControl.setValue(n || '');
+      }
+    });
 
     effect(() => {
       if (this.exactMatchName()) {

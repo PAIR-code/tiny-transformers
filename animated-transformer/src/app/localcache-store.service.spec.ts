@@ -13,17 +13,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { NgModule } from '@angular/core';
-import { CodemirrorConfigEditorComponent } from './codemirror-config-editor.component';
+import { TestBed } from '@angular/core/testing';
 
-import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { LocalCacheStoreService } from './localcache-store.service';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
-@NgModule({
-  declarations: [CodemirrorConfigEditorComponent],
-  imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
-  exports: [CodemirrorConfigEditorComponent],
-})
-export class CodemirrorConfigEditorModule {}
+describe('LocalCacheStoreService', () => {
+  let service: LocalCacheStoreService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
+    });
+    service = TestBed.inject(LocalCacheStoreService);
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+});

@@ -16,6 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TransformerVisComponent } from './transformer-vis.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('TransformerVisComponent', () => {
   let component: TransformerVisComponent;
@@ -23,6 +24,7 @@ describe('TransformerVisComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
       imports: [TransformerVisComponent],
       declarations: [],
     }).compileComponents();

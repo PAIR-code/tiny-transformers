@@ -13,20 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, Input, Signal, WritableSignal } from '@angular/core';
+import {
+  Component,
+  InputOptionsWithoutTransform,
+  Signal,
+  WritableSignal,
+  input,
+} from '@angular/core';
 import { TwoVarGTensorDataset } from '../../../lib/gtensor/the_16_two_var_bool_fns';
 
-
 @Component({
-    selector: 'app-activation-manager',
-    imports: [],
-    templateUrl: './activation-manager.component.html',
-    styleUrls: ['./activation-manager.component.scss']
+  selector: 'app-activation-manager',
+  imports: [],
+  templateUrl: './activation-manager.component.html',
+  styleUrls: ['./activation-manager.component.scss'],
 })
-export class ActivationManagerComponent {
-  @Input()
-  view!: WritableSignal<'edit' | 'vis'>;
-
-  @Input()
-  dataset!: Signal<TwoVarGTensorDataset | null>;
-}
+export class ActivationManagerComponent {}

@@ -96,7 +96,7 @@ export class DerivedNode<T> {
   constructor(
     public signalSpace: SignalSpace,
     public computeFunction: () => T,
-    options?: Partial<DerivedNodeOptions<T>>
+    options?: Partial<DerivedNodeOptions<T>>,
   ) {
     this.nodeId = signalSpace.nodeCount++;
     this.options = { ...defaultDerivedOptions(), ...options };
@@ -233,7 +233,7 @@ export class DerivedNode<T> {
 
   noteDependsOnSetable(
     node: SetableNode<unknown>,
-    depOptions?: Partial<SignalDepOptions>
+    depOptions?: Partial<SignalDepOptions>,
   ): SignalDepOptions {
     // A derived dependency is Lazy or Sync depending on the default signal
     // type; but it can be over-written by the dependency kind specified for
@@ -259,7 +259,7 @@ export class DerivedNode<T> {
 
   noteDependsOnComputing(
     node: DerivedNode<unknown>,
-    depOptions?: Partial<SignalDepOptions>
+    depOptions?: Partial<SignalDepOptions>,
   ): SignalDepOptions {
     // A derived dependency is Lazy or Sync depending on the default signal
     // type; but it can be over-written by the dependency kind specified for
@@ -300,5 +300,21 @@ export class DerivedNode<T> {
     }
     this.ensureUpToDate();
     return this.lastValue;
+  }
+
+  // Remove from the space, removing all things that depend on it in the space,
+  // and remove any references to this depending on other stuff.
+  dispose() {
+    this.signalSpace.signalSet.delete(this as DerivedNode<unknown>);
+
+    for (const setable of this.dependsOnSetables.keys()) {
+      setable.dependsOnMe.delete(this as DerivedNode<unknown>);
+    }
+    for (const depOnComputing of this.dependsOnComputing.keys()) {
+      depOnComputing.dependsOnMe.delete(this as DerivedNode<unknown>);
+    }
+    for (const depOnMe of this.dependsOnMe.keys()) {
+      depOnMe.dispose();
+    }
   }
 }

@@ -181,6 +181,8 @@ export class SignalSpace {
   // ComputeStackEntry. We also track/stack updates.
   public computeStack: ComputeContext[] = [];
 
+  // CONSIDER: are there better alterantive to `unknown` here? unknown doesn't
+  // have the semantics of valid but unknown, which is what we mean.
   public signalSet: Set<DerivedNode<unknown> | SetableNode<unknown>> = new Set();
 
   // Set from the time between a value has been updated, and
@@ -190,26 +192,27 @@ export class SignalSpace {
   // Convenience functions so you can write {setable} = new SignalSpace();
   public setable = setable.bind(null, this) as <T>(
     value: T,
-    options?: Partial<SetableOptions<T>>
+    options?: Partial<SetableOptions<T>>,
   ) => SetableSignal<T>;
   public derived = derived.bind(null, this) as <T>(
     f: () => T,
-    options?: Partial<DerivedOptions<T>>
+    options?: Partial<DerivedOptions<T>>,
   ) => DerivedSignal<T>;
   public derivedNullable = derivedNullable.bind(null, this) as <T>(
     f: () => T | null,
-    options?: Partial<DerivedNullableOptions<T>>
+    options?: Partial<DerivedNullableOptions<T>>,
   ) => DerivedSignal<T | null>;
   // Note the Lazy definition just change the default dependency type to Lazy...
   // we could remove these, and just use the above, but manually specify each
-  // dependency as Lazy when we want it.
+  // dependency as Lazy when we want it. However, it's handy to have some syntax
+  // that explicitly expresses lazyness on everything when reading code.
   public derivedLazy = derivedLazy.bind(null, this) as <T>(
     f: () => T,
-    options?: Partial<DerivedOptions<T>>
+    options?: Partial<DerivedOptions<T>>,
   ) => DerivedSignal<T>;
   public derivedLazyNullable = derivedLazyNullable.bind(null, this) as <T>(
     f: () => T | null,
-    options?: Partial<DerivedNullableOptions<T>>
+    options?: Partial<DerivedNullableOptions<T>>,
   ) => DerivedSignal<T | null>;
 
   constructor() {}
@@ -333,7 +336,7 @@ export class SignalSpace {
 function setable<T>(
   space: SignalSpace,
   value: T,
-  options?: Partial<SetableOptions<T>>
+  options?: Partial<SetableOptions<T>>,
 ): SetableSignal<T> {
   const valueNode = new SetableNode(space, value, options);
   const signal = function (options?: Partial<SignalDepOptions>) {
@@ -369,7 +372,7 @@ export type DerivedNullableOptions<T> = {
 };
 
 function makeDerivedNodeOptions<T>(
-  opts?: Partial<DerivedNullableOptions<T>>
+  opts?: Partial<DerivedNullableOptions<T>>,
 ): Partial<DerivedNodeOptions<T>> | undefined {
   if (!opts) return;
   const preComputeDeps = new Map<AbstractSignal<any>, SignalDepOptions>();
@@ -399,7 +402,7 @@ function makeDerivedNodeOptions<T>(
 }
 
 function makeDerivedNodeNullableOptions<T>(
-  opts?: Partial<DerivedNullableOptions<T>>
+  opts?: Partial<DerivedNullableOptions<T>>,
 ): Partial<DerivedNodeOptions<T | null>> | undefined {
   const nodeOptions = makeDerivedNodeOptions(opts);
   const definedEqCheck = nodeOptions && nodeOptions.eqCheck;
@@ -430,7 +433,7 @@ function makeDerivedNodeNullableOptions<T>(
 function derivedNodeFn<T>(
   space: SignalSpace,
   f: () => T,
-  nodeOptions?: Partial<DerivedNodeOptions<T>>
+  nodeOptions?: Partial<DerivedNodeOptions<T>>,
 ): DerivedSignal<T> {
   const derivedNode = new DerivedNode<T>(space, f, nodeOptions);
   const signal = function (getOptions?: Partial<SignalDepOptions>) {
@@ -446,7 +449,7 @@ function derivedNodeFn<T>(
 function derived<T>(
   space: SignalSpace,
   f: () => T,
-  options?: Partial<DerivedOptions<T>>
+  options?: Partial<DerivedOptions<T>>,
 ): DerivedSignal<T> {
   const nodeOptions = makeDerivedNodeOptions(options as DerivedNullableOptions<T>);
   return derivedNodeFn(space, f, nodeOptions);
@@ -456,7 +459,7 @@ function derived<T>(
 function derivedNullable<T>(
   space: SignalSpace,
   f: () => T | null,
-  options?: Partial<DerivedOptions<T>>
+  options?: Partial<DerivedOptions<T>>,
 ): DerivedSignal<T | null> {
   const nodeOptions = makeDerivedNodeNullableOptions(options) || {};
   return derivedNodeFn(space, f, nodeOptions);
@@ -468,7 +471,7 @@ function derivedNullable<T>(
 function derivedLazy<T>(
   space: SignalSpace,
   f: () => T,
-  options?: Partial<DerivedOptions<T>>
+  options?: Partial<DerivedOptions<T>>,
 ): DerivedSignal<T> {
   const nodeOptions = makeDerivedNodeOptions(options) || {};
   nodeOptions.kind = SignalKind.LazyDerived;
@@ -481,7 +484,7 @@ function derivedLazy<T>(
 function derivedLazyNullable<T>(
   space: SignalSpace,
   f: () => T | null,
-  options?: Partial<DerivedOptions<T>>
+  options?: Partial<DerivedOptions<T>>,
 ): DerivedSignal<T | null> {
   const nodeOptions = makeDerivedNodeNullableOptions(options) || {};
   nodeOptions.kind = SignalKind.LazyDerived;
@@ -512,7 +515,7 @@ export function defined<T>(s: AbstractSignal<T | null>, depEvalKind?: DepKind): 
 // change it (but your value will get changed whenever s does too).
 export function writableFork<T>(
   s: AbstractSignal<T>,
-  options?: Partial<SetableOptions<T>>
+  options?: Partial<SetableOptions<T>>,
 ): SetableSignal<T> {
   if (s.node instanceof SetableNode) {
     options = { ...structuredClone(s.node.options), ...options };
@@ -524,7 +527,7 @@ export function writableFork<T>(
 
 // A convenient way to track updates to a signal...
 export function promisifySignal<T>(
-  s: AbstractSignal<T>
+  s: AbstractSignal<T>,
 ): DerivedSignal<{ cur: T; next: Promise<T>; rejectFn: () => void }> {
   let resolveFn: (v: T) => void = () => {};
   let rejectFn: () => void = () => {};
@@ -546,7 +549,7 @@ export function promisifySignal<T>(
 
 // A convenient way to track updates to a signal...
 export function asyncSignalIter<T>(
-  s: AbstractSignal<T>
+  s: AbstractSignal<T>,
 ): AsyncIterator<T> & AsyncIterable<T> & { done: () => void } {
   let stopped = false;
   let nextIsWaiting = false;
@@ -605,7 +608,7 @@ export function asyncSignalIter<T>(
 
 export function asyncIterToSignal<T>(
   iter: AsyncIterable<T>,
-  space: SignalSpace
+  space: SignalSpace,
 ): { done: Promise<void>; signal: Promise<AbstractSignal<T>> } {
   let resolveDoneFn: () => void;
   const onceDone = new Promise<void>((resolve) => {

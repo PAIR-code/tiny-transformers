@@ -13,16 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { TestBed } from '@angular/core/testing';
 
 import { ConfigStoreService } from './config-store.service';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('ConfigStoreService', () => {
   let service: ConfigStoreService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [provideExperimentalZonelessChangeDetection()],
+    });
     service = TestBed.inject(ConfigStoreService);
   });
 

@@ -32,11 +32,11 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 // import { TensorImageModule } from '../tensor-image/tensor-image.module';
 
-import { CodemirrorConfigEditorModule } from '../codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from '../codemirror-config-editor/codemirror-config-editor.component';
 import { SeqTaskSelectorComponent } from './seq-task-selector/seq-task-selector.component';
 import { ModelSelectorComponent } from './model-selector/model-selector.component';
 // import { VegaChartModule } from '../vega-chart/vega-chart.module';
-import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
+import { D3LineChartComponent } from '../d3-line-chart/d3-line-chart.component';
 import { ModelTaskTrainerComponent } from './model-task-trainer/model-task-trainer.component';
 import { ModelEvaluatorComponent } from './model-evaluator/model-evaluator.component';
 // import { ModelTaskTrainerComponent } from './model-task-trainer/model-task-trainer.component';
@@ -75,9 +75,9 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     MatSlideToggleModule,
     MatTableModule,
     // ---
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     // VegaChartModule,
-    D3LineChartModule,
+    D3LineChartComponent,
     SeqTaskSelectorComponent,
     ModelEvaluatorComponent,
     ModelTaskTrainerComponent,

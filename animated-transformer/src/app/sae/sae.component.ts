@@ -21,24 +21,24 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormControl } from '@angular/forms';
 import { Router, ActivatedRoute, ParamMap } from '@angular/router';
-import { NamedChartPoint } from 'src/app/d3-line-chart/d3-line-chart.component';
+import {
+  D3LineChartComponent,
+  NamedChartPoint,
+} from 'src/app/d3-line-chart/d3-line-chart.component';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
-import { D3LineChartModule } from '../d3-line-chart/d3-line-chart.module';
-
 import * as sampleData from './sae_sample_data_boundary.json';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-sae',
-  standalone: true,
   templateUrl: './sae.component.html',
   styleUrls: ['./sae.component.scss'],
   imports: [
     CommonModule,
     MatFormFieldModule,
-    D3LineChartModule,
+    D3LineChartComponent,
     MatButtonModule,
     FormsModule,
     MatInputModule,

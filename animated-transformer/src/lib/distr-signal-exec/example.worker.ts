@@ -21,20 +21,20 @@ import { exampleCellAbstract as exampleCellKind } from './example.ailab';
 const cell = workerCell(exampleCellKind);
 const { derived } = cell.space;
 
-cell.runOnceHaveInputs(async (inputs) => {
-  const { sayHiToName } = inputs;
+cell.start(async (inputs) => {
+  const { prefix } = inputs;
 
-  cell.outputs.num.set(1);
+  cell.outputs.prefixLen.set(prefix().length);
 
   // for every input, add hello to it.
   derived(() => {
-    cell.outputs.helloStr.set(`hello ${sayHiToName()}`);
+    cell.outputs.prefixRev.set(prefix().split('').reverse().join(''));
   });
 
-  for await (const i of cell.inStream.numStream) {
-    await cell.outStream.helloNumStream.send('hello number ' + i);
+  for await (const n of cell.inStream.strStream) {
+    await cell.outStream.prefixedStream.send(`${prefix()} ${n}`);
   }
-  cell.outStream.helloNumStream.done();
+  cell.outStream.prefixedStream.done();
 
   await cell.onceFinishRequested;
 });

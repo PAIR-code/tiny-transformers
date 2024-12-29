@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ErrorPageComponent } from './error-page.component';
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
 describe('ErrorPageComponent', () => {
   let component: ErrorPageComponent;
@@ -24,9 +24,9 @@ describe('ErrorPageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ErrorPageComponent ]
-    })
-    .compileComponents();
+      providers: [provideExperimentalZonelessChangeDetection()],
+      imports: [ErrorPageComponent],
+    }).compileComponents();
   });
 
   beforeEach(() => {
