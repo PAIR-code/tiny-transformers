@@ -17,6 +17,7 @@ import { LabEnv } from './lab-env';
 import { exampleCellAbstract } from './example.ailab';
 import { SignalSpace } from '../signalspace/signalspace';
 import { sigmoid } from '@tensorflow/tfjs';
+import { CellStatus } from './lab-env-cell';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
@@ -24,26 +25,29 @@ describe('lab-env', () => {
   it('Running a simple cell', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const cell = env.start(exampleCellAbstract, { prefix });
+    const cell = env.start(exampleCellAbstract, { inputs: { prefix } });
+    expect(cell.status).toEqual(CellStatus.StartingWaitingForInputs);
 
     const { prefixRev, prefixLen } = await cell.onceAllOutputs;
+    expect(cell.status).toEqual(CellStatus.Running);
+
     expect(prefixLen()).toEqual(3);
     expect(prefixRev()).toEqual('ooF');
 
     for (const i of [1, 2, 3]) {
-      await cell.inStreams.nameStream.send(`name_${i}`);
+      await cell.inStreams.strStream.send(`name_${i}`);
     }
-    cell.inStreams.nameStream.done();
+    cell.inStreams.strStream.done();
 
     const vs = [];
-    for await (const v of cell.outStreams.prefixedNameStream) {
+    for await (const v of cell.outStreams.prefixedStream) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);
 
-    expect(vs[0]).toEqual('hello Foo name_1');
-    expect(vs[1]).toEqual('hello Foo name_2');
-    expect(vs[2]).toEqual('hello Foo name_3');
+    expect(vs[0]).toEqual('Foo name_1');
+    expect(vs[1]).toEqual('Foo name_2');
+    expect(vs[2]).toEqual('Foo name_3');
 
     const onceRevFoo = new Promise((resolve) => {
       env.space.derived(() => {
@@ -65,41 +69,42 @@ describe('lab-env', () => {
     prefix.set('Bar');
     expect(await onceRevBar).toEqual('raB');
 
-    expect(env.runningCells.has(cell)).toBeTrue();
+    expect(cell.status).toEqual(CellStatus.Running);
     cell.requestStop();
     await cell.onceFinished;
-    expect(env.runningCells.has(cell)).toBeFalse();
+    expect(cell.status).toEqual(CellStatus.Stopped);
   });
 
   fit('Running two cells, with delayed piping', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const cell = env.init(exampleCellAbstract);
-    const cell2 = env.init(exampleCellAbstract);
+    const cell = env.init(exampleCellAbstract, { config: { id: 'cell1' } });
+    const cell2 = env.init(exampleCellAbstract, { config: { id: 'cell2' } });
+
+    // console.log(`@ Test: expect(await onceRevFoo)`);
 
     // Cells have assignX methods to assign input signals and streams.
     cell.assignInputFromSignal('prefix', prefix);
-    // The environment helper can be used to pipe between cells (and has nice
-    // auto-completion)
-    env.pipeSignal(cell, 'prefixRev', cell2, 'prefix');
-    // But if you want refactoring to work more smoothly, you are best to pipe
-    // like so:
-    cell2.inStreams.nameStream.pipeFrom(cell.outStreams.prefixedNameStream);
+    cell2.inputs.prefix.pipeFrom(cell.outputs.prefixRev);
+    cell2.inStreams.strStream.pipeFrom(cell.outStreams.prefixedStream);
+
+    cell.start();
+    cell2.start();
 
     for (const i of [1, 2, 3]) {
-      await cell.inStreams.nameStream.send(`name_${i}`);
+      await cell.inStreams.strStream.send(`name_${i}`);
     }
-    cell.inStreams.nameStream.done();
+    cell.inStreams.strStream.done();
 
     const vs = [];
-    for await (const v of cell2.outStreams.prefixedNameStream) {
+    for await (const v of cell2.outStreams.prefixedStream) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);
 
-    expect(vs[0]).toEqual('hello ooF name_1');
-    expect(vs[1]).toEqual('hello ooF name_2');
-    expect(vs[2]).toEqual('hello ooF name_3');
+    expect(vs[0]).toEqual('ooF name_1');
+    expect(vs[1]).toEqual('ooF name_2');
+    expect(vs[2]).toEqual('ooF name_3');
 
     expect(await cell2.outputs.prefixRev.onceReady).toEqual('Foo');
 

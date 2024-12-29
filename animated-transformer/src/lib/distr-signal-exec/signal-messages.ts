@@ -40,6 +40,7 @@ export abstract class AbstractSignalReceiveEnd<T> {
 
 export abstract class AbstractSignalSendEnd<T> {
   abstract set(x: T): void;
+  abstract lastValue?: T;
 }
 
 export abstract class AbstractStreamSendEnd<T> {
@@ -113,6 +114,7 @@ export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
 // Consider: we could take in a signal, and have a derived send functionality
 export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
   ports: MessagePort[] = [];
+  lastValue?: T;
 
   // TODO: have a default sendMessage...
   constructor(
@@ -123,12 +125,22 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
 
   addPort(messagePort: MessagePort) {
     this.ports.push(messagePort);
+    console.log('addPort, lastvalue: ', this.lastValue);
+    if (this.lastValue) {
+      const message: LabMessage = {
+        kind: LabMessageKind.SetSignalValue,
+        signalId: this.id,
+        value: this.lastValue,
+      };
+      messagePort.postMessage(message);
+    }
     messagePort.onmessage = (event: MessageEvent) => {
       console.warn(`unexpected message on output port ${this.id}`);
     };
   }
 
   set(value: T): void {
+    this.lastValue = value;
     const message: LabMessage = { kind: LabMessageKind.SetSignalValue, signalId: this.id, value };
     for (const port of this.ports) {
       port.postMessage(message);
@@ -156,6 +168,7 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
 
       recEnd.pipeSendersTo(channel.port2, options);
     }
+    recEnd.onceReady.then((signal) => this.set(signal()));
   }
 }
 

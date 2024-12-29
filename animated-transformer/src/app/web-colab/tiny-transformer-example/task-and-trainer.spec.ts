@@ -29,8 +29,8 @@ describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test: make 5 batches of data and trains a model', async () => {
-    const env = new LabEnv();
-    const space = env.space;
+    const space = new SignalSpace();
+    const env = new LabEnv(space);
     const { setable, derived } = space;
 
     // ------------------------------------------------------------------------
@@ -67,16 +67,20 @@ describe('Trainer-Cell', () => {
     });
 
     const taskCell = env.init(taskCellSpec, {
-      taskConfig,
-      genConfig,
+      inputs: { taskConfig, genConfig },
     });
 
     // ------------------------------------------------------------------------
     // Trainer cell
     const trainerCell = env.init(trainerCellSpec, {
-      modelUpdateEvents,
-      trainConfig,
-      testSet: taskCell.outputs.testSet,
+      inputs: {
+        modelUpdateEvents,
+        trainConfig,
+        // testSet: taskCell.outputs.testSet,
+      },
+      // inStreams: {
+      //   trainBatches: taskCell.outStreams.trainBatches,
+      // },
     });
 
     // ------------------------------------------------------------------------
@@ -85,8 +89,10 @@ describe('Trainer-Cell', () => {
     // inStreams signature to not have the pipe value. Or maybe a very fancy
     // joint definition thing that takes both out and in and has some kind of
     // connecting syntax that removes piped values from both...
-    env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
-    env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
+    trainerCell.inputs.testSet.pipeFrom(taskCell.outputs.testSet, { keepHereToo: true });
+    trainerCell.inStreams.trainBatches.pipeFrom(taskCell.outStreams.trainBatches, {
+      keepHereToo: false,
+    });
 
     taskCell.start();
     trainerCell.start();

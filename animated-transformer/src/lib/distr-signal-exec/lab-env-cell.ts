@@ -41,11 +41,13 @@ import {
   SignalSendEnd,
   StreamSendEnd,
 } from './signal-messages';
+import { op } from '@tensorflow/tfjs';
 
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
   // For printing error/debug messages, when provided.
-  logCellMessages: boolean;
+  logCellMessages?: boolean;
+  id: string; // Use this ID for the cell.
   // When true, logs all messages to/from worker.
   // logMessagesToCell: boolean;
   // logMessagesFromCell: boolean;
@@ -87,7 +89,7 @@ class LoggingMessagesWorker implements BasicWorker {
 export enum CellStatus {
   NotStarted = 'NotStarted',
   StartingWaitingForInputs = 'StartingWaitingForInputs',
-  Running = 'RunningWithInputs',
+  Running = 'Running',
   Stopping = 'Stopping',
   Stopped = 'Stopped',
 }
@@ -109,7 +111,7 @@ export class LabEnvCell<
   // Inputs to the worker can either be signal values from the environment, or
   // they can be outputs from another cell (outputs from another cell as
   // "SignalInput"s to the environment).
-  inputs = {} as { [Key in keyof I]: SignalReceiveEnd<I[Key]> };
+  inputs = {} as { [Key in keyof I]: SignalSendEnd<I[Key]> };
   // Note: From the environment's view, streams being given in to the worker are
   // coming out of the environment.
   inStreams = {} as {
@@ -127,18 +129,28 @@ export class LabEnvCell<
 
   public outputSoFar: Partial<AbstractSignalStructFn<O>>;
   public stillExpectedOutputs: Set<keyof O>;
+  public stillExpectedInputs: Set<keyof I>;
 
   constructor(
     public id: string,
     public space: SignalSpace,
     public cellKind: CellKind<I, IStreams, O, OStreams>,
     public uses: {
-      inputs?: { [Key in keyof I]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
+      // Uses AbstractSignal from env, or pipes from SignalReceiveEnd
+      inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
       // TODO: consider also allowing async iters from the env?
-      inStreams?: { [Key in keyof IStreams]: StreamSendEnd<IStreams[Key]> };
-    },
-    config?: LabEnvCellConfig,
+      // Pipe from StreamReceiveEnd.
+      inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveEnd<IStreams[Key]> };
+      config?: LabEnvCellConfig;
+    } = {},
   ) {
+    let resolveWhenReceivedAllInputsAndStartingFn: () => void;
+    this.onceReceivedAllInputsAndStarting = new Promise<void>((resolve, reject) => {
+      resolveWhenReceivedAllInputsAndStartingFn = resolve;
+    }).then(() => {
+      this.status = CellStatus.Running;
+    });
+
     let resolveWithAllOutputsFn: (output: AbstractSignalStructFn<O>) => void;
     this.onceAllOutputs = new Promise<AbstractSignalStructFn<O>>((resolve, reject) => {
       resolveWithAllOutputsFn = resolve;
@@ -147,29 +159,40 @@ export class LabEnvCell<
     let resolveWhenFinishedFn: () => void;
     this.onceFinished = new Promise<void>((resolve, reject) => {
       resolveWhenFinishedFn = resolve;
+    }).then(() => {
+      console.log(`# Env: onceFinished & status = Stopped.`);
       this.status = CellStatus.Stopped;
     });
 
-    let resolveWhenReceivedAllInputsAndStartingFn: () => void;
-    this.onceReceivedAllInputsAndStarting = new Promise<void>((resolve, reject) => {
-      resolveWhenReceivedAllInputsAndStartingFn = resolve;
-      this.status = CellStatus.Running;
-    });
-
-    if (config && config.logCellMessages) {
+    if (uses.config && uses.config.logCellMessages) {
       this.worker = new LoggingMessagesWorker(cellKind.data.workerFn(), this.id);
     } else {
       this.worker = cellKind.data.workerFn();
     }
 
+    const postFn = (v: LabMessage, transerables?: Transferable[]) =>
+      this.worker.postMessage(v, transerables);
+
+    postFn({ kind: LabMessageKind.InitIdMessage, id: this.id });
+
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(cellKind.outputNames);
+    this.stillExpectedInputs = new Set(cellKind.inputNames);
 
-    for (const streamName of cellKind.inStreamNames) {
-      const stream = new StreamSendEnd<IStreams[keyof IStreams]>(
+    for (const inputSignalId of cellKind.inputNames) {
+      const signalSendEnd = new SignalSendEnd<I[keyof I]>(
         this.space,
-        streamName as keyof O & string,
-        (v, transerables) => this.worker.postMessage(v, transerables),
+        inputSignalId as keyof O & string,
+        postFn,
+      );
+      this.inputs[inputSignalId] = signalSendEnd;
+    }
+
+    for (const inStreamId of cellKind.inStreamNames) {
+      const inStreamSendEnd = new StreamSendEnd<IStreams[keyof IStreams]>(
+        this.space,
+        inStreamId as keyof OStreams & string,
+        postFn,
         {
           conjestionControl: {
             maxQueueSize: 20,
@@ -177,14 +200,14 @@ export class LabEnvCell<
           },
         },
       );
-      this.inStreams[streamName] = stream;
+      this.inStreams[inStreamId] = inStreamSendEnd;
     }
 
     for (const oName of cellKind.outputNames) {
       const envInput = new SignalReceiveEnd<O[keyof O]>(
         this.space,
         oName as keyof O & string,
-        (v, transerables) => this.worker.postMessage(v, transerables),
+        postFn,
       );
       this.outputs[oName] = envInput;
 
@@ -251,8 +274,10 @@ export class LabEnvCell<
       }
     };
 
+    console.log(`# Env: thinking about pipeling/connecting...`, this.uses);
     // Inputs either are pipes, or signal values... make sure to connect stuff.
     if (this.uses && this.uses.inputs) {
+      console.log(`# Env: piping/connecting initial inputs...`, this.uses.inputs);
       for (const [k, input] of Object.entries(this.uses.inputs)) {
         if (input instanceof SignalReceiveEnd) {
           this.assignInputViaPiping(k, input);
@@ -272,31 +297,19 @@ export class LabEnvCell<
 
   public assignInputViaPiping<K extends keyof I>(
     k: K,
-    input: SignalReceiveEnd<I[K]>,
+    recEnd: SignalReceiveEnd<I[K]>,
     options?: { keepHereToo: boolean },
   ) {
-    const channel = new MessageChannel();
-    // Note: ports are transferred to the worker.
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeOutputSignal,
-      signalId: k as string,
-      ports: [channel.port2],
-      options,
-    };
-    input.defaultPostMessageFn(message, message.ports);
-    this.pipeInputSignal(k, [channel.port1]);
+    this.stillExpectedInputs.delete(k);
+    this.inputs[k].pipeFrom(recEnd);
   }
 
   public assignInputFromSignal<K extends keyof I>(k: K, input: AbstractSignal<I[K]>) {
-    // TODO: consider cleanup...?
+    console.log(`# Env: assignInputFromSignal (${k as string})`, input());
+    this.stillExpectedInputs.delete(k);
     this.space.derived(() => {
-      const value = input(); // Note signal dependency.
-      const message: SetSignalValueMessage = {
-        kind: LabMessageKind.SetSignalValue,
-        signalId: k as string,
-        value,
-      };
-      this.worker.postMessage(message);
+      console.log(`# Env: set input (${k as string})`, input());
+      this.inputs[k].set(input());
     });
   }
 
@@ -305,15 +318,7 @@ export class LabEnvCell<
     recStream: StreamReceiveEnd<IStreams[K]>,
     options?: { keepHereToo: boolean },
   ) {
-    const channel = new MessageChannel();
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeOutputStream,
-      streamId: k as string,
-      ports: [channel.port2],
-      options,
-    };
-    recStream.defaultPostMessageFn(message, message.ports);
-    this.pipeInputStream(k, [channel.port1]);
+    this.inStreams[k].pipeFrom(recStream, options);
   }
 
   // Invokes start in the signalcell.
@@ -326,60 +331,66 @@ export class LabEnvCell<
   }
 
   async requestStop(): Promise<void> {
-    const message: LabMessage = {
-      kind: LabMessageKind.FinishRequest,
-    };
-    this.status = CellStatus.Stopping;
-    this.worker.postMessage(message);
+    if (this.status !== CellStatus.Stopped) {
+      console.log(`# Env: requesting stop`);
+      const message: LabMessage = {
+        kind: LabMessageKind.FinishRequest,
+      };
+      this.status = CellStatus.Stopping;
+      this.worker.postMessage(message);
+    } else {
+      console.info('#Env: requestStop: but already stopped');
+    }
   }
 
-  public pipeInputSignal(signalId: keyof I, ports: MessagePort[]) {
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeInputSignal,
-      signalId: signalId as string,
-      ports,
-    };
-    // Note: ports are transferred to the worker.
-    this.worker.postMessage(message, ports);
-  }
-  public pipeOutputSignal(
-    signalId: keyof O,
-    ports: MessagePort[],
-    options?: { keepHereToo: boolean },
-  ) {
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeOutputSignal,
-      signalId: signalId as string,
-      ports,
-      options,
-    };
-    // Note ports are transferred to the worker.
-    this.worker.postMessage(message, ports);
-  }
+  // public pipeInputSignal(signalId: keyof I, ports: MessagePort[]) {
+  //   const message: LabMessage = {
+  //     kind: LabMessageKind.PipeInputSignal,
+  //     signalId: signalId as string,
+  //     ports,
+  //   };
+  //   // Note: ports are transferred to the worker.
+  //   this.worker.postMessage(message, ports);
+  // }
 
-  public pipeInputStream(streamId: keyof IStreams, ports: MessagePort[]) {
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeInputStream,
-      streamId: streamId as string,
-      ports,
-    };
-    // Note: ports are transferred to the worker.
-    this.worker.postMessage(message, ports);
-  }
-  public pipeOutputStream(
-    streamId: keyof OStreams,
-    ports: MessagePort[],
-    options?: { keepHereToo: boolean },
-  ) {
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeOutputStream,
-      streamId: streamId as string,
-      ports,
-      options,
-    };
-    // Note ports are transferred to the worker.
-    this.worker.postMessage(message, ports);
-  }
+  // public pipeOutputSignal(
+  //   signalId: keyof O,
+  //   ports: MessagePort[],
+  //   options?: { keepHereToo: boolean },
+  // ) {
+  //   const message: LabMessage = {
+  //     kind: LabMessageKind.PipeOutputSignal,
+  //     signalId: signalId as string,
+  //     ports,
+  //     options,
+  //   };
+  //   // Note ports are transferred to the worker.
+  //   this.worker.postMessage(message, ports);
+  // }
+
+  // public pipeInputStream(streamId: keyof IStreams, ports: MessagePort[]) {
+  //   const message: LabMessage = {
+  //     kind: LabMessageKind.PipeInputStream,
+  //     streamId: streamId as string,
+  //     ports,
+  //   };
+  //   // Note: ports are transferred to the worker.
+  //   this.worker.postMessage(message, ports);
+  // }
+  // public pipeOutputStream(
+  //   streamId: keyof OStreams,
+  //   ports: MessagePort[],
+  //   options?: { keepHereToo: boolean },
+  // ) {
+  //   const message: LabMessage = {
+  //     kind: LabMessageKind.PipeOutputStream,
+  //     streamId: streamId as string,
+  //     ports,
+  //     options,
+  //   };
+  //   // Note ports are transferred to the worker.
+  //   this.worker.postMessage(message, ports);
+  // }
   // TODO: add some closing cleanup?
 }
 

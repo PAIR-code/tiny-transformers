@@ -23,8 +23,8 @@ describe('Trainer-Cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {
-    const env = new LabEnv();
-    const space = env.space;
+    const space = new SignalSpace();
+    const env = new LabEnv(space);
     const { setable, derived } = space;
 
     // ------------------------------------------------------------------------
@@ -81,9 +81,11 @@ describe('Trainer-Cell', () => {
     // ------------------------------------------------------------------------
     // Trainer cell
     const trainerCell = env.start(trainerCellSpec, {
-      modelUpdateEvents,
-      trainConfig,
-      testSet,
+      inputs: {
+        modelUpdateEvents,
+        trainConfig,
+        testSet,
+      },
     });
 
     trainerCell.inStreams.trainBatches.send(makeBatch(0, trainConfig().batchSize));

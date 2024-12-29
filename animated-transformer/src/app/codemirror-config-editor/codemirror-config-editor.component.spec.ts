@@ -36,9 +36,12 @@ describe('CodemirrorConfigEditorComponent', () => {
     fixture = TestBed.createComponent(CodemirrorConfigEditorComponent);
     component = fixture.componentInstance;
 
-    component.whatIsBeingEditedName = '';
-    component.defaultConfig = '';
-    component.lastValidConfig = '';
+    fixture.componentRef.setInput('whatIsBeingEditedName', '');
+    fixture.componentRef.setInput('defaultConfig', '');
+    fixture.componentRef.setInput('lastValidConfig', '');
+    // component.whatIsBeingEditedName. .set('');
+    // component.defaultConfig = '';
+    // component.lastValidConfig = '';
     fixture.detectChanges();
   });
 

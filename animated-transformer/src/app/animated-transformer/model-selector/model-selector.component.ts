@@ -36,7 +36,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorModule } from '../../codemirror-config-editor/codemirror-config-editor.module';
+import { CodemirrorConfigEditorComponent } from '../../codemirror-config-editor/codemirror-config-editor.component';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 
 import json5 from 'json5';
@@ -113,7 +113,7 @@ export interface ModelUpdate {
     MatTableModule,
     MatCardModule,
     // ---
-    CodemirrorConfigEditorModule,
+    CodemirrorConfigEditorComponent,
     AutoCompletedTextInputComponent,
   ],
 })

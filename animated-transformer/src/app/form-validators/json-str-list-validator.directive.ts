@@ -112,7 +112,8 @@ export function jsonStrListValidator(config: JsonStrListConfig): ValidatorFn {
 
 @Directive({
   selector: '[appJsonStrListValidator]',
-  inputs: ['config'],
+  // inputs: ['config'],
+  standalone: true,
   providers: [
     {
       provide: NG_VALIDATORS,

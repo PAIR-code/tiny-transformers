@@ -38,25 +38,41 @@ export class SignalCell<
   Outputs extends ValueStruct,
   OutputStreams extends ValueStruct,
 > {
-  inputPromises: PromisedSetableSignalsFn<Inputs>;
-  stillExpectedInputs: Set<keyof Inputs>;
-  inputSoFar: Partial<SetableSignalStructFn<Inputs>> = {};
-  inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
+  // Mostly for logging/debugging purposes.
+  id: string;
 
+  // Initialised by environment sending us the id.
+  sentId?: string;
+
+  // Promises of SetableSignal for each input. Promise is resolved when first
+  // input is received.
+  inputPromises: PromisedSetableSignalsFn<Inputs>;
+  // Resolver functions for the inputPromises
+  inputResolvers = {} as { [signalId: string]: (value: unknown) => void };
+  // Set of inputs IDs still expected.
+  stillExpectedInputs: Set<keyof Inputs>;
+  // Inputs gotten so far.
+  inputSoFar: Partial<SetableSignalStructFn<Inputs>> = {};
+
+  // Set of IDs for various things.
   inputSet: Set<keyof Inputs>;
   outputSet: Set<keyof Outputs>;
   inputStreamSet: Set<keyof InputStreams>;
   outputStreamSet: Set<keyof OutputStreams>;
 
+  // The RecieveEnd for the cell's inputs.
   inputs = {} as {
     [Key in keyof Inputs]: SignalReceiveEnd<Inputs[Key]>;
   };
+  // A promise that resolves when all inputs are given.
   public onceAllInputs: Promise<AbstractSignalStructFn<Inputs>>;
 
+  // The receive end of input streams.
   public inStream = {} as {
     [Key in keyof InputStreams]: StreamReceiveEnd<InputStreams[Key]>;
   };
 
+  // The send end for the outputs.
   outputs = {} as {
     [Key in keyof Outputs]: SignalSendEnd<Outputs[Key]>;
   };
@@ -64,6 +80,7 @@ export class SignalCell<
     [Key in keyof OutputStreams]: StreamSendEnd<OutputStreams[Key]>;
   };
 
+  // convenience function for outputting tuff.
   public output = {} as CallValueFn<Outputs>;
 
   public space = new SignalSpace();
@@ -75,9 +92,10 @@ export class SignalCell<
   public onceStarted: Promise<void>;
 
   constructor(
-    public spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
+    public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
     public defaultPostMessageFn: (value: LabMessage) => void,
   ) {
+    this.id = `[kind:${this.kind.data.cellKindId}]`;
     type InputStreamKey = keyof InputStreams & string;
     type InputStreamValue = InputStreams[keyof InputStreams];
     type InputKey = keyof Inputs & string;
@@ -87,10 +105,10 @@ export class SignalCell<
     type OutputKey = keyof Outputs;
     type OutputValue = Outputs[keyof Outputs];
 
-    this.inputSet = new Set<InputKey>(Object.keys(this.spec.inputs));
-    this.outputSet = new Set<OutputKey>(Object.keys(this.spec.outputs));
-    this.inputStreamSet = new Set<InputStreamKey>(Object.keys(this.spec.inStreams));
-    this.outputStreamSet = new Set<OutputStreamKey>(Object.keys(this.spec.outStreams));
+    this.inputSet = new Set<InputKey>(Object.keys(this.kind.inputs));
+    this.outputSet = new Set<OutputKey>(Object.keys(this.kind.outputs));
+    this.inputStreamSet = new Set<InputStreamKey>(Object.keys(this.kind.inStreams));
+    this.outputStreamSet = new Set<OutputStreamKey>(Object.keys(this.kind.outStreams));
 
     this.onceFinishRequested = new Promise<void>((resolve) => {
       this.onceFinishedResolver = resolve;
@@ -98,9 +116,6 @@ export class SignalCell<
 
     this.onceStarted = new Promise<void>((resolve) => {
       this.onceStartedResolver = resolve;
-    });
-    this.onceStarted.then(() => {
-      defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
     });
 
     this.inputPromises = {} as PromisedSetableSignalsFn<Inputs>;
@@ -163,8 +178,14 @@ export class SignalCell<
       console.warn('unexpected null data', message);
       return;
     }
+    // console.log('* Worker: got message: ', JSON.stringify(message));
     switch (data.kind) {
+      case LabMessageKind.InitIdMessage: {
+        this.id = data.id; //`${data.id}.${this.id}`;
+        break;
+      }
       case LabMessageKind.StartCellRun: {
+        console.log('onceStartedResolver');
         this.onceStartedResolver();
         break;
       }
@@ -176,23 +197,30 @@ export class SignalCell<
       case LabMessageKind.PipeInputSignal: {
         const inputSignal = this.inputs[data.signalId];
         if (!inputSignal) {
-          throw new Error(`No input to pipe named: ${data.signalId}.`);
+          throw new Error(`${this.id}: No input to pipe named: ${data.signalId}.`);
         }
         data.ports.forEach((port) => inputSignal.addPort(port));
         break;
       }
       case LabMessageKind.PipeOutputSignal: {
+        console.log(
+          `* Worker (${this.id}): LabMessageKind.PipeOutputSignal: `,
+          JSON.stringify(data),
+        );
         const outputSignal = this.outputs[data.signalId];
         if (!outputSignal) {
-          throw new Error(`No output to pipe entry named: ${data.signalId}.`);
+          throw new Error(`${this.id}: No output to pipe entry named: ${data.signalId}.`);
         }
-        data.ports.forEach((port) => outputSignal.addPort(port));
+        // For each port into this
+        data.ports.forEach((port) => {
+          outputSignal.addPort(port);
+        });
         break;
       }
       case LabMessageKind.PipeInputStream: {
         const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
-          throw new Error(`No input stream to pipe named ${data.streamId}.`);
+          throw new Error(`${this.id}: No input stream to pipe named ${data.streamId}.`);
         }
         data.ports.forEach((port) => inputStream.addPort(port));
         break;
@@ -200,7 +228,7 @@ export class SignalCell<
       case LabMessageKind.PipeOutputStream: {
         const outputStream = this.outStream[data.streamId];
         if (!outputStream) {
-          throw new Error(`No output streams to pipe named ${data.streamId}.`);
+          throw new Error(`${this.id}: No output streams to pipe named ${data.streamId}.`);
         }
         data.ports.forEach((port) => outputStream.addPort(port));
         break;
@@ -208,7 +236,9 @@ export class SignalCell<
       case LabMessageKind.SetSignalValue: {
         const input = this.inputs[data.signalId];
         if (!input) {
-          throw new Error(`onMessage: setSignal(${data.signalId}): but there is no such input.`);
+          throw new Error(
+            `${this.id}: onMessage: setSignal(${data.signalId}): but there is no such input.`,
+          );
         }
         input.onSetInput(data.value as Inputs[keyof Inputs & string]);
         break;
@@ -221,7 +251,7 @@ export class SignalCell<
       case LabMessageKind.EndStream: {
         const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
-          throw new Error(`onMessage: EndStream(${data.streamId}): no such inStream.`);
+          throw new Error(`${this.id}: onMessage: EndStream(${data.streamId}): no such inStream.`);
         }
         inputStream.onDone();
         break;
@@ -229,7 +259,9 @@ export class SignalCell<
       case LabMessageKind.AddStreamValue: {
         const inputStream = this.inStream[data.streamId];
         if (!inputStream) {
-          throw new Error(`onMessage: AddStreamValue(${data.streamId}): no such inStream.`);
+          throw new Error(
+            `${this.id}: onMessage: AddStreamValue(${data.streamId}): no such inStream.`,
+          );
         }
         inputStream.onAddValue(
           null,
@@ -238,7 +270,7 @@ export class SignalCell<
         break;
       }
       default: {
-        console.warn('unknown message from the main thread: ', data);
+        console.warn(`${this.id}: unknown message from the main thread: `, data);
         break;
       }
     }
@@ -247,14 +279,16 @@ export class SignalCell<
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
   async start(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
-    const inputs = await this.onceAllInputs;
     await this.onceStarted;
+    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
+    const inputs = await this.onceAllInputs;
     await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }
 
   async run(runFn: () => Promise<void>) {
     await this.onceStarted;
+    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
     await runFn();
     this.close();
   }

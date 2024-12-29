@@ -53,7 +53,7 @@ describe('signalspace', () => {
     expect(c.get()).toEqual('Abc');
   });
 
-  fit('Dispose setable in simple two step signal update', () => {
+  it('Dispose setable in simple two step signal update', () => {
     const s = new SignalSpace();
     const a = new SetableNode(s, 'a');
     const b = new DerivedNode(s, () => {
@@ -72,7 +72,7 @@ describe('signalspace', () => {
     expect(s.signalSet.size).toEqual(0);
   });
 
-  fit('Dispose middle derived in simple two step signal update', () => {
+  it('Dispose middle derived in simple two step signal update', () => {
     const s = new SignalSpace();
 
     const a = new SetableNode(s, 'a');
@@ -92,7 +92,7 @@ describe('signalspace', () => {
     expect([...s.signalSet]).toEqual([a]);
   });
 
-  fit('Dispose final derived in simple two step signal update', () => {
+  it('Dispose final derived in simple two step signal update', () => {
     const s = new SignalSpace();
 
     const a = new SetableNode(s, 'a');

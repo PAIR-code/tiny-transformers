@@ -20,11 +20,10 @@ limitations under the License.
 import { CellKind, Kind } from './cell-types';
 
 export const exampleCellAbstract = new CellKind({
-  cellKindId:
-    'an example cell that streams prefixing strings, and outputs a reverse of the prefix, and the prefixes length',
+  cellKindId: `testing cell: prefixing strStream, and outputs a reverse each prefix set, and outputs the first prefix's length`,
   workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
   inputs: { prefix: Kind<string> },
   outputs: { prefixRev: Kind<string>, prefixLen: Kind<number> },
-  inStreams: { nameStream: Kind<string> },
-  outStreams: { prefixedNameStream: Kind<string> },
+  inStreams: { strStream: Kind<string> },
+  outStreams: { prefixedStream: Kind<string> },
 });

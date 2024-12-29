@@ -21,8 +21,8 @@ describe('Task-Cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test: make 5 batches of data', async () => {
-    const env = new LabEnv();
-    const space = env.space;
+    const space = new SignalSpace();
+    const env = new LabEnv(space);
     const { setable } = space;
 
     const taskConfig = setable(defaultTinyWorldTaskConfig);
@@ -33,10 +33,7 @@ describe('Task-Cell', () => {
       batchSize: 10,
       testSetSize: 3,
     });
-    const taskCell = env.start(taskCellSpec, {
-      taskConfig,
-      genConfig,
-    });
+    const taskCell = env.start(taskCellSpec, { inputs: { taskConfig, genConfig } });
     const testSet = await taskCell.outputs.testSet.onceReady;
     expect(testSet().length).toEqual(3);
 

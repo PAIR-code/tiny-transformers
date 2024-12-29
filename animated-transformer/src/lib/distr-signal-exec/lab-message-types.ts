@@ -16,6 +16,8 @@ limitations under the License.
 // ----------------------------------------------------------------------------
 // Messages sent between cells and environments.
 export enum LabMessageKind {
+  // Initial message sending the worker it's ID for logging.
+  InitIdMessage = 'InitIdMessage',
   // Sent from env to cell to tell is to start.
   StartCellRun = 'StartCellRun',
   // Sent from cell to env to tell it that it has started with all inputs.
@@ -110,6 +112,7 @@ export type PipeOutputStreamMessage = {
 
 // ----------------------------------------------------------------------------
 export type LabMessage =
+  | { kind: LabMessageKind.InitIdMessage; id: string }
   | { kind: LabMessageKind.StartCellRun }
   | { kind: LabMessageKind.ReceivedAllInputsAndStarting }
   | SetSignalValueMessage
