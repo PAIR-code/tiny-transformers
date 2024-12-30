@@ -80,7 +80,7 @@ export type TransformerParamSpec = {
   layers: TransformerParamLayerSpec[];
   // Dropout rate on the input before going into the stack.
   dropoutRate: number;
-  relPosEncodingSeqLength?: number;
+  posEncodingSeqLength: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -103,11 +103,11 @@ export type AttnHeadParamSpec = {
 
 export type TransformerParamLayerSpec = {
   nHeads: number;
-  hasPosEncoding: boolean;
   layerNormFF: boolean;
   layerNormHeadsProjection: boolean;
   addLayerNormBias: boolean; // only meaningful when one of the above is true.
   computeSpec: AttnHeadComputeSpec;
+  addPosEmbeddings: boolean;
 };
 
 export type AttnHeadComputeSpec = {
@@ -130,15 +130,22 @@ export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
 
 // Use of type here to be compatible with generic params.
 export type AttnHeadParams<T extends TensorOrVarKind> = {
-  queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  keyM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>;
-  valueM: GTensorOrVar<T, 'heads' | 'inputRep' | 'value'>;
-  headsToInputRepM: GTensorOrVar<T, 'heads' | 'value' | 'inputRepToFF'>;
+  queryM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>; // 12 * 768 * 64
+  keyM: GTensorOrVar<T, 'heads' | 'inputRep' | 'kq'>; // 12 * 768 * 64
+  valueM: GTensorOrVar<T, 'heads' | 'inputRep' | 'value'>; // 12 * 768 * 64
+  headsToInputRepM: GTensorOrVar<T, 'heads' | 'value' | 'inputRepToFF'>; // 12 * 768 * 64
+
+  // TODO(@aliciafmachado): use the parameters below and simplify:
+  queryMBias: GTensorOrVar<T, 'heads' | 'kq'>; // 12 * 64
+  keyMBias: GTensorOrVar<T, 'heads' | 'kq'>; // 12 * 64
+  valueMBias: GTensorOrVar<T, 'heads' | 'value'>; // 12 * 64
+  headsToInputRepMBias: GTensorOrVar<T, 'inputRepToFF'>; // 768
+
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
   layerNormHeadsProjection?: LayerNormParams<T>;
   layerNormPostFF?: LayerNormParams<T>;
-  ff1: FfParams<T, 'inputRepToFF', 'hiddenRep'>;
-  ff2: FfParams<T, 'inputRepToFF', 'inputRep'>;
+  ff1: FfParams<T, 'inputRepToFF', 'hiddenRep'>; // 768 * 4 * 768
+  ff2: FfParams<T, 'inputRepToFF', 'inputRep'>; // 4 * 768 * 768
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -146,7 +153,7 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
 export type CondTransformerParams<T extends TensorOrVarKind> = {
   layers: AttnHeadParams<T>[];
   tokenEmbedding: GTensorOrVar<T, 'tokenId' | 'inputRep'>;
-  posEmbedding?: GTensorOrVar<T, 'posId' | 'inputRep'>;
+  posEmbedding: GTensorOrVar<T, 'posId' | 'inputRep'>;
 } & {};
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
@@ -184,6 +191,11 @@ export function initAttnHeadParams(
     keyM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     valueM: makeTruncNormal({ inputRep, value, heads }, initConfig),
     headsToInputRepM: makeTruncNormal({ heads, value, inputRepToFF: inputRep }, initConfig),
+    queryMBias: makeTruncNormal({ kq, heads }, initConfig),
+    keyMBias: makeTruncNormal({ kq, heads }, initConfig),
+    valueMBias: makeTruncNormal({ value, heads }, initConfig),
+    headsToInputRepMBias: makeTruncNormal({ inputRepToFF: inputRep }, initConfig),
+
     ff1: {
       w: makeTruncNormal({ inputRepToFF: inputRep, hiddenRep }, initConfig),
       b: makeTruncNormal({ hiddenRep }, initConfig),
@@ -243,11 +255,12 @@ export function computeAttnHead(
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
   generator: RandomStream
 ): BatchAttnHeadCompututation {
-  const { queryM, keyM, valueM, headsToInputRepM, ff1, ff2 } = params;
+  const { queryM, keyM, valueM, headsToInputRepM, queryMBias, keyMBias, valueMBias, 
+    headsToInputRepMBias, ff1, ff2 } = params;
 
-  const queries = seqInput.contract(queryM, ['inputRep']);
-  const keys = seqInput.contract(keyM, ['inputRep']);
-  const values = seqInput.contract(valueM, ['inputRep']);
+  const queries = seqInput.contract(queryM, ['inputRep']).pointwiseAdd(queryMBias);
+  const keys = seqInput.contract(keyM, ['inputRep']).pointwiseAdd(keyMBias);
+  const values = seqInput.contract(valueM, ['inputRep']).pointwiseAdd(valueMBias);
 
   let rawAttention = keys
     .rename('pos', 'keyPos')
@@ -262,8 +275,9 @@ export function computeAttnHead(
     .contract(attentionAfterDropout.rename('queryPos', 'pos'), ['pos'])
     .rename('keyPos', 'pos');
 
-  // TODO: I don't think we need to apply dropout after ther eduction
-  const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']);
+  // TODO(@aliciafmachado): I don't think we need to apply dropout after the head reduction.
+  const headsReduction = attendedValues.contract(
+    headsToInputRepM, ['value', 'heads']).pointwiseAdd(headsToInputRepMBias);
 
   // Checked: Dropout before layer norm and residual connection.
   let headsReductionAfterDropout = dropout(spec.dropoutRate, headsReduction, generator.random());
@@ -294,7 +308,7 @@ export function computeAttnHead(
     .contract(ff2.w, ['inputRepToFF'])
     .pointwiseAdd(ff2.b);
 
-  // [Checked] Dropout before layer norm and residual connection.
+  // [Checked(@aliciafmachado)] Dropout before layer norm and residual connection.
   const unNormedSeqOuputAfterDropout = dropout(spec.dropoutRate, unNormedSeqOuput, generator.random());
 
   if (spec.residuals) {
@@ -344,18 +358,18 @@ export function initDecoderParams(
     inputRep: spec.inputRep,
   }, init);
 
+  // If parameter is available, initialize posEmbedding
+  const posEmbedding = makeTruncNormal({
+    posId: spec.posEncodingSeqLength,
+    inputRep: spec.inputRep,
+  });
+
   const transformerParams: TransformerParams = {
     tokenEmbedding: tokenEmbedding,
-    layers: layers
+    layers: layers,
+    posEmbedding: posEmbedding
   };
 
-  // TODO: here it should not be relpos but rather simplepos
-  if (spec.relPosEncodingSeqLength) {
-    transformerParams.posEmbedding = makeTruncNormal({
-      posId: spec.relPosEncodingSeqLength,
-      inputRep: spec.inputRep,
-    });
-  }
   return transformerParams;
 }
 

@@ -18,7 +18,7 @@ limitations under the License.
 /* Check number of parameters */
 
 import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
-import * as transformer from './transformer_gtensor';
+import * as transformer from './gpt2';
 import { AttnHeadParamSpec, AttnHeadComputeSpec, TransformerConfig, TransformerParamLayerSpec } from './gpt2';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
@@ -40,27 +40,28 @@ describe('GTensor Transformers', () => {
     // };
     
     // 12 Heads.
+    const n_heads = 12;
+    const embedding_size = 768;
     const transformer_param_layer_spec: TransformerParamLayerSpec = {
-        nHeads: 12,
-        // need to pass 1024 somehow to hasPosEncoding
-        hasPosEncoding: true,
+        nHeads: n_heads,
         computeSpec: { residuals: true, dropoutRate: 0.0 },
         layerNormFF: true,
         layerNormHeadsProjection: true,
         addLayerNormBias: true,
+        addPosEmbeddings: true
       };
 
     // To be checked if this is right
     // 12 Layers.
     const gpt2: TransformerConfig = {
           spec: {
-            inputRep: 768,
-            hiddenRep: 768,
-            kqvRep: 768,
+            inputRep: embedding_size,
+            hiddenRep: 4 * embedding_size,
+            kqvRep: embedding_size / n_heads,
             layers: Array(12).fill(transformer_param_layer_spec),
             dropoutRate: 0.0,
             // This below is not doing anything: need to check what's happening.
-            relPosEncodingSeqLength: 1024,
+            posEncodingSeqLength: 1024,
             // Missing a layer norm outside.
           },
           init: {
@@ -88,14 +89,22 @@ describe('GTensor Transformers', () => {
         tokenRep, 
         gpt2);
     // const params = transformer.initAttnHeadParams(paramSizes);
+    // Check head size.
     const paramCount = jstree.reduce<GTensor<any>, number>(
-        (count, paramObj) => count + paramObj.tensor.size,
-        0,
-        params.tokenEmbedding
-      );
-      console.log(paramCount);
+      (count, paramObj) => count + paramObj.tensor.size,
+      0,
+      // params.layers[0].queryM
+      params.layers[0]
+    );
+    console.log(paramCount);
+    expect(paramCount).toEqual(7087872);
+      // console.log(params.layers[0].queryM.dimNames);
+      // console.log(params.layers[0].queryM.dim);
+      // total count: 124439808
+      // posEmbedding: 786432 - ok
+      // tokenEmbeddings: 38597376 - ok
+      // one head: 7087872 - 
       // Test 2: Check number of parameters in GPT2.
-      expect(paramCount).toEqual(124439808);
       
       // Check if the output matches the one from the implementation in python.
       // TODO (@aliciafmachado)
