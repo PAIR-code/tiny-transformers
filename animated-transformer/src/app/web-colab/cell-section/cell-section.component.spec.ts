@@ -30,8 +30,6 @@ describe('CellSectionComponent', () => {
       },
     };
     // const code = "console.log('Hello from web worker!')";
-    const code = '1 + 1;';
-    const blob = new Blob([code], { type: 'application/javascript' });
     const section1: SectionDef = {
       kind: ExpDefKind.Data,
       id: 'section 1',
@@ -40,11 +38,11 @@ describe('CellSectionComponent', () => {
         sectionKind: SectionKind.Cell,
         content: {
           cellRef: {
-            kind: CellRefKind.Url,
-            url: URL.createObjectURL(blob),
+            kind: CellRefKind.InlineJsCode,
+            js: '1 + 1;',
           },
           inputs: {},
-          outputIds: [],
+          outputIds: {},
           inStreams: {},
           outStreamIds: [],
         },

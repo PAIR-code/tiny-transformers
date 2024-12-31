@@ -87,7 +87,7 @@
         </mat-sidenav>
 
         <mat-sidenav-content>
-          <div class="sections hoverButtons">
+          <div class="sections">
             @for (section of sections; track section.def.id) {
               <div class="section">
                 <mat-card>
@@ -103,10 +103,10 @@
               } -->
                   </mat-card-content>
                 </mat-card>
-                <div class="buttons">
-                  <span class="'spacer"></span>
-                  <button mat-button>+</button>
-                  <span class="'spacer"></span>
+                <div class="buttons hoverButtons">
+                  <span class="spacer"></span>
+                  <button mat-button class="disappearing">+</button>
+                  <span class="spacer"></span>
                   <!-- <button mat-button>...</button> -->
                 </div>
               </div>

@@ -22,7 +22,7 @@ import {
   SetableSignalStructFn,
   AsyncIterableFn,
   AsyncOutStreamFn,
-} from './cell-types';
+} from './cell-kind';
 import {
   LabMessage,
   LabMessageKind,
@@ -35,13 +35,13 @@ export type ItemMetaData = {
   timestamp: Date;
 };
 
+import { SignalReceiveEnd, StreamReceiveEnd, SignalSendEnd, StreamSendEnd } from './channel-ends';
 import {
-  SignalReceiveEnd,
-  StreamReceiveEnd,
-  SignalSendEnd,
-  StreamSendEnd,
-} from './signal-messages';
-import { LabEnvCell, LabEnvCellConfig, SomeCellStateKind, SomeLabEnvCell } from './lab-env-cell';
+  CellController,
+  LabEnvCellConfig,
+  SomeCellStateKind,
+  SomeLabEnvCell,
+} from './cell-controller';
 
 // TODO: maybe define a special type of serializable
 // object that includes things with a toSerialise function?
@@ -67,13 +67,14 @@ export class LabEnv {
       inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
       // pipe from receiving end of another stream (in env context, that's a cell output)
       inStreams?: { [Key in keyof IStreams]: StreamReceiveEnd<IStreams[Key]> };
-      config?: LabEnvCellConfig;
+      config?: Partial<LabEnvCellConfig>;
     },
-  ): LabEnvCell<I, IStreams, O, OStreams> {
+  ): CellController<I, IStreams, O, OStreams> {
+    // ID should be unique w.r.t. the LabEnv.
     const id = (uses && uses.config && uses.config.id) || kind.data.cellKindId;
-    const envCell = new LabEnvCell(id, this.space, kind, uses);
-    envCell.onceFinished.then(() => this.runningCells.delete(envCell as SomeLabEnvCell));
-    return envCell;
+    const cell = new CellController(this, id, kind, uses);
+    cell.init();
+    return cell;
   }
 
   start<
@@ -88,48 +89,11 @@ export class LabEnv {
       inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
       // pipe from receiving end of another stream (in env context, that's a cell output)
       inStreams?: { [Key in keyof IStreams]: StreamReceiveEnd<IStreams[Key]> };
-      config?: LabEnvCellConfig;
+      config?: Partial<LabEnvCellConfig>;
     },
-  ): LabEnvCell<I, IStreams, O, OStreams> {
-    const envCell = this.init(kind, uses);
-    envCell.start();
-    return envCell;
+  ): CellController<I, IStreams, O, OStreams> {
+    const cell = this.init(kind, uses);
+    cell.start();
+    return cell;
   }
-
-  // pipeSignal<
-  //   SourceOut extends ValueStruct,
-  //   TargetIn extends ValueStruct,
-  //   SourceSignalId extends keyof SourceOut & string,
-  //   TargetSignalId extends keyof TargetIn & string,
-  // >(
-  //   sourceCell: LabEnvCell<ValueStruct, ValueStruct, SourceOut, ValueStruct>,
-  //   sourceSignalId: SourceSignalId,
-  //   targetCell: LabEnvCell<TargetIn, ValueStruct, ValueStruct, ValueStruct>,
-  //   targetSignalId: TargetSignalId,
-  //   options?: { keepHereToo: boolean },
-  // ) {
-  //   sourceCell.outputs[]
-  //   const channel = new MessageChannel();
-  //   sourceCell.pipeOutputSignal(sourceSignalId, [channel.port1], options);
-  //   targetCell.pipeInputSignal(targetSignalId, [channel.port2]);
-  //   // TODO: keep track of channels between cells.
-  // }
-
-  // pipeStream<
-  //   SourceOut extends ValueStruct,
-  //   TargetIn extends ValueStruct,
-  //   SourceStreamId extends keyof SourceOut & string,
-  //   TargetStreamId extends keyof TargetIn & string,
-  // >(
-  //   sourceCell: LabEnvCell<ValueStruct, ValueStruct, ValueStruct, SourceOut>,
-  //   sourceStreamId: SourceStreamId,
-  //   targetCell: LabEnvCell<ValueStruct, TargetIn, ValueStruct, ValueStruct>,
-  //   targetStreamId: TargetStreamId,
-  //   options?: { keepHereToo: boolean },
-  // ) {
-  //   const channel = new MessageChannel();
-  //   sourceCell.pipeOutputStream(sourceStreamId, [channel.port1], options);
-  //   targetCell.pipeInputStream(targetStreamId, [channel.port2]);
-  //   // TODO: keep track of channels between cells.
-  // }
 }

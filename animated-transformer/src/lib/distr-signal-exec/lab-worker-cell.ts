@@ -15,19 +15,20 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { ValueStruct, CellKind } from './cell-types';
-import { SignalCell } from './signal-cell';
+import { ValueStruct, CellKind } from './cell-kind';
+import { LabMessage } from './lab-message-types';
+import { CellWorker } from './cell-worker';
 
 export function workerCell<
   Inputs extends ValueStruct = {},
   InputStreams extends ValueStruct = {},
   Outputs extends ValueStruct = {},
-  OutputStreams extends ValueStruct = {}
+  OutputStreams extends ValueStruct = {},
 >(
-  spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>
-): SignalCell<Inputs, InputStreams, Outputs, OutputStreams> {
-  const cell = new SignalCell<Inputs, InputStreams, Outputs, OutputStreams>(spec, (...args) =>
-    postMessage(...args)
+  spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
+): CellWorker<Inputs, InputStreams, Outputs, OutputStreams> {
+  const cell = new CellWorker<Inputs, InputStreams, Outputs, OutputStreams>(spec, (...args) =>
+    (postMessage as (value: LabMessage, transerables?: Transferable[]) => void)(...args),
   );
   addEventListener('message', (m) => cell.onMessage(m));
   return cell;

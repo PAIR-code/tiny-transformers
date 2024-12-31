@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import { taskCellSpec, trainerCellSpec } from './web-colab/tiny-transformer-example/ailab';
-import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-types';
+import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-kind';
 
 @Injectable({
   providedIn: 'root',

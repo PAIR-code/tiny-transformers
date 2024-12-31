@@ -71,6 +71,7 @@ export function stringToArrayBuffer(s: string): ArrayBuffer {
 
 // Simple implementation with LocalStorage, should make better
 // ones with file-system, and with indexDB.
+
 export class LabState {
   async loadValue<Value>(inputName: string): Promise<ItemData<Value> | null> {
     const s = localStorage.getItem(inputName);
@@ -84,9 +85,10 @@ export class LabState {
   async saveValue<Value>(key: string, value: Value): Promise<void> {
     localStorage.setItem(
       key,
+      // TODO: this type conversion is likely wrong.
       arrayBufferToString(
-        extPackr.pack({ metaData: { timestamp: new Date() }, data: value })
-      )
+        extPackr.pack({ metaData: { timestamp: new Date() }, data: value }) as never as ArrayBuffer,
+      ),
     );
   }
 }

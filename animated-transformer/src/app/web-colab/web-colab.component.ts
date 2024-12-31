@@ -50,6 +50,7 @@ import {
 } from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
 import { ExpSectionDataDef, SectionDataDef, SectionKind } from 'src/lib/weblab/section';
+import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
 
 type Timeout = {};
 
@@ -203,42 +204,7 @@ export class WebColabComponent {
   }
 
   async newExperiment() {
-    const initExpDef: ExpSectionDataDef = {
-      kind: ExpDefKind.Data,
-      id: 'top level exp name/id',
-      timestamp: Date.now(),
-      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-      sectionData: {
-        sectionKind: SectionKind.SubExperiment,
-        content: [],
-      },
-    };
-    const exp = new Experiment(this.env, [], initExpDef);
-    const sec1: SectionDataDef = {
-      kind: ExpDefKind.Data,
-      id: 'about',
-      timestamp: Date.now(),
-      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-      sectionData: {
-        sectionKind: SectionKind.Markdown,
-        content: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
-      },
-    };
-    const sec2: SectionDataDef = {
-      kind: ExpDefKind.Data,
-      id: 'some data',
-      timestamp: Date.now(),
-      // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-      sectionData: {
-        sectionKind: SectionKind.JsonObj,
-        content: {
-          hello: 'foo',
-        },
-      },
-    };
-    exp.appendLeafSectionFromDataDef(sec1);
-    exp.appendLeafSectionFromDataDef(sec2);
-    this.experiment.set(exp);
+    this.experiment.set(makeToyExperiment('simple experiment', this.env));
     await this.saveExperimentToCache();
     this.edited.set(true);
     this.saveState = SaveState.CachedAndEdited;

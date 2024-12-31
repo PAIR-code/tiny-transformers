@@ -38,7 +38,7 @@ import {
   SignalSpace,
 } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { SomeLabEnvCell } from '../distr-signal-exec/lab-env-cell';
+import { SomeLabEnvCell } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import {
   CellKind,
@@ -46,14 +46,14 @@ import {
   SomeCellKind,
   ValueKindFnStruct,
   ValueStruct,
-} from '../distr-signal-exec/cell-types';
+} from '../distr-signal-exec/cell-kind';
 import { ExpDefKind, Experiment } from './experiment';
 import {
   AbstractSignalReceiveEnd,
   AbstractStreamReceiveEnd,
   AbstractSignalSendEnd,
   AbstractStreamSendEnd,
-} from '../distr-signal-exec/signal-messages';
+} from '../distr-signal-exec/channel-ends';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
@@ -81,7 +81,7 @@ export type CellSectionInput =
 
 export enum CellRefKind {
   Registry = 'Registry',
-  Url = 'Url',
+  InlineJsCode = 'JsCode',
 }
 
 export type cellRefKind =
@@ -90,9 +90,19 @@ export type cellRefKind =
       registryCellKindId: string;
     }
   | {
-      kind: CellRefKind.Url;
-      url: string;
+      kind: CellRefKind.InlineJsCode;
+      js: string;
     };
+
+export enum CellSectionOutputKind {
+  Undefined = 'Undefined',
+  Defined = 'Defined',
+}
+
+export type CellSectionOutput = {
+  value?: JsonValue;
+  saved: boolean;
+};
 
 export type CellSectionContent = {
   // ID of the cell, to lookup from a table of registered cell kinds.
@@ -100,8 +110,8 @@ export type CellSectionContent = {
   // How inputs to this cell map to either outputs from other cells, or raw
   // JsonObj values.
   inputs: { [inputId: string]: CellSectionInput };
-  // Names of the outputs for
-  outputIds: string[];
+  // OutputIds to the last saved value (undefined when not yet defined)
+  outputIds: { [outputId: string]: CellSectionOutput };
   inStreams: { [inStreamId: string]: { cellSectionId: string; cellOutStreamId: string } };
   outStreamIds: string[];
 };
@@ -118,10 +128,13 @@ function cellKindFromContent(
       throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
     }
     return cellKind;
-  } else if (cRef.kind === CellRefKind.Url) {
-    const url = cRef.url;
+  } else if (cRef.kind === CellRefKind.InlineJsCode) {
+    const blob = new Blob([cRef.js], { type: 'application/javascript' });
+    // TODO: think about cleanup... need to track and dispose of this when code
+    // is no longer linked to a cell.
+    const url = URL.createObjectURL(blob);
     const inputs: ValueKindFnStruct = {};
-    for (const [k, _] of Object.entries(c.inputs)) {
+    for (const k of Object.keys(c.inputs)) {
       inputs[k] = Kind<unknown>;
     }
     const inStreams: ValueKindFnStruct = {};
@@ -129,7 +142,7 @@ function cellKindFromContent(
       inStreams[k] = Kind<unknown>;
     }
     const outputs: ValueKindFnStruct = {};
-    for (const k of c.outputIds) {
+    for (const k of Object.keys(c.outputIds)) {
       outputs[k] = Kind<unknown>;
     }
     const outStreams: ValueKindFnStruct = {};

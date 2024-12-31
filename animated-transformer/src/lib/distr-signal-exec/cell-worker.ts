@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { LabMessage, LabMessageKind, StreamValue } from './lab-message-types';
+import { LabMessage, LabMessageKind } from './lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
@@ -22,27 +22,20 @@ import {
   PromisedSetableSignalsFn,
   CallValueFn,
   AbstractSignalStructFn,
-} from './cell-types';
+} from './cell-kind';
 import { ExpandOnce } from '../ts-type-helpers';
-import {
-  SignalReceiveEnd,
-  StreamReceiveEnd,
-  SignalSendEnd,
-  StreamSendEnd,
-} from './signal-messages';
+import { SignalReceiveEnd, StreamReceiveEnd, SignalSendEnd, StreamSendEnd } from './channel-ends';
 
 // ----------------------------------------------------------------------------
-export class SignalCell<
+export class CellWorker<
   Inputs extends ValueStruct,
   InputStreams extends ValueStruct,
   Outputs extends ValueStruct,
   OutputStreams extends ValueStruct,
 > {
-  // Mostly for logging/debugging purposes.
-  id: string;
-
-  // Initialised by environment sending us the id.
-  sentId?: string;
+  // Mostly for logging/debugging purposes. Initially from the cell kind, then
+  // but can be updated by creator, or by getting a start message.
+  public id: string;
 
   // Promises of SetableSignal for each input. Promise is resolved when first
   // input is received.
@@ -93,9 +86,9 @@ export class SignalCell<
 
   constructor(
     public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
-    public defaultPostMessageFn: (value: LabMessage) => void,
+    public defaultPostMessageFn: (value: LabMessage, ports?: MessagePort[]) => void,
   ) {
-    this.id = `[kind:${this.kind.data.cellKindId}]`;
+    this.id = `[kind:${JSON.stringify(this.kind.data.cellKindId)}]`;
     type InputStreamKey = keyof InputStreams & string;
     type InputStreamValue = InputStreams[keyof InputStreams];
     type InputKey = keyof Inputs & string;
@@ -129,12 +122,9 @@ export class SignalCell<
       return;
     }
     switch (data.kind) {
-      case LabMessageKind.InitIdMessage: {
+      case LabMessageKind.StartCellRun: {
         this.id = data.id; //`${data.id}.${this.id}`;
         this.initInputsAndOutputs();
-        break;
-      }
-      case LabMessageKind.StartCellRun: {
         this.onceStartedResolver();
         break;
       }
@@ -143,75 +133,36 @@ export class SignalCell<
         this.onceFinishedResolver();
         break;
       }
-      case LabMessageKind.PipeInputSignal: {
-        const inputSignal = this.inputs[data.signalId];
+      case LabMessageKind.AddInputRemote: {
+        const inputSignal = this.inputs[data.recipientSignalId];
         if (!inputSignal) {
-          throw new Error(`${this.id}: No input to pipe named: ${data.signalId}.`);
+          throw new Error(`${this.id}: No input to pipe named: ${data.recipientSignalId}.`);
         }
-        data.ports.forEach((port) => inputSignal.addPort(port));
+        inputSignal.addRemote(data.remoteSignal);
         break;
       }
-      case LabMessageKind.PipeOutputSignal: {
-        const outputSignal = this.outputs[data.signalId];
+      case LabMessageKind.AddOutputRemote: {
+        const outputSignal = this.outputs[data.recipientSignalId];
         if (!outputSignal) {
-          throw new Error(`${this.id}: No output to pipe entry named: ${data.signalId}.`);
+          throw new Error(`${this.id}: No output to pipe entry named: ${data.recipientSignalId}.`);
         }
-        // For each port into this
-        data.ports.forEach((port) => {
-          outputSignal.addPort(port);
-        });
+        outputSignal.addRemote(data.remoteSignal);
         break;
       }
-      case LabMessageKind.PipeInputStream: {
-        const inputStream = this.inStream[data.streamId];
+      case LabMessageKind.AddInStreamRemote: {
+        const inputStream = this.inStream[data.recipientStreamId];
         if (!inputStream) {
-          throw new Error(`${this.id}: No input stream to pipe named ${data.streamId}.`);
+          throw new Error(`${this.id}: No input stream to pipe named ${data.recipientStreamId}.`);
         }
-        data.ports.forEach((port) => inputStream.addPort(port));
+        inputStream.addRemote(data.remoteStream);
         break;
       }
-      case LabMessageKind.PipeOutputStream: {
-        const outputStream = this.outStream[data.streamId];
+      case LabMessageKind.AddOutStreamRemote: {
+        const outputStream = this.outStream[data.recipientStreamId];
         if (!outputStream) {
-          throw new Error(`${this.id}: No output streams to pipe named ${data.streamId}.`);
+          throw new Error(`${this.id}: No output streams to pipe named ${data.recipientStreamId}.`);
         }
-        data.ports.forEach((port) => outputStream.addPort(port));
-        break;
-      }
-      case LabMessageKind.SetSignalValue: {
-        const input = this.inputs[data.signalId];
-        if (!input) {
-          throw new Error(
-            `${this.id}: onMessage: setSignal(${data.signalId}): but there is no such input.`,
-          );
-        }
-        input.onSetInput(data.value as Inputs[keyof Inputs & string]);
-        break;
-      }
-      case LabMessageKind.ConjestionControl: {
-        const outStream = this.outStream[data.streamId];
-        outStream.conjestionFeedbackStateUpdate(data, outStream.defaultState);
-        break;
-      }
-      case LabMessageKind.EndStream: {
-        const inputStream = this.inStream[data.streamId];
-        if (!inputStream) {
-          throw new Error(`${this.id}: onMessage: EndStream(${data.streamId}): no such inStream.`);
-        }
-        inputStream.onDone();
-        break;
-      }
-      case LabMessageKind.AddStreamValue: {
-        const inputStream = this.inStream[data.streamId];
-        if (!inputStream) {
-          throw new Error(
-            `${this.id}: onMessage: AddStreamValue(${data.streamId}): no such inStream.`,
-          );
-        }
-        inputStream.onAddValue(
-          inputStream.defaultPort,
-          data.value as StreamValue<InputStreams[keyof InputStreams & string]>,
-        );
+        outputStream.addRemote(data.remoteStream);
         break;
       }
       default: {
@@ -237,14 +188,14 @@ export class SignalCell<
     });
 
     for (const inputName of this.inputSet) {
-      const workerInput = new SignalReceiveEnd<InputValue>(
+      const signalRecEnd = new SignalReceiveEnd<InputValue>(
         this.id,
         this.space,
         inputName as InputKey,
-        this.defaultPostMessageFn,
       );
-      this.inputs[inputName] = workerInput;
-      workerInput.onceReady.then((signal) => {
+
+      this.inputs[inputName] = signalRecEnd;
+      signalRecEnd.onceReady.then((signal) => {
         this.inputSoFar[inputName] = signal;
         this.stillExpectedInputs.delete(inputName);
         if (this.stillExpectedInputs.size === 0) {
@@ -254,35 +205,32 @@ export class SignalCell<
     }
 
     for (const inputName of this.inputStreamSet) {
-      const workerStreamInput = new StreamReceiveEnd<InputStreamValue>(
+      const streamRecEnd = new StreamReceiveEnd<InputStreamValue>(
         this.id,
         this.space,
         inputName as InputStreamKey,
-        this.defaultPostMessageFn,
       );
-      this.inStream[inputName] = workerStreamInput;
-    }
-
-    for (const outputName of this.outputStreamSet) {
-      const workerOutputStream = new StreamSendEnd<OutputStreamValue>(
-        this.id,
-        this.space,
-        outputName as OutputStreamKey,
-        this.defaultPostMessageFn,
-        { conjestionControl: { maxQueueSize: 20, resumeAtQueueSize: 10 } },
-      );
-      this.outStream[outputName] = workerOutputStream;
+      this.inStream[inputName] = streamRecEnd;
     }
 
     for (const outputName of this.outputSet) {
-      const workerOutput = new SignalSendEnd<OutputValue>(
+      const signalSendEnd = new SignalSendEnd<OutputValue>(
         this.id,
         this.space,
         outputName as string,
-        this.defaultPostMessageFn,
       );
-      this.outputs[outputName as OutputKey] = workerOutput;
-      this.output[outputName as OutputKey] = (value: OutputValue) => workerOutput.set(value);
+      this.outputs[outputName as OutputKey] = signalSendEnd;
+      this.output[outputName as OutputKey] = (value: OutputValue) => signalSendEnd.set(value);
+    }
+
+    for (const outputName of this.outputStreamSet) {
+      const streamSendEnd = new StreamSendEnd<OutputStreamValue>(
+        this.id,
+        this.space,
+        outputName as OutputStreamKey,
+      );
+
+      this.outStream[outputName] = streamSendEnd;
     }
   }
 
@@ -290,8 +238,8 @@ export class SignalCell<
   // Basically an RPC.
   async start(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
     await this.onceStarted;
-    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
     const inputs = await this.onceAllInputs;
+    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
     await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }

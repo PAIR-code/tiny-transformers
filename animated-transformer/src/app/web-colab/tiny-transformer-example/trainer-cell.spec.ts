@@ -115,5 +115,5 @@ describe('Trainer-Cell', () => {
 
     trainerCell.requestStop();
     await trainerCell.onceFinished;
-  }, 15000);
+  }, 5000);
 });

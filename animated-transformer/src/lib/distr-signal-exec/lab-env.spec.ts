@@ -17,7 +17,7 @@ import { LabEnv } from './lab-env';
 import { exampleCellAbstract } from './example.ailab';
 import { SignalSpace } from '../signalspace/signalspace';
 import { sigmoid } from '@tensorflow/tfjs';
-import { CellStatus } from './lab-env-cell';
+import { CellStatus } from './cell-controller';
 
 describe('lab-env', () => {
   beforeEach(async () => {});
@@ -25,11 +25,14 @@ describe('lab-env', () => {
   it('Running a simple cell', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const cell = env.start(exampleCellAbstract, { inputs: { prefix } });
-    expect(cell.status).toEqual(CellStatus.StartingWaitingForInputs);
+    const cell = env.start(exampleCellAbstract, {
+      inputs: { prefix },
+      // config: { logCellMessages: true },
+    });
+    expect(cell.status()).toEqual(CellStatus.StartingWaitingForInputs);
 
     const { prefixRev, prefixLen } = await cell.onceAllOutputs;
-    expect(cell.status).toEqual(CellStatus.Running);
+    expect(cell.status()).toEqual(CellStatus.Running);
 
     expect(prefixLen()).toEqual(3);
     expect(prefixRev()).toEqual('ooF');
@@ -69,10 +72,10 @@ describe('lab-env', () => {
     prefix.set('Bar');
     expect(await onceRevBar).toEqual('raB');
 
-    expect(cell.status).toEqual(CellStatus.Running);
+    expect(cell.status()).toEqual(CellStatus.Running);
     cell.requestStop();
     await cell.onceFinished;
-    expect(cell.status).toEqual(CellStatus.Stopped);
+    expect(cell.status()).toEqual(CellStatus.Stopped);
   });
 
   it('Running two cells, with delayed piping', async () => {
@@ -80,8 +83,6 @@ describe('lab-env', () => {
     const prefix = env.space.setable('Foo');
     const cell = env.init(exampleCellAbstract, { config: { id: 'cell1' } });
     const cell2 = env.init(exampleCellAbstract, { config: { id: 'cell2' } });
-
-    // console.log(`@ Test: expect(await onceRevFoo)`);
 
     // Cells have assignX methods to assign input signals and streams.
     cell.assignInputFromSignal('prefix', prefix);

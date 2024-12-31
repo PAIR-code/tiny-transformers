@@ -27,7 +27,8 @@ import {
   StreamValue,
   LabMessageKind,
   EndStreamMessage,
-  PipeOutputStreamMessage,
+  Remote,
+  RemoteKind,
 } from './lab-message-types';
 
 // TODO: rename to sending / receiving to more directly represent the action,
@@ -59,15 +60,16 @@ export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
   onSetInput: (input: T) => void;
-  ports: MessagePort[] = [];
+  remotes: Remote[] = [];
 
   constructor(
-    // For debugging. Nice to know what cell this receieve end if associated with.
+    // For debugging. Nice to know what the local cell this receieve end is
+    // associated with.
     public cellId: string,
     public space: SignalSpace,
-    // Signal id.
+    // The local Channel ID.
     public signalId: string,
-    public defaultPostMessageFn: (v: LabMessage, ports?: MessagePort[]) => void,
+    // public defaultPostMessageFn: (v: LabMessage, ports?: MessagePort[]) => void,
   ) {
     this.onceReady = new Promise<SetableSignal<T>>((resolve) => {
       // TODO: consider allowing parent to send stuff before we ask for it..
@@ -87,58 +89,48 @@ export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
     };
   }
 
-  addPort(messagePort: MessagePort) {
-    this.ports.push(messagePort);
-    messagePort.onmessage = (event: MessageEvent) => {
+  addRemote(remoteSender: Remote) {
+    this.remotes.push(remoteSender);
+    remoteSender.messagePort.onmessage = (event: MessageEvent) => {
       const message = event.data as LabMessage;
       if (message.kind !== LabMessageKind.SetSignalValue) {
-        throw new Error(`addPort (${this.signalId}) onMessage: unknown kind: ${event.data.kind}.`);
+        throw new Error(`Bad kind. ${this.cellId}:${this.signalId} got: ${event.data.kind}.`);
+      }
+      if (message.signalId !== this.signalId) {
+        throw new Error(`Crossed Ids. ${this.cellId}:${this.signalId} got: ${message.signalId}`);
       }
       this.onSetInput(message.value as T);
     };
-  }
-
-  // Send a message to all senders who send stuff to this Receive End
-  pipeSendersTo(newPort: MessagePort, options?: { keepHereToo: boolean }): void {
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeOutputSignal,
-      signalId: this.signalId,
-      ports: [newPort],
-      options,
-    };
-
-    for (const senderPort of this.ports) {
-      senderPort.postMessage(message, message.ports);
-    }
   }
 }
 
 // ----------------------------------------------------------------------------
 // Consider: we could take in a signal, and have a derived send functionality
 export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
-  ports: MessagePort[] = [];
+  // ports: MessagePort[] = [];
+  remotes: Remote[] = [];
+
   lastValue?: T;
 
   constructor(
-    // For debugging. Nice to know what cell this receieve end if associated with.
+    // For debugging. Nice to know what the local cell this receieve end is
+    // associated with.
     public cellId: string,
     public space: SignalSpace,
     public signalId: string,
-    public defaultPostMessageFn?: (m: LabMessage, transerables?: Transferable[]) => void,
   ) {}
 
-  addPort(messagePort: MessagePort) {
-    this.ports.push(messagePort);
-    console.log('addPort, lastvalue: ', this.lastValue);
+  addRemote(remoteReceiver: Remote) {
+    this.remotes.push(remoteReceiver);
     if (this.lastValue) {
       const message: LabMessage = {
         kind: LabMessageKind.SetSignalValue,
         signalId: this.signalId,
         value: this.lastValue,
       };
-      messagePort.postMessage(message);
+      remoteReceiver.messagePort.postMessage(message);
     }
-    messagePort.onmessage = (event: MessageEvent) => {
+    remoteReceiver.messagePort.onmessage = (event: MessageEvent) => {
       console.warn(`unexpected message on output port ${this.signalId}`);
     };
   }
@@ -150,31 +142,45 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
       signalId: this.signalId,
       value,
     };
-    for (const port of this.ports) {
-      port.postMessage(message);
-    }
-    if (this.defaultPostMessageFn) {
-      this.defaultPostMessageFn(message);
+    for (const remoteReceiver of this.remotes) {
+      remoteReceiver.messagePort.postMessage(message);
     }
   }
 
   // Pipe everywhere that sends to recEnd, to now send to everywhere that this
   // send end sends to.
-  pipeFrom(recEnd: SignalReceiveEnd<T>, options?: { keepHereToo: boolean }) {
-    const channel = new MessageChannel();
+  pipeFrom(recEnd: SignalReceiveEnd<T>) {
+    for (const remoteSender of recEnd.remotes) {
+      for (const remoteReceiver of this.remotes) {
+        const channel = new MessageChannel();
 
-    const message: LabMessage = {
-      kind: LabMessageKind.PipeInputSignal,
-      signalId: this.signalId as string,
-      ports: [channel.port1],
-    };
+        const remoteSenderMessage: LabMessage = {
+          kind: LabMessageKind.AddOutputRemote,
+          recipientSignalId: remoteSender.remoteChannelId,
+          remoteSignal: {
+            kind: RemoteKind.MessagePort,
+            remoteCellId: remoteReceiver.remoteCellId,
+            remoteChannelId: remoteReceiver.remoteChannelId,
+            messagePort: channel.port1,
+          },
+        };
+        remoteSender.messagePort.postMessage(remoteSenderMessage, [channel.port1]);
 
-    for (const port of this.ports) {
-      // Pipe the input stream at the far end of the SendEnd to start handling
-      // inputs from the new port.
-      port.postMessage(message, message.ports);
+        const remoteReceiverMessage: LabMessage = {
+          kind: LabMessageKind.AddInputRemote,
+          recipientSignalId: remoteReceiver.remoteChannelId,
+          remoteSignal: {
+            kind: RemoteKind.MessagePort,
+            remoteCellId: remoteSender.remoteCellId,
+            remoteChannelId: remoteSender.remoteChannelId,
+            messagePort: channel.port2,
+          },
+        };
 
-      recEnd.pipeSendersTo(channel.port2, options);
+        // Pipe the input stream at the far end of the SendEnd to start handling
+        // inputs from the new port.
+        remoteReceiver.messagePort.postMessage(remoteReceiverMessage, [channel.port2]);
+      }
     }
     recEnd.onceReady.then((signal) => this.set(signal()));
   }
@@ -184,8 +190,11 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
 export type ConjestionControlConfig = {
   // TODO: consider fancier conjestion control abstraction, e.g. function and
   // data on returned values.
-  maxQueueSize: number;
-  resumeAtQueueSize: number; // Expected to be smaller than maxQueueSize;
+
+  // UnrespondCount is the amount of messages we believe are queued on transit
+  // and being processed by the remote system.
+  pauseFromUnrespondCount: number;
+  resumeAtUnrespondCount: number; // Expected to be smaller than maxQueueSize;
   // Consider if we want to allow feedback every N to minimise communication
   // flow costs. That depends on the assumptions of the sender... they need to
   // agree on conjestion control protocol, and right now sender is counting, so
@@ -193,8 +202,10 @@ export type ConjestionControlConfig = {
 };
 
 type ConjestionState = {
-  lastReturnedId: number;
-  queueLength: number;
+  lastResponceId: number;
+  // If unrespondCount is set to -1, then no conjestion control will happen, and
+  // unrespondCount will not be updated.
+  unrespondCount: number;
   // When paused, this is set, and allows triggering of resuming.
   resumeResolver?: () => void;
   onceResume?: Promise<void>;
@@ -218,59 +229,42 @@ type ConjestionState = {
 // ----------------------------------------------------------------------------
 export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
   // The MessagePorts to report feedback to on how busy we are.
-  ports: MessagePort[] = [];
-  // Note: defaultPort is included in ports.
-  defaultPort: MessagePort;
-  // The function that is to be called on every input.
-  public onAddValue: (port: MessagePort, input: StreamValue<T>) => void;
+  remotes: Remote[] = [];
+
   // The resulting iterator on inputs.
   public inputIter: AsyncIterOnEvents<T>;
 
   constructor(
-    // For debugging. Nice to know what cell this receieve end if associated with.
+    // For debugging. Nice to know what the local cell this receieve end is
+    // associated with.
     public cellId: string,
     public space: SignalSpace,
-    // The id of the inStream this is recieving into.
     public streamId: string,
-    // Used to post conjestion control feedback, or to pipe output from the
-    // worker to other locations.
-    public defaultPostMessageFn: (
-      m: ConjestionFeedbackMessage | PipeOutputStreamMessage,
-      // Typically these are ports.
-      transerables?: Transferable[],
-    ) => void,
   ) {
     this.inputIter = new AsyncIterOnEvents<T>();
+  }
 
-    this.defaultPort = { postMessage: this.defaultPostMessageFn } as MessagePort;
-    this.addPort(this.defaultPort);
+  onAddValue(remote: Remote, streamValue: StreamValue<T>) {
+    this.inputIter.nextEvent(streamValue.value);
+    // TODO: smarter control for ConjestionFeedback is possible, e.g. report
+    // every N to save communication bandwidth.
+    this.postConjestionFeedback(remote, streamValue.idx);
+  }
 
-    // First input creates the signal, resolves the promise, posts the first
-    // conjestion control index, and then resets onNextInput for future cases to
-    // just set the signal, and posts the next conjestion control index.
-    this.onAddValue = (port: MessagePort, streamValue: StreamValue<T>) => {
-      // // If stream was stopped.
-      // if (value === null) {
-      //   this.inputIter.done();
-      //   return;
-      // }
-      this.inputIter.nextEvent(streamValue.value);
-      // TODO: smarter control for ConjestionFeedback is possible, e.g. report
-      // every N to save communication bandwidth.
-      this.postConjestionFeedback(port, streamValue.idx);
-    };
+  init() {
+    this.inputIter = new AsyncIterOnEvents<T>();
   }
 
   onDone() {
     this.inputIter.done();
   }
 
-  addPort(port: MessagePort) {
-    this.ports.push(port);
-    port.onmessage = (event: MessageEvent) => {
+  addRemote(remote: Remote) {
+    this.remotes.push(remote);
+    remote.messagePort.onmessage = (event: MessageEvent) => {
       const workerMessage: LabMessage = event.data;
       if (workerMessage.kind === LabMessageKind.AddStreamValue) {
-        this.onAddValue(port, workerMessage.value as StreamValue<T>);
+        this.onAddValue(remote, workerMessage.value as StreamValue<T>);
       } else if (workerMessage.kind === LabMessageKind.EndStream) {
         this.onDone();
       } else {
@@ -279,13 +273,13 @@ export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
     };
   }
 
-  postConjestionFeedback(port: MessagePort, idx: number) {
+  postConjestionFeedback(remote: Remote, idx: number) {
     const message: LabMessage = {
       kind: LabMessageKind.ConjestionControl,
       streamId: this.streamId,
       idx,
     };
-    port.postMessage(message);
+    remote.messagePort.postMessage(message);
   }
 
   public async next(): Promise<IteratorResult<T, null>> {
@@ -303,39 +297,66 @@ export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
 // from a receieve end for too long, then it stops sending to avoid
 // over-conjesting communication flows.
 // ----------------------------------------------------------------------------
-export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
-  portConjestion: Map<MessagePort, ConjestionState> = new Map();
-  // default is included in the portConjestion map by default.
-  public defaultPort: MessagePort;
-  public defaultState: ConjestionState;
-  lastMessageIdx: number = 0;
+export type StreamSendEndConfig = {
+  conjestionControl: ConjestionControlConfig;
+};
 
-  // Think about having a default output postMessage?
+export function defaultStreamSendEndConfig(): StreamSendEndConfig {
+  return {
+    conjestionControl: {
+      pauseFromUnrespondCount: 20,
+      resumeAtUnrespondCount: 10,
+    },
+  };
+}
+
+export function initConjectionState(): ConjestionState {
+  return {
+    lastResponceId: 0,
+    unrespondCount: 0,
+    done: false,
+  };
+}
+
+export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
+  // CONSIDER: think about using a double map, remoteCellID --> RemoteSignalId
+  // --> Remote+ConestionState. The issue with using Remote as is, is that one
+  // might get duplicates in the map, which would be bad and hard/slow to spot
+  // (have to enumerate all Remotes and check them all)
+  remotes: Map<Remote, ConjestionState> = new Map();
+  public lastMessageIdx: number = 0;
+  public config: StreamSendEndConfig;
+
   constructor(
-    // For debugging. Nice to know what cell this receieve end if associated with.
+    // For debugging. Nice to know what the local cell this receieve end is
+    // associated with.
     public cellId: string,
     public space: SignalSpace,
     public streamId: string,
-    public defaultPostMessageFn: (m: AddStreamValueMessage, transerables?: Transferable[]) => void,
-    public config: {
-      conjestionControl: ConjestionControlConfig;
-    },
+    config?: Partial<StreamSendEndConfig>,
   ) {
-    // if (this.defaultPostMessageFn) {
-    this.defaultPort = { postMessage: this.defaultPostMessageFn } as MessagePort;
-    this.defaultState = this.addPort(this.defaultPort);
-    // }
+    this.config = { ...defaultStreamSendEndConfig(), ...config };
   }
 
-  addPort(messagePort: MessagePort): ConjestionState {
-    const messagePortConjestionState: ConjestionState = {
-      lastReturnedId: 0,
-      queueLength: 0,
-      done: false,
-    };
-    this.portConjestion.set(messagePort, messagePortConjestionState);
-    messagePort.onmessage = (event: MessageEvent) => {
-      this.conjestionFeedbackStateUpdate(event.data, messagePortConjestionState);
+  init() {
+    // CONSIDER: do we need to worry about the resume state pomises, or do they
+    // get garbage collected?
+    for (const state of this.remotes.values()) {
+      Object.assign(state, initConjectionState());
+    }
+    this.lastMessageIdx = 0;
+  }
+
+  addRemote(remote: Remote): ConjestionState {
+    const messagePortConjestionState: ConjestionState = initConjectionState();
+    this.remotes.set(remote, messagePortConjestionState);
+    remote.messagePort.onmessage = (event: MessageEvent) => {
+      const data: ConjestionFeedbackMessage = event.data;
+      if (data.kind && data.kind === LabMessageKind.ConjestionControl) {
+        this.conjestionFeedbackStateUpdate(data, messagePortConjestionState);
+      } else {
+        throw new Error(`Unknown message from remote: ${JSON.stringify(data)}`);
+      }
     };
     return messagePortConjestionState;
   }
@@ -347,10 +368,10 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
     if (state.done) {
       return;
     }
-    state.lastReturnedId = conjestionFeedback.idx;
-    state.queueLength--;
+    state.lastResponceId = conjestionFeedback.idx;
+    state.unrespondCount--;
     if (
-      state.queueLength <= this.config.conjestionControl.resumeAtQueueSize &&
+      state.unrespondCount <= this.config.conjestionControl.resumeAtUnrespondCount &&
       state.resumeResolver
     ) {
       state.resumeResolver();
@@ -373,8 +394,8 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
   // sends is always respected.
   async send(value: T): Promise<void> {
     this.lastMessageIdx++;
-    for (const [port, state] of this.portConjestion.entries()) {
-      const stop = await this.sendTo(value, { port, state });
+    for (const [remote, state] of this.remotes.entries()) {
+      const stop = await this.sendTo(value, { remote, state });
       if (stop) {
         return;
       }
@@ -383,35 +404,47 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
 
   // Pipe everywhere that sends to recEnd, to now send to everywhere that this
   // send end sends to.
-  pipeFrom(recEnd: StreamReceiveEnd<T>, options?: { keepHereToo: boolean }) {
-    for (const portInRecEnd of recEnd.ports) {
-      for (const portInThisSendEnd of this.portConjestion.keys()) {
+  pipeFrom(recEnd: StreamReceiveEnd<T>) {
+    for (const remoteSender of recEnd.remotes) {
+      for (const remoteReceiver of this.remotes.keys()) {
         const channel = new MessageChannel();
-        // To all the places recEnd recieves from, which send to it.
-        const senderToRecEndMessage: LabMessage = {
-          kind: LabMessageKind.PipeOutputStream,
-          streamId: recEnd.streamId,
-          ports: [channel.port2],
-          options,
+
+        const remoteSenderMessage: LabMessage = {
+          kind: LabMessageKind.AddOutStreamRemote,
+          recipientStreamId: remoteSender.remoteChannelId,
+          remoteStream: {
+            kind: RemoteKind.MessagePort,
+            remoteCellId: remoteReceiver.remoteCellId,
+            remoteChannelId: remoteReceiver.remoteChannelId,
+            messagePort: channel.port1,
+          },
         };
-        // To all the places we send to, which recieve from us.
-        const thisSendEndReceiverMessage: LabMessage = {
-          kind: LabMessageKind.PipeInputStream,
-          streamId: this.streamId as string,
-          ports: [channel.port1],
+        remoteSender.messagePort.postMessage(remoteSenderMessage, [channel.port1]);
+
+        const remoteReceiverMessage: LabMessage = {
+          kind: LabMessageKind.AddInStreamRemote,
+          recipientStreamId: remoteReceiver.remoteChannelId,
+          remoteStream: {
+            kind: RemoteKind.MessagePort,
+            remoteCellId: remoteSender.remoteCellId,
+            remoteChannelId: remoteSender.remoteChannelId,
+            messagePort: channel.port2,
+          },
         };
-        portInRecEnd.postMessage(senderToRecEndMessage, senderToRecEndMessage.ports);
-        portInThisSendEnd.postMessage(thisSendEndReceiverMessage, thisSendEndReceiverMessage.ports);
+
+        // Pipe the input stream at the far end of the SendEnd to start handling
+        // inputs from the new port.
+        remoteReceiver.messagePort.postMessage(remoteReceiverMessage, [channel.port2]);
       }
     }
   }
 
-  async sendTo(value: T, target: { port: MessagePort; state: ConjestionState }): Promise<boolean> {
-    const { port, state } = target;
+  async sendTo(value: T, target: { remote: Remote; state: ConjestionState }): Promise<boolean> {
+    const { remote, state } = target;
     if (state.done) {
       throw new Error('Called sendTo(...) on a done stream.');
     }
-    if (state.queueLength > this.config.conjestionControl.maxQueueSize) {
+    if (state.unrespondCount > this.config.conjestionControl.pauseFromUnrespondCount) {
       let resumeResolver!: () => void;
       const onceResumed = new Promise<void>((resolve) => {
         resumeResolver = resolve as () => void;
@@ -433,37 +466,34 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
       // A unique incremental number indicating the sent-stream value.
       value: streamValue as StreamValue<unknown>,
     };
-    state.queueLength++;
-    // console.log(
-    //   `outStream(${this.id}@${state.queueLength}): value (${streamValue.idx}): ${streamValue.value}`
-    // );
-    port.postMessage(message);
+    if (state.unrespondCount >= 0) {
+      state.unrespondCount++;
+    }
+    remote.messagePort.postMessage(message);
     return false;
   }
 
-  endPortStream(port: MessagePort, state: ConjestionState) {
+  endRemoteStream(remote: Remote, state: ConjestionState) {
     const message: EndStreamMessage = {
       kind: LabMessageKind.EndStream,
       // The name of the signal stream having its next value set.
       streamId: this.streamId,
     };
-    port.postMessage(message);
+    remote.messagePort.postMessage(message);
     state.done = true;
     if (state.resumeResolver) {
       state.resumeResolver();
     }
   }
 
-  removePort(port: MessagePort, state: ConjestionState) {
-    this.endPortStream(port, state);
-    // this.portConjestion.delete(port);
+  removeRemote(remote: Remote, state: ConjestionState) {
+    this.endRemoteStream(remote, state);
   }
 
   done() {
-    for (const [port, state] of this.portConjestion.entries()) {
-      this.endPortStream(port, state);
+    for (const [port, state] of this.remotes.entries()) {
+      this.endRemoteStream(port, state);
     }
-    // delete this.default;
-    this.portConjestion = new Map();
+    this.remotes = new Map();
   }
 }

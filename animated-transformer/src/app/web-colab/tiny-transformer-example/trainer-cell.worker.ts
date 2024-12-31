@@ -46,7 +46,7 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
-import { Metrics } from 'src/lib/distr-signal-exec/cell-types';
+import { Metrics } from 'src/lib/distr-signal-exec/cell-kind';
 import { makeRandomStream, RandomStream } from 'src/lib/random/random';
 
 // ----------------------------------------------------------------------------
@@ -184,7 +184,10 @@ cell.run(async () => {
 
   let optimizer = tf.train.adam();
 
+  console.log(`${cell.id}: waiting for train batches instream`);
   for await (const trainBatch of cell.inStream.trainBatches) {
+    console.log(`${cell.id}: got a train batch`);
+
     if (cell.finishRequested) {
       break;
     }
@@ -201,10 +204,12 @@ cell.run(async () => {
   cell.outStream.metrics.done();
   cell.outStream.checkpoint.done();
 
+  console.log(`${cell.id}: waiting for request to finish`);
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {
       optimizer.dispose();
     }
+
     const m = model();
     if (m) {
       disposeParams(m.params);

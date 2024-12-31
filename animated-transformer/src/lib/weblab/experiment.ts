@@ -33,9 +33,9 @@ limitations under the License.
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { SomeLabEnvCell } from '../distr-signal-exec/lab-env-cell';
+import { SomeLabEnvCell } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
-import { SomeCellKind } from '../distr-signal-exec/cell-types';
+import { SomeCellKind } from '../distr-signal-exec/cell-kind';
 import {
   CellSectionData,
   ExpSectionDataDef,

@@ -1,37 +1,45 @@
 <div #cellstatus class="cellStatus">
-  [ {{ status() }} ]
+  Cell: {{ cell.id }} [Status: {{ status() }} ]
   <div class="spacer"></div>
   @if (status() === CellStatus.NotStarted) {
-    <button icon-button matTooltip="Start" aria-label="Start" (click)="start()">
-      <mat-icon>start</mat-icon>
-    </button>
-  } @else if (status() === CellStatus.Running) {
     <button
-      icon-button
+      mat-icon-button
+      matTooltip="Start"
+      aria-label="Start"
+      (click)="start()"
+    >
+      <mat-icon>not_started</mat-icon>
+    </button>
+  } @else if (
+    status() !== CellStatus.Stopping && status() !== CellStatus.Stopped
+  ) {
+    <button
+      mat-icon-button
       matTooltip="Request Stop"
       aria-label="Request Stop"
       (click)="requestStop()"
     >
-      <mat-icon>stop</mat-icon>
+      <mat-icon>stop_circle</mat-icon>
     </button>
   } @else if (status() === CellStatus.Stopping) {
     <button
-      icon-button
+      mat-icon-button
       matTooltip="Force Stop"
       aria-label="Force Stop"
       (click)="forceStop()"
     >
-      <mat-icon>force stop</mat-icon>
+      <mat-icon>cancel</mat-icon>
+    </button>
+  } @else if (status() === CellStatus.Stopped) {
+    <button
+      mat-icon-button
+      matTooltip="Restart"
+      aria-label="Restart"
+      (click)="reset()"
+    >
+      <mat-icon>restart_alt</mat-icon>
     </button>
   }
-  <button
-    icon-button
-    matTooltip="Restart"
-    aria-label="Restart"
-    (click)="restart()"
-  >
-    <mat-icon>restart</mat-icon>
-  </button>
 </div>
 <div>
   <!-- @let data =  -->

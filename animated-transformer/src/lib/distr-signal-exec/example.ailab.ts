@@ -17,10 +17,13 @@ limitations under the License.
  * the types for a cell (called the cell's abstract).
  */
 
-import { CellKind, Kind } from './cell-types';
+import { CellKind, Kind } from './cell-kind';
 
+// A cell outputs to prefixedStream the prefix prefixed to the input strStream,
+// and outputs the reverse for the given prefix (until finished), and outputs
+// the first prefix's length (only once at the start).
 export const exampleCellAbstract = new CellKind({
-  cellKindId: `testing cell: prefixing strStream, and outputs a reverse each prefix set, and outputs the first prefix's length`,
+  cellKindId: `testing-cell`,
   workerFn: () => new Worker(new URL('./example.worker', import.meta.url)),
   inputs: { prefix: Kind<string> },
   outputs: { prefixRev: Kind<string>, prefixLen: Kind<number> },

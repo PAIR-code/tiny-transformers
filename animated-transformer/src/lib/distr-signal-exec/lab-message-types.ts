@@ -16,9 +16,7 @@ limitations under the License.
 // ----------------------------------------------------------------------------
 // Messages sent between cells and environments.
 export enum LabMessageKind {
-  // Initial message sending the worker it's ID for logging.
-  InitIdMessage = 'InitIdMessage',
-  // Sent from env to cell to tell is to start.
+  // Sent from env to cell to tell is to start & give it it's id.
   StartCellRun = 'StartCellRun',
   // Sent from cell to env to tell it that it has started with all inputs.
   // TODO: think about required vs lazy inputs...
@@ -31,13 +29,13 @@ export enum LabMessageKind {
   // end.
   SetSignalValue = 'SetSignalValue',
   // From env to cell to tell it to listen to inputs from new source signal.
-  PipeInputSignal = 'PipeInputSignal',
+  AddInputRemote = 'PipeInputSignal',
   // From env to cell to tell it to send outputs to a new source signal.
-  PipeOutputSignal = 'PipeOutputSignal',
+  AddOutputRemote = 'PipeOutputSignal',
   // From env to cell to tell it to listen to instream from new source.
-  PipeInputStream = 'PipeInputStream',
+  AddInStreamRemote = 'PipeInputStream',
   // From env to cell to tell it to send to a new output stream.
-  PipeOutputStream = 'PipeOutputStream',
+  AddOutStreamRemote = 'PipeOutputStream',
   // From a receive end of a stream to tell the sender it has received stuff.
   ConjestionControl = 'ConjestionControl',
   // From Env to cell to tell it to finish.
@@ -80,48 +78,81 @@ export type SetSignalValueMessage = {
   value: unknown;
 };
 
-export type PipeInputSignalMessage = {
-  kind: LabMessageKind.PipeInputSignal;
-  signalId: string;
-  ports: MessagePort[];
+export enum RemoteKind {
+  MessagePort = 'MessagePort',
+}
+
+export type Remote = {
+  kind: RemoteKind.MessagePort;
+  messagePort: MessagePort;
+  // The message port above uniquely identifies, sends messages to, and gets
+  // messages from, this remoteCellId, on the specified remoteChannelId.
+  remoteCellId: string;
+  // A channel can be a stream of a signal.
+  remoteChannelId: string;
 };
 
-export type PipeOutputSignalMessage = {
-  kind: LabMessageKind.PipeOutputSignal;
-  signalId: string;
-  // TODO: add 'push values' option for the port.
-  ports: MessagePort[];
+export type AddInputRemoteMessage = {
+  kind: LabMessageKind.AddInputRemote;
+  recipientSignalId: string;
+  // Remote w.r.t. the reciever of the message: this is the target of the
+  // intended piping.
+  remoteSignal: Remote;
+  // remoteCellId: string;
+  // signalId: string;
+  // ports: MessagePort[];
+};
+
+export type AddOutputRemoteMessage = {
+  kind: LabMessageKind.AddOutputRemote;
+  recipientSignalId: string;
+  // Remote w.r.t. the reciever of the message: this is the target of the
+  // intended piping.
+  remoteSignal: Remote;
+  // remoteCellId: string;
+  // signalId: string;
+  // // TODO: add 'push values' option for the port.
+  // ports: MessagePort[];
   // false; Approx = transfer signal, true = add a new signal target.
   options?: { keepHereToo: boolean };
 };
 
-export type PipeInputStreamMessage = {
-  kind: LabMessageKind.PipeInputStream;
-  streamId: string;
-  ports: MessagePort[];
+export type AddInStreamRemoteMessage = {
+  kind: LabMessageKind.AddInStreamRemote;
+  recipientStreamId: string;
+  // Remote w.r.t. the reciever of the message: this is the target of the
+  // intended piping.
+  remoteStream: Remote;
+  // remoteCellId: string;
+  // streamId: string;
+  // ports: MessagePort[];
 };
 
-export type PipeOutputStreamMessage = {
-  kind: LabMessageKind.PipeOutputStream;
-  streamId: string;
-  // TODO: add 'push values' option for the port.
-  ports: MessagePort[];
+export type AddOutStreamRemoteMessage = {
+  kind: LabMessageKind.AddOutStreamRemote;
+  recipientStreamId: string;
+  remoteStream: Remote;
+
+  // remoteCellId: string;
+  // streamId: string;
+  // // TODO: add 'push values' option for the port.
+  // ports: MessagePort[];
   // false; Approx = transfer signal, true = add a new signal target.
-  options?: { keepHereToo: boolean };
+  // options?: { keepHereToo: boolean };
 };
 
 // ----------------------------------------------------------------------------
 export type LabMessage =
-  | { kind: LabMessageKind.InitIdMessage; id: string }
-  | { kind: LabMessageKind.StartCellRun }
+  | { kind: LabMessageKind.StartCellRun; id: string }
   | { kind: LabMessageKind.ReceivedAllInputsAndStarting }
   | SetSignalValueMessage
   | AddStreamValueMessage
   | ConjestionFeedbackMessage
   | EndStreamMessage
-  | PipeInputStreamMessage
-  | PipeOutputStreamMessage
-  | PipeInputSignalMessage
-  | PipeOutputSignalMessage
+  // CONSIDER: add some RemoveRemotes also?
+  | AddInStreamRemoteMessage
+  | AddOutStreamRemoteMessage
+  | AddInputRemoteMessage
+  | AddOutputRemoteMessage
   | { kind: LabMessageKind.FinishRequest }
   | { kind: LabMessageKind.Finished };

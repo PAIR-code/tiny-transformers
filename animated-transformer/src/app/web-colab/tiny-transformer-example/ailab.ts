@@ -19,7 +19,7 @@ limitations under the License.
 
 import { Example } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { CellKind, Kind, Metrics } from 'src/lib/distr-signal-exec/cell-types';
+import { CellKind, Kind, Metrics } from 'src/lib/distr-signal-exec/cell-kind';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 

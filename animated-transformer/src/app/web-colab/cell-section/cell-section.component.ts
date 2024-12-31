@@ -1,9 +1,11 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   effect,
   ElementRef,
   input,
+  OnInit,
   Signal,
   signal,
   viewChild,
@@ -11,7 +13,7 @@ import {
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { CellStatus, SomeLabEnvCell } from 'src/lib/distr-signal-exec/lab-env-cell';
+import { CellStatus, SomeLabEnvCell } from 'src/lib/distr-signal-exec/cell-controller';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,7 +33,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { Experiment } from '../../../lib/weblab/experiment';
 import { CellSectionData } from '../../../lib/weblab/section';
 import { CellRegistryService } from 'src/app/cell-registry.service';
-import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-types';
+import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-kind';
 import { Section } from 'src/lib/weblab/section';
 
 @Component({
@@ -57,27 +59,34 @@ import { Section } from 'src/lib/weblab/section';
   ],
   templateUrl: './cell-section.component.html',
   styleUrl: './cell-section.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CellSectionComponent {
+export class CellSectionComponent implements OnInit {
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<Section>();
   readonly cellData = input.required<CellSectionData>();
-  cell: Signal<SomeLabEnvCell>;
-  status: Signal<CellStatus>;
+  cell!: SomeLabEnvCell;
+  status: WritableSignal<CellStatus>;
 
   CellStatus = CellStatus;
 
   constructor() {
-    // Should only be constructable when/if cell is defined.
-    this.cell = computed(() => this.section().cell as SomeLabEnvCell);
-    this.status = computed(() => this.cell().status);
+    this.status = signal(CellStatus.NotStarted);
+  }
+
+  ngOnInit() {
+    this.cell = this.section().cell as SomeLabEnvCell;
+
+    this.cell.space.derived(() => {
+      this.status.set(this.cell.status());
+    });
   }
 
   inputs() {
     return Object.keys(this.cellData().content.inputs);
   }
   outputs() {
-    return this.cellData().content.outputIds;
+    return Object.keys(this.cellData().content.outputIds);
   }
   inStreams() {
     return Object.keys(this.cellData().content.inStreams);
@@ -87,20 +96,20 @@ export class CellSectionComponent {
   }
 
   start() {
-    this.cell().start();
+    this.cell.start();
   }
 
   requestStop() {
-    this.cell().requestStop();
+    this.cell.requestStop();
   }
 
   forceStop() {
-    console.error('not yet implemented');
-    // this.cell.forceStop();
+    this.cell.forceStop();
   }
 
-  restart() {
-    console.error('not yet implemented');
+  reset() {
+    this.cell.init();
+    // console.error('not yet implemented');
     // this.cell.restart();
   }
 }
