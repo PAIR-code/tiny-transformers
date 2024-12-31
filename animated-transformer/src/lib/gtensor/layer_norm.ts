@@ -13,15 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeScalar } from './gtensor';
+import { GTensor, makeScalar, DName } from './gtensor';
 
-export type LayerNormParams = {
-  gain: GTensor<never>;
-  bias?: GTensor<never>;
+export type LayerNormParams<D extends DName = never> = {
+  gain: GTensor<D>;
+  bias?: GTensor<D>;
   epsilon: GTensor<never>;
-};
+} & {};
 
-export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerNormParams {
+export function initLayerNormParams(
+  includeBias: boolean,
+  epsilon = 1e5
+): LayerNormParams {
   const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),
@@ -32,8 +35,8 @@ export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerN
   return layerNormParams;
 }
 
-export function layerNorm<G extends string, D extends G>(
-  layerNormParams: LayerNormParams,
+export function layerNorm<G extends string, D extends G, T extends G = never>(
+  layerNormParams: LayerNormParams<T>,
   g: GTensor<G>,
   dim: D
 ): GTensor<G> {
@@ -47,10 +50,10 @@ export function layerNorm<G extends string, D extends G>(
     .scalarDiv(repSizeScalar);
   const meanAndVarNormalized = g
     .pointwiseSub(mean)
-    .pointwiseDiv(varianceSquared.scalarAdd(epsilon).sqrt());
-  const scaledNorm = meanAndVarNormalized.scalarMul(gain);
+    .pointwiseDiv(varianceSquared.pointwiseAdd(epsilon).sqrt());
+  const scaledNorm = meanAndVarNormalized.pointwiseMul(gain);
   if (!bias) {
     return scaledNorm;
   }
-  return scaledNorm.scalarAdd(bias);
+  return scaledNorm.pointwiseAdd(bias);
 }

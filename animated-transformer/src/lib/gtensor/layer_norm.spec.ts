@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 // gtensor.spec.ts
-import { GTensor, makeScalar } from './gtensor';
+import { GTensor, makeScalar, makeConstant, makeRange } from './gtensor';
 import { layerNorm } from './layer_norm';
 import * as tf from '@tensorflow/tfjs';
 import { computeLossAndGrads } from './grad';
@@ -50,6 +50,39 @@ describe('layer_norm', () => {
       [0, 0, 0],
       [-1, 0, 1].map((x) => x / Math.sqrt(2 + 1e3)),
       [-4, -2, 6].map((x) => x / approxStdDev3),
+    ]);
+
+    expect(gNormed.gshape()).toEqual({ pos: 3, rep: 3 });
+  });
+
+  it('Multi-dimensional Layer Norm', () => {
+    const layerNormDim = 3;
+    const epsilonNum = 1e3;
+    const gain = makeConstant({"pos": layerNormDim}, 1);
+    const bias = makeRange("pos", 0, 3, 1);
+    const epsilon = makeScalar(epsilonNum, 'float32');
+    const g = new GTensor(
+      tf.tensor2d(
+        [
+          [1, 1, 1], // mean = 1, std = 0
+          [1, 2, 3], // mean = 2, std = sqrt(2)
+          [2, 4, 12], // mean = 18 / 3 = 6, std = Math.sqrt(4^2 + 2^2 + 6^2)
+        ],
+        [3, 3],
+        'float32'
+      ),
+      ['pos', 'rep']
+    );
+
+    const varSqrd3 = ((2 - 6) ^ (2 + (4 - 6)) ^ (2 + (12 - 6)) ^ 2) / 3;
+    const approxStdDev3 = Math.sqrt(varSqrd3 + epsilonNum);
+
+    const gNormed = layerNorm({ gain, bias, epsilon }, g, 'rep');
+
+    tf.test_util.expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
+      [0, 0, 0],
+      [-1, 0, 1].map((x) => x / Math.sqrt(2 + 1e3)).map((x) => x + 1),
+      [-4, -2, 6].map((x) => x / approxStdDev3).map((x) => x + 2),
     ]);
 
     expect(gNormed.gshape()).toEqual({ pos: 3, rep: 3 });
