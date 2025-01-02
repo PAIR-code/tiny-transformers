@@ -19,7 +19,7 @@ limitations under the License.
 
 import { Example } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { CellKind, Kind, Metrics } from 'src/lib/distr-signal-exec/cell-kind';
+import { CellKind, Kind, Metrics, WorkerCellKind } from 'src/lib/distr-signal-exec/cell-kind';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -83,22 +83,24 @@ export type Checkpoint = {
   metrics: SimpleMetrics;
 };
 
-export const trainerCellSpec = new CellKind({
-  cellKindId: 'Trainer cell',
-  workerFn: () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-  inputs: {
-    testSet: Kind<Example[]>,
-    modelUpdateEvents: Kind<ModelUpdate>,
-    trainConfig: Kind<TrainConfig>,
+export const trainerCellSpec = new WorkerCellKind(
+  'Trainer cell',
+  {
+    inputs: {
+      testSet: Kind<Example[]>,
+      modelUpdateEvents: Kind<ModelUpdate>,
+      trainConfig: Kind<TrainConfig>,
+    },
+    inStreams: {
+      trainBatches: Kind<Batch>,
+    },
+    outStreams: {
+      metrics: Kind<SimpleMetrics>,
+      checkpoint: Kind<Checkpoint>,
+    },
   },
-  inStreams: {
-    trainBatches: Kind<Batch>,
-  },
-  outStreams: {
-    metrics: Kind<SimpleMetrics>,
-    checkpoint: Kind<Checkpoint>,
-  },
-});
+  () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+);
 
 export type TaskGenConfig = {
   initBatchId: number;
@@ -108,17 +110,19 @@ export type TaskGenConfig = {
   batchSize: number;
 };
 
-export const taskCellSpec = new CellKind({
-  cellKindId: 'Task cell',
-  workerFn: () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-  inputs: {
-    taskConfig: Kind<TinyWorldTaskConfig>,
-    genConfig: Kind<TaskGenConfig>,
+export const taskCellSpec = new WorkerCellKind(
+  'Task cell',
+  {
+    inputs: {
+      taskConfig: Kind<TinyWorldTaskConfig>,
+      genConfig: Kind<TaskGenConfig>,
+    },
+    outputs: {
+      testSet: Kind<Example[]>,
+    },
+    outStreams: {
+      trainBatches: Kind<Batch>,
+    },
   },
-  outputs: {
-    testSet: Kind<Example[]>,
-  },
-  outStreams: {
-    trainBatches: Kind<Batch>,
-  },
-});
+  () => new Worker(new URL('./task-cell.worker', import.meta.url)),
+);

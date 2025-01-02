@@ -13,12 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ValueStruct, CellKind } from './cell-kind';
+import { ValueStruct, CellKind, WorkerCellKind } from './cell-kind';
 import { SignalSpace } from '../signalspace/signalspace';
-
-export type ItemMetaData = {
-  timestamp: Date;
-};
 
 import {
   CellController,
@@ -33,11 +29,7 @@ import {
 export class LabEnv {
   constructor(public space: SignalSpace) {}
 
-  // metadata: Map<string, ItemMetaData> = new Map();
   public runningCells: Set<SomeCellController> = new Set();
-  // public runningCells: {
-  //   [name: string]: SomeCellStateKind;
-  // } = {};
 
   init<
     I extends ValueStruct,
@@ -45,11 +37,11 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct,
   >(
-    kind: CellKind<I, IStreams, O, OStreams>,
+    kind: WorkerCellKind<I, IStreams, O, OStreams>,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): CellController<I, IStreams, O, OStreams> {
     // ID should be unique w.r.t. the LabEnv.
-    const id = (uses && uses.config && uses.config.id) || kind.data.cellKindId;
+    const id = (uses && uses.config && uses.config.id) || kind.cellKindId;
     const cell = new CellController(this, id, kind, uses);
     return cell;
   }
@@ -60,7 +52,7 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct,
   >(
-    kind: CellKind<I, IStreams, O, OStreams>,
+    kind: WorkerCellKind<I, IStreams, O, OStreams>,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): CellController<I, IStreams, O, OStreams> {
     const cell = this.init(kind, uses);

@@ -44,22 +44,28 @@ import {
   CellKind,
   Kind,
   SomeCellKind,
+  SomeWorkerCellKind,
   ValueKindFnStruct,
   ValueStruct,
+  WorkerCellKind,
 } from '../distr-signal-exec/cell-kind';
 import { ExpDefKind, Experiment } from './experiment';
 import {
-  AbstractSignalReceiveEnd,
-  AbstractStreamReceiveEnd,
-  AbstractSignalSendEnd,
-  AbstractStreamSendEnd,
-} from '../distr-signal-exec/channel-fans';
+  SignalReceiver,
+  SignalSender,
+  StreamReceiver,
+  StreamSender,
+} from '../distr-signal-exec/channels';
+import { input } from '@angular/core';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
   Markdown = 'Markdown',
   JsonObj = 'JsonObj',
-  Cell = 'Cell',
+  // Cell to a remote worker. Powered by a CellController.
+  WorkerCell = 'WorkerCell',
+  // Local cell code, typically UI stuff.
+  LocalCell = 'LocalCell',
   // todo: add more...
 }
 
@@ -76,21 +82,29 @@ export type CellSectionInput =
   | {
       kind: CellSectionInputKind.FromCellOutput;
       cellSectionId: string;
-      cellOutSignalId: string;
+      cellChannelId: string;
     };
 
 export enum CellRefKind {
-  Registry = 'Registry',
-  InlineJsCode = 'JsCode',
+  // Remote cell defined by the worker registry.
+  WorkerRegistry = 'WorkerRegistry',
+  // Worker cell defined by inline JS code.
+  InlineWorkerJsCode = 'InlineWorkerJsCode',
+  // There is no "remote cell", UI manages the input/output stuff.
+  Local = 'Local',
 }
 
 export type cellRefKind =
   | {
-      kind: CellRefKind.Registry;
+      kind: CellRefKind.WorkerRegistry;
       registryCellKindId: string;
     }
   | {
-      kind: CellRefKind.InlineJsCode;
+      kind: CellRefKind.InlineWorkerJsCode;
+      js: string;
+    }
+  | {
+      kind: CellRefKind.InlineWorkerJsCode;
       js: string;
     };
 
@@ -100,7 +114,9 @@ export enum CellSectionOutputKind {
 }
 
 export type CellSectionOutput = {
-  value?: JsonValue;
+  // Optionally, the last value. Allows restarting from previous computation.
+  lastValue?: JsonValue;
+  // True = values should be saved.
   saved: boolean;
 };
 
@@ -118,47 +134,52 @@ export type CellSectionContent = {
 
 function cellKindFromContent(
   c: CellSectionContent,
-  registry: Map<string, SomeCellKind>,
+  registry: Map<string, SomeWorkerCellKind>,
   sectionId: string,
-): SomeCellKind {
+): SomeWorkerCellKind {
   const cRef = c.cellRef;
-  if (cRef.kind === CellRefKind.Registry) {
-    const cellKind = registry.get(cRef.registryCellKindId);
-    if (!cellKind) {
-      throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
+  switch (cRef.kind) {
+    case CellRefKind.WorkerRegistry: {
+      const cellKind = registry.get(cRef.registryCellKindId);
+      if (!cellKind) {
+        throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
+      }
+      return cellKind;
     }
-    return cellKind;
-  } else if (cRef.kind === CellRefKind.InlineJsCode) {
-    const blob = new Blob([cRef.js], { type: 'application/javascript' });
-    // TODO: think about cleanup... need to track and dispose of this when code
-    // is no longer linked to a cell.
-    const url = URL.createObjectURL(blob);
-    const inputs: ValueKindFnStruct = {};
-    for (const k of Object.keys(c.inputs)) {
-      inputs[k] = Kind<unknown>;
+    case CellRefKind.InlineWorkerJsCode: {
+      const blob = new Blob([cRef.js], { type: 'application/javascript' });
+      // TODO: think about cleanup... need to track and dispose of this when code
+      // is no longer linked to a cell.
+      const url = URL.createObjectURL(blob);
+      const inputs: ValueKindFnStruct = {};
+      for (const k of Object.keys(c.inputs)) {
+        inputs[k] = Kind<unknown>;
+      }
+      const inStreams: ValueKindFnStruct = {};
+      for (const [k, _] of Object.entries(c.inStreams)) {
+        inStreams[k] = Kind<unknown>;
+      }
+      const outputs: ValueKindFnStruct = {};
+      for (const k of Object.keys(c.outputIds)) {
+        outputs[k] = Kind<unknown>;
+      }
+      const outStreams: ValueKindFnStruct = {};
+      for (const k of c.outStreamIds) {
+        outStreams[k] = Kind<unknown>;
+      }
+      return new WorkerCellKind(
+        sectionId,
+        {
+          inputs,
+          inStreams,
+          outputs,
+          outStreams,
+        },
+        () => new Worker(url),
+      );
     }
-    const inStreams: ValueKindFnStruct = {};
-    for (const [k, _] of Object.entries(c.inStreams)) {
-      inStreams[k] = Kind<unknown>;
-    }
-    const outputs: ValueKindFnStruct = {};
-    for (const k of Object.keys(c.outputIds)) {
-      outputs[k] = Kind<unknown>;
-    }
-    const outStreams: ValueKindFnStruct = {};
-    for (const k of c.outStreamIds) {
-      outStreams[k] = Kind<unknown>;
-    }
-    return new CellKind({
-      cellKindId: sectionId,
-      workerFn: () => new Worker(url),
-      inputs,
-      inStreams,
-      outputs,
-      outStreams,
-    });
-  } else {
-    throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
+    default:
+      throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
   }
 }
 
@@ -183,7 +204,7 @@ export type SubExpSectionData = {
 };
 
 export type CellSectionData = {
-  sectionKind: SectionKind.Cell;
+  sectionKind: SectionKind.WorkerCell;
   content: CellSectionContent;
 };
 
@@ -245,26 +266,19 @@ export type SectionInterface<
   OStream extends ValueStruct,
 > = {
   // Inputs to this section are inputs from somewhere else, or a signal value.
-  inputs: { [Key in keyof I]: AbstractSignal<I[Key]> | AbstractSignalReceiveEnd<I[Key]> };
+  inputs: { [Key in keyof I]: SignalReceiver<I[keyof I]> };
   // Note: From the section's view, streams being given in must be coming out of
   // the somewhere else.
   inStream: {
-    [Key in keyof IStream]: AbstractStreamSendEnd<IStream[Key]>;
+    [Key in keyof IStream]: StreamReceiver<IStream[Key]>;
   };
   // Note: outputs are possible inputs to other places.
   outputs: {
-    [Key in keyof O]: AbstractSignalReceiveEnd<O[Key]>;
+    [Key in keyof O]: SignalSender<O[Key]>;
   };
   outStream: {
-    [Key in keyof OStream]: AbstractStreamReceiveEnd<OStream[Key]>;
+    [Key in keyof OStream]: StreamSender<OStream[Key]>;
   };
-};
-
-export const EmptyInterface = {
-  inputs: {},
-  outputs: {},
-  inStream: {},
-  outStream: {},
 };
 
 export type SomeSectionInterface = SectionInterface<
@@ -274,39 +288,54 @@ export type SomeSectionInterface = SectionInterface<
   ValueStruct
 >;
 
-// ============================================================================
-// CONSIDER: Have a few different kinds of sections, one for cells, etc.
-export abstract class AbstractSection<
-  I extends ValueStruct,
-  IStream extends ValueStruct,
-  O extends ValueStruct,
-  OStream extends ValueStruct,
-> {
-  // The experiment this section is part of.
-  abstract experiment: Experiment;
-
-  // Any other sections in the experiment that reference this one.
-  public references: Set<Section> = new Set();
-
-  // The definition data.
-  abstract def: SectionDef;
-
-  // The Section data (loaded from path of def, or dereferenced), including
-  // meta-data.
-  abstract data: SetableSignal<SectionDataDef>;
-  // The content part of the data.
-  abstract content: SetableSignal<ContentOf<SomeSectionData>>;
-
-  abstract interface: SectionInterface<I, IStream, O, OStream>;
-
-  abstract serialise(): DistrSerialization<SectionDef, SectionDataDef>;
+export function emptyInterface(): SomeSectionInterface {
+  return {
+    inputs: {},
+    outputs: {},
+    inStream: {},
+    outStream: {},
+  };
 }
 
+// // ============================================================================
+// // CONSIDER: Have a few different kinds of sections, one for cells, etc.
+// export abstract class AbstractSection<
+//   I extends ValueStruct,
+//   IStream extends ValueStruct,
+//   O extends ValueStruct,
+//   OStream extends ValueStruct,
+// > {
+//   // The experiment this section is part of.
+//   abstract experiment: Experiment;
+
+//   // Any other sections in the experiment that reference this one.
+//   public references: Set<Section> = new Set();
+
+//   // The definition data.
+//   abstract def: SectionDef;
+
+//   // The Section data (loaded from path of def, or dereferenced), including
+//   // meta-data.
+//   abstract data: SetableSignal<SectionDataDef>;
+//   // The content part of the data.
+//   abstract content: SetableSignal<ContentOf<SomeSectionData>>;
+
+//   abstract interface: SectionInterface<I, IStream, O, OStream>;
+
+//   abstract serialise(): DistrSerialization<SectionDef, SectionDataDef>;
+// }
+
+function interfaceFromCell(cell: SomeCellController): SomeSectionInterface {
+  return emptyInterface();
+}
+
+export type SomeSection = Section<ValueStruct, ValueStruct>;
+
 // ============================================================================
 // CONSIDER: Have a few different kinds of sections, one for cells, etc.
-export class Section {
+export class Section<I extends ValueStruct, O extends ValueStruct> {
   // References to this section.
-  references: Set<Section> = new Set();
+  references: Set<SomeSection> = new Set();
   status: CellSectionStatus;
 
   // this.data().sectionData.sectionKind === SectionKind.SubExperiment
@@ -320,7 +349,13 @@ export class Section {
   // operation? To think about.
   dataUpdateDep: DerivedSignal<void>;
 
-  // interface: SomeSectionInterface;
+  // This is how UI code interacts with a section.
+  inputs = {} as {
+    [Key in keyof I]: AbstractSignal<I[Key]>;
+  };
+  outputs = {} as {
+    [Key in keyof O]: SetableSignal<O[Key]>;
+  };
 
   constructor(
     public experiment: Experiment,
@@ -328,28 +363,27 @@ export class Section {
     public data: SetableSignal<SectionDataDef>,
     public content: SetableSignal<ContentOf<SomeSectionData>>,
   ) {
-    // Consider if this needs to be a dynamic signal.
-    if (this.data().sectionData.sectionKind === SectionKind.Cell) {
-      // this.status === CellSectionStatus.NotStarted ==> content(): CellSectionContent
-      this.status = CellSectionStatus.NotStarted;
-      const contentAsCellKind: CellSectionContent = this.content() as CellSectionContent;
-      const cellKind = cellKindFromContent(contentAsCellKind, experiment.cellRegistry, this.def.id);
-      this.cell = this.experiment.env.init(cellKind);
-      // this.interface = this.cell;
-    } else {
-      this.status = CellSectionStatus.Static;
-      // if (this.data().sectionData.sectionKind === SectionKind.JsonObj) {
-      //   const content: AbstractSignal<JsonValue> = this.content as AbstractSignal<JsonValue>;
-      //   this.interface = {
-      //     inputs: {},
-      //     outputs: { jsonObj: { onceReady: Promise.resolve(content) } },
-      //     inStream: {},
-      //     outStream: {},
-      //   };
-      // } else {
-      //   this.interface = EmptyInterface
-      // }
+    switch (this.data().sectionData.sectionKind) {
+      case SectionKind.WorkerCell:
+        {
+          // this.status === CellSectionStatus.NotStarted ==> content(): CellSectionContent
+          this.status = CellSectionStatus.NotStarted;
+          const contentAsCellKind: CellSectionContent = this.content() as CellSectionContent;
+          const cellKind = cellKindFromContent(
+            contentAsCellKind,
+            experiment.cellRegistry,
+            this.def.id,
+          );
+          this.cell = this.experiment.env.init(cellKind);
+
+          // this.interface = this.cell;
+        }
+        break;
+      default:
+        this.status = CellSectionStatus.Static;
     }
+
+    //
 
     // Note: assumes that this.data is made up of it's parts, and not the parts
     // are made from the overall data object.
@@ -373,20 +407,29 @@ export class Section {
     for (const [inputId, cellInputRef] of Object.entries(contentAsCellKind.inputs)) {
       if (cellInputRef.kind === CellSectionInputKind.FromJsonSection) {
         const jsonObjSignal = this.experiment.getJsonSectionContent(cellInputRef.sectionId);
-        this.cell.assignInputFromSignal(inputId, jsonObjSignal);
+        const sender = this.cell.inputs[inputId].connect();
+        this.experiment.space.derived(() => sender.set(jsonObjSignal()));
+        this.inputs[inputId as keyof I] = jsonObjSignal as I[keyof I];
+        // TODO: think about if we need to disconnect this?
       } else if (cellInputRef.kind === CellSectionInputKind.FromCellOutput) {
-        const secLabCell = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-        this.cell.assignInputViaPiping(inputId, secLabCell.outputs[cellInputRef.cellOutSignalId]);
+        const otherSec = this.experiment.getSection(cellInputRef.cellSectionId);
+        this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.cellChannelId];
+        const cellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
+        cellController.outputs[cellInputRef.cellChannelId].pipeTo(this.cell.inputs[inputId]);
       } else {
         throw Error(`Unknown CellSectionInput (${inputId}): ${JSON.stringify(cellInputRef)}`);
       }
     }
     for (const [inputId, cellInputRef] of Object.entries(contentAsCellKind.inStreams)) {
       const secLabCell = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-      this.cell.assignInStreamViaPiping(
-        inputId,
-        secLabCell.outStreams[cellInputRef.cellOutStreamId],
-      );
+      secLabCell.outStreams[cellInputRef.cellOutStreamId].pipeTo(this.cell.inStreams[inputId]);
+    }
+    for (const [outputId, cellOutputRef] of Object.entries(contentAsCellKind.outputIds)) {
+      if (cellOutputRef.saved) {
+        this.outputs[outputId as keyof O] = this.experiment.space.setable(
+          cellOutputRef.lastValue as O[keyof O],
+        );
+      }
     }
   }
 

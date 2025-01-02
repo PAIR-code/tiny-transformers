@@ -40,13 +40,13 @@ addExtension({
   },
 });
 
+export type ItemMetaData = {
+  timestamp: Date;
+};
+
 export type ItemData<T> = {
   metaData: ItemMetaData;
   data: T;
-};
-
-export type ItemMetaData = {
-  timestamp: Date;
 };
 
 // Converts an ArrayBuffer to a string.

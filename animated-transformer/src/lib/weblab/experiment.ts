@@ -35,7 +35,7 @@ import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/
 import { AbstractDataResolver } from './data-resolver';
 import { SomeCellController } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
-import { SomeCellKind } from '../distr-signal-exec/cell-kind';
+import { SomeWorkerCellKind } from '../distr-signal-exec/cell-kind';
 import {
   CellSectionData,
   ExpSectionDataDef,
@@ -46,6 +46,7 @@ import {
   SectionRefDef,
   SomeSectionData,
   SubExpSectionData,
+  SomeSection,
 } from './section';
 
 export enum ExpDefKind {
@@ -59,7 +60,7 @@ export type DistrSerialization<T, T2> = {
   subpathData?: { [path: string]: T2 };
 };
 
-function sectionListEqCheck(sections1: Section[], sections2: Section[]): boolean {
+function sectionListEqCheck(sections1: SomeSection[], sections2: SomeSection[]): boolean {
   if (sections1.length !== sections2.length) {
     return false;
   }
@@ -79,15 +80,15 @@ export class Experiment {
   // Map from a cellKind Id to a CellKind obj Set during/before creation of
   // experiment to allow creation of cellKinds needed in a section to create a
   // cell.
-  cellRegistry: Map<string, SomeCellKind> = new Map();
+  cellRegistry: Map<string, SomeWorkerCellKind> = new Map();
 
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
-  sections: SetableSignal<Section[]>;
+  sections: SetableSignal<SomeSection[]>;
 
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
-  sectionMap: Map<string, Section> = new Map();
+  sectionMap: Map<string, SomeSection> = new Map();
 
   // From Paths to their sections. Only for cells with paths.
   // cellPathMap: Map<string, ExpSection> = new Map();
@@ -102,16 +103,16 @@ export class Experiment {
     this.data = this.space.setable<ExpSectionDataDef>(initData);
     // Invariant: Set(sections.values()) === Set(sectionOrdering)
     // Signals an update when list of ids changes.
-    this.sections = this.space.setable<Section[]>([], { eqCheck: sectionListEqCheck });
+    this.sections = this.space.setable<SomeSection[]>([], { eqCheck: sectionListEqCheck });
   }
 
   get id() {
     return this.data().id;
   }
 
-  appendSectionFromRefDef(secRefDef: SectionRefDef): Section {
+  appendSectionFromRefDef(secRefDef: SectionRefDef): SomeSection {
     const existingSection = this.sectionMap.get(secRefDef.refId);
-    let section: Section;
+    let section: SomeSection;
     if (!existingSection) {
       throw new Error(`No such reference id to ${secRefDef.refId}`);
     }
@@ -129,7 +130,7 @@ export class Experiment {
   async appendLeafSectionFromPathDef(
     secPathDef: SectionPathDef,
     resolvedDataDef: SectionDataDef,
-  ): Promise<Section> {
+  ): Promise<SomeSection> {
     // TODO: some subtly here about when what gets updated & how. e.g.
     // Users of setableDataDef should not be changing sectionData or sectionData.content
     const setableDataDef = this.space.setable(resolvedDataDef);
@@ -144,7 +145,7 @@ export class Experiment {
   // TODO: when the loaded data contains further references and experiments,
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
-  appendLeafSectionFromDataDef(def: SectionDataDef): Section {
+  appendLeafSectionFromDataDef(def: SectionDataDef): SomeSection {
     const setableDataDef = this.space.setable(def);
     const setableDataContent = this.space.setable(def.sectionData.content);
     const section = new Section(this, def, setableDataDef, setableDataContent);
@@ -154,11 +155,16 @@ export class Experiment {
     return section;
   }
 
-  getJsonSectionContent(sectionId: string): AbstractSignal<JsonValue> {
+  getSection(sectionId: string): SomeSection {
     const section = this.sectionMap.get(sectionId);
     if (!section) {
       throw Error(`No such section: ${sectionId}`);
     }
+    return section;
+  }
+
+  getJsonSectionContent(sectionId: string): AbstractSignal<JsonValue> {
+    const section = this.getSection(sectionId);
     const sectionKind = section.data().sectionData.sectionKind;
     if (sectionKind !== SectionKind.JsonObj) {
       throw Error(`Section Id (${sectionId}) was not JsonObj (was: ${sectionKind})`);
@@ -167,12 +173,9 @@ export class Experiment {
   }
 
   getSectionLabCell(sectionId: string): SomeCellController {
-    const section = this.sectionMap.get(sectionId);
-    if (!section) {
-      throw Error(`No such section: ${sectionId}`);
-    }
+    const section = this.getSection(sectionId);
     const sectionKind = section.data().sectionData.sectionKind;
-    if (sectionKind !== SectionKind.Cell) {
+    if (sectionKind !== SectionKind.WorkerCell) {
       throw Error(`Section Id (${sectionId}) was not Cell (was: ${sectionKind})`);
     }
     if (!section.cell) {
@@ -221,7 +224,7 @@ export async function loadExperiment(
   const space = env.space;
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
-  const sectionMap: Map<string, Section> = new Map();
+  const sectionMap: Map<string, SomeSection> = new Map();
   const nodeDataMap: Map<string, SetableSignal<SectionDataDef>> = new Map();
   const refMap: Map<string, SectionRefDef> = new Map();
   // Sections that refer to another section, but the reference does not exist.
@@ -235,7 +238,7 @@ export async function loadExperiment(
 
   // Tracking these to connect them (the various input/output
   // connections/streams) after.
-  const cellSections: Section[] = [];
+  const cellSections: SomeSection[] = [];
 
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
@@ -271,7 +274,7 @@ export async function loadExperiment(
           };
           loadNodeStack.push(beingLoaded);
           loadingMap.set(sectionData.id, beingLoaded);
-        } else if (sectionData.sectionData.sectionKind === SectionKind.Cell) {
+        } else if (sectionData.sectionData.sectionKind === SectionKind.WorkerCell) {
           cellSections.push(section);
         }
       } else if (sectionData.kind === ExpDefKind.Path) {

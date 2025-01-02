@@ -154,6 +154,7 @@ export class SignalReceiveChannel<T> extends CellChannelEnd {
   }
 }
 
+// ----------------------------------------------------------------------------
 export class SignalSendChannel<T> extends CellChannelEnd {
   public remotes: Iterable<Remote>;
   public sendEnd: SignalSenderFanOut<T>;
@@ -187,6 +188,7 @@ export class SignalSendChannel<T> extends CellChannelEnd {
   }
 }
 
+// ----------------------------------------------------------------------------
 export class StreamReceiveChannel<T> extends CellChannelEnd {
   public remotes: Iterable<Remote>;
   public recEnd: StreamReceiverFanIn<T>;
@@ -221,6 +223,7 @@ export class StreamReceiveChannel<T> extends CellChannelEnd {
   }
 }
 
+// ----------------------------------------------------------------------------
 export class StreamSendChannel<T> extends CellChannelEnd {
   public remotes: Iterable<Remote>;
   public sendEnd: StreamSenderFanOut<T>;

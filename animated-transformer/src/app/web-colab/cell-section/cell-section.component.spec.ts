@@ -35,10 +35,10 @@ describe('CellSectionComponent', () => {
       id: 'section 1',
       timestamp: Date.now(),
       sectionData: {
-        sectionKind: SectionKind.Cell,
+        sectionKind: SectionKind.WorkerCell,
         content: {
           cellRef: {
-            kind: CellRefKind.InlineJsCode,
+            kind: CellRefKind.InlineWorkerJsCode,
             js: '1 + 1;',
           },
           inputs: {},

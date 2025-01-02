@@ -57,10 +57,10 @@ export function secSimpleCell(): SectionDataDef {
     id: 'cell section',
     timestamp: Date.now(),
     sectionData: {
-      sectionKind: SectionKind.Cell,
+      sectionKind: SectionKind.WorkerCell,
       content: {
         cellRef: {
-          kind: CellRefKind.InlineJsCode,
+          kind: CellRefKind.InlineWorkerJsCode,
           js: 'console.log("hello world from simple cell!");',
         },
         inputs: {},

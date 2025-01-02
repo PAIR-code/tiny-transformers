@@ -19,30 +19,17 @@ limitations under the License.
  * By default establishes connections for each input/output.
  */
 
-import { AbstractSignalStructFn, ValueStruct, CellKind, SetableSignalStructFn } from './cell-kind';
 import {
-  EditRemoteMessageKind,
-  CellMessage,
-  CellMessageKind,
-  Remote,
-  RemoteKind,
-} from 'src/lib/distr-signal-exec/lab-message-types';
+  AbstractSignalStructFn,
+  ValueStruct,
+  CellKind,
+  SetableSignalStructFn,
+  WorkerCellKind,
+} from './cell-kind';
+import { CellMessage, CellMessageKind } from 'src/lib/distr-signal-exec/lab-message-types';
 import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 
-export type ItemMetaData = {
-  timestamp: Date;
-};
-
-import {
-  SignalReceiverFanIn,
-  StreamReceiverFanIn,
-  SignalSenderFanOut,
-  StreamSenderFanOut,
-  FanRemotes,
-} from './channel-fans';
 import { LabEnv } from './lab-env';
-import { AsyncIterOnEvents } from './async-iter-on-events';
-import { extend } from 'underscore';
 import {
   SignalReceiveChannel,
   SignalSendChannel,
@@ -157,7 +144,7 @@ export class CellController<
   constructor(
     public env: LabEnv,
     public id: string,
-    public cellKind: CellKind<I, IStreams, O, OStreams>,
+    public cellKind: WorkerCellKind<I, IStreams, O, OStreams>,
     public uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ) {
     this.space = env.space;
@@ -312,9 +299,9 @@ export class CellController<
   // Invokes start in the signalcell.
   async start(): Promise<void> {
     if (this.uses && this.uses.config && this.uses.config.logCellMessages) {
-      this.worker = new LoggingMessagesWorker(this.cellKind.data.workerFn(), this.id);
+      this.worker = new LoggingMessagesWorker(this.cellKind.startWorkerFn(), this.id);
     } else {
-      this.worker = this.cellKind.data.workerFn();
+      this.worker = this.cellKind.startWorkerFn();
     }
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {

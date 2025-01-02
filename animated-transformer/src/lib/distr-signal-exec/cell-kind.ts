@@ -79,34 +79,33 @@ export type ValueKindFnStructFn<S extends ValueStruct> = {
 // TODO: Don't let Inputs and StreamedInputs have overlapping names, that will
 // be confusing, even if it can work.
 export class CellKind<
-  Inputs extends ValueStruct,
-  InputStreams extends ValueStruct,
-  Outputs extends ValueStruct,
-  OutputStreams extends ValueStruct,
+  I extends ValueStruct,
+  IStreams extends ValueStruct,
+  O extends ValueStruct,
+  OStreams extends ValueStruct,
 > {
-  readonly inputNames: Set<keyof Inputs>;
-  readonly outputNames: Set<keyof Outputs>;
-  readonly inStreamNames: Set<keyof InputStreams>;
-  readonly outStreamNames: Set<keyof OutputStreams>;
-  inputs: ValueKindFnStructFn<Inputs>;
-  inStreams: ValueKindFnStructFn<InputStreams>;
-  outputs: ValueKindFnStructFn<Outputs>;
-  outStreams: ValueKindFnStructFn<OutputStreams>;
+  readonly inputNames: Set<keyof I>;
+  readonly outputNames: Set<keyof O>;
+  readonly inStreamNames: Set<keyof IStreams>;
+  readonly outStreamNames: Set<keyof OStreams>;
+  inputs: ValueKindFnStructFn<I>;
+  inStreams: ValueKindFnStructFn<IStreams>;
+  outputs: ValueKindFnStructFn<O>;
+  outStreams: ValueKindFnStructFn<OStreams>;
 
   constructor(
+    public cellKindId: string,
     public data: {
-      cellKindId: string;
-      workerFn: () => Worker;
-      inputs?: ValueKindFnStructFn<Inputs>;
-      inStreams?: ValueKindFnStructFn<InputStreams>;
-      outputs?: ValueKindFnStructFn<Outputs>;
-      outStreams?: ValueKindFnStructFn<OutputStreams>;
+      inputs?: ValueKindFnStructFn<I>;
+      inStreams?: ValueKindFnStructFn<IStreams>;
+      outputs?: ValueKindFnStructFn<O>;
+      outStreams?: ValueKindFnStructFn<OStreams>;
     },
   ) {
-    this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<Inputs>);
-    this.inStreams = this.data.inStreams || ({} as ValueKindFnStructFn<InputStreams>);
-    this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<Outputs>);
-    this.outStreams = this.data.outStreams || ({} as ValueKindFnStructFn<OutputStreams>);
+    this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<I>);
+    this.inStreams = this.data.inStreams || ({} as ValueKindFnStructFn<IStreams>);
+    this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<O>);
+    this.outStreams = this.data.outStreams || ({} as ValueKindFnStructFn<OStreams>);
     this.inputNames = new Set(Object.keys(this.inputs));
     this.inStreamNames = new Set(Object.keys(this.inStreams));
     this.outputNames = new Set(Object.keys(this.outputs));
@@ -114,9 +113,30 @@ export class CellKind<
   }
 }
 
+export class WorkerCellKind<
+  I extends ValueStruct,
+  IStreams extends ValueStruct,
+  O extends ValueStruct,
+  OStreams extends ValueStruct,
+> extends CellKind<I, IStreams, O, OStreams> {
+  constructor(
+    cellKindId: string,
+    data: {
+      inputs?: ValueKindFnStructFn<I>;
+      inStreams?: ValueKindFnStructFn<IStreams>;
+      outputs?: ValueKindFnStructFn<O>;
+      outStreams?: ValueKindFnStructFn<OStreams>;
+    },
+    public startWorkerFn: () => Worker,
+  ) {
+    super(cellKindId, data);
+  }
+}
+
+export type SomeWorkerCellKind = WorkerCellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 export type SomeCellKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
-export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
+// export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };
 export type SetableSignalStructFn<S extends ValueStruct> = {
   [Key in keyof S]: SetableSignal<S[Key]>;
 };
@@ -137,7 +157,7 @@ export type AsyncIterableFn<S extends ValueStruct> = {
 };
 
 // export type AsyncCallValueFn<S extends ValueStruct> = { [Key in keyof S]: (value: S[Key]) => void };
-export type OutStreamSendFn<T> = ((value: T) => Promise<void>) & { done: () => void };
-export type AsyncOutStreamFn<S extends ValueStruct> = {
-  [Key in keyof S]: OutStreamSendFn<S[Key]>;
-};
+// export type OutStreamSendFn<T> = ((value: T) => Promise<void>) & { done: () => void };
+// export type AsyncOutStreamFn<S extends ValueStruct> = {
+//   [Key in keyof S]: OutStreamSendFn<S[Key]>;
+// };
