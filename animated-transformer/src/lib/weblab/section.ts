@@ -38,7 +38,7 @@ import {
   SignalSpace,
 } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { SomeLabEnvCell } from '../distr-signal-exec/cell-controller';
+import { SomeCellController } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import {
   CellKind,
@@ -53,7 +53,7 @@ import {
   AbstractStreamReceiveEnd,
   AbstractSignalSendEnd,
   AbstractStreamSendEnd,
-} from '../distr-signal-exec/channel-ends';
+} from '../distr-signal-exec/channel-fans';
 
 export enum SectionKind {
   SubExperiment = 'SubExperiment',
@@ -313,7 +313,7 @@ export class Section {
   subExperiment?: Experiment;
 
   // this.data().sectionData.sectionKind === SectionKind.Cell
-  cell?: SomeLabEnvCell;
+  cell?: SomeCellController;
 
   // Consider: this may not be needed if we manage data via disposing the
   // content/data signals in some other way, e.g. with an environment dispose

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
-import { asyncSignalIter, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
+import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { TrainConfig, trainerCellSpec, ModelUpdate, ModelUpdateKind, Batch } from './ailab';
 import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
@@ -88,17 +88,18 @@ describe('Trainer-Cell', () => {
       },
     });
 
-    trainerCell.inStreams.trainBatches.send(makeBatch(0, trainConfig().batchSize));
-    trainerCell.inStreams.trainBatches.send(makeBatch(1, trainConfig().batchSize));
-    trainerCell.inStreams.trainBatches.send(makeBatch(2, trainConfig().batchSize));
-    trainerCell.inStreams.trainBatches.send(makeBatch(3, trainConfig().batchSize));
-    trainerCell.inStreams.trainBatches.send(makeBatch(4, trainConfig().batchSize));
-    trainerCell.inStreams.trainBatches.done();
+    const trainBatchSender = trainerCell.inStreams.trainBatches.connect();
+    trainBatchSender.send(makeBatch(0, trainConfig().batchSize));
+    trainBatchSender.send(makeBatch(1, trainConfig().batchSize));
+    trainBatchSender.send(makeBatch(2, trainConfig().batchSize));
+    trainBatchSender.send(makeBatch(3, trainConfig().batchSize));
+    trainBatchSender.send(makeBatch(4, trainConfig().batchSize));
+    trainBatchSender.done();
 
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetricsIter = trainerCell.outStreams.metrics;
-    const ckptIter = trainerCell.outStreams.checkpoint;
+    const lastMetricsIter = trainerCell.outStreams.metrics.connect();
+    const ckptIter = trainerCell.outStreams.checkpoint.connect();
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;

@@ -14,53 +14,103 @@ limitations under the License.
 ==============================================================================*/
 
 /**
- * A set of class wrappers for signal-based communication over a web-worker like
- * abstraction. This includes both signal values and streams of values.
- * Input/Output is relative to the environment it is being executed in.
+ * A set of class wrappers for fan-in and fan-out for communication over a
+ * web-worker like abstraction. This includes both values, and streams of
+ * values, and streams have conjestion control (so the sender can stop sending
+ * if/when the receiver is being too slow to act on the received items)
  */
-import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import { AsyncIterOnEvents } from './async-iter-on-events';
-import {
-  ConjestionFeedbackMessage,
-  LabMessage,
-  AddStreamValueMessage,
-  StreamValue,
-  LabMessageKind,
-  EndStreamMessage,
-  Remote,
-  RemoteKind,
-} from './lab-message-types';
+import { CellMessage, CellMessageKind, Remote, RemoteKind } from './lab-message-types';
 
 // TODO: rename to sending / receiving to more directly represent the action,
 // and avoid the confusion of an input being an output type.
 
 // ----------------------------------------------------------------------------
-export abstract class AbstractSignalReceiveEnd<T> {
-  abstract onceReady: Promise<AbstractSignal<T>>;
-}
-
-export abstract class AbstractSignalSendEnd<T> {
-  abstract set(x: T): void;
-  abstract lastValue?: T;
-}
-
-export abstract class AbstractStreamSendEnd<T> {
-  abstract send(x: T): Promise<void>;
-  abstract done(): void;
-}
-
-export abstract class AbstractStreamReceiveEnd<T> implements AsyncIterable<T>, AsyncIterator<T> {
-  abstract inputIter: AsyncIterOnEvents<T>;
-  abstract next(): Promise<IteratorResult<T, null>>;
-  abstract [Symbol.asyncIterator](): AsyncIterable<T> & AsyncIterator<T>;
-}
 
 // ----------------------------------------------------------------------------
-export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
+// Messages between send/receive channel ends.
+export enum RemoteMessageKind {
+  // From env or cell to env to cell, when adding a value to a stream send end.
+  AddStreamValue = 'AddStreamValue',
+  // From env or cell to env to cell, when ending a stream.
+  EndStream = 'EndStream',
+  // From env or cell to env to cell, when setting a value via a signal send
+  // end.
+  SetSignalValue = 'SetSignalValue',
+  // From a receive end of a stream to tell the sender it has received stuff.
+  ConjestionControl = 'ConjestionControl',
+  // Remote has closed the channel. We need to stop sending messages, and remove
+  // it.
+  Closed = 'Closed',
+}
+
+// Used to send feedback to a port that is sending stuff on which example was
+// last processed, so that internal queues don't explode.
+export type ConjestionFeedbackMessage = {
+  kind: RemoteMessageKind.ConjestionControl;
+  idx: number;
+  streamId: string;
+};
+
+// null Indicates the end of the stream;
+// TODO: consider a "pause value".
+export type StreamValue<T> = { idx: number; value: T };
+
+export type AddStreamValueMessage = {
+  kind: RemoteMessageKind.AddStreamValue;
+  // The name of the signal stream having its next value set.
+  streamId: string;
+  // A unique incremental number indicating the sent-stream value.
+  value: StreamValue<unknown>;
+};
+
+export type EndStreamMessage = {
+  kind: RemoteMessageKind.EndStream;
+  // The name of the signal stream having its next value set.
+  streamId: string;
+};
+
+export type SetSignalValueMessage = {
+  kind: RemoteMessageKind.SetSignalValue;
+  // The name of the signal stream having its next value set.
+  signalId: string;
+  // A unique incremental number indicating the sent-stream value.
+  value: unknown;
+};
+
+export type RemoteClosedMessage = {
+  kind: RemoteMessageKind.Closed;
+};
+
+export type RemoteMessage =
+  | SetSignalValueMessage
+  | AddStreamValueMessage
+  | ConjestionFeedbackMessage
+  | EndStreamMessage
+  | RemoteClosedMessage;
+
+// ----------------------------------------------------------------------------
+export abstract class FanRemotes {
+  abstract remotes: Iterable<Remote>;
+  abstract addRemote(remote: Remote): void;
+  abstract removeRemote(remote: Remote): void;
+}
+
+// TODO: consider falling these Fan instead of End, since the key thing these do
+// is fan-out or fan-in for a channel.
+
+// ----------------------------------------------------------------------------
+// # SIGNALS
+// ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+// implements AbstractSignalReceiveEnd<T>
+export class SignalReceiverFanIn<T> implements FanRemotes {
   readyResolver!: (signal: SetableSignal<T>) => void;
   onceReady: Promise<SetableSignal<T>>;
   onSetInput: (input: T) => void;
-  remotes: Remote[] = [];
+  remotes: Set<Remote> = new Set();
 
   constructor(
     // For debugging. Nice to know what the local cell this receieve end is
@@ -90,10 +140,10 @@ export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
   }
 
   addRemote(remoteSender: Remote) {
-    this.remotes.push(remoteSender);
+    this.remotes.add(remoteSender);
     remoteSender.messagePort.onmessage = (event: MessageEvent) => {
-      const message = event.data as LabMessage;
-      if (message.kind !== LabMessageKind.SetSignalValue) {
+      const message = event.data as RemoteMessage;
+      if (message.kind !== RemoteMessageKind.SetSignalValue) {
         throw new Error(`Bad kind. ${this.cellId}:${this.signalId} got: ${event.data.kind}.`);
       }
       if (message.signalId !== this.signalId) {
@@ -102,13 +152,20 @@ export class SignalReceiveEnd<T> implements AbstractSignalReceiveEnd<T> {
       this.onSetInput(message.value as T);
     };
   }
+
+  removeRemote(remote: Remote) {
+    const message: RemoteMessage = { kind: RemoteMessageKind.Closed };
+    remote.messagePort.postMessage(message);
+    remote.messagePort.close();
+    this.remotes.delete(remote);
+  }
 }
 
 // ----------------------------------------------------------------------------
 // Consider: we could take in a signal, and have a derived send functionality
-export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
+export class SignalSenderFanOut<T> implements FanRemotes {
   // ports: MessagePort[] = [];
-  remotes: Remote[] = [];
+  remotes: Set<Remote> = new Set();
 
   lastValue?: T;
 
@@ -121,10 +178,10 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
   ) {}
 
   addRemote(remoteReceiver: Remote) {
-    this.remotes.push(remoteReceiver);
+    this.remotes.add(remoteReceiver);
     if (this.lastValue) {
-      const message: LabMessage = {
-        kind: LabMessageKind.SetSignalValue,
+      const message: RemoteMessage = {
+        kind: RemoteMessageKind.SetSignalValue,
         signalId: this.signalId,
         value: this.lastValue,
       };
@@ -135,10 +192,17 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
     };
   }
 
+  removeRemote(remote: Remote) {
+    const message: RemoteMessage = { kind: RemoteMessageKind.Closed };
+    remote.messagePort.postMessage(message);
+    remote.messagePort.close();
+    this.remotes.delete(remote);
+  }
+
   set(value: T): void {
     this.lastValue = value;
-    const message: LabMessage = {
-      kind: LabMessageKind.SetSignalValue,
+    const message: RemoteMessage = {
+      kind: RemoteMessageKind.SetSignalValue,
       signalId: this.signalId,
       value,
     };
@@ -146,45 +210,11 @@ export class SignalSendEnd<T> implements AbstractSignalSendEnd<T> {
       remoteReceiver.messagePort.postMessage(message);
     }
   }
-
-  // Pipe everywhere that sends to recEnd, to now send to everywhere that this
-  // send end sends to.
-  pipeFrom(recEnd: SignalReceiveEnd<T>) {
-    for (const remoteSender of recEnd.remotes) {
-      for (const remoteReceiver of this.remotes) {
-        const channel = new MessageChannel();
-
-        const remoteSenderMessage: LabMessage = {
-          kind: LabMessageKind.AddOutputRemote,
-          recipientSignalId: remoteSender.remoteChannelId,
-          remoteSignal: {
-            kind: RemoteKind.MessagePort,
-            remoteCellId: remoteReceiver.remoteCellId,
-            remoteChannelId: remoteReceiver.remoteChannelId,
-            messagePort: channel.port1,
-          },
-        };
-        remoteSender.messagePort.postMessage(remoteSenderMessage, [channel.port1]);
-
-        const remoteReceiverMessage: LabMessage = {
-          kind: LabMessageKind.AddInputRemote,
-          recipientSignalId: remoteReceiver.remoteChannelId,
-          remoteSignal: {
-            kind: RemoteKind.MessagePort,
-            remoteCellId: remoteSender.remoteCellId,
-            remoteChannelId: remoteSender.remoteChannelId,
-            messagePort: channel.port2,
-          },
-        };
-
-        // Pipe the input stream at the far end of the SendEnd to start handling
-        // inputs from the new port.
-        remoteReceiver.messagePort.postMessage(remoteReceiverMessage, [channel.port2]);
-      }
-    }
-    recEnd.onceReady.then((signal) => this.set(signal()));
-  }
 }
+
+// ----------------------------------------------------------------------------
+// # STREAMS
+// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 export type ConjestionControlConfig = {
@@ -227,9 +257,9 @@ type ConjestionState = {
 // Receive End of Streams listen to messages on many ports, and handle messages
 // from each port, pulling them all into the iterator.
 // ----------------------------------------------------------------------------
-export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
+export class StreamReceiverFanIn<T> implements FanRemotes {
   // The MessagePorts to report feedback to on how busy we are.
-  remotes: Remote[] = [];
+  remotes: Set<Remote> = new Set();
 
   // The resulting iterator on inputs.
   public inputIter: AsyncIterOnEvents<T>;
@@ -260,22 +290,35 @@ export class StreamReceiveEnd<T> implements AbstractStreamReceiveEnd<T> {
   }
 
   addRemote(remote: Remote) {
-    this.remotes.push(remote);
+    this.remotes.add(remote);
     remote.messagePort.onmessage = (event: MessageEvent) => {
-      const workerMessage: LabMessage = event.data;
-      if (workerMessage.kind === LabMessageKind.AddStreamValue) {
-        this.onAddValue(remote, workerMessage.value as StreamValue<T>);
-      } else if (workerMessage.kind === LabMessageKind.EndStream) {
-        this.onDone();
-      } else {
-        throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
+      const workerMessage: RemoteMessage = event.data;
+      switch (workerMessage.kind) {
+        case RemoteMessageKind.AddStreamValue:
+          this.onAddValue(remote, workerMessage.value as StreamValue<T>);
+          break;
+        case RemoteMessageKind.EndStream:
+          this.onDone();
+          break;
+        case RemoteMessageKind.Closed:
+          this.remotes.delete(remote);
+          break;
+        default:
+          throw new Error(`inputStream port got unexpected messageKind: ${workerMessage.kind}`);
       }
     };
   }
 
+  removeRemote(remote: Remote) {
+    const message: RemoteMessage = { kind: RemoteMessageKind.Closed };
+    remote.messagePort.postMessage(message);
+    remote.messagePort.close();
+    this.remotes.delete(remote);
+  }
+
   postConjestionFeedback(remote: Remote, idx: number) {
-    const message: LabMessage = {
-      kind: LabMessageKind.ConjestionControl,
+    const message: RemoteMessage = {
+      kind: RemoteMessageKind.ConjestionControl,
       streamId: this.streamId,
       idx,
     };
@@ -318,14 +361,19 @@ export function initConjectionState(): ConjestionState {
   };
 }
 
-export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
+export class StreamSenderFanOut<T> implements FanRemotes {
   // CONSIDER: think about using a double map, remoteCellID --> RemoteSignalId
   // --> Remote+ConestionState. The issue with using Remote as is, is that one
   // might get duplicates in the map, which would be bad and hard/slow to spot
   // (have to enumerate all Remotes and check them all)
-  remotes: Map<Remote, ConjestionState> = new Map();
+
+  remotesMap: Map<Remote, ConjestionState> = new Map();
   public lastMessageIdx: number = 0;
   public config: StreamSendEndConfig;
+
+  get remotes(): Iterable<Remote> {
+    return this.remotesMap.keys();
+  }
 
   constructor(
     // For debugging. Nice to know what the local cell this receieve end is
@@ -341,7 +389,7 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
   init() {
     // CONSIDER: do we need to worry about the resume state pomises, or do they
     // get garbage collected?
-    for (const state of this.remotes.values()) {
+    for (const state of this.remotesMap.values()) {
       Object.assign(state, initConjectionState());
     }
     this.lastMessageIdx = 0;
@@ -349,10 +397,10 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
 
   addRemote(remote: Remote): ConjestionState {
     const messagePortConjestionState: ConjestionState = initConjectionState();
-    this.remotes.set(remote, messagePortConjestionState);
+    this.remotesMap.set(remote, messagePortConjestionState);
     remote.messagePort.onmessage = (event: MessageEvent) => {
       const data: ConjestionFeedbackMessage = event.data;
-      if (data.kind && data.kind === LabMessageKind.ConjestionControl) {
+      if (data.kind && data.kind === RemoteMessageKind.ConjestionControl) {
         this.conjestionFeedbackStateUpdate(data, messagePortConjestionState);
       } else {
         throw new Error(`Unknown message from remote: ${JSON.stringify(data)}`);
@@ -394,7 +442,7 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
   // sends is always respected.
   async send(value: T): Promise<void> {
     this.lastMessageIdx++;
-    for (const [remote, state] of this.remotes.entries()) {
+    for (const [remote, state] of this.remotesMap.entries()) {
       const stop = await this.sendTo(value, { remote, state });
       if (stop) {
         return;
@@ -404,15 +452,15 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
 
   // Pipe everywhere that sends to recEnd, to now send to everywhere that this
   // send end sends to.
-  pipeFrom(recEnd: StreamReceiveEnd<T>) {
+  pipeFrom(recEnd: StreamReceiverFanIn<T>) {
     for (const remoteSender of recEnd.remotes) {
-      for (const remoteReceiver of this.remotes.keys()) {
+      for (const remoteReceiver of this.remotesMap.keys()) {
         const channel = new MessageChannel();
 
-        const remoteSenderMessage: LabMessage = {
-          kind: LabMessageKind.AddOutStreamRemote,
-          recipientStreamId: remoteSender.remoteChannelId,
-          remoteStream: {
+        const remoteSenderMessage: CellMessage = {
+          kind: CellMessageKind.AddOutStreamRemote,
+          recipientChannelId: remoteSender.remoteChannelId,
+          remote: {
             kind: RemoteKind.MessagePort,
             remoteCellId: remoteReceiver.remoteCellId,
             remoteChannelId: remoteReceiver.remoteChannelId,
@@ -421,10 +469,10 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
         };
         remoteSender.messagePort.postMessage(remoteSenderMessage, [channel.port1]);
 
-        const remoteReceiverMessage: LabMessage = {
-          kind: LabMessageKind.AddInStreamRemote,
-          recipientStreamId: remoteReceiver.remoteChannelId,
-          remoteStream: {
+        const remoteReceiverMessage: CellMessage = {
+          kind: CellMessageKind.AddInStreamRemote,
+          recipientChannelId: remoteReceiver.remoteChannelId,
+          remote: {
             kind: RemoteKind.MessagePort,
             remoteCellId: remoteSender.remoteCellId,
             remoteChannelId: remoteSender.remoteChannelId,
@@ -460,7 +508,7 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
       value,
     };
     const message: AddStreamValueMessage = {
-      kind: LabMessageKind.AddStreamValue,
+      kind: RemoteMessageKind.AddStreamValue,
       // The name of the signal stream having its next value set.
       streamId: this.streamId,
       // A unique incremental number indicating the sent-stream value.
@@ -473,9 +521,9 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
     return false;
   }
 
-  endRemoteStream(remote: Remote, state: ConjestionState) {
+  sendAndUpdateToDone(remote: Remote, state: ConjestionState) {
     const message: EndStreamMessage = {
-      kind: LabMessageKind.EndStream,
+      kind: RemoteMessageKind.EndStream,
       // The name of the signal stream having its next value set.
       streamId: this.streamId,
     };
@@ -486,14 +534,18 @@ export class StreamSendEnd<T> implements AbstractStreamSendEnd<T> {
     }
   }
 
-  removeRemote(remote: Remote, state: ConjestionState) {
-    this.endRemoteStream(remote, state);
+  removeRemote(remote: Remote) {
+    this.sendAndUpdateToDone(remote, this.remotesMap.get(remote)!);
+    const message: RemoteMessage = { kind: RemoteMessageKind.Closed };
+    remote.messagePort.postMessage(message);
+    remote.messagePort.close();
+    this.remotesMap.delete(remote);
   }
 
   done() {
-    for (const [port, state] of this.remotes.entries()) {
-      this.endRemoteStream(port, state);
+    for (const [port, state] of this.remotesMap.entries()) {
+      this.sendAndUpdateToDone(port, state);
     }
-    this.remotes = new Map();
+    this.remotesMap = new Map();
   }
 }

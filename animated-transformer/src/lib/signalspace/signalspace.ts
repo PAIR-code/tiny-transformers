@@ -609,7 +609,7 @@ export function asyncSignalIter<T>(
 export function asyncIterToSignal<T>(
   iter: AsyncIterable<T>,
   space: SignalSpace,
-): { done: Promise<void>; signal: Promise<AbstractSignal<T>> } {
+): { onceDone: Promise<void>; onceSignal: Promise<AbstractSignal<T>> } {
   let resolveDoneFn: () => void;
   const onceDone = new Promise<void>((resolve) => {
     resolveDoneFn = resolve;
@@ -635,5 +635,5 @@ export function asyncIterToSignal<T>(
       rejectSignalFn();
     }
   }, 0);
-  return { done: onceDone, signal: onceSignal };
+  return { onceDone, onceSignal };
 }

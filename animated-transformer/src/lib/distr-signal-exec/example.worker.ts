@@ -23,6 +23,7 @@ const { derived } = cell.space;
 
 cell.start(async (inputs) => {
   const { prefix } = inputs;
+  console.log(`** ${cell.id}: waiting for all strStream...`);
 
   cell.outputs.prefixLen.set(prefix().length);
 

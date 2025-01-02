@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { CellStatus, SomeLabEnvCell } from 'src/lib/distr-signal-exec/cell-controller';
+import { CellStatus, SomeCellController } from 'src/lib/distr-signal-exec/cell-controller';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -65,7 +65,7 @@ export class CellSectionComponent implements OnInit {
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<Section>();
   readonly cellData = input.required<CellSectionData>();
-  cell!: SomeLabEnvCell;
+  cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
 
   CellStatus = CellStatus;
@@ -75,7 +75,7 @@ export class CellSectionComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.cell = this.section().cell as SomeLabEnvCell;
+    this.cell = this.section().cell as SomeCellController;
 
     this.cell.space.derived(() => {
       this.status.set(this.cell.status());

@@ -13,34 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  AbstractSignalStructFn,
-  ValueStruct,
-  CellKind,
-  PromiseStructFn,
-  PromisedSetableSignalsFn,
-  SetableSignalStructFn,
-  AsyncIterableFn,
-  AsyncOutStreamFn,
-} from './cell-kind';
-import {
-  LabMessage,
-  LabMessageKind,
-  SetSignalValueMessage,
-  StreamValue,
-} from 'src/lib/distr-signal-exec/lab-message-types';
-import { AbstractSignal, SignalSpace } from '../signalspace/signalspace';
+import { ValueStruct, CellKind } from './cell-kind';
+import { SignalSpace } from '../signalspace/signalspace';
 
 export type ItemMetaData = {
   timestamp: Date;
 };
 
-import { SignalReceiveEnd, StreamReceiveEnd, SignalSendEnd, StreamSendEnd } from './channel-ends';
 import {
   CellController,
   LabEnvCellConfig,
-  SomeCellStateKind,
-  SomeLabEnvCell,
+  SomeCellController,
+  InConnections,
 } from './cell-controller';
 
 // TODO: maybe define a special type of serializable
@@ -50,7 +34,7 @@ export class LabEnv {
   constructor(public space: SignalSpace) {}
 
   // metadata: Map<string, ItemMetaData> = new Map();
-  public runningCells: Set<SomeLabEnvCell> = new Set();
+  public runningCells: Set<SomeCellController> = new Set();
   // public runningCells: {
   //   [name: string]: SomeCellStateKind;
   // } = {};
@@ -62,18 +46,11 @@ export class LabEnv {
     OStreams extends ValueStruct,
   >(
     kind: CellKind<I, IStreams, O, OStreams>,
-    uses?: {
-      // Use AbstractSignal, or pipe from SignalReceiveEnd.
-      inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
-      // pipe from receiving end of another stream (in env context, that's a cell output)
-      inStreams?: { [Key in keyof IStreams]: StreamReceiveEnd<IStreams[Key]> };
-      config?: Partial<LabEnvCellConfig>;
-    },
+    uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): CellController<I, IStreams, O, OStreams> {
     // ID should be unique w.r.t. the LabEnv.
     const id = (uses && uses.config && uses.config.id) || kind.data.cellKindId;
     const cell = new CellController(this, id, kind, uses);
-    cell.init();
     return cell;
   }
 
@@ -84,13 +61,7 @@ export class LabEnv {
     OStreams extends ValueStruct,
   >(
     kind: CellKind<I, IStreams, O, OStreams>,
-    uses?: {
-      // Use AbstractSignal, or pipe from SignalReceiveEnd.
-      inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
-      // pipe from receiving end of another stream (in env context, that's a cell output)
-      inStreams?: { [Key in keyof IStreams]: StreamReceiveEnd<IStreams[Key]> };
-      config?: Partial<LabEnvCellConfig>;
-    },
+    uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): CellController<I, IStreams, O, OStreams> {
     const cell = this.init(kind, uses);
     cell.start();

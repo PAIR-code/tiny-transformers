@@ -37,13 +37,15 @@ describe('lab-env', () => {
     expect(prefixLen()).toEqual(3);
     expect(prefixRev()).toEqual('ooF');
 
+    const strStream = cell.inStreams.strStream.connect();
     for (const i of [1, 2, 3]) {
-      await cell.inStreams.strStream.send(`name_${i}`);
+      await strStream.send(`name_${i}`);
     }
-    cell.inStreams.strStream.done();
+    strStream.done();
 
+    const prefixedStream = cell.outStreams.prefixedStream.connect();
     const vs = [];
-    for await (const v of cell.outStreams.prefixedStream) {
+    for await (const v of prefixedStream) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);
@@ -81,24 +83,27 @@ describe('lab-env', () => {
   it('Running two cells, with delayed piping', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const cell = env.init(exampleCellAbstract, { config: { id: 'cell1' } });
+    const cell = env.init(exampleCellAbstract, {
+      inputs: { prefix },
+      config: { id: 'cell1' },
+    });
     const cell2 = env.init(exampleCellAbstract, { config: { id: 'cell2' } });
 
-    // Cells have assignX methods to assign input signals and streams.
-    cell.assignInputFromSignal('prefix', prefix);
     cell2.inputs.prefix.pipeFrom(cell.outputs.prefixRev);
     cell2.inStreams.strStream.pipeFrom(cell.outStreams.prefixedStream);
 
     cell.start();
     cell2.start();
 
+    const strStream = cell.inStreams.strStream.connect();
     for (const i of [1, 2, 3]) {
-      await cell.inStreams.strStream.send(`name_${i}`);
+      await strStream.send(`name_${i}`);
     }
-    cell.inStreams.strStream.done();
+    strStream.done();
 
+    const doublePrefixedStream = cell2.outStreams.prefixedStream.connect();
     const vs = [];
-    for await (const v of cell2.outStreams.prefixedStream) {
+    for await (const v of doublePrefixedStream) {
       vs.push(v);
     }
     expect(vs.length).toEqual(3);
@@ -107,7 +112,7 @@ describe('lab-env', () => {
     expect(vs[1]).toEqual('ooF Foo name_2');
     expect(vs[2]).toEqual('ooF Foo name_3');
 
-    const cell2prefixRevSignal = await cell2.outputs.prefixRev.onceReady;
+    const cell2prefixRevSignal = await cell2.outputs.prefixRev.connect();
 
     expect(cell2prefixRevSignal()).toEqual('Foo');
 

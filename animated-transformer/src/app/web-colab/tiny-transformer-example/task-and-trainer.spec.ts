@@ -82,33 +82,32 @@ describe('Trainer-Cell', () => {
     // inStreams signature to not have the pipe value. Or maybe a very fancy
     // joint definition thing that takes both out and in and has some kind of
     // connecting syntax that removes piped values from both...
-    trainerCell.inputs.testSet.pipeFrom(taskCell.outputs.testSet, { keepHereToo: true });
-    trainerCell.inStreams.trainBatches.pipeFrom(taskCell.outStreams.trainBatches, {
-      keepHereToo: false,
-    });
+    trainerCell.inputs.testSet.pipeFrom(taskCell.outputs.testSet);
+    trainerCell.inStreams.trainBatches.pipeFrom(taskCell.outStreams.trainBatches);
 
     taskCell.start();
     trainerCell.start();
 
     console.log(`## awaiting taskCell.outputs.testSet `);
-    const testSet = await taskCell.outputs.testSet.onceReady;
+    const testSet = await taskCell.outputs.testSet.connect();
     expect(testSet().length).toEqual(5);
 
     // ------------------------------------------------------------------------
     // Two different ways to think about working with output streams...
     // 1. reactive by turning it into a signal.
-    const metrics = asyncIterToSignal(trainerCell.outStreams.metrics, space);
+
+    const metrics = asyncIterToSignal(trainerCell.outStreams.metrics.connect(), space);
     // Note: only do this if you are sure that you will get some value.otherwise
     // you might get stuck waiting forever. If the metrics stream is empty, then
     // this will reject, which if not handled will crash stuff.
     console.log(`## awaiting metrics.signal `);
-    const metric$ = await metrics.signal;
+    const latestMetrics = await metrics.onceSignal;
 
     console.log(`## awaiting trainerCell.outStreams `);
     // 2. In thread, with async for loop. This is safer in the sense that the
     //    loop will end if the checkpoint stream is empty.
     const chpts = [];
-    for await (const chpt of trainerCell.outStreams.checkpoint) {
+    for await (const chpt of trainerCell.outStreams.checkpoint.connect()) {
       chpts.push(chpt);
     }
 
@@ -119,7 +118,7 @@ describe('Trainer-Cell', () => {
     await taskCell.onceFinished;
     await trainerCell.onceFinished;
 
-    expect(metric$().batchId).toEqual(10);
+    expect(latestMetrics().batchId).toEqual(10);
     expect(chpts.length).toEqual(2);
   }, 20000);
 });

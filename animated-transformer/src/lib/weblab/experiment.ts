@@ -33,7 +33,7 @@ limitations under the License.
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { SomeLabEnvCell } from '../distr-signal-exec/cell-controller';
+import { SomeCellController } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import { SomeCellKind } from '../distr-signal-exec/cell-kind';
 import {
@@ -166,7 +166,7 @@ export class Experiment {
     return section.content;
   }
 
-  getSectionLabCell(sectionId: string): SomeLabEnvCell {
+  getSectionLabCell(sectionId: string): SomeCellController {
     const section = this.sectionMap.get(sectionId);
     if (!section) {
       throw Error(`No such section: ${sectionId}`);

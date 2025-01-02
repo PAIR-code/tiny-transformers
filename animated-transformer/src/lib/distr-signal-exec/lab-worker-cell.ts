@@ -16,7 +16,7 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { ValueStruct, CellKind } from './cell-kind';
-import { LabMessage } from './lab-message-types';
+import { CellMessage } from './lab-message-types';
 import { CellWorker } from './cell-worker';
 
 export function workerCell<
@@ -28,7 +28,7 @@ export function workerCell<
   spec: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
 ): CellWorker<Inputs, InputStreams, Outputs, OutputStreams> {
   const cell = new CellWorker<Inputs, InputStreams, Outputs, OutputStreams>(spec, (...args) =>
-    (postMessage as (value: LabMessage, transerables?: Transferable[]) => void)(...args),
+    (postMessage as (value: CellMessage, transerables?: Transferable[]) => void)(...args),
   );
   addEventListener('message', (m) => cell.onMessage(m));
   return cell;

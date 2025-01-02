@@ -19,23 +19,13 @@ limitations under the License.
  * By default establishes connections for each input/output.
  */
 
+import { AbstractSignalStructFn, ValueStruct, CellKind, SetableSignalStructFn } from './cell-kind';
 import {
-  AbstractSignalStructFn,
-  ValueStruct,
-  CellKind,
-  PromiseStructFn,
-  PromisedSetableSignalsFn,
-  SetableSignalStructFn,
-  AsyncIterableFn,
-  AsyncOutStreamFn,
-} from './cell-kind';
-import {
-  LabMessage,
-  LabMessageKind,
+  EditRemoteMessageKind,
+  CellMessage,
+  CellMessageKind,
   Remote,
   RemoteKind,
-  SetSignalValueMessage,
-  StreamValue,
 } from 'src/lib/distr-signal-exec/lab-message-types';
 import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 
@@ -43,9 +33,22 @@ export type ItemMetaData = {
   timestamp: Date;
 };
 
-import { SignalReceiveEnd, StreamReceiveEnd, SignalSendEnd, StreamSendEnd } from './channel-ends';
-import { op } from '@tensorflow/tfjs';
+import {
+  SignalReceiverFanIn,
+  StreamReceiverFanIn,
+  SignalSenderFanOut,
+  StreamSenderFanOut,
+  FanRemotes,
+} from './channel-fans';
 import { LabEnv } from './lab-env';
+import { AsyncIterOnEvents } from './async-iter-on-events';
+import { extend } from 'underscore';
+import {
+  SignalReceiveChannel,
+  SignalSendChannel,
+  StreamReceiveChannel,
+  StreamSendChannel,
+} from './channels';
 
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
@@ -98,14 +101,28 @@ export enum CellStatus {
   Stopped = 'Stopped',
 }
 
+// ----------------------------------------------------------------------------
+
+export type InConnections<I, IStreams> = {
+  // Uses AbstractSignal from env, or pipes from SignalReceiveEnd
+  inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveChannel<I[Key]> };
+  // TODO: consider also allowing async iters from the env?
+  // Pipe from StreamReceiveEnd.
+  inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveChannel<IStreams[Key]> };
+};
+
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 export class CellController<
   I extends ValueStruct,
   IStreams extends ValueStruct,
   O extends ValueStruct,
   OStreams extends ValueStruct,
 > {
+  space: SignalSpace;
+
   public status: SetableSignal<CellStatus>;
-  // Resolved once the webworker says it has finished.
+
   public onceReceivedAllInputsAndStarting!: Promise<void>;
   resolveWhenReceivedAllInputsAndStartingFn!: () => void;
 
@@ -120,51 +137,33 @@ export class CellController<
   // Inputs to the worker can either be signal values from the environment, or
   // they can be outputs from another cell (outputs from another cell as
   // "SignalInput"s to the environment).
-  inputs = {} as { [Key in keyof I]: SignalSendEnd<I[Key]> };
+  inputs = {} as { [Key in keyof I]: SignalSendChannel<I[Key]> };
   // Note: From the environment's view, streams being given in to the worker are
   // coming out of the environment.
-  inStreams = {} as { [Key in keyof IStreams]: StreamSendEnd<IStreams[Key]> };
-
-  // Remote points representing the environment's end of the input.
-  inputEnvRemotes = {} as { [Key in keyof I]: Remote };
-  // Remote points representing the environment's end of the inStream.
-  inStreamEnvRemotes = {} as { [Key in keyof IStreams]: Remote };
+  inStreams = {} as { [Key in keyof IStreams]: StreamSendChannel<IStreams[Key]> };
 
   // Note: from the environmnts perspective, worker cell outputs, are inputs to
   // the environment.
-  public outputs = {} as { [Key in keyof O]: SignalReceiveEnd<O[Key]> };
-  public outStreams = {} as { [Key in keyof OStreams]: StreamReceiveEnd<OStreams[Key]> };
-
-  // Remote points representing the environment's end of the input.
-  outputEnvRemotes = {} as { [Key in keyof O]: Remote };
-  // Remote points representing the environment's end of the inStream.
-  outStreamEnvRemotes = {} as { [Key in keyof OStreams]: Remote };
+  outputs = {} as { [Key in keyof O]: SignalReceiveChannel<O[Key]> };
+  outStreams = {} as { [Key in keyof OStreams]: StreamReceiveChannel<OStreams[Key]> };
 
   public outputSoFar!: Partial<AbstractSignalStructFn<O>>;
-  public stillExpectedOutputs!: Set<keyof O>;
-  public stillExpectedInputs!: Set<keyof I>;
+  stillExpectedOutputs!: Set<keyof O>;
+  stillExpectedInputs!: Set<keyof I>;
 
-  space: SignalSpace;
-  postFn: (message: LabMessage, transerables?: Transferable[]) => void;
-  postQueue: { message: LabMessage; transerables?: Transferable[] }[] = [];
+  postFn: (message: CellMessage, transerables?: Transferable[]) => void;
+  postQueue: { message: CellMessage; transerables?: Transferable[] }[] = [];
 
   constructor(
     public env: LabEnv,
     public id: string,
     public cellKind: CellKind<I, IStreams, O, OStreams>,
-    public uses: {
-      // Uses AbstractSignal from env, or pipes from SignalReceiveEnd
-      inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveEnd<I[Key]> };
-      // TODO: consider also allowing async iters from the env?
-      // Pipe from StreamReceiveEnd.
-      inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveEnd<IStreams[Key]> };
-      config?: Partial<LabEnvCellConfig>;
-    } = {},
+    public uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ) {
     this.space = env.space;
     this.status = this.space.setable<CellStatus>(CellStatus.NotStarted);
 
-    this.postFn = (message: LabMessage, transerables?: Transferable[]) => {
+    this.postFn = (message: CellMessage, transerables?: Transferable[]) => {
       if (!this.worker) {
         this.postQueue.push({ message, transerables });
       } else {
@@ -175,172 +174,77 @@ export class CellController<
     this.stillExpectedInputs = new Set(cellKind.inputNames);
 
     for (const inputSignalId of cellKind.inputNames) {
-      const signalSendEnd = new SignalSendEnd<I[keyof I]>(
-        this.id,
+      this.inputs[inputSignalId] = new SignalSendChannel<I[keyof I]>(
         this.space,
-        inputSignalId as keyof O & string,
+        this.id,
+        inputSignalId as string,
+        this.postFn,
       );
-      this.inputs[inputSignalId] = signalSendEnd;
-
-      // CONSIDER: think about instructions being batched into lists of actions to
-      // minimise sent messages.
-      const channel = new MessageChannel();
-      const message: LabMessage = {
-        kind: LabMessageKind.AddInputRemote,
-        recipientSignalId: inputSignalId as string,
-        remoteSignal: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: this.id + ':controller',
-          remoteChannelId: inputSignalId as string,
-          messagePort: channel.port1,
-        },
-      };
-      this.postFn(message, [channel.port1]);
-
-      const recEndRemote = {
-        kind: RemoteKind.MessagePort,
-        remoteCellId: this.id + ':worker',
-        remoteChannelId: inputSignalId as string,
-        messagePort: channel.port2,
-      };
-      signalSendEnd.addRemote(recEndRemote);
     }
 
     for (const inStreamId of cellKind.inStreamNames) {
-      const inStreamSendEnd = new StreamSendEnd<IStreams[keyof IStreams]>(
-        this.id,
+      this.inStreams[inStreamId] = new StreamSendChannel<IStreams[keyof IStreams]>(
         this.space,
+        this.id,
         inStreamId as keyof OStreams & string,
+        this.postFn,
       );
-      this.inStreams[inStreamId] = inStreamSendEnd;
-
-      // CONSIDER: think about instructions being batched into lists of actions to
-      // minimise sent messages.
-      const channel = new MessageChannel();
-      const message: LabMessage = {
-        kind: LabMessageKind.AddInStreamRemote,
-        recipientStreamId: inStreamId as string,
-        remoteStream: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: this.id + ':controller',
-          remoteChannelId: inStreamId as string,
-          messagePort: channel.port1,
-        },
-      };
-      this.postFn(message, [channel.port1]);
-
-      const recEndRemote = {
-        kind: RemoteKind.MessagePort,
-        remoteCellId: this.id + ':worker',
-        remoteChannelId: inStreamId as string,
-        messagePort: channel.port2,
-      };
-      inStreamSendEnd.addRemote(recEndRemote);
     }
 
     for (const outSignalId of cellKind.outputNames) {
-      const recEnd = new SignalReceiveEnd<O[keyof O]>(
-        this.id,
+      this.outputs[outSignalId] = new SignalReceiveChannel<O[keyof O]>(
         this.space,
+        this.id,
         outSignalId as keyof O & string,
+        this.postFn,
       );
-      this.outputs[outSignalId] = recEnd;
-
-      // TODO: remove dup code and consolidtate streams and inputs into one
-      // thing that has addRemote.
-      const channel = new MessageChannel();
-      const message: LabMessage = {
-        kind: LabMessageKind.AddOutputRemote,
-        recipientSignalId: outSignalId as string,
-        remoteSignal: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: this.id + ':controller',
-          remoteChannelId: outSignalId as string,
-          messagePort: channel.port1,
-        },
-      };
-      this.postFn(message, [channel.port1]);
-
-      const recEndRemote = {
-        kind: RemoteKind.MessagePort,
-        remoteCellId: this.id + ':worker',
-        remoteChannelId: outSignalId as string,
-        messagePort: channel.port2,
-      };
-      recEnd.addRemote(recEndRemote);
     }
 
     for (const outStreamId of cellKind.outStreamNames) {
-      const outStreamRecEnd = new StreamReceiveEnd<OStreams[keyof OStreams]>(
-        this.id,
+      this.outStreams[outStreamId] = new StreamReceiveChannel<OStreams[keyof OStreams]>(
         this.space,
+        this.id,
         outStreamId as keyof OStreams & string,
+        this.postFn,
       );
-      this.outStreams[outStreamId] = outStreamRecEnd;
-
-      // CONSIDER: think about instructions being batched into lists of actions to
-      // minimise sent messages.
-      const channel = new MessageChannel();
-      const message: LabMessage = {
-        kind: LabMessageKind.AddInStreamRemote,
-        recipientStreamId: outStreamId as string,
-        remoteStream: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: this.id + ':controller',
-          remoteChannelId: outStreamId as string,
-          messagePort: channel.port1,
-        },
-      };
-      this.postFn(message, [channel.port1]);
-
-      const recEndRemote = {
-        kind: RemoteKind.MessagePort,
-        remoteCellId: this.id + ':worker',
-        remoteChannelId: outStreamId as string,
-        messagePort: channel.port2,
-      };
-      outStreamRecEnd.addRemote(recEndRemote);
     }
 
+    //
+    this.initLifeCyclePromises();
+
     // Inputs either are pipes, or signal values... make sure to connect stuff.
-    if (this.uses && this.uses.inputs) {
-      for (const [k, input] of Object.entries(this.uses.inputs)) {
-        if (input instanceof SignalReceiveEnd) {
-          this.assignInputViaPiping(k, input);
+    if (this.uses) {
+      this.connect(this.uses);
+    }
+  }
+
+  connect(connections: {
+    inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveChannel<I[Key]> };
+    inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveChannel<IStreams[Key]> };
+  }) {
+    if (connections.inputs) {
+      for (const [k, receiveThing] of Object.entries(connections.inputs)) {
+        if (receiveThing instanceof SignalReceiveChannel) {
+          const recChannel = receiveThing as SignalReceiveChannel<I[keyof I]>;
+          recChannel.pipeTo(this.inputs[k as keyof I]);
         } else {
-          this.assignInputFromSignal(k, input);
+          const sendToChannelInput = this.inputs[k].connect();
+          this.space.derived(() => {
+            sendToChannelInput.set(receiveThing());
+          });
         }
       }
     }
 
-    // Inputs either are pipes, or signal values... make sure to connect stuff.
-    if (this.uses && this.uses.inStreams) {
-      for (const [k, outStream] of Object.entries(this.uses.inStreams)) {
-        this.assignInStreamViaPiping(k, outStream);
+    if (connections.inStreams) {
+      for (const [k, receiveThing] of Object.entries(connections.inStreams)) {
+        const recChannel: StreamReceiveChannel<IStreams[keyof IStreams]> = receiveThing;
+        recChannel.pipeTo(this.inStreams[k as keyof IStreams]);
       }
     }
   }
 
-  public assignInputViaPiping<K extends keyof I>(k: K, recEnd: SignalReceiveEnd<I[K]>) {
-    this.stillExpectedInputs.delete(k);
-    this.inputs[k].pipeFrom(recEnd);
-  }
-
-  public assignInputFromSignal<K extends keyof I>(k: K, input: AbstractSignal<I[K]>) {
-    this.stillExpectedInputs.delete(k);
-    this.space.derived(() => {
-      this.inputs[k].set(input());
-    });
-  }
-
-  public assignInStreamViaPiping<K extends keyof IStreams>(
-    k: K,
-    recStream: StreamReceiveEnd<IStreams[K]>,
-  ) {
-    this.inStreams[k].pipeFrom(recStream);
-  }
-
-  init() {
+  initLifeCyclePromises() {
     this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(this.cellKind.outputNames);
     this.status.set(CellStatus.NotStarted);
@@ -362,38 +266,64 @@ export class CellController<
         this.worker.terminate();
         delete this.worker;
       }
-      this.env.runningCells.delete(this as SomeLabEnvCell);
+      this.env.runningCells.delete(this as SomeCellController);
       this.status.set(CellStatus.Stopped);
     });
+  }
 
-    // configure the resolveWithAllOutputsFn so that onceAllOutputs gets resolved.
-    for (const oName of this.cellKind.outputNames) {
-      const recEnd = this.outputs[oName];
-      recEnd.onceReady.then((signal) => {
-        this.outputSoFar[oName] = signal;
-        this.stillExpectedOutputs.delete(oName);
+  reInitRemotes() {
+    for (const inputSignalId of this.cellKind.inputNames) {
+      const channel = this.inputs[inputSignalId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+        channel.connect();
+      }
+    }
+    for (const inStreamId of this.cellKind.inStreamNames) {
+      const channel = this.inStreams[inStreamId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+        channel.connect();
+      }
+    }
+    for (const outSignalId of this.cellKind.outputNames) {
+      const channel = this.outputs[outSignalId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+        channel.connect();
+      }
+      channel.recEnd.onceReady.then((signal) => {
+        this.outputSoFar[outSignalId] = signal;
+        this.stillExpectedOutputs.delete(outSignalId);
         if (this.stillExpectedOutputs.size === 0) {
           this.resolveWithAllOutputsFn(this.outputSoFar as SetableSignalStructFn<O>);
         }
       });
     }
+    for (const outStreamId of this.cellKind.outStreamNames) {
+      const channel = this.outStreams[outStreamId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+        channel.connect();
+      }
+    }
   }
 
   // Invokes start in the signalcell.
   async start(): Promise<void> {
-    if (this.uses.config && this.uses.config.logCellMessages) {
+    if (this.uses && this.uses.config && this.uses.config.logCellMessages) {
       this.worker = new LoggingMessagesWorker(this.cellKind.data.workerFn(), this.id);
     } else {
       this.worker = this.cellKind.data.workerFn();
     }
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {
-      const messageFromWorker: LabMessage = data;
+      const messageFromWorker: CellMessage = data;
       switch (messageFromWorker.kind) {
-        case LabMessageKind.ReceivedAllInputsAndStarting:
+        case CellMessageKind.ReceivedAllInputsAndStarting:
           this.resolveWhenReceivedAllInputsAndStartingFn();
           break;
-        case LabMessageKind.Finished:
+        case CellMessageKind.Finished:
           // CONSIDER: what if there are missing outputs?
           this.resolveWhenFinishedFn();
           break;
@@ -404,8 +334,8 @@ export class CellController<
     };
 
     this.status.set(CellStatus.StartingWaitingForInputs);
-    const message: LabMessage = {
-      kind: LabMessageKind.StartCellRun,
+    const message: CellMessage = {
+      kind: CellMessageKind.StartCellRun,
       id: this.id,
     };
     this.postFn(message);
@@ -419,8 +349,8 @@ export class CellController<
 
   async requestStop(): Promise<void> {
     if (this.status() !== CellStatus.Stopped) {
-      const message: LabMessage = {
-        kind: LabMessageKind.FinishRequest,
+      const message: CellMessage = {
+        kind: CellMessageKind.FinishRequest,
       };
       this.status.set(CellStatus.Stopping);
       this.postFn(message);
@@ -438,5 +368,5 @@ export class CellController<
   }
 }
 
-export type SomeCellStateKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
-export type SomeLabEnvCell = CellController<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+export type SomeCellKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+export type SomeCellController = CellController<any, any, any, any>;

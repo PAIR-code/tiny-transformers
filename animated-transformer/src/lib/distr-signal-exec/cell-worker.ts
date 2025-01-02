@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { LabMessage, LabMessageKind } from './lab-message-types';
+import { CellMessage, CellMessageKind } from './lab-message-types';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,
@@ -24,7 +24,12 @@ import {
   AbstractSignalStructFn,
 } from './cell-kind';
 import { ExpandOnce } from '../ts-type-helpers';
-import { SignalReceiveEnd, StreamReceiveEnd, SignalSendEnd, StreamSendEnd } from './channel-ends';
+import {
+  SignalReceiverFanIn,
+  StreamReceiverFanIn,
+  SignalSenderFanOut,
+  StreamSenderFanOut,
+} from './channel-fans';
 
 // ----------------------------------------------------------------------------
 export class CellWorker<
@@ -55,22 +60,22 @@ export class CellWorker<
 
   // The RecieveEnd for the cell's inputs.
   inputs = {} as {
-    [Key in keyof Inputs]: SignalReceiveEnd<Inputs[Key]>;
+    [Key in keyof Inputs]: SignalReceiverFanIn<Inputs[Key]>;
   };
   // A promise that resolves when all inputs are given.
   public onceAllInputs!: Promise<AbstractSignalStructFn<Inputs>>;
 
   // The receive end of input streams.
   public inStream = {} as {
-    [Key in keyof InputStreams]: StreamReceiveEnd<InputStreams[Key]>;
+    [Key in keyof InputStreams]: StreamReceiverFanIn<InputStreams[Key]>;
   };
 
   // The send end for the outputs.
   outputs = {} as {
-    [Key in keyof Outputs]: SignalSendEnd<Outputs[Key]>;
+    [Key in keyof Outputs]: SignalSenderFanOut<Outputs[Key]>;
   };
   public outStream = {} as {
-    [Key in keyof OutputStreams]: StreamSendEnd<OutputStreams[Key]>;
+    [Key in keyof OutputStreams]: StreamSenderFanOut<OutputStreams[Key]>;
   };
 
   // convenience function for outputting tuff.
@@ -86,7 +91,7 @@ export class CellWorker<
 
   constructor(
     public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
-    public defaultPostMessageFn: (value: LabMessage, ports?: MessagePort[]) => void,
+    public defaultPostMessageFn: (value: CellMessage, ports?: MessagePort[]) => void,
   ) {
     this.id = `[kind:${JSON.stringify(this.kind.data.cellKindId)}]`;
     type InputStreamKey = keyof InputStreams & string;
@@ -115,54 +120,56 @@ export class CellWorker<
     this.stillExpectedInputs = new Set(this.inputSet);
   }
 
-  onMessage(message: { data: LabMessage }) {
+  onMessage(message: { data: CellMessage }) {
     const { data } = message;
     if (!data) {
       console.warn('unexpected null data', message);
       return;
     }
     switch (data.kind) {
-      case LabMessageKind.StartCellRun: {
+      case CellMessageKind.StartCellRun: {
         this.id = data.id; //`${data.id}.${this.id}`;
         this.initInputsAndOutputs();
         this.onceStartedResolver();
         break;
       }
-      case LabMessageKind.FinishRequest: {
+      case CellMessageKind.FinishRequest: {
         this.finishRequested = true;
         this.onceFinishedResolver();
         break;
       }
-      case LabMessageKind.AddInputRemote: {
-        const inputSignal = this.inputs[data.recipientSignalId];
+      case CellMessageKind.AddInputRemote: {
+        const inputSignal = this.inputs[data.recipientChannelId];
         if (!inputSignal) {
-          throw new Error(`${this.id}: No input to pipe named: ${data.recipientSignalId}.`);
+          throw new Error(`${this.id}: No input to pipe named: ${data.recipientChannelId}.`);
         }
-        inputSignal.addRemote(data.remoteSignal);
+        inputSignal.addRemote(data.remote);
         break;
       }
-      case LabMessageKind.AddOutputRemote: {
-        const outputSignal = this.outputs[data.recipientSignalId];
+      case CellMessageKind.AddOutputRemote: {
+        const outputSignal = this.outputs[data.recipientChannelId];
         if (!outputSignal) {
-          throw new Error(`${this.id}: No output to pipe entry named: ${data.recipientSignalId}.`);
+          throw new Error(`${this.id}: No output to pipe entry named: ${data.recipientChannelId}.`);
         }
-        outputSignal.addRemote(data.remoteSignal);
+        outputSignal.addRemote(data.remote);
         break;
       }
-      case LabMessageKind.AddInStreamRemote: {
-        const inputStream = this.inStream[data.recipientStreamId];
+      case CellMessageKind.AddInStreamRemote: {
+        const inputStream = this.inStream[data.recipientChannelId];
         if (!inputStream) {
-          throw new Error(`${this.id}: No input stream to pipe named ${data.recipientStreamId}.`);
+          throw new Error(`${this.id}: No input stream to pipe named ${data.recipientChannelId}.`);
         }
-        inputStream.addRemote(data.remoteStream);
+        inputStream.addRemote(data.remote);
         break;
       }
-      case LabMessageKind.AddOutStreamRemote: {
-        const outputStream = this.outStream[data.recipientStreamId];
+      case CellMessageKind.AddOutStreamRemote: {
+        const outputStream = this.outStream[data.recipientChannelId];
         if (!outputStream) {
-          throw new Error(`${this.id}: No output streams to pipe named ${data.recipientStreamId}.`);
+          throw new Error(
+            `${this.id}: No output streams to pipe named ${data.recipientChannelId}.`,
+          );
         }
-        outputStream.addRemote(data.remoteStream);
+        outputStream.addRemote(data.remote);
         break;
       }
       default: {
@@ -188,7 +195,7 @@ export class CellWorker<
     });
 
     for (const inputName of this.inputSet) {
-      const signalRecEnd = new SignalReceiveEnd<InputValue>(
+      const signalRecEnd = new SignalReceiverFanIn<InputValue>(
         this.id,
         this.space,
         inputName as InputKey,
@@ -205,7 +212,7 @@ export class CellWorker<
     }
 
     for (const inputName of this.inputStreamSet) {
-      const streamRecEnd = new StreamReceiveEnd<InputStreamValue>(
+      const streamRecEnd = new StreamReceiverFanIn<InputStreamValue>(
         this.id,
         this.space,
         inputName as InputStreamKey,
@@ -214,7 +221,7 @@ export class CellWorker<
     }
 
     for (const outputName of this.outputSet) {
-      const signalSendEnd = new SignalSendEnd<OutputValue>(
+      const signalSendEnd = new SignalSenderFanOut<OutputValue>(
         this.id,
         this.space,
         outputName as string,
@@ -224,7 +231,7 @@ export class CellWorker<
     }
 
     for (const outputName of this.outputStreamSet) {
-      const streamSendEnd = new StreamSendEnd<OutputStreamValue>(
+      const streamSendEnd = new StreamSenderFanOut<OutputStreamValue>(
         this.id,
         this.space,
         outputName as OutputStreamKey,
@@ -239,20 +246,20 @@ export class CellWorker<
   async start(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
     await this.onceStarted;
     const inputs = await this.onceAllInputs;
-    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
+    this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
     await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }
 
   async run(runFn: () => Promise<void>) {
     await this.onceStarted;
-    this.defaultPostMessageFn({ kind: LabMessageKind.ReceivedAllInputsAndStarting });
+    this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
     await runFn();
     this.close();
   }
 
   close() {
-    const message: LabMessage = { kind: LabMessageKind.Finished };
+    const message: CellMessage = { kind: CellMessageKind.Finished };
     this.defaultPostMessageFn(message);
     close();
   }
