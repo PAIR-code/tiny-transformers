@@ -124,7 +124,7 @@ export type FfParams<T extends TensorOrVarKind, Input extends DName, Output exte
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
 // More workaround for https://github.com/microsoft/TypeScript/issues/48070
-export type LayerNormParams<T extends TensorOrVarKind> = T extends VariableKind
+export type LayerNormParams<T extends TensorOrVarKind, DName=never> = T extends VariableKind
   ? VarLayerNormParams
   : TensorLayerNormParams;
 
@@ -142,8 +142,8 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
   headsToInputRepMBias: GTensorOrVar<T, 'inputRepToFF'>; // 768
 
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
-  layerNormHeadsProjection?: LayerNormParams<T>;
-  layerNormPostFF?: LayerNormParams<T>;
+  layerNormHeadsProjection?: LayerNormParams<T, 'inputRepToFF'>; // 768 + 768
+  layerNormPostFF?: LayerNormParams<T>; // 768 + 768
   ff1: FfParams<T, 'inputRepToFF', 'hiddenRep'>; // 768 * 4 * 768
   ff2: FfParams<T, 'inputRepToFF', 'inputRep'>; // 4 * 768 * 768
 } & {};

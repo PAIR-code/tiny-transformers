@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeScalar, DName } from './gtensor';
+import { GTensor, makeConstant, makeScalar, DName } from './gtensor';
 
 export type LayerNormParams<D extends DName = never> = {
   gain: GTensor<D>;
@@ -21,10 +21,23 @@ export type LayerNormParams<D extends DName = never> = {
   epsilon: GTensor<never>;
 } & {};
 
-export function initLayerNormParams(
+export function initLayerNormParams<T extends string = never>(
   includeBias: boolean,
+  dims?: { [key in T]: number},
   epsilon = 1e5
-): LayerNormParams {
+): LayerNormParams | LayerNormParams<T> {
+  if (dims) {
+    const layerNormParams: LayerNormParams<T> = {
+      gain: makeConstant(dims, 1.0, 'float32'),
+      epsilon: makeScalar(epsilon, 'float32'),
+    }
+
+    if (includeBias) {
+      layerNormParams.bias = makeConstant(dims, 0, 'float32');
+    }
+    return layerNormParams;
+  }
+
   const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),

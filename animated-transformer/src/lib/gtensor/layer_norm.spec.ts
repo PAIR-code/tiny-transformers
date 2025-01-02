@@ -15,7 +15,7 @@ limitations under the License.
 
 // gtensor.spec.ts
 import { GTensor, makeScalar, makeConstant, makeRange } from './gtensor';
-import { layerNorm } from './layer_norm';
+import { layerNorm, initLayerNormParams } from './layer_norm';
 import * as tf from '@tensorflow/tfjs';
 import { computeLossAndGrads } from './grad';
 
@@ -53,6 +53,17 @@ describe('layer_norm', () => {
     ]);
 
     expect(gNormed.gshape()).toEqual({ pos: 3, rep: 3 });
+  });
+
+  it('Init simple Layer Norm', () => {
+    const epsilonNum = 1e3;
+    const layerNormParams = initLayerNormParams(true, undefined, epsilonNum);
+    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
+    if (layerNormParams.bias == undefined) {
+      throw new Error("Bias is undefined when it shouldn't be.");
+    }
+    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
+    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
   });
 
   it('Multi-dimensional Layer Norm', () => {
