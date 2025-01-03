@@ -64,7 +64,7 @@ export function secSimpleCell(): SectionDataDef {
           js: 'console.log("hello world from simple cell!");',
         },
         inputs: {},
-        outputIds: {},
+        outputs: {},
         inStreams: {},
         outStreamIds: [],
       },

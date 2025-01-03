@@ -7,7 +7,7 @@ import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   CellRefKind,
-  CellSectionData,
+  WorkerCellSectionData,
   ExpSectionDataDef,
   SectionDef,
   SectionKind,
@@ -42,7 +42,7 @@ describe('CellSectionComponent', () => {
             js: '1 + 1;',
           },
           inputs: {},
-          outputIds: {},
+          outputs: {},
           inStreams: {},
           outStreamIds: [],
         },
@@ -52,7 +52,7 @@ describe('CellSectionComponent', () => {
     experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 
-    const cellSectionData: CellSectionData = section1.sectionData as CellSectionData;
+    const cellSectionData: WorkerCellSectionData = section1.sectionData as WorkerCellSectionData;
 
     await TestBed.configureTestingModule({
       providers: [provideExperimentalZonelessChangeDetection()],

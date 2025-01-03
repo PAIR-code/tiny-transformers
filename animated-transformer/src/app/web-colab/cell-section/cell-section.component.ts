@@ -31,7 +31,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
 import { Experiment } from '../../../lib/weblab/experiment';
-import { CellSectionData, SomeSection } from '../../../lib/weblab/section';
+import { WorkerCellSectionData, SomeSection } from '../../../lib/weblab/section';
 import { CellRegistryService } from 'src/app/cell-registry.service';
 import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-kind';
 import { Section } from 'src/lib/weblab/section';
@@ -64,7 +64,7 @@ import { Section } from 'src/lib/weblab/section';
 export class CellSectionComponent implements OnInit {
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<SomeSection>();
-  readonly cellData = input.required<CellSectionData>();
+  readonly cellData = input.required<WorkerCellSectionData>();
   cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
 
@@ -86,7 +86,7 @@ export class CellSectionComponent implements OnInit {
     return Object.keys(this.cellData().content.inputs);
   }
   outputs() {
-    return Object.keys(this.cellData().content.outputIds);
+    return Object.keys(this.cellData().content.outputs);
   }
   inStreams() {
     return Object.keys(this.cellData().content.inStreams);

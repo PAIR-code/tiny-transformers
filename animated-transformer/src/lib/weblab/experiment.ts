@@ -37,7 +37,7 @@ import { SomeCellController } from '../distr-signal-exec/cell-controller';
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import { SomeWorkerCellKind } from '../distr-signal-exec/cell-kind';
 import {
-  CellSectionData,
+  WorkerCellSectionData,
   ExpSectionDataDef,
   Section,
   SectionDataDef,
@@ -324,7 +324,8 @@ export async function loadExperiment(
   }
 
   for (const cellSection of cellSections) {
-    cellSection.connectCell();
+    cellSection.initInputOutputValues();
+    // cellSection.connectCell();
   }
 
   return topLevelExperiment;
