@@ -316,10 +316,10 @@ function gelu(x: tf.Tensor) {
   return tf.mul(x, cdf);
 }
 
-export function ComputeMaskedAffinities(
+export function computeMaskedAffinities(
   qk: GTensor<'batch' | 'keyPos' | 'heads' | 'queryPos'>, // q @ k / rawAttention
 ): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
-  let upperInfTriangularMask = qk.TriangularMask('keyPos', 'queryPos', -Infinity);
+  let upperInfTriangularMask = qk.triangularMask('keyPos', 'queryPos', -Infinity);
   return qk.pointwiseAdd(upperInfTriangularMask);
 }
 
@@ -358,11 +358,8 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
-  const maskedAffinities = ComputeMaskedAffinities(rawAttention); // Uncomment this and the next lines to compute Masked Attention
-  const attention = maskedAffinities.softmax('queryPos'); // Uncomment this and the previous lines to compute Masked Attention
-  //const attention = rawAttention.softmax('queryPos'); // Uncomment this line to compute Unmasked self attention
-
-  // Dropout on the attention weights.
+  const maskedAffinities = computeMaskedAffinities(rawAttention);
+  const attention = maskedAffinities.softmax('queryPos');
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
   const attendedValues = values

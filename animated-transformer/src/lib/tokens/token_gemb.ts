@@ -174,6 +174,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   //   makeTruncNormal({ token: vocab.length, inputRep: repSize })
   // );
 
+  // TODO: Find a better place for the idxToOneHot lookup table
   const idxToOneHot : {[tokenIdx: number]: number[] } = {};
   const oneHotTokens : number[] | any[] = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync()];
   Object.values(tokenToIdx).forEach((i) => (idxToOneHot[i] = oneHotTokens[0][i]));
@@ -284,7 +285,7 @@ export function singleNextTokenIdxOutputPrepFn(
  - One contains the list of targets per token/position in each sample of the batch
  - The other contains the tokenId representation of the tokens on the previous list
 */
- export function NextTokenPerPosIdxOutputPrepFn(
+ export function nextTokenPerPosIdxOutputPrepFn(
   model: { config: { tokenRep: BasicTaskTokenRep } },
   inputSeqs: string[][],
   expectedOutputs: string[][],

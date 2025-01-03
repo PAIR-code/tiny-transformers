@@ -854,7 +854,7 @@ describe('gtensor', () => {
     });
   });
 
-  xit('attentionHead2', () => {
+  it('attentionHead2', () => {
     const queryM = gtensor.makeTruncNormal({ inputRep: 2, kqRep: 3 });
     const keyM = gtensor.makeTruncNormal({ inputRep: 2, kqRep: 3 });
     const valueM = gtensor.makeTruncNormal({ inputRep: 2, valueRep: 4 });
@@ -908,7 +908,7 @@ describe('gtensor', () => {
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.TriangularMask('Pos1', 'Pos2', -Infinity, 0);
+    const g1tril = g1.triangularMask('Pos1', 'Pos2', -Infinity, 0);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
@@ -952,7 +952,7 @@ describe('gtensor', () => {
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.TriangularMask('Pos1', 'Pos2', 42, 1);
+    const g1tril = g1.triangularMask('Pos1', 'Pos2', 42, 1);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [

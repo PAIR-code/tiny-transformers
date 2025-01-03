@@ -834,7 +834,7 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  public TriangularMask(dim1 : G, dim2: G, upper_triangle_const : number = 1, lower_triangle_const: number = 0): GTensor<G> {
+  public triangularMask(dim1 : G, dim2: G, upper_triangle_const : number = 1, lower_triangle_const: number = 0): GTensor<G> {
   /* Returns a triangular mask of the same shape as the provided GTensor
   with upper tril values set 'upper_triangle_const' (default = 1)
   and lower tril values set to 'lower_triangle_const' (default = 0)

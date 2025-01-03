@@ -15,7 +15,7 @@ limitations under the License.
 
 import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as transformer from './transformer_gtensor';
-import { AttnHeadParamSpec, AttnHeadComputeSpec, ComputeMaskedAffinities } from './transformer_gtensor';
+import { AttnHeadParamSpec, AttnHeadComputeSpec, computeMaskedAffinities } from './transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
@@ -45,12 +45,12 @@ describe('GTensor Transformers', () => {
           [5, 6],
         ],
       ]),
-      ['batch', 'pos', 'inputRep']
+      ['batch', 'pos', 'inputRep'],
     );
     const generator = makeRandomStream(0);
     const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
     expect(parts.attendedValues.dimNames).toEqual(
-      jasmine.arrayContaining(['batch', 'heads', 'value', 'pos'])
+      jasmine.arrayContaining(['batch', 'heads', 'value', 'pos']),
     );
     expect(parts.attendedValues.gshape()).toEqual({
       batch: 1,
@@ -86,7 +86,7 @@ describe('GTensor Transformers', () => {
       tokenRep.tokenToIdx,
       embeddings,
       examples.map((example) => example.input.concat(tokenRep.maskToken)),
-      { paddingId: padTokenId, padAt: 'start', dtype: 'int32' }
+      { paddingId: padTokenId, padAt: 'start', dtype: 'int32' },
     );
 
     expect(batchedInputEmb.gshape()).toEqual({
@@ -99,22 +99,28 @@ describe('GTensor Transformers', () => {
 
   it('Compute masked self attention', () => {
     const exampleAffinities = new GTensor(
-      tf.tensor([[
+      tf.tensor([
         [
-          [0, 0, 0],
-          [0, 0, 0],
-          [0, 0, 0],
+          [
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+          ],
         ],
-      ]]),
-      ['batch', 'heads', 'keyPos', 'queryPos']
+      ]),
+      ['batch', 'heads', 'keyPos', 'queryPos'],
     );
-    const masked = ComputeMaskedAffinities(exampleAffinities).softmax('queryPos');
+    const masked = computeMaskedAffinities(exampleAffinities).softmax('queryPos');
 
     expect(masked.dimNames).toEqual(['batch', 'heads', 'keyPos', 'queryPos']);
-    tf.test_util.expectArraysClose(masked.tensor.arraySync(),
-      [[[[1, 0, 0],
-      [0.5, 0.5, 0],
-      [0.33, 0.33, 0.33]]
-    ]]);
+    tf.test_util.expectArraysClose(masked.tensor.arraySync(), [
+      [
+        [
+          [1, 0, 0],
+          [0.5, 0.5, 0],
+          [0.33, 0.33, 0.33],
+        ],
+      ],
+    ]);
   });
 });

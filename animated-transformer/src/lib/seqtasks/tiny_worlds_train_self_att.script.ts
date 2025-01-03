@@ -42,7 +42,7 @@ import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from '
 import {
   strSeqPrepFn,
   singleNextTokenIdxOutputPrepFn,
-  NextTokenPerPosIdxOutputPrepFn,
+  nextTokenPerPosIdxOutputPrepFn,
   prepareBasicTaskTokenRep,
 } from '../tokens/token_gemb';
 import * as yargs from 'yargs';
@@ -134,7 +134,7 @@ function computeLoss(
     batchInput,
     randomStream
   );
-  const nextTokenOneHot = NextTokenPerPosIdxOutputPrepFn(model, batchInput, batchOutput);
+  const nextTokenOneHot = nextTokenPerPosIdxOutputPrepFn(model, batchInput, batchOutput);
   const entropyLoss: tf.Scalar = AllPastTokensCrossEntropyLoss(model, computation, nextTokenOneHot);
   if (batchId % printEveryNBatches === 0) {
     console.log(
