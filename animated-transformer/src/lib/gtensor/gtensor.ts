@@ -40,6 +40,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { contract, ContractSpec } from './contract';
 import { range } from './gtensor_util';
+import { number } from 'yargs';
 
 // export type DName = string | number | symbol;
 
@@ -833,20 +834,22 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  public TriangularMask<D extends G>(dims: D[], upper_triangle_const : number = 1, lower_triangle_const: number = 0): GTensor<G> {
-  /*Returns a triangular mask of the same shape as the provided GTensor
+  public TriangularMask(dim1 : G, dim2: G, upper_triangle_const : number = 1, lower_triangle_const: number = 0): GTensor<G> {
+  /* Returns a triangular mask of the same shape as the provided GTensor
   with upper tril values set 'upper_triangle_const' (default = 1)
   and lower tril values set to 'lower_triangle_const' (default = 0)
 
   Parameters:
-  - dims: The list of dimensions to mask over. Expected Pos1, Pos2 (expected to be of the same size).
-    Tensor will be broadcasted over additional dimension i.e. heads, batch
+  - dim1: First dimension of the triangular mask matrix (Should exist in the GTensor)
+  - dim2: First dimension of the triangular mask matrix (Should exist in the GTensor)
   - upper_triangle_const = constant to fill the upper triangle of the matrix, default = 1
   - lower_triangle_const = constant to fill the lower triangle of the matrix, default = 0
+
+  Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
   */
 
-    let Pos_2 = this.dim[dims[1]].size
-    let Pos = this.dim[dims[2]].size
+    let Pos_2 = this.dim[dim1].size
+    let Pos = this.dim[dim2].size
 
     if (Pos !== Pos_2){
       throw new Error(
@@ -865,7 +868,7 @@ export class GTensor<G extends DName> {
     let tril_mask = tril_aux.add(triu_aux)
 
     // Broadcast over batch and heads Dimension
-    let gtril_mask_broadcasted = new GTensor(tril_mask, [dims[1], dims[2]]).broadcastToCombinedShape(this)
+    let gtril_mask_broadcasted = new GTensor(tril_mask, [dim1, dim2]).broadcastToCombinedShape(this)
     return gtril_mask_broadcasted;
   }
 }

@@ -319,8 +319,8 @@ function gelu(x: tf.Tensor) {
 export function ComputeMaskedAffinities(
   qk: GTensor<'batch' | 'keyPos' | 'heads' | 'queryPos'>, // q @ k / rawAttention
 ): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
-  let upperInfTriangularMask = qk.TriangularMask(['batch', 'keyPos', 'queryPos'], -Infinity)
-  return qk.pointwiseAdd(upperInfTriangularMask)
+  let upperInfTriangularMask = qk.TriangularMask('keyPos', 'queryPos', -Infinity);
+  return qk.pointwiseAdd(upperInfTriangularMask);
 }
 
 // (Approximation for) Compute (batched) attention.
