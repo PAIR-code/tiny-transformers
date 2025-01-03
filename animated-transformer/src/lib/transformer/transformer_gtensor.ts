@@ -316,6 +316,13 @@ function gelu(x: tf.Tensor) {
   return tf.mul(x, cdf);
 }
 
+export function computeMaskedAffinities(
+  qk: GTensor<'batch' | 'keyPos' | 'heads' | 'queryPos'>, // q @ k / rawAttention
+): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
+  let upperInfTriangularMask = qk.triangularMask('keyPos', 'queryPos', -Infinity);
+  return qk.pointwiseAdd(upperInfTriangularMask);
+}
+
 // (Approximation for) Compute (batched) attention.
 //
 // Note: for non-batched attention, the code is identical, just remove the
@@ -351,9 +358,8 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
-  const attention = rawAttention.softmax('queryPos');
-
-  // Dropout on the attention weights.
+  const maskedAffinities = computeMaskedAffinities(rawAttention);
+  const attention = maskedAffinities.softmax('queryPos');
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
   const attendedValues = values
@@ -526,6 +532,35 @@ export function lastTokenCrossEntropyLoss(
   // return loss.tensor;
 }
 
+/**
+ * Compute the logits for all the past tokens of a transformer
+ */
+export function AllPastTokensLogits(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  const lastLayer = computation.layers[computation.layers.length - 1];
+  const logits = lastLayer.seqOuput.contract(model.params.tokenEmbedding, ['inputRep']);
+  return logits;
+}
+
+/**
+ * Returns the Softmax Cross Entropy Loss between the logits and the oneHotEncoded targets
+ * Batch compute the loss for all the past tokens of a transformer.
+ */
+export function AllPastTokensCrossEntropyLoss(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
+  oneHotToken: GTensor<'batch'| 'pos'| 'tokenId'>
+): tf.Scalar {
+  const logits = AllPastTokensLogits(model, computation);
+  const crossEntropyLoss = tf.losses.softmaxCrossEntropy(oneHotToken.tensor,logits.tensor);
+  return crossEntropyLoss.asScalar()
+}
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.
