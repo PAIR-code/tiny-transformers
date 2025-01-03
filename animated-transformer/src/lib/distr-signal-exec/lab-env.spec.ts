@@ -25,25 +25,28 @@ describe('lab-env', () => {
   it('Running a simple cell', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const cell = env.start(exampleCellAbstract, {
+    const { cell, onceStarted } = env.start(exampleCellAbstract, {
       inputs: { prefix },
       // config: { logCellMessages: true },
     });
     expect(cell.status()).toEqual(CellStatus.StartingWaitingForInputs);
+    await onceStarted;
+    expect(cell.status()).toEqual(CellStatus.Running);
 
-    const { prefixRev, prefixLen } = await cell.onceAllOutputs;
+    const { prefixRev, prefixLen } = await cell.connectAllOutputs();
     expect(cell.status()).toEqual(CellStatus.Running);
 
     expect(prefixLen()).toEqual(3);
     expect(prefixRev()).toEqual('ooF');
 
     const strStream = cell.inStreams.strStream.connect();
+    const prefixedStream = cell.outStreams.prefixedStream.connect();
+
     for (const i of [1, 2, 3]) {
       await strStream.send(`name_${i}`);
     }
     strStream.done();
 
-    const prefixedStream = cell.outStreams.prefixedStream.connect();
     const vs = [];
     for await (const v of prefixedStream) {
       vs.push(v);
@@ -85,12 +88,21 @@ describe('lab-env', () => {
     const prefix = env.space.setable('Foo');
     const cell = env.init(exampleCellAbstract, {
       inputs: { prefix },
-      config: { id: 'cell1' },
+      config: {
+        id: 'cell1',
+        // logCellMessages: true
+      },
     });
-    const cell2 = env.init(exampleCellAbstract, { config: { id: 'cell2' } });
+    const cell2 = env.init(exampleCellAbstract, {
+      config: {
+        id: 'cell2',
+        // logCellMessages: true
+      },
+    });
 
-    cell2.inputs.prefix.pipeFrom(cell.outputs.prefixRev);
-    cell2.inStreams.strStream.pipeFrom(cell.outStreams.prefixedStream);
+    cell2.inputs.prefix.addPipeFrom(cell.outputs.prefixRev);
+    cell2.inStreams.strStream.addPipeFrom(cell.outStreams.prefixedStream);
+    const doublePrefixedStream = cell2.outStreams.prefixedStream.connect();
 
     cell.start();
     cell2.start();
@@ -101,7 +113,6 @@ describe('lab-env', () => {
     }
     strStream.done();
 
-    const doublePrefixedStream = cell2.outStreams.prefixedStream.connect();
     const vs = [];
     for await (const v of doublePrefixedStream) {
       vs.push(v);

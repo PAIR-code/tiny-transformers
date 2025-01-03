@@ -442,10 +442,10 @@ describe('signalspace', () => {
     const space = new SignalSpace();
     const { derived } = space;
     const iterSignal = asyncIterToSignal(asyncIterFn(), space);
-    const s = await iterSignal.signal;
+    const s = await iterSignal.onceSignal;
     const fooList: string[] = [];
     derived(() => fooList.push('foo' + s()));
-    await iterSignal.done;
+    await iterSignal.onceDone;
     expect(fooList).toEqual(['foo1', 'foo2', 'foo3']);
   });
 });

@@ -70,7 +70,6 @@ cell.run(async () => {
     (genConfig().maxBatches === -1 || batchId < genConfig().maxBatches)
   ) {
     const batch = makeBatch(batchId++, genConfig().batchSize);
-    console.log(`${cell.id}: sending a train batch`);
     await cell.outStream.trainBatches.send(batch);
   }
   cell.outStream.trainBatches.done();

@@ -15,7 +15,7 @@ limitations under the License.
 
 import { tf } from 'src/lib';
 import { SerializedGTensor, GTensor } from 'src/lib/gtensor/gtensor';
-import { LabState } from './lab-state';
+import { LabState } from './unused-lab-state';
 
 export type Name = string;
 export type TensorValue = {

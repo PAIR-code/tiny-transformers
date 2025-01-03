@@ -179,10 +179,10 @@ export class SignalSenderFanOut<T> implements FanRemotes {
 
   addRemote(remoteReceiver: Remote) {
     this.remotes.add(remoteReceiver);
-    if (this.lastValue) {
+    if (this.lastValue !== undefined) {
       const message: RemoteMessage = {
         kind: RemoteMessageKind.SetSignalValue,
-        signalId: this.signalId,
+        signalId: remoteReceiver.remoteChannelId,
         value: this.lastValue,
       };
       remoteReceiver.messagePort.postMessage(message);
@@ -201,12 +201,12 @@ export class SignalSenderFanOut<T> implements FanRemotes {
 
   set(value: T): void {
     this.lastValue = value;
-    const message: RemoteMessage = {
-      kind: RemoteMessageKind.SetSignalValue,
-      signalId: this.signalId,
-      value,
-    };
     for (const remoteReceiver of this.remotes) {
+      const message: RemoteMessage = {
+        kind: RemoteMessageKind.SetSignalValue,
+        signalId: remoteReceiver.remoteChannelId,
+        value,
+      };
       remoteReceiver.messagePort.postMessage(message);
     }
   }
@@ -319,7 +319,7 @@ export class StreamReceiverFanIn<T> implements FanRemotes {
   postConjestionFeedback(remote: Remote, idx: number) {
     const message: RemoteMessage = {
       kind: RemoteMessageKind.ConjestionControl,
-      streamId: this.streamId,
+      streamId: remote.remoteChannelId,
       idx,
     };
     remote.messagePort.postMessage(message);
@@ -342,6 +342,9 @@ export class StreamReceiverFanIn<T> implements FanRemotes {
 // ----------------------------------------------------------------------------
 export type StreamSendEndConfig = {
   conjestionControl: ConjestionControlConfig;
+  // When true, sender doesn't queue stuff until at least one remote is
+  // connected.
+  outputBeforeConnected: boolean;
 };
 
 export function defaultStreamSendEndConfig(): StreamSendEndConfig {
@@ -350,6 +353,7 @@ export function defaultStreamSendEndConfig(): StreamSendEndConfig {
       pauseFromUnrespondCount: 20,
       resumeAtUnrespondCount: 10,
     },
+    outputBeforeConnected: false,
   };
 }
 
@@ -367,6 +371,10 @@ export class StreamSenderFanOut<T> implements FanRemotes {
   // might get duplicates in the map, which would be bad and hard/slow to spot
   // (have to enumerate all Remotes and check them all)
 
+  remotesCount = 0;
+  onceHaveRemote: Promise<void>;
+  haveRemoteResolver!: () => void;
+
   remotesMap: Map<Remote, ConjestionState> = new Map();
   public lastMessageIdx: number = 0;
   public config: StreamSendEndConfig;
@@ -383,6 +391,7 @@ export class StreamSenderFanOut<T> implements FanRemotes {
     public streamId: string,
     config?: Partial<StreamSendEndConfig>,
   ) {
+    this.onceHaveRemote = new Promise<void>((resolve) => (this.haveRemoteResolver = resolve));
     this.config = { ...defaultStreamSendEndConfig(), ...config };
   }
 
@@ -406,6 +415,10 @@ export class StreamSenderFanOut<T> implements FanRemotes {
         throw new Error(`Unknown message from remote: ${JSON.stringify(data)}`);
       }
     };
+    this.remotesCount++;
+    if (this.remotesCount === 1) {
+      this.haveRemoteResolver();
+    }
     return messagePortConjestionState;
   }
 
@@ -441,6 +454,10 @@ export class StreamSenderFanOut<T> implements FanRemotes {
   // configuration of values to send and ports to send them on, so that order of
   // sends is always respected.
   async send(value: T): Promise<void> {
+    if (!this.config.outputBeforeConnected && this.remotesCount === 0) {
+      await this.onceHaveRemote;
+    }
+
     this.lastMessageIdx++;
     for (const [remote, state] of this.remotesMap.entries()) {
       const stop = await this.sendTo(value, { remote, state });
@@ -450,49 +467,13 @@ export class StreamSenderFanOut<T> implements FanRemotes {
     }
   }
 
-  // Pipe everywhere that sends to recEnd, to now send to everywhere that this
-  // send end sends to.
-  pipeFrom(recEnd: StreamReceiverFanIn<T>) {
-    for (const remoteSender of recEnd.remotes) {
-      for (const remoteReceiver of this.remotesMap.keys()) {
-        const channel = new MessageChannel();
-
-        const remoteSenderMessage: CellMessage = {
-          kind: CellMessageKind.AddOutStreamRemote,
-          recipientChannelId: remoteSender.remoteChannelId,
-          remote: {
-            kind: RemoteKind.MessagePort,
-            remoteCellId: remoteReceiver.remoteCellId,
-            remoteChannelId: remoteReceiver.remoteChannelId,
-            messagePort: channel.port1,
-          },
-        };
-        remoteSender.messagePort.postMessage(remoteSenderMessage, [channel.port1]);
-
-        const remoteReceiverMessage: CellMessage = {
-          kind: CellMessageKind.AddInStreamRemote,
-          recipientChannelId: remoteReceiver.remoteChannelId,
-          remote: {
-            kind: RemoteKind.MessagePort,
-            remoteCellId: remoteSender.remoteCellId,
-            remoteChannelId: remoteSender.remoteChannelId,
-            messagePort: channel.port2,
-          },
-        };
-
-        // Pipe the input stream at the far end of the SendEnd to start handling
-        // inputs from the new port.
-        remoteReceiver.messagePort.postMessage(remoteReceiverMessage, [channel.port2]);
-      }
-    }
-  }
-
   async sendTo(value: T, target: { remote: Remote; state: ConjestionState }): Promise<boolean> {
     const { remote, state } = target;
     if (state.done) {
       throw new Error('Called sendTo(...) on a done stream.');
     }
-    if (state.unrespondCount > this.config.conjestionControl.pauseFromUnrespondCount) {
+    const conjConfig = this.config.conjestionControl;
+    if (state.unrespondCount > conjConfig.pauseFromUnrespondCount) {
       let resumeResolver!: () => void;
       const onceResumed = new Promise<void>((resolve) => {
         resumeResolver = resolve as () => void;
@@ -510,7 +491,7 @@ export class StreamSenderFanOut<T> implements FanRemotes {
     const message: AddStreamValueMessage = {
       kind: RemoteMessageKind.AddStreamValue,
       // The name of the signal stream having its next value set.
-      streamId: this.streamId,
+      streamId: remote.remoteChannelId,
       // A unique incremental number indicating the sent-stream value.
       value: streamValue as StreamValue<unknown>,
     };
@@ -525,7 +506,7 @@ export class StreamSenderFanOut<T> implements FanRemotes {
     const message: EndStreamMessage = {
       kind: RemoteMessageKind.EndStream,
       // The name of the signal stream having its next value set.
-      streamId: this.streamId,
+      streamId: remote.remoteChannelId,
     };
     remote.messagePort.postMessage(message);
     state.done = true;
@@ -540,6 +521,7 @@ export class StreamSenderFanOut<T> implements FanRemotes {
     remote.messagePort.postMessage(message);
     remote.messagePort.close();
     this.remotesMap.delete(remote);
+    this.remotesCount--;
   }
 
   done() {

@@ -17,7 +17,7 @@ import { Batch, taskCellSpec, TaskGenConfig } from './ailab';
 import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
-describe('Task-Cell', () => {
+describe('tiny-transformer-example/task-cell', () => {
   beforeEach(() => {});
 
   it('simple task cell test: make 5 batches of data', async () => {
@@ -33,16 +33,16 @@ describe('Task-Cell', () => {
       batchSize: 10,
       testSetSize: 3,
     });
-    const taskCell = env.start(taskCellSpec, { inputs: { taskConfig, genConfig } });
-    const testSet = await taskCell.outputs.testSet.onceReady;
+    const task = env.start(taskCellSpec, { inputs: { taskConfig, genConfig } });
+    const testSet = await task.cell.outputs.testSet.connect();
     expect(testSet().length).toEqual(3);
 
     const trainBatches: Batch[] = [];
-    for await (const trainBatch of taskCell.outStreams.trainBatches) {
+    for await (const trainBatch of task.cell.outStreams.trainBatches.connect()) {
       trainBatches.push(trainBatch);
     }
-    await taskCell.requestStop();
-    await taskCell.onceFinished;
+    await task.cell.requestStop();
+    await task.cell.onceFinished;
 
     expect(trainBatches.length).toEqual(5);
     expect(trainBatches[0].batchId).toEqual(0);

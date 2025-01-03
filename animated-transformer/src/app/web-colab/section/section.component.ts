@@ -10,7 +10,7 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import { Section, SectionKind } from 'src/lib/weblab/section';
+import { Section, SectionKind, SomeSection } from 'src/lib/weblab/section';
 
 @Component({
   selector: 'app-section',
@@ -22,7 +22,7 @@ import { Section, SectionKind } from 'src/lib/weblab/section';
 export class SectionComponent {
   readonly edited = model.required<boolean>();
   readonly experiment = input.required<Experiment>();
-  readonly section = input.required<Section>();
+  readonly section = input.required<SomeSection>();
   // sectionTemplateRef = viewChild.required<Component>('');
 
   ExpDefKind = ExpDefKind;

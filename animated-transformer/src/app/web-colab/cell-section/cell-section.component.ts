@@ -31,7 +31,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
 import { Experiment } from '../../../lib/weblab/experiment';
-import { CellSectionData } from '../../../lib/weblab/section';
+import { CellSectionData, SomeSection } from '../../../lib/weblab/section';
 import { CellRegistryService } from 'src/app/cell-registry.service';
 import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-kind';
 import { Section } from 'src/lib/weblab/section';
@@ -63,7 +63,7 @@ import { Section } from 'src/lib/weblab/section';
 })
 export class CellSectionComponent implements OnInit {
   readonly experiment = input.required<Experiment>();
-  readonly section = input.required<Section>();
+  readonly section = input.required<SomeSection>();
   readonly cellData = input.required<CellSectionData>();
   cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
@@ -108,7 +108,8 @@ export class CellSectionComponent implements OnInit {
   }
 
   reset() {
-    this.cell.init();
+    this.cell.initLifeCyclePromises();
+    this.cell.reInitRemotes();
     // console.error('not yet implemented');
     // this.cell.restart();
   }

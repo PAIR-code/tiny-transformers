@@ -25,10 +25,10 @@ import {
 import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
-describe('Trainer-Cell', () => {
+describe('tiny-transformer-example/test-and-trainer', () => {
   beforeEach(() => {});
 
-  fit('simple task cell test: make 5 batches of data and trains a model', async () => {
+  it('simple task cell test: make 5 batches of data and trains a model', async () => {
     const space = new SignalSpace();
     const env = new LabEnv(space);
     const { setable, derived } = space;
@@ -82,13 +82,12 @@ describe('Trainer-Cell', () => {
     // inStreams signature to not have the pipe value. Or maybe a very fancy
     // joint definition thing that takes both out and in and has some kind of
     // connecting syntax that removes piped values from both...
-    trainerCell.inputs.testSet.pipeFrom(taskCell.outputs.testSet);
-    trainerCell.inStreams.trainBatches.pipeFrom(taskCell.outStreams.trainBatches);
+    trainerCell.inputs.testSet.addPipeFrom(taskCell.outputs.testSet);
+    trainerCell.inStreams.trainBatches.addPipeFrom(taskCell.outStreams.trainBatches);
 
     taskCell.start();
     trainerCell.start();
 
-    console.log(`## awaiting taskCell.outputs.testSet `);
     const testSet = await taskCell.outputs.testSet.connect();
     expect(testSet().length).toEqual(5);
 
@@ -100,10 +99,8 @@ describe('Trainer-Cell', () => {
     // Note: only do this if you are sure that you will get some value.otherwise
     // you might get stuck waiting forever. If the metrics stream is empty, then
     // this will reject, which if not handled will crash stuff.
-    console.log(`## awaiting metrics.signal `);
     const latestMetrics = await metrics.onceSignal;
 
-    console.log(`## awaiting trainerCell.outStreams `);
     // 2. In thread, with async for loop. This is safer in the sense that the
     //    loop will end if the checkpoint stream is empty.
     const chpts = [];
@@ -114,7 +111,6 @@ describe('Trainer-Cell', () => {
     taskCell.requestStop();
     trainerCell.requestStop();
 
-    console.log(`## awaiting cells finished. `);
     await taskCell.onceFinished;
     await trainerCell.onceFinished;
 

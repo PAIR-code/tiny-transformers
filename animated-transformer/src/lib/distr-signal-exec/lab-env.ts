@@ -54,9 +54,9 @@ export class LabEnv {
   >(
     kind: WorkerCellKind<I, IStreams, O, OStreams>,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
-  ): CellController<I, IStreams, O, OStreams> {
+  ): { cell: CellController<I, IStreams, O, OStreams>; onceStarted: Promise<void> } {
     const cell = this.init(kind, uses);
-    cell.start();
-    return cell;
+    const onceStarted = cell.start();
+    return { cell, onceStarted };
   }
 }

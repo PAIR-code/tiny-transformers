@@ -93,7 +93,7 @@ export class CellWorker<
     public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
     public defaultPostMessageFn: (value: CellMessage, ports?: MessagePort[]) => void,
   ) {
-    this.id = `[kind:${JSON.stringify(this.kind.cellKindId)}]`;
+    this.id = `[workerKind:${JSON.stringify(this.kind.cellKindId)}]`;
     type InputStreamKey = keyof InputStreams & string;
     type InputStreamValue = InputStreams[keyof InputStreams];
     type InputKey = keyof Inputs & string;
@@ -128,7 +128,7 @@ export class CellWorker<
     }
     switch (data.kind) {
       case CellMessageKind.StartCellRun: {
-        this.id = data.id; //`${data.id}.${this.id}`;
+        this.id = data.id + ':worker'; //`${data.id}.${this.id}`;
         this.initInputsAndOutputs();
         this.onceStartedResolver();
         break;

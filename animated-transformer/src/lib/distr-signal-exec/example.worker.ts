@@ -23,7 +23,6 @@ const { derived } = cell.space;
 
 cell.start(async (inputs) => {
   const { prefix } = inputs;
-  console.log(`** ${cell.id}: waiting for all strStream...`);
 
   cell.outputs.prefixLen.set(prefix().length);
 
@@ -32,7 +31,6 @@ cell.start(async (inputs) => {
     cell.outputs.prefixRev.set(prefix().split('').reverse().join(''));
   });
 
-  console.log(`** ${cell.id}: waiting for all strStream...`);
   for await (const n of cell.inStream.strStream) {
     await cell.outStream.prefixedStream.send(`${prefix()} ${n}`);
   }

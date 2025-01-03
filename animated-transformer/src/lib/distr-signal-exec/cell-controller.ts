@@ -56,7 +56,8 @@ interface BasicWorker {
 class LoggingMessagesWorker implements BasicWorker {
   constructor(
     public worker: Worker,
-    public id: string,
+    public localCellId: string,
+    public remoteCellId: string,
   ) {}
 
   set onmessage(m: ((ev: MessageEvent) => any) | null) {
@@ -64,14 +65,14 @@ class LoggingMessagesWorker implements BasicWorker {
       this.worker.onmessage = null;
     } else {
       this.worker.onmessage = (ev: MessageEvent) => {
-        console.log(`from ${this.id} to env: `, ev);
+        console.log(`from ${this.remoteCellId} to ${this.localCellId}: `, ev);
         m(ev);
       };
     }
   }
 
   postMessage(message: any, transfer?: Transferable[]) {
-    console.log(`from env to ${this.id}: `, message);
+    console.log(`from ${this.localCellId} to ${this.remoteCellId}: `, message);
     this.worker.postMessage(message, transfer || []);
   }
 
@@ -110,15 +111,18 @@ export class CellController<
 
   public status: SetableSignal<CellStatus>;
 
-  public onceReceivedAllInputsAndStarting!: Promise<void>;
-  resolveWhenReceivedAllInputsAndStartingFn!: () => void;
-
-  public onceAllOutputs!: Promise<AbstractSignalStructFn<O>>;
-  resolveWithAllOutputsFn!: (outputs: AbstractSignalStructFn<O>) => void;
-
   public onceFinished!: Promise<void>;
   resolveWhenFinishedFn!: () => void;
 
+  // Used to provide promise for when started has truly started.
+  onceReceivedAllInputsAndStarting!: Promise<void>;
+  resolveWhenReceivedAllInputsAndStartingFn!: () => void;
+
+  // Used for the connectAllOutputs() return promise.
+  onceAllOutputs!: Promise<AbstractSignalStructFn<O>>;
+  resolveWithAllOutputsFn!: (outputs: AbstractSignalStructFn<O>) => void;
+
+  // The Cell's webworker, where the work is happening.
   worker?: BasicWorker;
 
   // Inputs to the worker can either be signal values from the environment, or
@@ -134,7 +138,7 @@ export class CellController<
   outputs = {} as { [Key in keyof O]: SignalReceiveChannel<O[Key]> };
   outStreams = {} as { [Key in keyof OStreams]: StreamReceiveChannel<OStreams[Key]> };
 
-  public outputSoFar!: Partial<AbstractSignalStructFn<O>>;
+  // public outputSoFar!: Partial<AbstractSignalStructFn<O>>;
   stillExpectedOutputs!: Set<keyof O>;
   stillExpectedInputs!: Set<keyof I>;
 
@@ -160,10 +164,14 @@ export class CellController<
 
     this.stillExpectedInputs = new Set(cellKind.inputNames);
 
+    const remoteWorkerCellId = this.id + ':worker';
+    const localCellId = this.id + ':controller';
+
     for (const inputSignalId of cellKind.inputNames) {
       this.inputs[inputSignalId] = new SignalSendChannel<I[keyof I]>(
         this.space,
-        this.id,
+        localCellId,
+        remoteWorkerCellId,
         inputSignalId as string,
         this.postFn,
       );
@@ -172,7 +180,8 @@ export class CellController<
     for (const inStreamId of cellKind.inStreamNames) {
       this.inStreams[inStreamId] = new StreamSendChannel<IStreams[keyof IStreams]>(
         this.space,
-        this.id,
+        localCellId,
+        remoteWorkerCellId,
         inStreamId as keyof OStreams & string,
         this.postFn,
       );
@@ -181,7 +190,8 @@ export class CellController<
     for (const outSignalId of cellKind.outputNames) {
       this.outputs[outSignalId] = new SignalReceiveChannel<O[keyof O]>(
         this.space,
-        this.id,
+        localCellId,
+        remoteWorkerCellId,
         outSignalId as keyof O & string,
         this.postFn,
       );
@@ -190,7 +200,8 @@ export class CellController<
     for (const outStreamId of cellKind.outStreamNames) {
       this.outStreams[outStreamId] = new StreamReceiveChannel<OStreams[keyof OStreams]>(
         this.space,
-        this.id,
+        localCellId,
+        remoteWorkerCellId,
         outStreamId as keyof OStreams & string,
         this.postFn,
       );
@@ -205,6 +216,15 @@ export class CellController<
     }
   }
 
+  async connectAllOutputs(): Promise<AbstractSignalStructFn<O>> {
+    const ids = [...this.cellKind.outputNames];
+    const promises = ids.map((outSignalId) => this.outputs[outSignalId as keyof O].connect());
+    const allOutputs = {} as AbstractSignalStructFn<O>;
+    const allReady = await Promise.all(promises);
+    allReady.forEach((value, i) => (allOutputs[ids[i]] = value));
+    return allOutputs;
+  }
+
   connect(connections: {
     inputs?: { [Key in keyof Partial<I>]: AbstractSignal<I[Key]> | SignalReceiveChannel<I[Key]> };
     inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveChannel<IStreams[Key]> };
@@ -213,7 +233,7 @@ export class CellController<
       for (const [k, receiveThing] of Object.entries(connections.inputs)) {
         if (receiveThing instanceof SignalReceiveChannel) {
           const recChannel = receiveThing as SignalReceiveChannel<I[keyof I]>;
-          recChannel.pipeTo(this.inputs[k as keyof I]);
+          recChannel.addPipeTo(this.inputs[k as keyof I]);
         } else {
           const sendToChannelInput = this.inputs[k].connect();
           this.space.derived(() => {
@@ -226,13 +246,13 @@ export class CellController<
     if (connections.inStreams) {
       for (const [k, receiveThing] of Object.entries(connections.inStreams)) {
         const recChannel: StreamReceiveChannel<IStreams[keyof IStreams]> = receiveThing;
-        recChannel.pipeTo(this.inStreams[k as keyof IStreams]);
+        recChannel.addPipeTo(this.inStreams[k as keyof IStreams]);
       }
     }
   }
 
   initLifeCyclePromises() {
-    this.outputSoFar = {};
+    // this.outputSoFar = {};
     this.stillExpectedOutputs = new Set(this.cellKind.outputNames);
     this.status.set(CellStatus.NotStarted);
 
@@ -279,13 +299,13 @@ export class CellController<
         channel.disconnect();
         channel.connect();
       }
-      channel.recEnd.onceReady.then((signal) => {
-        this.outputSoFar[outSignalId] = signal;
-        this.stillExpectedOutputs.delete(outSignalId);
-        if (this.stillExpectedOutputs.size === 0) {
-          this.resolveWithAllOutputsFn(this.outputSoFar as SetableSignalStructFn<O>);
-        }
-      });
+      // channel.recEnd.onceReady.then((signal) => {
+      //   this.outputSoFar[outSignalId] = signal;
+      //   this.stillExpectedOutputs.delete(outSignalId);
+      //   if (this.stillExpectedOutputs.size === 0) {
+      //     this.resolveWithAllOutputsFn(this.outputSoFar as SetableSignalStructFn<O>);
+      //   }
+      // });
     }
     for (const outStreamId of this.cellKind.outStreamNames) {
       const channel = this.outStreams[outStreamId];
@@ -299,7 +319,11 @@ export class CellController<
   // Invokes start in the signalcell.
   async start(): Promise<void> {
     if (this.uses && this.uses.config && this.uses.config.logCellMessages) {
-      this.worker = new LoggingMessagesWorker(this.cellKind.startWorkerFn(), this.id);
+      this.worker = new LoggingMessagesWorker(
+        this.cellKind.startWorkerFn(),
+        this.id + ':controller',
+        this.id + ':worker',
+      );
     } else {
       this.worker = this.cellKind.startWorkerFn();
     }

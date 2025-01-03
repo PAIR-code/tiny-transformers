@@ -50,12 +50,7 @@ import {
   WorkerCellKind,
 } from '../distr-signal-exec/cell-kind';
 import { ExpDefKind, Experiment } from './experiment';
-import {
-  SignalReceiver,
-  SignalSender,
-  StreamReceiver,
-  StreamSender,
-} from '../distr-signal-exec/channels';
+import { SignalSender, StreamReceiver, StreamSender } from '../distr-signal-exec/channels';
 import { input } from '@angular/core';
 
 export enum SectionKind {
@@ -266,7 +261,7 @@ export type SectionInterface<
   OStream extends ValueStruct,
 > = {
   // Inputs to this section are inputs from somewhere else, or a signal value.
-  inputs: { [Key in keyof I]: SignalReceiver<I[keyof I]> };
+  inputs: { [Key in keyof I]: Promise<AbstractSignal<I[keyof I]>> };
   // Note: From the section's view, streams being given in must be coming out of
   // the somewhere else.
   inStream: {
@@ -415,14 +410,14 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
         const otherSec = this.experiment.getSection(cellInputRef.cellSectionId);
         this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.cellChannelId];
         const cellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-        cellController.outputs[cellInputRef.cellChannelId].pipeTo(this.cell.inputs[inputId]);
+        cellController.outputs[cellInputRef.cellChannelId].addPipeTo(this.cell.inputs[inputId]);
       } else {
         throw Error(`Unknown CellSectionInput (${inputId}): ${JSON.stringify(cellInputRef)}`);
       }
     }
     for (const [inputId, cellInputRef] of Object.entries(contentAsCellKind.inStreams)) {
       const secLabCell = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-      secLabCell.outStreams[cellInputRef.cellOutStreamId].pipeTo(this.cell.inStreams[inputId]);
+      secLabCell.outStreams[cellInputRef.cellOutStreamId].addPipeTo(this.cell.inStreams[inputId]);
     }
     for (const [outputId, cellOutputRef] of Object.entries(contentAsCellKind.outputIds)) {
       if (cellOutputRef.saved) {

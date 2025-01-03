@@ -45,7 +45,8 @@ export type StreamSender<T> = {
   done(): void;
 };
 
-export type SignalReceiver<T> = Promise<AbstractSignal<T>>;
+// Note: instead of defining SignalReceiver<T> = Promise<AbstractSignal<T>>, we
+// just used Promise<AbstractSignal<T>>
 
 export type StreamReceiver<T> = AsyncIterable<T> &
   AsyncIterator<T> & {
@@ -62,14 +63,14 @@ export abstract class CellChannelEnd {
   abstract remoteConnection?: Remote;
   abstract cellPostFn: (message: CellMessage, transerables?: Transferable[]) => void;
 
-  initRemote(kind: EditRemoteMessageKind): Remote {
+  initRemote(kind: EditRemoteMessageKind, remoteCellId: string): Remote {
     const channel = new MessageChannel();
     const message: CellMessage = {
       kind,
       recipientChannelId: this.channelId as string,
       remote: {
         kind: RemoteKind.MessagePort,
-        remoteCellId: this.cellId + ':controller',
+        remoteCellId: this.cellId,
         remoteChannelId: this.channelId as string,
         messagePort: channel.port1,
       },
@@ -78,7 +79,7 @@ export abstract class CellChannelEnd {
 
     const localRemoteForEnd = {
       kind: RemoteKind.MessagePort,
-      remoteCellId: this.cellId + ':worker',
+      remoteCellId: remoteCellId,
       remoteChannelId: this.channelId as string,
       messagePort: channel.port2,
     };
@@ -88,35 +89,122 @@ export abstract class CellChannelEnd {
 
 // Pipe everywhere that sends to recEnd, to now send to everywhere that this
 // send end sends to.
-function pipeFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): void {
-  for (const remoteSender of recEnd.remotes) {
-    for (const remoteReceiver of sendEnd.remotes) {
-      const channel = new MessageChannel();
-      const remoteSenderMessage: CellMessage = {
-        kind: CellMessageKind.AddOutputRemote,
-        recipientChannelId: remoteSender.remoteChannelId,
-        remote: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: remoteReceiver.remoteCellId,
-          remoteChannelId: remoteReceiver.remoteChannelId,
-          messagePort: channel.port1,
-        },
-      };
-      recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
+function addPipeSignalFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): void {
+  const channel = new MessageChannel();
 
-      const remoteReceiverMessage: CellMessage = {
-        kind: CellMessageKind.AddInputRemote,
-        recipientChannelId: remoteReceiver.remoteChannelId,
-        remote: {
-          kind: RemoteKind.MessagePort,
-          remoteCellId: remoteSender.remoteCellId,
-          remoteChannelId: remoteSender.remoteChannelId,
-          messagePort: channel.port2,
-        },
-      };
-      sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
-    }
-  }
+  const remoteSenderMessage: CellMessage = {
+    kind: CellMessageKind.AddOutputRemote,
+    recipientChannelId: recEnd.channelId,
+    remote: {
+      kind: RemoteKind.MessagePort,
+      remoteCellId: sendEnd.channelId,
+      remoteChannelId: sendEnd.channelId,
+      messagePort: channel.port1,
+    },
+  };
+  recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
+
+  const remoteReceiverMessage: CellMessage = {
+    kind: CellMessageKind.AddInputRemote,
+    recipientChannelId: sendEnd.channelId,
+    remote: {
+      kind: RemoteKind.MessagePort,
+      remoteCellId: recEnd.channelId,
+      remoteChannelId: recEnd.channelId,
+      messagePort: channel.port2,
+    },
+  };
+  sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
+
+  // for (const remoteSender of recEnd.remotes) {
+  //   for (const remoteReceiver of sendEnd.remotes) {
+  //     const channel = new MessageChannel();
+
+  //     const remoteSenderMessage: CellMessage = {
+  //       kind: CellMessageKind.AddOutputRemote,
+  //       recipientChannelId: remoteSender.remoteChannelId,
+  //       remote: {
+  //         kind: RemoteKind.MessagePort,
+  //         remoteCellId: remoteReceiver.remoteCellId,
+  //         remoteChannelId: remoteReceiver.remoteChannelId,
+  //         messagePort: channel.port1,
+  //       },
+  //     };
+  //     recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
+
+  //     const remoteReceiverMessage: CellMessage = {
+  //       kind: CellMessageKind.AddInputRemote,
+  //       recipientChannelId: remoteReceiver.remoteChannelId,
+  //       remote: {
+  //         kind: RemoteKind.MessagePort,
+  //         remoteCellId: remoteSender.remoteCellId,
+  //         remoteChannelId: remoteSender.remoteChannelId,
+  //         messagePort: channel.port2,
+  //       },
+  //     };
+  //     sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
+  //   }
+  // }
+}
+
+// Pipe everywhere that sends to recEnd, to now send to everywhere that this
+// send end sends to.
+function addPipeStreamFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): void {
+  const channel = new MessageChannel();
+
+  const remoteSenderMessage: CellMessage = {
+    kind: CellMessageKind.AddOutStreamRemote,
+    recipientChannelId: recEnd.channelId,
+    remote: {
+      kind: RemoteKind.MessagePort,
+      remoteCellId: sendEnd.channelId,
+      remoteChannelId: sendEnd.channelId,
+      messagePort: channel.port1,
+    },
+  };
+  recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
+
+  const remoteReceiverMessage: CellMessage = {
+    kind: CellMessageKind.AddInStreamRemote,
+    recipientChannelId: sendEnd.channelId,
+    remote: {
+      kind: RemoteKind.MessagePort,
+      remoteCellId: recEnd.channelId,
+      remoteChannelId: recEnd.channelId,
+      messagePort: channel.port2,
+    },
+  };
+  sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
+
+  // for (const remoteSender of recEnd.remotes) {
+  //   for (const remoteReceiver of sendEnd.remotes) {
+  //     const channel = new MessageChannel();
+
+  //     const remoteSenderMessage: CellMessage = {
+  //       kind: CellMessageKind.AddOutStreamRemote,
+  //       recipientChannelId: remoteSender.remoteChannelId,
+  //       remote: {
+  //         kind: RemoteKind.MessagePort,
+  //         remoteCellId: remoteReceiver.remoteCellId,
+  //         remoteChannelId: remoteReceiver.remoteChannelId,
+  //         messagePort: channel.port1,
+  //       },
+  //     };
+  //     recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
+
+  //     const remoteReceiverMessage: CellMessage = {
+  //       kind: CellMessageKind.AddInStreamRemote,
+  //       recipientChannelId: remoteReceiver.remoteChannelId,
+  //       remote: {
+  //         kind: RemoteKind.MessagePort,
+  //         remoteCellId: remoteSender.remoteCellId,
+  //         remoteChannelId: remoteSender.remoteChannelId,
+  //         messagePort: channel.port2,
+  //       },
+  //     };
+  //     sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
+  //   }
+  // }
 }
 
 // ----------------------------------------------------------------------------
@@ -128,6 +216,7 @@ export class SignalReceiveChannel<T> extends CellChannelEnd {
   constructor(
     public space: SignalSpace,
     public cellId: string,
+    public remoteCellId: string,
     public channelId: string,
     public cellPostFn: (message: CellMessage, transerables?: Transferable[]) => void,
   ) {
@@ -135,15 +224,14 @@ export class SignalReceiveChannel<T> extends CellChannelEnd {
     this.recEnd = new SignalReceiverFanIn<T>(cellId, space, channelId);
     this.remotes = this.recEnd.remotes;
   }
-  pipeTo(sendChannel: SignalSendChannel<T>): void {
-    pipeFrom(this, sendChannel);
+
+  addPipeTo(sendChannel: SignalSendChannel<T>): void {
+    addPipeSignalFrom(this, sendChannel);
   }
 
-  connect(): SignalReceiver<T> {
-    this.remoteConnection = this.initRemote(CellMessageKind.AddOutputRemote);
+  connect(): Promise<AbstractSignal<T>> {
+    this.remoteConnection = this.initRemote(CellMessageKind.AddOutputRemote, this.remoteCellId);
     this.recEnd.addRemote(this.remoteConnection);
-
-    this.initRemote(CellMessageKind.AddInputRemote);
     return this.recEnd.onceReady;
   }
 
@@ -163,6 +251,7 @@ export class SignalSendChannel<T> extends CellChannelEnd {
   constructor(
     public space: SignalSpace,
     public cellId: string,
+    public remoteCellId: string,
     public channelId: string,
     public cellPostFn: (message: CellMessage, transerables?: Transferable[]) => void,
   ) {
@@ -170,12 +259,12 @@ export class SignalSendChannel<T> extends CellChannelEnd {
     this.sendEnd = new SignalSenderFanOut<T>(cellId, space, channelId);
     this.remotes = this.sendEnd.remotes;
   }
-  pipeFrom(recChannel: SignalReceiveChannel<T>): void {
-    pipeFrom(recChannel, this);
+  addPipeFrom(recChannel: SignalReceiveChannel<T>): void {
+    addPipeSignalFrom(recChannel, this);
   }
 
   connect(): SignalSender<T> {
-    this.remoteConnection = this.initRemote(CellMessageKind.AddInputRemote);
+    this.remoteConnection = this.initRemote(CellMessageKind.AddInputRemote, this.remoteCellId);
     this.sendEnd.addRemote(this.remoteConnection);
     return this.sendEnd;
   }
@@ -197,6 +286,7 @@ export class StreamReceiveChannel<T> extends CellChannelEnd {
   constructor(
     public space: SignalSpace,
     public cellId: string,
+    public remoteCellId: string,
     public channelId: string,
     public cellPostFn: (message: CellMessage, transerables?: Transferable[]) => void,
   ) {
@@ -205,12 +295,12 @@ export class StreamReceiveChannel<T> extends CellChannelEnd {
     this.remotes = this.recEnd.remotes;
   }
 
-  pipeTo(sendChannel: StreamSendChannel<T>): void {
-    pipeFrom(this, sendChannel);
+  addPipeTo(sendChannel: StreamSendChannel<T>): void {
+    addPipeStreamFrom(this, sendChannel);
   }
 
   connect(): StreamReceiver<T> {
-    this.remoteConnection = this.initRemote(CellMessageKind.AddOutStreamRemote);
+    this.remoteConnection = this.initRemote(CellMessageKind.AddOutStreamRemote, this.remoteCellId);
     this.recEnd.addRemote(this.remoteConnection);
     return this.recEnd;
   }
@@ -232,6 +322,7 @@ export class StreamSendChannel<T> extends CellChannelEnd {
   constructor(
     public space: SignalSpace,
     public cellId: string,
+    public remoteCellId: string,
     public channelId: string,
     public cellPostFn: (message: CellMessage, transerables?: Transferable[]) => void,
   ) {
@@ -239,12 +330,13 @@ export class StreamSendChannel<T> extends CellChannelEnd {
     this.sendEnd = new StreamSenderFanOut<T>(cellId, space, channelId);
     this.remotes = this.sendEnd.remotes;
   }
-  pipeFrom(recChannel: StreamReceiveChannel<T>): void {
-    pipeFrom(recChannel, this);
+
+  addPipeFrom(recChannel: StreamReceiveChannel<T>): void {
+    addPipeStreamFrom(recChannel, this);
   }
 
   connect(): StreamSender<T> {
-    this.remoteConnection = this.initRemote(CellMessageKind.AddInStreamRemote);
+    this.remoteConnection = this.initRemote(CellMessageKind.AddInStreamRemote, this.remoteCellId);
     this.sendEnd.addRemote(this.remoteConnection);
     return this.sendEnd;
   }

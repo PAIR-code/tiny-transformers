@@ -19,7 +19,7 @@ import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';
 
-describe('Trainer-Cell', () => {
+describe('tiny-transformer-example/trainer-cell', () => {
   beforeEach(() => {});
 
   it('Send a few batches to a trainer cell, and watch the loss', async () => {
@@ -80,7 +80,7 @@ describe('Trainer-Cell', () => {
 
     // ------------------------------------------------------------------------
     // Trainer cell
-    const trainerCell = env.start(trainerCellSpec, {
+    const trainer = env.start(trainerCellSpec, {
       inputs: {
         modelUpdateEvents,
         trainConfig,
@@ -88,7 +88,7 @@ describe('Trainer-Cell', () => {
       },
     });
 
-    const trainBatchSender = trainerCell.inStreams.trainBatches.connect();
+    const trainBatchSender = trainer.cell.inStreams.trainBatches.connect();
     trainBatchSender.send(makeBatch(0, trainConfig().batchSize));
     trainBatchSender.send(makeBatch(1, trainConfig().batchSize));
     trainBatchSender.send(makeBatch(2, trainConfig().batchSize));
@@ -98,8 +98,8 @@ describe('Trainer-Cell', () => {
 
     // ------------------------------------------------------------------------
     // Congestion control & run report/watch what's up...
-    const lastMetricsIter = trainerCell.outStreams.metrics.connect();
-    const ckptIter = trainerCell.outStreams.checkpoint.connect();
+    const lastMetricsIter = trainer.cell.outStreams.metrics.connect();
+    const ckptIter = trainer.cell.outStreams.checkpoint.connect();
 
     const m0 = (await lastMetricsIter.next()).value;
     const c0 = (await ckptIter.next()).value;
@@ -114,7 +114,7 @@ describe('Trainer-Cell', () => {
     expect(m2!.batchId).toEqual(4);
     expect(c2!.lastBatch.batchId).toEqual(4);
 
-    trainerCell.requestStop();
-    await trainerCell.onceFinished;
+    trainer.cell.requestStop();
+    await trainer.cell.onceFinished;
   }, 5000);
 });
