@@ -56,7 +56,7 @@ describe('gtensor', () => {
           [5, 6],
         ], // example index 3
       ]),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
     expect(g2.gshape()).toEqual({ example: 4, pos: 3, repSize: 2 });
   });
@@ -89,7 +89,7 @@ describe('gtensor', () => {
           [5, 6],
         ],
       ]),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
     expect(g1.gshape()).toEqual({ example: 4, pos: 3, repSize: 2 });
     const g2 = g1.transpose();
@@ -123,9 +123,9 @@ describe('gtensor', () => {
             [3, 4],
             [5, 6],
           ],
-        ] // example = 4
+        ], // example = 4
       ),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
 
     const g2 = new gtensor.GTensor(
@@ -149,9 +149,9 @@ describe('gtensor', () => {
             [5, 6],
             [5, 6],
           ],
-        ] // pos = 3
+        ], // pos = 3
       ),
-      ['pos', 'example', 'repSize']
+      ['pos', 'example', 'repSize'],
     );
     expect(g1.gshape()).toEqual({ pos: 3, example: 4, repSize: 2 });
     const likeg2 = g1.transposeLike(g2);
@@ -168,14 +168,14 @@ describe('gtensor', () => {
         [3, 4, 5],
         [5, 6, 7],
       ]),
-      ['pos', 'repSize']
+      ['pos', 'repSize'],
     );
 
     const g2 = new gtensor.GTensor(
       tf.tensor(
-        [1, 2, 3] // pos = 3
+        [1, 2, 3], // pos = 3
       ),
-      ['pos']
+      ['pos'],
     );
     const g2big = g2.broadcastToCombinedShape(g1);
 
@@ -202,9 +202,9 @@ describe('gtensor', () => {
             [3, 4],
             [5, 6],
           ],
-        ] // example = 2
+        ], // example = 2
       ),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
 
     const g2 = new gtensor.GTensor(
@@ -222,9 +222,9 @@ describe('gtensor', () => {
             [5, 6],
             [5, 6],
           ],
-        ] // pos = 3
+        ], // pos = 3
       ),
-      ['pos', 'foo', 'repSize']
+      ['pos', 'foo', 'repSize'],
     );
     expect(g2.gshape()).toEqual({ pos: 3, foo: 2, repSize: 2 });
     const g1big = g1.broadcastToCombinedShape(g2);
@@ -249,9 +249,9 @@ describe('gtensor', () => {
             [3, 4],
             [5, 6],
           ],
-        ] // example = 2
+        ], // example = 2
       ),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
 
     const g1big = g1.broadcastTo(new Map([['foo', 2]]));
@@ -266,9 +266,9 @@ describe('gtensor', () => {
     const bar = new gtensor.GTensor(
       tf.initializers.truncatedNormal({}).apply(
         // Dimension sizes. Notice: c = 3.
-        [1, 2, 3, 4, 5]
+        [1, 2, 3, 4, 5],
       ),
-      ['a', 'b', 'c', 'd', 'e']
+      ['a', 'b', 'c', 'd', 'e'],
     );
     const foo = gtensor.makeZeros({ x: 6, y: 2, c: 3 });
 
@@ -293,7 +293,7 @@ describe('gtensor', () => {
         [1, 2],
         [3, 4],
       ]),
-      ['example', 'repSize']
+      ['example', 'repSize'],
     );
     const foo = new gtensor.GTensor(
       tf.tensor([
@@ -301,7 +301,7 @@ describe('gtensor', () => {
         [3, 4],
         [5, 6],
       ]),
-      ['point_id', 'repSize']
+      ['point_id', 'repSize'],
     );
     const r = bar.pointwiseAdd(foo);
     expect(r.gshape()).toEqual({ example: 2, point_id: 3, repSize: 2 });
@@ -329,7 +329,7 @@ describe('gtensor', () => {
           [3, 4],
         ],
       ]),
-      ['batch', 'example', 'repSize']
+      ['batch', 'example', 'repSize'],
     );
     const foo = new gtensor.GTensor(
       tf.tensor([
@@ -337,7 +337,7 @@ describe('gtensor', () => {
         [3, 4],
         [5, 6],
       ]),
-      ['point_id', 'repSize']
+      ['point_id', 'repSize'],
     );
     const r = bar.pointwiseAdd(foo);
     expect(r.gshape()).toEqual({
@@ -370,7 +370,7 @@ describe('gtensor', () => {
         [2, 3, 4],
         [4, 5, 6],
       ]),
-      ['pos', 'repSize']
+      ['pos', 'repSize'],
     );
     const foo = new gtensor.GTensor(tf.tensor([1, 2, 3]), ['pos']);
     const s1 = bar.pointwiseAdd(foo);
@@ -396,7 +396,7 @@ describe('gtensor', () => {
         [1, 2],
         [3, 4],
       ]),
-      ['example', 'repSize']
+      ['example', 'repSize'],
     );
     const foo = new gtensor.GTensor(
       tf.tensor([
@@ -404,7 +404,7 @@ describe('gtensor', () => {
         [3, 4, 5],
         [5, 6, 7],
       ]),
-      ['point_id', 'repSize2']
+      ['point_id', 'repSize2'],
     );
     const r = bar.pointwiseAdd(foo);
     // console.log(r.tensor);
@@ -445,7 +445,7 @@ describe('gtensor', () => {
         [1, 2],
         [3, 4],
       ]),
-      ['example', 'repSize']
+      ['example', 'repSize'],
     );
     const foo = new gtensor.GTensor(
       tf.tensor([
@@ -453,7 +453,7 @@ describe('gtensor', () => {
         [3, 4],
         [5, 6],
       ]),
-      ['point_id', 'repSize']
+      ['point_id', 'repSize'],
     );
     const r = bar.pointwiseMul(foo);
     expect(r.gshape()).toEqual({ example: 2, point_id: 3, repSize: 2 });
@@ -485,7 +485,7 @@ describe('gtensor', () => {
           [1, 1],
         ],
       ]),
-      ['a', 'b', 'c']
+      ['a', 'b', 'c'],
     );
     const t2 = t.mergeDims(['a', 'b'], 'ab');
     expect(t2.gshape()).toEqual({ ab: 4, c: 2 });
@@ -521,7 +521,7 @@ describe('gtensor', () => {
         [1, 0, 0],
         [1, 1, 0],
       ]),
-      ['example', 'rep']
+      ['example', 'rep'],
     );
     const t2 = t.splitDim('example', { x: 2, y: 2 });
     expect(t2.gshape()).toEqual({ x: 2, y: 2, rep: 3 });
@@ -549,7 +549,7 @@ describe('gtensor', () => {
           [1, 1],
         ],
       ]),
-      ['a', 'b', 'c']
+      ['a', 'b', 'c'],
     );
 
     const rSumA = t.prodOverDims(['a']);
@@ -590,7 +590,7 @@ describe('gtensor', () => {
           [1, 1],
         ],
       ]),
-      ['a', 'b', 'c']
+      ['a', 'b', 'c'],
     );
 
     const rSumA = t.sumOverDims(['a']);
@@ -626,7 +626,7 @@ describe('gtensor', () => {
         [2, 1],
         [3, 1],
       ]),
-      ['point_id', 'inputRepSize']
+      ['point_id', 'inputRepSize'],
     );
     const g2 = GTensor.fromSerialised(g.toSerialised());
     expect(g.tensor.arraySync()).toEqual(g2.tensor.arraySync());
@@ -639,7 +639,7 @@ describe('gtensor', () => {
         [0, 1],
         [1, 1],
       ]),
-      ['point_id', 'inputRepSize']
+      ['point_id', 'inputRepSize'],
     );
 
     const r = paramPositions.squaredDifference(paramPositions.rename('point_id', 'point_id2'));
@@ -671,7 +671,7 @@ describe('gtensor', () => {
         [1, 2, 3, 4],
         [5, 6, 7, 8],
       ]),
-      ['heads', 'relativePos']
+      ['heads', 'relativePos'],
     );
 
     const indexes = new gtensor.GTensor(
@@ -682,9 +682,9 @@ describe('gtensor', () => {
           [2, 3],
         ],
         [3, 2],
-        'int32'
+        'int32',
       ),
-      ['keyPos', 'queryPos']
+      ['keyPos', 'queryPos'],
     );
 
     const gathered = g.gather(indexes, 'relativePos');
@@ -704,7 +704,7 @@ describe('gtensor', () => {
             [7, 8],
           ],
         ])
-        .dataSync()
+        .dataSync(),
     );
   });
 
@@ -741,7 +741,7 @@ describe('gtensor', () => {
           [6, 7.3],
         ], // example index 1
       ]),
-      ['batch', 'pos', 'repSize']
+      ['batch', 'pos', 'repSize'],
     );
 
     tf.test_util.expectArraysClose(
@@ -759,7 +759,7 @@ describe('gtensor', () => {
             tf.softmax([6, 7.3]).dataSync(),
           ],
         ])
-        .dataSync()
+        .dataSync(),
     );
 
     const gsoftmax = g.softmax('pos');
@@ -781,11 +781,11 @@ describe('gtensor', () => {
           [batch1pos0rep[2], batch1pos1rep[2]],
         ],
       ]),
-      ['batch', 'pos', 'repSize']
+      ['batch', 'pos', 'repSize'],
     );
     tf.test_util.expectArraysClose(
       gsoftmax.tensor.dataSync(),
-      expectedGTensor.transposeLike(gsoftmax).tensor.dataSync()
+      expectedGTensor.transposeLike(gsoftmax).tensor.dataSync(),
     );
   });
 
@@ -809,7 +809,7 @@ describe('gtensor', () => {
           [6, 7],
         ], // example index 1
       ]),
-      ['example', 'pos', 'repSize']
+      ['example', 'pos', 'repSize'],
     );
 
     const gs = g.unstack('pos');
@@ -829,7 +829,7 @@ describe('gtensor', () => {
     });
 
     function attentionHeadFn(
-      input: GTensor<'seqLen' | 'inputRep'>
+      input: GTensor<'seqLen' | 'inputRep'>,
     ): GTensor<'seqLen' | 'valueRep'> {
       const inputKeys = input.contract(keyM, ['inputRep']).rename('seqLen', 'keySeqLen');
       const inputQueries = input.contract(queryM, ['inputRep']);
@@ -871,15 +871,13 @@ describe('gtensor', () => {
       _Error_GivenHadExtraTypes: ['Error_GivenHadExtraTypes', T];
     }
 
-    type ExactGTensor<Exact extends string, Given extends string> = Exclude<
-      Given,
-      Exact
-    > extends never
-      ? GTensor<Given>
-      : ErrorGivenHadExtraTypes<Exclude<Given, Exact>>;
+    type ExactGTensor<Exact extends string, Given extends string> =
+      Exclude<Given, Exact> extends never
+        ? GTensor<Given>
+        : ErrorGivenHadExtraTypes<Exclude<Given, Exact>>;
 
     function attentionHeadFn2<T extends string>(
-      maybeInput: ExactGTensor<'seqLen' | 'inputRep', T>
+      maybeInput: ExactGTensor<'seqLen' | 'inputRep', T>,
     ): GTensor<'seqLen' | 'valueRep'> {
       const input = maybeInput as never as GTensor<'seqLen' | 'inputRep'>;
       const inputKeys = input.contract(keyM, ['inputRep']).rename('seqLen', 'keySeqLen');
@@ -899,63 +897,92 @@ describe('gtensor', () => {
 
   it('simple Lower triangular -Inf mask', async () => {
     const g1 = new gtensor.GTensor(
-      tf.tensor([[[
-        [1, 2, 3],
-        [3, 4, 5],
-        [5, 6, 7]]
-      ]]),
-      ['heads', 'batch', 'Pos1', 'Pos2']
+      tf.tensor([
+        [
+          [
+            [1, 2, 3],
+            [3, 4, 5],
+            [5, 6, 7],
+          ],
+        ],
+      ]),
+      ['heads', 'batch', 'Pos1', 'Pos2'],
     );
     const g1tril = g1.TriangularMask(['batch', 'Pos1', 'Pos2'], -Infinity, 0);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
-    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(),
-      [[[[0, -Infinity, -Infinity],
-      [0, 0, -Infinity],
-      [0, 0, 0]]
-    ]]);
+    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
+      [
+        [
+          [0, -Infinity, -Infinity],
+          [0, 0, -Infinity],
+          [0, 0, 0],
+        ],
+      ],
+    ]);
   });
 
   it('Multiple heads Lower triangular -Inf mask', async () => {
     const g1 = new gtensor.GTensor(
       tf.tensor([
         [
-        [[1, 2, 3],
-        [3, 4, 5],
-        [5, 6, 7]],
-        [[8, 9, 10],
-      [11, 12, 13],
-      [14, 15, 16]]
-    ],
-    [
-      [[1, 2, 3],
-      [3, 4, 5],
-      [5, 6, 7]],
-      [[8, 9, 10],
-    [11, 12, 13],
-    [14, 15, 16]]
-  ]]),
-      ['heads', 'batch', 'Pos1', 'Pos2']
+          [
+            [1, 2, 3],
+            [3, 4, 5],
+            [5, 6, 7],
+          ],
+          [
+            [8, 9, 10],
+            [11, 12, 13],
+            [14, 15, 16],
+          ],
+        ],
+        [
+          [
+            [1, 2, 3],
+            [3, 4, 5],
+            [5, 6, 7],
+          ],
+          [
+            [8, 9, 10],
+            [11, 12, 13],
+            [14, 15, 16],
+          ],
+        ],
+      ]),
+      ['heads', 'batch', 'Pos1', 'Pos2'],
     );
     const g1tril = g1.TriangularMask(['batch', 'Pos1', 'Pos2'], 42, 1);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
-    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(),
-    [[[[1 , 42, 42],
-    [1 , 1        , 42],
-    [1 , 1        , 1        ]],
+    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
+      [
+        [
+          [1, 42, 42],
+          [1, 1, 42],
+          [1, 1, 1],
+        ],
 
-   [[1 , 42, 42],
-   [1 , 1        , 42],
-   [1 , 1        , 1        ]]],
+        [
+          [1, 42, 42],
+          [1, 1, 42],
+          [1, 1, 1],
+        ],
+      ],
 
+      [
+        [
+          [1, 42, 42],
+          [1, 1, 42],
+          [1, 1, 1],
+        ],
 
-  [[[1 , 42, 42],
-  [1 , 1        , 42],
-  [1 , 1        , 1        ]],
-
-   [[1 , 42, 42],
-   [1 , 1        , 42],
-   [1 , 1        , 1        ]]]]);
+        [
+          [1, 42, 42],
+          [1, 1, 42],
+          [1, 1, 1],
+        ],
+      ],
+    ]);
   });
 });
