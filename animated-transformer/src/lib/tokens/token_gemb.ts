@@ -280,25 +280,23 @@ export function singleNextTokenIdxOutputPrepFn(
     ['batch']
   );
 }
-/*
- Creates two GTensors:
- - One contains the list of targets per token/position in each sample of the batch
- - The other contains the tokenId representation of the tokens on the previous list
-*/
- export function nextTokenPerPosIdxOutputPrepFn(
+
+// Returns the one Hot representation for each token of the expected output sequence for the provided input sequence
+ export function expectedOutputSeqPrepFn(
   model: { config: { tokenRep: BasicTaskTokenRep } },
   inputSeqs: string[][],
   expectedOutputs: string[][],
 ): GTensor<'batch' | 'pos' | 'tokenId'> {
   // Compute Token rep for inputSeq
-  const inputTokenRep = inputSeqs.map((SingleSample) => SingleSample.map((token) => model.config.tokenRep.tokenToIdx[token]))
+  const inputSeq = inputSeqs.map((SingleSample) => SingleSample.map((token) => model.config.tokenRep.tokenToIdx[token]))
    // Compute Token rep for inputSeq
-  const outTokenRep = expectedOutputs.map((outputToken) => model.config.tokenRep.tokenToIdx[outputToken[0]])
+  const expectedOutputSeq = expectedOutputs.map((outputToken) => model.config.tokenRep.tokenToIdx[outputToken[0]])
   // Shift input sequences to the right and add the corresponding target in "expectedOutputs" at the end of each sequence
-  let shiftedInputs = inputTokenRep.map((x) => x.slice(1, ))
-  const idxTargets = outTokenRep.map((y, index) => shiftedInputs[index].concat(y))
-  const oneHotTargets = idxTargets.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
-  return new GTensor(tf.tensor(oneHotTargets),['batch', 'pos', 'tokenId']);
+  let shiftedInputs = inputSeq.map((x) => x.slice(1, ))
+  const expectedOutputSeqIdx = expectedOutputSeq.map((y, index) => shiftedInputs[index].concat(y))
+  const expectedOutputSeqOneHot = expectedOutputSeqIdx.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
+  // TODO: We should probably be using a lookup function and storing the one-hot for every token in the GPU as a constant.
+  return new GTensor(tf.tensor(expectedOutputSeqOneHot),['batch', 'pos', 'tokenId']);
 }
 
 

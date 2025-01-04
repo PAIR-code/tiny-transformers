@@ -36,13 +36,13 @@ import {
   transformerAccuracy,
   TransformerModel,
   initDecoderParams,
-  AllPastTokensCrossEntropyLoss,
+  allPastTokensCrossEntropyLoss,
 } from '../transformer/transformer_gtensor';
 import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
 import {
   strSeqPrepFn,
   singleNextTokenIdxOutputPrepFn,
-  nextTokenPerPosIdxOutputPrepFn,
+  expectedOutputSeqPrepFn,
   prepareBasicTaskTokenRep,
 } from '../tokens/token_gemb';
 import * as yargs from 'yargs';
@@ -134,8 +134,8 @@ function computeLoss(
     batchInput,
     randomStream
   );
-  const nextTokenOneHot = nextTokenPerPosIdxOutputPrepFn(model, batchInput, batchOutput);
-  const entropyLoss: tf.Scalar = AllPastTokensCrossEntropyLoss(model, computation, nextTokenOneHot);
+  const targetTokensOneHot = expectedOutputSeqPrepFn(model, batchInput, batchOutput);
+  const entropyLoss: tf.Scalar = allPastTokensCrossEntropyLoss(model, computation, targetTokensOneHot);
   if (batchId % printEveryNBatches === 0) {
     console.log(
       `batch: ${batchId} `.padEnd(15) +
