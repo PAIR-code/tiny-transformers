@@ -17,7 +17,13 @@ limitations under the License.
 
 import { GVariable, GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { strSeqPrepFn, embed, prepareBasicTaskTokenRep, embedBatch } from '../tokens/token_gemb';
+import {
+  strSeqPrepFn,
+  embed,
+  prepareBasicTaskTokenRep,
+  embedBatch,
+  expectedOutputSeqPrepFn,
+} from '../tokens/token_gemb';
 
 describe('token_gemb', () => {
   it('embed', () => {
@@ -99,7 +105,7 @@ describe('token_gemb', () => {
         makeTruncNormal({
           tokenId: tokenRep.tokens.length,
           inputRep: 2,
-        })
+        }),
       ),
     };
 
@@ -124,5 +130,34 @@ describe('token_gemb', () => {
     expect(positionEmb[3].tensor.arraySync()).toEqual(bRep);
     expect(positionEmb[4].tensor.arraySync()).toEqual(padRep);
     expect(positionEmb[5].tensor.arraySync()).toEqual(aRep);
+  });
+
+  it('expectedOutputSeqPrepFn', () => {
+    const tokens = ['a', 'b'];
+    const tokenRep = prepareBasicTaskTokenRep(tokens);
+    const batchInput: string[][] = [
+      ['a', 'b'],
+      ['b', 'a'],
+    ];
+    const batchOutput: string[][] = [['a'], ['b']];
+    const targetTokensOneHot = expectedOutputSeqPrepFn(
+      { config: { tokenRep } },
+      batchInput,
+      batchOutput,
+    );
+
+    const expectedOutputArr: [Array<Array<number>>, Array<Array<number>>] = [
+      [
+        [0, 1, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0],
+      ],
+      [
+        [1, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0],
+      ],
+    ];
+
+    expect(targetTokensOneHot.tensor.arraySync()).toEqual(expectedOutputArr);
+    expect(targetTokensOneHot.dimNames).toEqual(['batch', 'pos', 'tokenId'])
   });
 });
