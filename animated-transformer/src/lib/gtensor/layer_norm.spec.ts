@@ -55,17 +55,6 @@ describe('layer_norm', () => {
     expect(gNormed.gshape()).toEqual({ pos: 3, rep: 3 });
   });
 
-  it('Init simple Layer Norm', () => {
-    const epsilonNum = 1e3;
-    const layerNormParams = initLayerNormParams(true, undefined, epsilonNum);
-    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
-    if (layerNormParams.bias == undefined) {
-      throw new Error("Bias is undefined when it shouldn't be.");
-    }
-    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
-    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
-  });
-
   it('Multi-dimensional Layer Norm', () => {
     const layerNormDim = 3;
     const epsilonNum = 1e3;
@@ -97,6 +86,29 @@ describe('layer_norm', () => {
     ]);
 
     expect(gNormed.gshape()).toEqual({ pos: 3, rep: 3 });
+  });
+
+  it('Init simple Layer Norm', () => {
+    const epsilonNum = 1e3;
+    const layerNormParams = initLayerNormParams(true, undefined, epsilonNum);
+    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
+    if (layerNormParams.bias == undefined) {
+      throw new Error("Bias is undefined when it shouldn't be.");
+    }
+    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
+    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
+  });
+
+  it('Init multi-dimensional Layer Norm', () => {
+    const epsilonNum = 1e3;
+    const layerNormDim = 3;
+    const layerNormParams = initLayerNormParams(true, {"pos": layerNormDim}, epsilonNum);
+    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1, 1, 1]);
+    if (layerNormParams.bias == undefined) {
+      throw new Error("Bias is undefined when it shouldn't be.");
+    }
+    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0, 0, 0]);
+    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
   });
 
   it('Layer Norm grad', () => {
