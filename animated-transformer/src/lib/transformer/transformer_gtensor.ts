@@ -358,6 +358,9 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
+  // TODO: eventually we would like to pass in precomputed attention mask to the function,
+  // rather than recompute attention masks inference pass
+
   const maskedAffinities = computeMaskedAffinities(rawAttention);
   const attention = maskedAffinities.softmax('queryPos');
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
@@ -535,7 +538,7 @@ export function lastTokenCrossEntropyLoss(
 /**
  * Compute the logits for all the past tokens of a transformer
  */
-export function AllPastTokensLogits(
+export function allPastTokensLogits(
   model: {
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
@@ -550,14 +553,14 @@ export function AllPastTokensLogits(
  * Returns the Softmax Cross Entropy Loss between the logits and the oneHotEncoded targets
  * Batch compute the loss for all the past tokens of a transformer.
  */
-export function AllPastTokensCrossEntropyLoss(
+export function allPastTokensCrossEntropyLoss(
   model: {
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
   computation: TransformerComputation,
   oneHotToken: GTensor<'batch'| 'pos'| 'tokenId'>
 ): tf.Scalar {
-  const logits = AllPastTokensLogits(model, computation);
+  const logits = allPastTokensLogits(model, computation);
   const crossEntropyLoss = tf.losses.softmaxCrossEntropy(oneHotToken.tensor,logits.tensor);
   return crossEntropyLoss.asScalar()
 }
