@@ -48,7 +48,7 @@ import {
   makePosAttentionMatrix,
 } from './relative_pos_encoding';
 import {
-  initLayerNormParams,
+  initLayerNormParamsWithDims,
   layerNorm,
   TensorLayerNormParams,
   VarLayerNormParams,
@@ -124,9 +124,9 @@ export type FfParams<T extends TensorOrVarKind, Input extends DName, Output exte
 // & {} is workaround for https://github.com/microsoft/TypeScript/issues/48070
 
 // More workaround for https://github.com/microsoft/TypeScript/issues/48070
-export type LayerNormParams<T extends TensorOrVarKind, DName=never> = T extends VariableKind
-  ? VarLayerNormParams
-  : TensorLayerNormParams;
+export type LayerNormParams<T extends TensorOrVarKind, D extends DName=never> = T extends VariableKind
+  ? VarLayerNormParams<D>
+  : TensorLayerNormParams<D>;
 
 // Use of type here to be compatible with generic params.
 export type AttnHeadParams<T extends TensorOrVarKind> = {
@@ -143,7 +143,7 @@ export type AttnHeadParams<T extends TensorOrVarKind> = {
 
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
   layerNormHeadsProjection?: LayerNormParams<T, 'inputRepToFF'>; // 768 + 768
-  layerNormPostFF?: LayerNormParams<T>; // 768 + 768
+  layerNormPostFF?: LayerNormParams<T, 'inputRep'>; // 768 + 768
   ff1: FfParams<T, 'inputRepToFF', 'hiddenRep'>; // 768 * 4 * 768
   ff2: FfParams<T, 'inputRepToFF', 'inputRep'>; // 4 * 768 * 768
 } & {};
@@ -206,10 +206,10 @@ export function initAttnHeadParams(
     }
   };
   if (spec.layerNormFF) {
-    attnHeadParams.layerNormPostFF = initLayerNormParams(spec.addLayerNormBias);
+    attnHeadParams.layerNormPostFF = initLayerNormParamsWithDims(spec.addLayerNormBias, {'inputRep': inputRep});
   }
   if (spec.layerNormHeadsProjection) {
-    attnHeadParams.layerNormHeadsProjection = initLayerNormParams(spec.addLayerNormBias);
+    attnHeadParams.layerNormHeadsProjection = initLayerNormParamsWithDims(spec.addLayerNormBias, {'inputRepToFF': inputRep});
   }
   return attnHeadParams;
 }

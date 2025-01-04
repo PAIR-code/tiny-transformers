@@ -14,8 +14,8 @@ limitations under the License.
 ==============================================================================*/
 
 // gtensor.spec.ts
-import { GTensor, makeScalar, makeConstant, makeRange } from './gtensor';
-import { layerNorm, initLayerNormParams } from './layer_norm';
+import { GTensor, makeScalar, makeConstant, makeRange, TensorKind } from './gtensor';
+import { layerNorm, initLayerNormParams, initLayerNormParamsWithDims, LayerNormParams } from './layer_norm';
 import * as tf from '@tensorflow/tfjs';
 import { computeLossAndGrads } from './grad';
 
@@ -90,7 +90,7 @@ describe('layer_norm', () => {
 
   it('Init simple Layer Norm', () => {
     const epsilonNum = 1e3;
-    const layerNormParams = initLayerNormParams(true, undefined, epsilonNum);
+    const layerNormParams : LayerNormParams<TensorKind> = initLayerNormParams(true, epsilonNum);
     tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");
@@ -102,7 +102,7 @@ describe('layer_norm', () => {
   it('Init multi-dimensional Layer Norm', () => {
     const epsilonNum = 1e3;
     const layerNormDim = 3;
-    const layerNormParams = initLayerNormParams(true, {"pos": layerNormDim}, epsilonNum);
+    const layerNormParams : LayerNormParams<TensorKind, "pos"> = initLayerNormParamsWithDims(true, {"pos": layerNormDim}, epsilonNum);
     tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1, 1, 1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");

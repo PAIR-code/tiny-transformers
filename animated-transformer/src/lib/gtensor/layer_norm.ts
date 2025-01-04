@@ -16,34 +16,39 @@ limitations under the License.
 import { GTensor, makeConstant, makeScalar, DName } from './gtensor';
 
 export type LayerNormParams<D extends DName = never> = {
+  // TODO(@aliciafmachado) Pass dimension if declared, otherwise pass never.
+  // Then add a test for it.
   gain: GTensor<D>;
   bias?: GTensor<D>;
   epsilon: GTensor<never>;
-} & {};
+};
 
-export function initLayerNormParams<T extends string = never>(
+export function initLayerNormParams(
   includeBias: boolean,
-  dims?: { [key in T]: number},
   epsilon = 1e5
-): LayerNormParams | LayerNormParams<T> {
-  if (dims) {
-    const layerNormParams: LayerNormParams<T> = {
-      gain: makeConstant(dims, 1.0, 'float32'),
-      epsilon: makeScalar(epsilon, 'float32'),
-    }
-
-    if (includeBias) {
-      layerNormParams.bias = makeConstant(dims, 0, 'float32');
-    }
-    return layerNormParams;
-  }
-
+): LayerNormParams {
   const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
     epsilon: makeScalar(epsilon, 'float32'),
   };
   if (includeBias) {
     layerNormParams.bias = makeScalar(0, 'float32');
+  }
+  return layerNormParams;
+}
+
+export function initLayerNormParamsWithDims<T extends string>(
+  includeBias: boolean,
+  dims: { [key in T]: number},
+  epsilon = 1e5
+): LayerNormParams<T> {
+  const layerNormParams: LayerNormParams<T> = {
+    gain: makeConstant(dims, 1.0, 'float32'),
+    epsilon: makeScalar(epsilon, 'float32'),
+  }
+
+  if (includeBias) {
+    layerNormParams.bias = makeConstant(dims, 0, 'float32');
   }
   return layerNormParams;
 }
