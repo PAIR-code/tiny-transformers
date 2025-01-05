@@ -288,11 +288,11 @@ export function singleNextTokenIdxOutputPrepFn(
   expectedOutputs: string[][],
 ): GTensor<'batch' | 'pos' | 'tokenId'> {
   // Compute Token rep for inputSeq
-  const inputSeq = inputSeqs.map((SingleSample) => SingleSample.map((token) => model.config.tokenRep.tokenToIdx[token]))
+  const batchInputs = inputSeqs.map((inputSeq) => inputSeq.map((token) => model.config.tokenRep.tokenToIdx[token]))
    // Compute Token rep for inputSeq
   const expectedOutputSeq = expectedOutputs.map((outputToken) => model.config.tokenRep.tokenToIdx[outputToken[0]])
   // Shift input sequences to the right and add the corresponding target in "expectedOutputs" at the end of each sequence
-  let shiftedInputs = inputSeq.map((x) => x.slice(1, ))
+  let shiftedInputs = batchInputs.map((x) => x.slice(1, ))
   const expectedOutputSeqIdx = expectedOutputSeq.map((y, index) => shiftedInputs[index].concat(y))
   const expectedOutputSeqOneHot = expectedOutputSeqIdx.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
   // TODO: We should probably be using a lookup function and storing the one-hot for every token in the GPU as a constant.
