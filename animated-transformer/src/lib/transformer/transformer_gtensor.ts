@@ -560,8 +560,8 @@ export function allPastTokensCrossEntropyLoss(
   oneHotToken: GTensor<'batch' | 'pos' | 'tokenId'>,
 ): tf.Scalar {
   const logits = allPastTokensLogits(model, computation);
-  const crossEntropyLoss = tf.losses.softmaxCrossEntropy(oneHotToken.tensor, logits.tensor);
-  return crossEntropyLoss.asScalar();
+  const crossEntropyLoss = logits.softmaxCrossEntropy(oneHotToken);
+  return crossEntropyLoss.tensor.asScalar();
 }
 /** Batch compute the top prediction from the last token of a transformer.
  *
