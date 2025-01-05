@@ -860,10 +860,10 @@ export class GTensor<G extends DName> {
     // Compare row and column indices to generate a boolean mask
     const mask = tf.greater(rowIndices, colIndices);
     // Apply mask and broadcast
-    const maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this);
+    const maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this).transposeLike(this);
     // TODO laubrito: It might be a good idea to have a gtensor version of tf.where to avoid bradcasting errors
     const maskedM = tf.where(
-      maskBroadcasted.tensor.reshape(this.tensor.shape),
+      maskBroadcasted.tensor,
       tf.scalar(upperTriangleConst).broadcastTo(this.tensor.shape),
       this.tensor,
     );
