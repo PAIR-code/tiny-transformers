@@ -176,7 +176,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
 
   // TODO: Find a better place for the idxToOneHot lookup table
   const idxToOneHot : {[tokenIdx: number]: number[] } = {};
-  const oneHotTokens : number[] | any[] = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync()];
+  const oneHotTokens = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync() as number[][]];
   Object.values(tokenToIdx).forEach((i) => (idxToOneHot[i] = oneHotTokens[0][i]));
   return {
     maskToken,
