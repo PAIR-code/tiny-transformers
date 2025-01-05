@@ -146,7 +146,7 @@ describe('token_gemb', () => {
       batchOutput,
     );
 
-    const expectedOutputArr: [Array<Array<number>>, Array<Array<number>>] = [
+    const expectedOutputArr: number[][][] = [
       [
         [0, 1, 0, 0, 0, 0],
         [1, 0, 0, 0, 0, 0],

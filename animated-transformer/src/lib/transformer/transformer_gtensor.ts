@@ -316,12 +316,6 @@ function gelu(x: tf.Tensor) {
   return tf.mul(x, cdf);
 }
 
-export function computeMaskedAffinities(
-  qk: GTensor<'batch' | 'keyPos' | 'heads' | 'queryPos'>, // q @ k / rawAttention
-): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
-  return qk.triangularMask('keyPos', 'queryPos', -Infinity);
-}
-
 // (Approximation for) Compute (batched) attention.
 //
 // Note: for non-batched attention, the code is identical, just remove the
@@ -360,7 +354,7 @@ export function computeAttnHead(
   // TODO: eventually we would like to pass in precomputed attention mask to the function,
   // rather than recompute attention masks inference pass
 
-  const maskedAffinities = computeMaskedAffinities(rawAttention);
+  const maskedAffinities = rawAttention.triangularMask('keyPos', 'queryPos', -Infinity);
   const attention = maskedAffinities.softmax('queryPos');
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
