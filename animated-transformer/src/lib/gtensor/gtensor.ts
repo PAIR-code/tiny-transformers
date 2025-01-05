@@ -834,44 +834,41 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  public triangularMask(dim1 : G, dim2: G, upper_triangle_const : number = 1, lower_triangle_const: number = 0): GTensor<G> {
-  /* Returns a triangular mask of the same shape as the provided GTensor
-  with upper tril values set 'upper_triangle_const' (default = 1)
-  and lower tril values set to 'lower_triangle_const' (default = 0)
+  public triangularMask(dim1 : G, dim2: G, upperTriangleConst: number): GTensor<G> {
+  /* Applies a triangular mask to the provided GTensor
+  the values of the upper triangle are set 'upper_triangle_const'
 
   Parameters:
   - dim1: First dimension of the triangular mask matrix (Should exist in the GTensor)
   - dim2: First dimension of the triangular mask matrix (Should exist in the GTensor)
-  - upper_triangle_const = constant to fill the upper triangle of the matrix, default = 1
-  - lower_triangle_const = constant to fill the lower triangle of the matrix, default = 0
+  - upper_triangle_const = constant to fill the upper triangle of the matrix
 
   Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
   */
 
-    let Pos_2 = this.dim[dim1].size
-    let Pos = this.dim[dim2].size
+    let size = this.dim[dim1].size
+    let size2 = this.dim[dim2].size
 
-    if (Pos !== Pos_2){
+    if (size !== size2){
       throw new Error(
         `Can't generate lower triangular mask for non square tensor `
       );
     }
 
-    // Make 2D tensor with 'upper_triangle_const' in the Upper triangle
-    let triu_aux = tf.fill([Pos+1, Pos], upper_triangle_const) // Make non square constant matrix of shape [Pos+1, Pos]
-    triu_aux = tf.linalg.bandPart(triu_aux, 0, -1) // Replace all the values under the main diagonal by 0
-    triu_aux = tf.slice(triu_aux, [1, 0], [Pos, Pos]) // Remove first row to obtain square matrix with tril = 0 and triu = 'upper_triangle_const'
-    // Make 2D Tensor with Ones in the Lower triangle
-    let tril_aux = tf.fill([Pos, Pos], lower_triangle_const)
-    tril_aux = tf.linalg.bandPart(tril_aux, 0, -1)
-    tril_aux = tril_aux.transpose() // I can directly transpose as I need the non zero values in the lower triangle to include the main diagonal
-    let tril_mask = tril_aux.add(triu_aux)
-
-    // Broadcast over batch and heads Dimension
-    let gtril_mask_broadcasted = new GTensor(tril_mask, [dim1, dim2]).broadcastToCombinedShape(this)
-    return gtril_mask_broadcasted;
+    // Create a range tensor for row indices
+    const rowIndices = tf.range(0, size, 1, 'int32');
+    // Create a range tensor for column indices and expand dimensions
+    const colIndices = tf.range(0, size, 1, 'int32').expandDims(1);
+    // Compare row and column indices to generate a boolean mask
+    const mask = tf.greater(rowIndices, colIndices);
+    // Apply mask and broadcast
+    const maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this)
+    const maskedM = tf.where(maskBroadcasted.tensor.reshape(this.tensor.shape), tf.scalar(upperTriangleConst).broadcastTo(this.tensor.shape), this.tensor);
+    return new GTensor(maskedM, this.dimNames);
   }
+
 }
+
 
 export class GVariable<G extends DName> extends GTensor<G> {
   variable: tf.Variable;

@@ -900,23 +900,23 @@ describe('gtensor', () => {
       tf.tensor([
         [
           [
-            [1, 2, 3],
+            [0, 1, 2],
             [3, 4, 5],
-            [5, 6, 7],
+            [6, 7, 8],
           ],
         ],
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.triangularMask('Pos1', 'Pos2', -Infinity, 0);
+    const g1tril = g1.triangularMask('Pos1', 'Pos2', -Infinity);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
       [
         [
           [0, -Infinity, -Infinity],
-          [0, 0, -Infinity],
-          [0, 0, 0],
+          [3, 4, -Infinity],
+          [6, 7, 8],
         ],
       ],
     ]);
@@ -927,60 +927,60 @@ describe('gtensor', () => {
       tf.tensor([
         [
           [
-            [1, 2, 3],
+            [0, 1, 2],
             [3, 4, 5],
-            [5, 6, 7],
+            [6, 7, 8],
           ],
           [
-            [8, 9, 10],
-            [11, 12, 13],
-            [14, 15, 16],
+            [9, 10, 11],
+            [12, 13, 14],
+            [15, 16, 17],
           ],
         ],
         [
           [
-            [1, 2, 3],
+            [0, 1, 2],
             [3, 4, 5],
-            [5, 6, 7],
+            [6, 7, 8],
           ],
           [
-            [8, 9, 10],
-            [11, 12, 13],
-            [14, 15, 16],
+            [9, 10, 11],
+            [12, 13, 14],
+            [15, 16, 17],
           ],
         ],
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.triangularMask('Pos1', 'Pos2', 42, 1);
+    const g1tril = g1.triangularMask('Pos1', 'Pos2', 42);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
       [
         [
-          [1, 42, 42],
-          [1, 1, 42],
-          [1, 1, 1],
+          [0, 42, 42],
+          [3, 4, 42],
+          [6, 7, 8],
         ],
 
         [
-          [1, 42, 42],
-          [1, 1, 42],
-          [1, 1, 1],
+          [9, 42, 42],
+          [12, 13, 42],
+          [15, 16, 17],
         ],
       ],
 
       [
         [
-          [1, 42, 42],
-          [1, 1, 42],
-          [1, 1, 1],
+          [0, 42, 42],
+          [3, 4, 42],
+          [6, 7, 8],
         ],
 
         [
-          [1, 42, 42],
-          [1, 1, 42],
-          [1, 1, 1],
+          [9, 42, 42],
+          [12, 13, 42],
+          [15, 16, 17],
         ],
       ],
     ]);
