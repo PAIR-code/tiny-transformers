@@ -352,7 +352,7 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
   // Consider: this may not be needed if we manage data via disposing the
   // content/data signals in some other way, e.g. with an environment dispose
   // operation? To think about.
-  dataUpdateDep: DerivedSignal<void>;
+  dataUpdateDeps: AbstractSignal<void>[] = [];
 
   // This is how UI code interacts with a section.
   inputs = {} as {
@@ -395,11 +395,13 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
 
     // Note: assumes that this.data is made up of it's parts, and not the parts
     // are made from the overall data object.
-    this.dataUpdateDep = this.space.derived(() => {
-      const curContent = this.content();
-      const f = (oldData: SectionDataDef) => (oldData.sectionData.content = curContent);
-      this.data.change(f);
-    });
+    this.dataUpdateDeps.push(
+      this.space.derived(() => {
+        const curContent = this.content();
+        const f = (oldData: SectionDataDef) => (oldData.sectionData.content = curContent);
+        this.data.change(f);
+      }),
+    );
   }
 
   // This happens after construction, but before connecting cells.
@@ -453,7 +455,7 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
       if (cellInputRef.kind === CellSectionInputKind.FromJsonSection) {
         const jsonObjSignal = this.experiment.getJsonSectionContent(cellInputRef.sectionId);
         const sender = this.cell.inputs[inputId].connect();
-        this.experiment.space.derived(() => sender.set(jsonObjSignal()));
+        this.dataUpdateDeps.push(this.experiment.space.derived(() => sender.set(jsonObjSignal())));
         // TODO: think about if we need to disconnect this?
         // we at least need to remove the derived thing...
       } else if (cellInputRef.kind === CellSectionInputKind.FromCellOutput) {
@@ -502,7 +504,9 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
   }
 
   dispose() {
-    this.dataUpdateDep.node.dispose();
+    for (const dep of this.dataUpdateDeps) {
+      dep.node.dispose();
+    }
     // TODO: remove the now un-needed derivedLazy dep.
   }
 }

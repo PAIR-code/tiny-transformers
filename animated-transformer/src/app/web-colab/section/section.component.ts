@@ -1,4 +1,11 @@
-import { Component, ElementRef, input, model, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  input,
+  model,
+  viewChild,
+} from '@angular/core';
 import { ExpDefKind, Experiment } from '../../../lib/weblab/experiment';
 import { MarkdownModule, MarkdownService } from 'ngx-markdown';
 import {
@@ -18,6 +25,7 @@ import { Section, SectionKind, SomeSection } from 'src/lib/weblab/section';
   providers: [MarkdownService],
   templateUrl: './section.component.html',
   styleUrl: './section.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SectionComponent {
   readonly edited = model.required<boolean>();

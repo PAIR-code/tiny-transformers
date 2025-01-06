@@ -295,7 +295,6 @@ export class SignalSpace {
   // Every update to the signal becomes an item in the async iterable.
   // CONSIDER: T must not be undefined?
   async *toIter<T>(s: SetableSignal<T> | DerivedSignal<T>): AsyncIterable<T> {
-    // const self = this;
     const buffer = [] as Promise<T>[];
     let resolveFn: (v: T) => void;
     let curPromise: Promise<T> = new Promise<T>((resolve) => {

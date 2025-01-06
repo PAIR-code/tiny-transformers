@@ -89,10 +89,16 @@ export class CellWorker<
   onceStartedResolver!: () => void;
   public onceStarted: Promise<void>;
 
+  // Function that actually gets run.
+  public runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>;
+
   constructor(
     public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
     public defaultPostMessageFn: (value: CellMessage, ports?: MessagePort[]) => void,
   ) {
+    this.runFn = async () => {
+      throw new Error('No run function was set.');
+    };
     this.id = `[workerKind:${JSON.stringify(this.kind.cellKindId)}]`;
     type InputStreamKey = keyof InputStreams & string;
     type InputStreamValue = InputStreams[keyof InputStreams];
@@ -120,6 +126,15 @@ export class CellWorker<
     this.stillExpectedInputs = new Set(this.inputSet);
   }
 
+  onStart(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
+    this.runFn = runFn;
+  }
+
+  // TODO: allow partial inputs here.
+  onStartAsyncInputs(runFn: () => Promise<void>) {
+    this.runFn = runFn;
+  }
+
   onMessage(message: { data: CellMessage }) {
     const { data } = message;
     if (!data) {
@@ -131,6 +146,7 @@ export class CellWorker<
         this.id = data.id + ':worker'; //`${data.id}.${this.id}`;
         this.initInputsAndOutputs();
         this.onceStartedResolver();
+        this.startWithInputs();
         break;
       }
       case CellMessageKind.FinishRequest: {
@@ -243,16 +259,14 @@ export class CellWorker<
 
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
-  async start(runFn: (input: ExpandOnce<SetableSignalStructFn<Inputs>>) => Promise<void>) {
-    await this.onceStarted;
+  async startWithInputs() {
     const inputs = await this.onceAllInputs;
     this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
-    await runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
+    await this.runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
     this.close();
   }
 
-  async run(runFn: () => Promise<void>) {
-    await this.onceStarted;
+  async startWithAsyncInputs(runFn: () => Promise<void>) {
     this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
     await runFn();
     this.close();

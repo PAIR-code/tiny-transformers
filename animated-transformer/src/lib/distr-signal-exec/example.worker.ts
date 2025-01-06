@@ -19,9 +19,8 @@ import { workerCell } from './lab-worker-cell';
 import { exampleCellAbstract as exampleCellKind } from './example.ailab';
 
 const cell = workerCell(exampleCellKind);
-const { derived } = cell.space;
-
-cell.start(async (inputs) => {
+cell.onStart(async (inputs) => {
+  const { derived } = cell.space;
   const { prefix } = inputs;
 
   cell.outputs.prefixLen.set(prefix().length);

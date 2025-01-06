@@ -15,7 +15,7 @@
       (update)="handleSectionJsonUpdate($event, sec.content)"
     ></app-codemirror-config-editor>
   }
-  @case (SectionKind.Cell) {
+  @case (SectionKind.WorkerCell) {
     <app-cell-section
       [experiment]="experiment()"
       [section]="section()"
