@@ -834,17 +834,16 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  public triangularMask(dim1: G, dim2: G, upperTriangleConst: number): GTensor<G> {
-    /* Applies a triangular mask to the provided GTensor
-  the values of the upper triangle are set 'upper_triangle_const'
-
-  Parameters:
-  - dim1: First dimension of the triangular mask matrix (Should exist in the GTensor)
-  - dim2: First dimension of the triangular mask matrix (Should exist in the GTensor)
-  - upper_triangle_const = constant to fill the upper triangle of the matrix
-
-  Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
+  /* Applies a Lower triangular mask to the provided GTensor
+  *
+  * Parameters:
+  * - dim1: Name of the First dimension of the triangular mask (Should exist in the GTensor)
+  * - dim2: Name of the Second dimension of the triangular mask (Should exist in the GTensor)
+  * - upperTriangleConst : All the entries avobe the main diagonal of the matrix will be replace by this value (default = 0)
+  *
+  * Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
   */
+  public triangularMask(dim1: G, dim2: G, upperTriangleConst: number = 0): GTensor<G> {
 
     let size = this.dim[dim1].size;
     let size2 = this.dim[dim2].size;
