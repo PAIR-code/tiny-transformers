@@ -13,17 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-/* Implements tests for GPT2 in TS */
-
-/* Check number of parameters */
-
 import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as transformer from './gpt2';
-import { AttnHeadParamSpec, AttnHeadComputeSpec, TransformerConfig, TransformerParamLayerSpec } from './gpt2';
+import { AttnHeadParamSpec, AttnHeadComputeSpec } from './gpt2';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { BasicTaskTokenRep, embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
-import { makeRandomStream } from '../state-iter/random';
+import { makeRandomStream } from '../random/random';
 import* as jstree from '../js_tree/js_tree';
 
 describe('GTensor Transformers', () => {
@@ -42,18 +38,31 @@ describe('GTensor Transformers', () => {
     // 12 Heads.
     const n_heads = 12;
     const embedding_size = 768;
-    const transformer_param_layer_spec: TransformerParamLayerSpec = {
+    const transformer_param_layer_spec: transformer.TransformerParamLayerSpec = {
         nHeads: n_heads,
         computeSpec: { residuals: true, dropoutRate: 0.0 },
         layerNormFF: true,
         layerNormHeadsProjection: true,
-        addLayerNormBias: true,
-        addPosEmbeddings: true
+        addLayerNormBias: true
       };
+
+    const tokens = Array(50257).fill("test");
+    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
+    // number of parameters.
+    const tokenRep: BasicTaskTokenRep = {
+        maskToken: "test", 
+        padToken: "test", 
+        eosToken: "test", 
+        tokens: tokens, 
+        tokenToIdx: {},
+    };
 
     // To be checked if this is right
     // 12 Layers.
-    const gpt2: TransformerConfig = {
+    const gpt2: transformer.TransformerConfig = {
+        id: 'GPT2',
+        kind: 'Transformer',
+        tokenRep: tokenRep,
           spec: {
             inputRep: embedding_size,
             hiddenRep: 4 * embedding_size,
@@ -70,23 +79,8 @@ describe('GTensor Transformers', () => {
             seed: 96,
           },
       };
-    // progress: embeddings is correct
-    // heads have more parameters than expected
-    // and i don't think that the positional encoders are in the parameters of the model
-    // so that's why it's not impacting the final number of parameters.
     
-    const tokens = Array(50257).fill("test");
-    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
-    // number of parameters.
-    const tokenRep: BasicTaskTokenRep = {
-        maskToken: "test", 
-        padToken: "test", 
-        eosToken: "test", 
-        tokens: tokens, 
-        tokenToIdx: {},
-    };
-    const params = transformer.initDecoderParamsTree(
-        tokenRep, 
+    const params = transformer.initDecoderParams(
         gpt2);
     // const params = transformer.initAttnHeadParams(paramSizes);
     // Check head size.
