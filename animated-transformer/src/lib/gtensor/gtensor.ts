@@ -834,14 +834,15 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  /* Applies a Lower triangular mask to the provided GTensor
-  *
+  /* Returns a triangular mask of the same shape as the provided GTensor and replaces masked values by -Infinity
+  * (Lower triangle values are set to 0)
   * Parameters:
   * - dim1: Name of the First dimension of the triangular mask (Should exist in the GTensor)
   * - dim2: Name of the Second dimension of the triangular mask (Should exist in the GTensor)
   * - upperTriangleConst : All the entries avobe the main diagonal of the matrix will be replace by this value (default = 0)
   *
   * Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
+  * TODO: Generalize to correspond to definition of lower triangular mask
   */
   public triangularMask(dim1: G, dim2: G, upperTriangleConst: number = 0): GTensor<G> {
 
@@ -856,17 +857,11 @@ export class GTensor<G extends DName> {
     const rowIndices = tf.range(0, size, 1, 'int32');
     // Create a range tensor for column indices and expand dimensions
     const colIndices = tf.range(0, size, 1, 'int32').expandDims(1);
-    // Compare row and column indices to generate a boolean mask
-    const mask = tf.greater(rowIndices, colIndices);
-    // Apply mask and broadcast
-    const maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this).transposeLike(this);
-    // TODO laubrito: It might be a good idea to have a gtensor version of tf.where to avoid bradcasting errors
-    const maskedM = tf.where(
-      maskBroadcasted.tensor,
-      tf.scalar(upperTriangleConst).broadcastTo(this.tensor.shape),
-      this.tensor,
-    );
-    return new GTensor(maskedM, this.dimNames);
+    // Compare row and column indices to generate a boolean mask. Apply the mask to a zeros matrix and replace false values by -Infinity
+    const mask = makeZeros({ x: size, y: size }).tensor.where(tf.lessEqual(rowIndices, colIndices), tf.scalar(upperTriangleConst));
+    // Broadcast over batch and heads Dimension
+    let maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this)
+    return maskBroadcasted;
   }
 
   public softmaxCrossEntropy(oneHotLabels: GTensor<G>): GTensor<G> {

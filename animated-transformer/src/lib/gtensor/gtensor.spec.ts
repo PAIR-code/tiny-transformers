@@ -895,7 +895,7 @@ describe('gtensor', () => {
     const attendedValues3 = attentionHeadFn2(oneInput);
   });
 
-  it('simple Lower triangular -Inf mask', async () => {
+  it('simple triangular mask', async () => {
     const g1 = new gtensor.GTensor(
       tf.tensor([
         [
@@ -908,15 +908,15 @@ describe('gtensor', () => {
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.triangularMask('Pos1', 'Pos2', -Infinity);
+    const g1tril = g1.triangularMask('Pos1', 'Pos2', 42);
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
       [
         [
-          [0, -Infinity, -Infinity],
-          [3, 4, -Infinity],
-          [6, 7, 8],
+          [0, 42, 42],
+          [0, 0, 42],
+          [0, 0, 0],
         ],
       ],
     ]);
@@ -952,34 +952,34 @@ describe('gtensor', () => {
       ]),
       ['heads', 'batch', 'Pos1', 'Pos2'],
     );
-    const g1tril = g1.triangularMask('Pos1', 'Pos2', 42);
+    const g1tril = g1.pointwiseAdd(g1.triangularMask('Pos1', 'Pos2', -Infinity));
 
     expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
       [
         [
-          [0, 42, 42],
-          [3, 4, 42],
+          [0, -Infinity, -Infinity],
+          [3, 4, -Infinity],
           [6, 7, 8],
         ],
 
         [
-          [9, 42, 42],
-          [12, 13, 42],
+          [9, -Infinity, -Infinity],
+          [12, 13, -Infinity],
           [15, 16, 17],
         ],
       ],
 
       [
         [
-          [0, 42, 42],
-          [3, 4, 42],
+          [0, -Infinity, -Infinity],
+          [3, 4, -Infinity],
           [6, 7, 8],
         ],
 
         [
-          [9, 42, 42],
-          [12, 13, 42],
+          [9, -Infinity, -Infinity],
+          [12, 13, -Infinity],
           [15, 16, 17],
         ],
       ],

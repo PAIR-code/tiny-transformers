@@ -110,7 +110,7 @@ describe('GTensor Transformers', () => {
       ]),
       ['batch', 'heads', 'keyPos', 'queryPos'],
     );
-    const masked = exampleAffinities.triangularMask('keyPos', 'queryPos', -Infinity).softmax('queryPos');
+    const masked = exampleAffinities.pointwiseAdd(exampleAffinities.triangularMask('keyPos', 'queryPos', -Infinity)).softmax('queryPos');
 
     expect(masked.dimNames).toEqual(['batch', 'heads', 'keyPos', 'queryPos']);
     tf.test_util.expectArraysClose(masked.tensor.arraySync(), [
