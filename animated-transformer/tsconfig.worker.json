@@ -7,7 +7,7 @@
       "ESNext",
       "webworker"
     ],
-    "types": ["wicg-file-system-access"]
+    // "types": ["wicg-file-system-access"]
   },
   "include": [
     "src/**/*.worker.ts"

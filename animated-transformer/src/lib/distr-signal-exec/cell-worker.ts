@@ -101,13 +101,13 @@ export class CellWorker<
     };
     this.id = `[workerKind:${JSON.stringify(this.kind.cellKindId)}]`;
     type InputStreamKey = keyof InputStreams & string;
-    type InputStreamValue = InputStreams[keyof InputStreams];
+    // type InputStreamValue = InputStreams[keyof InputStreams];
     type InputKey = keyof Inputs & string;
-    type InputValue = Inputs[keyof Inputs];
+    // type InputValue = Inputs[keyof Inputs];
     type OutputStreamKey = keyof OutputStreams & string;
-    type OutputStreamValue = OutputStreams[keyof OutputStreams];
+    // type OutputStreamValue = OutputStreams[keyof OutputStreams];
     type OutputKey = keyof Outputs;
-    type OutputValue = Outputs[keyof Outputs];
+    // type OutputValue = Outputs[keyof Outputs];
 
     this.inputSet = new Set<InputKey>(Object.keys(this.kind.inputs));
     this.outputSet = new Set<OutputKey>(Object.keys(this.kind.outputs));
@@ -206,7 +206,7 @@ export class CellWorker<
     type OutputValue = Outputs[keyof Outputs];
 
     let onceAllInputsResolver: (allInput: SetableSignalStructFn<Inputs>) => void;
-    this.onceAllInputs = new Promise<SetableSignalStructFn<Inputs>>((resolve, reject) => {
+    this.onceAllInputs = new Promise<SetableSignalStructFn<Inputs>>((resolve, _reject) => {
       onceAllInputsResolver = resolve;
     });
 

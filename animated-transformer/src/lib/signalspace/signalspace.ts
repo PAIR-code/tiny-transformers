@@ -279,7 +279,9 @@ export class SignalSpace {
     }
   }
 
-  noteEndedDerivedUpdate(node: DerivedNode<unknown>) {
+  // TODO: think about the argument... maybe we should check this is what was
+  // popped?
+  noteEndedDerivedUpdate(_node: DerivedNode<unknown>) {
     if (this.update) {
       this.computeStack.pop();
     }
@@ -579,6 +581,7 @@ export function asyncSignalIter<T>(
     if (nextIsWaiting) {
       resolveFn({ done: true, value: null });
     }
+    derivedPromiseUpdate.node.dispose();
   };
 
   const myIterator = {

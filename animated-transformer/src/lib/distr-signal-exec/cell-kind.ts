@@ -29,7 +29,7 @@ import { AbstractSignal, DerivedSignal, SetableSignal } from '../signalspace/sig
 // }
 // export type KindHolder<T> = ((value: T) => void) & { kind: CellValueKind };
 export type KindHolder<T> = (value: T) => void;
-export function Kind<T>(value: T): void {
+export function Kind<T>(_value: T): void {
   throw Error('a Kind function should never be called; it is just a type holder');
 }
 

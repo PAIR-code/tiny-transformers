@@ -12,7 +12,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+/*
+npx tsc -p weblab-examples/tsconfig.json
+*/
 
-import { CellKind } from '../src/lib/distr-signal-exec/cell-kind.ts';
+/// <reference lib="webworker" />
 
-export const fooKind = new CellKind('foo', {});
+import { workerCell } from '../src/lib/distr-signal-exec/lab-worker-cell.ts';
+import { fooKind } from './cell.kind.ts';
+
+const cell = workerCell(fooKind);
+cell.onStart(async () => {
+  console.log('hello!');
+});

@@ -21,7 +21,7 @@ limitations under the License.
  */
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import { AsyncIterOnEvents } from './async-iter-on-events';
-import { CellMessage, CellMessageKind, Remote, RemoteKind } from './lab-message-types';
+import { Remote } from './lab-message-types';
 
 // TODO: rename to sending / receiving to more directly represent the action,
 // and avoid the confusion of an input being an output type.
@@ -187,7 +187,7 @@ export class SignalSenderFanOut<T> implements FanRemotes {
       };
       remoteReceiver.messagePort.postMessage(message);
     }
-    remoteReceiver.messagePort.onmessage = (event: MessageEvent) => {
+    remoteReceiver.messagePort.onmessage = (_event: MessageEvent) => {
       console.warn(`unexpected message on output port ${this.signalId}`);
     };
   }
