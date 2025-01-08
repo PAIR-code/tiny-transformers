@@ -896,22 +896,8 @@ describe('gtensor', () => {
   });
 
   it('simple triangular matrix', async () => {
-    const g1 = new gtensor.GTensor(
-      tf.tensor([
-        [
-          [
-            [0, 1, 2],
-            [3, 4, 5],
-            [6, 7, 8],
-          ],
-        ],
-      ]),
-      ['heads', 'batch', 'Pos1', 'Pos2'],
-    );
-    const g1tril = gtensor.makeTriangularMatrix(g1.dim['Pos1'].size, ['Pos1', 'Pos2'], 0, 42);
-    //const g1tril = g1.triangularMask('Pos1', 'Pos2', 42);
-
-    //expect(g1tril.dimNames).toEqual(['heads', 'batch', 'Pos1', 'Pos2']);
+    const size = 3;
+    const g1tril = gtensor.makeTriangularMatrix(size, 'Pos1', 'Pos2', 0, 42);
     expect(g1tril.dimNames).toEqual(['Pos1', 'Pos2']);
     tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
       [0, 42, 42],

@@ -323,7 +323,8 @@ export function causalMask(
 ): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
   const triangularMatrix = makeTriangularMatrix(
     qk.dim['queryPos'].size,
-    ['keyPos', 'queryPos'],
+    'keyPos',
+    'queryPos',
     0,
     -Infinity,
   ).broadcastToCombinedShape(qk);

@@ -954,30 +954,34 @@ export function makeRange<T extends DName>(
   return new GTensor<T>(tf.range(start, end, step, dtype), [dname]);
 }
 
-/* Returns a 2D triangular mask of shape [size, size]
+/* Returns a 2D triangular matrix of shape [size, size]
  * Parameters:
- * - size: The dimension of the mask
- * - dimNames: Names of the dimensions of the final GTensor
- * - lowerLeftValue : All the values under the main diagonal and including the main diagonal will be replace by this value
- * - upperRightValue : All the entries avobe the main diagonal of the matrix will be replace by this value
+ * - size: The dimension of the matrix
+ * - d1Name: Name of the first dimension of the final GTensor
+ * - d2Name: Name of the second dimension of the final GTensor
+ * - lowerLeftValue : All the elements in and under the main diagonal will be replace by this value
+ * - upperRightValue : All the elements avobe the main diagonal of the matrix will be replace by this value
+ * - dtype : The type of an element in the resulting tensor. Defaults to 'float32'
  * // TODO add optianal broadcastTo dimensions/GTensor
  * */
-export function makeTriangularMatrix<N extends string, T extends string | number>(
+export function makeTriangularMatrix<N1 extends string, N2 extends string, T extends string | number>(
   size: number,
-  dimNames: N[],
+  d1Name: N1,
+  d2Name: N2,
   lowerLeftValue: T,
   upperRightValue: T,
-): GTensor<N> {
+  dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32'
+): GTensor<N1 | N2> {
   // Create a range tensor for row indices
   const rowIndices = tf.range(0, size, 1, 'int32');
   // Create a range tensor for column indices and expand dimensions
   const colIndices = tf.range(0, size, 1, 'int32').expandDims(1);
-  // Compare row and column indices to generate a boolean mask. Apply the mask to a lowerLeftValue matrix and replace false values by upperRightValue
+  // Compare row and column indices to generate a boolean mask. Apply it to a lowerLeftValue matrix and replace false values by upperRightValue
   const triangularMatrix = new GTensor(
     tf
-      .fill([size, size], lowerLeftValue)
-      .where(tf.lessEqual(rowIndices, colIndices), tf.scalar(upperRightValue)),
-    dimNames,
+      .fill([size, size], lowerLeftValue, dtype)
+      .where(tf.lessEqual(rowIndices, colIndices), tf.scalar(upperRightValue, dtype)),
+    [d1Name, d2Name],
   );
 
   return triangularMatrix;
