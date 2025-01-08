@@ -149,9 +149,11 @@ export type BasicTaskTokenRep = {
   maskToken: string;
   padToken: string;
   eosToken: string;
+  spaceToken: string;
   // tokens is all tokens, including mask, pod, eos, etc
   tokens: string[];
   tokenToIdx: { [token: string]: number };
+  idxToOneHot : {[tokenIdx: number]: number[]};
 };
 
 // ----------------------------------------------------------------------------
@@ -162,7 +164,8 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   const maskToken = '[MASK]';
   const padToken = '[PAD]';
   const eosToken = '[EOS]';
-  const vocab = [...baseVocab, maskToken, padToken, eosToken];
+  const spaceToken = ' '
+  const vocab = [ ...baseVocab, maskToken, padToken, eosToken, spaceToken];
   const tokenToIdx: { [token: string]: number } = {};
   vocab.forEach((t, i) => (tokenToIdx[t] = i));
 
@@ -170,12 +173,19 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   //   vocab,
   //   makeTruncNormal({ token: vocab.length, inputRep: repSize })
   // );
+
+  // TODO: Find a better place for the idxToOneHot lookup table
+  const idxToOneHot : {[tokenIdx: number]: number[] } = {};
+  const oneHotTokens = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync() as number[][]];
+  Object.values(tokenToIdx).forEach((i) => (idxToOneHot[i] = oneHotTokens[0][i]));
   return {
     maskToken,
     padToken,
     eosToken,
+    spaceToken,
     tokens: vocab,
     tokenToIdx,
+    idxToOneHot
   };
 }
 
@@ -270,6 +280,25 @@ export function singleNextTokenIdxOutputPrepFn(
     ['batch']
   );
 }
+
+// Returns the one Hot representation for each token of the expected output sequence for the provided input sequence
+ export function expectedOutputSeqPrepFn(
+  model: { config: { tokenRep: BasicTaskTokenRep } },
+  inputSeqs: string[][],
+  expectedOutputs: string[][],
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  // Compute Token rep for inputSeq
+  const batchInputs = inputSeqs.map((inputSeq) => inputSeq.map((token) => model.config.tokenRep.tokenToIdx[token]))
+   // Compute Token rep for inputSeq
+  const expectedOutputSeq = expectedOutputs.map((outputToken) => model.config.tokenRep.tokenToIdx[outputToken[0]])
+  // Shift input sequences to the right and add the corresponding target in "expectedOutputs" at the end of each sequence
+  let shiftedInputs = batchInputs.map((x) => x.slice(1, ))
+  const expectedOutputSeqIdx = expectedOutputSeq.map((y, index) => shiftedInputs[index].concat(y))
+  const expectedOutputSeqOneHot = expectedOutputSeqIdx.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
+  // TODO: We should probably be using a lookup function and storing the one-hot for every token in the GPU as a constant.
+  return new GTensor(tf.tensor(expectedOutputSeqOneHot),['batch', 'pos', 'tokenId']);
+}
+
 
 export function padInputSeqStart(
   paddingToken: string,

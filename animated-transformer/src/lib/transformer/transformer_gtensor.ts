@@ -33,6 +33,7 @@ import {
   makeScalar,
   GVariable,
   SerializedGTensor,
+  makeTriangularMatrix,
 } from '../gtensor/gtensor';
 import {
   ConstTKind,
@@ -59,6 +60,7 @@ import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_ge
 import * as jstree from '../js_tree/js_tree';
 import { makeModel, modelRegistry } from '../models/model_registry';
 import { RandomStream } from '../random/random';
+import { gtensor } from '..';
 // import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
@@ -267,7 +269,7 @@ export type TransformerModel = {
 export function initAttnHeadParams(
   spec: AttnHeadParamSpec,
   // TODO: take in param initializers, instead of one for all.
-  initConfig?: tf_init.TruncatedNormalArgs
+  initConfig?: tf_init.TruncatedNormalArgs,
 ): AttnHeadParams {
   const { inputRep, kq, value, heads } = spec;
   const attnHeadParams: AttnHeadParams = {
@@ -291,7 +293,7 @@ export function initAttnHeadParams(
     attnHeadParams.relativePosAttention = initRawRelativePosEncoding(
       spec.maxRelPosSeqLen,
       heads,
-      initConfig
+      initConfig,
     );
   }
   return attnHeadParams;
@@ -316,6 +318,19 @@ function gelu(x: tf.Tensor) {
   return tf.mul(x, cdf);
 }
 
+export function causalMask(
+  qk: GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'>,
+): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
+  const triangularMatrix = makeTriangularMatrix(
+    qk.dim['queryPos'].size,
+    'keyPos',
+    'queryPos',
+    0,
+    -Infinity,
+  ).broadcastToCombinedShape(qk);
+  return qk.pointwiseAdd(triangularMatrix).softmax('queryPos');
+}
+
 // (Approximation for) Compute (batched) attention.
 //
 // Note: for non-batched attention, the code is identical, just remove the
@@ -326,7 +341,7 @@ export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  generator: RandomStream
+  generator: RandomStream,
 ): BatchAttnHeadCompututation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
@@ -351,9 +366,9 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
-  const attention = rawAttention.softmax('queryPos');
-
-  // Dropout on the attention weights.
+  // TODO: eventually we would like to pass in precomputed attention mask to the function,
+  // rather than recompute attention masks inference pass
+  const attention = causalMask(rawAttention);
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
   const attendedValues = values
@@ -370,7 +385,7 @@ export function computeAttnHead(
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
       headsReductionAfterDropout,
-      'inputRepToFF'
+      'inputRepToFF',
     );
   }
 
@@ -393,13 +408,13 @@ export function computeAttnHead(
   const unNormedSeqOuputAfterDropout = dropout(
     spec.dropoutRate,
     unNormedSeqOuput,
-    generator.random()
+    generator.random(),
   );
 
   if (spec.residuals) {
     // FF residual.
     unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(
-      inputToFF.rename('inputRepToFF', 'inputRep')
+      inputToFF.rename('inputRepToFF', 'inputRep'),
     );
   }
 
@@ -441,7 +456,7 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
       tokenId: config.tokenRep.tokens.length,
       inputRep: spec.inputRep,
     },
-    init
+    init,
   );
   return { layers, tokenEmbedding };
 }
@@ -456,7 +471,7 @@ export function computeTransformer(
     params: TransformerParams;
   },
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  generator: RandomStream
+  generator: RandomStream,
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
   let currentLayerInput = dropout(model.config.spec.dropoutRate, seqInput, generator.random());
@@ -465,7 +480,7 @@ export function computeTransformer(
       model.config.spec.layers[i].computeSpec,
       layerParams,
       currentLayerInput,
-      generator
+      generator,
     );
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
@@ -491,7 +506,7 @@ export function lastTokenLogits(
   model: {
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
-  computation: TransformerComputation
+  computation: TransformerComputation,
 ): GTensor<'batch' | 'tokenId'> {
   const lastLayer = computation.layers[computation.layers.length - 1];
   const positionParams = lastLayer.seqOuput.unstack('pos');
@@ -508,7 +523,7 @@ export function lastTokenCrossEntropyLoss(
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
   computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
+  targetTokenIdxs: GTensor<'batch'>,
 ): tf.Scalar {
   const logits = lastTokenLogits(model, computation);
   const logProbs = logits.softmax('tokenId').log();
@@ -526,6 +541,35 @@ export function lastTokenCrossEntropyLoss(
   // return loss.tensor;
 }
 
+/**
+ * Compute the logits for all the past tokens of a transformer
+ */
+export function allPastTokensLogits(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
+): GTensor<'batch' | 'pos' | 'tokenId'> {
+  const lastLayer = computation.layers[computation.layers.length - 1];
+  const logits = lastLayer.seqOuput.contract(model.params.tokenEmbedding, ['inputRep']);
+  return logits;
+}
+
+/**
+ * Returns the Softmax Cross Entropy Loss between the logits and the oneHotEncoded targets
+ * Batch compute the loss for all the past tokens of a transformer.
+ */
+export function allPastTokensCrossEntropyLoss(
+  model: {
+    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+  },
+  computation: TransformerComputation,
+  oneHotToken: GTensor<'batch' | 'pos' | 'tokenId'>,
+): tf.Scalar {
+  const logits = allPastTokensLogits(model, computation);
+  const crossEntropyLoss = logits.softmaxCrossEntropy(oneHotToken);
+  return crossEntropyLoss.tensor.asScalar();
+}
 /** Batch compute the top prediction from the last token of a transformer.
  *
  * params: transformer parameters.
@@ -536,7 +580,7 @@ export function transformerTopPrediction(
   model: {
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
-  computation: TransformerComputation
+  computation: TransformerComputation,
 ): GTensor<'batch'> {
   const dotProd = lastTokenLogits(model, computation);
   return dotProd.argMax('tokenId');
@@ -547,7 +591,7 @@ export function transformerAccuracy(
     params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
   },
   computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
+  targetTokenIdxs: GTensor<'batch'>,
 ): tf.Scalar {
   const predictions = transformerTopPrediction(model, computation);
   return predictions
@@ -566,11 +610,11 @@ export function computeDecoder(
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
   inputs: string[][],
-  generator: RandomStream
+  generator: RandomStream,
 ): TransformerComputation {
   const maxInputLength = inputs.reduce(
     (max, curInput) => (max >= curInput.length ? max : curInput.length),
-    0
+    0,
   );
   const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
   return computeTransformer(model, gtensorInputs, generator);
@@ -583,7 +627,7 @@ export function computePrediction(
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
   inputs: string[][],
-  generator: RandomStream
+  generator: RandomStream,
 ): string[][] {
   const examplePredictions = tf.tidy(() => {
     const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
@@ -603,5 +647,5 @@ export function makeTransformer(transformerConfig: TransformerConfig): Transform
 
 export const transformerModelKind = modelRegistry.register(
   defaultTransformerConfig(),
-  makeTransformer
+  makeTransformer,
 );
