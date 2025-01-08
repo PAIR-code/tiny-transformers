@@ -834,36 +834,6 @@ export class GTensor<G extends DName> {
     return new GTensor<Exclude<G, D> | G2>(gathered, newDimNames);
   }
 
-  /* Returns a triangular mask of the same shape as the provided GTensor and replaces masked values by -Infinity
-  * (Lower triangle values are set to 0)
-  * Parameters:
-  * - dim1: Name of the First dimension of the triangular mask (Should exist in the GTensor)
-  * - dim2: Name of the Second dimension of the triangular mask (Should exist in the GTensor)
-  * - upperTriangleConst : All the entries avobe the main diagonal of the matrix will be replace by this value (default = 0)
-  *
-  * Note: Tensor will be broadcasted over additional dimension i.e. heads, batch.
-  * TODO: Generalize to correspond to definition of lower triangular mask
-  */
-  public triangularMask(dim1: G, dim2: G, upperTriangleConst: number = 0): GTensor<G> {
-
-    let size = this.dim[dim1].size;
-    let size2 = this.dim[dim2].size;
-
-    if (size !== size2) {
-      throw new Error(`Can't generate lower triangular mask for non square tensor `);
-    }
-
-    // Create a range tensor for row indices
-    const rowIndices = tf.range(0, size, 1, 'int32');
-    // Create a range tensor for column indices and expand dimensions
-    const colIndices = tf.range(0, size, 1, 'int32').expandDims(1);
-    // Compare row and column indices to generate a boolean mask. Apply the mask to a zeros matrix and replace false values by -Infinity
-    const mask = makeZeros({ x: size, y: size }).tensor.where(tf.lessEqual(rowIndices, colIndices), tf.scalar(upperTriangleConst));
-    // Broadcast over batch and heads Dimension
-    let maskBroadcasted = new GTensor(mask, [dim1, dim2]).broadcastToCombinedShape(this)
-    return maskBroadcasted;
-  }
-
   public softmaxCrossEntropy(oneHotLabels: GTensor<G>): GTensor<G> {
     return new GTensor<G>(
       tf.losses.softmaxCrossEntropy(oneHotLabels.tensor, this.tensor),
@@ -982,6 +952,35 @@ export function makeRange<T extends DName>(
   dtype: 'float32' | 'int32' = 'float32',
 ): GTensor<T> {
   return new GTensor<T>(tf.range(start, end, step, dtype), [dname]);
+}
+
+/* Returns a 2D triangular mask of shape [size, size]
+ * Parameters:
+ * - size: The dimension of the mask
+ * - dimNames: Names of the dimensions of the final GTensor
+ * - lowerLeftValue : All the values under the main diagonal and including the main diagonal will be replace by this value
+ * - upperRightValue : All the entries avobe the main diagonal of the matrix will be replace by this value
+ * // TODO add optianal broadcastTo dimensions/GTensor
+ * */
+export function makeTriangularMatrix<N extends string, T extends string | number>(
+  size: number,
+  dimNames: N[],
+  lowerLeftValue: T,
+  upperRightValue: T,
+): GTensor<N> {
+  // Create a range tensor for row indices
+  const rowIndices = tf.range(0, size, 1, 'int32');
+  // Create a range tensor for column indices and expand dimensions
+  const colIndices = tf.range(0, size, 1, 'int32').expandDims(1);
+  // Compare row and column indices to generate a boolean mask. Apply the mask to a lowerLeftValue matrix and replace false values by upperRightValue
+  const triangularMatrix = new GTensor(
+    tf
+      .fill([size, size], lowerLeftValue)
+      .where(tf.lessEqual(rowIndices, colIndices), tf.scalar(upperRightValue)),
+    dimNames,
+  );
+
+  return triangularMatrix;
 }
 
 export function makeScalar(

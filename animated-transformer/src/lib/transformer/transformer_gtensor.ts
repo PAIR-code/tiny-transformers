@@ -33,6 +33,7 @@ import {
   makeScalar,
   GVariable,
   SerializedGTensor,
+  makeTriangularMatrix,
 } from '../gtensor/gtensor';
 import {
   ConstTKind,
@@ -59,6 +60,7 @@ import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_ge
 import * as jstree from '../js_tree/js_tree';
 import { makeModel, modelRegistry } from '../models/model_registry';
 import { RandomStream } from '../random/random';
+import { gtensor } from '..';
 // import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
@@ -316,6 +318,18 @@ function gelu(x: tf.Tensor) {
   return tf.mul(x, cdf);
 }
 
+export function causalMask(
+  qk: GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'>,
+): GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'> {
+  const triangularMatrix = makeTriangularMatrix(
+    qk.dim['queryPos'].size,
+    ['keyPos', 'queryPos'],
+    0,
+    -Infinity,
+  ).broadcastToCombinedShape(qk);
+  return qk.pointwiseAdd(triangularMatrix).softmax('queryPos');
+}
+
 // (Approximation for) Compute (batched) attention.
 //
 // Note: for non-batched attention, the code is identical, just remove the
@@ -353,9 +367,7 @@ export function computeAttnHead(
 
   // TODO: eventually we would like to pass in precomputed attention mask to the function,
   // rather than recompute attention masks inference pass
-
-  const maskedAffinities = rawAttention.pointwiseAdd(rawAttention.triangularMask('keyPos', 'queryPos', -Infinity));
-  const attention = maskedAffinities.softmax('queryPos');
+  const attention = causalMask(rawAttention);
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
   const attendedValues = values
