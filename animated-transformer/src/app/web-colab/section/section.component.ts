@@ -4,6 +4,7 @@ import {
   ElementRef,
   input,
   model,
+  output,
   viewChild,
 } from '@angular/core';
 import { ExpDefKind, Experiment } from '../../../lib/weblab/experiment';
@@ -28,7 +29,7 @@ import { Section, SectionKind, SomeSection } from 'src/lib/weblab/section';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SectionComponent {
-  readonly edited = model.required<boolean>();
+  readonly edited = output<boolean>();
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<SomeSection>();
   // sectionTemplateRef = viewChild.required<Component>('');
@@ -51,7 +52,9 @@ export class SectionComponent {
       return;
     }
     contentSignal.set(update.obj as JsonValue);
-    this.edited.set(true);
+    // TODO: sections should manage their edit status, and not have it done via
+    // components.
+    this.edited.emit(true);
   }
 
   // ngOnInit(): void {

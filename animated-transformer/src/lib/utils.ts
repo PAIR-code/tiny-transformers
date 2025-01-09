@@ -32,7 +32,9 @@ export function asyncIterify<T>(iter: Iterator<T>): AsyncIterator<T> {
   };
 }
 
-export async function tryer<T>(p: Promise<T>): Promise<[Error, undefined] | [undefined, T]> {
+export type ErrorXorValue<T> = [Error, undefined] | [undefined, T];
+
+export async function tryer<T>(p: Promise<T>): Promise<ErrorXorValue<T>> {
   let result: T | undefined;
   let err: Error | undefined;
   try {
@@ -40,5 +42,5 @@ export async function tryer<T>(p: Promise<T>): Promise<[Error, undefined] | [und
   } catch (e) {
     err = e as Error;
   }
-  return [err, result] as never as Promise<[Error, undefined] | [undefined, T]>;
+  return [err, result] as never as Promise<ErrorXorValue<T>>;
 }

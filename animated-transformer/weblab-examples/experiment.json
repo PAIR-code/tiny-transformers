@@ -1,0 +1,48 @@
+{
+  "id": "simple experiment",
+  "kind": "Data",
+  "sectionData": {
+    "content": [
+      {
+        "id": "about",
+        "kind": "Data",
+        "sectionData": {
+          "content": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
+          "sectionKind": "Markdown"
+        },
+        "timestamp": 1736417008657
+      },
+      {
+        "id": "some data",
+        "kind": "Data",
+        "sectionData": {
+          "content": {
+            "hello": "foo"
+          },
+          "sectionKind": "JsonObj"
+        },
+        "timestamp": 1736417008657
+      },
+      {
+        "id": "cell section",
+        "kind": "Data",
+        "sectionData": {
+          "content": {
+            "cellRef": {
+              "js": "console.log(\"hello world from simple cell!\");",
+              "kind": "InlineWorkerJsCode"
+            },
+            "inStreams": {},
+            "inputs": {},
+            "outStreamIds": [],
+            "outputs": {}
+          },
+          "sectionKind": "WorkerCell"
+        },
+        "timestamp": 1736417031005
+      }
+    ],
+    "sectionKind": "SubExperiment"
+  },
+  "timestamp": 1736417031005
+}

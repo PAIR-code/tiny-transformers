@@ -48,6 +48,7 @@ import {
   SubExpSectionData,
   SomeSection,
 } from './section';
+import { tryer } from '../utils';
 
 export enum ExpDefKind {
   Ref = 'Ref',
@@ -220,7 +221,7 @@ export async function loadExperiment(
   dataResolver: AbstractDataResolver<SectionDataDef>,
   env: LabEnv,
   data: ExpSectionDataDef,
-): Promise<Experiment> {
+): Promise<Experiment | Error> {
   const space = env.space;
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
@@ -279,6 +280,9 @@ export async function loadExperiment(
         }
       } else if (sectionData.kind === ExpDefKind.Path) {
         const data = await dataResolver.load(sectionData.dataPath);
+        if (data instanceof Error) {
+          return data;
+        }
         const setableDataDef = space.setable(data);
         const setableDataContent = space.setable(data.sectionData.content);
         nodeDataMap.set(sectionData.id, setableDataDef);
@@ -335,13 +339,20 @@ export async function saveExperiment(
   dataResolver: AbstractDataResolver<SectionDataDef>,
   path: string,
   distrSectionDef: DistrSerialization<SectionDataDef, SectionDataDef>,
-): Promise<void> {
-  dataResolver.save(path, distrSectionDef.data);
+): Promise<Error | null> {
+  const saveErrorOrNull = await dataResolver.save(path, distrSectionDef.data);
+  if (saveErrorOrNull) {
+    return saveErrorOrNull;
+  }
   const pathsAndData = distrSectionDef.subpathData;
   if (!pathsAndData) {
-    return;
+    return null;
   }
   for (const [p, d] of Object.entries(pathsAndData)) {
-    dataResolver.save(p, d);
+    const subpathErrror = await dataResolver.save(p, d);
+    if (subpathErrror) {
+      return subpathErrror;
+    }
   }
+  return null;
 }

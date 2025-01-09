@@ -21,23 +21,33 @@
 
     <div clas="page">
       <div class="header">
-        <div class="path">{{ exp.id }}</div>
-        @switch (saveState) {
-          @case (SaveState.Empty) {
-            <div>[no project loaded]</div>
-          }
-          @case (SaveState.UncachedAndEdited) {
-            <div>[edited, uncached]</div>
-          }
-          @case (SaveState.CachedAndEdited) {
-            <div>[edited, cached]</div>
-          }
-          @case (SaveState.SavedToDisk) {
-            <div>[saved]</div>
-          }
-        }
+        <div class="title">{{ exp.id }}</div>
         <div class="buttons">
           <div class="spacer"></div>
+          <div class="saveState">
+            @switch (cacheState()) {
+              @case (SaveState.New) {
+                <span>[uncached]</span>
+              }
+              @case (SaveState.Edited) {
+                <span>[uncached]</span>
+              }
+              @case (SaveState.Saved) {
+                <span>[cached]</span>
+              }
+            }
+            @switch (diskState()) {
+              @case (SaveState.New) {
+                <span>new (unsaved)</span>
+              }
+              @case (SaveState.Edited) {
+                <span>edited since last save</span>
+              }
+              @case (SaveState.Saved) {
+                <span>saved</span>
+              }
+            }
+          </div>
           <button
             mat-icon-button
             matTooltip=""
@@ -51,7 +61,7 @@
               <button
                 mat-menu-item
                 matTooltip="Save"
-                (click)="saveExperiment(exp)"
+                (click)="saveExperiment()"
               >
                 save
               </button>
@@ -93,7 +103,7 @@
                 <mat-card>
                   <mat-card-content>
                     <app-section
-                      [(edited)]="edited"
+                      (edited)="onSectionEdited(section, $event)"
                       [experiment]="exp"
                       [section]="section"
                     ></app-section>

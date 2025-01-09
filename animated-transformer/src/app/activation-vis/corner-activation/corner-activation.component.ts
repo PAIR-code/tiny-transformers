@@ -114,7 +114,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
     MatButtonModule,
     TensorImageComponent,
     AxisWrapperComponent,
-    ActivationManagerComponent,
+    // ActivationManagerComponent,
   ],
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
