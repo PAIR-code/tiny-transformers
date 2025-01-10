@@ -19,7 +19,7 @@ describe('SectionComponent', () => {
       kind: ExpDefKind.Data,
       id: 'toy experiment name 1',
       timestamp: Date.now(),
-      sectionData: {
+      data: {
         sectionKind: SectionKind.SubExperiment,
         content: [],
       },
@@ -28,7 +28,7 @@ describe('SectionComponent', () => {
       kind: ExpDefKind.Data,
       id: 'section 1',
       timestamp: Date.now(),
-      sectionData: {
+      data: {
         sectionKind: SectionKind.Markdown,
         content: '# Section 1! \nThis is the start.',
       },

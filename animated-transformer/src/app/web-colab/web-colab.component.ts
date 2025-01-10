@@ -58,7 +58,7 @@ import {
 import { SectionComponent } from './section/section.component';
 import {
   ExpSectionDataDef,
-  SectionDataDef,
+  SectionDefByInline,
   SectionKind,
   SomeSection,
 } from 'src/lib/weblab/section';
@@ -152,8 +152,8 @@ export class WebColabComponent {
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
   viewPath: Signal<Experiment[]>;
-  fileDataResolver?: AbstractDataResolver<SectionDataDef>;
-  cacheDataResolver: LocalCacheDataResolver<SectionDataDef>;
+  fileDataResolver?: AbstractDataResolver<SectionDefByInline>;
+  cacheDataResolver: LocalCacheDataResolver<SectionDefByInline>;
   saveToCachePlannedCallback?: Timeout;
 
   // Sections edited since last cache save.
@@ -186,7 +186,7 @@ export class WebColabComponent {
       }
     });
 
-    this.cacheDataResolver = new LocalCacheDataResolver<SectionDataDef>(this.localCache);
+    this.cacheDataResolver = new LocalCacheDataResolver<SectionDefByInline>(this.localCache);
     // Idea: save as a directory, not a file?
     // TODO: avoid race condition and make later stuff happen after this...?
     this.localCache.setDefaultPath('experiment.json');
@@ -267,8 +267,8 @@ export class WebColabComponent {
 
   @savingUi()
   async saveExperimentToCache(): Promise<DistrSerialization<
-    SectionDataDef,
-    SectionDataDef
+    SectionDefByInline,
+    SectionDefByInline
   > | null> {
     const experiment = this.experiment();
     if (!experiment || this.cacheState() === SaveState.Saved) {

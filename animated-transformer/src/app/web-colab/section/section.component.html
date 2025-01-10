@@ -1,16 +1,16 @@
 @let sec = section();
 @let data = sec.data();
-@let sectionData = sec.data().sectionData;
+@let sectionData = sec.data().data;
 
 @switch (sectionData.sectionKind) {
   @case (SectionKind.Markdown) {
-    <markdown>{{ data.sectionData.content }}</markdown>
+    <markdown>{{ data.data.content }}</markdown>
   }
   @case (SectionKind.JsonObj) {
     <app-codemirror-config-editor
       [whatIsBeingEditedName]="sec.def.id"
       [defaultConfig]="'{}'"
-      [config]="stringifyJsonValue(data.sectionData.content)"
+      [config]="stringifyJsonValue(data.data.content)"
       [closable]="false"
       (update)="handleSectionJsonUpdate($event, sec.content)"
     ></app-codemirror-config-editor>

@@ -15,35 +15,41 @@ limitations under the License.
 
 import { LabEnv } from '../distr-signal-exec/lab-env';
 import { ExpDefKind, Experiment } from './experiment';
-import { CellRefKind, ExpSectionDataDef, SectionDataDef, SectionDef, SectionKind } from './section';
+import {
+  CellRefKind,
+  ExpSectionDataDef,
+  SectionDefByInline,
+  SectionDef,
+  SectionKind,
+} from './section';
 
 export const initExpDef: ExpSectionDataDef = {
   kind: ExpDefKind.Data,
   id: 'top level exp name/id',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  sectionData: {
+  data: {
     sectionKind: SectionKind.SubExperiment,
     content: [],
   },
 };
 
-export const secSimpleMarkdown: SectionDataDef = {
+export const secSimpleMarkdown: SectionDefByInline = {
   kind: ExpDefKind.Data,
   id: 'about',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  sectionData: {
+  data: {
     sectionKind: SectionKind.Markdown,
     content: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
   },
 };
-export const secSimpleJson: SectionDataDef = {
+export const secSimpleJson: SectionDefByInline = {
   kind: ExpDefKind.Data,
   id: 'some data',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  sectionData: {
+  data: {
     sectionKind: SectionKind.JsonObj,
     content: {
       hello: 'foo',
@@ -51,12 +57,12 @@ export const secSimpleJson: SectionDataDef = {
   },
 };
 
-export function secSimpleCell(): SectionDataDef {
+export function secSimpleCell(): SectionDefByInline {
   return {
     kind: ExpDefKind.Data,
     id: 'cell section',
     timestamp: Date.now(),
-    sectionData: {
+    data: {
       sectionKind: SectionKind.WorkerCell,
       content: {
         cellRef: {
@@ -78,7 +84,7 @@ export function makeToyExperiment(id: string, env: LabEnv): Experiment {
     id,
     timestamp: Date.now(),
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-    sectionData: {
+    data: {
       sectionKind: SectionKind.SubExperiment,
       content: [],
     },

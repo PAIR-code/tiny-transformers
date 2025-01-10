@@ -75,7 +75,7 @@ export type SetableSignal<T> = AbstractSignal<T> & {
   set(newValue: T, options?: Partial<SignalSetOptions>): void;
   // Note: propegate signal semantics by default does eqCheck.
   update(f: (oldValue: T) => T, options?: Partial<SignalSetOptions>): void;
-  // Note: always forces an update;
+  // Always forces an update.
   change(f: (changedValue: T) => void): void;
   node: SetableNode<T>;
 };

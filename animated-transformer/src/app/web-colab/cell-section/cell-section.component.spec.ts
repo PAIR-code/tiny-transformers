@@ -24,7 +24,7 @@ describe('CellSectionComponent', () => {
       kind: ExpDefKind.Data,
       id: 'toy experiment name 1',
       timestamp: Date.now(),
-      sectionData: {
+      data: {
         sectionKind: SectionKind.SubExperiment,
         content: [],
       },
@@ -34,7 +34,7 @@ describe('CellSectionComponent', () => {
       kind: ExpDefKind.Data,
       id: 'section 1',
       timestamp: Date.now(),
-      sectionData: {
+      data: {
         sectionKind: SectionKind.WorkerCell,
         content: {
           cellRef: {
@@ -52,7 +52,7 @@ describe('CellSectionComponent', () => {
     experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 
-    const cellSectionData: WorkerCellSectionData = section1.sectionData as WorkerCellSectionData;
+    const cellSectionData: WorkerCellSectionData = section1.data as WorkerCellSectionData;
 
     await TestBed.configureTestingModule({
       providers: [provideExperimentalZonelessChangeDetection()],
