@@ -14,80 +14,77 @@ limitations under the License.
 ==============================================================================*/
 
 import { LabEnv } from '../distr-signal-exec/lab-env';
-import { ExpDefKind, Experiment } from './experiment';
+import { Experiment } from './experiment';
 import {
+  SecDef,
   CellRefKind,
-  ExpSectionDataDef,
-  SectionDefByInline,
-  SectionDef,
-  SectionKind,
+  SecDefOfExperiment,
+  SecDefKind,
+  SecDefOfUiView,
+  ViewerKind,
+  SecDefOfWorker,
 } from './section';
 
-export const initExpDef: ExpSectionDataDef = {
-  kind: ExpDefKind.Data,
+export const initExpDef: SecDefOfExperiment = {
+  kind: SecDefKind.Experiment,
   id: 'top level exp name/id',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  data: {
-    sectionKind: SectionKind.SubExperiment,
-    content: [],
-  },
+  subsections: [],
 };
 
-export const secSimpleMarkdown: SectionDefByInline = {
-  kind: ExpDefKind.Data,
+export const secSimpleMarkdown: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
   id: 'about',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  data: {
-    sectionKind: SectionKind.Markdown,
-    content: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
-  },
-};
-export const secSimpleJson: SectionDefByInline = {
-  kind: ExpDefKind.Data,
-  id: 'some data',
-  timestamp: Date.now(),
-  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-  data: {
-    sectionKind: SectionKind.JsonObj,
-    content: {
-      hello: 'foo',
+  io: {
+    outputs: {
+      markdown: {
+        saved: true,
+        lastValue: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
+      },
     },
   },
+  uiView: ViewerKind.MarkdownOutView,
 };
 
-export function secSimpleCell(): SectionDefByInline {
+export const secSimpleJson: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'some json data',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    outputs: {
+      jsonObj: {
+        saved: true,
+        lastValue: { hello: 'foo' },
+      },
+    },
+  },
+  uiView: ViewerKind.JsonObjOutView,
+};
+
+export function secSimpleCell(): SecDefOfWorker {
   return {
-    kind: ExpDefKind.Data,
+    kind: SecDefKind.WorkerCell,
     id: 'cell section',
     timestamp: Date.now(),
-    data: {
-      sectionKind: SectionKind.WorkerCell,
-      content: {
-        cellRef: {
-          kind: CellRefKind.InlineWorkerJsCode,
-          js: 'console.log("hello world from simple cell!");',
-        },
-        inputs: {},
-        outputs: {},
-        inStreams: {},
-        outStreamIds: [],
-      },
+    io: {},
+    cellCodeRef: {
+      kind: CellRefKind.InlineWorkerJsCode,
+      js: 'console.log("hello world from simple cell!");',
     },
   };
 }
 
 export function makeToyExperiment(id: string, env: LabEnv): Experiment {
-  const initExpDef: ExpSectionDataDef = {
-    kind: ExpDefKind.Data,
+  const initExpDef: SecDefOfExperiment = {
+    kind: SecDefKind.Experiment,
     id,
     timestamp: Date.now(),
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-    data: {
-      sectionKind: SectionKind.SubExperiment,
-      content: [],
-    },
+    subsections: [],
   };
   const exp = new Experiment(env, [], initExpDef);
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);

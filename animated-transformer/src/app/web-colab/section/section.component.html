@@ -1,28 +1,32 @@
 @let sec = section();
 @let data = sec.data();
-@let sectionData = sec.data().data;
 
-@switch (sectionData.sectionKind) {
-  @case (SectionKind.Markdown) {
-    <markdown>{{ data.data.content }}</markdown>
+@switch (data.kind) {
+  @case (SecDefKind.UiCell) {
+    @switch (data.uiView) {
+      @case (ViewerKind.MarkdownOutView) {
+        <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+      }
+      @case (ViewerKind.JsonObjOutView) {
+        @let jsonObjSignal = sec.outputs["jsonObj"];
+        <app-codemirror-config-editor
+          [whatIsBeingEditedName]="sec.def.id"
+          [defaultConfig]="'{}'"
+          [config]="stringifyJsonValue(jsonObjSignal())"
+          [closable]="false"
+          (update)="jsonObjSignal.set($event)"
+        ></app-codemirror-config-editor>
+      }
+    }
   }
-  @case (SectionKind.JsonObj) {
-    <app-codemirror-config-editor
-      [whatIsBeingEditedName]="sec.def.id"
-      [defaultConfig]="'{}'"
-      [config]="stringifyJsonValue(data.data.content)"
-      [closable]="false"
-      (update)="handleSectionJsonUpdate($event, sec.content)"
-    ></app-codemirror-config-editor>
-  }
-  @case (SectionKind.WorkerCell) {
+  @case (SecDefKind.WorkerCell) {
     <app-cell-section
       [experiment]="experiment()"
       [section]="section()"
-      [cellData]="sectionData"
+      [data]="data"
     ></app-cell-section>
   }
-  @case (SectionKind.SubExperiment) {
+  @case (SecDefKind.Experiment) {
     <div>SubExperiment</div>
   }
   @default {

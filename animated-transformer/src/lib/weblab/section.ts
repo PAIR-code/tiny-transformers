@@ -55,7 +55,7 @@ import { SignalSender, StreamReceiver, StreamSender } from '../distr-signal-exec
 export enum SecDefKind {
   Ref = 'Ref',
   Path = 'Path',
-  SubExperiment = 'SubExperiment',
+  Experiment = 'SubExperiment',
   // Markdown = 'Markdown', // TODO: update to View, and then we provide a name for it...
   // JsonObj = 'JsonObj',
   // Cell to a remote worker. Powered by a CellController.
@@ -99,8 +99,8 @@ export type SecDefByPath = {
 // };
 
 // TODO: update to be "View" of data.
-export type SecDefOfSubExperiment = {
-  kind: SecDefKind.SubExperiment;
+export type SecDefOfExperiment = {
+  kind: SecDefKind.Experiment;
   id: string;
   timestamp: number;
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
@@ -109,7 +109,7 @@ export type SecDefOfSubExperiment = {
 };
 
 //
-export enum ViewerComponent {
+export enum ViewerKind {
   MarkdownOutView = 'Markdown',
   JsonObjOutView = 'JsonObj',
 }
@@ -119,7 +119,7 @@ export type SecDefOfUiView = {
   id: string;
   timestamp: number;
   io: IOSectionContent;
-  uiView: ViewerComponent;
+  uiView: ViewerKind;
 };
 
 export type SecDefOfWorker = {
@@ -130,7 +130,7 @@ export type SecDefOfWorker = {
   cellCodeRef: CellCodeRef;
 };
 
-export type SecDefWithData = SecDefOfWorker | SecDefOfUiView | SecDefOfSubExperiment;
+export type SecDefWithData = SecDefOfWorker | SecDefOfUiView | SecDefOfExperiment;
 // | SecDefOfMarkdown
 // | SecDefOfJsonValue;
 
@@ -185,11 +185,11 @@ export type CellSectionOutput = {
 export type IOSectionContent = {
   // How inputs to this cell map to either outputs from other cells, or raw
   // JsonObj values.
-  inputs: { [inputId: string]: CellSectionInput };
+  inputs?: { [inputId: string]: CellSectionInput };
   // OutputIds to the last saved value (undefined when not yet defined)
-  outputs: { [outputId: string]: CellSectionOutput };
-  inStreams: { [inStreamId: string]: { cellSectionId: string; cellOutStreamId: string } };
-  outStreamIds: string[];
+  outputs?: { [outputId: string]: CellSectionOutput };
+  inStreams?: { [inStreamId: string]: { cellSectionId: string; cellOutStreamId: string } };
+  outStreamIds?: string[];
 };
 
 // ============================================================================
@@ -221,19 +221,19 @@ function cellKindFromContent(
       // is no longer linked to a cell.
       const url = URL.createObjectURL(blob);
       const inputs: ValueKindFnStruct = {};
-      for (const k of Object.keys(c.io.inputs)) {
+      for (const k of Object.keys(c.io.inputs || {})) {
         inputs[k] = Kind<unknown>;
       }
       const inStreams: ValueKindFnStruct = {};
-      for (const [k, _] of Object.entries(c.io.inStreams)) {
+      for (const [k, _] of Object.entries(c.io.inStreams || {})) {
         inStreams[k] = Kind<unknown>;
       }
       const outputs: ValueKindFnStruct = {};
-      for (const k of Object.keys(c.io.outputs)) {
+      for (const k of Object.keys(c.io.outputs || {})) {
         outputs[k] = Kind<unknown>;
       }
       const outStreams: ValueKindFnStruct = {};
-      for (const k of c.io.outStreamIds) {
+      for (const k of c.io.outStreamIds || []) {
         outStreams[k] = Kind<unknown>;
       }
       return new WorkerCellKind(
@@ -326,21 +326,25 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
     if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
       return;
     }
-    for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs)) {
+    for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
       if (cellOutputRef.saved) {
+        const outputs = data.io.outputs as {
+          [outputId: string]: CellSectionOutput;
+        };
         const output = this.space.setable(cellOutputRef.lastValue as O[keyof O]);
         this.outputs[outputId as keyof O] = output;
         // Propegate changes to the output setable to the broader content object.
+        // TODO: think about tracking this dep to cleanup later?
         this.space.derived(() => {
           const newOutput = output();
           this.data.change((c) => {
-            data.io.outputs[outputId] = newOutput;
+            outputs[outputId] = newOutput;
           });
         });
       }
     }
 
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
+    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
       const otherSec = this.experiment.getSection(cellInputRef.cellSectionId);
       this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.cellChannelId];
     }
@@ -355,7 +359,7 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
     if (!this.cell || data.kind !== SecDefKind.WorkerCell) {
       throw new Error('Can only connect a section with a cell');
     }
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
+    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
       // TODO: this is where magic dep-management could happen... we could use
       // old input value as the input here, so that we don't need to
       // re-execute past cells. Would need think about what to do with
@@ -365,7 +369,7 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
       const otherCellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
       otherCellController.outputs[cellInputRef.cellChannelId].addPipeTo(this.cell.inputs[inputId]);
     }
-    for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams)) {
+    for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams || {})) {
       const otherCellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
       otherCellController.outStreams[cellInputRef.cellOutStreamId].addPipeTo(
         this.cell.inStreams[inStreamId],

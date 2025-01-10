@@ -44,7 +44,7 @@ import {
   SomeSection,
   SecDefKind,
   SecDefWithData,
-  SecDefOfSubExperiment,
+  SecDefOfExperiment,
 } from './section';
 
 export type DistrSerialization<T, T2> = {
@@ -83,7 +83,7 @@ export class Experiment {
   sectionMap: Map<string, SomeSection> = new Map();
 
   // The definition of this experiment.
-  def: SetableSignal<SecDefOfSubExperiment>;
+  def: SetableSignal<SecDefOfExperiment>;
 
   // Code paths to JS code
   jsCode: Map<string, { rawCode: string; objUrl: URL }> = new Map();
@@ -91,10 +91,10 @@ export class Experiment {
   constructor(
     public env: LabEnv,
     public ancestors: Experiment[],
-    public initSecDef: SecDefOfSubExperiment,
+    public initSecDef: SecDefOfExperiment,
   ) {
     this.space = env.space;
-    this.def = this.space.setable<SecDefOfSubExperiment>(initSecDef);
+    this.def = this.space.setable<SecDefOfExperiment>(initSecDef);
     // Invariant: Set(sections.values()) === Set(sectionOrdering)
     // Signals an update when list of ids changes.
     this.sections = this.space.setable<SomeSection[]>([], { eqCheck: sectionListEqCheck });
@@ -211,7 +211,7 @@ type NodeBeingLoaded = {
 export async function loadExperiment(
   dataResolver: AbstractDataResolver<SecDefWithData>,
   env: LabEnv,
-  data: SecDefOfSubExperiment,
+  data: SecDefOfExperiment,
 ): Promise<Experiment | Error> {
   const space = env.space;
   // Map from section id to the canonical ExpSection, for faster lookup, and
@@ -256,7 +256,7 @@ export async function loadExperiment(
         nodeDataMap.set(subSec.id, setableDataDef);
         const section = new Section(topLevelExperiment, subSec, setableDataDef);
         sectionMap.set(subSec.id, section);
-        if (subSec.kind === SecDefKind.SubExperiment) {
+        if (subSec.kind === SecDefKind.Experiment) {
           // TODO: think about if we really want sub-experiments..., maybe
           // better just subsections?
           section.subExperiment = new Experiment(env, [...cur.exp.ancestors, cur.exp], subSec);

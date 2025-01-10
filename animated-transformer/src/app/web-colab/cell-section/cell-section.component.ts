@@ -1,18 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
-  effect,
-  ElementRef,
   input,
   OnInit,
-  Signal,
   signal,
-  viewChild,
   WritableSignal,
 } from '@angular/core';
 
-import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { CellStatus, SomeCellController } from 'src/lib/distr-signal-exec/cell-controller';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -31,10 +25,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
 import { Experiment } from '../../../lib/weblab/experiment';
-import { WorkerCellSectionData, SomeSection } from '../../../lib/weblab/section';
-import { CellRegistryService } from 'src/app/cell-registry.service';
-import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-kind';
-import { Section } from 'src/lib/weblab/section';
+import { SecDefOfExperiment, SecDefOfWorker, SomeSection } from '../../../lib/weblab/section';
 
 @Component({
   selector: 'app-cell-section',
@@ -64,7 +55,7 @@ import { Section } from 'src/lib/weblab/section';
 export class CellSectionComponent implements OnInit {
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<SomeSection>();
-  readonly cellData = input.required<WorkerCellSectionData>();
+  readonly data = input.required<SecDefOfWorker>();
   cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
 
@@ -83,16 +74,16 @@ export class CellSectionComponent implements OnInit {
   }
 
   inputs() {
-    return Object.keys(this.cellData().content.inputs);
+    return Object.keys(this.data().io.inputs || {});
   }
   outputs() {
-    return Object.keys(this.cellData().content.outputs);
+    return Object.keys(this.data().io.outputs || {});
   }
   inStreams() {
-    return Object.keys(this.cellData().content.inStreams);
+    return Object.keys(this.data().io.inStreams || {});
   }
   outStreams() {
-    return this.cellData().content.outStreamIds;
+    return this.data().io.outStreamIds || [];
   }
 
   start() {

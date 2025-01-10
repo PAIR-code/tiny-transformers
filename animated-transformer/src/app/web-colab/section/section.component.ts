@@ -7,7 +7,7 @@ import {
   output,
   viewChild,
 } from '@angular/core';
-import { ExpDefKind, Experiment } from '../../../lib/weblab/experiment';
+import { Experiment } from '../../../lib/weblab/experiment';
 import { MarkdownModule, MarkdownService } from 'ngx-markdown';
 import {
   CodemirrorConfigEditorComponent,
@@ -18,7 +18,7 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import { Section, SectionKind, SomeSection } from 'src/lib/weblab/section';
+import { SecDefKind, SomeSection, ViewerKind } from 'src/lib/weblab/section';
 
 @Component({
   selector: 'app-section',
@@ -34,8 +34,8 @@ export class SectionComponent {
   readonly section = input.required<SomeSection>();
   // sectionTemplateRef = viewChild.required<Component>('');
 
-  ExpDefKind = ExpDefKind;
-  SectionKind = SectionKind;
+  SecDefKind = SecDefKind;
+  ViewerKind = ViewerKind;
 
   constructor() {}
 

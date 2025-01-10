@@ -44,7 +44,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   DistrSerialization,
   // ExpCellDisplayKind,
-  ExpDefKind,
   Experiment,
   loadExperiment,
   saveExperiment,
@@ -56,12 +55,7 @@ import {
   LocalCacheDataResolver,
 } from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
-import {
-  ExpSectionDataDef,
-  SectionDefByInline,
-  SectionKind,
-  SomeSection,
-} from 'src/lib/weblab/section';
+import { SecDefOfExperiment, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
 import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
 import { tryer } from 'src/lib/utils';
 
@@ -152,8 +146,8 @@ export class WebColabComponent {
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
   viewPath: Signal<Experiment[]>;
-  fileDataResolver?: AbstractDataResolver<SectionDefByInline>;
-  cacheDataResolver: LocalCacheDataResolver<SectionDefByInline>;
+  fileDataResolver?: AbstractDataResolver<SecDefWithData>;
+  cacheDataResolver: LocalCacheDataResolver<SecDefWithData>;
   saveToCachePlannedCallback?: Timeout;
 
   // Sections edited since last cache save.
@@ -186,7 +180,7 @@ export class WebColabComponent {
       }
     });
 
-    this.cacheDataResolver = new LocalCacheDataResolver<SectionDefByInline>(this.localCache);
+    this.cacheDataResolver = new LocalCacheDataResolver<SecDefWithData>(this.localCache);
     // Idea: save as a directory, not a file?
     // TODO: avoid race condition and make later stuff happen after this...?
     this.localCache.setDefaultPath('experiment.json');
@@ -243,7 +237,7 @@ export class WebColabComponent {
     if (!cachedFilePath) {
       throw new Error(`missing localCache.getDefaultPath`);
     }
-    const cachedExpData = await this.localCache.loadFileCache<ExpSectionDataDef>(cachedFilePath);
+    const cachedExpData = await this.localCache.loadFileCache<SecDefOfExperiment>(cachedFilePath);
     if (!cachedExpData) {
       return;
     }
@@ -267,8 +261,8 @@ export class WebColabComponent {
 
   @savingUi()
   async saveExperimentToCache(): Promise<DistrSerialization<
-    SectionDefByInline,
-    SectionDefByInline
+    SecDefWithData,
+    SecDefWithData
   > | null> {
     const experiment = this.experiment();
     if (!experiment || this.cacheState() === SaveState.Saved) {
@@ -347,7 +341,7 @@ export class WebColabComponent {
       return;
     }
     // TODO: actually do some validation...
-    const expDef = secDataDef as ExpSectionDataDef;
+    const expDef = secDataDef as SecDefOfExperiment;
     const exp = await loadExperiment(this.fileDataResolver, this.env, expDef);
     if (exp instanceof Error) {
       this.error = `Failed to load experiment from 'experiment.json': ${exp.message}`;
