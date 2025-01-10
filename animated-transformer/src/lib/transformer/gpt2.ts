@@ -114,6 +114,7 @@ export type AttnHeadComputeSpec = {
   // Whether to include or not the residual connections in the computation.
   residuals: boolean;
   dropoutRate: number;
+  layerNormEpsilon: number;
 };
 
 // export function defaultTransformerConfig(): TransformerConfig {
@@ -362,7 +363,8 @@ export function computeAttnHead(
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
       headsReductionAfterDropout,
-      'inputRepToFF'
+      'inputRepToFF',
+      spec.layerNormEpsilon
     );
   }
 
@@ -398,7 +400,7 @@ export function computeAttnHead(
 
   let seqOuput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
-    seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
+    seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep', spec.layerNormEpsilon);
   }
 
   return {

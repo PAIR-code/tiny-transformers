@@ -20,16 +20,13 @@ export type LayerNormParams<D extends DName = never> = {
   // Then add a test for it.
   gain: GTensor<D>;
   bias?: GTensor<D>;
-  epsilon: GTensor<never>;
 };
 
 export function initLayerNormParams(
-  includeBias: boolean,
-  epsilon = 1e5
+  includeBias: boolean
 ): LayerNormParams {
   const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
-    epsilon: makeScalar(epsilon, 'float32'),
   };
   if (includeBias) {
     layerNormParams.bias = makeScalar(0, 'float32');
@@ -39,12 +36,10 @@ export function initLayerNormParams(
 
 export function initLayerNormParamsWithDims<T extends string>(
   includeBias: boolean,
-  dims: { [key in T]: number},
-  epsilon = 1e5
+  dims: { [key in T]: number}
 ): LayerNormParams<T> {
   const layerNormParams: LayerNormParams<T> = {
     gain: makeConstant(dims, 1.0, 'float32'),
-    epsilon: makeScalar(epsilon, 'float32'),
   }
 
   if (includeBias) {
@@ -56,9 +51,11 @@ export function initLayerNormParamsWithDims<T extends string>(
 export function layerNorm<G extends string, D extends G, T extends G = never>(
   layerNormParams: LayerNormParams<T>,
   g: GTensor<G>,
-  dim: D
+  dim: D,
+  eps: number = 1e-5
 ): GTensor<G> {
-  const { gain, bias, epsilon } = layerNormParams;
+  const { gain, bias } = layerNormParams;
+  const epsilon = makeScalar(eps, 'float32');
   const repSizeScalar = makeScalar(g.dim[dim].size, 'float32');
   const mean = g.sumOverDims([dim]).scalarDiv(repSizeScalar);
   const varianceSquared = g

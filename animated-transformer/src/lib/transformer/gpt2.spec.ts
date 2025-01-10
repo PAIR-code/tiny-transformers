@@ -40,7 +40,7 @@ describe('GTensor Transformers', () => {
     const embedding_size = 768;
     const transformer_param_layer_spec: transformer.TransformerParamLayerSpec = {
         nHeads: n_heads,
-        computeSpec: { residuals: true, dropoutRate: 0.0 },
+        computeSpec: { residuals: true, dropoutRate: 0.0, layerNormEpsilon: 1e-5 },
         layerNormFF: true,
         layerNormHeadsProjection: true,
         addLayerNormBias: true
@@ -90,8 +90,21 @@ describe('GTensor Transformers', () => {
       // params.layers[0].queryM
       params.layers[0]
     );
-    console.log(paramCount);
+    
+    // Check head size.
     expect(paramCount).toEqual(7087872);
+
+    const paramCountGPT2 = jstree.reduce<GTensor<any>, number>(
+      (count, paramObj) => count + paramObj.tensor.size,
+      0,
+      // params.layers[0].queryM
+      params
+    );
+
+    console.log(paramCountGPT2);
+
+    // Check full GPT2 size.
+    expect(paramCountGPT2).toEqual(124439808);
       // console.log(params.layers[0].queryM.dimNames);
       // console.log(params.layers[0].queryM.dim);
       // total count: 124439808

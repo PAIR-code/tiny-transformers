@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 // gtensor.spec.ts
-import { GTensor, makeScalar, makeConstant, makeRange, TensorKind } from './gtensor';
+import { GTensor, makeScalar, makeConstant, makeRange } from './gtensor';
 import { layerNorm, initLayerNormParams, initLayerNormParamsWithDims, LayerNormParams } from './layer_norm';
 import * as tf from '@tensorflow/tfjs';
 import { computeLossAndGrads } from './grad';
@@ -26,7 +26,6 @@ describe('layer_norm', () => {
     const epsilonNum = 1e3;
     const gain = makeScalar(1, 'float32');
     const bias = makeScalar(0, 'float32');
-    const epsilon = makeScalar(epsilonNum, 'float32');
     const g = new GTensor(
       tf.tensor2d(
         [
@@ -43,7 +42,7 @@ describe('layer_norm', () => {
     const varSqrd3 = ((2 - 6) ^ (2 + (4 - 6)) ^ (2 + (12 - 6)) ^ 2) / 3;
     const approxStdDev3 = Math.sqrt(varSqrd3 + epsilonNum);
 
-    const gNormed = layerNorm({ gain, bias, epsilon }, g, 'rep');
+    const gNormed = layerNorm({ gain, bias}, g, 'rep', epsilonNum);
 
     // console.log(gNormed.dimNames);
     tf.test_util.expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
@@ -60,7 +59,6 @@ describe('layer_norm', () => {
     const epsilonNum = 1e3;
     const gain = makeConstant({"pos": layerNormDim}, 1);
     const bias = makeRange("pos", 0, 3, 1);
-    const epsilon = makeScalar(epsilonNum, 'float32');
     const g = new GTensor(
       tf.tensor2d(
         [
@@ -77,7 +75,7 @@ describe('layer_norm', () => {
     const varSqrd3 = ((2 - 6) ^ (2 + (4 - 6)) ^ (2 + (12 - 6)) ^ 2) / 3;
     const approxStdDev3 = Math.sqrt(varSqrd3 + epsilonNum);
 
-    const gNormed = layerNorm({ gain, bias, epsilon }, g, 'rep');
+    const gNormed = layerNorm({ gain, bias }, g, 'rep', epsilonNum);
 
     tf.test_util.expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
       [0, 0, 0],
@@ -89,33 +87,28 @@ describe('layer_norm', () => {
   });
 
   it('Init simple Layer Norm', () => {
-    const epsilonNum = 1e3;
-    const layerNormParams : LayerNormParams<TensorKind> = initLayerNormParams(true, epsilonNum);
+    const layerNormParams : LayerNormParams = initLayerNormParams(true);
     tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");
     }
     tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
-    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
   });
 
   it('Init multi-dimensional Layer Norm', () => {
-    const epsilonNum = 1e3;
     const layerNormDim = 3;
-    const layerNormParams : LayerNormParams<TensorKind, "pos"> = initLayerNormParamsWithDims(true, {"pos": layerNormDim}, epsilonNum);
+    const layerNormParams : LayerNormParams<"pos"> = initLayerNormParamsWithDims(true, {"pos": layerNormDim});
     tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1, 1, 1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");
     }
     tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0, 0, 0]);
-    tf.test_util.expectArraysClose(layerNormParams.epsilon.tensor.dataSync(), [epsilonNum]);
   });
 
   it('Layer Norm grad', () => {
     const epsilonNum = 1e3;
     const gain = makeScalar(1, 'float32');
     const bias = makeScalar(0, 'float32');
-    const epsilon = makeScalar(epsilonNum, 'float32');
     const g = new GTensor(
       tf.tensor2d(
         [
@@ -129,7 +122,7 @@ describe('layer_norm', () => {
       ['pos', 'rep']
     );
 
-    const gNormed = layerNorm({ gain, bias, epsilon }, g, 'rep');
+    const gNormed = layerNorm({ gain, bias }, g, 'rep', epsilonNum);
     const gTarget = new GTensor(
       tf.tensor2d(
         [
