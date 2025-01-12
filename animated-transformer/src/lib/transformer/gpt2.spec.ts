@@ -13,39 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
-import * as transformer from './gpt2';
-import { AttnHeadParamSpec, AttnHeadComputeSpec } from './gpt2';
+import { GTensor, makeOnes } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import * as abtask from '../seqtasks/ab_task';
-import { BasicTaskTokenRep, embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
+import * as transformer from './gpt2';
+import { BasicTaskTokenRep } from '../tokens/token_gemb';
+import * as jstree from '../js_tree/js_tree';
 import { makeRandomStream } from '../random/random';
-import* as jstree from '../js_tree/js_tree';
 
 describe('GTensor Transformers', () => {
-  it('basic transformer shapes', () => {
-    // const paramSizes: AttnHeadParamSpec = {
-    //     inputRep: 1024,
-    //     hiddenRep: 784,
-    //     kq: 784, // same nb as value i think
-    //     heads: 12,
-    //     value: 784,
-    //     layerNormHeadsProjection: true, // need to change this to follow the implementation
-    //     layerNormFF: true,
-    //     addLayerNormBias: true,
-    // };
-    
-    // 12 Heads.
-    const n_heads = 12;
-    const embedding_size = 768;
-    const transformer_param_layer_spec: transformer.TransformerParamLayerSpec = {
-        nHeads: n_heads,
-        computeSpec: { residuals: true, dropoutRate: 0.0, layerNormEpsilon: 1e-5 },
-        layerNormFF: true,
-        layerNormHeadsProjection: true,
-        addLayerNormBias: true
-      };
-
+  it('Check number of parameters on GPT2 head', () => {
     const tokens = Array(50257).fill("test");
     // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
     // number of parameters.
@@ -57,125 +33,130 @@ describe('GTensor Transformers', () => {
         tokenToIdx: {},
     };
 
-    // To be checked if this is right
-    // 12 Layers.
-    const gpt2: transformer.TransformerConfig = {
-        id: 'GPT2',
-        kind: 'Transformer',
-        tokenRep: tokenRep,
-        spec: {
-          inputRep: embedding_size,
-          kqvRep: embedding_size / n_heads,
-          layers: Array(12).fill(transformer_param_layer_spec),
-          computeSpec: {
-            dropoutRate: 0.0,
-            layerNormEpsilon: 1e-5
-          },
-          // This below is not doing anything: need to check what's happening.
-          posEncodingSeqLength: 1024,
-          layerNorm: true,
-          addLayerNormBias: true,
-          addPosEmbeddings: true,
-
-        },
-        init: {
-          stddev: 0.5,
-          mean: 0,
-          seed: 96,
-        },
-    };
-    
-    const params = transformer.initDecoderParams(
-        gpt2);
-    // const params = transformer.initAttnHeadParams(paramSizes);
-    // Check head size.
+    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(tokenRep);
+    const params = transformer.initDecoderParams(gpt2);
+  
+    // Compute number of parameters in the head.
     const paramCount = jstree.reduce<GTensor<any>, number>(
       (count, paramObj) => count + paramObj.tensor.size,
       0,
-      // params.layers[0].queryM
       params.layers[0]
     );
 
     // Check head size.
     expect(paramCount).toEqual(7087872);
+  });
 
+  it('Check number of parameters on GPT2', async () => {
+    const tokens = Array(50257).fill("test");
+
+    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
+    // number of parameters.
+    const tokenRep: BasicTaskTokenRep = {
+        maskToken: "test", 
+        padToken: "test", 
+        eosToken: "test", 
+        tokens: tokens, 
+        tokenToIdx: {},
+    };
+
+    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(tokenRep);
+    const params = transformer.initDecoderParams(gpt2);
+
+    // Compute number of parameters in GPT2.
     const paramCountGPT2 = jstree.reduce<GTensor<any>, number>(
       (count, paramObj) => count + paramObj.tensor.size,
       0,
-      // params.layers[0].queryM
       params
     );
 
-    console.log(paramCountGPT2);
-
     // Check full GPT2 size.
     expect(paramCountGPT2).toEqual(124439808);
-      // console.log(params.layers[0].queryM.dimNames);
-      // console.log(params.layers[0].queryM.dim);
-      // total count: 124439808
-      // posEmbedding: 786432 - ok
-      // tokenEmbeddings: 38597376 - ok
-      // one head: 7087872 - 
-      // Test 2: Check number of parameters in GPT2.
-      
-      // Check if the output matches the one from the implementation in python.
-      // TODO (@aliciafmachado)
-    // const inputExample1 = new GTensor(
-    //   tf.tensor([
-    //     [
-    //       [1, 2],
-    //       [3, 4],
-    //       [5, 6],
-    //     ],
-    //   ]),
-    //   ['batch', 'pos', 'inputRep']
-    // );
-    // const generator = makeRandomStream(0);
-    // const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
-    // expect(parts.attendedValues.dimNames).toEqual(
-    //   jasmine.arrayContaining(['batch', 'heads', 'value', 'pos'])
-    // );
-    // expect(parts.attendedValues.gshape()).toEqual({
-    //   batch: 1,
-    //   heads: 1,
-    //   value: 4,
-    //   pos: 3,
-    // });
   });
 
-//   it('AB task data prep', async () => {
-//     const inputRep = 2;
-//     const batchSize = 4;
-//     const task = new abtask.AorBisMaxTask({
-//       name: 'AorBisMaxTask',
-//       maxInputLen: 2,
-//       maxOutputLen: 2,
-//       seed: 0,
-//       // Create a tokenEmbedding that also has [MASC] token & [PAD] token.
-//       // inputRepSize: inputRep,
-//     });
-//     const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-//     const padTokenId = tokenRep.tokenToIdx[tokenRep.padToken];
-//     const embeddings = makeTruncNormal({
-//       tokenId: tokenRep.tokens.length,
-//       inputRep,
-//     });
+  it('Test positional embeddings.', async () => {
+    const tokens = Array(50257).fill("test");
 
-//     // len = taskConfig.batchSize
-//     const examples = task.exampleIter.takeOutN(4);
-
-//     const batchedInputEmb = embedBatch(
-//       tokenRep.tokenToIdx,
-//       embeddings,
-//       examples.map((example) => example.input.concat(tokenRep.maskToken)),
-//       { paddingId: padTokenId, padAt: 'start', dtype: 'int32' }
-//     );
-
-//     expect(batchedInputEmb.gshape()).toEqual({
-//       batch: batchSize,
-//       // +1 for the appended [MASK] token to be predicted.
-//       pos: task.config.maxInputLen + 1,
-//       inputRep,
-//     });
-//   });
+    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
+    // number of parameters.
+    const tokenRep: BasicTaskTokenRep = {
+        maskToken: "test", 
+        padToken: "test", 
+        eosToken: "test", 
+        tokens: tokens, 
+        tokenToIdx: {},
+    };
+    const embedding_size = 2;
+    const pos_embeddings = 3;
+    const n_heads = 1;
+    const layer_config: transformer.TransformerParamLayerSpec = {
+      nHeads: n_heads,
+      layerNormFF: false,
+      layerNormHeadsProjection: false,
+      addLayerNormBias: false,
+      computeSpec: { residuals: true, dropoutRate: 0, layerNormEpsilon: 1e-5 },
+    };
+    const spec: transformer.TransformerParamSpec = {
+      inputRep: embedding_size,
+      kqvRep: embedding_size / n_heads,
+      layers: Array(n_heads).fill(layer_config),
+      computeSpec: {
+          dropoutRate: 0.0,
+          layerNormEpsilon: 1e-5
+      },
+      posEncodingSeqLength: pos_embeddings,
+      layerNorm: false,
+      addLayerNormBias: false,
+      addPosEmbeddings: true,
+    };
+    const config: transformer.TransformerConfig = {
+      id: 'GPT2Eval',
+      kind: 'Transformer',
+      spec: spec,
+      tokenRep: tokenRep,
+      init: {
+        stddev: 0.05, // default
+        mean: 0,
+        seed: 42,
+      },
+    };
+    const params = transformer.initDecoderParams(config);
+    params.posEmbedding = new GTensor(
+      tf.tensor([
+          [1, 1],
+          [0, 1],
+          [1, 0],
+      ]),
+      ['posId', 'inputRep']
+    );
+    const model = {params, config}
+    const inputExample = new GTensor(
+          tf.tensor([
+            [
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ],
+            [
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ],
+          ]),
+          ['batch', 'pos', 'inputRep']
+        );
+    const result = transformer.addPosEmbeddings(model, inputExample);
+    tf.test_util.expectArraysClose(result.tensor.dataSync(), [
+        [
+          [2, 3],
+          [3, 5],
+          [6, 6],
+        ],
+        [
+          [2, 3],
+          [3, 5],
+          [6, 6],
+        ],
+      ])
+  });
 });

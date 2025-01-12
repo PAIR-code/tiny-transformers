@@ -34,6 +34,7 @@ import {
   makeScalar,
   GVariable,
   SerializedGTensor,
+  stackGtensors,
 } from '../gtensor/gtensor';
 import {
   ConstTKind,
@@ -127,93 +128,47 @@ export type AttnHeadComputeSpec = {
   layerNormEpsilon: number;
 };
 
-// export function defaultTransformerConfig(): TransformerConfig {
-//   const layer_config: TransformerParamLayerSpec = {
-//     nHeads: 4,
-//     addPosEmbedding: false,
-//     // There may be a problem with layer norm; it seems to stop it from learning.
-//     // With laynorm off, we get entropyLoss: 1.05391383  accuracy: 0.53125000
-//     // with it on, we get lowest entropyLoss: 1.7 ish, and accuracy: ~0.35
-//     layerNormFF: false,
-//     layerNormHeadsProjection: false,
-//     addLayerNormBias: false,
-//     computeSpec: { residuals: true, dropoutRate: 0 },
-//   };
-//   const layer_config_first: TransformerParamLayerSpec = {
-//     ...layer_config,
-//     addPosEmbedding: false,
-//   };
-//   const spec: TransformerParamSpec = {
-//     inputRep: 64,
-//     kqvRep: 64,
-//     dropoutRate: 0,
-//     layers: [layer_config_first, layer_config, layer_config, layer_config],
-//   };
-//   const config: TransformerConfig = {
-//     id: 'defaultTransformerConfig',
-//     kind: 'Transformer',
-//     spec: spec,
-//     tokenRep: toyTokenTep,
-//     init: {
-//       stddev: 0.05, // default
-//       mean: 0,
-//       seed: 42,
-//     },
-//   };
-//   return config;
-// }
-
-// export const simpleLayerSpec_nLN: TransformerParamLayerSpec = {
-//   nHeads: 4,
-//   addPosEmbedding: true,
-//   computeSpec: { residuals: true, dropoutRate: 0 },
-//   layerNormFF: false,
-//   layerNormHeadsProjection: false,
-//   addLayerNormBias: false,
-// };
-
-// export const simpleTransfomerConfig_nLN: TransformerConfig = {
-//   id: 'd=8 l=1 h=4, !layerN',
-//   kind: 'Transformer',
-//   spec: {
-//     inputRep: 8,
-//     kqvRep: 8,
-//     dropoutRate: 0,
-//     layers: [simpleLayerSpec_nLN],
-//   },
-//   tokenRep: toyTokenTep,
-//   init: {
-//     stddev: 0.5,
-//     mean: 0,
-//     seed: 76,
-//   },
-// };
-
-// export const simpleLayerSpec_LN: TransformerParamLayerSpec = {
-//   nHeads: 4,
-//   addPosEmbedding: true,
-//   computeSpec: { residuals: true, dropoutRate: 0 },
-//   layerNormFF: true,
-//   layerNormHeadsProjection: true,
-//   addLayerNormBias: false,
-// };
-
-// export const simpleTransfomerConfig_LN: TransformerConfig = {
-//   id: 'd=8 l=1 h=4 +layerN',
-//   kind: 'Transformer',
-//   spec: {
-//     inputRep: 8,
-//     kqvRep: 8,
-//     dropoutRate: 0,
-//     layers: [simpleLayerSpec_LN],
-//   },
-//   tokenRep: toyTokenTep,
-//   init: {
-//     stddev: 0.5,
-//     mean: 0,
-//     seed: 96,
-//   },
-// };
+// Default GPT2 config for eval.
+// Dropout is disabled below. For training it should be 0.1.
+export function defaultGPT2EvalConfig(
+    tokenRep: BasicTaskTokenRep
+): TransformerConfig {
+  const embedding_size = 768;
+  const pos_embeddings = 1024;
+  const n_heads = 12;
+  const layer_config: TransformerParamLayerSpec = {
+    nHeads: n_heads,
+    layerNormFF: true,
+    layerNormHeadsProjection: true,
+    addLayerNormBias: true,
+    computeSpec: { residuals: true, dropoutRate: 0, layerNormEpsilon: 1e-5 },
+  };
+  const spec: TransformerParamSpec = {
+    inputRep: embedding_size,
+    kqvRep: embedding_size / n_heads,
+    layers: Array(n_heads).fill(layer_config),
+    computeSpec: {
+        dropoutRate: 0.0,
+        layerNormEpsilon: 1e-5
+    },
+    posEncodingSeqLength: pos_embeddings,
+    layerNorm: true,
+    addLayerNormBias: true,
+    addPosEmbeddings: true,
+  };
+  const config: TransformerConfig = {
+    id: 'GPT2Eval',
+    kind: 'Transformer',
+    spec: spec,
+    tokenRep: tokenRep,
+    init: {
+      stddev: 0.05, // default
+      mean: 0,
+      seed: 42,
+    },
+  };
+  return config;
+}
 
 // ---------------------------------------------------------------------------
 export type FfParams<Input extends DName, Output extends DName> = {
@@ -595,7 +550,7 @@ export function transformerAccuracy(
     .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
 }
 
-export function positionalEmbeddingsFn (
+export function addPosEmbeddings (
     model: {
         config: {
             spec: TransformerParamSpec;
@@ -605,14 +560,18 @@ export function positionalEmbeddingsFn (
         },
     input: GTensor<'batch' | 'pos' | 'inputRep'>
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
-      const indexes =
+    if (model.params.posEmbedding) {
+        const indexes =
         makeRange('pos', 0, input.dim.pos.size, 1, 'int32');
-      const oneHotToken = new GTensor(oneHot(indexes.tensor, model.config.spec.posEncodingSeqLength), [
+      const stackedIndexes = stackGtensors('batch', Array(input.dim.batch.size).fill(indexes));
+      const oneHotToken = new GTensor(oneHot(stackedIndexes.tensor, model.config.spec.posEncodingSeqLength), [
         'batch',
         'pos',
-        'inputRep',
+        'posId'
       ]);
-      return oneHotToken;
+      return input.pointwiseAdd(oneHotToken.contract(model.params.posEmbedding, ['posId']));
+    }
+    return input;
 }
 
 export function computeDecoder(
@@ -634,8 +593,7 @@ export function computeDecoder(
     model, inputs, { maxInputLength })
 
   if (model.config.spec.addPosEmbeddings) {
-    gtensorInputs = gtensorInputs.pointwiseAdd(
-        positionalEmbeddingsFn(model, gtensorInputs));
+    gtensorInputs = addPosEmbeddings(model, gtensorInputs)
   }
 
   return computeTransformer(model, gtensorInputs, generator);
