@@ -30,6 +30,7 @@ import {
   makeTruncNormal,
   makeZeros,
   makeOnes,
+  makeRange,
   makeScalar,
   GVariable,
   SerializedGTensor,
@@ -76,7 +77,6 @@ export type TransformerConfig = {
 
 export type TransformerParamSpec = {
   inputRep: number;
-  hiddenRep: number;
   kqvRep: number;
   layers: TransformerParamLayerSpec[];
   posEncodingSeqLength: number;
@@ -99,7 +99,6 @@ export type TransformerComputeSpec = {
 
 export type AttnHeadParamSpec = {
   inputRep: number;
-  hiddenRep: number;
   kq: number;
   heads: number;
   value: number;
@@ -239,7 +238,7 @@ export type AttnHeadParams = {
   layerNormHeadsProjection?: LayerNormParams<'inputRepToFF'>; // 768 + 768
   layerNormPostFF?: LayerNormParams<'inputRep'>; // 768 + 768
   ff1: FfParams<'inputRepToFF', 'hiddenRep'>;
-  ff2: FfParams<'inputRepToFF', 'inputRep'>;
+  ff2: FfParams<'hiddenRep', 'inputRep'>;
 };
 
 // Use of type here to be compatible with generic params.
@@ -284,7 +283,8 @@ export function initAttnHeadParams(
   // TODO: take in param initializers, instead of one for all.
   initConfig?: tf_init.TruncatedNormalArgs
 ): AttnHeadParams {
-  const { inputRep, hiddenRep, kq, value, heads } = spec;
+  const { inputRep, kq, value, heads } = spec;
+  const hiddenRep = 4 * inputRep;
   const attnHeadParams: AttnHeadParams = {
     queryM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
     keyM: makeTruncNormal({ inputRep, kq, heads }, initConfig),
@@ -301,7 +301,7 @@ export function initAttnHeadParams(
       b: makeTruncNormal({ hiddenRep }, initConfig),
     },
     ff2: {
-      w: makeTruncNormal({ inputRepToFF: hiddenRep, inputRep }, initConfig),
+      w: makeTruncNormal({ hiddenRep: hiddenRep, inputRep }, initConfig),
       b: makeTruncNormal({ inputRep }, initConfig),
     }
   };
@@ -392,8 +392,7 @@ export function computeAttnHead(
   .contract(ff1.w, ['inputRepToFF'])
   .pointwiseAdd(ff1.b)
   .applyPointWiseTfFn(gelu)
-  .rename('hiddenRep', 'inputRepToFF')
-  .contract(ff2.w, ['inputRepToFF'])
+  .contract(ff2.w, ['hiddenRep'])
   .pointwiseAdd(ff2.b);
 
   // [Checked @aliciafmachado] Dropout before layer norm and residual connection.
@@ -433,7 +432,6 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
   const layers: AttnHeadParams[] = spec.layers.map((layerSpec) => {
     const attnHeadSpec: AttnHeadParamSpec = {
       inputRep: spec.inputRep,
-      hiddenRep: spec.hiddenRep,
       kq: spec.kqvRep,
       heads: layerSpec.nHeads,
       value: spec.kqvRep,
@@ -597,6 +595,26 @@ export function transformerAccuracy(
     .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
 }
 
+export function positionalEmbeddingsFn (
+    model: {
+        config: {
+            spec: TransformerParamSpec;
+            tokenRep: BasicTaskTokenRep;
+        };
+        params: TransformerParams;
+        },
+    input: GTensor<'batch' | 'pos' | 'inputRep'>
+): GTensor<'batch' | 'pos' | 'inputRep'> {
+      const indexes =
+        makeRange('pos', 0, input.dim.pos.size, 1, 'int32');
+      const oneHotToken = new GTensor(oneHot(indexes.tensor, model.config.spec.posEncodingSeqLength), [
+        'batch',
+        'pos',
+        'inputRep',
+      ]);
+      return oneHotToken;
+}
+
 export function computeDecoder(
   model: {
     config: {
@@ -609,44 +627,17 @@ export function computeDecoder(
   inputs: string[][],
   generator: RandomStream
 ): TransformerComputation {
-  // const maxInputLength = inputs.reduce(
-  //   (max, curInput) => (max >= curInput.length ? max : curInput.length),
-  //   0
-  // );
-  // TODO (@aliciafmachado): we need to keep the input under the max positional encodings (1024 for gpt2).
   const maxInputLength = model.config.spec.posEncodingSeqLength;
   // TODO (@aliciafmachado): make sure tokenization is right.
   // input prep fn would be subword tokenization?
-  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
+  let gtensorInputs = inputPrepFn(
+    model, inputs, { maxInputLength })
 
-  // TODO(@aliciafmachado): Then once we cap and mask it, we can apply positional encodings i think
-  // export function makeSimplePosEncoding(awRelativePosAttention: GTensor<'inputRep' | 'posRep'>): 
-  // GTensor<'inputRep'>  {
-  //   const indexes =
-  //     gtensor.makeRange('keyPos', 0, seqLength, 1, 'int32');
-  //   const oneHotToken = new GTensor(oneHot(indexes.tensor, posParams.dim.posId.size), [
-  //     'batch',
-  //     'tokenId',
-  //   ]);
-  //     // gshape()
-  //   return oneHotToken;
-  // }
-  // if (params.posEmbedding) {
-  //   const indexes =
-  //     makeRange('pos', 0, params.posEmbedding.dim.posId.size, 1, 'int32');
-  //   const posAttentionMatrix = new GTensor(oneHot(indexes.tensor, params.posEmbedding.dim.posId.size),
-  //     ['batch', 'pos', 'posId']);
-    
-  //   // TODO: what to do if the inputSeq is longer than the relative pos?
-  //   //
-  //   // if (seqInput.dim.ps.size >
-  //   //     params.relativePosAttention.dim.relativePos.size) ...
-  //   // Batch the relativePos Matrix...
-  //   const batchedPosAttentionMatrix = posAttentionMatrix.broadcastToCombinedShape(rawAttention);
-  //   rawAttention = rawAttention
-  //     .pointwiseAdd(batchedPosAttentionMatrix)
-  //     .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
-  // }
+  if (model.config.spec.addPosEmbeddings) {
+    gtensorInputs = gtensorInputs.pointwiseAdd(
+        positionalEmbeddingsFn(model, gtensorInputs));
+  }
+
   return computeTransformer(model, gtensorInputs, generator);
 }
 

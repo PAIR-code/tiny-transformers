@@ -65,7 +65,6 @@ describe('GTensor Transformers', () => {
         tokenRep: tokenRep,
         spec: {
           inputRep: embedding_size,
-          hiddenRep: 4 * embedding_size,
           kqvRep: embedding_size / n_heads,
           layers: Array(12).fill(transformer_param_layer_spec),
           computeSpec: {
