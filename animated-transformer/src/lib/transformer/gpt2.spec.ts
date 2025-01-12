@@ -63,22 +63,28 @@ describe('GTensor Transformers', () => {
         id: 'GPT2',
         kind: 'Transformer',
         tokenRep: tokenRep,
-          spec: {
-            inputRep: embedding_size,
-            hiddenRep: 4 * embedding_size,
-            kqvRep: embedding_size / n_heads,
-            layers: Array(12).fill(transformer_param_layer_spec),
+        spec: {
+          inputRep: embedding_size,
+          hiddenRep: 4 * embedding_size,
+          kqvRep: embedding_size / n_heads,
+          layers: Array(12).fill(transformer_param_layer_spec),
+          computeSpec: {
             dropoutRate: 0.0,
-            // This below is not doing anything: need to check what's happening.
-            posEncodingSeqLength: 1024,
-            // Missing a layer norm outside.
+            layerNormEpsilon: 1e-5
           },
-          init: {
-            stddev: 0.5,
-            mean: 0,
-            seed: 96,
-          },
-      };
+          // This below is not doing anything: need to check what's happening.
+          posEncodingSeqLength: 1024,
+          layerNorm: true,
+          addLayerNormBias: true,
+          addPosEmbeddings: true,
+
+        },
+        init: {
+          stddev: 0.5,
+          mean: 0,
+          seed: 96,
+        },
+    };
     
     const params = transformer.initDecoderParams(
         gpt2);
@@ -90,7 +96,7 @@ describe('GTensor Transformers', () => {
       // params.layers[0].queryM
       params.layers[0]
     );
-    
+
     // Check head size.
     expect(paramCount).toEqual(7087872);
 

@@ -79,10 +79,21 @@ export type TransformerParamSpec = {
   hiddenRep: number;
   kqvRep: number;
   layers: TransformerParamLayerSpec[];
-  // Dropout rate on the input before going into the stack.
-  dropoutRate: number;
   posEncodingSeqLength: number;
+  // Layer norm.
+  layerNorm: boolean;
+  addLayerNormBias: boolean;
+  // Positional embeddings.
+  addPosEmbeddings: boolean;
+  // Compute spec.
+  computeSpec: TransformerComputeSpec;
 };
+
+export type TransformerComputeSpec = {
+    // Dropout rate on the input before going into the stack.
+    dropoutRate: number;
+    layerNormEpsilon: number;
+  };
 
 // ---------------------------------------------------------------------------
 
@@ -235,7 +246,8 @@ export type AttnHeadParams = {
 export type TransformerParams = {
   layers: AttnHeadParams[];
   tokenEmbedding: GTensor<'tokenId' | 'inputRep'>;
-  posEmbedding: GTensor<'posId' | 'inputRep'>;
+  posEmbedding?: GTensor<'posId' | 'inputRep'>;
+  layerNorm?: LayerNormParams<'inputRep'>; // 768 + 768
 };
 
 export type VarTransformerParams = VarifyTensorParams<TransformerParams>;
@@ -440,17 +452,24 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
     init
   );
 
-  // TODO(@aliciafmachado): make pos embeddings optional.
-  const posEmbedding = makeTruncNormal({
-    posId: spec.posEncodingSeqLength,
-    inputRep: spec.inputRep,
-  });
-
-  const transformerParams: TransformerParams = {
+  let transformerParams: TransformerParams = {
     tokenEmbedding: tokenEmbedding,
-    layers: layers,
-    posEmbedding: posEmbedding
+    layers: layers
   };
+
+  if (spec.addPosEmbeddings) {
+    const posEmbedding = makeTruncNormal({
+        posId: spec.posEncodingSeqLength,
+        inputRep: spec.inputRep,
+      });
+    transformerParams.posEmbedding = posEmbedding;
+  }
+
+  if (spec.layerNorm) {
+    const layerNormParams = initLayerNormParamsWithDims(
+        spec.addLayerNormBias, {'inputRep': spec.inputRep});
+    transformerParams.layerNorm = layerNormParams
+  }
 
   return transformerParams;
 }
@@ -468,7 +487,8 @@ export function computeTransformer(
   generator: RandomStream
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
-  let currentLayerInput = dropout(model.config.spec.dropoutRate, seqInput, generator.random());
+  let currentLayerInput = dropout(model.config.spec.computeSpec.dropoutRate, 
+    seqInput, generator.random());
   model.params.layers.forEach((layerParams, i) => {
     const layerCompute = computeAttnHead(
       model.config.spec.layers[i].computeSpec,
@@ -479,8 +499,20 @@ export function computeTransformer(
     compute.layers.push(layerCompute);
     currentLayerInput = layerCompute.seqOuput;
   });
+
+  // TODO(@aliciafmachado): Hacky way to apply layer norm after the final layer.
+  if (model.params.layerNorm) {
+    const lastBlock = compute.layers[compute.layers.length - 1];
+    const finalSeqOutput = layerNorm(model.params.layerNorm, lastBlock.seqOuput, 'inputRep', 
+        model.config.spec.computeSpec.layerNormEpsilon);
+    let finalOutput = lastBlock;
+    finalOutput.seqOuput = finalSeqOutput;
+    finalOutput.seqInput = lastBlock.seqOuput;
+    compute.layers.push(finalOutput);
+  }
   // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
   // this in the TransformerComputation output.
+  
   return compute;
 }
 
