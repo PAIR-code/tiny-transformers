@@ -13,16 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeOnes } from '../gtensor/gtensor';
+import { GTensor } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as transformer from './gpt2';
 import { BasicTaskTokenRep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
-import { makeRandomStream } from '../random/random';
 
-describe('GTensor Transformers', () => {
-  it('Check number of parameters on GPT2 head', () => {
-    const tokens = Array(50257).fill("test");
+function generateTestTask(): BasicTaskTokenRep {
+  const tokens = Array(50257).fill("test");
     // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
     // number of parameters.
     const tokenRep: BasicTaskTokenRep = {
@@ -32,8 +30,12 @@ describe('GTensor Transformers', () => {
         tokens: tokens, 
         tokenToIdx: {},
     };
+    return tokenRep;
+}
 
-    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(tokenRep);
+describe('GTensor Transformers', () => {
+  it('Check number of parameters on GPT2 head', () => {
+    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(generateTestTask());
     const params = transformer.initDecoderParams(gpt2);
   
     // Compute number of parameters in the head.
@@ -48,19 +50,7 @@ describe('GTensor Transformers', () => {
   });
 
   it('Check number of parameters on GPT2', async () => {
-    const tokens = Array(50257).fill("test");
-
-    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
-    // number of parameters.
-    const tokenRep: BasicTaskTokenRep = {
-        maskToken: "test", 
-        padToken: "test", 
-        eosToken: "test", 
-        tokens: tokens, 
-        tokenToIdx: {},
-    };
-
-    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(tokenRep);
+    const gpt2: transformer.TransformerConfig = transformer.defaultGPT2EvalConfig(generateTestTask());
     const params = transformer.initDecoderParams(gpt2);
 
     // Compute number of parameters in GPT2.
@@ -75,23 +65,13 @@ describe('GTensor Transformers', () => {
   });
 
   it('Test positional embeddings.', async () => {
-    const tokens = Array(50257).fill("test");
-
-    // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
-    // number of parameters.
-    const tokenRep: BasicTaskTokenRep = {
-        maskToken: "test", 
-        padToken: "test", 
-        eosToken: "test", 
-        tokens: tokens, 
-        tokenToIdx: {},
-    };
+    // Set dummy transformer for testing.
     const embedding_size = 2;
     const pos_embeddings = 3;
     const n_heads = 1;
     const layer_config: transformer.TransformerParamLayerSpec = {
       nHeads: n_heads,
-      layerNormFF: false,
+      layerNormPreAttention: false,
       layerNormHeadsProjection: false,
       addLayerNormBias: false,
       computeSpec: { residuals: true, dropoutRate: 0, layerNormEpsilon: 1e-5 },
@@ -113,7 +93,7 @@ describe('GTensor Transformers', () => {
       id: 'GPT2Eval',
       kind: 'Transformer',
       spec: spec,
-      tokenRep: tokenRep,
+      tokenRep: generateTestTask(),
       init: {
         stddev: 0.05, // default
         mean: 0,

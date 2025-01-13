@@ -14,51 +14,26 @@ limitations under the License.
 ==============================================================================*/
 
 /**
- * Transformers implemented using GTensor.
- *
- * TODO: encode-decoder. (currently only have decoder models)
- * TODO: MQA: https://arxiv.org/pdf/1911.02150.pdf
- * TODO: loss for all tokens (currently just the last token).
- * TODO: Adam optimiser / others (currently only have SGD).
- * TODO: backprop to embeddings too.
+ * GPT2 implemented using GTensor.
  */
-import { relu, tanh, tensor, Tensor, oneHot, Scalar } from '@tensorflow/tfjs';
+import { oneHot } from '@tensorflow/tfjs';
 import * as tf from '@tensorflow/tfjs';
 import {
   GTensor,
   DName,
   makeTruncNormal,
-  makeZeros,
-  makeOnes,
   makeRange,
-  makeScalar,
-  GVariable,
-  SerializedGTensor,
   stackGtensors,
 } from '../gtensor/gtensor';
 import {
-  ConstTKind,
-  serializeParams,
-  GTensorKindFn,
   SerializeTensorParams,
-  SerialTKind,
-  deserializeParams,
-  TensorKind,
   VarifyTensorParams,
-  VarTKind,
 } from '../gtensor/params';
 
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
-import {
-  BatchedRelativePosAttention,
-  initRawRelativePosEncoding,
-  makePosAttentionMatrix,
-} from './relative_pos_encoding';
 import { initLayerNormParamsWithDims, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { dropout } from './dropout';
-// import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
-import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
-import * as jstree from '../js_tree/js_tree';
+import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { RandomStream } from '../random/random';
 
 // ---------------------------------------------------------------------------
@@ -106,7 +81,7 @@ export type AttnHeadParamSpec = {
   // ffRep: number;
   // ffOut: number;
   layerNormHeadsProjection: boolean;
-  layerNormFF: boolean;
+  layerNormPreAttention: boolean;
   addLayerNormBias: boolean;
   // Note: residual spec don't introduce params, so they are not here.
   // It's only relevant to computation.
@@ -115,7 +90,7 @@ export type AttnHeadParamSpec = {
 
 export type TransformerParamLayerSpec = {
   nHeads: number;
-  layerNormFF: boolean;
+  layerNormPreAttention: boolean;
   layerNormHeadsProjection: boolean;
   addLayerNormBias: boolean; // only meaningful when one of the above is true.
   computeSpec: AttnHeadComputeSpec;
@@ -138,7 +113,7 @@ export function defaultGPT2EvalConfig(
   const n_heads = 12;
   const layer_config: TransformerParamLayerSpec = {
     nHeads: n_heads,
-    layerNormFF: true,
+    layerNormPreAttention: true,
     layerNormHeadsProjection: true,
     addLayerNormBias: true,
     computeSpec: { residuals: true, dropoutRate: 0, layerNormEpsilon: 1e-5 },
@@ -183,15 +158,13 @@ export type AttnHeadParams = {
   valueM: GTensor<'heads' | 'inputRep' | 'value'>;
   headsToInputRepM: GTensor<'heads' | 'value' | 'inputRepToFF'>;
   // workaround for https://github.com/microsoft/TypeScript/issues/48070
-
-  // TODO(@aliciafmachado): use the parameters below and simplify:
   queryMBias: GTensor<'heads' | 'kq'>; // 12 * 64
   keyMBias: GTensor<'heads' | 'kq'>; // 12 * 64
   valueMBias: GTensor<'heads' | 'value'>; // 12 * 64
   headsToInputRepMBias: GTensor<'inputRepToFF'>; // 768
 
   layerNormHeadsProjection?: LayerNormParams<'inputRepToFF'>; // 768 + 768
-  layerNormPostFF?: LayerNormParams<'inputRep'>; // 768 + 768
+  layerNormPreAttention?: LayerNormParams<'inputRep'>; // 768 + 768
   ff1: FfParams<'inputRepToFF', 'hiddenRep'>;
   ff2: FfParams<'hiddenRep', 'inputRep'>;
 };
@@ -207,35 +180,14 @@ export type TransformerParams = {
 export type VarTransformerParams = VarifyTensorParams<TransformerParams>;
 export type SerialTransformerParams = SerializeTensorParams<TransformerParams>;
 
-// type TransformerParamsCheck = VarTransformerParams extends TransformerParams ? true : false;
-
 export type TransformerModel = {
   // Locally cached version of the model.
   config: TransformerConfig;
   params: TransformerParams;
 };
 
-// export const savableTransformerModelKind = new SavableValueKind(
-//   'SVKind_TransformerModel',
-//   (x: TransformerModel) => {
-//     return {
-//       config: x.config as TransformerConfig,
-//       params: jstree.map(x.params, (g: GTensor<any>) => g.toSerialised()),
-//     };
-//   },
-//   (s: { config: TransformerConfig; params: jstree.DictArrTree<SerializedGTensor<any>> }) => {
-//     return {
-//       config: s.config as TransformerConfig,
-//       params: jstree.map(s.params, (sg) => GTensor.fromSerialised(sg)) as TransformerParams,
-//     };
-//   }
-// );
-
-// ---------------------------------------------------------------------------
-
 export function initAttnHeadParams(
   spec: AttnHeadParamSpec,
-  // TODO: take in param initializers, instead of one for all.
   initConfig?: tf_init.TruncatedNormalArgs
 ): AttnHeadParams {
   const { inputRep, kq, value, heads } = spec;
@@ -260,8 +212,8 @@ export function initAttnHeadParams(
       b: makeTruncNormal({ inputRep }, initConfig),
     }
   };
-  if (spec.layerNormFF) {
-    attnHeadParams.layerNormPostFF = initLayerNormParamsWithDims(spec.addLayerNormBias, {'inputRep': inputRep});
+  if (spec.layerNormPreAttention) {
+    attnHeadParams.layerNormPreAttention = initLayerNormParamsWithDims(spec.addLayerNormBias, {'inputRep': inputRep});
   }
   if (spec.layerNormHeadsProjection) {
     attnHeadParams.layerNormHeadsProjection = initLayerNormParamsWithDims(spec.addLayerNormBias, {'inputRepToFF': inputRep});
@@ -277,9 +229,13 @@ export type BatchAttnHeadCompututation = {
   values: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
   attendedValues: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
   inputToFF: GTensor<'batch' | 'pos' | 'inputRep'>;
-  seqOuput: GTensor<'batch' | 'pos' | 'inputRep'>;
+  seqOutput: GTensor<'batch' | 'pos' | 'inputRep'>;
 };
 
+// TODO(@aliciafmachado): seems like GELU from OpenAI is slightly different according
+// to https://github.com/huggingface/transformers/blob/main/src/transformers/activations.py#L59.
+// For now, we keep the current implementation of GELU but to be revised when we attempt
+// to load the weights from GPT2.
 function gelu(x: tf.Tensor) {
   const s0p5 = tf.scalar(0.5);
   const s1p0 = tf.scalar(1.0);
@@ -292,8 +248,6 @@ function gelu(x: tf.Tensor) {
 //
 // Note: for non-batched attention, the code is identical, just remove the
 // outer 'batch' from the seqInput argument.
-//
-// TODO: Add residuals and layer-norm.
 export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams,
@@ -303,9 +257,14 @@ export function computeAttnHead(
   const { queryM, keyM, valueM, headsToInputRepM, queryMBias, keyMBias, valueMBias, 
     headsToInputRepMBias, ff1, ff2 } = params;
 
-  const queries = seqInput.contract(queryM, ['inputRep']).pointwiseAdd(queryMBias);
-  const keys = seqInput.contract(keyM, ['inputRep']).pointwiseAdd(keyMBias);
-  const values = seqInput.contract(valueM, ['inputRep']).pointwiseAdd(valueMBias);
+  let seqInputAfterNorm = seqInput;
+  if (params.layerNormPreAttention) {
+    seqInputAfterNorm = layerNorm(params.layerNormPreAttention, seqInput, 'inputRep', spec.layerNormEpsilon);
+  }
+
+  const queries = seqInputAfterNorm.contract(queryM, ['inputRep']).pointwiseAdd(queryMBias);
+  const keys = seqInputAfterNorm.contract(keyM, ['inputRep']).pointwiseAdd(keyMBias);
+  const values = seqInputAfterNorm.contract(valueM, ['inputRep']).pointwiseAdd(valueMBias);
 
   let rawAttention = keys
     .rename('pos', 'keyPos')
@@ -322,12 +281,18 @@ export function computeAttnHead(
 
   const headsReduction = attendedValues.contract(headsToInputRepM, ['value', 'heads']).pointwiseAdd(headsToInputRepMBias);;
 
-  // Dropout before layer norm and residual connection.
+  // Dropout before residual connection and layer norm.
   let headsReductionAfterDropout = dropout(spec.dropoutRate, headsReduction, generator.random());
 
-  let normedHeadReduction = headsReductionAfterDropout;
+  // Residual after attention computation.
+  let headsReductionAfterResidual = headsReductionAfterDropout;
+  if (spec.residuals) {
+    headsReductionAfterResidual = headsReductionAfterDropout.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
+  }
+
+  let inputToFF = headsReductionAfterResidual;
   if (params.layerNormHeadsProjection) {
-    normedHeadReduction = layerNorm(
+    inputToFF = layerNorm(
       params.layerNormHeadsProjection,
       headsReductionAfterDropout,
       'inputRepToFF',
@@ -335,38 +300,26 @@ export function computeAttnHead(
     );
   }
 
-  // Residual connection. Note: we follow T5 transformers and put layerNorm
-  // before residual. The original attention paper had layer norm after the
-  // residual connection.
-  let inputToFF = normedHeadReduction;
-  if (spec.residuals) {
-    inputToFF = normedHeadReduction.pointwiseAdd(seqInput.rename('inputRep', 'inputRepToFF'));
-  }
-
-  let unNormedSeqOuput = inputToFF
+  
+  let seqOutput = inputToFF
   .contract(ff1.w, ['inputRepToFF'])
   .pointwiseAdd(ff1.b)
   .applyPointWiseTfFn(gelu)
   .contract(ff2.w, ['hiddenRep'])
   .pointwiseAdd(ff2.b);
 
-  // [Checked @aliciafmachado] Dropout before layer norm and residual connection.
-  const unNormedSeqOuputAfterDropout = dropout(
+  // Dropout before residual connection.
+  seqOutput = dropout(
     spec.dropoutRate,
-    unNormedSeqOuput,
+    seqOutput,
     generator.random()
   );
 
+  // Residual after MLP.
   if (spec.residuals) {
-    // FF residual.
-    unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(
-      inputToFF.rename('inputRepToFF', 'inputRep')
+    seqOutput = seqOutput.pointwiseAdd(
+      headsReductionAfterResidual.rename('inputRepToFF', 'inputRep')
     );
-  }
-
-  let seqOuput = unNormedSeqOuput;
-  if (params.layerNormPostFF) {
-    seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep', spec.layerNormEpsilon);
   }
 
   return {
@@ -376,8 +329,9 @@ export function computeAttnHead(
     attention,
     values,
     attendedValues,
+    // Note: this inputToFF is after the layer norm.
     inputToFF: inputToFF.rename('inputRepToFF', 'inputRep'),
-    seqOuput,
+    seqOutput,
   };
 }
 
@@ -390,7 +344,7 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
       kq: spec.kqvRep,
       heads: layerSpec.nHeads,
       value: spec.kqvRep,
-      layerNormFF: layerSpec.layerNormFF,
+      layerNormPreAttention: layerSpec.layerNormPreAttention,
       layerNormHeadsProjection: layerSpec.layerNormHeadsProjection,
       // addLayerNormBias: AttentionIsAllYouNeed = true; T5 = false.
       addLayerNormBias: layerSpec.addLayerNormBias,
@@ -450,30 +404,22 @@ export function computeTransformer(
       generator
     );
     compute.layers.push(layerCompute);
-    currentLayerInput = layerCompute.seqOuput;
+    currentLayerInput = layerCompute.seqOutput;
   });
 
   // TODO(@aliciafmachado): Hacky way to apply layer norm after the final layer.
   if (model.params.layerNorm) {
     const lastBlock = compute.layers[compute.layers.length - 1];
-    const finalSeqOutput = layerNorm(model.params.layerNorm, lastBlock.seqOuput, 'inputRep', 
+    const finalSeqOutput = layerNorm(model.params.layerNorm, lastBlock.seqOutput, 'inputRep', 
         model.config.spec.computeSpec.layerNormEpsilon);
     let finalOutput = lastBlock;
-    finalOutput.seqOuput = finalSeqOutput;
-    finalOutput.seqInput = lastBlock.seqOuput;
+    finalOutput.seqOutput = finalSeqOutput;
+    finalOutput.seqInput = lastBlock.seqOutput;
     compute.layers.push(finalOutput);
   }
-  // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
-  // this in the TransformerComputation output.
   
   return compute;
 }
-
-// TODO: GTensor<never> happens:
-// GTensor<'x'>.sumOverDims('x') = GTensor<never>
-// This is not very good because we use GTensor<never> for errors.
-//
-// Update so that GTensor<'#scalar'> is produced.
 
 /** Batch compute the loss for the last token of a transformer.
  *
@@ -488,7 +434,7 @@ export function lastTokenLogits(
   computation: TransformerComputation
 ): GTensor<'batch' | 'tokenId'> {
   const lastLayer = computation.layers[computation.layers.length - 1];
-  const positionParams = lastLayer.seqOuput.unstack('pos');
+  const positionParams = lastLayer.seqOutput.unstack('pos');
   const lastPosParams = positionParams[positionParams.length - 1];
   const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
   return logits;
@@ -587,8 +533,6 @@ export function computeDecoder(
   generator: RandomStream
 ): TransformerComputation {
   const maxInputLength = model.config.spec.posEncodingSeqLength;
-  // TODO (@aliciafmachado): make sure tokenization is right.
-  // input prep fn would be subword tokenization?
   let gtensorInputs = inputPrepFn(
     model, inputs, { maxInputLength })
 
