@@ -16,21 +16,14 @@ limitations under the License.
 import { GTensor } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
 import * as transformer from './gpt2';
-import { BasicTaskTokenRep } from '../tokens/token_gemb';
+import { prepareBasicTaskTokenRep, BasicTaskTokenRep } from '../tokens/token_gemb';
 import * as jstree from '../js_tree/js_tree';
 
 function generateTestTask(): BasicTaskTokenRep {
-  const tokens = Array(50257).fill("test");
+  const tokens = Array(50257 - 4).fill("test");
     // The BasicTaskTokenRep below is not valid but it's fine since we are just checking the
     // number of parameters.
-    const tokenRep: BasicTaskTokenRep = {
-        maskToken: "test", 
-        padToken: "test", 
-        eosToken: "test", 
-        tokens: tokens, 
-        tokenToIdx: {},
-    };
-    return tokenRep;
+    return prepareBasicTaskTokenRep(tokens);
 }
 
 describe('GTensor Transformers', () => {
