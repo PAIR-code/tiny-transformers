@@ -18,7 +18,7 @@ npx tsc -p weblab-examples/tsconfig.json
 
 /// <reference lib="webworker" />
 
-import { workerCell } from '../src/lib/distr-signal-exec/lab-worker-cell.ts';
+import { workerCell } from '../src/lib/distr-signals/lab-worker-cell.ts';
 import { fooKind } from './cell.kind.ts';
 
 const cell = workerCell(fooKind);

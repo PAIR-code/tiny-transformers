@@ -26,7 +26,7 @@ import {
   SetableSignalStructFn,
   WorkerCellKind,
 } from './cell-kind';
-import { CellMessage, CellMessageKind } from 'src/lib/distr-signal-exec/lab-message-types';
+import { CellMessage, CellMessageKind } from 'src/lib/distr-signals/lab-message-types';
 import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 
 import { LabEnv } from './lab-env';

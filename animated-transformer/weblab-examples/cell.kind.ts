@@ -13,6 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { CellKind } from '../src/lib/distr-signal-exec/cell-kind.ts';
+import { CellKind } from '../src/lib/distr-signals/cell-kind.ts';
 
 export const fooKind = new CellKind('foo', {});

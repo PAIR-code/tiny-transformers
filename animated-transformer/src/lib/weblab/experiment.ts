@@ -33,9 +33,9 @@ limitations under the License.
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { SomeCellController } from '../distr-signal-exec/cell-controller';
-import { LabEnv } from '../distr-signal-exec/lab-env';
-import { SomeWorkerCellKind } from '../distr-signal-exec/cell-kind';
+import { SomeCellController } from '../distr-signals/cell-controller';
+import { LabEnv } from '../distr-signals/lab-env';
+import { SomeWorkerCellKind } from '../distr-signals/cell-kind';
 import {
   CellRefKind,
   Section,
@@ -140,6 +140,26 @@ export class Experiment {
   appendLeafSectionFromDataDef(secDef: SecDefWithData): SomeSection {
     const setableDataDef = this.space.setable(secDef);
     const section = new Section(this, secDef, setableDataDef);
+    console.log('appendLeafSectionFromDataDef', secDef);
+    if (secDef.kind === SecDefKind.WorkerCell) {
+      section.initOutputs();
+      section.initInputs();
+      section.connectWorkerCell();
+      if (secDef.cellCodeRef.kind === CellRefKind.PathToWorkerCode) {
+        // TODO: Load code into object URL and setup cell...
+        throw new Error('not yet implmented');
+        // const data = await dataResolver.load(subSec.cellCodeRef.path);
+        // if (data instanceof Error) {
+        //   return data;
+        // }
+      }
+    } else if (secDef.kind === SecDefKind.UiCell) {
+      section.initOutputs();
+      section.initInputs();
+    } else {
+      throw new Error(`unknown section kind in section: ${JSON.stringify(secDef)}`);
+    }
+
     this.sectionMap.set(secDef.id, section);
     this.sections.change((sections) => sections.push(section));
     this.def.change((data) => data.subsections.push(secDef));
@@ -211,8 +231,9 @@ type NodeBeingLoaded = {
 export async function loadExperiment(
   dataResolver: AbstractDataResolver<SecDefWithData>,
   env: LabEnv,
-  data: SecDefOfExperiment,
+  expDef: SecDefOfExperiment,
 ): Promise<Experiment | Error> {
+  console.log('loadExperiment', JSON.stringify(expDef));
   const space = env.space;
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
@@ -220,17 +241,17 @@ export async function loadExperiment(
   const nodeDataMap: Map<string, SetableSignal<SecDefWithData>> = new Map();
   const refMap: Map<string, SecDefByRef> = new Map();
   // Sections that refer to another section, but the reference does not exist.
-  const topLevelExperiment = new Experiment(env, [], data);
+  const topLevelExperiment = new Experiment(env, [], expDef);
   const topLevelNodeTree: NodeBeingLoaded = {
     subSections: [],
     exp: topLevelExperiment,
   };
   const loadingMap: Map<string, NodeBeingLoaded> = new Map();
-  loadingMap.set(data.id, topLevelNodeTree);
+  loadingMap.set(expDef.id, topLevelNodeTree);
 
   // Tracking these to connect them (the various input/output
   // connections/streams) after.
-  const cellSections: SomeSection[] = [];
+  const ioSections: SomeSection[] = [];
 
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
@@ -270,12 +291,18 @@ export async function loadExperiment(
           loadingMap.set(subSec.id, beingLoaded);
         } else if (subSec.kind === SecDefKind.WorkerCell) {
           if (subSec.cellCodeRef.kind === CellRefKind.PathToWorkerCode) {
-            const data = await dataResolver.load(subSec.cellCodeRef.path);
-            if (data instanceof Error) {
-              return data;
-            }
+            // TODO: Load code into object URL and setup cell...
+            throw new Error('not yet implmented');
+            // const data = await dataResolver.load(subSec.cellCodeRef.path);
+            // if (data instanceof Error) {
+            //   return data;
+            // }
           }
-          cellSections.push(section);
+          ioSections.push(section);
+        } else if (subSec.kind === SecDefKind.UiCell) {
+          ioSections.push(section);
+        } else {
+          throw new Error(`unknown section kind in section: ${JSON.stringify(subSec)}`);
         }
       }
     }
@@ -309,8 +336,19 @@ export async function loadExperiment(
     toResolve.exp.sectionMap = sectionMap;
   }
 
-  for (const cellSection of cellSections) {
-    cellSection.initInputOutputValues();
+  console.log(
+    'ioSections: ',
+    ioSections.map((s) => s.def),
+  );
+  for (const sec of ioSections) {
+    sec.initOutputs();
+    // cellSection.connectCell();
+  }
+  for (const sec of ioSections) {
+    sec.initInputs();
+    if (sec.data().kind === SecDefKind.WorkerCell) {
+      sec.connectWorkerCell();
+    }
     // cellSection.connectCell();
   }
 

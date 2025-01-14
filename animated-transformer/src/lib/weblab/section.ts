@@ -39,16 +39,15 @@ import {
   SetableSignal,
   SignalSpace,
 } from 'src/lib/signalspace/signalspace';
-import { SomeCellController } from '../distr-signal-exec/cell-controller';
+import { SomeCellController } from '../distr-signals/cell-controller';
 import {
   Kind,
   SomeWorkerCellKind,
   ValueKindFnStruct,
   ValueStruct,
   WorkerCellKind,
-} from '../distr-signal-exec/cell-kind';
+} from '../distr-signals/cell-kind';
 import { Experiment } from './experiment';
-import { SignalSender, StreamReceiver, StreamSender } from '../distr-signal-exec/channels';
 
 // ============================================================================
 
@@ -256,8 +255,6 @@ function cellKindFromContent(
 }
 
 // ============================================================================
-//
-// ============================================================================
 
 export type SomeSection = Section<ValueStruct, ValueStruct>;
 
@@ -271,11 +268,13 @@ export enum CellSectionStatus {
 }
 
 // ============================================================================
+//
+// ============================================================================
 // CONSIDER: Have a few different kinds of sections, one for cells, etc.
 export class Section<I extends ValueStruct, O extends ValueStruct> {
   // References to this section.
   references: Set<SomeSection> = new Set();
-  status: CellSectionStatus;
+  status: CellSectionStatus = CellSectionStatus.NotStarted;
 
   // this.data().sectionData.sectionKind === SectionKind.SubExperiment
   subExperiment?: Experiment;
@@ -289,12 +288,8 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
   dataUpdateDeps: AbstractSignal<void>[] = [];
 
   // This is how UI code interacts with a section.
-  inputs = {} as {
-    [Key in keyof I]: AbstractSignal<I[Key]>;
-  };
-  outputs = {} as {
-    [Key in keyof O]: SetableSignal<O[Key]>;
-  };
+  inputs = {} as { [Key in keyof I]: AbstractSignal<I[Key] | null> };
+  outputs = {} as { [Key in keyof O]: SetableSignal<O[Key] | null> };
 
   space: SignalSpace;
 
@@ -305,43 +300,75 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
   ) {
     this.space = this.experiment.space;
 
+    if (def.kind === SecDefKind.WorkerCell || def.kind === SecDefKind.UiCell) {
+      for (const k of Object.keys(def.io.outputs || {})) {
+        this.outputs[k as never as keyof O] = experiment.space.setable(null);
+      }
+    }
+
     const content = this.data();
     switch (content.kind) {
-      case SecDefKind.WorkerCell:
-        {
-          this.status = CellSectionStatus.NotStarted;
-          const cellKind = cellKindFromContent(content, experiment.cellRegistry, this.def.id);
-          this.cell = this.experiment.env.init(cellKind);
-        }
+      case SecDefKind.WorkerCell: {
+        this.status = CellSectionStatus.NotStarted;
+        const cellKind = cellKindFromContent(content, experiment.cellRegistry, this.def.id);
+        this.cell = this.experiment.env.init(cellKind);
         break;
+      }
+      // case SecDefKind.UiCell: {
+      //   this.initUiIoValues();
+      //   break;
+      // }
       default:
         this.status = CellSectionStatus.Static;
     }
   }
 
-  // This happens after construction, but before connecting cells.
-  initInputOutputValues() {
+  initCellWorkerIoValues() {}
+
+  initOutputs() {
     const data = this.data();
+    console.log('initOutputs', data);
     const secKind = data.kind;
     if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
+      console.warn(`initOutputs called on non-worker or Ui section (called ${secKind}).`);
       return;
     }
+
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
       if (cellOutputRef.saved) {
         const outputs = data.io.outputs as {
           [outputId: string]: CellSectionOutput;
         };
-        const output = this.space.setable(cellOutputRef.lastValue as O[keyof O]);
-        this.outputs[outputId as keyof O] = output;
-        // Propegate changes to the output setable to the broader content object.
-        // TODO: think about tracking this dep to cleanup later?
+        if (this.cell && secKind === SecDefKind.WorkerCell) {
+          for (const k of Object.keys(this.cell.outputs)) {
+            this.cell.outputs[k].recEnd.onceReady.then((v) =>
+              this.experiment.space.derived(() => this.outputs[k].set(v())),
+            );
+          }
+        } else if (!this.cell && secKind === SecDefKind.UiCell) {
+          this.outputs[outputId as keyof O].set(cellOutputRef.lastValue as O[keyof O]);
+          // Propegate changes to the output setable to the broader content object.
+          // TODO: think about tracking this dep to cleanup later?
+        } else {
+          console.warn(`Strange state: ${secKind} and cell state (${!!this.cell})`);
+          return;
+        }
         this.space.derived(() => {
-          const newOutput = output();
+          const newOutput = this.outputs[outputId as keyof O]();
           this.data.change((c) => {
-            outputs[outputId] = newOutput;
+            outputs[outputId].lastValue = newOutput;
           });
         });
       }
+    }
+  }
+
+  // This happens after construction, but before connecting cells.
+  initInputs() {
+    const data = this.data();
+    const secKind = data.kind;
+    if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
+      return;
     }
 
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {

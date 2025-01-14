@@ -23,7 +23,7 @@ import {
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
+import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -233,6 +233,7 @@ export class WebColabComponent {
   @showErrors()
   @loadingUi()
   async tryLoadExperimentFromCache() {
+    console.log('tryLoadExperimentFromCache...');
     const cachedFilePath = await this.localCache.getDefaultPath();
     if (!cachedFilePath) {
       throw new Error(`missing localCache.getDefaultPath`);

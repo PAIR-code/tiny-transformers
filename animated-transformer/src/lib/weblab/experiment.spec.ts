@@ -24,7 +24,7 @@ import {
   SecDefOfUiView,
   ViewerKind,
 } from './section';
-import { LabEnv } from '../distr-signal-exec/lab-env';
+import { LabEnv } from '../distr-signals/lab-env';
 
 describe('experiment', () => {
   beforeEach(() => {});

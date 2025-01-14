@@ -36,7 +36,7 @@ export class LocalCacheStoreService {
     if (!s) {
       return null;
     }
-
+    // TODO: consider if not parsable, clear and return null?
     return json5.parse(s);
   }
 

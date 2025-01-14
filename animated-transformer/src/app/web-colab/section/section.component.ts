@@ -44,14 +44,12 @@ export class SectionComponent {
     return stringifyJsonValue(x);
   }
 
-  handleSectionJsonUpdate(
-    update: ConfigUpdate<JsonValue>,
-    contentSignal: SetableSignal<JsonValue>,
-  ) {
+  handleJsonUpdate(update: ConfigUpdate<JsonValue>, contentSignal: SetableSignal<JsonValue>) {
     if (update.kind !== ConfigUpdateKind.UpdatedValue) {
       return;
     }
     contentSignal.set(update.obj as JsonValue);
+
     // TODO: sections should manage their edit status, and not have it done via
     // components.
     this.edited.emit(true);

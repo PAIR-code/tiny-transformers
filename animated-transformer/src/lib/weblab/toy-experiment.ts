@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { LabEnv } from '../distr-signal-exec/lab-env';
+import { LabEnv } from '../distr-signals/lab-env';
 import { Experiment } from './experiment';
 import {
   SecDef,

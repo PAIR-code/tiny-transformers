@@ -5,26 +5,31 @@
   @case (SecDefKind.UiCell) {
     @switch (data.uiView) {
       @case (ViewerKind.MarkdownOutView) {
-        <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+        @let markdown = sec.outputs["markdown"]();
+        @if (markdown) {
+          <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+        } @else {
+          markdown not yet defined.
+        }
       }
       @case (ViewerKind.JsonObjOutView) {
         @let jsonObjSignal = sec.outputs["jsonObj"];
-        <app-codemirror-config-editor
-          [whatIsBeingEditedName]="sec.def.id"
-          [defaultConfig]="'{}'"
-          [config]="stringifyJsonValue(jsonObjSignal())"
-          [closable]="false"
-          (update)="jsonObjSignal.set($event)"
-        ></app-codemirror-config-editor>
+        @if (jsonObjSignal()) {
+          <app-codemirror-config-editor
+            [whatIsBeingEditedName]="sec.def.id"
+            [defaultConfig]="'{}'"
+            [config]="stringifyJsonValue(jsonObjSignal())"
+            [closable]="false"
+            (update)="handleJsonUpdate($event, jsonObjSignal)"
+          ></app-codemirror-config-editor>
+        } @else {
+          JSON not yet defined.
+        }
       }
     }
   }
   @case (SecDefKind.WorkerCell) {
-    <app-cell-section
-      [experiment]="experiment()"
-      [section]="section()"
-      [data]="data"
-    ></app-cell-section>
+    <app-cell-section [section]="section()"></app-cell-section>
   }
   @case (SecDefKind.Experiment) {
     <div>SubExperiment</div>

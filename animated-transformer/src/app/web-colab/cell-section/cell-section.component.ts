@@ -3,11 +3,12 @@ import {
   Component,
   input,
   OnInit,
+  Signal,
   signal,
   WritableSignal,
 } from '@angular/core';
 
-import { CellStatus, SomeCellController } from 'src/lib/distr-signal-exec/cell-controller';
+import { CellStatus, SomeCellController } from 'src/lib/distr-signals/cell-controller';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -53,9 +54,7 @@ import { SecDefOfExperiment, SecDefOfWorker, SomeSection } from '../../../lib/we
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CellSectionComponent implements OnInit {
-  readonly experiment = input.required<Experiment>();
   readonly section = input.required<SomeSection>();
-  readonly data = input.required<SecDefOfWorker>();
   cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
 
@@ -74,17 +73,17 @@ export class CellSectionComponent implements OnInit {
   }
 
   inputs() {
-    return Object.keys(this.data().io.inputs || {});
+    return Object.keys(this.section().inputs || {});
   }
   outputs() {
-    return Object.keys(this.data().io.outputs || {});
+    return Object.keys(this.section().outputs || {});
   }
-  inStreams() {
-    return Object.keys(this.data().io.inStreams || {});
-  }
-  outStreams() {
-    return this.data().io.outStreamIds || [];
-  }
+  // inStreams() {
+  //   return Object.keys(this.section().inStreams || {});
+  // }
+  // outStreams() {
+  //   return this.data().io.outStreamIds || [];
+  // }
 
   start() {
     this.cell.start();
