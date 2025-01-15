@@ -20,13 +20,14 @@ import {
   effect,
   Signal,
   signal,
+  inject,
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -58,6 +59,8 @@ import { SectionComponent } from './section/section.component';
 import { SecDefOfExperiment, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
 import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
 import { tryer } from 'src/lib/utils';
+import { CellRegistryService } from '../cell-registry.service';
+import { DomSanitizer } from '@angular/platform-browser';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
@@ -167,7 +170,19 @@ export class WebColabComponent {
     public router: Router,
     public dialog: MatDialog,
     public localCache: LocalCacheStoreService,
+    public cellRegistry: CellRegistryService,
   ) {
+    const iconRegistry = inject(MatIconRegistry);
+    const sanitizer = inject(DomSanitizer);
+
+    // Note that we provide the icon here as a string literal here due to a limitation in
+    // Stackblitz. If you want to provide the icon from a URL, you can use:
+    // `iconRegistry.addSvgIcon('thumbs-up', sanitizer.bypassSecurityTrustResourceUrl('icon.svg'));`
+    iconRegistry.addSvgIcon(
+      'close',
+      sanitizer.bypassSecurityTrustResourceUrl('assets/icons/close.svg'),
+    );
+
     this.space = new SignalSpace();
     this.env = new LabEnv(this.space);
 
@@ -242,7 +257,12 @@ export class WebColabComponent {
     if (!cachedExpData) {
       return;
     }
-    const exp = await loadExperiment(this.cacheDataResolver, this.env, cachedExpData);
+    const exp = await loadExperiment(
+      this.cellRegistry.registry,
+      this.cacheDataResolver,
+      this.env,
+      cachedExpData,
+    );
     if (exp instanceof Error) {
       this.error = exp.message;
       return;
@@ -282,7 +302,9 @@ export class WebColabComponent {
   }
 
   async newExperiment() {
-    this.experiment.set(makeToyExperiment('simple experiment', this.env));
+    this.experiment.set(
+      makeToyExperiment(this.cellRegistry.registry, this.env, 'simple experiment'),
+    );
     await this.saveExperimentToCache();
     this.diskState.set(SaveState.New);
   }
@@ -343,7 +365,12 @@ export class WebColabComponent {
     }
     // TODO: actually do some validation...
     const expDef = secDataDef as SecDefOfExperiment;
-    const exp = await loadExperiment(this.fileDataResolver, this.env, expDef);
+    const exp = await loadExperiment(
+      this.cellRegistry.registry,
+      this.fileDataResolver,
+      this.env,
+      expDef,
+    );
     if (exp instanceof Error) {
       this.error = `Failed to load experiment from 'experiment.json': ${exp.message}`;
       return;

@@ -19,13 +19,13 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { workerCell } from 'src/lib/distr-signal-exec/lab-worker-cell';
+import { workerCell } from 'src/lib/distr-signals/lab-worker-cell';
 import {
   Batch,
   ModelUpdateKind,
   ModelUpdate as ModelUpdate,
   TrainConfig,
-  trainerCellSpec,
+  trainerCellKind,
 } from './ailab';
 import {
   computeTransformer,
@@ -46,11 +46,11 @@ import {
   varifyParams,
 } from 'src/lib/gtensor/params';
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
-import { Metrics } from 'src/lib/distr-signal-exec/cell-kind';
+import { Metrics } from 'src/lib/distr-signals/cell-kind';
 import { makeRandomStream, RandomStream } from 'src/lib/random/random';
 
 // ----------------------------------------------------------------------------
-const cell = workerCell(trainerCellSpec);
+const cell = workerCell(trainerCellKind);
 const { derived, setable, derivedNullable } = cell.space;
 
 // profiling variables.
@@ -165,7 +165,7 @@ function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model 
 }
 
 // ----------------------------------------------------------------------------
-cell.run(async () => {
+cell.onStart(async () => {
   // TODO: Test set should be used for metrics reporting at least, and/or evaluated
   // per checkpoint?
   const { testSet, modelUpdateEvents, trainConfig } = await cell.onceAllInputs;

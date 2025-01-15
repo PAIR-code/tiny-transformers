@@ -16,13 +16,13 @@ import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtenso
 import { asyncIterToSignal, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   TrainConfig,
-  trainerCellSpec,
-  taskCellSpec,
+  trainerCellKind,
+  taskCellKind,
   ModelUpdate,
   ModelUpdateKind,
   TaskGenConfig,
 } from './ailab';
-import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
+import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 describe('tiny-transformer-example/test-and-trainer', () => {
@@ -66,13 +66,13 @@ describe('tiny-transformer-example/test-and-trainer', () => {
       initBatchSeed: 0,
     });
 
-    const taskCell = env.init(taskCellSpec, {
+    const taskCell = env.init(taskCellKind, {
       inputs: { taskConfig, genConfig },
     });
 
     // ------------------------------------------------------------------------
     // Trainer cell
-    const trainerCell = env.init(trainerCellSpec, {
+    const trainerCell = env.init(trainerCellKind, {
       inputs: { modelUpdateEvents, trainConfig },
     });
 

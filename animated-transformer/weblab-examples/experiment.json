@@ -1,48 +1,47 @@
 {
   "id": "simple experiment",
-  "kind": "Data",
-  "sectionData": {
-    "content": [
-      {
-        "id": "about",
-        "kind": "Data",
-        "sectionData": {
-          "content": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
-          "sectionKind": "Markdown"
-        },
-        "timestamp": 1736417008657
+  "kind": "SubExperiment",
+  "subsections": [
+    {
+      "id": "about",
+      "io": {
+        "outputs": {
+          "markdown": {
+            "lastValue": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
+            "saved": true
+          }
+        }
       },
-      {
-        "id": "some data",
-        "kind": "Data",
-        "sectionData": {
-          "content": {
-            "hello": "foo"
-          },
-          "sectionKind": "JsonObj"
-        },
-        "timestamp": 1736417008657
-      },
-      {
-        "id": "cell section",
-        "kind": "Data",
-        "sectionData": {
-          "content": {
-            "cellRef": {
-              "js": "console.log(\"hello world from simple cell!\");",
-              "kind": "InlineWorkerJsCode"
+      "kind": "LocalCell",
+      "timestamp": 1736852688256,
+      "uiView": "Markdown"
+    },
+    {
+      "id": "some json data",
+      "io": {
+        "outputs": {
+          "jsonObj": {
+            "lastValue": {
+              "hello": "foo"
             },
-            "inStreams": {},
-            "inputs": {},
-            "outStreamIds": [],
-            "outputs": {}
-          },
-          "sectionKind": "WorkerCell"
-        },
-        "timestamp": 1736417031005
-      }
-    ],
-    "sectionKind": "SubExperiment"
-  },
-  "timestamp": 1736417031005
+            "saved": true
+          }
+        }
+      },
+      "kind": "LocalCell",
+      "timestamp": 1736852688256,
+      "uiView": "JsonObj"
+    },
+    {
+      "cellCodeRef": {
+        "js": "console.log(\"hello world from simple cell!\");",
+        "kind": "InlineWorkerJsCode"
+      },
+      "id": "cell section",
+      "io": {},
+      "kind": "WorkerCell",
+      "timestamp": 1736852689586
+    }
+  ],
+  "timestamp": 1736852689585
 }

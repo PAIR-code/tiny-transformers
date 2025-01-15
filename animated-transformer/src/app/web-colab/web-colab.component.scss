@@ -20,8 +20,19 @@
   border-color: #880000;
   color: #880000;
   background-color: #FFAAAA;
+  padding: 10px;
   font-size: 10pt;
   margin: 10px;
+  border-radius: 5px;
+  
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  // align-items: start;
+  
+  flex: 1 1 auto;
 }
 
 .buttons {

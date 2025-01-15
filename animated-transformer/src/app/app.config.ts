@@ -27,6 +27,7 @@ import { SAEComponent } from 'src/app/sae/sae.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
 
 export const routes: Routes = [
   { path: '', component: WebColabComponent, pathMatch: 'full' },
@@ -48,6 +49,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding()),
     provideAnimationsAsync(),
     provideMarkdown(),
+    provideHttpClient(),
   ],
 };
 

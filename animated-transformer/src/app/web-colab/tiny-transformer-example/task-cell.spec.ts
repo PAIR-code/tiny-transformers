@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { Batch, taskCellSpec, TaskGenConfig } from './ailab';
-import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
+import { Batch, taskCellKind, TaskGenConfig } from './ailab';
+import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 describe('tiny-transformer-example/task-cell', () => {
@@ -33,7 +33,7 @@ describe('tiny-transformer-example/task-cell', () => {
       batchSize: 10,
       testSetSize: 3,
     });
-    const task = env.start(taskCellSpec, { inputs: { taskConfig, genConfig } });
+    const task = env.start(taskCellKind, { inputs: { taskConfig, genConfig } });
     const testSet = await task.cell.outputs.testSet.connect();
     expect(testSet().length).toEqual(3);
 

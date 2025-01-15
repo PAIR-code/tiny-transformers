@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { taskCellKind, trainerCellKind } from 'src/app/web-colab/tiny-transformer-example/ailab';
 import { LabEnv } from '../distr-signals/lab-env';
 import { Experiment } from './experiment';
 import {
@@ -24,6 +25,7 @@ import {
   ViewerKind,
   SecDefOfWorker,
 } from './section';
+import { SomeWorkerCellKind, WorkerCellKind } from '../distr-signals/cell-kind';
 
 export const initExpDef: SecDefOfExperiment = {
   kind: SecDefKind.Experiment,
@@ -78,7 +80,39 @@ export function secSimpleCell(): SecDefOfWorker {
   };
 }
 
-export function makeToyExperiment(id: string, env: LabEnv): Experiment {
+export function simplePathToCell(): SecDefOfWorker {
+  return {
+    kind: SecDefKind.WorkerCell,
+    id: 'Simple Path to Cell',
+    timestamp: Date.now(),
+    io: {},
+    cellCodeRef: {
+      kind: CellRefKind.PathToWorkerCode,
+      path: './distr/cell1.worker.js',
+    },
+  };
+}
+
+export function taskMakerCell(): SecDefOfWorker {
+  return {
+    kind: SecDefKind.WorkerCell,
+    id: 'Task Maker',
+    timestamp: Date.now(),
+    io: {
+      inputs: {},
+    },
+    cellCodeRef: {
+      kind: CellRefKind.WorkerRegistry,
+      registryCellKindId: taskCellKind.cellKindId,
+    },
+  };
+}
+
+export function makeToyExperiment(
+  registry: Map<string, SomeWorkerCellKind>,
+  env: LabEnv,
+  id: string,
+): Experiment {
   const initExpDef: SecDefOfExperiment = {
     kind: SecDefKind.Experiment,
     id,
@@ -87,8 +121,10 @@ export function makeToyExperiment(id: string, env: LabEnv): Experiment {
     subsections: [],
   };
   const exp = new Experiment(env, [], initExpDef);
+  exp.cellRegistry = registry;
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
   exp.appendLeafSectionFromDataDef(secSimpleJson);
   exp.appendLeafSectionFromDataDef(secSimpleCell());
+  exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;
 }

@@ -24,6 +24,7 @@
     "@codemirror/commands": "^6.2.4",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/language": "^6.9.0",
+    "@material-design-icons/svg": "^0.14.13",
     "@tensorflow/tfjs": "^4.20.0",
     "@tensorflow/tfjs-vis": "^1.5.1",
     "codemirror": "^6.0.1",

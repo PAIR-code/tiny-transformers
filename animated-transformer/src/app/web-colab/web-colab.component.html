@@ -8,11 +8,11 @@
       <button mat-button (click)="loadExperiment()">Load</button>
       @if (error) {
         <div class="error">
-          <div class="buttons">
-            <div class="spacer"></div>
-            <button mat-button (click)="clearError()">X</button>
-          </div>
           <div class="errorMessage">{{ error }}</div>
+          <div class="spacer"></div>
+          <button mat-icon-button (click)="clearError()">
+            <mat-icon svgIcon="close"></mat-icon>
+          </button>
         </div>
       }
     </div>

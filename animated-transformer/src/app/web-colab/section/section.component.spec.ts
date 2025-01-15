@@ -15,7 +15,7 @@ describe('SectionComponent', () => {
   beforeEach(async () => {
     const space = new SignalSpace();
     const env = new LabEnv(space);
-    const exp = makeToyExperiment('toy experiment id', env);
+    const exp = makeToyExperiment(new Map(), env, 'toy experiment id');
 
     await TestBed.configureTestingModule({
       providers: [provideExperimentalZonelessChangeDetection()],

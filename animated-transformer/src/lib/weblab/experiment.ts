@@ -229,6 +229,7 @@ type NodeBeingLoaded = {
 };
 
 export async function loadExperiment(
+  cellRegistry: Map<string, SomeWorkerCellKind>,
   dataResolver: AbstractDataResolver<SecDefWithData>,
   env: LabEnv,
   expDef: SecDefOfExperiment,
@@ -281,6 +282,7 @@ export async function loadExperiment(
           // TODO: think about if we really want sub-experiments..., maybe
           // better just subsections?
           section.subExperiment = new Experiment(env, [...cur.exp.ancestors, cur.exp], subSec);
+          section.subExperiment.cellRegistry = cellRegistry;
           const beingLoaded = {
             // TODO: all subexp share the same section map, and
             // this would then make sections have, essentially, module imports?

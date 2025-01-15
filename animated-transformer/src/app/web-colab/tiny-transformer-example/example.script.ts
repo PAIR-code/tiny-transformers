@@ -20,15 +20,15 @@ limitations under the License.
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import {
   TrainConfig,
-  trainerCellSpec,
-  taskCellSpec,
+  trainerCellKind,
+  taskCellKind,
   Checkpoint,
   SimpleMetrics,
   ModelUpdate,
   ModelUpdateKind,
   TaskGenConfig,
 } from './ailab';
-import { LabEnv } from 'src/lib/distr-signal-exec/lab-env';
+import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 
@@ -88,12 +88,12 @@ async function run() {
   });
   // Should be set by checkpoint...
   // const model = setable<EnvModel>({ config: defaultTransformerConfig() });
-  const taskCell = env.start(taskCellSpec, {
-    taskConfig,
-    genConfig,
+  const taskMaker = env.start(taskCellKind, {
+    inputs: {
+      taskConfig,
+      genConfig,
+    },
   });
-
-  const testSet = await taskCell.outputs.testSet.onceReady;
 
   // TODO: add data to each signal in a spec to say if the signal is pushed or
   // pulled. Pushed means that every worker set on the signal pushes the new
@@ -103,26 +103,27 @@ async function run() {
   // sync...)
   //
   // Note: we can make the semantics here match signalspace. That would be cool.
-  const trainerCell = env.start(trainerCellSpec, {
-    modelUpdateEvents,
-    trainConfig,
-    testSet,
+  const trainer = env.start(trainerCellKind, {
+    inputs: {
+      modelUpdateEvents,
+      trainConfig,
+      testSet: taskMaker.cell.outputs.testSet,
+    },
+    inStreams: {
+      trainBatches: taskMaker.cell.outStreams.trainBatches,
+    },
   });
 
-  // We don't need the batch values.
-  env.pipeStream(taskCell, 'trainBatches', trainerCell, { keepHereToo: false });
-  // But we would like to have the testSet here.
-  env.pipeSignal(taskCell, 'testSet', trainerCell, { keepHereToo: true });
-
-  for await (const m of trainerCell.outStreams.metrics) {
+  for await (const m of trainer.cell.outStreams.metrics.connect()) {
     logMetrics(m);
   }
 
-  for await (const c of trainerCell.outStreams.checkpoint) {
+  for await (const c of trainer.cell.outStreams.checkpoint.connect()) {
     logCheckpoint(c);
   }
 
-  await taskCell.onceFinished;
-  await trainerCell.onceFinished;
+  await taskMaker.cell.onceFinished;
+  await trainer.cell.onceFinished;
 }
+
 run();
