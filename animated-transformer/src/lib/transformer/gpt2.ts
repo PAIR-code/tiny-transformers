@@ -36,6 +36,7 @@ import { initLayerNormParamsWithDims, layerNorm, LayerNormParams } from '../gten
 import { dropout } from './dropout';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
 import { RandomStream } from '../random/random';
+import { causalMask, BatchAttnHeadComputation } from './transformer_gtensor';
 
 export type Config = {
   id: string;
@@ -215,17 +216,6 @@ export function initAttnHeadParams(
   return attnHeadParams;
 }
 
-export type BatchAttnHeadCompututation = {
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>;
-  keys: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
-  queries: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
-  attention: GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'>;
-  values: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
-  attendedValues: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
-  inputToFF: GTensor<'batch' | 'pos' | 'inputRep'>;
-  seqOutput: GTensor<'batch' | 'pos' | 'inputRep'>;
-};
-
 // TODO(@aliciafmachado): seems like GELU from OpenAI is slightly different according
 // to https://github.com/huggingface/transformers/blob/main/src/transformers/activations.py#L59.
 // For now, we keep the current implementation of GELU but to be revised when we attempt
@@ -247,7 +237,7 @@ export function computeAttnHead(
   params: AttnHeadParams,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
   generator: RandomStream
-): BatchAttnHeadCompututation {
+): BatchAttnHeadComputation {
   const { queryM, keyM, valueM, headsToInputRepM, queryMBias, keyMBias, valueMBias,
     headsToInputRepMBias, ff1, ff2 } = params;
 
@@ -265,7 +255,7 @@ export function computeAttnHead(
     .rename('pos', 'keyPos')
     .contract(queries.rename('pos', 'queryPos'), ['kq']);
 
-  const attention = rawAttention.softmax('queryPos');
+  const attention = causalMask(rawAttention);
 
   // Dropout on the attention weights.
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
@@ -377,7 +367,7 @@ export function initDecoderParams(config: Config): TransformerParams {
 }
 
 export type TransformerComputation = {
-  layers: BatchAttnHeadCompututation[];
+  layers: BatchAttnHeadComputation[];
 };
 
 export function computeTransformer(

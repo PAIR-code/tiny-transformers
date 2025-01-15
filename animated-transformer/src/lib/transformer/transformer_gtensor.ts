@@ -299,7 +299,7 @@ export function initAttnHeadParams(
   return attnHeadParams;
 }
 
-export type BatchAttnHeadCompututation = {
+export type BatchAttnHeadComputation = {
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>;
   keys: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
   queries: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
@@ -307,7 +307,7 @@ export type BatchAttnHeadCompututation = {
   values: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
   attendedValues: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
   inputToFF: GTensor<'batch' | 'pos' | 'inputRep'>;
-  seqOuput: GTensor<'batch' | 'pos' | 'inputRep'>;
+  seqOutput: GTensor<'batch' | 'pos' | 'inputRep'>;
 };
 
 function gelu(x: tf.Tensor) {
@@ -342,7 +342,7 @@ export function computeAttnHead(
   params: AttnHeadParams,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
   generator: RandomStream,
-): BatchAttnHeadCompututation {
+): BatchAttnHeadComputation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
   const queries = seqInput.contract(queryM, ['inputRep']);
@@ -418,9 +418,9 @@ export function computeAttnHead(
     );
   }
 
-  let seqOuput = unNormedSeqOuput;
+  let seqOutput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
-    seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
+    seqOutput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
   }
 
   return {
@@ -431,7 +431,7 @@ export function computeAttnHead(
     values,
     attendedValues,
     inputToFF: inputToFF.rename('inputRepToFF', 'inputRep'),
-    seqOuput,
+    seqOutput,
   };
 }
 
@@ -462,7 +462,7 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
 }
 
 export type TransformerComputation = {
-  layers: BatchAttnHeadCompututation[];
+  layers: BatchAttnHeadComputation[];
 };
 
 export function computeTransformer(
@@ -483,7 +483,7 @@ export function computeTransformer(
       generator,
     );
     compute.layers.push(layerCompute);
-    currentLayerInput = layerCompute.seqOuput;
+    currentLayerInput = layerCompute.seqOutput;
   });
   // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
   // this in the TransformerComputation output.
@@ -509,7 +509,7 @@ export function lastTokenLogits(
   computation: TransformerComputation,
 ): GTensor<'batch' | 'tokenId'> {
   const lastLayer = computation.layers[computation.layers.length - 1];
-  const positionParams = lastLayer.seqOuput.unstack('pos');
+  const positionParams = lastLayer.seqOutput.unstack('pos');
   const lastPosParams = positionParams[positionParams.length - 1];
   const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
   return logits;
@@ -551,7 +551,7 @@ export function allPastTokensLogits(
   computation: TransformerComputation,
 ): GTensor<'batch' | 'pos' | 'tokenId'> {
   const lastLayer = computation.layers[computation.layers.length - 1];
-  const logits = lastLayer.seqOuput.contract(model.params.tokenEmbedding, ['inputRep']);
+  const logits = lastLayer.seqOutput.contract(model.params.tokenEmbedding, ['inputRep']);
   return logits;
 }
 
