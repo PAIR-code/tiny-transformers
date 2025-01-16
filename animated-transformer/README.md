@@ -23,6 +23,28 @@ NOTE: The dev server listens on 127.0.0.1. If you intend to access the
 dev server from another machine, you'll need to tunnel the traffic using `ssh`'s
 `-L` flag.
 
+## Adding an icon
+
+1. Download the SVG of an icon, e.g. from: https://fonts.google.com/icons into
+   the `src/assets/icons` directory, e.g. the [`settings`](https://fonts.google.com/icons?selected=Material+Symbols+Outlined:settings:FILL@0;wght@400;GRAD@0;opsz@24&icon.size=24&icon.color=%235f6368) icon.
+1. Make the component import `MatIconModule`, and add code like this to the
+   constructor: 
+    
+```ts
+const iconRegistry = inject(MatIconRegistry);
+const sanitizer = inject(DomSanitizer);
+function addIcons(names: string[]) {
+  for (const name of names) {
+    iconRegistry.addSvgIcon(
+      name,
+      sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
+    );
+  }
+}
+addIcons(['settings']);
+```
+
+
 ## Code scaffolding
 
 Run `ng generate component component-name` to generate a new component. You can

@@ -106,26 +106,12 @@
           @for (section of sections; track section.def.id) {
             <div class="section">
               <a [name]="'sec:' + section.def.id"></a>
-              <mat-card>
-                <mat-card-content>
-                  <app-section
-                    (inView)="noteInView(section, $event)"
-                    (edited)="onSectionEdited(section, $event)"
-                    [experiment]="exp"
-                    [section]="section"
-                  ></app-section>
-                  <!-- @if(data.kind == ExpDefKind.Data) {
-              } @else {
-                <div>Unknown data.kind {{ data.kind }}</div>
-              } -->
-                </mat-card-content>
-              </mat-card>
-              <div class="buttons hoverButtons">
-                <span class="spacer"></span>
-                <button mat-button class="disappearing">+</button>
-                <span class="spacer"></span>
-                <!-- <button mat-button>...</button> -->
-              </div>
+              <app-section
+                (inView)="noteInView(section, $event)"
+                (edited)="onSectionEdited(section, $event)"
+                [experiment]="exp"
+                [section]="section"
+              ></app-section>
             </div>
           }
         </div>

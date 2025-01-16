@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  inject,
   Inject,
   input,
   model,
   output,
   PLATFORM_ID,
+  signal,
   viewChild,
 } from '@angular/core';
 import { Experiment } from '../../../lib/weblab/experiment';
@@ -20,11 +22,20 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import { SecDefKind, SomeSection, ViewerKind } from 'src/lib/weblab/section';
+import { SecDefKind, SectionDisplay, SomeSection, ViewerKind } from 'src/lib/weblab/section';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
+import { DomSanitizer } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-section',
-  imports: [MarkdownModule, CodemirrorConfigEditorComponent, CellSectionComponent],
+  imports: [
+    MarkdownModule,
+    MatButtonModule,
+    MatIconModule,
+    CodemirrorConfigEditorComponent,
+    CellSectionComponent,
+  ],
   providers: [MarkdownService],
   templateUrl: './section.component.html',
   styleUrl: './section.component.scss',
@@ -42,10 +53,31 @@ export class SectionComponent {
   SecDefKind = SecDefKind;
   ViewerKind = ViewerKind;
 
+  display = signal<SectionDisplay>({});
+
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private thisElement: ElementRef,
   ) {
+    const iconRegistry = inject(MatIconRegistry);
+    const sanitizer = inject(DomSanitizer);
+    function addIcons(names: string[]) {
+      for (const name of names) {
+        iconRegistry.addSvgIcon(
+          name,
+          sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
+        );
+      }
+    }
+    addIcons([
+      'settings',
+      'add',
+      'visibility',
+      'visibility_off',
+      'keyboard_arrow_up',
+      'keyboard_arrow_down',
+    ]);
+
     this.intersectionObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {

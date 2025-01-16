@@ -64,18 +64,26 @@ export enum SecDefKind {
   // todo: add more...
 }
 
+export type SectionDisplay = {
+  hidden?: boolean;
+  collapsed?: boolean;
+  initialLimittedHeightPx?: number;
+};
+
 export type SecDefByRef = {
   kind: SecDefKind.Ref;
   // This cell's ID.
   id: string;
   // Reference to other cell's ID.
   refId: string;
+  display?: SectionDisplay;
 };
 
 export type SecDefByPath = {
   kind: SecDefKind.Path;
   id: string; // unclear if this should be here, or in the data?
   dataPath: string; // URI to a file containing ExpCellData.
+  display?: SectionDisplay;
 };
 
 // export type SecDefOfJsonValue = {
@@ -104,6 +112,7 @@ export type SecDefOfExperiment = {
   timestamp: number;
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   subsections: SecDef[];
+  display?: SectionDisplay;
   // displayKind: ExpCellDisplayKind;
 };
 
@@ -119,6 +128,7 @@ export type SecDefOfUiView = {
   timestamp: number;
   io: IOSectionContent;
   uiView: ViewerKind;
+  display?: SectionDisplay;
 };
 
 export type SecDefOfWorker = {
@@ -127,6 +137,7 @@ export type SecDefOfWorker = {
   timestamp: number;
   io: IOSectionContent;
   cellCodeRef: CellCodeRef;
+  display?: SectionDisplay;
 };
 
 export type SecDefWithData = SecDefOfWorker | SecDefOfUiView | SecDefOfExperiment;
@@ -305,6 +316,8 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
         this.outputs[k as never as keyof O] = experiment.space.setable(null);
       }
     }
+
+    this.def.display = this.def.display || {};
 
     const content = this.data();
     switch (content.kind) {
