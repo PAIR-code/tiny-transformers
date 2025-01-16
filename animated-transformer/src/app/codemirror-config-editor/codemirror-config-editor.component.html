@@ -1,4 +1,4 @@
-<div class="buttons">
+<div class="buttons onHover">
   <div class="whatIsBeingEditedName">
     {{ whatIsBeingEditedName() }}
     @if (changed()) {
@@ -30,9 +30,11 @@
     }
   </div>
 
-  <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Options">
-    <mat-icon>more_vert</mat-icon>
-  </button>
+  <div class="small-buttons onHoverAppearing">
+    <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Options">
+      <mat-icon>more_vert</mat-icon>
+    </button>
+  </div>
   <mat-menu #menu="matMenu">
     <button mat-menu-item (click)="resetConfig()" [disabled]="isDefault()">
       <mat-icon>settings_backup_restore</mat-icon>

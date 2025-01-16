@@ -24,7 +24,13 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import { SecDefKind, SectionDisplay, SomeSection, ViewerKind } from 'src/lib/weblab/section';
+import {
+  SecDefKind,
+  SecDefWithData,
+  SectionDisplay,
+  SomeSection,
+  ViewerKind,
+} from 'src/lib/weblab/section';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -56,6 +62,7 @@ export class SectionComponent {
   ViewerKind = ViewerKind;
 
   collapsed = signal(false);
+  editDefView = signal(false);
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -110,6 +117,20 @@ export class SectionComponent {
 
   ngOnDestroy() {
     this.intersectionObserver.disconnect();
+  }
+
+  handleDefUpdate(update: ConfigUpdate<JsonValue>) {
+    if (update.kind !== ConfigUpdateKind.UpdatedValue) {
+      return;
+    }
+    const section = this.section();
+    const newDef = update.obj as SecDefWithData;
+    this.section().data.set(newDef);
+    if (newDef.kind === SecDefKind.UiCell) {
+      for (const k of Object.keys(section.outputs)) {
+        section.outputs[k].set(newDef.io.outputs![k].lastValue);
+      }
+    }
   }
 
   //

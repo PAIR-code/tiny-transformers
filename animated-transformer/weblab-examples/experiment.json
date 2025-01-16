@@ -1,12 +1,12 @@
 {
   "kind": "SubExperiment",
   "id": "simple experiment",
-  "timestamp": 1737023839403,
+  "timestamp": 1737038208222,
   "subsections": [
     {
       "kind": "LocalCell",
       "id": "about",
-      "timestamp": 1736987391653,
+      "timestamp": 1737037200411,
       "io": {
         "outputs": {
           "markdown": {
@@ -15,12 +15,13 @@
           }
         }
       },
-      "uiView": "Markdown"
+      "uiView": "Markdown",
+      "display": {}
     },
     {
       "kind": "LocalCell",
       "id": "Task Configuration",
-      "timestamp": 1736987391653,
+      "timestamp": 1737037200411,
       "io": {
         "outputs": {
           "jsonObj": {
@@ -97,12 +98,13 @@
           }
         }
       },
-      "uiView": "JsonObj"
+      "uiView": "JsonObj",
+      "display": {}
     },
     {
       "kind": "LocalCell",
       "id": "Generation Configuration",
-      "timestamp": 1736987391653,
+      "timestamp": 1737037200411,
       "io": {
         "outputs": {
           "jsonObj": {
@@ -117,22 +119,24 @@
           }
         }
       },
-      "uiView": "JsonObj"
+      "uiView": "JsonObj",
+      "display": {}
     },
     {
       "kind": "WorkerCell",
       "id": "cell section",
-      "timestamp": 1737023839403,
+      "timestamp": 1737038208224,
       "io": {},
       "cellCodeRef": {
         "kind": "InlineWorkerJsCode",
         "js": "console.log(\"hello world from simple cell!\");"
-      }
+      },
+      "display": {}
     },
     {
       "kind": "WorkerCell",
       "id": "Task Maker",
-      "timestamp": 1737023839403,
+      "timestamp": 1737038208225,
       "io": {
         "inputs": {
           "taskConfig": {
@@ -148,7 +152,8 @@
       "cellCodeRef": {
         "kind": "WorkerRegistry",
         "registryCellKindId": "Task cell"
-      }
+      },
+      "display": {}
     }
   ]
 }

@@ -32,6 +32,65 @@
   }
 }
 
+
+.onHover {
+  .onHoverAppearing {
+    opacity: 0 !important;
+  }
+}
+.onHover:hover {
+  .onHoverAppearing {
+    opacity: 1 !important;
+    transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+  }
+}
+
+
 .spacer {
   flex: 1
+}
+
+.small-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
+  // align-items: flex-start;
+  align-items: center;
+  flex: none;
+
+  --mdc-icon-button-icon-size: 16px !important;
+  --mdc-icon-button-state-layer-size: 24px !important;
+
+  button {
+    width: 24px !important;
+    height: 24px !important;
+    // line-height: 24px !important;
+
+    
+    padding: 0px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  
+    & > *[role=img] {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+ 
+      svg {
+         width: 16px !important;
+         height: 16px !important;
+      }
+    }
+
+    ::ng-deep { 
+      .mat-mdc-button-touch-target {
+        height: unset !important;
+        width: unset !important;
+        // width: 24px !important;
+        // height: 24px !important;
+      }
+    }
+  }
 }

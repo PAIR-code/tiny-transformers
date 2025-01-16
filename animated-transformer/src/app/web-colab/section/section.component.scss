@@ -1,14 +1,13 @@
 :host {
   display: block;
   background-color: #FFF;
-  padding-bottom: 16px;
 }
 
 :host {
   border-top: 1px dotted #FFF;
   border-bottom: 1px dotted #FFF;
 
-  .hoverButtons .disappearing {
+  .hostHover {
     opacity: 0 !important;
   }
 }
@@ -18,20 +17,20 @@
   border-top: 1px dotted #CCC;
   border-bottom: 1px dotted #CCC;
 
-  .hoverButtons .disappearing {
+  .hostHover {
     opacity: 1 !important;
     transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
   }
 }
 
 
-// .hoverButtons .disappearing {
-//   opacity: 0 !important;
-// }
-// .hoverButtons:hover .disappearing {
-//   opacity: 1 !important;
-//   transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
-// }
+.showOnHover {
+  opacity: 0 !important;
+}
+.showOnHover:hover {
+  opacity: 1 !important;
+  transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+}
 
 
 .expanded-section {
@@ -45,11 +44,11 @@
   flex: 1 1 auto;
 }
 
-.header-buttons {
+.small-buttons {
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  justify-content: space-between;
+  // justify-content: space-between;
   // align-items: flex-start;
   align-items: center;
   flex: 1 1 auto;

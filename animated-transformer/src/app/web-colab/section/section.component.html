@@ -1,83 +1,85 @@
-<div class="header-buttons hoverButtons">
-  @if (collapsed()) {
-    <span class="disappearing">
-      <button mat-icon-button (click)="collapsed.set(false)">
-        <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
-      </button>
-    </span>
+@if (collapsed()) {
+  <div class="small-buttons" (click)="collapsed.set(false)">
+    <button class="hostHover" mat-icon-button>
+      <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
+    </button>
     <span class="mini-id-title">{{ data.id }}</span>
     <span class="spacer"></span>
-  } @else {
-    <span class="disappearing">
-      <button mat-icon-button (click)="collapsed.set(true)">
-        <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
-      </button>
-      <span class="spacer"></span>
-      <button mat-icon-button>
-        <mat-icon svgIcon="add">+</mat-icon>
-      </button>
-      <!-- @if (display().hidden) {
-        <button mat-icon-button>
-          <mat-icon svgIcon="visibility">show</mat-icon>
-        </button>
-      } @else {
-        <button mat-icon-button>
-          <mat-icon svgIcon="visibility_off">hide</mat-icon>
-        </button>
-      } -->
-      <button mat-icon-button>
-        <mat-icon svgIcon="settings">settings</mat-icon>
-      </button>
-      <span class="spacer"></span>
-    </span>
-  }
-  <!-- <button mat-button>...</button> -->
-</div>
+  </div>
+} @else {
+  <div class="small-buttons {{ editDefView() ? '' : 'showOnHover' }}">
+    <button mat-icon-button (click)="collapsed.set(true)">
+      <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
+    </button>
+    <button mat-icon-button>
+      <mat-icon svgIcon="settings" (click)="editDefView.set(!editDefView())"
+        >settings</mat-icon
+      >
+    </button>
+    <!-- <span class="spacer"></span> -->
+  </div>
+}
 
 @let sec = section();
 @let data = sec.data();
 
-<!-- @if (!display().hidden) {
-}  -->
-
 @if (!collapsed()) {
   <div class="expanded-section">
-    @switch (data.kind) {
-      @case (SecDefKind.UiCell) {
-        @switch (data.uiView) {
-          @case (ViewerKind.MarkdownOutView) {
-            @let markdown = sec.outputs["markdown"]();
-            @if (markdown) {
-              <markdown>{{ sec.outputs["markdown"]() }}</markdown>
-            } @else {
-              markdown not yet defined.
+    @if (editDefView()) {
+      <app-codemirror-config-editor
+        [whatIsBeingEditedName]="sec.def.id"
+        [defaultConfig]="'{}'"
+        [config]="stringifyJsonValue(sec.data())"
+        [closable]="false"
+        (update)="handleDefUpdate($event)"
+      ></app-codemirror-config-editor>
+    } @else {
+      <!-- @if (!display().hidden) {
+}  -->
+      @switch (data.kind) {
+        @case (SecDefKind.UiCell) {
+          @switch (data.uiView) {
+            @case (ViewerKind.MarkdownOutView) {
+              @let markdown = sec.outputs["markdown"]();
+              @if (markdown) {
+                <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+              } @else {
+                markdown not yet defined.
+              }
             }
-          }
-          @case (ViewerKind.JsonObjOutView) {
-            @let jsonObjSignal = sec.outputs["jsonObj"];
-            @if (jsonObjSignal()) {
-              <app-codemirror-config-editor
-                [whatIsBeingEditedName]="sec.def.id"
-                [defaultConfig]="'{}'"
-                [config]="stringifyJsonValue(jsonObjSignal())"
-                [closable]="false"
-                (update)="handleJsonUpdate($event, jsonObjSignal)"
-              ></app-codemirror-config-editor>
-            } @else {
-              JSON not yet defined.
+            @case (ViewerKind.JsonObjOutView) {
+              @let jsonObjSignal = sec.outputs["jsonObj"];
+              @if (jsonObjSignal()) {
+                <app-codemirror-config-editor
+                  [whatIsBeingEditedName]="sec.def.id"
+                  [defaultConfig]="'{}'"
+                  [config]="stringifyJsonValue(jsonObjSignal())"
+                  [closable]="false"
+                  (update)="handleJsonUpdate($event, jsonObjSignal)"
+                ></app-codemirror-config-editor>
+              } @else {
+                JSON not yet defined.
+              }
             }
           }
         }
-      }
-      @case (SecDefKind.WorkerCell) {
-        <app-cell-section [section]="section()"></app-cell-section>
-      }
-      @case (SecDefKind.Experiment) {
-        <div>SubExperiment</div>
-      }
-      @default {
-        <div>Impossible/unknown sectionDataKind</div>
+        @case (SecDefKind.WorkerCell) {
+          <app-cell-section [section]="section()"></app-cell-section>
+        }
+        @case (SecDefKind.Experiment) {
+          <div>SubExperiment</div>
+        }
+        @default {
+          <div>Impossible/unknown sectionDataKind</div>
+        }
       }
     }
+    <div class="small-buttons showOnHover">
+      <span class="spacer"></span>
+      <button mat-icon-button>
+        <mat-icon svgIcon="add">+</mat-icon>
+      </button>
+      <span class="spacer"></span>
+    </div>
   </div>
 }
