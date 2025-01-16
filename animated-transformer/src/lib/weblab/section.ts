@@ -138,8 +138,8 @@ export type SecDef = SecDefWithData | SecDefByRef | SecDefByPath;
 // ============================================================================
 
 export type CellSectionInput = {
-  cellSectionId: string;
-  cellChannelId: string;
+  sectionId: string;
+  outputId: string;
 };
 
 // ============================================================================
@@ -310,7 +310,7 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
     switch (content.kind) {
       case SecDefKind.WorkerCell: {
         this.status = CellSectionStatus.NotStarted;
-        const cellKind = cellKindFromContent(content, experiment.cellRegistry, this.def.id);
+        const cellKind = cellKindFromContent(content, experiment.workerCellRegistry, this.def.id);
         this.cell = this.experiment.env.init(cellKind);
         break;
       }
@@ -327,7 +327,6 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
 
   initOutputs() {
     const data = this.data();
-    console.log('initOutputs', data);
     const secKind = data.kind;
     if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
       console.warn(`initOutputs called on non-worker or Ui section (called ${secKind}).`);
@@ -372,8 +371,8 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
     }
 
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
-      const otherSec = this.experiment.getSection(cellInputRef.cellSectionId);
-      this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.cellChannelId];
+      const otherSec = this.experiment.getSection(cellInputRef.sectionId);
+      this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.outputId];
     }
   }
 
@@ -393,8 +392,18 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
       // streams. Likely depends on cell semantics some. e.g. deterministic
       // cells with no streams are clearly fine. Streams might need some kind
       // of saved state of the stream. (which StateIter abstraction has!)
-      const otherCellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-      otherCellController.outputs[cellInputRef.cellChannelId].addPipeTo(this.cell.inputs[inputId]);
+      const otherSection = this.experiment.getSection(cellInputRef.sectionId);
+      if (otherSection.data().kind === SecDefKind.WorkerCell) {
+        if (!otherSection.cell) {
+          throw Error(`Worker Cell Section (${cellInputRef.sectionId}) was missing cell property`);
+        }
+        otherSection.cell.outputs[cellInputRef.outputId].addPipeTo(this.cell.inputs[inputId]);
+      } else {
+        const thisInputSignal = this.cell.inputs[inputId].connect();
+        this.space.derived(() =>
+          thisInputSignal.set(otherSection.outputs[cellInputRef.outputId]()),
+        );
+      }
     }
     for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams || {})) {
       const otherCellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);

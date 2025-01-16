@@ -21,6 +21,8 @@ import {
   Signal,
   signal,
   inject,
+  PLATFORM_ID,
+  Inject,
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
@@ -35,6 +37,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 // import { TensorImageModule } from '../tensor-image/tensor-image.module';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -61,6 +64,7 @@ import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
 import { tryer } from 'src/lib/utils';
 import { CellRegistryService } from '../cell-registry.service';
 import { DomSanitizer } from '@angular/platform-browser';
+import { isPlatformBrowser } from '@angular/common';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
@@ -137,6 +141,7 @@ function savingUi() {
     MatSelectModule,
     MatButtonToggleModule,
     MatDialogModule,
+    MatToolbarModule,
     SectionComponent,
   ],
   templateUrl: './web-colab.component.html',
@@ -164,6 +169,9 @@ export class WebColabComponent {
   SaveState = SaveState;
   cacheState = signal<SaveState>(SaveState.None);
   diskState = signal<SaveState>(SaveState.None);
+  public location = location;
+
+  inViewSections = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -174,14 +182,15 @@ export class WebColabComponent {
   ) {
     const iconRegistry = inject(MatIconRegistry);
     const sanitizer = inject(DomSanitizer);
-
-    // Note that we provide the icon here as a string literal here due to a limitation in
-    // Stackblitz. If you want to provide the icon from a URL, you can use:
-    // `iconRegistry.addSvgIcon('thumbs-up', sanitizer.bypassSecurityTrustResourceUrl('icon.svg'));`
-    iconRegistry.addSvgIcon(
-      'close',
-      sanitizer.bypassSecurityTrustResourceUrl('assets/icons/close.svg'),
-    );
+    function addIcons(names: string[]) {
+      for (const name of names) {
+        iconRegistry.addSvgIcon(
+          name,
+          sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
+        );
+      }
+    }
+    addIcons(['close', 'menu', 'more_vert']);
 
     this.space = new SignalSpace();
     this.env = new LabEnv(this.space);
@@ -201,6 +210,14 @@ export class WebColabComponent {
     this.localCache.setDefaultPath('experiment.json');
 
     this.tryLoadExperimentFromCache();
+  }
+
+  noteInView(section: SomeSection, inView: boolean) {
+    if (inView) {
+      this.inViewSections.add(section.def.id);
+    } else {
+      this.inViewSections.delete(section.def.id);
+    }
   }
 
   onSectionEdited(section: SomeSection, edited: boolean) {
@@ -248,7 +265,6 @@ export class WebColabComponent {
   @showErrors()
   @loadingUi()
   async tryLoadExperimentFromCache() {
-    console.log('tryLoadExperimentFromCache...');
     const cachedFilePath = await this.localCache.getDefaultPath();
     if (!cachedFilePath) {
       throw new Error(`missing localCache.getDefaultPath`);

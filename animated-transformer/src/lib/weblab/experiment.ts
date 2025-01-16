@@ -46,6 +46,7 @@ import {
   SecDefWithData,
   SecDefOfExperiment,
 } from './section';
+import { SignalReceiveChannel } from '../distr-signals/channels';
 
 export type DistrSerialization<T, T2> = {
   data: T;
@@ -69,11 +70,6 @@ function sectionListEqCheck(sections1: SomeSection[], sections2: SomeSection[]):
 export class Experiment {
   space: SignalSpace;
 
-  // Map from a cellKind Id to a CellKind obj Set during/before creation of
-  // experiment to allow creation of cellKinds needed in a section to create a
-  // cell.
-  cellRegistry: Map<string, SomeWorkerCellKind> = new Map();
-
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
   sections: SetableSignal<SomeSection[]>;
@@ -92,6 +88,10 @@ export class Experiment {
     public env: LabEnv,
     public ancestors: Experiment[],
     public initSecDef: SecDefOfExperiment,
+    // Map from a cellKind Id to a CellKind obj Set during/before creation of
+    // experiment to allow creation of cellKinds needed in a section to create a
+    // cell.
+    public workerCellRegistry: Map<string, SomeWorkerCellKind>,
   ) {
     this.space = env.space;
     this.def = this.space.setable<SecDefOfExperiment>(initSecDef);
@@ -140,7 +140,6 @@ export class Experiment {
   appendLeafSectionFromDataDef(secDef: SecDefWithData): SomeSection {
     const setableDataDef = this.space.setable(secDef);
     const section = new Section(this, secDef, setableDataDef);
-    console.log('appendLeafSectionFromDataDef', secDef);
     if (secDef.kind === SecDefKind.WorkerCell) {
       section.initOutputs();
       section.initInputs();
@@ -183,6 +182,20 @@ export class Experiment {
   //   }
   //   return data.jsonValue;
   // }
+  getSectionOutput(
+    sectionId: string,
+    outputId: string,
+  ): AbstractSignal<unknown> | SignalReceiveChannel<unknown> {
+    const section = this.getSection(sectionId);
+    if (section.data().kind === SecDefKind.WorkerCell) {
+      if (!section.cell) {
+        throw Error(`Section Id (${sectionId}) was missing cell property`);
+      }
+      return section.cell.outputs[outputId];
+    } else {
+      return section.outputs[outputId];
+    }
+  }
 
   getSectionLabCell(sectionId: string): SomeCellController {
     const section = this.getSection(sectionId);
@@ -234,7 +247,6 @@ export async function loadExperiment(
   env: LabEnv,
   expDef: SecDefOfExperiment,
 ): Promise<Experiment | Error> {
-  console.log('loadExperiment', JSON.stringify(expDef));
   const space = env.space;
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
@@ -242,7 +254,7 @@ export async function loadExperiment(
   const nodeDataMap: Map<string, SetableSignal<SecDefWithData>> = new Map();
   const refMap: Map<string, SecDefByRef> = new Map();
   // Sections that refer to another section, but the reference does not exist.
-  const topLevelExperiment = new Experiment(env, [], expDef);
+  const topLevelExperiment = new Experiment(env, [], expDef, cellRegistry);
   const topLevelNodeTree: NodeBeingLoaded = {
     subSections: [],
     exp: topLevelExperiment,
@@ -281,8 +293,12 @@ export async function loadExperiment(
         if (subSec.kind === SecDefKind.Experiment) {
           // TODO: think about if we really want sub-experiments..., maybe
           // better just subsections?
-          section.subExperiment = new Experiment(env, [...cur.exp.ancestors, cur.exp], subSec);
-          section.subExperiment.cellRegistry = cellRegistry;
+          section.subExperiment = new Experiment(
+            env,
+            [...cur.exp.ancestors, cur.exp],
+            subSec,
+            cellRegistry,
+          );
           const beingLoaded = {
             // TODO: all subexp share the same section map, and
             // this would then make sections have, essentially, module imports?
@@ -338,10 +354,6 @@ export async function loadExperiment(
     toResolve.exp.sectionMap = sectionMap;
   }
 
-  console.log(
-    'ioSections: ',
-    ioSections.map((s) => s.def),
-  );
   for (const sec of ioSections) {
     sec.initOutputs();
     // cellSection.connectCell();

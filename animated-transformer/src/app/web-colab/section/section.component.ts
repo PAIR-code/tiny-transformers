@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Inject,
   input,
   model,
   output,
+  PLATFORM_ID,
   viewChild,
 } from '@angular/core';
 import { Experiment } from '../../../lib/weblab/experiment';
@@ -30,14 +32,48 @@ import { SecDefKind, SomeSection, ViewerKind } from 'src/lib/weblab/section';
 })
 export class SectionComponent {
   readonly edited = output<boolean>();
+  readonly inView = output<boolean>();
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<SomeSection>();
   // sectionTemplateRef = viewChild.required<Component>('');
 
+  intersectionObserver: IntersectionObserver;
+
   SecDefKind = SecDefKind;
   ViewerKind = ViewerKind;
 
-  constructor() {}
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private thisElement: ElementRef,
+  ) {
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-viewport');
+            this.inView.emit(true);
+            // Perform actions when in view (e.g., start animation, load data)
+            // element.classList.add('in-viewport'); //Add a class
+          } else {
+            entry.target.classList.remove('in-viewport'); //Remove the class
+            this.inView.emit(false);
+          }
+        });
+      },
+      {
+        root: null, // Use the viewport as the root
+        rootMargin: '0px', // No margin
+        threshold: 0.5, // 0.5 = Trigger when 50% of the element is visible
+      },
+    );
+    this.intersectionObserver.observe(this.thisElement.nativeElement);
+  }
+
+  ngAfterViewInit() {}
+
+  ngOnDestroy() {
+    this.intersectionObserver.disconnect();
+  }
 
   //
   stringifyJsonValue(x: JsonValue): string {

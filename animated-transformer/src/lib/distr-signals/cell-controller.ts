@@ -236,6 +236,7 @@ export class CellController<
           recChannel.addPipeTo(this.inputs[k as keyof I]);
         } else {
           const sendToChannelInput = this.inputs[k].connect();
+          // TODO: should we track and later delete the derived thing...?
           this.space.derived(() => {
             sendToChannelInput.set(receiveThing());
           });

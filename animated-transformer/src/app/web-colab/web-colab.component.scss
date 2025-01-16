@@ -11,6 +11,12 @@
   padding: 5px;
 }
   
+.menu-buttons {
+  a {
+    all: unset;
+  }
+}
+
 .vmenu {
   display: block;
 }
@@ -54,6 +60,11 @@
 }
 
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
@@ -65,6 +76,17 @@
   .title {
     font-weight: bold;
   }
+}
+
+.container {
+  position: absolute;
+  top: 60px;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+}
+
+.sections {
 }
 
 .section {

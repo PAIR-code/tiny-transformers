@@ -13,7 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { taskCellKind, trainerCellKind } from 'src/app/web-colab/tiny-transformer-example/ailab';
+import {
+  taskCellKind,
+  TaskGenConfig,
+  trainerCellKind,
+} from 'src/app/web-colab/tiny-transformer-example/ailab';
 import { LabEnv } from '../distr-signals/lab-env';
 import { Experiment } from './experiment';
 import {
@@ -26,6 +30,7 @@ import {
   SecDefOfWorker,
 } from './section';
 import { SomeWorkerCellKind, WorkerCellKind } from '../distr-signals/cell-kind';
+import { defaultTinyWorldTaskConfig } from '../seqtasks/tiny_worlds';
 
 export const initExpDef: SecDefOfExperiment = {
   kind: SecDefKind.Experiment,
@@ -51,16 +56,38 @@ export const secSimpleMarkdown: SecDefOfUiView = {
   uiView: ViewerKind.MarkdownOutView,
 };
 
-export const secSimpleJson: SecDefOfUiView = {
+export const secTaskConfigJsonObj: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'some json data',
+  id: 'Task Configuration',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
     outputs: {
       jsonObj: {
         saved: true,
-        lastValue: { hello: 'foo' },
+        lastValue: structuredClone(defaultTinyWorldTaskConfig),
+      },
+    },
+  },
+  uiView: ViewerKind.JsonObjOutView,
+};
+
+export const secGenConfigJsonObj: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'Generation Configuration',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    outputs: {
+      jsonObj: {
+        saved: true,
+        lastValue: {
+          initBatchId: 0,
+          initBatchSeed: 0,
+          maxBatches: 5,
+          batchSize: 10,
+          testSetSize: 3,
+        } as TaskGenConfig,
       },
     },
   },
@@ -99,7 +126,16 @@ export function taskMakerCell(): SecDefOfWorker {
     id: 'Task Maker',
     timestamp: Date.now(),
     io: {
-      inputs: {},
+      inputs: {
+        taskConfig: {
+          sectionId: secTaskConfigJsonObj.id,
+          outputId: 'jsonObj',
+        },
+        genConfig: {
+          sectionId: secGenConfigJsonObj.id,
+          outputId: 'jsonObj',
+        },
+      },
     },
     cellCodeRef: {
       kind: CellRefKind.WorkerRegistry,
@@ -120,10 +156,10 @@ export function makeToyExperiment(
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     subsections: [],
   };
-  const exp = new Experiment(env, [], initExpDef);
-  exp.cellRegistry = registry;
+  const exp = new Experiment(env, [], initExpDef, registry);
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
-  exp.appendLeafSectionFromDataDef(secSimpleJson);
+  exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
+  exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
   exp.appendLeafSectionFromDataDef(secSimpleCell());
   exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;

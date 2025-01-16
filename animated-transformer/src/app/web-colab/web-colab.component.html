@@ -11,7 +11,7 @@
           <div class="errorMessage">{{ error }}</div>
           <div class="spacer"></div>
           <button mat-icon-button (click)="clearError()">
-            <mat-icon svgIcon="close"></mat-icon>
+            <mat-icon svgIcon="close">close</mat-icon>
           </button>
         </div>
       }
@@ -19,111 +19,117 @@
   } @else {
     @let sections = exp.sections();
 
-    <div clas="page">
-      <div class="header">
-        <div class="title">{{ exp.id }}</div>
-        <div class="buttons">
-          <div class="spacer"></div>
-          <div class="saveState">
-            @switch (cacheState()) {
-              @case (SaveState.New) {
-                <span>[uncached]</span>
-              }
-              @case (SaveState.Edited) {
-                <span>[uncached]</span>
-              }
-              @case (SaveState.Saved) {
-                <span>[cached]</span>
-              }
+    <mat-toolbar class="header">
+      <button mat-icon-button (click)="sidenav.toggle()">
+        <mat-icon svgIcon="menu">menu</mat-icon>
+      </button>
+      <div class="title">{{ exp.id }}</div>
+      <div class="buttons">
+        <div class="spacer"></div>
+        <div class="saveState">
+          @switch (cacheState()) {
+            @case (SaveState.New) {
+              <span>[uncached]</span>
             }
-            @switch (diskState()) {
-              @case (SaveState.New) {
-                <span>new (unsaved)</span>
-              }
-              @case (SaveState.Edited) {
-                <span>edited since last save</span>
-              }
-              @case (SaveState.Saved) {
-                <span>saved</span>
-              }
+            @case (SaveState.Edited) {
+              <span>[uncached]</span>
             }
-          </div>
-          <button
-            mat-icon-button
-            matTooltip=""
-            [matMenuTriggerFor]="experimentMenu"
-            aria-label="Options"
-          >
-            <mat-icon>more_vert</mat-icon>
-          </button>
-          <mat-menu #experimentMenu class="vmenu">
-            <div>
-              <button
-                mat-menu-item
-                matTooltip="Save"
-                (click)="saveExperiment()"
-              >
-                save
-              </button>
-            </div>
-            <div>
-              <button
-                mat-menu-item
-                matTooltip="Close"
-                (click)="closeExperiment()"
-              >
-                close
-              </button>
-            </div>
-          </mat-menu>
+            @case (SaveState.Saved) {
+              <span>[cached]</span>
+            }
+          }
+          @switch (diskState()) {
+            @case (SaveState.New) {
+              <span>new (unsaved)</span>
+            }
+            @case (SaveState.Edited) {
+              <span>edited since last save</span>
+            }
+            @case (SaveState.Saved) {
+              <span>saved</span>
+            }
+          }
         </div>
+        <button
+          mat-icon-button
+          matTooltip=""
+          [matMenuTriggerFor]="experimentMenu"
+          aria-label="Options"
+        >
+          <mat-icon svgIcon="more_vert">more_vert</mat-icon>
+        </button>
+        <mat-menu #experimentMenu class="vmenu">
+          <div>
+            <button mat-menu-item matTooltip="Save" (click)="saveExperiment()">
+              save
+            </button>
+          </div>
+          <div>
+            <button
+              mat-menu-item
+              matTooltip="Close"
+              (click)="closeExperiment()"
+            >
+              close
+            </button>
+          </div>
+        </mat-menu>
       </div>
+    </mat-toolbar>
 
-      <mat-sidenav-container>
-        <mat-sidenav #sidenav mode="side" opened="true">
-          <mat-nav-list class="menu-buttons">
-            @for (section of sections; track section.def.id) {
+    <mat-sidenav-container class="container">
+      <mat-sidenav
+        #sidenav
+        mode="side"
+        opened="true"
+        fixedInViewport="true"
+        fixedTopGap="60"
+        fixedBottomGap="0"
+      >
+        <mat-nav-list class="menu-buttons">
+          @for (section of sections; track section.def.id) {
+            <a [href]="'#sec:' + section.def.id">
               <mat-list-item
-                [activated]="router.url == '#'"
+                [activated]="this.inViewSections.has(section.def.id)"
                 matListItemTitle
-                routerLink=""
-                routerLinkActive="active"
                 ariaCurrentWhenActive="sections"
               >
                 {{ section.def.id }}
               </mat-list-item>
-            }
-          </mat-nav-list>
-        </mat-sidenav>
+            </a>
+          }
+        </mat-nav-list>
+      </mat-sidenav>
 
-        <mat-sidenav-content>
-          <div class="sections">
-            @for (section of sections; track section.def.id) {
-              <div class="section">
-                <mat-card>
-                  <mat-card-content>
-                    <app-section
-                      (edited)="onSectionEdited(section, $event)"
-                      [experiment]="exp"
-                      [section]="section"
-                    ></app-section>
-                    <!-- @if(data.kind == ExpDefKind.Data) {
+      <mat-sidenav-content>
+        <div class="sections">
+          @for (section of sections; track section.def.id) {
+            <div class="section">
+              <a [name]="'sec:' + section.def.id"></a>
+              <mat-card>
+                <mat-card-content>
+                  <app-section
+                    (inView)="noteInView(section, $event)"
+                    (edited)="onSectionEdited(section, $event)"
+                    [experiment]="exp"
+                    [section]="section"
+                  ></app-section>
+                  <!-- @if(data.kind == ExpDefKind.Data) {
               } @else {
                 <div>Unknown data.kind {{ data.kind }}</div>
               } -->
-                  </mat-card-content>
-                </mat-card>
-                <div class="buttons hoverButtons">
-                  <span class="spacer"></span>
-                  <button mat-button class="disappearing">+</button>
-                  <span class="spacer"></span>
-                  <!-- <button mat-button>...</button> -->
-                </div>
+                </mat-card-content>
+              </mat-card>
+              <div class="buttons hoverButtons">
+                <span class="spacer"></span>
+                <button mat-button class="disappearing">+</button>
+                <span class="spacer"></span>
+                <!-- <button mat-button>...</button> -->
               </div>
-            }
-          </div>
-        </mat-sidenav-content>
-      </mat-sidenav-container>
-    </div>
+            </div>
+          }
+        </div>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
   }
 }
