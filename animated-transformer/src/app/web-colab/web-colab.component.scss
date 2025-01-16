@@ -51,14 +51,6 @@
   flex: 1 1 auto;
 }
 
-.hoverButtons .disappearing {
-  opacity: 0 !important;
-}
-.hoverButtons:hover .disappearing {
-  opacity: 1 !important;
-  transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
-}
-
 .header {
   position: fixed;
   top: 0;

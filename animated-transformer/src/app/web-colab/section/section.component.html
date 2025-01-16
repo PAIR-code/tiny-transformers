@@ -1,80 +1,83 @@
+<div class="header-buttons hoverButtons">
+  @if (collapsed()) {
+    <span class="disappearing">
+      <button mat-icon-button (click)="collapsed.set(false)">
+        <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
+      </button>
+    </span>
+    <span class="mini-id-title">{{ data.id }}</span>
+    <span class="spacer"></span>
+  } @else {
+    <span class="disappearing">
+      <button mat-icon-button (click)="collapsed.set(true)">
+        <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
+      </button>
+      <span class="spacer"></span>
+      <button mat-icon-button>
+        <mat-icon svgIcon="add">+</mat-icon>
+      </button>
+      <!-- @if (display().hidden) {
+        <button mat-icon-button>
+          <mat-icon svgIcon="visibility">show</mat-icon>
+        </button>
+      } @else {
+        <button mat-icon-button>
+          <mat-icon svgIcon="visibility_off">hide</mat-icon>
+        </button>
+      } -->
+      <button mat-icon-button>
+        <mat-icon svgIcon="settings">settings</mat-icon>
+      </button>
+      <span class="spacer"></span>
+    </span>
+  }
+  <!-- <button mat-button>...</button> -->
+</div>
+
 @let sec = section();
 @let data = sec.data();
 
 <!-- @if (!display().hidden) {
 }  -->
 
-@if (!display().collapsed) {
-  @switch (data.kind) {
-    @case (SecDefKind.UiCell) {
-      @switch (data.uiView) {
-        @case (ViewerKind.MarkdownOutView) {
-          @let markdown = sec.outputs["markdown"]();
-          @if (markdown) {
-            <markdown>{{ sec.outputs["markdown"]() }}</markdown>
-          } @else {
-            markdown not yet defined.
+@if (!collapsed()) {
+  <div class="expanded-section">
+    @switch (data.kind) {
+      @case (SecDefKind.UiCell) {
+        @switch (data.uiView) {
+          @case (ViewerKind.MarkdownOutView) {
+            @let markdown = sec.outputs["markdown"]();
+            @if (markdown) {
+              <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+            } @else {
+              markdown not yet defined.
+            }
           }
-        }
-        @case (ViewerKind.JsonObjOutView) {
-          @let jsonObjSignal = sec.outputs["jsonObj"];
-          @if (jsonObjSignal()) {
-            <app-codemirror-config-editor
-              [whatIsBeingEditedName]="sec.def.id"
-              [defaultConfig]="'{}'"
-              [config]="stringifyJsonValue(jsonObjSignal())"
-              [closable]="false"
-              (update)="handleJsonUpdate($event, jsonObjSignal)"
-            ></app-codemirror-config-editor>
-          } @else {
-            JSON not yet defined.
+          @case (ViewerKind.JsonObjOutView) {
+            @let jsonObjSignal = sec.outputs["jsonObj"];
+            @if (jsonObjSignal()) {
+              <app-codemirror-config-editor
+                [whatIsBeingEditedName]="sec.def.id"
+                [defaultConfig]="'{}'"
+                [config]="stringifyJsonValue(jsonObjSignal())"
+                [closable]="false"
+                (update)="handleJsonUpdate($event, jsonObjSignal)"
+              ></app-codemirror-config-editor>
+            } @else {
+              JSON not yet defined.
+            }
           }
         }
       }
+      @case (SecDefKind.WorkerCell) {
+        <app-cell-section [section]="section()"></app-cell-section>
+      }
+      @case (SecDefKind.Experiment) {
+        <div>SubExperiment</div>
+      }
+      @default {
+        <div>Impossible/unknown sectionDataKind</div>
+      }
     }
-    @case (SecDefKind.WorkerCell) {
-      <app-cell-section [section]="section()"></app-cell-section>
-    }
-    @case (SecDefKind.Experiment) {
-      <div>SubExperiment</div>
-    }
-    @default {
-      <div>Impossible/unknown sectionDataKind</div>
-    }
-  }
+  </div>
 }
-
-<div class="small-buttons hoverButtons">
-  <span class="spacer"></span>
-  @if (display().collapsed) {
-    <span class="mini-id-title">{{ data.id }}</span>
-  }
-  <span class="disappearing">
-    <button mat-icon-button>
-      <mat-icon svgIcon="add">+</mat-icon>
-    </button>
-    @if (display().collapsed) {
-      <button mat-icon-button>
-        <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
-      </button>
-    } @else {
-      <button mat-icon-button>
-        <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
-      </button>
-    }
-    @if (display().hidden) {
-      <button mat-icon-button>
-        <mat-icon svgIcon="visibility">show</mat-icon>
-      </button>
-    } @else {
-      <button mat-icon-button>
-        <mat-icon svgIcon="visibility_off">hide</mat-icon>
-      </button>
-    }
-    <button mat-icon-button>
-      <mat-icon svgIcon="settings">settings</mat-icon>
-    </button>
-  </span>
-  <span class="spacer"></span>
-  <!-- <button mat-button>...</button> -->
-</div>

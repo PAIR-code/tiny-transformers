@@ -8,8 +8,10 @@ import {
   model,
   output,
   PLATFORM_ID,
+  Signal,
   signal,
   viewChild,
+  WritableSignal,
 } from '@angular/core';
 import { Experiment } from '../../../lib/weblab/experiment';
 import { MarkdownModule, MarkdownService } from 'ngx-markdown';
@@ -53,7 +55,7 @@ export class SectionComponent {
   SecDefKind = SecDefKind;
   ViewerKind = ViewerKind;
 
-  display = signal<SectionDisplay>({});
+  collapsed = signal(false);
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -101,7 +103,10 @@ export class SectionComponent {
     this.intersectionObserver.observe(this.thisElement.nativeElement);
   }
 
-  ngAfterViewInit() {}
+  ngAfterViewInit() {
+    const display = this.section().def.display || {};
+    this.collapsed.set(display.collapsed || false);
+  }
 
   ngOnDestroy() {
     this.intersectionObserver.disconnect();
