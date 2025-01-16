@@ -4,8 +4,8 @@
 }
 
 :host {
-  border-top: 1px dotted #FFF;
-  border-bottom: 1px dotted #FFF;
+  // border-top: 1px dotted #FFF;
+  // border-bottom: 1px dotted #FFF;
 
   .hostHover {
     opacity: 0 !important;
@@ -14,15 +14,30 @@
 :host:hover {
   // opacity: 1 !important;
   transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
-  border-top: 1px dotted #CCC;
-  border-bottom: 1px dotted #CCC;
+  // border-top: 1px dotted #CCC;
+  // border-bottom: 1px dotted #CCC;
 
   .hostHover {
     opacity: 1 !important;
-    transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+    // transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
   }
 }
 
+.bottom-bar {
+  height: 0px;
+  border-bottom: 1px dotted #CCC;
+  flex: 1 1 auto;
+  height: 12px;
+  margin-bottom: -12px;
+}
+
+.top-bar {
+  height: 0px;
+  border-top: 1px dotted #CCC;
+  flex: 1 1 auto;
+  margin-top: -12px;
+  height: 12px;
+}
 
 .showOnHover {
   opacity: 0 !important;
@@ -41,7 +56,10 @@
 .mini-id-title {
   font-size: small;
   color: #ccc;
-  flex: 1 1 auto;
+  background-color: #FFF;
+  padding-left: 3px;
+  padding-right: 3px;
+  // flex: 1 1 auto;
 }
 
 .small-buttons {
@@ -57,8 +75,10 @@
   --mdc-icon-button-state-layer-size: 24px !important;
 
   button {
+    margin-left: 5px;
     width: 24px !important;
     height: 24px !important;
+    background-color: #fff;
     // line-height: 24px !important;
 
     
