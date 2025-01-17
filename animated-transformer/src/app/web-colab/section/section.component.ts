@@ -85,6 +85,7 @@ export class SectionComponent {
       'visibility_off',
       'keyboard_arrow_up',
       'keyboard_arrow_down',
+      'settings_applications',
     ]);
 
     this.intersectionObserver = new IntersectionObserver(

@@ -17,7 +17,7 @@ import {
   taskCellKind,
   TaskGenConfig,
   trainerCellKind,
-} from 'src/app/web-colab/tiny-transformer-example/ailab';
+} from 'src/weblab-examples/tiny-transformer-example/ailab';
 import { LabEnv } from '../distr-signals/lab-env';
 import { Experiment } from './experiment';
 import {

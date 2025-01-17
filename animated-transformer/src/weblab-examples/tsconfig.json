@@ -8,8 +8,9 @@
       "ESNext",
       "webworker"
     ],
+    "module": "ESNext",
     /* Bundler mode */
-    "moduleResolution": "bundler",
+    // "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",

@@ -1,18 +1,23 @@
 @if (collapsed()) {
   <div class="small-buttons" (click)="collapsed.set(false)">
-    <button class="hostHover" mat-icon-button>
+    <button class="hostHover left-margin" mat-icon-button>
       <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
     </button>
-    <span class="mini-id-title">{{ data.id }}</span>
+    <button class="hostHoverAppear left-margin" mat-icon-button>
+      <mat-icon svgIcon="add">+</mat-icon>
+    </button>
+    <span class="mini-id-title left-margin">{{ data.id }}</span>
     <span class="spacer"></span>
   </div>
 } @else {
-  <div class="small-buttons {{ editDefView() ? '' : 'showOnHover' }}">
-    <button mat-icon-button (click)="collapsed.set(true)">
+  <div class="small-buttons" [class.showOnHover]="!editDefView()">
+    <button mat-icon-button class="left-margin" (click)="collapsed.set(true)">
       <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
     </button>
-    <button mat-icon-button>
-      <mat-icon svgIcon="settings" (click)="editDefView.set(!editDefView())"
+    <button mat-icon-button class="left-margin">
+      <mat-icon
+        [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
+        (click)="editDefView.set(!editDefView())"
         >settings</mat-icon
       >
     </button>
