@@ -65,6 +65,7 @@ import { tryer } from 'src/lib/utils';
 import { CellRegistryService } from '../cell-registry.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
+import { JsonValue } from 'src/lib/json/json';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
@@ -154,8 +155,8 @@ export class WebColabComponent {
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
   viewPath: Signal<Experiment[]>;
-  fileDataResolver?: AbstractDataResolver<SecDefWithData>;
-  cacheDataResolver: LocalCacheDataResolver<SecDefWithData>;
+  fileDataResolver?: AbstractDataResolver<JsonValue>;
+  cacheDataResolver: LocalCacheDataResolver<JsonValue>;
   saveToCachePlannedCallback?: Timeout;
 
   // Sections edited since last cache save.

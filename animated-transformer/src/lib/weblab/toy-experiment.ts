@@ -115,7 +115,7 @@ export function simplePathToCell(): SecDefOfWorker {
     io: {},
     cellCodeRef: {
       kind: CellRefKind.PathToWorkerCode,
-      path: './distr/cell1.worker.js',
+      path: 'distr/cell1.worker.js',
     },
   };
 }
@@ -153,6 +153,7 @@ export function makeToyExperiment(
     kind: SecDefKind.Experiment,
     id,
     timestamp: Date.now(),
+    vsCodePathRoot: '/Users/ldixon/code/github/tiny-transformers/animated-transformer',
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     subsections: [],
   };
@@ -160,6 +161,7 @@ export function makeToyExperiment(
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
   exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
   exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
+  exp.appendLeafSectionFromDataDef(simplePathToCell());
   exp.appendLeafSectionFromDataDef(secSimpleCell());
   exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { CellMessage, CellMessageKind } from './lab-message-types';
+import { CellMessage, CellMessageKind } from './cell-message';
 import { SignalSpace } from '../signalspace/signalspace';
 import {
   ValueStruct,

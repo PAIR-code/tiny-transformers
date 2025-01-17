@@ -16,7 +16,7 @@ limitations under the License.
 /// <reference lib="webworker" />
 
 import { ValueStruct, CellKind } from './cell-kind';
-import { CellMessage } from './lab-message-types';
+import { CellMessage } from './cell-message';
 import { CellWorker } from './cell-worker';
 
 export function workerCell<

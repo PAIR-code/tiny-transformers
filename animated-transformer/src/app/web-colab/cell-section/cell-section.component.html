@@ -1,5 +1,8 @@
 <div #cellstatus class="cellStatus">
-  Cell: {{ cell.id }} [Status: {{ status() }} ]
+  <div>Cell: {{ cell.id }} [Status: {{ status() }} ]</div>
+  @if (vsCodeLink()) {
+    <div><a [href]="vsCodeLink()">vscode</a></div>
+  }
   <div class="spacer"></div>
   @if (status() === CellStatus.NotStarted) {
     <button

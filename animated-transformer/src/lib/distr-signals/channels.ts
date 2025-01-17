@@ -31,7 +31,7 @@ import {
   EditRemoteMessageKind,
   Remote,
   RemoteKind,
-} from './lab-message-types';
+} from './cell-message';
 
 // ----------------------------------------------------------------------------
 

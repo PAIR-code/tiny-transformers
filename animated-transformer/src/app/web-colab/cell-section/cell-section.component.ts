@@ -57,6 +57,8 @@ export class CellSectionComponent implements OnInit {
   readonly section = input.required<SomeSection>();
   cell!: SomeCellController;
   status: WritableSignal<CellStatus>;
+  localDef!: SecDefOfWorker;
+  vsCodeLink = signal('');
 
   CellStatus = CellStatus;
 
@@ -66,9 +68,19 @@ export class CellSectionComponent implements OnInit {
 
   ngOnInit() {
     this.cell = this.section().cell as SomeCellController;
+    this.localDef = this.section().data() as SecDefOfWorker;
 
     this.cell.space.derived(() => {
       this.status.set(this.cell.status());
+    });
+
+    this.cell.space.derived(() => {
+      if (!this.section().experiment.initSecDef.vsCodePathRoot) {
+        this.vsCodeLink.set('');
+      }
+      this.vsCodeLink.set(
+        `vscode://${this.section().experiment.initSecDef.vsCodePathRoot}/${this.localDef.cellCodeRef}`,
+      );
     });
   }
 

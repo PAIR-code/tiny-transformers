@@ -35,7 +35,14 @@ import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/
 import { AbstractDataResolver } from './data-resolver';
 import { SomeCellController } from '../distr-signals/cell-controller';
 import { LabEnv } from '../distr-signals/lab-env';
-import { SomeWorkerCellKind } from '../distr-signals/cell-kind';
+import {
+  CellKind,
+  Kind,
+  SomeCellKind,
+  SomeWorkerCellKind,
+  ValueKindFnStruct,
+  WorkerCellKind,
+} from '../distr-signals/cell-kind';
 import {
   CellRefKind,
   Section,
@@ -45,6 +52,7 @@ import {
   SecDefKind,
   SecDefWithData,
   SecDefOfExperiment,
+  SecDefOfWorker,
 } from './section';
 import { SignalReceiveChannel } from '../distr-signals/channels';
 
@@ -234,6 +242,39 @@ export class Experiment {
   }
 }
 
+function cellIoForSection(c: SecDefOfWorker): {
+  inputs: ValueKindFnStruct;
+  outputs: ValueKindFnStruct;
+  inStreams: ValueKindFnStruct;
+  outStreams: ValueKindFnStruct;
+} {
+  const inputs: ValueKindFnStruct = {};
+  for (const k of Object.keys(c.io.inputs || {})) {
+    inputs[k] = Kind<unknown>;
+  }
+  const inStreams: ValueKindFnStruct = {};
+  for (const [k, _] of Object.entries(c.io.inStreams || {})) {
+    inStreams[k] = Kind<unknown>;
+  }
+  const outputs: ValueKindFnStruct = {};
+  for (const k of Object.keys(c.io.outputs || {})) {
+    outputs[k] = Kind<unknown>;
+  }
+  const outStreams: ValueKindFnStruct = {};
+  for (const k of c.io.outStreamIds || []) {
+    outStreams[k] = Kind<unknown>;
+  }
+  return { inputs, inStreams, outputs, outStreams };
+}
+
+function cellKindForSection(c: SecDefOfWorker): SomeCellKind {
+  return new CellKind(c.id, cellIoForSection(c));
+}
+
+function cellWorkerKindForSection(c: SecDefOfWorker, url: string): SomeWorkerCellKind {
+  return new WorkerCellKind(c.id, cellIoForSection(c), () => new Worker(url));
+}
+
 // Intermediary type for a section being defined that consists of it's
 // subsection IDs and the initial empty experiment.
 type NodeBeingLoaded = {
@@ -243,7 +284,7 @@ type NodeBeingLoaded = {
 
 export async function loadExperiment(
   cellRegistry: Map<string, SomeWorkerCellKind>,
-  dataResolver: AbstractDataResolver<SecDefWithData>,
+  dataResolver: AbstractDataResolver<JsonValue>,
   env: LabEnv,
   expDef: SecDefOfExperiment,
 ): Promise<Experiment | Error> {
@@ -279,7 +320,7 @@ export async function loadExperiment(
         if (data instanceof Error) {
           return data;
         }
-        const setableDataDef = space.setable(data);
+        const setableDataDef = space.setable<SecDefWithData>(data as SecDefWithData);
         nodeDataMap.set(subSec.id, setableDataDef);
         const expSection = new Section(topLevelExperiment, subSec, setableDataDef);
         sectionMap.set(subSec.id, expSection);
@@ -308,15 +349,35 @@ export async function loadExperiment(
           loadNodeStack.push(beingLoaded);
           loadingMap.set(subSec.id, beingLoaded);
         } else if (subSec.kind === SecDefKind.WorkerCell) {
-          if (subSec.cellCodeRef.kind === CellRefKind.PathToWorkerCode) {
-            // TODO: Load code into object URL and setup cell...
-            throw new Error('not yet implmented');
-            // const data = await dataResolver.load(subSec.cellCodeRef.path);
-            // if (data instanceof Error) {
-            //   return data;
-            // }
-          }
           ioSections.push(section);
+
+          // Add to worker registry... (TODO: think about how this is
+          // initialised... / set / refreshed)
+          if (subSec.cellCodeRef.kind === CellRefKind.InlineWorkerJsCode) {
+            const blob = new Blob([subSec.cellCodeRef.js], { type: 'application/javascript' });
+            // TODO: think about cleanup... need to track and dispose of this when code
+            // is no longer linked to a cell.
+            const url = URL.createObjectURL(blob);
+            topLevelExperiment.workerCellRegistry.set(
+              subSec.id,
+              cellWorkerKindForSection(subSec, url),
+            );
+          } else if (subSec.cellCodeRef.kind === CellRefKind.PathToWorkerCode) {
+            const buffer = await dataResolver.loadArrayBuffer(subSec.cellCodeRef.path);
+            if (buffer instanceof Error) {
+              throw buffer;
+            }
+            const dec = new TextDecoder('utf-8');
+            const contents = dec.decode(buffer);
+            const blob = new Blob([contents], { type: 'application/javascript' });
+            // TODO: think about cleanup... need to track and dispose of this when code
+            // is no longer linked to a cell.
+            const url = URL.createObjectURL(blob);
+            topLevelExperiment.workerCellRegistry.set(
+              subSec.id,
+              cellWorkerKindForSection(subSec, url),
+            );
+          }
         } else if (subSec.kind === SecDefKind.UiCell) {
           ioSections.push(section);
         } else {
@@ -370,7 +431,7 @@ export async function loadExperiment(
 }
 
 export async function saveExperiment(
-  dataResolver: AbstractDataResolver<SecDefWithData>,
+  dataResolver: AbstractDataResolver<JsonValue>,
   path: string,
   distrSectionDef: DistrSerialization<SecDefWithData, SecDefWithData>,
 ): Promise<Error | null> {

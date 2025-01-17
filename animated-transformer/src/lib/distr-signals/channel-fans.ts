@@ -21,7 +21,7 @@ limitations under the License.
  */
 import { SetableSignal, SignalSpace } from '../signalspace/signalspace';
 import { AsyncIterOnEvents } from './async-iter-on-events';
-import { Remote } from './lab-message-types';
+import { Remote } from './cell-message';
 
 // TODO: rename to sending / receiving to more directly represent the action,
 // and avoid the confusion of an input being an output type.

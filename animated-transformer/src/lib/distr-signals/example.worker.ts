@@ -15,7 +15,7 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { workerCell } from './lab-worker-cell';
+import { workerCell } from './worker-cell';
 import { exampleCellAbstract as exampleCellKind } from './example.ailab';
 
 const cell = workerCell(exampleCellKind);

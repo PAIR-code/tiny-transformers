@@ -6,12 +6,20 @@ import { tryer } from '../utils';
 
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {
+  abstract loadArrayBuffer(path: string): Promise<Error | ArrayBuffer>;
   abstract load(path: string): Promise<Error | T>;
   abstract save(path: string, data: T): Promise<Error | null>;
 }
 
 export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
   constructor(public nodes: { [id: string]: T }) {}
+
+  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
+    const obj = await this.load(path);
+    const enc = new TextEncoder();
+    const contents = enc.encode(JSON.stringify(obj));
+    return contents.buffer as ArrayBuffer;
+  }
 
   async load(path: string): Promise<T> {
     if (!(path in this.nodes)) {
@@ -31,7 +39,7 @@ export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
 export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
   constructor(public dirHandle: FileSystemDirectoryHandle) {}
 
-  async load(path: string): Promise<Error | T> {
+  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
     const [getDirErr, fileHandle] = await tryer(this.dirHandle.getFileHandle(path));
     if (getDirErr) {
       return getDirErr;
@@ -44,8 +52,16 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
     if (bufferErr) {
       return bufferErr;
     }
+    return fileBuffer;
+  }
+
+  async load(path: string): Promise<Error | T> {
+    const buffer = await this.loadArrayBuffer(path);
+    if (buffer instanceof Error) {
+      return buffer;
+    }
     const dec = new TextDecoder('utf-8');
-    const contents = dec.decode(fileBuffer);
+    const contents = dec.decode(buffer);
     // TODO: add better file contents verification.
     let dataObject: T;
     try {
@@ -82,6 +98,13 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
 // TODO: maybe this should just be path <--> object ?
 export class LocalCacheDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
   constructor(public localCache: LocalCacheStoreService) {}
+
+  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
+    const obj = await this.load(path);
+    const enc = new TextEncoder();
+    const contents = enc.encode(JSON.stringify(obj));
+    return contents.buffer as ArrayBuffer;
+  }
 
   async load(path: string): Promise<T> {
     const dataObject = await this.localCache.loadFileCache<T>(path);

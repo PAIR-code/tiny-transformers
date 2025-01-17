@@ -41,7 +41,9 @@ import {
 } from 'src/lib/signalspace/signalspace';
 import { SomeCellController } from '../distr-signals/cell-controller';
 import {
+  CellKind,
   Kind,
+  SomeCellKind,
   SomeWorkerCellKind,
   ValueKindFnStruct,
   ValueStruct,
@@ -111,6 +113,7 @@ export type SecDefOfExperiment = {
   id: string;
   timestamp: number;
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  vsCodePathRoot?: string;
   subsections: SecDef[];
   display?: SectionDisplay;
   // displayKind: ExpCellDisplayKind;
@@ -211,59 +214,68 @@ export type DistrSerialization<T, T2> = {
 
 // ============================================================================
 
-function cellKindFromContent(
-  c: SecDefOfWorker,
-  registry: Map<string, SomeWorkerCellKind>,
-  sectionId: string,
-): SomeWorkerCellKind {
-  const cRef = c.cellCodeRef;
-  switch (cRef.kind) {
-    case CellRefKind.WorkerRegistry: {
-      const cellKind = registry.get(cRef.registryCellKindId);
-      if (!cellKind) {
-        throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
-      }
-      return cellKind;
-    }
-    case CellRefKind.InlineWorkerJsCode: {
-      const blob = new Blob([cRef.js], { type: 'application/javascript' });
-      // TODO: think about cleanup... need to track and dispose of this when code
-      // is no longer linked to a cell.
-      const url = URL.createObjectURL(blob);
-      const inputs: ValueKindFnStruct = {};
-      for (const k of Object.keys(c.io.inputs || {})) {
-        inputs[k] = Kind<unknown>;
-      }
-      const inStreams: ValueKindFnStruct = {};
-      for (const [k, _] of Object.entries(c.io.inStreams || {})) {
-        inStreams[k] = Kind<unknown>;
-      }
-      const outputs: ValueKindFnStruct = {};
-      for (const k of Object.keys(c.io.outputs || {})) {
-        outputs[k] = Kind<unknown>;
-      }
-      const outStreams: ValueKindFnStruct = {};
-      for (const k of c.io.outStreamIds || []) {
-        outStreams[k] = Kind<unknown>;
-      }
-      return new WorkerCellKind(
-        sectionId,
-        {
-          inputs,
-          inStreams,
-          outputs,
-          outStreams,
-        },
-        () => new Worker(url),
-      );
-    }
-    // case CellRefKind.PathToWorkerCode: {
-
-    // }
-    default:
-      throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
-  }
-}
+// function cellKindFromContent(
+//   c: SecDefOfWorker,
+//   registry: Map<string, SomeWorkerCellKind>,
+//   sectionId: string,
+// ): SomeWorkerCellKind {
+//   const cRef = c.cellCodeRef;
+//   switch (cRef.kind) {
+//     case CellRefKind.WorkerRegistry: {
+//       const cellKind = registry.get(cRef.registryCellKindId);
+//       if (!cellKind) {
+//         throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
+//       }
+//       return cellKind;
+//     }
+//     case CellRefKind.InlineWorkerJsCode: {
+//       const blob = new Blob([cRef.js], { type: 'application/javascript' });
+//       // TODO: think about cleanup... need to track and dispose of this when code
+//       // is no longer linked to a cell.
+//       const url = URL.createObjectURL(blob);
+//       const inputs: ValueKindFnStruct = {};
+//       for (const k of Object.keys(c.io.inputs || {})) {
+//         inputs[k] = Kind<unknown>;
+//       }
+//       const inStreams: ValueKindFnStruct = {};
+//       for (const [k, _] of Object.entries(c.io.inStreams || {})) {
+//         inStreams[k] = Kind<unknown>;
+//       }
+//       const outputs: ValueKindFnStruct = {};
+//       for (const k of Object.keys(c.io.outputs || {})) {
+//         outputs[k] = Kind<unknown>;
+//       }
+//       const outStreams: ValueKindFnStruct = {};
+//       for (const k of c.io.outStreamIds || []) {
+//         outStreams[k] = Kind<unknown>;
+//       }
+//       return new WorkerCellKind(
+//         sectionId,
+//         {
+//           inputs,
+//           inStreams,
+//           outputs,
+//           outStreams,
+//         },
+//         () => new Worker(url),
+//       );
+//     }
+//     case CellRefKind.PathToWorkerCode: {
+//       new WorkerCellKind(
+//         sectionId,
+//         {
+//           inputs,
+//           inStreams,
+//           outputs,
+//           outStreams,
+//         },
+//         () => new Worker(url),
+//       );
+//     }
+//     default:
+//       throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
+//   }
+// }
 
 // ============================================================================
 
@@ -310,33 +322,29 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
     public data: SetableSignal<SecDefWithData>,
   ) {
     this.space = this.experiment.space;
-
     if (def.kind === SecDefKind.WorkerCell || def.kind === SecDefKind.UiCell) {
       for (const k of Object.keys(def.io.outputs || {})) {
         this.outputs[k as never as keyof O] = experiment.space.setable(null);
       }
     }
-
     this.def.display = this.def.display || {};
+  }
 
+  initCellWorkerIoAndCode() {
     const content = this.data();
     switch (content.kind) {
       case SecDefKind.WorkerCell: {
         this.status = CellSectionStatus.NotStarted;
-        const cellKind = cellKindFromContent(content, experiment.workerCellRegistry, this.def.id);
-        this.cell = this.experiment.env.init(cellKind);
+        const cellKind = this.experiment.workerCellRegistry.get(content.id);
+        if (!cellKind) {
+          throw new Error(`No such cellkind id: ${content.id}`);
+        }
         break;
       }
-      // case SecDefKind.UiCell: {
-      //   this.initUiIoValues();
-      //   break;
-      // }
       default:
         this.status = CellSectionStatus.Static;
     }
   }
-
-  initCellWorkerIoValues() {}
 
   initOutputs() {
     const data = this.data();

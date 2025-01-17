@@ -19,7 +19,7 @@ import {
   singleNextTokenIdxOutputPrepFn,
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
-import { workerCell } from 'src/lib/distr-signals/lab-worker-cell';
+import { workerCell } from 'src/lib/distr-signals/worker-cell';
 import {
   Batch,
   ModelUpdateKind,
