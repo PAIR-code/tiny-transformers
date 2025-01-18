@@ -1,6 +1,6 @@
 /* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/",
     "skipLibCheck": true,
@@ -8,9 +8,6 @@
       "ESNext",
       "webworker"
     ],
-    "module": "ESNext",
-    /* Bundler mode */
-    // "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { Batch, taskCellKind, TaskGenConfig } from './ailab';
+import { Batch, taskCellKind, TaskGenConfig } from './common.types';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 

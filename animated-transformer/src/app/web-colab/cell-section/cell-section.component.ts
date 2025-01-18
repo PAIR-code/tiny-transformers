@@ -26,7 +26,12 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
 import { Experiment } from '../../../lib/weblab/experiment';
-import { SecDefOfExperiment, SecDefOfWorker, SomeSection } from '../../../lib/weblab/section';
+import {
+  CellCodeRefKind,
+  SecDefOfExperiment,
+  SecDefOfWorker,
+  SomeSection,
+} from '../../../lib/weblab/section';
 
 @Component({
   selector: 'app-cell-section',
@@ -74,14 +79,17 @@ export class CellSectionComponent implements OnInit {
       this.status.set(this.cell.status());
     });
 
-    this.cell.space.derived(() => {
-      if (!this.section().experiment.initSecDef.vsCodePathRoot) {
-        this.vsCodeLink.set('');
-      }
-      this.vsCodeLink.set(
-        `vscode://${this.section().experiment.initSecDef.vsCodePathRoot}/${this.localDef.cellCodeRef}`,
-      );
-    });
+    if (this.localDef.cellCodeRef.kind === CellCodeRefKind.PathToWorkerCode) {
+      const path = this.localDef.cellCodeRef.path;
+      this.cell.space.derived(() => {
+        if (!this.section().experiment.initSecDef.vsCodePathRoot) {
+          this.vsCodeLink.set('');
+        }
+        this.vsCodeLink.set(
+          `vscode://file/${this.section().experiment.initSecDef.vsCodePathRoot}/${path}`,
+        );
+      });
+    }
   }
 
   inputs() {

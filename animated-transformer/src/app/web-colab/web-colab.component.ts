@@ -60,7 +60,7 @@ import {
 } from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
 import { SecDefOfExperiment, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
-import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
+import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
 import { tryer } from 'src/lib/utils';
 import { CellRegistryService } from '../cell-registry.service';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -319,9 +319,8 @@ export class WebColabComponent {
   }
 
   async newExperiment() {
-    this.experiment.set(
-      makeToyExperiment(this.cellRegistry.registry, this.env, 'simple experiment'),
-    );
+    const exp = await makeToyExperiment(this.cellRegistry.registry, this.env, 'simple experiment');
+    this.experiment.set(exp);
     await this.saveExperimentToCache();
     this.diskState.set(SaveState.New);
   }

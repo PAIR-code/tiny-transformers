@@ -95,21 +95,25 @@ export class CellKind<
 
   constructor(
     public cellKindId: string,
-    public data: {
+    public io: {
       inputs?: ValueKindFnStructFn<I>;
       inStreams?: ValueKindFnStructFn<IStreams>;
       outputs?: ValueKindFnStructFn<O>;
       outStreams?: ValueKindFnStructFn<OStreams>;
     },
   ) {
-    this.inputs = this.data.inputs || ({} as ValueKindFnStructFn<I>);
-    this.inStreams = this.data.inStreams || ({} as ValueKindFnStructFn<IStreams>);
-    this.outputs = this.data.outputs || ({} as ValueKindFnStructFn<O>);
-    this.outStreams = this.data.outStreams || ({} as ValueKindFnStructFn<OStreams>);
+    this.inputs = this.io.inputs || ({} as ValueKindFnStructFn<I>);
+    this.inStreams = this.io.inStreams || ({} as ValueKindFnStructFn<IStreams>);
+    this.outputs = this.io.outputs || ({} as ValueKindFnStructFn<O>);
+    this.outStreams = this.io.outStreams || ({} as ValueKindFnStructFn<OStreams>);
     this.inputNames = new Set(Object.keys(this.inputs));
     this.inStreamNames = new Set(Object.keys(this.inStreams));
     this.outputNames = new Set(Object.keys(this.outputs));
     this.outStreamNames = new Set(Object.keys(this.outStreams));
+  }
+
+  asWorker(startWorkerFn: () => Worker): WorkerCellKind<I, IStreams, O, OStreams> {
+    return new WorkerCellKind(this.cellKindId, this.io, startWorkerFn);
   }
 }
 
@@ -121,7 +125,7 @@ export class WorkerCellKind<
 > extends CellKind<I, IStreams, O, OStreams> {
   constructor(
     cellKindId: string,
-    data: {
+    io: {
       inputs?: ValueKindFnStructFn<I>;
       inStreams?: ValueKindFnStructFn<IStreams>;
       outputs?: ValueKindFnStructFn<O>;
@@ -129,7 +133,7 @@ export class WorkerCellKind<
     },
     public startWorkerFn: () => Worker,
   ) {
-    super(cellKindId, data);
+    super(cellKindId, io);
   }
 }
 

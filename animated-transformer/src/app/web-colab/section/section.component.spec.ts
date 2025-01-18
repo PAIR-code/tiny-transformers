@@ -6,7 +6,7 @@ import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { MarkdownModule } from 'ngx-markdown';
 import { provideExperimentalZonelessChangeDetection } from '@angular/core';
-import { makeToyExperiment } from 'src/lib/weblab/toy-experiment';
+import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
 
 describe('SectionComponent', () => {
   let component: SectionComponent;

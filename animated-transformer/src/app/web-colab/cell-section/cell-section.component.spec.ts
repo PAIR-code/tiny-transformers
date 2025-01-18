@@ -6,7 +6,7 @@ import { Experiment } from 'src/lib/weblab/experiment';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
-  CellRefKind,
+  CellCodeRefKind,
   SecDefKind,
   SecDefOfExperiment,
   SecDefOfWorker,
@@ -31,12 +31,12 @@ describe('CellSectionComponent', () => {
       id: 'section 1',
       timestamp: Date.now(),
       cellCodeRef: {
-        kind: CellRefKind.InlineWorkerJsCode,
+        kind: CellCodeRefKind.InlineWorkerJsCode,
         js: '1 + 1;',
       },
       io: {},
     };
-    const experiment = new Experiment(lab, [], exp1Data);
+    const experiment = new Experiment(lab, [], exp1Data, new Map());
     experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 

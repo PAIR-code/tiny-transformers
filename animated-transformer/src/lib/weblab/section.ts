@@ -50,6 +50,7 @@ import {
   WorkerCellKind,
 } from '../distr-signals/cell-kind';
 import { Experiment } from './experiment';
+import { CellWorker } from '../distr-signals/cell-worker';
 
 // ============================================================================
 
@@ -158,32 +159,27 @@ export type CellSectionInput = {
 
 // ============================================================================
 
-export enum CellRefKind {
+export enum CellCodeRefKind {
   // Remote cell defined by the worker registry.
   WorkerRegistry = 'WorkerRegistry',
   // Worker cell defined by inline JS code.
   InlineWorkerJsCode = 'InlineWorkerJsCode',
   // Path to code that gets loaded into an ObjectURL and used from there.
   PathToWorkerCode = 'PathToWorkerCode',
-  // There is no "remote cell", UI manages the input/output stuff.
-  LocalUi = 'LocalUi',
 }
 
 export type CellCodeRef =
   | {
-      kind: CellRefKind.WorkerRegistry;
+      kind: CellCodeRefKind.WorkerRegistry;
       registryCellKindId: string;
     }
   | {
-      kind: CellRefKind.InlineWorkerJsCode;
+      kind: CellCodeRefKind.InlineWorkerJsCode;
       js: string;
     }
   | {
-      kind: CellRefKind.PathToWorkerCode;
+      kind: CellCodeRefKind.PathToWorkerCode;
       path: string;
-    }
-  | {
-      kind: CellRefKind.LocalUi;
     };
 
 // ============================================================================
@@ -211,71 +207,6 @@ export type DistrSerialization<T, T2> = {
   data: T;
   subpathData?: { [path: string]: T2 };
 };
-
-// ============================================================================
-
-// function cellKindFromContent(
-//   c: SecDefOfWorker,
-//   registry: Map<string, SomeWorkerCellKind>,
-//   sectionId: string,
-// ): SomeWorkerCellKind {
-//   const cRef = c.cellCodeRef;
-//   switch (cRef.kind) {
-//     case CellRefKind.WorkerRegistry: {
-//       const cellKind = registry.get(cRef.registryCellKindId);
-//       if (!cellKind) {
-//         throw new Error(`No such cellkind id: ${cRef.registryCellKindId}`);
-//       }
-//       return cellKind;
-//     }
-//     case CellRefKind.InlineWorkerJsCode: {
-//       const blob = new Blob([cRef.js], { type: 'application/javascript' });
-//       // TODO: think about cleanup... need to track and dispose of this when code
-//       // is no longer linked to a cell.
-//       const url = URL.createObjectURL(blob);
-//       const inputs: ValueKindFnStruct = {};
-//       for (const k of Object.keys(c.io.inputs || {})) {
-//         inputs[k] = Kind<unknown>;
-//       }
-//       const inStreams: ValueKindFnStruct = {};
-//       for (const [k, _] of Object.entries(c.io.inStreams || {})) {
-//         inStreams[k] = Kind<unknown>;
-//       }
-//       const outputs: ValueKindFnStruct = {};
-//       for (const k of Object.keys(c.io.outputs || {})) {
-//         outputs[k] = Kind<unknown>;
-//       }
-//       const outStreams: ValueKindFnStruct = {};
-//       for (const k of c.io.outStreamIds || []) {
-//         outStreams[k] = Kind<unknown>;
-//       }
-//       return new WorkerCellKind(
-//         sectionId,
-//         {
-//           inputs,
-//           inStreams,
-//           outputs,
-//           outStreams,
-//         },
-//         () => new Worker(url),
-//       );
-//     }
-//     case CellRefKind.PathToWorkerCode: {
-//       new WorkerCellKind(
-//         sectionId,
-//         {
-//           inputs,
-//           inStreams,
-//           outputs,
-//           outStreams,
-//         },
-//         () => new Worker(url),
-//       );
-//     }
-//     default:
-//       throw new Error(`No such cell ref kind: ${JSON.stringify(cRef)}`);
-//   }
-// }
 
 // ============================================================================
 
@@ -328,17 +259,16 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
       }
     }
     this.def.display = this.def.display || {};
-  }
 
-  initCellWorkerIoAndCode() {
     const content = this.data();
     switch (content.kind) {
       case SecDefKind.WorkerCell: {
         this.status = CellSectionStatus.NotStarted;
         const cellKind = this.experiment.workerCellRegistry.get(content.id);
         if (!cellKind) {
-          throw new Error(`No such cellkind id: ${content.id}`);
+          throw new Error(`No such CellKind in the cell registry: '${content.id}'`);
         }
+        this.cell = this.experiment.env.init(cellKind);
         break;
       }
       default:
@@ -401,10 +331,10 @@ export class Section<I extends ValueStruct, O extends ValueStruct> {
   connectWorkerCell() {
     const data = this.data();
     if (this.status !== CellSectionStatus.NotStarted) {
-      throw new Error('Can only start a connect a not-started cell');
+      throw new Error(`Cell (${data.id}): Can only start a connect a not-started cell`);
     }
     if (!this.cell || data.kind !== SecDefKind.WorkerCell) {
-      throw new Error('Can only connect a section with a cell');
+      throw new Error(`Cell (${data.id}): Can only connect a section with a cell`);
     }
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
       // TODO: this is where magic dep-management could happen... we could use

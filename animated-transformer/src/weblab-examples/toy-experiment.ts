@@ -13,24 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { TaskGenConfig } from 'src/weblab-examples/tiny-transformer-example/common.types';
+import { LabEnv } from '../lib/distr-signals/lab-env';
+import { cellWorkerKindForSection, Experiment } from '../lib/weblab/experiment';
 import {
-  taskCellKind,
-  TaskGenConfig,
-  trainerCellKind,
-} from 'src/weblab-examples/tiny-transformer-example/ailab';
-import { LabEnv } from '../distr-signals/lab-env';
-import { Experiment } from './experiment';
-import {
-  SecDef,
-  CellRefKind,
   SecDefOfExperiment,
   SecDefKind,
   SecDefOfUiView,
   ViewerKind,
   SecDefOfWorker,
-} from './section';
-import { SomeWorkerCellKind, WorkerCellKind } from '../distr-signals/cell-kind';
-import { defaultTinyWorldTaskConfig } from '../seqtasks/tiny_worlds';
+  CellCodeRefKind,
+} from '../lib/weblab/section';
+import { SomeWorkerCellKind } from '../lib/distr-signals/cell-kind';
+import { defaultTinyWorldTaskConfig } from '../lib/seqtasks/tiny_worlds';
+import { toyCellKind } from './toycell.kinds';
+import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
 
 export const initExpDef: SecDefOfExperiment = {
   kind: SecDefKind.Experiment,
@@ -94,28 +91,37 @@ export const secGenConfigJsonObj: SecDefOfUiView = {
   uiView: ViewerKind.JsonObjOutView,
 };
 
-export function secSimpleCell(): SecDefOfWorker {
+export function secInlineCodeCell(): SecDefOfWorker & {
+  cellCodeRef: {
+    kind: CellCodeRefKind.InlineWorkerJsCode;
+  };
+} {
   return {
     kind: SecDefKind.WorkerCell,
-    id: 'cell section',
+    id: 'InlineCodeCell',
     timestamp: Date.now(),
     io: {},
     cellCodeRef: {
-      kind: CellRefKind.InlineWorkerJsCode,
+      kind: CellCodeRefKind.InlineWorkerJsCode,
       js: 'console.log("hello world from simple cell!");',
     },
   };
 }
 
-export function simplePathToCell(): SecDefOfWorker {
+const simplePathCellPath = 'distr/cell1.worker.js';
+export function simplePathToCell(): SecDefOfWorker & {
+  cellCodeRef: {
+    kind: CellCodeRefKind.PathToWorkerCode;
+  };
+} {
   return {
     kind: SecDefKind.WorkerCell,
-    id: 'Simple Path to Cell',
+    id: toyCellKind.cellKindId,
     timestamp: Date.now(),
     io: {},
     cellCodeRef: {
-      kind: CellRefKind.PathToWorkerCode,
-      path: 'distr/cell1.worker.js',
+      kind: CellCodeRefKind.PathToWorkerCode,
+      path: simplePathCellPath,
     },
   };
 }
@@ -123,7 +129,7 @@ export function simplePathToCell(): SecDefOfWorker {
 export function taskMakerCell(): SecDefOfWorker {
   return {
     kind: SecDefKind.WorkerCell,
-    id: 'Task Maker',
+    id: taskCellKind.cellKindId,
     timestamp: Date.now(),
     io: {
       inputs: {
@@ -138,17 +144,28 @@ export function taskMakerCell(): SecDefOfWorker {
       },
     },
     cellCodeRef: {
-      kind: CellRefKind.WorkerRegistry,
+      kind: CellCodeRefKind.WorkerRegistry,
       registryCellKindId: taskCellKind.cellKindId,
     },
   };
 }
 
-export function makeToyExperiment(
+export async function makeToyExperiment(
   registry: Map<string, SomeWorkerCellKind>,
   env: LabEnv,
   id: string,
-): Experiment {
+): Promise<Experiment> {
+  const inlineCodeCellDef = secInlineCodeCell();
+  const blob = new Blob([inlineCodeCellDef.cellCodeRef.js], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  registry.set(inlineCodeCellDef.id, cellWorkerKindForSection(inlineCodeCellDef, url));
+
+  const simplePathCellDef = simplePathToCell();
+  registry.set(
+    toyCellKind.cellKindId,
+    toyCellKind.asWorker(() => new Worker(simplePathCellPath)),
+  );
+
   const initExpDef: SecDefOfExperiment = {
     kind: SecDefKind.Experiment,
     id,
@@ -158,11 +175,13 @@ export function makeToyExperiment(
     subsections: [],
   };
   const exp = new Experiment(env, [], initExpDef, registry);
+
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
   exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
   exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
-  exp.appendLeafSectionFromDataDef(simplePathToCell());
-  exp.appendLeafSectionFromDataDef(secSimpleCell());
+  exp.appendLeafSectionFromDataDef(simplePathCellDef);
+
+  exp.appendLeafSectionFromDataDef(inlineCodeCellDef);
   exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;
 }

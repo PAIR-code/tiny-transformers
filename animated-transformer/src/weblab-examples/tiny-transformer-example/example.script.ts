@@ -27,7 +27,7 @@ import {
   ModelUpdate,
   ModelUpdateKind,
   TaskGenConfig,
-} from './ailab';
+} from './common.types';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';

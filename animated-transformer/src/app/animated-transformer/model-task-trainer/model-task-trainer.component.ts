@@ -52,7 +52,7 @@ import * as tf from '@tensorflow/tfjs';
 import { strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/token_gemb';
 import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { ConfigObj } from 'src/lib/json/config-obj';
-import { EnvModel } from 'src/weblab-examples/tiny-transformer-example/ailab';
+import { EnvModel } from 'src/weblab-examples/tiny-transformer-example/common.types';
 import { CommonModule } from '@angular/common';
 
 export type TrainerConfig = {

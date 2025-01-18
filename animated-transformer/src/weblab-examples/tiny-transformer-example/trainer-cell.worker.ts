@@ -20,13 +20,7 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { workerCell } from 'src/lib/distr-signals/worker-cell';
-import {
-  Batch,
-  ModelUpdateKind,
-  ModelUpdate as ModelUpdate,
-  TrainConfig,
-  trainerCellKind,
-} from './ailab';
+import { Batch, ModelUpdateKind, ModelUpdate as ModelUpdate, TrainConfig } from './common.types';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -35,7 +29,6 @@ import {
   TransformerModel,
   VarTransformerParams,
   initDecoderParams,
-  TransformerComputation,
 } from 'src/lib/transformer/transformer_gtensor';
 import {
   assignParams,
@@ -48,6 +41,7 @@ import {
 import { defined, SetableSignal } from 'src/lib/signalspace/signalspace';
 import { Metrics } from 'src/lib/distr-signals/cell-kind';
 import { makeRandomStream, RandomStream } from 'src/lib/random/random';
+import { trainerCellKind } from 'src/weblab-examples/tiny-transformer-example/trainer-cell.kind';
 
 // ----------------------------------------------------------------------------
 const cell = workerCell(trainerCellKind);

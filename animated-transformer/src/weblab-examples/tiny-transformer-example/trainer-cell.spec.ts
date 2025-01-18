@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { TrainConfig, trainerCellKind, ModelUpdate, ModelUpdateKind, Batch } from './ailab';
+import { TrainConfig, trainerCellKind, ModelUpdate, ModelUpdateKind, Batch } from './common.types';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig, TinyWorldTask } from 'src/lib/seqtasks/tiny_worlds';
 import { indexExample } from 'src/lib/seqtasks/util';

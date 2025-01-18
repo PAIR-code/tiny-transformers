@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 
-import { taskCellKind, trainerCellKind } from '../weblab-examples/tiny-transformer-example/ailab';
+import { taskCellKind } from '../weblab-examples/tiny-transformer-example/task-cell.kind';
+import { trainerCellKind } from '../weblab-examples/tiny-transformer-example/trainer-cell.kind';
 import { SomeWorkerCellKind } from 'src/lib/distr-signals/cell-kind';
 
 @Injectable({

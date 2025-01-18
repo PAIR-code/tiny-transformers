@@ -15,7 +15,8 @@ limitations under the License.
 
 /// <reference lib="webworker" />
 
-import { Batch, taskCellKind } from './ailab';
+import { Batch } from './common.types';
+import { taskCellKind } from './task-cell.kind';
 import { workerCell } from 'src/lib/distr-signals/worker-cell';
 import { indexExample } from 'src/lib/seqtasks/util';
 import { DepKind } from 'src/lib/signalspace/signalspace';

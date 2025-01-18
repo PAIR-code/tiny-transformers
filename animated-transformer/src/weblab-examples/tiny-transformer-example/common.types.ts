@@ -17,11 +17,9 @@ limitations under the License.
  * lab environment.
  */
 
-import { Example } from 'src/lib/seqtasks/util';
 import { TransformerConfig, TransformerParams } from 'src/lib/transformer/transformer_gtensor';
-import { Kind, Metrics, WorkerCellKind } from 'src/lib/distr-signals/cell-kind';
+import { Metrics } from 'src/lib/distr-signals/cell-kind';
 import { SerializeTensorParams } from 'src/lib/gtensor/params';
-import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
 export type SimpleMetrics = Metrics<'entropyLoss' | 'accuracy'>;
 
@@ -83,25 +81,6 @@ export type Checkpoint = {
   metrics: SimpleMetrics;
 };
 
-export const trainerCellKind = new WorkerCellKind(
-  'Trainer cell',
-  {
-    inputs: {
-      testSet: Kind<Example[]>,
-      modelUpdateEvents: Kind<ModelUpdate>,
-      trainConfig: Kind<TrainConfig>,
-    },
-    inStreams: {
-      trainBatches: Kind<Batch>,
-    },
-    outStreams: {
-      metrics: Kind<SimpleMetrics>,
-      checkpoint: Kind<Checkpoint>,
-    },
-  },
-  () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-);
-
 export type TaskGenConfig = {
   initBatchId: number;
   initBatchSeed: number;
@@ -109,20 +88,3 @@ export type TaskGenConfig = {
   maxBatches: number;
   batchSize: number;
 };
-
-export const taskCellKind = new WorkerCellKind(
-  'Task cell',
-  {
-    inputs: {
-      taskConfig: Kind<TinyWorldTaskConfig>,
-      genConfig: Kind<TaskGenConfig>,
-    },
-    outputs: {
-      testSet: Kind<Example[]>,
-    },
-    outStreams: {
-      trainBatches: Kind<Batch>,
-    },
-  },
-  () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-);
