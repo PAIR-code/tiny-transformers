@@ -276,6 +276,7 @@ export class WebColabComponent {
       this.cacheDataResolver,
       this.env,
       cachedFileData as SecDefOfSecList,
+      { fromCache: true },
     );
     this.cacheState.set(SaveState.Saved);
     this.diskState.set(SaveState.New);
@@ -360,7 +361,7 @@ export class WebColabComponent {
 
   @showErrors()
   @loadingUi()
-  async loadExperiment() {
+  async loadExperimentFromDirectory() {
     const [dirPickErr, dirHandle] = await tryer(self.showDirectoryPicker({ mode: 'readwrite' }));
     if (dirPickErr) {
       this.error = `Could not open the selected directory: ${dirPickErr.message}`;
@@ -374,7 +375,9 @@ export class WebColabComponent {
     }
     // TODO: actually do some validation...
     const expDef = secDataDef as SecDefOfSecList;
-    const [expLoadErr, exp] = await tryer(loadExperiment(this.fileDataResolver, this.env, expDef));
+    const [expLoadErr, exp] = await tryer(
+      loadExperiment(this.fileDataResolver, this.env, expDef, { fromCache: false }),
+    );
     if (expLoadErr) {
       this.error = `Failed to load experiment from 'experiment.json': ${expLoadErr.message}`;
       return;

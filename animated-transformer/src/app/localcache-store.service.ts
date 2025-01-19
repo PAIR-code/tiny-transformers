@@ -12,46 +12,46 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+/* 
+  Service to wrap a basic abstraction for local browser caching of data,
+  currently using localStorage, but can be migrate to indexDB later. 
+*/
 
 import { Injectable } from '@angular/core';
 import json5 from 'json5';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { JsonValue } from 'src/lib/json/json';
-import { LocalCacheStore } from 'src/lib/weblab/data-resolver';
-
-const cache = new LocalCacheStore(stringifyJsonValue, json5.parse);
+import { defaultLocalCacheStore } from 'src/lib/weblab/data-resolver';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LocalCacheStoreService {
-  cache: LocalCacheStore<JsonValue>;
+  cache = defaultLocalCacheStore;
 
-  constructor() {
-    this.cache = cache;
-  }
+  constructor() {}
 
   async load<T extends JsonValue>(path: string): Promise<T | null> {
-    return cache.load(path) as Promise<T | null>;
+    return this.cache.load(path) as Promise<T | null>;
   }
 
   async save<T extends JsonValue>(path: string, obj: T): Promise<void> {
-    return cache.save(path, obj);
+    return this.cache.save(path, obj);
   }
 
   async delete(path: string): Promise<void> {
-    cache.delete(path);
+    this.cache.delete(path);
   }
 
   async saveDefault<T extends JsonValue>(obj: T): Promise<void> {
-    cache.saveDefault(obj);
+    this.cache.saveDefault(obj);
   }
 
   async loadDefault<T extends JsonValue>(): Promise<T | null> {
-    return cache.loadDefault() as Promise<T | null>;
+    return this.cache.loadDefault() as Promise<T | null>;
   }
 
   async deleteDefault(): Promise<void> {
-    return cache.deleteDefault();
+    return this.cache.deleteDefault();
   }
 }

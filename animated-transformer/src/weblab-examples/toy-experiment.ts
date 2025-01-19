@@ -15,7 +15,7 @@ limitations under the License.
 
 import { TaskGenConfig } from 'src/weblab-examples/tiny-transformer-example/common.types';
 import { LabEnv } from '../lib/distr-signals/lab-env';
-import { Experiment } from '../lib/weblab/experiment';
+import { Experiment, prefixCacheCodePath, prefixCacheCodeUrl } from '../lib/weblab/experiment';
 import {
   SecDefOfSecList,
   SecDefKind,
@@ -25,9 +25,9 @@ import {
   CellCodeRefKind,
 } from '../lib/weblab/section';
 import { defaultTinyWorldTaskConfig } from '../lib/seqtasks/tiny_worlds';
-import { toyCellKind } from './toycell.kinds';
+import { toyCellKind } from './toycell.kind';
 import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
-import { BrowserDirDataResolver } from 'src/lib/weblab/data-resolver';
+import { BrowserDirDataResolver, LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
 import { JsonValue } from 'src/lib/json/json';
 
 export const initExpDef: SecDefOfSecList = {
@@ -38,7 +38,7 @@ export const initExpDef: SecDefOfSecList = {
   subsections: [],
 };
 
-export const secSimpleMarkdown: SecDefOfUiView = {
+export const simpleMarkdownSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
   id: 'about',
   timestamp: Date.now(),
@@ -54,7 +54,7 @@ export const secSimpleMarkdown: SecDefOfUiView = {
   uiView: ViewerKind.MarkdownOutView,
 };
 
-export const secTaskConfigJsonObj: SecDefOfUiView = {
+export const taskConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
   id: 'Task Configuration',
   timestamp: Date.now(),
@@ -70,7 +70,7 @@ export const secTaskConfigJsonObj: SecDefOfUiView = {
   uiView: ViewerKind.JsonObjOutView,
 };
 
-export const secGenConfigJsonObj: SecDefOfUiView = {
+export const genConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
   id: 'Generation Configuration',
   timestamp: Date.now(),
@@ -92,7 +92,7 @@ export const secGenConfigJsonObj: SecDefOfUiView = {
   uiView: ViewerKind.JsonObjOutView,
 };
 
-export function secInlineCodeCell(): SecDefOfWorker & {
+export function simpleInlineCodeSecDefFn(): SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.InlineWorkerJsCode;
   };
@@ -109,7 +109,7 @@ export function secInlineCodeCell(): SecDefOfWorker & {
   };
 }
 
-export function simplePathToCell(): SecDefOfWorker & {
+export function simpleCellPathSecDefFn(): SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.PathToWorkerCode;
   };
@@ -127,7 +127,11 @@ export function simplePathToCell(): SecDefOfWorker & {
   };
 }
 
-export function taskMakerCell(): SecDefOfWorker {
+export function simpleUrlCodeSecDefFn(): SecDefOfWorker & {
+  cellCodeRef: {
+    kind: CellCodeRefKind.UrlToCode;
+  };
+} {
   return {
     kind: SecDefKind.WorkerCell,
     id: taskCellKind.cellKindId,
@@ -135,11 +139,11 @@ export function taskMakerCell(): SecDefOfWorker {
     io: {
       inputs: {
         taskConfig: {
-          sectionId: secTaskConfigJsonObj.id,
+          sectionId: taskConfigJsonSecDef.id,
           outputId: 'jsonObj',
         },
         genConfig: {
-          sectionId: secGenConfigJsonObj.id,
+          sectionId: genConfigJsonSecDef.id,
           outputId: 'jsonObj',
         },
       },
@@ -162,16 +166,29 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     subsections: [],
   };
-  const dataResolver = new BrowserDirDataResolver<JsonValue>({
-    intendedRootPath: initExpDef.vsCodePathRoot,
-  });
+  const dataResolver = new LocalCacheDataResolver<JsonValue>();
+
+  const simpleCellPathSecDef = simpleCellPathSecDefFn();
+  dataResolver.save(
+    prefixCacheCodePath(simpleCellPathSecDef.cellCodeRef.jsPath),
+    'console.log("hello from simpleCellPathSecDef cell!");',
+  );
+
+  const simpleUrlCodeSecDef = simpleUrlCodeSecDefFn();
+  dataResolver.save(
+    prefixCacheCodeUrl(simpleUrlCodeSecDef.cellCodeRef.jsUrl),
+    'console.log("hello from simpleUrlCodeSecDef cell!");',
+  );
+
+  // TODO: add entries for URLs and Paths.
+
   const exp = new Experiment(env, [], initExpDef, dataResolver);
 
-  exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
-  exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
-  exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
-  // exp.appendLeafSectionFromDataDef(simplePathToCell());
-  exp.appendLeafSectionFromDataDef(secInlineCodeCell());
-  // exp.appendLeafSectionFromDataDef(taskMakerCell());
+  exp.appendLeafSectionFromDataDef(simpleMarkdownSecDef);
+  exp.appendLeafSectionFromDataDef(taskConfigJsonSecDef);
+  exp.appendLeafSectionFromDataDef(genConfigJsonSecDef);
+  exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
+  exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
+  exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
   return exp;
 }

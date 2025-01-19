@@ -14,14 +14,9 @@ limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { asyncIterToSignal, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import {
-  TrainConfig,
-  trainerCellKind,
-  taskCellKind,
-  ModelUpdate,
-  ModelUpdateKind,
-  TaskGenConfig,
-} from './common.types';
+import { TrainConfig, ModelUpdate, ModelUpdateKind, TaskGenConfig } from './common.types';
+import { trainerCellKind } from './trainer-cell.kind';
+import { taskCellKind } from './task-cell.kind';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { defaultTinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 
@@ -85,8 +80,8 @@ describe('tiny-transformer-example/test-and-trainer', () => {
     trainerCell.inputs.testSet.addPipeFrom(taskCell.outputs.testSet);
     trainerCell.inStreams.trainBatches.addPipeFrom(taskCell.outStreams.trainBatches);
 
-    taskCell.start();
-    trainerCell.start();
+    taskCell.startWithWorker(new Worker(new URL('./task-cell.worker', import.meta.url)));
+    trainerCell.startWithWorker(new Worker(new URL('./trainer-cell.worker', import.meta.url)));
 
     const testSet = await taskCell.outputs.testSet.connect();
     expect(testSet().length).toEqual(5);

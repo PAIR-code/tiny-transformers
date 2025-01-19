@@ -25,10 +25,12 @@ describe('lab-env', () => {
   it('Running a simple cell', async () => {
     const env = new LabEnv(new SignalSpace());
     const prefix = env.space.setable('Foo');
-    const { cell, onceStarted } = env.start(exampleCellAbstract, {
-      inputs: { prefix },
+    const { cell, onceStarted } = env.start(
+      exampleCellAbstract,
+      new Worker(new URL('./example.worker', import.meta.url)),
+      { inputs: { prefix } },
       // config: { logCellMessages: true },
-    });
+    );
     expect(cell.status()).toEqual(CellStatus.StartingWaitingForInputs);
     await onceStarted;
     expect(cell.status()).toEqual(CellStatus.Running);
@@ -104,8 +106,8 @@ describe('lab-env', () => {
     cell2.inStreams.strStream.addPipeFrom(cell.outStreams.prefixedStream);
     const doublePrefixedStream = cell2.outStreams.prefixedStream.connect();
 
-    cell.start();
-    cell2.start();
+    cell.startWithWorker(new Worker(new URL('./example.worker', import.meta.url)));
+    cell2.startWithWorker(new Worker(new URL('./example.worker', import.meta.url)));
 
     const strStream = cell.inStreams.strStream.connect();
     for (const i of [1, 2, 3]) {

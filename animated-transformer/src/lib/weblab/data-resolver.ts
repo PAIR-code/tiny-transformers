@@ -112,10 +112,19 @@ export class LocalCacheStore<T> {
   }
 }
 
+export const defaultLocalCacheStore = new LocalCacheStore<JsonValue>(
+  stringifyJsonValue,
+  json5.parse,
+);
+
 // ============================================================================
 // TODO: maybe this should just be path <--> object ?
 export class LocalCacheDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
-  constructor(public localCache: LocalCacheStore<T>) {}
+  localCache: LocalCacheStore<T>;
+
+  constructor(localCache?: LocalCacheStore<T>) {
+    this.localCache = localCache || (defaultLocalCacheStore as never as LocalCacheStore<T>);
+  }
 
   async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
     const obj = await this.load(path);

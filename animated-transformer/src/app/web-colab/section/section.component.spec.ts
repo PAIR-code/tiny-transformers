@@ -40,7 +40,7 @@ describe('SectionComponent', () => {
     fixture = TestBed.createComponent(SectionComponent);
     fixture.componentRef.setInput('edited', false);
     fixture.componentRef.setInput('experiment', exp);
-    fixture.componentRef.setInput('section', exp.sections()[0]);
+    fixture.componentRef.setInput('section', exp.topLevelSections()[0]);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

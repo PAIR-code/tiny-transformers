@@ -21,21 +21,17 @@ import { Example } from 'src/lib/seqtasks/util';
 import { Kind, CellKind } from 'src/lib/distr-signals/cell-kind';
 import { Batch, Checkpoint, ModelUpdate, SimpleMetrics, TrainConfig } from './common.types';
 
-export const trainerCellKind = new CellKind(
-  'Trainer cell',
-  {
-    inputs: {
-      testSet: Kind<Example[]>,
-      modelUpdateEvents: Kind<ModelUpdate>,
-      trainConfig: Kind<TrainConfig>,
-    },
-    inStreams: {
-      trainBatches: Kind<Batch>,
-    },
-    outStreams: {
-      metrics: Kind<SimpleMetrics>,
-      checkpoint: Kind<Checkpoint>,
-    },
+export const trainerCellKind = new CellKind('Trainer cell', {
+  inputs: {
+    testSet: Kind<Example[]>,
+    modelUpdateEvents: Kind<ModelUpdate>,
+    trainConfig: Kind<TrainConfig>,
   },
-  // () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
-);
+  inStreams: {
+    trainBatches: Kind<Batch>,
+  },
+  outStreams: {
+    metrics: Kind<SimpleMetrics>,
+    checkpoint: Kind<Checkpoint>,
+  },
+});

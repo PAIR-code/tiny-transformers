@@ -47,9 +47,11 @@ import {
   CellCodeRefKind,
   SectionCellData,
   cellIoForCellSection,
+  SecDefOfWorker,
 } from './section';
 import { SignalReceiveChannel } from '../distr-signals/channels';
 import { CellKind, ValueStruct } from '../distr-signals/cell-kind';
+import { data } from '@tensorflow/tfjs';
 
 export type DistrSerialization<T, T2> = {
   data: T;
@@ -67,6 +69,13 @@ function sectionListEqCheck(sections1: SomeSection[], sections2: SomeSection[]):
     }
   }
   return true;
+}
+
+export function prefixCacheCodePath(s: string): string {
+  return 'CacheCodePath:' + s;
+}
+export function prefixCacheCodeUrl(s: string): string {
+  return 'CacheCodeUrl:' + s;
 }
 
 // ============================================================================
@@ -231,10 +240,63 @@ type SecListBeingLoaded = {
   section: Section<SecDefOfSecList, ValueStruct, ValueStruct>;
 };
 
+async function initSectionCellData(
+  env: LabEnv,
+  dataResolver: AbstractDataResolver<JsonValue>,
+  secDef: SecDefOfWorker,
+  config: {
+    fromCache: boolean;
+  },
+): Promise<SectionCellData> {
+  let cell: SectionCellData;
+
+  const cellKind = new CellKind(secDef.id, cellIoForCellSection(secDef));
+  const controller = new CellController(env, secDef.id, cellKind);
+
+  switch (secDef.cellCodeRef.kind) {
+    case CellCodeRefKind.PathToWorkerCode: {
+      const path = config.fromCache
+        ? prefixCacheCodePath(secDef.cellCodeRef.jsPath)
+        : secDef.cellCodeRef.jsPath;
+      const buffer = await dataResolver.loadArrayBuffer(path);
+      const dec = new TextDecoder('utf-8');
+      const cellCodeCache = dec.decode(buffer);
+      const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+      const cellObjectUrl = URL.createObjectURL(blob);
+      cell = { controller, cellCodeCache, cellObjectUrl };
+      break;
+    }
+    case CellCodeRefKind.InlineWorkerJsCode: {
+      const blob = new Blob([secDef.cellCodeRef.js], { type: 'application/javascript' });
+      const cellObjectUrl = URL.createObjectURL(blob);
+      cell = { controller, cellCodeCache: secDef.cellCodeRef.js, cellObjectUrl };
+      break;
+    }
+    case CellCodeRefKind.UrlToCode: {
+      const path = config.fromCache
+        ? prefixCacheCodePath(secDef.cellCodeRef.jsUrl)
+        : secDef.cellCodeRef.jsUrl;
+      const buffer = await dataResolver.loadArrayBuffer(path);
+      const dec = new TextDecoder('utf-8');
+      const cellCodeCache = dec.decode(buffer);
+      const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+      const cellObjectUrl = URL.createObjectURL(blob);
+      cell = { controller, cellCodeCache, cellObjectUrl };
+      break;
+    }
+    default:
+      throw new Error(`bad cellCodeRef: ${JSON.stringify(secDef.cellCodeRef)}`);
+  }
+  return cell;
+}
+
 export async function loadExperiment(
   dataResolver: AbstractDataResolver<JsonValue>,
   env: LabEnv,
   secListDef: SecDefOfSecList,
+  config: {
+    fromCache: boolean;
+  },
 ): Promise<Experiment> {
   const space = env.space;
   // const nodeDataMap: Map<string, SetableSignal<SecDefWithData>> = new Map();
@@ -306,42 +368,9 @@ export async function loadExperiment(
           break;
         }
         case SecDefKind.WorkerCell: {
-          let cell: SectionCellData;
-          const cellKind = new CellKind(subSecDef.id, cellIoForCellSection(subSecDef));
-          const controller = new CellController(env, subSecDef.id, cellKind);
-
-          switch (subSecDef.cellCodeRef.kind) {
-            case CellCodeRefKind.PathToWorkerCode: {
-              const buffer = await dataResolver.loadArrayBuffer(subSecDef.cellCodeRef.jsPath);
-              const dec = new TextDecoder('utf-8');
-              const cellCodeCache = dec.decode(buffer);
-              const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-              const cellObjectUrl = URL.createObjectURL(blob);
-              cell = { controller, cellCodeCache, cellObjectUrl };
-              break;
-            }
-            case CellCodeRefKind.InlineWorkerJsCode: {
-              const blob = new Blob([subSecDef.cellCodeRef.js], { type: 'application/javascript' });
-              const cellObjectUrl = URL.createObjectURL(blob);
-              cell = { controller, cellCodeCache: subSecDef.cellCodeRef.js, cellObjectUrl };
-              break;
-            }
-            case CellCodeRefKind.UrlToCode: {
-              const buffer = await dataResolver.loadArrayBuffer(subSecDef.cellCodeRef.jsUrl);
-              const dec = new TextDecoder('utf-8');
-              const cellCodeCache = dec.decode(buffer);
-              const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-              const cellObjectUrl = URL.createObjectURL(blob);
-              cell = { controller, cellCodeCache, cellObjectUrl };
-              break;
-            }
-            default:
-              throw new Error(`bad cellCodeRef: ${JSON.stringify(subSecDef.cellCodeRef)}`);
-          }
-
+          const cell = await initSectionCellData(env, dataResolver, subSecDef, config);
           const setableDataDef = space.setable(subSecDef);
           const section = new Section(experiment, subSecDef, setableDataDef, cell);
-
           sectionMap.set(subSecDef.id, section as SomeSection);
           ioSections.push(section as SomeSection);
           break;
@@ -394,7 +423,7 @@ export async function loadExperiment(
 export async function saveExperiment(
   dataResolver: AbstractDataResolver<JsonValue>,
   path: string,
-  distrSectionDef: DistrSerialization<SecDefWithData, SecDefWithData>,
+  distrSectionDef: DistrSerialization<SecDefWithData, JsonValue>,
 ): Promise<void> {
   await dataResolver.save(path, distrSectionDef.data);
   for (const [p, d] of Object.entries(distrSectionDef.subpathData || {})) {

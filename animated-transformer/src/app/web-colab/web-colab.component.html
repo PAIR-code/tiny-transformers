@@ -5,7 +5,7 @@
   @if (exp === null) {
     <div>
       <button mat-button (click)="newExperiment()">New experiment</button>
-      <button mat-button (click)="loadExperiment()">Load</button>
+      <button mat-button (click)="loadExperimentFromDirectory()">Load</button>
       @if (error) {
         <div class="error">
           <div class="errorMessage">{{ error }}</div>

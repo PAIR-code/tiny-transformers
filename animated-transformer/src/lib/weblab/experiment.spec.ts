@@ -109,7 +109,9 @@ describe('experiment', () => {
 
     const space = new SignalSpace();
     const env = new LabEnv(space);
-    const exp1 = (await loadExperiment(dataResolver, env, exp1Data)) as Experiment;
+    const exp1 = (await loadExperiment(dataResolver, env, exp1Data, {
+      fromCache: true,
+    })) as Experiment;
     const { data, subpathData } = exp1.serialise();
 
     expect(data).toEqual(exp1Data);
