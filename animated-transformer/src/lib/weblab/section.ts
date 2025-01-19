@@ -289,6 +289,9 @@ export class Section<
 
     const content = this.data();
     switch (content.kind) {
+      case SecDefKind.SectionList:
+        this.subSections = this.space.setable<SomeSection[]>([]);
+        break;
       case SecDefKind.WorkerCell:
         this.initOutputs();
         this.status = CellSectionStatus.NotStarted;

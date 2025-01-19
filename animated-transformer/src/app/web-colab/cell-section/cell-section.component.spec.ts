@@ -27,6 +27,7 @@ import {
   SecDefOfWorker,
 } from 'src/lib/weblab/section';
 import { InMemoryDataResolver } from 'src/lib/weblab/data-resolver';
+import { provideHttpClient } from '@angular/common/http';
 
 describe('CellSectionComponent', () => {
   let component: CellSectionComponent;
@@ -53,11 +54,11 @@ describe('CellSectionComponent', () => {
       io: {},
     };
     const experiment = new Experiment(lab, [], exp1Data, new InMemoryDataResolver());
-    experiment.appendLeafSectionFromDataDef(section1);
+    await experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideExperimentalZonelessChangeDetection(), provideHttpClient()],
       imports: [CellSectionComponent],
     }).compileComponents();
 

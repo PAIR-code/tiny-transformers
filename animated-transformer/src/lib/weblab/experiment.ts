@@ -114,6 +114,7 @@ export class Experiment {
       def,
       setableDefData,
     );
+
     // this.topLevelSections = this.space.setable<SomeSection[]>([]);
     // this.section.subSections = this.topLevelSections;
 
@@ -165,14 +166,22 @@ export class Experiment {
   // TODO: when the loaded data contains further references and experiments,
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
-  appendLeafSectionFromDataDef(secDef: SecDefWithData): SomeSection {
-    const setableDataDef = this.space.setable(secDef);
-    const section = new Section(this, secDef, setableDataDef);
+  async appendLeafSectionFromDataDef(secDef: SecDefWithData): Promise<SomeSection> {
+    let section: SomeSection;
     if (secDef.kind === SecDefKind.WorkerCell) {
+      const setableDataDef = this.space.setable(secDef);
+      const cell = await initSectionCellData(this.env, this.dataResolver, secDef, {
+        // TODO: think about if there are case where this needs to be false for
+        // manual construction?
+        fromCache: true,
+      });
+      section = new Section(this, secDef, setableDataDef, cell) as SomeSection;
       section.connectWorkerCell();
       section.initOutputs();
       section.connectInputsFromOutputs();
     } else if (secDef.kind === SecDefKind.UiCell) {
+      const setableDataDef = this.space.setable(secDef);
+      section = new Section(this, secDef, setableDataDef) as SomeSection;
       section.initOutputs();
       section.connectInputsFromOutputs();
     } else {
@@ -277,7 +286,7 @@ async function initSectionCellData(
     }
     case CellCodeRefKind.UrlToCode: {
       const path = config.fromCache
-        ? prefixCacheCodePath(secDef.cellCodeRef.jsUrl)
+        ? prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl)
         : secDef.cellCodeRef.jsUrl;
       const buffer = await dataResolver.loadArrayBuffer(path);
       const dec = new TextDecoder('utf-8');
@@ -389,7 +398,7 @@ export async function loadExperiment(
   // Second part is to resolve all section references, and set the subsections
   // for all sectionLists.
   for (const subsecToPopulate of sectionLists.values()) {
-    subsecToPopulate.section.subSections = space.setable(
+    subsecToPopulate.section.subSections!.set(
       subsecToPopulate.subDefsToAdd.map((def) => {
         const refData = refMap.get(def.id);
         if (refData) {

@@ -22,6 +22,7 @@ import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { MarkdownModule } from 'ngx-markdown';
 import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
+import { provideHttpClient } from '@angular/common/http';
 
 describe('SectionComponent', () => {
   let component: SectionComponent;
@@ -33,12 +34,11 @@ describe('SectionComponent', () => {
     const exp = await makeToyExperiment(env, 'toy experiment id');
 
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideExperimentalZonelessChangeDetection(), provideHttpClient()],
       imports: [MarkdownModule.forRoot(), SectionComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SectionComponent);
-    fixture.componentRef.setInput('edited', false);
     fixture.componentRef.setInput('experiment', exp);
     fixture.componentRef.setInput('section', exp.topLevelSections()[0]);
     component = fixture.componentInstance;

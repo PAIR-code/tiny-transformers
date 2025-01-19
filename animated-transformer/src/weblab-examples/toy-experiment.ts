@@ -168,6 +168,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   };
   const dataResolver = new LocalCacheDataResolver<JsonValue>();
 
+  // Note: these fake the contents for the path and URL code in the cache.
   const simpleCellPathSecDef = simpleCellPathSecDefFn();
   dataResolver.save(
     prefixCacheCodePath(simpleCellPathSecDef.cellCodeRef.jsPath),
@@ -184,11 +185,11 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
 
   const exp = new Experiment(env, [], initExpDef, dataResolver);
 
-  exp.appendLeafSectionFromDataDef(simpleMarkdownSecDef);
-  exp.appendLeafSectionFromDataDef(taskConfigJsonSecDef);
-  exp.appendLeafSectionFromDataDef(genConfigJsonSecDef);
-  exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
-  exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
-  exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
+  await exp.appendLeafSectionFromDataDef(simpleMarkdownSecDef);
+  await exp.appendLeafSectionFromDataDef(taskConfigJsonSecDef);
+  await exp.appendLeafSectionFromDataDef(genConfigJsonSecDef);
+  await exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
+  await exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
+  await exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
   return exp;
 }
