@@ -55,7 +55,7 @@ import { data } from '@tensorflow/tfjs';
 
 export type DistrSerialization<T, T2> = {
   data: T;
-  subpathData?: { [path: string]: T2 };
+  subpathData: { [path: string]: T2 };
 };
 
 function sectionListEqCheck(sections1: SomeSection[], sections2: SomeSection[]): boolean {
@@ -85,7 +85,6 @@ export class Experiment {
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
   //
-  topLevelSections: SetableSignal<SomeSection[]>;
   section: Section<SecDefOfSecList, ValueStruct, ValueStruct>;
 
   // Map from section id to the canonical ExpSection, for faster lookup, and
@@ -115,8 +114,8 @@ export class Experiment {
       def,
       setableDefData,
     );
-    this.topLevelSections = this.space.setable<SomeSection[]>([]);
-    this.section.subSections = this.topLevelSections;
+    // this.topLevelSections = this.space.setable<SomeSection[]>([]);
+    // this.section.subSections = this.topLevelSections;
 
     // this.def = this.space.setable<SecDefOfSecList>(initSecDef);
     // Invariant: Set(sections.values()) === Set(sectionOrdering)
@@ -125,6 +124,10 @@ export class Experiment {
 
   get id() {
     return this.section.def.id;
+  }
+
+  get topLevelSections(): SetableSignal<SomeSection[]> {
+    return this.section.subSections as SetableSignal<SomeSection[]>;
   }
 
   // get def(): SecDefOfSecList {
@@ -235,7 +238,7 @@ export class Experiment {
 }
 
 type SecListBeingLoaded = {
-  addedSubDefs: string[];
+  // addedSubDefs: string[];
   subDefsToAdd: SecDef[];
   section: Section<SecDefOfSecList, ValueStruct, ValueStruct>;
 };
@@ -308,7 +311,7 @@ export async function loadExperiment(
   const sectionMap: Map<string, SomeSection> = experiment.sectionMap;
 
   const topLevelNodeTree: SecListBeingLoaded = {
-    addedSubDefs: [],
+    // addedSubDefs: [],
     subDefsToAdd: secListDef.subsections,
     section: experiment.section,
   };
@@ -323,14 +326,14 @@ export async function loadExperiment(
 
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
-  const loadNodeStack: SecListBeingLoaded[] = [];
+  const subsecListsToPopulate: SecListBeingLoaded[] = [];
   let cur = topLevelNodeTree as SecListBeingLoaded | undefined;
 
   // Part 1 of loading, populate sectionMap (all non reference sections) and
   // refMap (references to other sections).
   while (cur) {
     for (const subSecDef of cur.subDefsToAdd) {
-      cur.addedSubDefs.push(subSecDef.id);
+      // cur.addedSubDefs.push(subSecDef.id);
 
       switch (subSecDef.kind) {
         case SecDefKind.Path: {
@@ -354,9 +357,8 @@ export async function loadExperiment(
           const beingLoaded: SecListBeingLoaded = {
             section,
             subDefsToAdd: subSecDef.subsections,
-            addedSubDefs: [],
           };
-          loadNodeStack.push(beingLoaded);
+          subsecListsToPopulate.push(beingLoaded);
           sectionLists.set(subSecDef.id, beingLoaded);
           break;
         }
@@ -381,27 +383,27 @@ export async function loadExperiment(
     }
     // TODO: consider resolving more defined references in other experiments...?
     // or having the top-level experiment know about all sub-experiments?
-    cur = loadNodeStack.pop();
+    cur = subsecListsToPopulate.pop();
   }
 
   // Second part is to resolve all section references, and set the subsections
   // for all sectionLists.
-  for (const secListBeingLoaded of sectionLists.values()) {
-    secListBeingLoaded.section.subSections = space.setable(
-      secListBeingLoaded.addedSubDefs.map((id) => {
-        const refData = refMap.get(id);
+  for (const subsecToPopulate of sectionLists.values()) {
+    subsecToPopulate.section.subSections = space.setable(
+      subsecToPopulate.subDefsToAdd.map((def) => {
+        const refData = refMap.get(def.id);
         if (refData) {
           const maybeSection = sectionMap.get(refData.refId);
           if (!maybeSection) {
             throw new Error(
-              `Can not resolve ref section (${id}) to ${refData.refId}: no such section found.`,
+              `Can not resolve ref section (${def.id}) to ${refData.refId}: no such section found.`,
             );
           }
           return new Section(experiment, refData, maybeSection.data);
         } else {
-          const maybeSection = sectionMap.get(id);
+          const maybeSection = sectionMap.get(def.id);
           if (!maybeSection) {
-            throw new Error(`Can not resolve section (${id}): no such section found.`);
+            throw new Error(`Can not resolve section (${def.id}): no such section found.`);
           }
           return maybeSection;
         }

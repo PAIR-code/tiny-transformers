@@ -33,7 +33,7 @@ describe('experiment', () => {
     // TODO: make a nicer way to make these... right now there is an implicit non-obvious dependency between `outputs: { markdown: ... }` and `uiView: ViewerKind.MarkdownOutView`
     const section1: SecDefOfUiView = {
       kind: SecDefKind.UiCell,
-      id: 'section 1',
+      id: 'section1',
       timestamp: Date.now(),
       io: {
         outputs: {
@@ -48,7 +48,7 @@ describe('experiment', () => {
 
     const section2_1: SecDefOfUiView = {
       kind: SecDefKind.UiCell,
-      id: 'section 1',
+      id: 'section2_1',
       timestamp: Date.now(),
       io: {
         outputs: {
@@ -64,20 +64,20 @@ describe('experiment', () => {
     const section2_2: SecDefByRef = {
       kind: SecDefKind.Ref,
       id: 'section2_2',
-      refId: 'section 1',
+      refId: 'section1',
     };
 
     const section2: SecDefOfSecList = {
       kind: SecDefKind.SectionList,
-      id: 'section 2',
+      id: 'section2',
       timestamp: Date.now(),
       subsections: [section2_1, section2_2],
     };
 
     const section3: SecDefByPath = {
       kind: SecDefKind.Path,
-      id: 'section 3',
-      dataPath: 'foo:/exp1/sec3.exp.json',
+      id: 'section3',
+      dataPath: 'foo:/exp1/sec3.secdef.json',
     };
 
     const exp1Data: SecDefOfSecList = {
@@ -89,7 +89,7 @@ describe('experiment', () => {
 
     const sec3Node: SecDefOfUiView = {
       kind: SecDefKind.UiCell,
-      id: 'section 1',
+      id: 'section3',
       timestamp: Date.now(),
       io: {
         outputs: {
@@ -103,8 +103,7 @@ describe('experiment', () => {
     };
 
     const dataResolver = new InMemoryDataResolver({
-      'foo:/exp1/sec3.exp.json': sec3Node,
-      'foo:/exp1/exp1.exp.json': exp1Data,
+      'foo:/exp1/sec3.secdef.json': sec3Node,
     });
 
     const space = new SignalSpace();
@@ -112,9 +111,12 @@ describe('experiment', () => {
     const exp1 = (await loadExperiment(dataResolver, env, exp1Data, {
       fromCache: true,
     })) as Experiment;
+
+    expect(exp1.topLevelSections().length).toEqual(3);
+
     const { data, subpathData } = exp1.serialise();
 
     expect(data).toEqual(exp1Data);
-    expect(subpathData!['foo:/exp1/sec3.exp.json']).toEqual(sec3Node);
+    expect(subpathData!['foo:/exp1/sec3.secdef.json']).toEqual(sec3Node);
   });
 });
