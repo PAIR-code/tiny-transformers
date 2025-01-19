@@ -170,8 +170,8 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
   exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
   exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
-  exp.appendLeafSectionFromDataDef(simplePathToCell());
+  // exp.appendLeafSectionFromDataDef(simplePathToCell());
   exp.appendLeafSectionFromDataDef(secInlineCodeCell());
-  exp.appendLeafSectionFromDataDef(taskMakerCell());
+  // exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;
 }

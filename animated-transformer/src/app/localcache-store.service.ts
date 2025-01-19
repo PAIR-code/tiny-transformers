@@ -15,44 +15,43 @@ limitations under the License.
 
 import { Injectable } from '@angular/core';
 import json5 from 'json5';
-import { ConfigStoreService, ModelData } from './config-store.service';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { JsonValue } from 'src/lib/json/json';
+import { LocalCacheStore } from 'src/lib/weblab/data-resolver';
 
-function itemPathToId(path: string): string {
-  return `file:${path}`;
-}
-
-const DEFAULT_STORAGE_ID = 'defaultFilePath';
+const cache = new LocalCacheStore(stringifyJsonValue, json5.parse);
 
 @Injectable({
   providedIn: 'root',
 })
 export class LocalCacheStoreService {
-  constructor() {}
+  cache: LocalCacheStore<JsonValue>;
 
-  async loadFileCache<T = unknown>(path: string): Promise<T | null> {
-    const s = localStorage.getItem(itemPathToId(path));
-    if (!s) {
-      return null;
-    }
-    // TODO: consider if not parsable, clear and return null?
-    return json5.parse(s);
+  constructor() {
+    this.cache = cache;
   }
 
-  async saveFileCache<T extends JsonValue>(path: string, obj: T): Promise<void> {
-    localStorage.setItem(itemPathToId(path), stringifyJsonValue(obj));
+  async load<T extends JsonValue>(path: string): Promise<T | null> {
+    return cache.load(path) as Promise<T | null>;
   }
 
-  async deleteFileCache(path: string): Promise<void> {
-    localStorage.removeItem(itemPathToId(path));
+  async save<T extends JsonValue>(path: string, obj: T): Promise<void> {
+    return cache.save(path, obj);
   }
 
-  async setDefaultPath(path: string): Promise<void> {
-    localStorage.setItem(DEFAULT_STORAGE_ID, path);
+  async delete(path: string): Promise<void> {
+    cache.delete(path);
   }
 
-  async getDefaultPath(): Promise<string | null> {
-    return localStorage.getItem(DEFAULT_STORAGE_ID);
+  async saveDefault<T extends JsonValue>(obj: T): Promise<void> {
+    cache.saveDefault(obj);
+  }
+
+  async loadDefault<T extends JsonValue>(): Promise<T | null> {
+    return cache.loadDefault() as Promise<T | null>;
+  }
+
+  async deleteDefault(): Promise<void> {
+    return cache.deleteDefault();
   }
 }

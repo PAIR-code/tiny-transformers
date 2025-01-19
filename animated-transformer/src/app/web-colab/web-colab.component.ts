@@ -181,7 +181,7 @@ export class WebColabComponent {
     private route: ActivatedRoute,
     public router: Router,
     public dialog: MatDialog,
-    public localCache: LocalCacheStoreService,
+    public cacheService: LocalCacheStoreService,
     // public cellRegistry: CellRegistryService,
   ) {
     const iconRegistry = inject(MatIconRegistry);
@@ -208,10 +208,10 @@ export class WebColabComponent {
       }
     });
 
-    this.cacheDataResolver = new LocalCacheDataResolver<SecDefWithData>(this.localCache);
+    this.cacheDataResolver = new LocalCacheDataResolver(this.cacheService.cache);
     // Idea: save as a directory, not a file?
     // TODO: avoid race condition and make later stuff happen after this...?
-    this.localCache.setDefaultPath('experiment.json');
+    this.cacheService.saveDefault('experiment.json');
 
     this.tryLoadExperimentFromCache();
   }
@@ -245,9 +245,9 @@ export class WebColabComponent {
   }
 
   async _deleteExperimentCache(): Promise<void> {
-    const cachedFilePath = await this.localCache.getDefaultPath();
-    if (!cachedFilePath) {
-      throw new Error('deleteCached: no getDefaultFile');
+    const cachedFile = await this.cacheService.loadDefault();
+    if (!cachedFile) {
+      throw new Error('deleteCached: no getDefaultFile found');
     }
     const experiment = this.experiment();
     if (!experiment) {
@@ -255,12 +255,11 @@ export class WebColabComponent {
       // No error because this might happen with timeout cache saving callbacks.
       return;
     }
-    await this.localCache.deleteFileCache(cachedFilePath);
-    console.log(`deleteCached: deleted: ${cachedFilePath}`);
+    await this.cacheService.deleteDefault();
     const distrS = experiment.serialise();
     if (distrS.subpathData) {
       for (const kPath of Object.keys(distrS.subpathData)) {
-        await this.localCache.deleteFileCache(kPath);
+        await this.cacheService.delete(kPath);
         console.log(`deleteCached: deleted: ${kPath}`);
       }
     }
@@ -269,15 +268,15 @@ export class WebColabComponent {
   @showErrors()
   @loadingUi()
   async tryLoadExperimentFromCache() {
-    const cachedFilePath = await this.localCache.getDefaultPath();
-    if (!cachedFilePath) {
-      throw new Error(`missing localCache.getDefaultPath`);
-    }
-    const cachedExpData = await this.localCache.loadFileCache<SecDefOfSecList>(cachedFilePath);
-    if (!cachedExpData) {
+    const cachedFileData = await this.cacheService.loadDefault();
+    if (!cachedFileData) {
       return;
     }
-    const exp = await loadExperiment(this.cacheDataResolver, this.env, cachedExpData);
+    const exp = await loadExperiment(
+      this.cacheDataResolver,
+      this.env,
+      cachedFileData as SecDefOfSecList,
+    );
     this.cacheState.set(SaveState.Saved);
     this.diskState.set(SaveState.New);
     this.experiment.set(exp);

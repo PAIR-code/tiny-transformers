@@ -2,7 +2,8 @@
 
 import { JsonValue } from 'src/lib/json/json';
 import { LocalCacheStoreService } from '../../app/localcache-store.service';
-import { tryer } from '../utils';
+import { stringifyJsonValue } from '../json/pretty_json';
+import json5 from 'json5';
 
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {
@@ -79,9 +80,42 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
 }
 
 // ============================================================================
+export class LocalCacheStore<T> {
+  constructor(
+    public encoder: (x: T) => string,
+    public decoder: (s: string) => T,
+    public defaultStorageId = 'defaultFilePath',
+    public prefix = 'LocalCacheStore:',
+  ) {}
+  async load(path: string): Promise<T | null> {
+    const s = localStorage.getItem(this.prefix + path);
+    if (!s) {
+      return null;
+    }
+    // TODO: consider if not parsable, clear and return null?
+    return this.decoder(s);
+  }
+  async save(path: string, obj: T): Promise<void> {
+    localStorage.setItem(this.prefix + path, this.encoder(obj));
+  }
+  async delete(path: string): Promise<void> {
+    localStorage.removeItem(this.prefix + path);
+  }
+  async saveDefault(obj: T): Promise<void> {
+    this.save(this.defaultStorageId, obj);
+  }
+  async loadDefault(): Promise<T | null> {
+    return this.load(this.defaultStorageId);
+  }
+  async deleteDefault(): Promise<void> {
+    this.delete(this.defaultStorageId);
+  }
+}
+
+// ============================================================================
 // TODO: maybe this should just be path <--> object ?
 export class LocalCacheDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
-  constructor(public localCache: LocalCacheStoreService) {}
+  constructor(public localCache: LocalCacheStore<T>) {}
 
   async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
     const obj = await this.load(path);
@@ -91,7 +125,7 @@ export class LocalCacheDataResolver<T extends JsonValue> implements AbstractData
   }
 
   async load(path: string): Promise<T> {
-    const dataObject = await this.localCache.loadFileCache<T>(path);
+    const dataObject = await this.localCache.load(path);
     if (!dataObject) {
       throw new Error(`No local cache file at path (using loadFileCache): ${path}`);
     }
@@ -99,6 +133,6 @@ export class LocalCacheDataResolver<T extends JsonValue> implements AbstractData
   }
 
   async save(path: string, data: T): Promise<void> {
-    await this.localCache.saveFileCache(path, data);
+    await this.localCache.save(path, data);
   }
 }
