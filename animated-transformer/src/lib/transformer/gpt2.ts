@@ -34,9 +34,10 @@ import {
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { initLayerNormParamsWithDims, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { dropout } from './dropout';
-import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
+import { BasicTaskTokenRep, StrSeqPrepFn, embedBatchWithTokenizer } from '../tokens/token_gemb';
 import { RandomStream } from '../random/random';
 import { causalMask, BatchAttnHeadComputation } from './transformer_gtensor';
+import r50k_base from 'gpt-tokenizer/esm/encoding/r50k_base';
 
 export type Config = {
   id: string;
@@ -489,7 +490,7 @@ export function addPosEmbeddings(
   model: {
     config: {
       spec: TransformerParamSpec;
-      tokenRep: BasicTaskTokenRep;
+      tokenRep?: BasicTaskTokenRep;
     };
     params: TransformerParams;
   },
@@ -520,9 +521,51 @@ export function computeDecoder(
   inputs: string[][],
   generator: RandomStream
 ): TransformerComputation {
-  const maxInputLength = model.config.spec.posEncodingSeqLength;
+  const maxInputLength = inputs.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0,
+  );
+  const inputLength = Math.max(model.config.spec.posEncodingSeqLength, maxInputLength);
   let gtensorInputs = inputPrepFn(
-    model, inputs, { maxInputLength })
+    model, inputs, { maxInputLength: inputLength })
+
+  if (model.config.spec.addPosEmbeddings) {
+    gtensorInputs = addPosEmbeddings(model, gtensorInputs)
+  }
+
+  return computeTransformer(model, gtensorInputs, generator);
+}
+
+export function computeDecoderWithLoadedTokenizer(
+  model: {
+    config: {
+      spec: TransformerParamSpec;
+    };
+    params: TransformerParams;
+  },
+  tokenize_fn: (input: string) => number[],
+  inputs: string[],
+  generator: RandomStream
+): TransformerComputation {
+  const maxInputLength = inputs.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0,
+  );
+  const inputLength = Math.max(model.config.spec.posEncodingSeqLength, maxInputLength);
+
+  // Encode inputs using the r50k_base.encode which is the tokenizer used for GPT2.
+  const padTokenId = 0;
+  let gtensorInputs = embedBatchWithTokenizer(
+    tokenize_fn,
+    model.params.tokenEmbedding,
+    inputs,
+    {
+      paddingId: padTokenId,
+      padAt: 'start',
+      dtype: 'int32',
+      maxInputLength: inputLength,
+    }
+  );
 
   if (model.config.spec.addPosEmbeddings) {
     gtensorInputs = addPosEmbeddings(model, gtensorInputs)
@@ -546,6 +589,28 @@ export function computePrediction(
     return (predictions.tensor.arraySync() as number[]).map((idx) => [
       model.config.tokenRep.tokens[idx],
     ]);
+  });
+  return examplePredictions;
+}
+
+export function computePredictionWithLoadedTokenizer(
+  model: {
+    config: { spec: TransformerParamSpec };
+    params: TransformerParams;
+  },
+  tokenize_fn: (input: string) => number[],
+  decode_token_fn: (input: number[]) => string,
+  // We tokenize directly with the preprocessing function from gpt-tokenizer.
+  inputs: string[],
+  generator: RandomStream
+  // TODO(@aliciafmachado): save the input as well, and split in two functions: one that tokenizes and one that doesn't.
+): string[] {
+  const examplePredictions = tf.tidy(() => {
+    const decoderComputation = computeDecoderWithLoadedTokenizer(model, tokenize_fn, inputs, generator);
+    const predictions = transformerTopPrediction(model, decoderComputation);
+    // TODO(@aliciafmachado): one hot encoding could not be right - what's the right implementation before going into the embedder?
+    // this part should return a tensor and then we transform it into a number outside the tidy fn, and in a separate fn.
+    return (predictions.tensor.arraySync() as number[]).map((arr: number) => decode_token_fn([arr]));
   });
   return examplePredictions;
 }

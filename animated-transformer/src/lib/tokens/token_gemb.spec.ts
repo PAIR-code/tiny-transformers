@@ -22,8 +22,33 @@ import {
   embed,
   prepareBasicTaskTokenRep,
   embedBatch,
+  embedBatchWithTokenizer,
   expectedOutputSeqPrepFn,
 } from '../tokens/token_gemb';
+import r50k_base from "gpt-tokenizer/esm/encoding/r50k_base";
+
+function tokenize_fn_test(input: string): number[] {
+  if (input == "")
+    return [];
+  if (input == "a")
+    return [0];
+  if (input == "b")
+    return [1];
+
+  return tokenize_fn_test(
+    input.substring(0, input.length / 2)).concat(tokenize_fn_test(input.substring(input.length / 2, input.length)));
+};
+
+function untokenize_fn_test(input: number[]): string {
+  if (input.length == 0)
+    return "";
+  if (input.length == 1 && input[0] == 0)
+    return "a";
+  if (input.length == 1 && input[0] == 1)
+    return "b";
+  return untokenize_fn_test(
+    input.slice(0, input.length / 2)).concat(untokenize_fn_test(input.slice(input.length / 2, input.length)));
+};
 
 describe('token_gemb', () => {
   it('embed', () => {
@@ -159,5 +184,50 @@ describe('token_gemb', () => {
 
     expect(targetTokensOneHot.tensor.arraySync()).toEqual(expectedOutputArr);
     expect(targetTokensOneHot.dimNames).toEqual(['batch', 'pos', 'tokenId'])
+  });
+
+  it('batchEmbed, pad start', () => {
+    const [aEmb, bEmb, padEmb] = [
+      [1, 1],
+      [2, 2],
+      [0, 0],
+    ];
+    const tokens = ['a', 'b'];
+    const tokenEmbedding = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
+
+    const seqsToEmbed = ['aba', 'ab', '', 'b', 'a'];
+
+    const seqEmb = embedBatchWithTokenizer(tokenize_fn_test, tokenEmbedding, seqsToEmbed, {
+      paddingId: 2,
+      padAt: 'start',
+      dtype: 'int32',
+      maxInputLength: 2,
+    });
+
+    const expectedOutputArr: number[][][] = [
+      [
+        [1, 1],
+        [2, 2],
+      ],
+      [
+        [1, 1],
+        [2, 2],
+      ],
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      [
+        [0, 0],
+        [2, 2],
+      ],
+      [
+        [0, 0],
+        [1, 1],
+      ],
+    ];
+
+    expect(seqEmb.tensor.arraySync()).toEqual(expectedOutputArr);
+    expect(seqEmb.dimNames).toEqual(['batch', 'pos', 'inputRep'])
   });
 });

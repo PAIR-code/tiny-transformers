@@ -145,6 +145,72 @@ export function embedBatch(
   return batchedinputEmbs;
 }
 
+export function embedBatchWithTokenizer(
+  tokenize_fn: (input: string) => number[],
+  embeddings: GTensor<'tokenId' | 'inputRep'>,
+  examples: string[],
+  config: {
+    paddingId: number;
+    padAt: 'start' | 'end';
+    dtype: tf.NumericDataType;
+    batchSize?: number;
+    maxInputLength?: number;
+  }
+): GTensor<'batch' | 'pos' | 'inputRep'> {
+  const inputEmbList: tf.Tensor[] = [];
+
+  if (config.batchSize !== undefined && config.batchSize < examples.length) {
+    examples = examples.slice(0, config.batchSize);
+  }
+
+  let maxInputLength = 0;
+  if (!config.maxInputLength) {
+    examples.forEach((l) => (maxInputLength = Math.max(l.length, maxInputLength)));
+    examples.map((l) => tokenize_fn(l));
+  } else {
+    maxInputLength = config.maxInputLength;
+  }
+
+  // Tokenize first and then slice it.
+  examples.forEach((example) => {
+    let tensor = tf.tensor1d(tokenize_fn(example), config.dtype);
+
+    if (tensor.shape[0] >= maxInputLength) {
+      tensor = tensor.slice(0, maxInputLength);
+    } else if (tensor.shape[0] == 0) {
+      tensor = tf.fill([maxInputLength], config.paddingId, config.dtype);
+    } else if (tensor.shape[0] < maxInputLength) {
+      const paddingLocation: [[number, number]] =
+        config.padAt === 'start'
+          ? [[maxInputLength - tensor.shape[0], 0]]
+          : [[0, maxInputLength - tensor.shape[0]]];
+      tensor = tf.pad(
+        tensor,
+        paddingLocation,
+        config.paddingId
+      );
+    }
+    inputEmbList.push(tensor);
+  });
+
+  if (config.batchSize !== undefined && config.batchSize > examples.length) {
+    const nPaddingExamples = Math.max(examples.length - config.batchSize);
+    for (let i = 0; i < nPaddingExamples; i++) {
+      const tensor = tf.fill([maxInputLength], config.paddingId, config.dtype);
+      inputEmbList.push(tensor);
+    }
+  }
+
+  const batchTokenIds = new GTensor(tf.stack(inputEmbList, 0), ['batch', 'pos']);
+  const batchedinputEmbs = new GTensor(tf.gather(embeddings.tensor, batchTokenIds.tensor), [
+    'batch',
+    'pos',
+    'inputRep',
+  ]);
+
+  return batchedinputEmbs;
+}
+
 export type BasicTaskTokenRep = {
   maskToken: string;
   padToken: string;
@@ -152,9 +218,14 @@ export type BasicTaskTokenRep = {
   spaceToken: string;
   // tokens is all tokens, including mask, pod, eos, etc
   tokens: string[];
+  // remove below
   tokenToIdx: { [token: string]: number };
-  idxToOneHot : {[tokenIdx: number]: number[]};
+  idxToOneHot: { [tokenIdx: number]: number[] };
 };
+
+// TODO(@aliciafmachado): token wrap class with the tokenize and untokenize fn?
+// make basictasktokenrep minimal and then add a wrapper class that creates the tokenToIdx and idxToOneHot.
+// This interface would be compatible with a tokenizer straight out-of-the-box.
 
 // ----------------------------------------------------------------------------
 // Prepate the task representation in a vector space.
@@ -165,7 +236,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   const padToken = '[PAD]';
   const eosToken = '[EOS]';
   const spaceToken = ' '
-  const vocab = [ ...baseVocab, maskToken, padToken, eosToken, spaceToken];
+  const vocab = [...baseVocab, maskToken, padToken, eosToken, spaceToken];
   const tokenToIdx: { [token: string]: number } = {};
   vocab.forEach((t, i) => (tokenToIdx[t] = i));
 
@@ -175,7 +246,7 @@ export function prepareBasicTaskTokenRep(baseVocab: string[]): BasicTaskTokenRep
   // );
 
   // TODO: Find a better place for the idxToOneHot lookup table
-  const idxToOneHot : {[tokenIdx: number]: number[] } = {};
+  const idxToOneHot: { [tokenIdx: number]: number[] } = {};
   const oneHotTokens = [tf.oneHot(tf.tensor1d(Object.values(tokenToIdx), 'int32'), baseVocab.length + 4).arraySync() as number[][]];
   Object.values(tokenToIdx).forEach((i) => (idxToOneHot[i] = oneHotTokens[0][i]));
   return {
@@ -282,21 +353,21 @@ export function singleNextTokenIdxOutputPrepFn(
 }
 
 // Returns the one Hot representation for each token of the expected output sequence for the provided input sequence
- export function expectedOutputSeqPrepFn(
+export function expectedOutputSeqPrepFn(
   model: { config: { tokenRep: BasicTaskTokenRep } },
   inputSeqs: string[][],
   expectedOutputs: string[][],
 ): GTensor<'batch' | 'pos' | 'tokenId'> {
   // Compute Token rep for inputSeq
   const batchInputs = inputSeqs.map((inputSeq) => inputSeq.map((token) => model.config.tokenRep.tokenToIdx[token]))
-   // Compute Token rep for inputSeq
+  // Compute Token rep for inputSeq
   const expectedOutputSeq = expectedOutputs.map((outputToken) => model.config.tokenRep.tokenToIdx[outputToken[0]])
   // Shift input sequences to the right and add the corresponding target in "expectedOutputs" at the end of each sequence
-  let shiftedInputs = batchInputs.map((x) => x.slice(1, ))
+  let shiftedInputs = batchInputs.map((x) => x.slice(1,))
   const expectedOutputSeqIdx = expectedOutputSeq.map((y, index) => shiftedInputs[index].concat(y))
   const expectedOutputSeqOneHot = expectedOutputSeqIdx.map((sample) => sample.map((tidx) => model.config.tokenRep.idxToOneHot[tidx]))
   // TODO: We should probably be using a lookup function and storing the one-hot for every token in the GPU as a constant.
-  return new GTensor(tf.tensor(expectedOutputSeqOneHot),['batch', 'pos', 'tokenId']);
+  return new GTensor(tf.tensor(expectedOutputSeqOneHot), ['batch', 'pos', 'tokenId']);
 }
 
 
