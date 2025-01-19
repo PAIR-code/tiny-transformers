@@ -9,5 +9,11 @@ npx tsc -p weblab-examples/tsconfig.json
 Build
 
 ```sh
-npx esbuild weblab-examples/cell1.worker.ts --bundle --sourcemap --outfile=weblab-examples/distr/cell1.worker.js
+npx ts-node src/weblab-examples/build.script.ts
+```
+
+Serve
+
+```sh
+esbuild app.ts --bundle --outdir=dist --serve
 ```

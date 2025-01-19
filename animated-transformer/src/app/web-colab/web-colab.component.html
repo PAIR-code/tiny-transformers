@@ -17,7 +17,7 @@
       }
     </div>
   } @else {
-    @let sections = exp.sections();
+    @let sections = exp.topLevelSections();
 
     <mat-toolbar class="header">
       <button mat-icon-button (click)="sidenav.toggle()">
@@ -60,8 +60,12 @@
         </button>
         <mat-menu #experimentMenu class="vmenu">
           <div>
-            <button mat-menu-item matTooltip="Save" (click)="saveExperiment()">
-              save
+            <button
+              mat-menu-item
+              matTooltip="Save to disk"
+              (click)="saveExperiment()"
+            >
+              save to disk
             </button>
           </div>
           <div>

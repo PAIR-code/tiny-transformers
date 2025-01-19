@@ -112,32 +112,32 @@ export class CellKind<
     this.outStreamNames = new Set(Object.keys(this.outStreams));
   }
 
-  asWorker(startWorkerFn: () => Worker): WorkerCellKind<I, IStreams, O, OStreams> {
-    return new WorkerCellKind(this.cellKindId, this.io, startWorkerFn);
-  }
+  // asWorker(startWorkerFn: () => Worker): WorkerCellKind<I, IStreams, O, OStreams> {
+  //   return new WorkerCellKind(this.cellKindId, this.io, startWorkerFn);
+  // }
 }
 
-export class WorkerCellKind<
-  I extends ValueStruct,
-  IStreams extends ValueStruct,
-  O extends ValueStruct,
-  OStreams extends ValueStruct,
-> extends CellKind<I, IStreams, O, OStreams> {
-  constructor(
-    cellKindId: string,
-    io: {
-      inputs?: ValueKindFnStructFn<I>;
-      inStreams?: ValueKindFnStructFn<IStreams>;
-      outputs?: ValueKindFnStructFn<O>;
-      outStreams?: ValueKindFnStructFn<OStreams>;
-    },
-    public startWorkerFn: () => Worker,
-  ) {
-    super(cellKindId, io);
-  }
-}
+// export class WorkerCellKind<
+//   I extends ValueStruct,
+//   IStreams extends ValueStruct,
+//   O extends ValueStruct,
+//   OStreams extends ValueStruct,
+// > extends CellKind<I, IStreams, O, OStreams> {
+//   constructor(
+//     cellKindId: string,
+//     io: {
+//       inputs?: ValueKindFnStructFn<I>;
+//       inStreams?: ValueKindFnStructFn<IStreams>;
+//       outputs?: ValueKindFnStructFn<O>;
+//       outStreams?: ValueKindFnStructFn<OStreams>;
+//     },
+//     public startWorkerFn: () => Worker,
+//   ) {
+//     super(cellKindId, io);
+//   }
+// }
 
-export type SomeWorkerCellKind = WorkerCellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
+// export type SomeWorkerCellKind = WorkerCellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 export type SomeCellKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
 // export type PromiseStructFn<S extends ValueStruct> = { [Key in keyof S]: Promise<S[Key]> };

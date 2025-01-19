@@ -20,7 +20,7 @@ import {
   SecDefByPath,
   SecDefByRef,
   SecDefKind,
-  SecDefOfExperiment,
+  SecDefOfSecList,
   SecDefOfUiView,
   ViewerKind,
 } from './section';
@@ -67,8 +67,8 @@ describe('experiment', () => {
       refId: 'section 1',
     };
 
-    const section2: SecDefOfExperiment = {
-      kind: SecDefKind.Experiment,
+    const section2: SecDefOfSecList = {
+      kind: SecDefKind.SectionList,
       id: 'section 2',
       timestamp: Date.now(),
       subsections: [section2_1, section2_2],
@@ -80,8 +80,8 @@ describe('experiment', () => {
       dataPath: 'foo:/exp1/sec3.exp.json',
     };
 
-    const exp1Data: SecDefOfExperiment = {
-      kind: SecDefKind.Experiment,
+    const exp1Data: SecDefOfSecList = {
+      kind: SecDefKind.SectionList,
       id: 'toy experiment name 1',
       timestamp: Date.now(),
       subsections: [section1, section2, section3],

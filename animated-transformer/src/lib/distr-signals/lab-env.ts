@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { ValueStruct, CellKind, WorkerCellKind } from './cell-kind';
+import { ValueStruct, CellKind } from './cell-kind';
 import { SignalSpace } from '../signalspace/signalspace';
 
 import {
@@ -37,7 +37,7 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct,
   >(
-    kind: WorkerCellKind<I, IStreams, O, OStreams>,
+    kind: CellKind<I, IStreams, O, OStreams>,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): CellController<I, IStreams, O, OStreams> {
     // ID should be unique w.r.t. the LabEnv.
@@ -52,11 +52,12 @@ export class LabEnv {
     O extends ValueStruct,
     OStreams extends ValueStruct,
   >(
-    kind: WorkerCellKind<I, IStreams, O, OStreams>,
+    kind: CellKind<I, IStreams, O, OStreams>,
+    worker: Worker,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): { cell: CellController<I, IStreams, O, OStreams>; onceStarted: Promise<void> } {
     const cell = this.init(kind, uses);
-    const onceStarted = cell.start();
+    const onceStarted = cell.startWithWorker(worker);
     return { cell, onceStarted };
   }
 }

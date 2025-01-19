@@ -13,6 +13,8 @@
     "moduleDetection": "force",
     "noEmit": true,
 
+    // "target": "esnext",
+    // "module": "esnext",
     // "types": ["wicg-file-system-access"]
      /* Linting */
      "strict": true,

@@ -19,13 +19,7 @@ limitations under the License.
  * By default establishes connections for each input/output.
  */
 
-import {
-  AbstractSignalStructFn,
-  ValueStruct,
-  CellKind,
-  SetableSignalStructFn,
-  WorkerCellKind,
-} from './cell-kind';
+import { AbstractSignalStructFn, ValueStruct, CellKind, SomeCellKind } from './cell-kind';
 import { CellMessage, CellMessageKind } from 'src/lib/distr-signals/cell-message';
 import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
 
@@ -36,50 +30,17 @@ import {
   StreamReceiveChannel,
   StreamSendChannel,
 } from './channels';
+import { BasicWorker } from './basic-worker';
 
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
   // For printing error/debug messages, when provided.
-  logCellMessages?: boolean;
+  // logCellMessages?: boolean;
   id: string; // Use this ID for the cell.
   // When true, logs all messages to/from worker.
   // logMessagesToCell: boolean;
   // logMessagesFromCell: boolean;
 };
-
-interface BasicWorker {
-  set onmessage(m: ((ev: MessageEvent) => any) | null);
-  postMessage(message: any, transfer?: Transferable[]): void;
-  terminate(): void;
-}
-
-class LoggingMessagesWorker implements BasicWorker {
-  constructor(
-    public worker: Worker,
-    public localCellId: string,
-    public remoteCellId: string,
-  ) {}
-
-  set onmessage(m: ((ev: MessageEvent) => any) | null) {
-    if (m === null) {
-      this.worker.onmessage = null;
-    } else {
-      this.worker.onmessage = (ev: MessageEvent) => {
-        console.log(`from ${this.remoteCellId} to ${this.localCellId}: `, ev);
-        m(ev);
-      };
-    }
-  }
-
-  postMessage(message: any, transfer?: Transferable[]) {
-    console.log(`from ${this.localCellId} to ${this.remoteCellId}: `, message);
-    this.worker.postMessage(message, transfer || []);
-  }
-
-  terminate() {
-    this.worker.terminate();
-  }
-}
 
 export enum CellStatus {
   NotStarted = 'NotStarted',
@@ -98,6 +59,8 @@ export type InConnections<I, IStreams> = {
   // Pipe from StreamReceiveEnd.
   inStreams?: { [Key in keyof Partial<IStreams>]: StreamReceiveChannel<IStreams[Key]> };
 };
+
+export type SomeCellController = CellController<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -148,7 +111,7 @@ export class CellController<
   constructor(
     public env: LabEnv,
     public id: string,
-    public cellKind: WorkerCellKind<I, IStreams, O, OStreams>,
+    public cellKind: CellKind<I, IStreams, O, OStreams>,
     public uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ) {
     this.space = env.space;
@@ -318,16 +281,12 @@ export class CellController<
   }
 
   // Invokes start in the signalcell.
-  async start(): Promise<void> {
-    if (this.uses && this.uses.config && this.uses.config.logCellMessages) {
-      this.worker = new LoggingMessagesWorker(
-        this.cellKind.startWorkerFn(),
-        this.id + ':controller',
-        this.id + ':worker',
-      );
-    } else {
-      this.worker = this.cellKind.startWorkerFn();
-    }
+  //
+  // This CellController now takes ownership of the Worker.
+  // e.g. for memory management.
+  async startWithWorker(worker: Worker): Promise<void> {
+    this.worker = worker;
+
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {
       const messageFromWorker: CellMessage = data;
@@ -379,6 +338,3 @@ export class CellController<
     this.status.set(CellStatus.Stopped);
   }
 }
-
-export type SomeCellKind = CellKind<ValueStruct, ValueStruct, ValueStruct, ValueStruct>;
-export type SomeCellController = CellController<any, any, any, any>;

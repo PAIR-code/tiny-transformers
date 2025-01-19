@@ -18,10 +18,10 @@ limitations under the License.
  */
 
 import { Example } from 'src/lib/seqtasks/util';
-import { Kind, WorkerCellKind } from 'src/lib/distr-signals/cell-kind';
+import { Kind, CellKind } from 'src/lib/distr-signals/cell-kind';
 import { Batch, Checkpoint, ModelUpdate, SimpleMetrics, TrainConfig } from './common.types';
 
-export const trainerCellKind = new WorkerCellKind(
+export const trainerCellKind = new CellKind(
   'Trainer cell',
   {
     inputs: {
@@ -37,5 +37,5 @@ export const trainerCellKind = new WorkerCellKind(
       checkpoint: Kind<Checkpoint>,
     },
   },
-  () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+  // () => new Worker(new URL('./trainer-cell.worker', import.meta.url)),
 );

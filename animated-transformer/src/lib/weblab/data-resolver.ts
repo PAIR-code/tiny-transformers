@@ -6,15 +6,15 @@ import { tryer } from '../utils';
 
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {
-  abstract loadArrayBuffer(path: string): Promise<Error | ArrayBuffer>;
-  abstract load(path: string): Promise<Error | T>;
-  abstract save(path: string, data: T): Promise<Error | null>;
+  abstract loadArrayBuffer(path: string): Promise<ArrayBuffer>;
+  abstract load(path: string): Promise<T>;
+  abstract save(path: string, data: T): Promise<void>;
 }
 
 export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
-  constructor(public nodes: { [id: string]: T }) {}
+  constructor(public nodes: { [id: string]: T } = {}) {}
 
-  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
+  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
     const obj = await this.load(path);
     const enc = new TextEncoder();
     const contents = enc.encode(JSON.stringify(obj));
@@ -28,69 +28,53 @@ export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
     return structuredClone(this.nodes[path]);
   }
 
-  async save(path: string, sectionDataDef: T): Promise<null> {
+  async save(path: string, sectionDataDef: T): Promise<void> {
     this.nodes[path] = structuredClone(sectionDataDef);
-    return null;
   }
 }
 
 // ============================================================================
 // TODO: maybe this should just be path <--> object ?
-export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
-  constructor(public dirHandle: FileSystemDirectoryHandle) {}
+class MissingDirHandle extends Error {}
 
-  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
-    const [getDirErr, fileHandle] = await tryer(this.dirHandle.getFileHandle(path));
-    if (getDirErr) {
-      return getDirErr;
+export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
+  constructor(
+    public config: {
+      dirHandle?: FileSystemDirectoryHandle;
+      intendedRootPath?: string;
+    },
+  ) {}
+
+  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
+    if (!this.config.dirHandle) {
+      throw new MissingDirHandle();
     }
-    const [getFileErr, file] = await tryer(fileHandle.getFile());
-    if (getFileErr) {
-      return getFileErr;
-    }
-    const [bufferErr, fileBuffer] = await tryer(file.arrayBuffer());
-    if (bufferErr) {
-      return bufferErr;
-    }
+    const fileHandle = await this.config.dirHandle.getFileHandle(path);
+    const file = await fileHandle.getFile();
+    const fileBuffer = await file.arrayBuffer();
     return fileBuffer;
   }
 
-  async load(path: string): Promise<Error | T> {
+  async load(path: string): Promise<T> {
     const buffer = await this.loadArrayBuffer(path);
-    if (buffer instanceof Error) {
-      return buffer;
-    }
     const dec = new TextDecoder('utf-8');
     const contents = dec.decode(buffer);
     // TODO: add better file contents verification.
     let dataObject: T;
-    try {
-      dataObject = JSON.parse(contents);
-    } catch (e) {
-      return e as Error;
-    }
+    dataObject = JSON.parse(contents);
     return dataObject;
   }
 
-  async save(path: string, nodeData: T): Promise<Error | null> {
-    const [getFileErr, fileHandle] = await tryer(
-      this.dirHandle.getFileHandle(path, { create: true }),
-    );
-    if (getFileErr) {
-      return getFileErr;
+  async save(path: string, nodeData: T): Promise<void> {
+    if (!this.config.dirHandle) {
+      throw new MissingDirHandle();
     }
+    const fileHandle = await this.config.dirHandle.getFileHandle(path, { create: true });
     fileHandle.requestPermission({ mode: 'readwrite' });
-    const [createErr, writable] = await tryer(fileHandle.createWritable());
-    if (createErr) {
-      return createErr;
-    }
-    const [writeErr] = await tryer(writable.write(JSON.stringify(nodeData, null, 2)));
-    if (writeErr) {
-      return writeErr;
-    }
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(nodeData, null, 2));
     // TODO ERROR HERE.
     await writable.close();
-    return null;
   }
 }
 
@@ -99,7 +83,7 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
 export class LocalCacheDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
   constructor(public localCache: LocalCacheStoreService) {}
 
-  async loadArrayBuffer(path: string): Promise<Error | ArrayBuffer> {
+  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
     const obj = await this.load(path);
     const enc = new TextEncoder();
     const contents = enc.encode(JSON.stringify(obj));
@@ -114,8 +98,7 @@ export class LocalCacheDataResolver<T extends JsonValue> implements AbstractData
     return dataObject;
   }
 
-  async save(path: string, data: T): Promise<null> {
+  async save(path: string, data: T): Promise<void> {
     await this.localCache.saveFileCache(path, data);
-    return null;
   }
 }

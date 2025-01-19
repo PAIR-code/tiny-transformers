@@ -1,3 +1,18 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CellSectionComponent } from './cell-section.component';
@@ -8,9 +23,10 @@ import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import {
   CellCodeRefKind,
   SecDefKind,
-  SecDefOfExperiment,
+  SecDefOfSecList,
   SecDefOfWorker,
 } from 'src/lib/weblab/section';
+import { InMemoryDataResolver } from 'src/lib/weblab/data-resolver';
 
 describe('CellSectionComponent', () => {
   let component: CellSectionComponent;
@@ -19,8 +35,8 @@ describe('CellSectionComponent', () => {
   beforeEach(async () => {
     const space = new SignalSpace();
     const lab = new LabEnv(space);
-    const exp1Data: SecDefOfExperiment = {
-      kind: SecDefKind.Experiment,
+    const exp1Data: SecDefOfSecList = {
+      kind: SecDefKind.SectionList,
       id: 'toy experiment name 1',
       timestamp: Date.now(),
       subsections: [],
@@ -36,7 +52,7 @@ describe('CellSectionComponent', () => {
       },
       io: {},
     };
-    const experiment = new Experiment(lab, [], exp1Data, new Map());
+    const experiment = new Experiment(lab, [], exp1Data, new InMemoryDataResolver());
     experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 

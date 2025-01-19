@@ -15,22 +15,23 @@ limitations under the License.
 
 import { TaskGenConfig } from 'src/weblab-examples/tiny-transformer-example/common.types';
 import { LabEnv } from '../lib/distr-signals/lab-env';
-import { cellWorkerKindForSection, Experiment } from '../lib/weblab/experiment';
+import { Experiment } from '../lib/weblab/experiment';
 import {
-  SecDefOfExperiment,
+  SecDefOfSecList,
   SecDefKind,
   SecDefOfUiView,
   ViewerKind,
   SecDefOfWorker,
   CellCodeRefKind,
 } from '../lib/weblab/section';
-import { SomeWorkerCellKind } from '../lib/distr-signals/cell-kind';
 import { defaultTinyWorldTaskConfig } from '../lib/seqtasks/tiny_worlds';
 import { toyCellKind } from './toycell.kinds';
 import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
+import { BrowserDirDataResolver } from 'src/lib/weblab/data-resolver';
+import { JsonValue } from 'src/lib/json/json';
 
-export const initExpDef: SecDefOfExperiment = {
-  kind: SecDefKind.Experiment,
+export const initExpDef: SecDefOfSecList = {
+  kind: SecDefKind.SectionList,
   id: 'top level exp name/id',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
@@ -108,7 +109,6 @@ export function secInlineCodeCell(): SecDefOfWorker & {
   };
 }
 
-const simplePathCellPath = 'distr/cell1.worker.js';
 export function simplePathToCell(): SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.PathToWorkerCode;
@@ -121,7 +121,8 @@ export function simplePathToCell(): SecDefOfWorker & {
     io: {},
     cellCodeRef: {
       kind: CellCodeRefKind.PathToWorkerCode,
-      path: simplePathCellPath,
+      tsSrcPath: 'toycell.worker.ts',
+      jsPath: 'dist/toycell.worker.js',
     },
   };
 }
@@ -144,44 +145,33 @@ export function taskMakerCell(): SecDefOfWorker {
       },
     },
     cellCodeRef: {
-      kind: CellCodeRefKind.WorkerRegistry,
-      registryCellKindId: taskCellKind.cellKindId,
+      kind: CellCodeRefKind.UrlToCode,
+      tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
+      jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js',
     },
   };
 }
 
-export async function makeToyExperiment(
-  registry: Map<string, SomeWorkerCellKind>,
-  env: LabEnv,
-  id: string,
-): Promise<Experiment> {
-  const inlineCodeCellDef = secInlineCodeCell();
-  const blob = new Blob([inlineCodeCellDef.cellCodeRef.js], { type: 'application/javascript' });
-  const url = URL.createObjectURL(blob);
-  registry.set(inlineCodeCellDef.id, cellWorkerKindForSection(inlineCodeCellDef, url));
-
-  const simplePathCellDef = simplePathToCell();
-  registry.set(
-    toyCellKind.cellKindId,
-    toyCellKind.asWorker(() => new Worker(simplePathCellPath)),
-  );
-
-  const initExpDef: SecDefOfExperiment = {
-    kind: SecDefKind.Experiment,
+export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experiment> {
+  const initExpDef: SecDefOfSecList = {
+    kind: SecDefKind.SectionList,
     id,
     timestamp: Date.now(),
-    vsCodePathRoot: '/Users/ldixon/code/github/tiny-transformers/animated-transformer',
+    vsCodePathRoot:
+      '/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples',
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     subsections: [],
   };
-  const exp = new Experiment(env, [], initExpDef, registry);
+  const dataResolver = new BrowserDirDataResolver<JsonValue>({
+    intendedRootPath: initExpDef.vsCodePathRoot,
+  });
+  const exp = new Experiment(env, [], initExpDef, dataResolver);
 
   exp.appendLeafSectionFromDataDef(secSimpleMarkdown);
   exp.appendLeafSectionFromDataDef(secTaskConfigJsonObj);
   exp.appendLeafSectionFromDataDef(secGenConfigJsonObj);
-  exp.appendLeafSectionFromDataDef(simplePathCellDef);
-
-  exp.appendLeafSectionFromDataDef(inlineCodeCellDef);
+  exp.appendLeafSectionFromDataDef(simplePathToCell());
+  exp.appendLeafSectionFromDataDef(secInlineCodeCell());
   exp.appendLeafSectionFromDataDef(taskMakerCell());
   return exp;
 }

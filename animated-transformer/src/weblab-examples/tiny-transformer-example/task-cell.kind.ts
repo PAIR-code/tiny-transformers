@@ -18,23 +18,25 @@ limitations under the License.
  */
 
 import { Example } from 'src/lib/seqtasks/util';
-import { Kind, WorkerCellKind } from 'src/lib/distr-signals/cell-kind';
+import { Kind, CellKind } from 'src/lib/distr-signals/cell-kind';
 import { TinyWorldTaskConfig } from 'src/lib/seqtasks/tiny_worlds';
 import { Batch, TaskGenConfig } from './common.types';
 
-export const taskCellKind = new WorkerCellKind(
-  'Task cell',
-  {
-    inputs: {
-      taskConfig: Kind<TinyWorldTaskConfig>,
-      genConfig: Kind<TaskGenConfig>,
-    },
-    outputs: {
-      testSet: Kind<Example[]>,
-    },
-    outStreams: {
-      trainBatches: Kind<Batch>,
-    },
+export const taskCellKind = new CellKind('Task cell', {
+  inputs: {
+    taskConfig: Kind<TinyWorldTaskConfig>,
+    genConfig: Kind<TaskGenConfig>,
   },
-  () => new Worker(new URL('./task-cell.worker', import.meta.url)),
-);
+  outputs: {
+    testSet: Kind<Example[]>,
+  },
+  outStreams: {
+    trainBatches: Kind<Batch>,
+  },
+});
+
+// export const url1 = new URL('./task-cell.worker', import.meta.url);
+
+// const worker = new Worker(new URL('./task-cell.worker', import.meta.url));
+
+//   () => ,

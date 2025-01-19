@@ -17,12 +17,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   Signal,
   signal,
   inject,
-  PLATFORM_ID,
-  Inject,
 } from '@angular/core';
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
@@ -59,12 +56,12 @@ import {
   LocalCacheDataResolver,
 } from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
-import { SecDefOfExperiment, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
+import { SecDefOfSecList, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
 import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
 import { tryer } from 'src/lib/utils';
-import { CellRegistryService } from '../cell-registry.service';
+// import { CellRegistryService } from '../cell-registry.service';
 import { DomSanitizer } from '@angular/platform-browser';
-import { isPlatformBrowser } from '@angular/common';
+// import { isPlatformBrowser } from '@angular/common';
 import { JsonValue } from 'src/lib/json/json';
 
 type Timeout = ReturnType<typeof setTimeout>;
@@ -78,6 +75,9 @@ enum SaveState {
   Saved, // Latest data has been saved.
 }
 
+// ============================================================================
+//  Custom Decorators for WebColabComponent.
+// ============================================================================
 function showErrors() {
   return (target: any, methodName: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -108,6 +108,7 @@ function loadingUi() {
     return descriptor;
   };
 }
+
 function savingUi() {
   return (target: any, methodName: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -122,6 +123,8 @@ function savingUi() {
     return descriptor;
   };
 }
+
+// ============================================================================
 @Component({
   selector: 'app-web-colab',
   imports: [
@@ -179,7 +182,7 @@ export class WebColabComponent {
     public router: Router,
     public dialog: MatDialog,
     public localCache: LocalCacheStoreService,
-    public cellRegistry: CellRegistryService,
+    // public cellRegistry: CellRegistryService,
   ) {
     const iconRegistry = inject(MatIconRegistry);
     const sanitizer = inject(DomSanitizer);
@@ -270,20 +273,11 @@ export class WebColabComponent {
     if (!cachedFilePath) {
       throw new Error(`missing localCache.getDefaultPath`);
     }
-    const cachedExpData = await this.localCache.loadFileCache<SecDefOfExperiment>(cachedFilePath);
+    const cachedExpData = await this.localCache.loadFileCache<SecDefOfSecList>(cachedFilePath);
     if (!cachedExpData) {
       return;
     }
-    const exp = await loadExperiment(
-      this.cellRegistry.registry,
-      this.cacheDataResolver,
-      this.env,
-      cachedExpData,
-    );
-    if (exp instanceof Error) {
-      this.error = exp.message;
-      return;
-    }
+    const exp = await loadExperiment(this.cacheDataResolver, this.env, cachedExpData);
     this.cacheState.set(SaveState.Saved);
     this.diskState.set(SaveState.New);
     this.experiment.set(exp);
@@ -319,7 +313,7 @@ export class WebColabComponent {
   }
 
   async newExperiment() {
-    const exp = await makeToyExperiment(this.cellRegistry.registry, this.env, 'simple experiment');
+    const exp = await makeToyExperiment(this.env, 'simple experiment');
     this.experiment.set(exp);
     await this.saveExperimentToCache();
     this.diskState.set(SaveState.New);
@@ -355,9 +349,9 @@ export class WebColabComponent {
     const distrS = (await this.saveExperimentToCache()) || this.getExperimentSerialisation();
     if (!this.fileDataResolver) {
       const dirHandle = await self.showDirectoryPicker({ mode: 'readwrite' });
-      this.fileDataResolver = new BrowserDirDataResolver(dirHandle);
+      this.fileDataResolver = new BrowserDirDataResolver({ dirHandle });
     }
-    const saveErr = await saveExperiment(this.fileDataResolver, 'experiment.json', distrS);
+    const [saveErr] = await tryer(saveExperiment(this.fileDataResolver, 'experiment.json', distrS));
     if (saveErr) {
       this.error = `Unable to save experiment: ${saveErr.message}`;
     }
@@ -373,22 +367,17 @@ export class WebColabComponent {
       this.error = `Could not open the selected directory: ${dirPickErr.message}`;
       return;
     }
-    this.fileDataResolver = new BrowserDirDataResolver(dirHandle);
-    const secDataDef = await this.fileDataResolver.load('experiment.json');
-    if (secDataDef instanceof Error) {
-      this.error = `Could not open 'experiment.json': ${secDataDef.message}`;
+    this.fileDataResolver = new BrowserDirDataResolver({ dirHandle });
+    const [expJsonLoadErr, secDataDef] = await tryer(this.fileDataResolver.load('experiment.json'));
+    if (expJsonLoadErr) {
+      this.error = `Could not open 'experiment.json': ${expJsonLoadErr.message}`;
       return;
     }
     // TODO: actually do some validation...
-    const expDef = secDataDef as SecDefOfExperiment;
-    const exp = await loadExperiment(
-      this.cellRegistry.registry,
-      this.fileDataResolver,
-      this.env,
-      expDef,
-    );
-    if (exp instanceof Error) {
-      this.error = `Failed to load experiment from 'experiment.json': ${exp.message}`;
+    const expDef = secDataDef as SecDefOfSecList;
+    const [expLoadErr, exp] = await tryer(loadExperiment(this.fileDataResolver, this.env, expDef));
+    if (expLoadErr) {
+      this.error = `Failed to load experiment from 'experiment.json': ${expLoadErr.message}`;
       return;
     }
     await this._deleteExperimentCache();

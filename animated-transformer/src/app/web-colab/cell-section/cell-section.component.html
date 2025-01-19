@@ -1,5 +1,5 @@
 <div #cellstatus class="cellStatus">
-  <div>Cell: {{ cell.id }} [Status: {{ status() }} ]</div>
+  <div>Cell: {{ cell.controller.id }} [Status: {{ status() }} ]</div>
   @if (vsCodeLink()) {
     <div><a [href]="vsCodeLink()">vscode</a></div>
   }
@@ -11,7 +11,7 @@
       aria-label="Start"
       (click)="start()"
     >
-      <mat-icon>not_started</mat-icon>
+      <mat-icon svgIcon="play_circle">play</mat-icon>
     </button>
   } @else if (
     status() !== CellStatus.Stopping && status() !== CellStatus.Stopped
@@ -22,7 +22,7 @@
       aria-label="Request Stop"
       (click)="requestStop()"
     >
-      <mat-icon>stop_circle</mat-icon>
+      <mat-icon svgIcon="stop_circle">stop</mat-icon>
     </button>
   } @else if (status() === CellStatus.Stopping) {
     <button
@@ -31,7 +31,7 @@
       aria-label="Force Stop"
       (click)="forceStop()"
     >
-      <mat-icon>cancel</mat-icon>
+      <mat-icon svgIcon="cancel"></mat-icon>
     </button>
   } @else if (status() === CellStatus.Stopped) {
     <button
@@ -40,7 +40,7 @@
       aria-label="Restart"
       (click)="reset()"
     >
-      <mat-icon>restart_alt</mat-icon>
+      <mat-icon svgIcon="restart_alt">restart</mat-icon>
     </button>
   }
 </div>
