@@ -840,6 +840,20 @@ export class GTensor<G extends DName> {
       this.dimNames,
     );
   }
+
+  /* Returns the elements, either of the gtensor or g2 depending on the condition.
+     If the condition is true, select from the gtensor, otherwise select from g2.
+     if gtensor.dims != g2.dims substracted dimentions are broadcasted */
+  public where<G2 extends DName>(condition: tf.Tensor, g2: GTensor<G2>): GTensor<G> {
+    const g2big = g2.broadcastToCombinedShape(this);
+    const g1big = this.broadcastToCombinedShape(g2);
+    const g1bigLikeG2 = g1big.transposeLike(g2big);
+
+    const shape = Object.values(g1bigLikeG2.gshape()) as number[];
+    const conditionBig = condition.broadcastTo(shape);
+
+    return new GTensor(g1bigLikeG2.tensor.where(conditionBig, g2big.tensor), this.dimNames);
+  }
 }
 
 export class GVariable<G extends DName> extends GTensor<G> {
@@ -964,13 +978,17 @@ export function makeRange<T extends DName>(
  * - dtype : The type of an element in the resulting tensor. Defaults to 'float32'
  * // TODO add optianal broadcastTo dimensions/GTensor
  * */
-export function makeTriangularMatrix<N1 extends string, N2 extends string, T extends string | number>(
+export function makeTriangularMatrix<
+  N1 extends string,
+  N2 extends string,
+  T extends string | number,
+>(
   size: number,
   d1Name: N1,
   d2Name: N2,
   lowerLeftValue: T,
   upperRightValue: T,
-  dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32'
+  dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32',
 ): GTensor<N1 | N2> {
   // Create a range tensor for row indices
   const rowIndices = tf.range(0, size, 1, 'int32');
