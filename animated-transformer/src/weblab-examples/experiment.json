@@ -1,13 +1,13 @@
 {
-  "kind": "SubExperiment",
+  "kind": "SectionList",
   "id": "simple experiment",
-  "timestamp": 1737240518681,
+  "timestamp": 1737327136228,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples",
   "subsections": [
     {
       "kind": "LocalCell",
       "id": "about",
-      "timestamp": 1737240495910,
+      "timestamp": 1737327126837,
       "io": {
         "outputs": {
           "markdown": {
@@ -22,7 +22,7 @@
     {
       "kind": "LocalCell",
       "id": "Task Configuration",
-      "timestamp": 1737240495910,
+      "timestamp": 1737327126837,
       "io": {
         "outputs": {
           "jsonObj": {
@@ -105,7 +105,7 @@
     {
       "kind": "LocalCell",
       "id": "Generation Configuration",
-      "timestamp": 1737240495910,
+      "timestamp": 1737327126837,
       "io": {
         "outputs": {
           "jsonObj": {
@@ -126,7 +126,7 @@
     {
       "kind": "WorkerCell",
       "id": "toyCellKind",
-      "timestamp": 1737240518681,
+      "timestamp": 1737327136228,
       "io": {},
       "cellCodeRef": {
         "kind": "PathToWorkerCode",
@@ -138,7 +138,7 @@
     {
       "kind": "WorkerCell",
       "id": "InlineCodeCell",
-      "timestamp": 1737240518681,
+      "timestamp": 1737327136230,
       "io": {},
       "cellCodeRef": {
         "kind": "InlineWorkerJsCode",
@@ -149,7 +149,7 @@
     {
       "kind": "WorkerCell",
       "id": "Task cell",
-      "timestamp": 1737240518681,
+      "timestamp": 1737327136228,
       "io": {
         "inputs": {
           "taskConfig": {
@@ -169,5 +169,6 @@
       },
       "display": {}
     }
-  ]
+  ],
+  "display": {}
 }
