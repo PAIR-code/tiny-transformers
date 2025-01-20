@@ -244,18 +244,19 @@ export class WebColabComponent {
   }
 
   async _deleteExperimentCache(): Promise<void> {
-    const cachedFile = await this.cacheService.loadDefault();
-    if (!cachedFile) {
-      throw new Error('deleteCached: no getDefaultFile found');
+    // Avoid a pending saving to cache from undoing our deletion of the cache.
+    if (this.saveToCachePlannedCallback) {
+      clearTimeout(this.saveToCachePlannedCallback);
+      delete this.saveToCachePlannedCallback;
     }
+
     const experiment = this.experiment();
     if (!experiment) {
-      console.log('deleteCached: no experiment');
-      // No error because this might happen with timeout cache saving callbacks.
+      console.warn('deleteCached: no experiment');
       return;
     }
-    await this.cacheService.deleteDefault();
     const distrS = experiment.serialise();
+    await this.cacheService.delete(defaultLocalFilename);
     if (distrS.subpathData) {
       for (const kPath of Object.keys(distrS.subpathData)) {
         await this.cacheService.delete(kPath);
@@ -332,10 +333,6 @@ export class WebColabComponent {
     await this._deleteExperimentCache();
     this.experiment.set(null);
     delete this.fileDataResolver;
-    if (this.saveToCachePlannedCallback) {
-      clearTimeout(this.saveToCachePlannedCallback);
-      delete this.saveToCachePlannedCallback;
-    }
     this.diskState.set(SaveState.None);
     this.cacheState.set(SaveState.None);
   }
