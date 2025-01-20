@@ -85,10 +85,10 @@ export class LocalCacheStore<T> {
     public encoder: (x: T) => string,
     public decoder: (s: string) => T,
     public defaultStorageId = 'defaultFilePath',
-    public prefix = 'LocalCacheStore:',
+    public pathPrefix = 'LocalCacheStore:',
   ) {}
   async load(path: string): Promise<T | null> {
-    const s = localStorage.getItem(this.prefix + path);
+    const s = localStorage.getItem(this.pathPrefix + path);
     if (!s) {
       return null;
     }
@@ -96,10 +96,10 @@ export class LocalCacheStore<T> {
     return this.decoder(s);
   }
   async save(path: string, obj: T): Promise<void> {
-    localStorage.setItem(this.prefix + path, this.encoder(obj));
+    localStorage.setItem(this.pathPrefix + path, this.encoder(obj));
   }
   async delete(path: string): Promise<void> {
-    localStorage.removeItem(this.prefix + path);
+    localStorage.removeItem(this.pathPrefix + path);
   }
   async saveDefault(obj: T): Promise<void> {
     this.save(this.defaultStorageId, obj);

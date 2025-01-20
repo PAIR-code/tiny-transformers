@@ -85,6 +85,7 @@ function showErrors() {
     descriptor.value = async function (this: WebColabComponent, ...args: any[]) {
       const [err, result] = await tryer(originalMethod.apply(this, args));
       if (err) {
+        console.error(err);
         this.error = err.message;
       }
       return result;
@@ -123,6 +124,8 @@ function savingUi() {
     return descriptor;
   };
 }
+
+const defaultLocalFilename = 'experiment.json';
 
 // ============================================================================
 @Component({
@@ -209,10 +212,6 @@ export class WebColabComponent {
     });
 
     this.cacheDataResolver = new LocalCacheDataResolver(this.cacheService.cache);
-    // Idea: save as a directory, not a file?
-    // TODO: avoid race condition and make later stuff happen after this...?
-    this.cacheService.saveDefault('experiment.json');
-
     this.tryLoadExperimentFromCache();
   }
 
@@ -268,10 +267,11 @@ export class WebColabComponent {
   @showErrors()
   @loadingUi()
   async tryLoadExperimentFromCache() {
-    const cachedFileData = await this.cacheService.loadDefault();
+    const cachedFileData = await this.cacheService.load(defaultLocalFilename);
     if (!cachedFileData) {
       return;
     }
+
     const exp = await loadExperiment(
       this.cacheDataResolver,
       this.env,
@@ -313,6 +313,7 @@ export class WebColabComponent {
   }
 
   async newExperiment() {
+    this.cacheState.set(SaveState.New);
     const exp = await makeToyExperiment(this.env, 'simple experiment');
     this.experiment.set(exp);
     await this.saveExperimentToCache();

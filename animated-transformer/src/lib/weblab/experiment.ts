@@ -433,10 +433,10 @@ export async function loadExperiment(
 
 export async function saveExperiment(
   dataResolver: AbstractDataResolver<JsonValue>,
-  path: string,
+  rootExperimentFilePath: string,
   distrSectionDef: DistrSerialization<SecDefWithData, JsonValue>,
 ): Promise<void> {
-  await dataResolver.save(path, distrSectionDef.data);
+  await dataResolver.save(rootExperimentFilePath, distrSectionDef.data);
   for (const [p, d] of Object.entries(distrSectionDef.subpathData || {})) {
     await dataResolver.save(p, d);
   }
