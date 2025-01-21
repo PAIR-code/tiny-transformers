@@ -52,6 +52,7 @@ import {
 import { SignalReceiveChannel } from '../distr-signals/channels';
 import { CellKind, ValueStruct } from '../distr-signals/cell-kind';
 import { data } from '@tensorflow/tfjs';
+import { tryer } from '../utils';
 
 export type DistrSerialization<T, T2> = {
   data: T;
@@ -267,15 +268,28 @@ async function initSectionCellData(
 
   switch (secDef.cellCodeRef.kind) {
     case CellCodeRefKind.PathToWorkerCode: {
-      const path = config.fromCache
-        ? prefixCacheCodePath(secDef.cellCodeRef.jsPath)
-        : secDef.cellCodeRef.jsPath;
-      const buffer = await dataResolver.loadArrayBuffer(path);
-      const dec = new TextDecoder('utf-8');
-      const cellCodeCache = dec.decode(buffer);
-      const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-      const cellObjectUrl = URL.createObjectURL(blob);
-      cell = { controller, cellCodeCache, cellObjectUrl };
+      try {
+        const paths = config.fromCache
+          ? [prefixCacheCodePath(secDef.cellCodeRef.jsPath)]
+          : secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
+        const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(paths));
+        if (loadCodeErr) {
+          console.error(loadCodeErr);
+          throw new Error(`Unable to load code path in experiment: ${JSON.stringify(paths)}`);
+        }
+        const dec = new TextDecoder('utf-8');
+        const cellCodeCache = dec.decode(buffer);
+        console.log('code', cellCodeCache);
+        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+        const cellObjectUrl = URL.createObjectURL(blob);
+        cell = { controller, cellCodeCache, cellObjectUrl };
+      } catch (e) {
+        console.error(e);
+        const cellCodeCache = 'throw new Error("Failed to init path based cell")';
+        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+        const cellObjectUrl = URL.createObjectURL(blob);
+        cell = { controller, cellCodeCache, cellObjectUrl };
+      }
       break;
     }
     case CellCodeRefKind.InlineWorkerJsCode: {
@@ -285,15 +299,31 @@ async function initSectionCellData(
       break;
     }
     case CellCodeRefKind.UrlToCode: {
-      const path = config.fromCache
-        ? prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl)
-        : secDef.cellCodeRef.jsUrl;
-      const buffer = await dataResolver.loadArrayBuffer(path);
-      const dec = new TextDecoder('utf-8');
-      const cellCodeCache = dec.decode(buffer);
-      const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-      const cellObjectUrl = URL.createObjectURL(blob);
-      cell = { controller, cellCodeCache, cellObjectUrl };
+      try {
+        let buffer: ArrayBuffer;
+        if (config.fromCache) {
+          buffer = await dataResolver.loadArrayBuffer([
+            prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl),
+          ]);
+        } else {
+          const response = await fetch(secDef.cellCodeRef.jsUrl);
+          if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+          }
+          buffer = await response.arrayBuffer();
+        }
+        const dec = new TextDecoder('utf-8');
+        const cellCodeCache = dec.decode(buffer);
+        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+        const cellObjectUrl = URL.createObjectURL(blob);
+        cell = { controller, cellCodeCache, cellObjectUrl };
+      } catch (e) {
+        console.error(e);
+        const cellCodeCache = 'throw new Error("Failed to init url based cell")';
+        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+        const cellObjectUrl = URL.createObjectURL(blob);
+        cell = { controller, cellCodeCache, cellObjectUrl };
+      }
       break;
     }
     default:
@@ -343,7 +373,7 @@ export async function loadExperiment(
   while (cur) {
     for (const subSecDef of cur.subDefsToAdd) {
       // cur.addedSubDefs.push(subSecDef.id);
-
+      console.log('loading', subSecDef);
       switch (subSecDef.kind) {
         case SecDefKind.Path: {
           const data = await dataResolver.load(subSecDef.dataPath);

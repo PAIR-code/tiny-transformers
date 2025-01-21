@@ -41,9 +41,12 @@
 .bottom-bar {
   height: 0px;
   border-bottom: 1px dotted #CCC;
+  // border-bottom: 1px dotted #CCC;
   flex: 1 1 auto;
-  height: 12px;
-  margin-bottom: -12px;
+  // height: 12px;
+  // margin-bottom: -12px;
+  padding-bottom: 12px;
+  margin-bottom: 6px;
   z-index: 2;
 }
 
@@ -94,6 +97,7 @@
   align-items: center;
   flex: 1 1 auto;
   z-index: 5;
+  height: 24px;
 
   --mdc-icon-button-icon-size: 16px !important;
   --mdc-icon-button-state-layer-size: 24px !important;

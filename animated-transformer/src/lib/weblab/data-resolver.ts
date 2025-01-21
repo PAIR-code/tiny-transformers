@@ -7,7 +7,7 @@ import json5 from 'json5';
 
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {
-  abstract loadArrayBuffer(path: string): Promise<ArrayBuffer>;
+  abstract loadArrayBuffer(path: string[]): Promise<ArrayBuffer>;
   abstract load(path: string): Promise<T>;
   abstract save(path: string, data: T): Promise<void>;
 }
@@ -15,8 +15,8 @@ export abstract class AbstractDataResolver<T> {
 export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
   constructor(public nodes: { [id: string]: T } = {}) {}
 
-  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
-    const obj = await this.load(path);
+  async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
+    const obj = await this.load(path.join('/'));
     const enc = new TextEncoder();
     const contents = enc.encode(JSON.stringify(obj));
     return contents.buffer as ArrayBuffer;
@@ -46,18 +46,30 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
     },
   ) {}
 
-  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
+  async loadArrayBuffer(subpaths: string[]): Promise<ArrayBuffer> {
+    if (subpaths.length === 0) {
+      throw new Error('Cannot load empty path');
+    }
     if (!this.config.dirHandle) {
       throw new MissingDirHandle();
     }
-    const fileHandle = await this.config.dirHandle.getFileHandle(path);
+    let curDirHandle = this.config.dirHandle;
+    console.log('subpaths', JSON.stringify(subpaths));
+    if (subpaths.length > 1) {
+      const nextDirPath = subpaths.shift();
+      console.log(`looking in ${nextDirPath}`);
+      curDirHandle = await curDirHandle.getDirectoryHandle(nextDirPath!);
+    }
+    const finalFilePath = subpaths.shift() as string;
+    console.log(`looking in final filepath: ${finalFilePath}`);
+    const fileHandle = await curDirHandle.getFileHandle(finalFilePath);
     const file = await fileHandle.getFile();
     const fileBuffer = await file.arrayBuffer();
     return fileBuffer;
   }
 
   async load(path: string): Promise<T> {
-    const buffer = await this.loadArrayBuffer(path);
+    const buffer = await this.loadArrayBuffer([path]);
     const dec = new TextDecoder('utf-8');
     const contents = dec.decode(buffer);
     // TODO: add better file contents verification.
@@ -126,8 +138,8 @@ export class LocalCacheDataResolver<T extends JsonValue> implements AbstractData
     this.localCache = localCache || (defaultLocalCacheStore as never as LocalCacheStore<T>);
   }
 
-  async loadArrayBuffer(path: string): Promise<ArrayBuffer> {
-    const obj = await this.load(path);
+  async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
+    const obj = await this.load(path.join('/'));
     const enc = new TextEncoder();
     const contents = enc.encode(JSON.stringify(obj));
     return contents.buffer as ArrayBuffer;

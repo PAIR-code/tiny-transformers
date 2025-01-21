@@ -181,6 +181,22 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     'console.log("hello from simpleUrlCodeSecDef cell!");',
   );
 
+  const footerSecDef: SecDefOfUiView = {
+    kind: SecDefKind.UiCell,
+    id: 'footer',
+    timestamp: Date.now(),
+    // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+    io: {
+      outputs: {
+        markdown: {
+          saved: true,
+          lastValue: 'Footer: the end.',
+        },
+      },
+    },
+    uiView: ViewerKind.MarkdownOutView,
+  };
+
   // TODO: add entries for URLs and Paths.
 
   const exp = new Experiment(env, [], initExpDef, dataResolver);
@@ -191,5 +207,6 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   await exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
   await exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
   await exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
+  await exp.appendLeafSectionFromDataDef(footerSecDef);
   return exp;
 }

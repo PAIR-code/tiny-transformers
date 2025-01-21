@@ -3,7 +3,7 @@
 } @else {
   @let exp = experiment();
   @if (exp === null) {
-    <div>
+    <div class="main-buttons">
       <button mat-button (click)="newExperiment()">New experiment</button>
       <button mat-button (click)="loadExperimentFromDirectory()">Load</button>
       @if (error) {

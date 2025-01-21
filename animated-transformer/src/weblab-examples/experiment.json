@@ -1,13 +1,13 @@
 {
   "kind": "SectionList",
   "id": "simple experiment",
-  "timestamp": 1737327136228,
+  "timestamp": 1737481268444,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples",
   "subsections": [
     {
       "kind": "LocalCell",
       "id": "about",
-      "timestamp": 1737327126837,
+      "timestamp": 1737481189961,
       "io": {
         "outputs": {
           "markdown": {
@@ -22,39 +22,27 @@
     {
       "kind": "LocalCell",
       "id": "Task Configuration",
-      "timestamp": 1737327126837,
+      "timestamp": 1737481189961,
       "io": {
         "outputs": {
           "jsonObj": {
             "saved": true,
             "lastValue": {
-              "id": "tiny synthetic world",
-              "kind": "TinyWorldTask",
+              "baseStory": [],
               "genStateConfig": {
                 "seed": 42
               },
+              "id": "tiny synthetic world",
+              "kind": "TinyWorldTask",
+              "maxEntityLimit": 6,
               "maxInputLen": 10,
               "maxOutputLen": 10,
-              "typeHierarchy": {
-                "animal": [
-                  "cat",
-                  "monkey",
-                  "elephant"
-                ],
-                "inanimate": [
-                  "rock",
-                  "tree",
-                  "flower"
-                ],
-                "squishable": [
-                  "cat",
-                  "monkey",
-                  "flower"
-                ]
-              },
               "relationKinds": {
                 "is": [
                   "*"
+                ],
+                "jumps": [
+                  "animal"
                 ],
                 "runsAway": [
                   "animal"
@@ -62,12 +50,8 @@
                 "squishes": [
                   "animal",
                   "squishable"
-                ],
-                "jumps": [
-                  "animal"
                 ]
               },
-              "baseStory": [],
               "rules": [
                 "S(is ?x:cat) += 1",
                 "S(is ?x:monkey) += 2",
@@ -94,7 +78,23 @@
                 "S(runsAway ?y | squishes ?x ?y) *= 0",
                 "S(jumps ?y | squishes ?x ?y) *= 0"
               ],
-              "maxEntityLimit": 6
+              "typeHierarchy": {
+                "animal": [
+                  "cat",
+                  "monkey",
+                  "elephant"
+                ],
+                "inanimate": [
+                  "rock",
+                  "tree",
+                  "flower"
+                ],
+                "squishable": [
+                  "cat",
+                  "monkey",
+                  "flower"
+                ]
+              }
             }
           }
         }
@@ -105,7 +105,7 @@
     {
       "kind": "LocalCell",
       "id": "Generation Configuration",
-      "timestamp": 1737327126837,
+      "timestamp": 1737481189961,
       "io": {
         "outputs": {
           "jsonObj": {
@@ -126,7 +126,7 @@
     {
       "kind": "WorkerCell",
       "id": "toyCellKind",
-      "timestamp": 1737327136228,
+      "timestamp": 1737481268444,
       "io": {},
       "cellCodeRef": {
         "kind": "PathToWorkerCode",
@@ -138,7 +138,7 @@
     {
       "kind": "WorkerCell",
       "id": "InlineCodeCell",
-      "timestamp": 1737327136230,
+      "timestamp": 1737481268447,
       "io": {},
       "cellCodeRef": {
         "kind": "InlineWorkerJsCode",
@@ -149,7 +149,7 @@
     {
       "kind": "WorkerCell",
       "id": "Task cell",
-      "timestamp": 1737327136228,
+      "timestamp": 1737481268444,
       "io": {
         "inputs": {
           "taskConfig": {
@@ -167,6 +167,21 @@
         "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts",
         "jsUrl": "http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js"
       },
+      "display": {}
+    },
+    {
+      "kind": "LocalCell",
+      "id": "footer",
+      "timestamp": 1737481268444,
+      "io": {
+        "outputs": {
+          "markdown": {
+            "saved": true,
+            "lastValue": "Footer: the end."
+          }
+        }
+      },
+      "uiView": "Markdown",
       "display": {}
     }
   ],

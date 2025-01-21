@@ -33,9 +33,9 @@ const config: esbuild.BuildOptions = {
   format: 'esm', // recursive out dir paths.
   outdir: `${__dirname}/dist`,
   tsconfig: `${__dirname}/tsconfig.json`,
-  banner: {
-    js: `new EventSource('/esbuild').addEventListener('change', () => location.reload());`,
-  },
+  // banner: {
+  //   js: `new EventSource('/esbuild').addEventListener('change', () => location.reload());`,
+  // },
 };
 
 // What gets run...

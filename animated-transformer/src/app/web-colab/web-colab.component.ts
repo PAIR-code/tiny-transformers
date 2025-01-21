@@ -252,7 +252,7 @@ export class WebColabComponent {
 
     const experiment = this.experiment();
     if (!experiment) {
-      console.warn('deleteCached: no experiment');
+      // console.warn('deleteCached: no experiment');
       return;
     }
     const distrS = experiment.serialise();
@@ -362,12 +362,14 @@ export class WebColabComponent {
   async loadExperimentFromDirectory() {
     const [dirPickErr, dirHandle] = await tryer(self.showDirectoryPicker({ mode: 'readwrite' }));
     if (dirPickErr) {
+      console.error(dirPickErr);
       this.error = `Could not open the selected directory: ${dirPickErr.message}`;
       return;
     }
     this.fileDataResolver = new BrowserDirDataResolver({ dirHandle });
     const [expJsonLoadErr, secDataDef] = await tryer(this.fileDataResolver.load('experiment.json'));
     if (expJsonLoadErr) {
+      console.error(expJsonLoadErr);
       this.error = `Could not open 'experiment.json': ${expJsonLoadErr.message}`;
       return;
     }
@@ -377,6 +379,7 @@ export class WebColabComponent {
       loadExperiment(this.fileDataResolver, this.env, expDef, { fromCache: false }),
     );
     if (expLoadErr) {
+      console.error(expLoadErr);
       this.error = `Failed to load experiment from 'experiment.json': ${expLoadErr.message}`;
       return;
     }

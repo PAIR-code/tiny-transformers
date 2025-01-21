@@ -1,33 +1,75 @@
-@if (collapsed()) {
-  <div class="small-buttons" (click)="collapsed.set(false)">
-    <button class="hostHover left-margin" mat-icon-button>
+@let sec = section();
+@let data = sec.data();
+
+<div class="small-buttons">
+  @if (collapsed()) {
+    <button
+      class="hostHoverAppear left-margin"
+      (click)="collapsed.set(false)"
+      mat-icon-button
+    >
       <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
     </button>
-    <button class="hostHoverAppear left-margin" mat-icon-button>
-      <mat-icon svgIcon="add">+</mat-icon>
-    </button>
-    <span class="mini-id-title left-margin">{{ data.id }}</span>
-    <span class="spacer"></span>
-  </div>
-} @else {
-  <div class="small-buttons" [class.showOnHover]="!editDefView()">
-    <button mat-icon-button class="left-margin" (click)="collapsed.set(true)">
+  } @else {
+    <button
+      mat-icon-button
+      class="hostHoverAppear left-margin"
+      (click)="collapsed.set(true)"
+    >
       <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
     </button>
-    <button mat-icon-button class="left-margin">
+  }
+
+  <button
+    class="hostHoverAppear left-margin"
+    mat-icon-button
+    matTooltip="add section"
+    [matMenuTriggerFor]="expandedAddMenu"
+  >
+    <mat-icon svgIcon="add">+</mat-icon>
+  </button>
+  <mat-menu #expandedAddMenu>
+    <button mat-menu-item matTooltip="Inline Code" (click)="addInlineCode()">
+      inline code
+    </button>
+    <button mat-menu-item matTooltip="Inline Code" (click)="addVsCodeCell()">
+      vscode cell
+    </button>
+    <button
+      mat-menu-item
+      matTooltip="Json Object"
+      (click)="addMarkdownEditor()"
+    >
+      json markdown
+    </button>
+    <button mat-menu-item matTooltip="Json Object" (click)="addJsonObjEditor()">
+      json object
+    </button>
+  </mat-menu>
+
+  @if (!collapsed()) {
+    <button
+      mat-icon-button
+      class="left-margin"
+      [class.hostHoverAppear]="!editDefView()"
+    >
       <mat-icon
         [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
         (click)="editDefView.set(!editDefView())"
         >settings</mat-icon
       >
     </button>
-    <!-- <span class="spacer"></span> -->
-  </div>
-}
-<div class="top-bar hostHover"></div>
+  }
 
-@let sec = section();
-@let data = sec.data();
+  <span
+    (click)="collapsed() && collapsed.set(false)"
+    class="mini-id-title left-margin"
+    [class.hostHoverAppear]="!collapsed()"
+    >{{ data.id }}</span
+  >
+</div>
+
+<div class="top-bar hostHover"></div>
 
 @if (!collapsed()) {
   <div class="expanded-section">
@@ -82,11 +124,10 @@
     }
   </div>
   <div class="bottom-bar hostHover"></div>
-  <div class="small-buttons showOnHover">
+  <!-- <div class="small-buttons showOnHover">
     <span class="spacer"></span>
-    <button mat-icon-button>
-      <mat-icon svgIcon="add">+</mat-icon>
-    </button>
+    
+
     <span class="spacer"></span>
-  </div>
+  </div> -->
 }

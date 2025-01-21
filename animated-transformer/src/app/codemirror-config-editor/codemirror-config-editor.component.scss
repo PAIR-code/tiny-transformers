@@ -1,4 +1,3 @@
-
 .hint-error {
   color: rgba(240,0,0,.8);
 }
@@ -15,7 +14,7 @@
   // height: 100%
 }
 
-.buttons {
+.header {
   flex: 0 0 60px;
   display: flex;
   flex-wrap: wrap;
@@ -27,7 +26,7 @@
     margin-left: 10px;
   }
 
-  .whatIsBeingEditedName {
+  .title {
     font-weight: 800;
   }
 }

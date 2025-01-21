@@ -95,7 +95,7 @@ export class CellSectionComponent implements OnInit, OnDestroy {
         );
       }
     }
-    addIcons(['play_circle', 'cancel', 'restart_alt', 'stop_circle']);
+    addIcons(['play_circle', 'code', 'cancel', 'restart_alt', 'stop_circle']);
 
     this.status = signal(CellStatus.NotStarted);
   }
@@ -124,6 +124,10 @@ export class CellSectionComponent implements OnInit, OnDestroy {
         this.vsCodeLink.set('');
       }
     }
+  }
+
+  openCodeLink() {
+    window.open(this.vsCodeLink());
   }
 
   inputs() {

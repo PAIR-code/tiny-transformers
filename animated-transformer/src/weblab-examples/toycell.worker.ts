@@ -21,6 +21,8 @@ npx tsc -p weblab-examples/tsconfig.json
 import { workerCell } from '../lib/distr-signals/worker-cell.js';
 import { toyCellKind } from './toycell.kind.js';
 
+console.log('Webworker started!');
+
 const cell = workerCell(toyCellKind);
 cell.onStart(async () => {
   console.log('hello!');

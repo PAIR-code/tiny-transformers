@@ -1,11 +1,21 @@
-.cellStatus {
+.header {
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
+  // justify-content: space-between;
+  align-items: center;
   flex: 1 1 auto;
+
+  .title {
+    font-weight: 800;
+  }  
+
+  .codeLink {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: smaller;
+  }
 }
+
 
 .spacer {
   flex: 1;

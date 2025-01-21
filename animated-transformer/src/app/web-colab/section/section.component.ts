@@ -49,12 +49,14 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
+import { MatMenuModule } from '@angular/material/menu';
 
 @Component({
   selector: 'app-section',
   imports: [
     MarkdownModule,
     MatButtonModule,
+    MatMenuModule,
     MatIconModule,
     CodemirrorConfigEditorComponent,
     CellSectionComponent,
@@ -161,6 +163,14 @@ export class SectionComponent {
     // components.
     this.edited.emit(true);
   }
+
+  addJsonObjEditor() {}
+
+  addMarkdownEditor() {}
+
+  addInlineCode() {}
+
+  addVsCodeCell() {}
 
   // ngOnInit(): void {
   //   // One could get/set components dynamically, but not clear what the value is...

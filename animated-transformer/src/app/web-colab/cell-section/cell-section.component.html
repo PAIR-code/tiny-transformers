@@ -1,9 +1,5 @@
-<div #cellstatus class="cellStatus">
-  <div>Cell: {{ cell.controller.id }} [Status: {{ status() }} ]</div>
-  @if (vsCodeLink()) {
-    <div><a [href]="vsCodeLink()">vscode</a></div>
-  }
-  <div class="spacer"></div>
+<div #cellstatus class="header">
+  <!-- <div class="spacer"></div> -->
   @if (status() === CellStatus.NotStarted) {
     <button
       mat-icon-button
@@ -41,6 +37,17 @@
       (click)="reset()"
     >
       <mat-icon svgIcon="restart_alt">restart</mat-icon>
+    </button>
+  }
+  <div class="title">{{ cell.controller.id }}</div>
+  @if (vsCodeLink()) {
+    <button
+      mat-icon-button
+      matTooltip="Open code link"
+      aria-label="Open code link"
+      (click)="openCodeLink()"
+    >
+      <mat-icon svgIcon="code">code</mat-icon>
     </button>
   }
 </div>
