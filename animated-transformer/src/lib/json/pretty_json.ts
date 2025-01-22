@@ -50,13 +50,14 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
   }
 }
 
-export function stringifyJsonValue(value: JsonValue, config?: StringifyConfig): string {
-  config = config || {
+export function stringifyJsonValue(value: JsonValue, config?: Partial<StringifyConfig>): string {
+  const completeConfig = {
+    quoteAllKeys: false,
     curIndent: '',
     arrWrapAt: 60,
     objWrapAt: 60,
     sortObjKeys: true,
+    ...config,
   };
-
-  return stringifyTube(config, tubeifyJsonValue(value));
+  return stringifyTube(completeConfig, tubeifyJsonValue(value));
 }

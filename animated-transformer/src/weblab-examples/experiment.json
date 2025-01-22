@@ -1,189 +1,112 @@
-{
-  "kind": "SectionList",
+{ "display": {},
   "id": "simple experiment",
-  "timestamp": 1737481268444,
-  "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples",
-  "subsections": [
-    {
-      "kind": "LocalCell",
+  "kind": "SectionList",
+  "subsections": [ { 
+      "display": {},
       "id": "about",
-      "timestamp": 1737481189961,
-      "io": {
-        "outputs": {
-          "markdown": {
-            "saved": true,
-            "lastValue": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_."
-          }
-        }
-      },
-      "uiView": "Markdown",
-      "display": {}
-    },
-    {
+      "io": { 
+        "outputs": { 
+          "markdown": { 
+            "lastValue": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
+            "saved": true } } },
       "kind": "LocalCell",
+      "timestamp": 1737551956305,
+      "uiView": "Markdown" },
+    { 
+      "display": {},
       "id": "Task Configuration",
-      "timestamp": 1737481189961,
-      "io": {
-        "outputs": {
-          "jsonObj": {
-            "saved": true,
-            "lastValue": {
+      "io": { 
+        "outputs": { 
+          "jsonObj": { 
+            "lastValue": { 
               "baseStory": [],
-              "genStateConfig": {
-                "seed": 42
-              },
+              "genStateConfig": {"seed": 42},
               "id": "tiny synthetic world",
               "kind": "TinyWorldTask",
               "maxEntityLimit": 6,
               "maxInputLen": 10,
               "maxOutputLen": 10,
-              "relationKinds": {
-                "is": [
-                  "*"
-                ],
-                "jumps": [
-                  "animal"
-                ],
-                "runsAway": [
-                  "animal"
-                ],
-                "squishes": [
-                  "animal",
-                  "squishable"
-                ]
-              },
-              "rules": [
-                "S(is ?x:cat) += 1",
-                "S(is ?x:monkey) += 2",
-                "S(is ?x:elephant) += 1",
-                "S(is ?x:rock) += 1",
-                "S(is ?x:tree) += 1",
-                "S(is ?x:flower) += 1",
-                "S(is ?x:animal) += 1",
-                "S(is ?x:inanimate) += 1",
-                "S(is ?x:squishable) += 1",
-                "S(is ?x | is ?y) *= 0.5",
-                "S(jumps ?x | is ?x:animal) += 5",
-                "S(jumps ?x | jumps ?x) += 0.2",
+              "relationKinds": { 
+                "is": ["*"],
+                "jumps": ["animal"],
+                "runsAway": ["animal"],
+                "squishes": ["animal", "squishable"] },
+              "rules": [ "S(is ?x:cat) += 1", "S(is ?x:monkey) += 2", "S(is ?x:elephant) += 1",
+                "S(is ?x:rock) += 1", "S(is ?x:tree) += 1", "S(is ?x:flower) += 1",
+                "S(is ?x:animal) += 1", "S(is ?x:inanimate) += 1",
+                "S(is ?x:squishable) += 1", "S(is ?x | is ?y) *= 0.5",
+                "S(jumps ?x | is ?x:animal) += 5", "S(jumps ?x | jumps ?x) += 0.2",
                 "S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2",
                 "S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1",
                 "S(squishes ?x ?x | is ?x) *= 0",
                 "S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2",
-                "S(runsAway ?x | is ?x) += 1",
-                "S(runsAway ?x) += 1",
+                "S(runsAway ?x | is ?x) += 1", "S(runsAway ?x) += 1",
                 "S(is ?x:cat | runsAway ?x, -is ?x) += 1",
                 "S(jumps ?a | runsAway ?a:animal) *= 0",
                 "S(squishes ?x ?a | runsAway ?a) *= 0",
                 "S(runsAway ?x | runsAway ?x) *= 0",
                 "S(runsAway ?y | squishes ?x ?y) *= 0",
-                "S(jumps ?y | squishes ?x ?y) *= 0"
-              ],
-              "typeHierarchy": {
-                "animal": [
-                  "cat",
-                  "monkey",
-                  "elephant"
-                ],
-                "inanimate": [
-                  "rock",
-                  "tree",
-                  "flower"
-                ],
-                "squishable": [
-                  "cat",
-                  "monkey",
-                  "flower"
-                ]
-              }
-            }
-          }
-        }
-      },
-      "uiView": "JsonObj",
-      "display": {}
-    },
-    {
+                "S(jumps ?y | squishes ?x ?y) *= 0" ],
+              "typeHierarchy": { 
+                "animal": ["cat", "monkey", "elephant"],
+                "inanimate": ["rock", "tree", "flower"],
+                "squishable": ["cat", "monkey", "flower"] } },
+            "saved": true } } },
       "kind": "LocalCell",
+      "timestamp": 1737551956305,
+      "uiView": "JsonObj" },
+    { 
+      "display": {},
       "id": "Generation Configuration",
-      "timestamp": 1737481189961,
-      "io": {
-        "outputs": {
-          "jsonObj": {
-            "saved": true,
-            "lastValue": {
+      "io": { 
+        "outputs": { 
+          "jsonObj": { 
+            "lastValue": { 
+              "batchSize": 10,
               "initBatchId": 0,
               "initBatchSeed": 0,
               "maxBatches": 5,
-              "batchSize": 10,
-              "testSetSize": 3
-            }
-          }
-        }
-      },
-      "uiView": "JsonObj",
-      "display": {}
-    },
-    {
-      "kind": "WorkerCell",
-      "id": "toyCellKind",
-      "timestamp": 1737481268444,
-      "io": {},
-      "cellCodeRef": {
-        "kind": "PathToWorkerCode",
-        "tsSrcPath": "toycell.worker.ts",
-        "jsPath": "dist/toycell.worker.js"
-      },
-      "display": {}
-    },
-    {
-      "kind": "WorkerCell",
-      "id": "InlineCodeCell",
-      "timestamp": 1737481268447,
-      "io": {},
-      "cellCodeRef": {
-        "kind": "InlineWorkerJsCode",
-        "js": "console.log(\"hello world from simple cell!\");"
-      },
-      "display": {}
-    },
-    {
-      "kind": "WorkerCell",
-      "id": "Task cell",
-      "timestamp": 1737481268444,
-      "io": {
-        "inputs": {
-          "taskConfig": {
-            "sectionId": "Task Configuration",
-            "outputId": "jsonObj"
-          },
-          "genConfig": {
-            "sectionId": "Generation Configuration",
-            "outputId": "jsonObj"
-          }
-        }
-      },
-      "cellCodeRef": {
-        "kind": "UrlToCode",
-        "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts",
-        "jsUrl": "http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js"
-      },
-      "display": {}
-    },
-    {
+              "testSetSize": 3 },
+            "saved": true } } },
       "kind": "LocalCell",
+      "timestamp": 1737551956305,
+      "uiView": "JsonObj" },
+    { 
+      "cellCodeRef": { 
+        "jsPath": "dist/toycell.worker.js",
+        "kind": "PathToWorkerCode",
+        "tsSrcPath": "toycell.worker.ts" },
+      "display": {},
+      "id": "toyCellKind",
+      "io": {},
+      "kind": "WorkerCell",
+      "timestamp": 1737551958704 },
+    { 
+      "cellCodeRef": {"js": "console.log(\"hello world from simple cell!\");", "kind": "InlineWorkerJsCode"},
+      "display": {},
+      "id": "InlineCodeCell",
+      "io": {},
+      "kind": "WorkerCell",
+      "timestamp": 1737551958705 },
+    { 
+      "cellCodeRef": { 
+        "jsUrl": "http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js",
+        "kind": "UrlToCode",
+        "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts" },
+      "display": {},
+      "id": "Task cell",
+      "io": { 
+        "inputs": { 
+          "genConfig": {"outputId": "jsonObj", "sectionId": "Generation Configuration"},
+          "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} } },
+      "kind": "WorkerCell",
+      "timestamp": 1737551958704 },
+    { 
+      "display": {},
       "id": "footer",
-      "timestamp": 1737481268444,
-      "io": {
-        "outputs": {
-          "markdown": {
-            "saved": true,
-            "lastValue": "Footer: the end."
-          }
-        }
-      },
-      "uiView": "Markdown",
-      "display": {}
-    }
-  ],
-  "display": {}
-}
+      "io": {"outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}}},
+      "kind": "LocalCell",
+      "timestamp": 1737551958704,
+      "uiView": "Markdown" } ],
+  "timestamp": 1737551958704,
+  "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

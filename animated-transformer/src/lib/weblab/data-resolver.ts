@@ -38,7 +38,7 @@ export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
 // TODO: maybe this should just be path <--> object ?
 class MissingDirHandle extends Error {}
 
-export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
+export class BrowserDirDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
   constructor(
     public config: {
       dirHandle?: FileSystemDirectoryHandle;
@@ -85,7 +85,9 @@ export class BrowserDirDataResolver<T> implements AbstractDataResolver<T> {
     const fileHandle = await this.config.dirHandle.getFileHandle(path, { create: true });
     fileHandle.requestPermission({ mode: 'readwrite' });
     const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(nodeData, null, 2));
+    await writable.write(
+      stringifyJsonValue(nodeData, { arrWrapAt: 100, objWrapAt: 100, quoteAllKeys: true }),
+    );
     // TODO ERROR HERE.
     await writable.close();
   }
