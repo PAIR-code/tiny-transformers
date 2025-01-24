@@ -1,8 +1,8 @@
-{ "display": {},
+{ "display": {"collapsed": false},
   "id": "simple experiment",
   "kind": "SectionList",
   "subsections": [ { 
-      "display": {},
+      "display": {"collapsed": false},
       "id": "about",
       "io": { 
         "outputs": { 
@@ -10,10 +10,10 @@
             "lastValue": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737551956305,
+      "timestamp": 1737758823352,
       "uiView": "Markdown" },
     { 
-      "display": {},
+      "display": {"collapsed": false},
       "id": "Task Configuration",
       "io": { 
         "outputs": { 
@@ -53,10 +53,10 @@
                 "squishable": ["cat", "monkey", "flower"] } },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737551956305,
+      "timestamp": 1737758823352,
       "uiView": "JsonObj" },
     { 
-      "display": {},
+      "display": {"collapsed": false},
       "id": "Generation Configuration",
       "io": { 
         "outputs": { 
@@ -69,44 +69,44 @@
               "testSetSize": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737551956305,
+      "timestamp": 1737758823352,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
         "jsPath": "dist/toycell.worker.js",
         "kind": "PathToWorkerCode",
         "tsSrcPath": "toycell.worker.ts" },
-      "display": {},
+      "display": {"collapsed": false},
       "id": "toyCellKind",
       "io": {},
       "kind": "WorkerCell",
-      "timestamp": 1737551958704 },
+      "timestamp": 1737758825001 },
     { 
       "cellCodeRef": {"js": "console.log(\"hello world from simple cell!\");", "kind": "InlineWorkerJsCode"},
-      "display": {},
+      "display": {"collapsed": false},
       "id": "InlineCodeCell",
       "io": {},
       "kind": "WorkerCell",
-      "timestamp": 1737551958705 },
+      "timestamp": 1737758825004 },
     { 
       "cellCodeRef": { 
         "jsUrl": "http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js",
         "kind": "UrlToCode",
         "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts" },
-      "display": {},
+      "display": {"collapsed": false},
       "id": "Task cell",
       "io": { 
         "inputs": { 
           "genConfig": {"outputId": "jsonObj", "sectionId": "Generation Configuration"},
           "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} } },
       "kind": "WorkerCell",
-      "timestamp": 1737551958704 },
+      "timestamp": 1737758825002 },
     { 
-      "display": {},
+      "display": {"collapsed": false},
       "id": "footer",
       "io": {"outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}}},
       "kind": "LocalCell",
-      "timestamp": 1737551958704,
+      "timestamp": 1737758825002,
       "uiView": "Markdown" } ],
-  "timestamp": 1737551958704,
+  "timestamp": 1737758825001,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

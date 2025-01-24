@@ -306,16 +306,10 @@ export async function loadExperiment(
           subsecListsToPopulate.push(toAddSubSecsTo);
           break;
         }
-        case SecDefKind.UiCell: {
+        case SecDefKind.UiCell:
+        case SecDefKind.WorkerCell: {
           section.initOutputs();
           ioSections.push(section as Section);
-          break;
-        }
-        case SecDefKind.WorkerCell: {
-          const workerSection = section as Section<SecDefOfWorker>;
-          workerSection.initOutputs();
-          ioSections.push(workerSection as Section);
-          workerSection.initSectionCellData(dataResolver, config);
           break;
         }
         case SecDefKind.Ref:
@@ -332,6 +326,7 @@ export async function loadExperiment(
   for (const sec of ioSections) {
     sec.connectInputsFromOutputs();
     if (sec.isWorkerSection()) {
+      await sec.initSectionCellData(dataResolver, config);
       sec.connectWorkerCell();
     }
   }
