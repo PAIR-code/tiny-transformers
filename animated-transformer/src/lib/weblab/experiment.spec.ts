@@ -119,4 +119,8 @@ describe('experiment', () => {
     expect(data).toEqual(exp1Data);
     expect(subpathData!['foo:/exp1/sec3.secdef.json']).toEqual(sec3Node);
   });
+
+  // TODO: add sub-sub-path loading example.
+  // TODO: add sub-sub-path loading cell example.
+  // TODO: add sub-sub-path loading UI example.
 });

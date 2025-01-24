@@ -33,25 +33,21 @@ limitations under the License.
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { AbstractDataResolver } from './data-resolver';
-import { CellController, SomeCellController } from '../distr-signals/cell-controller';
+import { CellController, CellStatus, SomeCellController } from '../distr-signals/cell-controller';
 import { LabEnv } from '../distr-signals/lab-env';
 import {
   Section,
   SecDefByPath,
   SecDefByRef,
-  SomeSection,
   SecDefKind,
   SecDefWithData,
   SecDefOfSecList,
   SecDef,
-  CellCodeRefKind,
-  SectionCellData,
-  cellIoForCellSection,
   SecDefOfWorker,
+  SecDefOfPlaceholder,
 } from './section';
 import { SignalReceiveChannel } from '../distr-signals/channels';
 import { CellKind, ValueStruct } from '../distr-signals/cell-kind';
-import { data } from '@tensorflow/tfjs';
 import { tryer } from '../utils';
 
 export type DistrSerialization<T, T2> = {
@@ -59,13 +55,13 @@ export type DistrSerialization<T, T2> = {
   subpathData: { [path: string]: T2 };
 };
 
-function sectionListEqCheck(sections1: SomeSection[], sections2: SomeSection[]): boolean {
+function sectionListEqCheck(sections1: Section[], sections2: Section[]): boolean {
   if (sections1.length !== sections2.length) {
     return false;
   }
   // TODO: think about if this should be init.id or data.id.
   for (let i = 0; i < sections1.length; i++) {
-    if (sections1[i].data().id !== sections2[i].data().id) {
+    if (sections1[i].defData().id !== sections2[i].defData().id) {
       return false;
     }
   }
@@ -86,11 +82,11 @@ export class Experiment {
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
   //
-  section: Section<SecDefOfSecList, ValueStruct, ValueStruct>;
+  section: Section<SecDefOfSecList>;
 
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
-  sectionMap: Map<string, SomeSection> = new Map();
+  sectionMap: Map<string, Section> = new Map();
 
   // The definition of this experiment.
   // def: SetableSignal<SecDefOfSecList>;
@@ -108,13 +104,7 @@ export class Experiment {
     public dataResolver: AbstractDataResolver<JsonValue>,
   ) {
     this.space = env.space;
-
-    const setableDefData = this.space.setable(def);
-    this.section = new Section<SecDefOfSecList, ValueStruct, ValueStruct>(
-      this,
-      def,
-      setableDefData,
-    );
+    this.section = new Section<SecDefOfSecList>(this, def);
 
     // this.topLevelSections = this.space.setable<SomeSection[]>([]);
     // this.section.subSections = this.topLevelSections;
@@ -125,27 +115,30 @@ export class Experiment {
   }
 
   get id() {
-    return this.section.def.id;
+    return this.section.initDef.id;
   }
 
-  get topLevelSections(): SetableSignal<SomeSection[]> {
-    return this.section.subSections as SetableSignal<SomeSection[]>;
+  get topLevelSections(): SetableSignal<Section[]> {
+    return this.section.subSections as SetableSignal<Section[]>;
   }
 
-  // get def(): SecDefOfSecList {
-  //   return this.section.def as SecDefOfSecList;
-  // }
+  appendSectionFromRefDef(secRefDef: SecDefByRef): Section {
+    const section = new Section(this, secRefDef);
+    this.appendSection(section);
 
-  appendSectionFromRefDef(secRefDef: SecDefByRef): SomeSection {
     const existingSection = this.sectionMap.get(secRefDef.refId);
-    let section: SomeSection;
     if (!existingSection) {
       throw new Error(`No such reference id to ${secRefDef.refId}`);
     }
-    section = new Section(this, secRefDef, existingSection.data);
     existingSection.references.add(section);
-    this.topLevelSections.change((sections) => sections.push(section));
+    section.resolveRef(existingSection);
+    this.appendSection(section);
     return section;
+  }
+
+  appendSection<S extends Section<any>>(s: S) {
+    this.sectionMap.set(s.initDef.id, s);
+    this.topLevelSections.change((sections) => sections.push(s));
   }
 
   // TODO: when the loaded data contains further references and experiments,
@@ -154,47 +147,50 @@ export class Experiment {
   async appendLeafSectionFromPathDef(
     secPathDef: SecDefByPath,
     resolvedDataDef: SecDefWithData,
-  ): Promise<SomeSection> {
+  ): Promise<Section<SecDefWithData>> {
     // TODO: some subtly here about when what gets updated & how. e.g.
     // Users of setableDataDef should not be changing sectionData or sectionData.content
-    const setableDataDef = this.space.setable(resolvedDataDef);
-    const section = new Section(this, secPathDef, setableDataDef);
-    this.sectionMap.set(secPathDef.id, section);
-    this.topLevelSections.change((sections) => sections.push(section));
+    const section = new Section(this, secPathDef);
+    this.appendSection(section);
     return section;
   }
 
   // TODO: when the loaded data contains further references and experiments,
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
-  async appendLeafSectionFromDataDef(secDef: SecDefWithData): Promise<SomeSection> {
-    let section: SomeSection;
-    if (secDef.kind === SecDefKind.WorkerCell) {
-      const setableDataDef = this.space.setable(secDef);
-      const cell = await initSectionCellData(this.env, this.dataResolver, secDef, {
-        // TODO: think about if there are case where this needs to be false for
-        // manual construction?
-        fromCache: true,
-      });
-      section = new Section(this, secDef, setableDataDef, cell) as SomeSection;
-      section.connectWorkerCell();
+  async appendLeafSectionFromDataDef(secDef: SecDefWithData): Promise<Section<SecDefWithData>> {
+    const section = new Section(this, secDef);
+    if (section.isIoSection()) {
+      if (section.isWorkerSection()) {
+        section.initSectionCellData(this.dataResolver, {
+          // TODO: think about if there are case where this needs to be false for
+          // manual construction?
+          fromCache: true,
+        });
+        section.connectWorkerCell();
+      }
       section.initOutputs();
       section.connectInputsFromOutputs();
-    } else if (secDef.kind === SecDefKind.UiCell) {
-      const setableDataDef = this.space.setable(secDef);
-      section = new Section(this, secDef, setableDataDef) as SomeSection;
-      section.initOutputs();
-      section.connectInputsFromOutputs();
-    } else {
-      throw new Error(`unknown section kind in section: ${JSON.stringify(secDef)}`);
     }
-
-    this.sectionMap.set(secDef.id, section);
-    this.topLevelSections.change((sections) => sections.push(section));
+    this.appendSection(section);
     return section;
   }
 
-  getSection(sectionId: string): SomeSection {
+  insertPlaceholderSection(aboveSec: Section) {
+    const secDef: SecDefOfPlaceholder = {
+      kind: SecDefKind.Placeholder,
+      id: `${Date.now()}`,
+    };
+    const newSection = new Section(this, secDef);
+    this.sectionMap.set(secDef.id, newSection as Section);
+
+    this.topLevelSections.change((oldList) => {
+      const index = oldList.findIndex((s) => s === aboveSec);
+      oldList.splice(index, 0, newSection);
+    });
+  }
+
+  getSection(sectionId: string): Section {
     const section = this.sectionMap.get(sectionId);
     if (!section) {
       throw Error(`No such section: ${sectionId}`);
@@ -216,7 +212,7 @@ export class Experiment {
     outputId: string,
   ): AbstractSignal<unknown> | SignalReceiveChannel<unknown> {
     const section = this.getSection(sectionId);
-    if (section.data().kind === SecDefKind.WorkerCell) {
+    if (section.defData().kind === SecDefKind.WorkerCell) {
       if (!section.cell) {
         throw Error(`Section Id (${sectionId}) was missing cell property`);
       }
@@ -228,7 +224,7 @@ export class Experiment {
 
   getSectionLabCell(sectionId: string): SomeCellController {
     const section = this.getSection(sectionId);
-    const data = section.data();
+    const data = section.defData();
     if (data.kind !== SecDefKind.WorkerCell) {
       throw Error(`Section Id (${sectionId}) was not Cell (was: ${data.kind})`);
     }
@@ -249,88 +245,9 @@ export class Experiment {
 
 type SecListBeingLoaded = {
   // addedSubDefs: string[];
-  subDefsToAdd: SecDef[];
-  section: Section<SecDefOfSecList, ValueStruct, ValueStruct>;
+  subSecDefs: SecDef[];
+  parentSection: Section<SecDefOfSecList>;
 };
-
-async function initSectionCellData(
-  env: LabEnv,
-  dataResolver: AbstractDataResolver<JsonValue>,
-  secDef: SecDefOfWorker,
-  config: {
-    fromCache: boolean;
-  },
-): Promise<SectionCellData> {
-  let cell: SectionCellData;
-
-  const cellKind = new CellKind(secDef.id, cellIoForCellSection(secDef));
-  const controller = new CellController(env, secDef.id, cellKind);
-
-  switch (secDef.cellCodeRef.kind) {
-    case CellCodeRefKind.PathToWorkerCode: {
-      try {
-        const paths = config.fromCache
-          ? [prefixCacheCodePath(secDef.cellCodeRef.jsPath)]
-          : secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
-        const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(paths));
-        if (loadCodeErr) {
-          console.error(loadCodeErr);
-          throw new Error(`Unable to load code path in experiment: ${JSON.stringify(paths)}`);
-        }
-        const dec = new TextDecoder('utf-8');
-        const cellCodeCache = dec.decode(buffer);
-        console.log('code', cellCodeCache);
-        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-        const cellObjectUrl = URL.createObjectURL(blob);
-        cell = { controller, cellCodeCache, cellObjectUrl };
-      } catch (e) {
-        console.error(e);
-        const cellCodeCache = 'throw new Error("Failed to init path based cell")';
-        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-        const cellObjectUrl = URL.createObjectURL(blob);
-        cell = { controller, cellCodeCache, cellObjectUrl };
-      }
-      break;
-    }
-    case CellCodeRefKind.InlineWorkerJsCode: {
-      const blob = new Blob([secDef.cellCodeRef.js], { type: 'application/javascript' });
-      const cellObjectUrl = URL.createObjectURL(blob);
-      cell = { controller, cellCodeCache: secDef.cellCodeRef.js, cellObjectUrl };
-      break;
-    }
-    case CellCodeRefKind.UrlToCode: {
-      try {
-        let buffer: ArrayBuffer;
-        if (config.fromCache) {
-          buffer = await dataResolver.loadArrayBuffer([
-            prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl),
-          ]);
-        } else {
-          const response = await fetch(secDef.cellCodeRef.jsUrl);
-          if (!response.ok) {
-            throw new Error(`Response status: ${response.status}`);
-          }
-          buffer = await response.arrayBuffer();
-        }
-        const dec = new TextDecoder('utf-8');
-        const cellCodeCache = dec.decode(buffer);
-        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-        const cellObjectUrl = URL.createObjectURL(blob);
-        cell = { controller, cellCodeCache, cellObjectUrl };
-      } catch (e) {
-        console.error(e);
-        const cellCodeCache = 'throw new Error("Failed to init url based cell")';
-        const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
-        const cellObjectUrl = URL.createObjectURL(blob);
-        cell = { controller, cellCodeCache, cellObjectUrl };
-      }
-      break;
-    }
-    default:
-      throw new Error(`bad cellCodeRef: ${JSON.stringify(secDef.cellCodeRef)}`);
-  }
-  return cell;
-}
 
 export async function loadExperiment(
   dataResolver: AbstractDataResolver<JsonValue>,
@@ -340,120 +257,75 @@ export async function loadExperiment(
     fromCache: boolean;
   },
 ): Promise<Experiment> {
-  const space = env.space;
-  // const nodeDataMap: Map<string, SetableSignal<SecDefWithData>> = new Map();
-  const refMap: Map<string, SecDefByRef> = new Map();
-
   // Sections that refer to another section, but the reference does not exist.
   const experiment = new Experiment(env, [], secListDef, dataResolver);
-  // Map of all sections.
-  const sectionMap: Map<string, SomeSection> = experiment.sectionMap;
-
   const topLevelNodeTree: SecListBeingLoaded = {
     // addedSubDefs: [],
-    subDefsToAdd: secListDef.subsections,
-    section: experiment.section,
+    subSecDefs: secListDef.subsections,
+    parentSection: experiment.section,
   };
-
-  const sectionLists: Map<string, SecListBeingLoaded> = new Map();
-  sectionLists.set(secListDef.id, topLevelNodeTree);
 
   // Tracking these to connect them after (the various input/output
   // connections/streams need to be initialised before we connect them, that
   // means they all need to be loaded first).
-  const ioSections: SomeSection[] = [];
+  const ioSections: Section[] = [];
 
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
-  const subsecListsToPopulate: SecListBeingLoaded[] = [];
-  let cur = topLevelNodeTree as SecListBeingLoaded | undefined;
+  const subsecListsToPopulate: SecListBeingLoaded[] = [topLevelNodeTree];
+  // let cur = topLevelNodeTree as SecListBeingLoaded | undefined;
 
   // Part 1 of loading, populate sectionMap (all non reference sections) and
   // refMap (references to other sections).
-  while (cur) {
-    for (const subSecDef of cur.subDefsToAdd) {
+  let cur: SecListBeingLoaded | undefined;
+  while ((cur = subsecListsToPopulate.pop())) {
+    for (const subSecDef of cur.subSecDefs) {
       // cur.addedSubDefs.push(subSecDef.id);
-      console.log('loading', subSecDef);
-      switch (subSecDef.kind) {
-        case SecDefKind.Path: {
-          const data = await dataResolver.load(subSecDef.dataPath);
-          const setableDataDef = space.setable<SecDefWithData>(data as SecDefWithData);
-          // Paths always resolve to WorkerCell or UiCell
-          // nodeDataMap.set(subSecDef.id, setableDataDef);
-          const section = new Section(experiment, subSecDef, setableDataDef);
-          sectionMap.set(subSecDef.id, section);
-          ioSections.push(section);
-          break;
-        }
-        case SecDefKind.Ref: {
-          refMap.set(subSecDef.id, subSecDef);
-          break;
-        }
+      const section = new Section(experiment, subSecDef);
+      experiment.sectionMap.set(subSecDef.id, section as Section);
+      cur.parentSection.subSections.change((secs) => secs.push(section));
+      let subsecDefData: SecDefWithData;
+      if (subSecDef.kind === SecDefKind.Path) {
+        subsecDefData = (await dataResolver.load(subSecDef.dataPath)) as SecDefWithData;
+        section.substPlaceholder(subsecDefData);
+      } else {
+        subsecDefData = subSecDef;
+      }
+
+      switch (subsecDefData.kind) {
         case SecDefKind.SectionList: {
-          const setableDataDef = space.setable(subSecDef);
-          const section = new Section(experiment, subSecDef, setableDataDef);
-          sectionMap.set(subSecDef.id, section as SomeSection);
-          const beingLoaded: SecListBeingLoaded = {
-            section,
-            subDefsToAdd: subSecDef.subsections,
+          const listSection = section as Section<SecDefOfSecList>;
+          const toAddSubSecsTo: SecListBeingLoaded = {
+            parentSection: listSection,
+            subSecDefs: listSection.defData().subsections,
           };
-          subsecListsToPopulate.push(beingLoaded);
-          sectionLists.set(subSecDef.id, beingLoaded);
+          subsecListsToPopulate.push(toAddSubSecsTo);
           break;
         }
         case SecDefKind.UiCell: {
-          const setableDataDef = space.setable(subSecDef);
-          const section = new Section(experiment, subSecDef, setableDataDef);
-          sectionMap.set(subSecDef.id, section as SomeSection);
-          ioSections.push(section as SomeSection);
+          ioSections.push(section as Section);
           break;
         }
         case SecDefKind.WorkerCell: {
-          const cell = await initSectionCellData(env, dataResolver, subSecDef, config);
-          const setableDataDef = space.setable(subSecDef);
-          const section = new Section(experiment, subSecDef, setableDataDef, cell);
-          sectionMap.set(subSecDef.id, section as SomeSection);
-          ioSections.push(section as SomeSection);
+          const workerSection = section as Section<SecDefOfWorker>;
+          ioSections.push(workerSection as Section);
+          workerSection.initSectionCellData(dataResolver, config);
+          break;
+        }
+        case SecDefKind.Ref:
+        case SecDefKind.Placeholder: {
           break;
         }
         default:
           throw new Error(`Unknown section def kind: ${JSON.stringify(subSecDef)}`);
       }
     }
-    // TODO: consider resolving more defined references in other experiments...?
-    // or having the top-level experiment know about all sub-experiments?
-    cur = subsecListsToPopulate.pop();
-  }
-
-  // Second part is to resolve all section references, and set the subsections
-  // for all sectionLists.
-  for (const subsecToPopulate of sectionLists.values()) {
-    subsecToPopulate.section.subSections!.set(
-      subsecToPopulate.subDefsToAdd.map((def) => {
-        const refData = refMap.get(def.id);
-        if (refData) {
-          const maybeSection = sectionMap.get(refData.refId);
-          if (!maybeSection) {
-            throw new Error(
-              `Can not resolve ref section (${def.id}) to ${refData.refId}: no such section found.`,
-            );
-          }
-          return new Section(experiment, refData, maybeSection.data);
-        } else {
-          const maybeSection = sectionMap.get(def.id);
-          if (!maybeSection) {
-            throw new Error(`Can not resolve section (${def.id}): no such section found.`);
-          }
-          return maybeSection;
-        }
-      }),
-    );
   }
 
   // Finally, connect the outputs to inputs, and connect any direct cell connections
   for (const sec of ioSections) {
     sec.connectInputsFromOutputs();
-    if (sec.data().kind === SecDefKind.WorkerCell) {
+    if (sec.isWorkerSection()) {
       sec.connectWorkerCell();
     }
   }

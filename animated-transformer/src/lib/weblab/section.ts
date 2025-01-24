@@ -39,17 +39,23 @@ import {
   SetableSignal,
   SignalSpace,
 } from 'src/lib/signalspace/signalspace';
-import { CellStatus, SomeCellController } from '../distr-signals/cell-controller';
+import { CellController, CellStatus, SomeCellController } from '../distr-signals/cell-controller';
 import { CellKind, Kind, ValueKindFnStruct, ValueStruct } from '../distr-signals/cell-kind';
-import { Experiment } from './experiment';
+import { Experiment, prefixCacheCodePath, prefixCacheCodeUrl } from './experiment';
 import { AbstractDataResolver } from './data-resolver';
 import { Abs } from '@tensorflow/tfjs';
+import { tryer } from '../utils';
 
 // ============================================================================
 
 export enum SecDefKind {
+  // A reference to another section
   Ref = 'Ref',
+  // A path to a cell/section defined in a separate file.
   Path = 'Path',
+  // A placeholder for a section being defined.
+  Placeholder = 'Placeholder',
+  // A section that is a list of other sections.
   SectionList = 'SectionList',
   // Markdown = 'Markdown', // TODO: update to View, and then we provide a name for it...
   // JsonObj = 'JsonObj',
@@ -64,6 +70,16 @@ export type SectionDisplay = {
   hidden?: boolean;
   collapsed?: boolean;
   initialLimittedHeightPx?: number;
+};
+
+export type SecDefOfPlaceholder = {
+  kind: SecDefKind.Placeholder;
+  id: string;
+  display?: SectionDisplay;
+  loadingState?: {
+    loadingError?: string;
+    loading: boolean;
+  };
 };
 
 export type SecDefByRef = {
@@ -137,12 +153,9 @@ export type SecDefOfWorker = {
   display?: SectionDisplay;
 };
 
-export type SecDefWithData = SecDefOfWorker | SecDefOfUiView | SecDefOfSecList;
-
-// | SecDefOfMarkdown
-// | SecDefOfJsonValue;
-
-export type SecDef = SecDefWithData | SecDefByRef | SecDefByPath;
+export type SecDefWithIo = SecDefOfWorker | SecDefOfUiView;
+export type SecDefWithData = SecDefWithIo | SecDefOfSecList | SecDefOfPlaceholder | SecDefByRef;
+export type SecDef = SecDefWithData | SecDefByPath;
 
 // ============================================================================
 
@@ -206,10 +219,6 @@ export type DistrSerialization<T, T2> = {
 
 // ============================================================================
 
-export type SomeSection = Section<SecDefWithData, ValueStruct, ValueStruct>;
-
-// ============================================================================
-
 export enum CellSectionStatus {
   NotStarted = 'NotStarted',
   Running = 'Running',
@@ -243,78 +252,282 @@ export function cellIoForCellSection(c: SecDefOfWorker | SecDefOfUiView): {
 }
 
 export type SectionCellData = {
+  // status: CellSectionStatus;
   controller: SomeCellController;
   cellCodeCache: string; // the string of the code...
   cellObjectUrl: string; // url of Object URL to allow cleanup.
 };
 
+function isIoSecDef(d: SecDef): d is SecDefWithIo {
+  return d.kind === SecDefKind.UiCell || d.kind === SecDefKind.WorkerCell;
+}
+
+function isSecListDef(d: SecDef): d is SecDefOfSecList {
+  return d.kind === SecDefKind.SectionList;
+}
+
+function isWorkerSection(
+  s: Section<any>,
+): s is Section<SecDefOfWorker> & { cell: SectionCellData } {
+  return s.initDef.kind === SecDefKind.WorkerCell;
+}
+
+function isUiSection(s: Section<any>): s is Section<SecDefOfUiView> {
+  return s.initDef.kind === SecDefKind.UiCell;
+}
+
+export type PathSection = Section & { initDef: SecDefByPath };
+
 // ============================================================================
-
+//
+// ============================================================================
 export class Section<
-  DataKind extends SecDefWithData,
-  I extends ValueStruct,
-  O extends ValueStruct,
+  Def extends SecDefWithData = SecDefWithData,
+  I extends ValueStruct = ValueStruct,
+  O extends ValueStruct = ValueStruct,
 > {
+  // The kind of cell this.
+  defData: SetableSignal<Def>;
+
   // References to this section.
-  references: Set<SomeSection> = new Set();
-  status: CellSectionStatus = CellSectionStatus.NotStarted;
+  references: Set<Section> = new Set();
+  space: SignalSpace;
 
-  // this.data().sectionData.sectionKind === SectionKind.Subsections
-  subSections?: SetableSignal<SomeSection[]>;
-
-  // this.data().sectionData.sectionKind === SectionKind.Cell
-
+  // Memory management cleanup utility: hold references to derived signals.
+  //
   // Consider: this may not be needed if we manage data via disposing the
   // content/data signals in some other way, e.g. with an environment dispose
   // operation? To think about.
   dataUpdateDeps: AbstractSignal<void>[] = [];
 
-  // This is how UI code interacts with a section.
+  // --------------------------------------------------------------------------
+  // For cells initialised by Ref
+  // refDef?: SecDefByRef;
+  // // For cells initialised by Path
+  // pathDef?: SecDefByPath;
+  // For WorkerCell
+  cell!: Def extends SecDefOfWorker ? SectionCellData : undefined;
+  // For Subsections
+  subSections!: Def extends SecDefOfSecList ? SetableSignal<Section[]> : undefined;
+
+  // For IO Sections (always empty except for UiCell and Worker)
   inputs = {} as { [Key in keyof I]: AbstractSignal<I[Key] | null> };
   outputs = {} as { [Key in keyof O]: SetableSignal<O[Key] | null> };
+  dependsOnMe: Set<Section<SecDefWithIo>> = new Set();
+  dependsOnOutputsFrom: Set<Section<SecDefWithIo>> = new Set();
 
-  space: SignalSpace;
+  // --------------------------------------------------------------------------
+  isIoSection(): this is Section<SecDefWithIo> {
+    return this.defData().kind === SecDefKind.UiCell || this.initDef.kind === SecDefKind.WorkerCell;
+  }
+  assertIoSection(): Section<SecDefWithIo> {
+    if (!this.isIoSection()) {
+      throw new Error(`assertIoSection failed on defData: ${JSON.stringify(this.defData())}`);
+    }
+    return this as Section<SecDefWithIo>;
+  }
 
+  isWorkerSection(): this is Section<SecDefOfWorker> {
+    return this.defData().kind === SecDefKind.WorkerCell;
+  }
+  assertWorkerSection(): Section<SecDefOfWorker> & { cell: SectionCellData } {
+    if (!this.isWorkerSection()) {
+      throw new Error(`assertWorkerSection failed on defData: ${JSON.stringify(this.defData())}`);
+    }
+    return this as Section<SecDefOfWorker>;
+  }
+
+  isPlaceholderSection(): this is Section<SecDefOfPlaceholder> {
+    return this.defData().kind === SecDefKind.Placeholder;
+  }
+
+  isRefSection(): this is Section<SecDefWithData> {
+    return this.defData().kind === SecDefKind.Ref;
+  }
+  assertRefSection(): Section<SecDefWithData> & { initDef: SecDefByRef } {
+    if (!this.isRefSection()) {
+      throw new Error(
+        `Can only update ref target id of ref, but was: ${JSON.stringify(this.initDef)}`,
+      );
+    }
+    return this as Section<SecDefWithData> & { initDef: SecDefByRef };
+  }
+
+  isPathSection(): this is Section<SecDefWithData> {
+    return this.initDef.kind === SecDefKind.Path;
+  }
+
+  isListSection(): this is Section<SecDefOfSecList> & { subSections: SetableSignal<Section[]> } {
+    return this.initDef.kind === SecDefKind.SectionList;
+  }
+
+  // --------------------------------------------------------------------------
   constructor(
     public experiment: Experiment,
     // Note: SecDef can be a reference or path, and it's data() value will then
     // be the referenced sections data, or if it's a path, it will be the data
     // resolved from reading that path.
-    public def: SecDef,
-    public data: SetableSignal<DataKind>,
-    public cell?: SectionCellData,
+    public initDef: SecDef,
   ) {
     this.space = this.experiment.space;
-    this.def.display = this.def.display || {};
+    this.initDef.display = this.initDef.display || {};
+    if (initDef.kind === SecDefKind.Ref || initDef.kind === SecDefKind.Path) {
+      const placeholderDef: SecDefOfPlaceholder = {
+        kind: SecDefKind.Placeholder,
+        id: initDef.id,
+        loadingState: {
+          loading: true,
+        },
+      };
+      this.defData = this.space.setable(placeholderDef as Def);
+    } else {
+      this.defData = this.space.setable(initDef as Def);
+      if (isSecListDef(initDef)) {
+        this.subSections = this.space.setable<Section[]>([]) as Def extends SecDefOfSecList
+          ? SetableSignal<Section[]>
+          : undefined;
+      } else if (isIoSecDef(initDef)) {
+        this.initOutputs();
+      }
+    }
+  }
 
-    const content = this.data();
-    switch (content.kind) {
-      case SecDefKind.SectionList:
-        this.subSections = this.space.setable<SomeSection[]>([]);
+  async substPlaceholder(def: SecDefWithData) {
+    if (!this.isPlaceholderSection()) {
+      throw new Error(`Can only subst Placeholders, but was: ${JSON.stringify(this.defData())}`);
+    }
+    // const thisSection = this as Section<SecDefOfPlaceholder>;
+    // const oldDef = thisSection.defData();
+    this.renameId(def.id);
+    this.initDef = def;
+    this.defData.set(def as Def);
+  }
+
+  updateTargetId(newId: string) {
+    const thisSection = this.assertRefSection();
+    thisSection.initDef.refId = newId;
+  }
+
+  renameSecIdInInputDeps(oldId: string, newId: string) {
+    const thisSection = this.assertIoSection();
+    for (const [i, v] of Object.entries(thisSection.defData().io.inputs || {})) {
+      if (v.sectionId === oldId) {
+        v.sectionId = newId;
+      }
+    }
+    for (const [i, v] of Object.entries(thisSection.defData().io.inStreams || {})) {
+      if (v.cellSectionId === oldId) {
+        v.cellSectionId = newId;
+      }
+    }
+  }
+
+  renameId(newId: string) {
+    const oldId = this.initDef.id;
+    if (oldId === newId) {
+      return;
+    }
+    this.initDef.id = newId;
+
+    this.experiment.sectionMap.delete(oldId);
+    this.experiment.sectionMap.set(newId, this as Section<any>);
+
+    for (const refSec of this.references) {
+      refSec.updateTargetId(newId);
+    }
+    this.defData.change(() => (this.initDef.id = newId));
+    for (const dep of this.dependsOnMe) {
+      dep.renameSecIdInInputDeps(oldId, newId);
+    }
+  }
+
+  resolveRef(s: Section<SecDefWithData>) {
+    this.defData.set(s.defData() as Def);
+  }
+
+  async initSectionCellData(
+    dataResolver: AbstractDataResolver<JsonValue>,
+    config: {
+      fromCache: boolean;
+    },
+  ): Promise<void> {
+    const thisSection = this.assertWorkerSection();
+    const secDef = thisSection.defData();
+
+    const cellKind = new CellKind(secDef.id, cellIoForCellSection(secDef));
+    const controller = new CellController(this.experiment.env, secDef.id, cellKind);
+
+    switch (secDef.cellCodeRef.kind) {
+      case CellCodeRefKind.PathToWorkerCode: {
+        try {
+          const paths = config.fromCache
+            ? [prefixCacheCodePath(secDef.cellCodeRef.jsPath)]
+            : secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
+          const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(paths));
+          if (loadCodeErr) {
+            console.error(loadCodeErr);
+            throw new Error(`Unable to load code path in experiment: ${JSON.stringify(paths)}`);
+          }
+          const dec = new TextDecoder('utf-8');
+          const cellCodeCache = dec.decode(buffer);
+          console.log('code', cellCodeCache);
+          const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+          const cellObjectUrl = URL.createObjectURL(blob);
+          thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
+        } catch (e) {
+          console.error(e);
+          const cellCodeCache = 'throw new Error("Failed to init path based cell")';
+          const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+          const cellObjectUrl = URL.createObjectURL(blob);
+          thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
+        }
         break;
-      case SecDefKind.WorkerCell:
-        this.initOutputs();
-        this.status = CellSectionStatus.NotStarted;
+      }
+      case CellCodeRefKind.InlineWorkerJsCode: {
+        const blob = new Blob([secDef.cellCodeRef.js], { type: 'application/javascript' });
+        const cellObjectUrl = URL.createObjectURL(blob);
+        thisSection.cell = { controller, cellCodeCache: secDef.cellCodeRef.js, cellObjectUrl };
         break;
-      case SecDefKind.UiCell:
-        this.initOutputs();
-        this.status = CellSectionStatus.Static;
+      }
+      case CellCodeRefKind.UrlToCode: {
+        try {
+          let buffer: ArrayBuffer;
+          if (config.fromCache) {
+            buffer = await dataResolver.loadArrayBuffer([
+              prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl),
+            ]);
+          } else {
+            const response = await fetch(secDef.cellCodeRef.jsUrl);
+            if (!response.ok) {
+              throw new Error(`Response status: ${response.status}`);
+            }
+            buffer = await response.arrayBuffer();
+          }
+          const dec = new TextDecoder('utf-8');
+          const cellCodeCache = dec.decode(buffer);
+          const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+          const cellObjectUrl = URL.createObjectURL(blob);
+          thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
+        } catch (e) {
+          console.error(e);
+          const cellCodeCache = 'throw new Error("Failed to init url based cell")';
+          const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
+          const cellObjectUrl = URL.createObjectURL(blob);
+          thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
+        }
         break;
+      }
       default:
-        this.status = CellSectionStatus.Static;
+        throw new Error(`bad cellCodeRef: ${JSON.stringify(secDef.cellCodeRef)}`);
     }
   }
 
   initOutputs() {
-    const data = this.data();
-    const secKind = data.kind;
-    if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
-      console.warn(`initOutputs called on non-worker or Ui section (called ${secKind}).`);
-      return;
-    }
+    const thisSection = this.assertIoSection();
+    const data = thisSection.defData();
 
     for (const k of Object.keys(data.io.outputs || {})) {
-      this.outputs[k as never as keyof O] = this.space.setable(null);
+      thisSection.outputs[k] = thisSection.space.setable(null);
     }
 
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
@@ -322,24 +535,24 @@ export class Section<
         const outputs = data.io.outputs as {
           [outputId: string]: CellSectionOutput;
         };
-        if (this.cell && secKind === SecDefKind.WorkerCell) {
-          const controller = this.cell.controller;
+        if (thisSection.cell && data.kind === SecDefKind.WorkerCell) {
+          const controller = thisSection.cell.controller;
           for (const k of Object.keys(controller.outputs)) {
             controller.outputs[k].recEnd.onceReady.then((v) =>
-              this.experiment.space.derived(() => this.outputs[k].set(v())),
+              thisSection.experiment.space.derived(() => thisSection.outputs[k].set(v())),
             );
           }
-        } else if (!this.cell && secKind === SecDefKind.UiCell) {
-          this.outputs[outputId as keyof O].set(cellOutputRef.lastValue as O[keyof O]);
+        } else if (!thisSection.cell && data.kind === SecDefKind.UiCell) {
+          thisSection.outputs[outputId].set(cellOutputRef.lastValue);
           // Propegate changes to the output setable to the broader content object.
           // TODO: think about tracking this dep to cleanup later?
         } else {
-          console.warn(`Strange state: ${secKind} and cell state (${!!this.cell})`);
+          console.warn(`Strange state: ${data.kind} and cell state (${!!thisSection.cell})`);
           return;
         }
-        this.space.derived(() => {
-          const newOutput = this.outputs[outputId as keyof O]();
-          this.data.change((c) => {
+        thisSection.space.derived(() => {
+          const newOutput = thisSection.outputs[outputId]();
+          thisSection.defData.change((c) => {
             outputs[outputId].lastValue = newOutput;
           });
         });
@@ -349,27 +562,29 @@ export class Section<
 
   // This happens after construction, but before connecting cells.
   connectInputsFromOutputs() {
-    const data = this.data();
-    const secKind = data.kind;
-    if (secKind !== SecDefKind.WorkerCell && secKind !== SecDefKind.UiCell) {
-      return;
-    }
+    const thisSection = this.assertIoSection();
+    const data = thisSection.defData();
 
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
-      const otherSec = this.experiment.getSection(cellInputRef.sectionId);
-      this.inputs[inputId as keyof I] = otherSec.outputs[cellInputRef.outputId];
+      const otherSection = thisSection.experiment.getSection(
+        cellInputRef.sectionId,
+      ) as Section<SecDefWithIo>;
+      thisSection.dependsOnOutputsFrom.add(otherSection);
+      otherSection.dependsOnMe.add(thisSection);
+      thisSection.dependsOnMe.add(otherSection);
+      const otherSec = thisSection.experiment.getSection(cellInputRef.sectionId);
+      thisSection.inputs[inputId] = otherSec.outputs[cellInputRef.outputId];
     }
   }
 
   // Connect the cell in this section to it's inputs/outputs in the experiment.
   connectWorkerCell() {
-    const data = this.data();
-    if (this.status !== CellSectionStatus.NotStarted) {
-      throw new Error(`Cell (${data.id}): Can only start a connect a not-started cell`);
+    const thisSection = this.assertWorkerSection();
+    const data = thisSection.defData();
+    if (!this.cell || this.cell.controller.status() !== CellStatus.NotStarted) {
+      throw new Error(`Cell (${this.defData().id}): Can only start a connect a not-started cell`);
     }
-    if (!this.cell || data.kind !== SecDefKind.WorkerCell) {
-      throw new Error(`Cell (${data.id}): Can only connect a section with a cell`);
-    }
+
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
       // TODO: this is where magic dep-management could happen... we could use
       // old input value as the input here, so that we don't need to
@@ -377,8 +592,13 @@ export class Section<
       // streams. Likely depends on cell semantics some. e.g. deterministic
       // cells with no streams are clearly fine. Streams might need some kind
       // of saved state of the stream. (which StateIter abstraction has!)
-      const otherSection = this.experiment.getSection(cellInputRef.sectionId);
-      if (otherSection.data().kind === SecDefKind.WorkerCell) {
+      const otherSection = this.experiment.getSection(
+        cellInputRef.sectionId,
+      ) as Section<SecDefWithIo>;
+      this.dependsOnOutputsFrom.add(otherSection);
+      otherSection.dependsOnMe.add(thisSection as Section<SecDefWithIo>);
+
+      if (otherSection.defData().kind === SecDefKind.WorkerCell) {
         if (!otherSection.cell) {
           throw Error(`Worker Cell Section (${cellInputRef.sectionId}) was missing cell property`);
         }
@@ -401,34 +621,31 @@ export class Section<
   }
 
   async startWorker() {
-    const data = this.data();
-    if (this.status !== CellSectionStatus.NotStarted) {
-      throw new Error(`Cell (${data.id}): Can only start a connect a not-started cell`);
-    }
-    if (!this.cell || data.kind !== SecDefKind.WorkerCell) {
-      throw new Error(`Cell (${data.id}): Can only connect a section with a cell`);
-    }
-
-    this.cell.controller.startWithWorker(new Worker(new URL(this.cell.cellObjectUrl)));
+    const thisSection = this.assertWorkerSection();
+    thisSection.cell.controller.startWithWorker(
+      new Worker(new URL(thisSection.cell.cellObjectUrl)),
+    );
   }
 
   serialise(subpathData: { [path: string]: SecDefWithData }): SecDef {
-    switch (this.def.kind) {
+    switch (this.initDef.kind) {
       case SecDefKind.Ref:
-        return this.def;
+        return this.initDef;
       case SecDefKind.Path:
         // Note: paths must always go to SecDefWithData, i.e. UiCell or WorkerCell.
-        subpathData[this.def.dataPath] = this.data();
-        return this.def;
+        subpathData[this.initDef.dataPath] = this.defData() as SecDefWithData;
+        return this.initDef;
       case SecDefKind.SectionList:
         if (!this.subSections) {
-          throw new Error(`(${this.def.id}) serialise SectionList lacks sections.`);
+          throw new Error(`(${this.initDef.id}) serialise SectionList lacks sections.`);
         }
         const subSectionDefs = this.subSections().map((section) => section.serialise(subpathData));
-        return { ...this.def, subsections: subSectionDefs };
+        return { ...this.initDef, subsections: subSectionDefs };
       case SecDefKind.UiCell:
       case SecDefKind.WorkerCell:
-        return this.data();
+        return this.defData();
+      case SecDefKind.Placeholder:
+        return this.defData();
     }
   }
 

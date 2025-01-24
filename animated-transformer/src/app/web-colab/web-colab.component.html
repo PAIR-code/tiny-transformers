@@ -91,14 +91,14 @@
         fixedBottomGap="0"
       >
         <mat-nav-list class="menu-buttons">
-          @for (section of sections; track section.def.id) {
-            <a [href]="'#sec:' + section.def.id">
+          @for (section of sections; track section.initDef.id) {
+            <a [href]="'#sec:' + section.initDef.id">
               <mat-list-item
-                [activated]="this.inViewSections.has(section.def.id)"
+                [class.onScreen]="this.inViewSections.has(section.initDef.id)"
                 matListItemTitle
                 ariaCurrentWhenActive="sections"
               >
-                {{ section.def.id }}
+                {{ section.initDef.id }}
               </mat-list-item>
             </a>
           }
@@ -107,9 +107,9 @@
 
       <mat-sidenav-content>
         <div class="sections">
-          @for (section of sections; track section.def.id) {
+          @for (section of sections; track section.initDef.id) {
             <div class="section">
-              <a [name]="'sec:' + section.def.id"></a>
+              <a [name]="'sec:' + section.initDef.id"></a>
               <app-section
                 (inView)="noteInView(section, $event)"
                 (edited)="onSectionEdited(section, $event)"
