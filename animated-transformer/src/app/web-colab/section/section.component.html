@@ -5,7 +5,7 @@
   @if (collapsed()) {
     <button
       class="hostHoverAppear left-margin"
-      (click)="collapsed.set(false)"
+      (click)="uncollapse()"
       mat-icon-button
     >
       <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
@@ -14,7 +14,7 @@
     <button
       mat-icon-button
       class="hostHoverAppear left-margin"
-      (click)="collapsed.set(true)"
+      (click)="collapse()"
     >
       <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
     </button>
@@ -62,7 +62,7 @@
   }
 
   <span
-    (click)="collapsed() && collapsed.set(false)"
+    (click)="collapsed() && uncollapse()"
     class="mini-id-title left-margin"
     [class.hostHoverAppear]="!collapsed()"
     >{{ data.id }}</span

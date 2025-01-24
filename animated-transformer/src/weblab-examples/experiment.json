@@ -2,7 +2,7 @@
   "id": "simple experiment",
   "kind": "SectionList",
   "subsections": [ { 
-      "display": {"collapsed": false},
+      "display": {"collapsed": true},
       "id": "about",
       "io": { 
         "outputs": { 
@@ -13,7 +13,7 @@
       "timestamp": 1737758823352,
       "uiView": "Markdown" },
     { 
-      "display": {"collapsed": false},
+      "display": {"collapsed": true},
       "id": "Task Configuration",
       "io": { 
         "outputs": { 

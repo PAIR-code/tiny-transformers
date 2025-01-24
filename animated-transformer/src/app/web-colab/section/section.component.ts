@@ -16,6 +16,8 @@ limitations under the License.
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  effect,
   ElementRef,
   inject,
   Inject,
@@ -75,6 +77,17 @@ export class SectionComponent {
   collapsed = signal(false);
   editDefView = signal(false);
 
+  collapse() {
+    this.collapsed.set(true);
+    this.section().initDef.display.collapsed = true;
+    this.edited.emit(true);
+  }
+  uncollapse() {
+    this.collapsed.set(false);
+    this.section().initDef.display.collapsed = true;
+    this.edited.emit(true);
+  }
+
   constructor(private thisElement: ElementRef) {
     const iconRegistry = inject(MatIconRegistry);
     const sanitizer = inject(DomSanitizer);
@@ -120,8 +133,7 @@ export class SectionComponent {
   }
 
   ngAfterViewInit() {
-    const display = this.section().initDef.display || {};
-    this.collapsed.set(display.collapsed || false);
+    this.collapsed.set(this.section().initDef.display.collapsed);
   }
 
   ngOnDestroy() {
