@@ -16,7 +16,6 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SectionComponent } from './section.component';
-import { Experiment } from 'src/lib/weblab/experiment';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { MarkdownModule } from 'ngx-markdown';

@@ -27,7 +27,7 @@ import {
 import { defaultTinyWorldTaskConfig } from '../lib/seqtasks/tiny_worlds';
 import { toyCellKind } from './toycell.kind';
 import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
-import { BrowserDirDataResolver, LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
+import { LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
 import { JsonValue } from 'src/lib/json/json';
 
 export const initExpDef: SecDefOfSecList = {
@@ -36,6 +36,7 @@ export const initExpDef: SecDefOfSecList = {
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   subsections: [],
+  display: { collapsed: false },
 };
 
 export const simpleMarkdownSecDef: SecDefOfUiView = {
@@ -52,6 +53,7 @@ export const simpleMarkdownSecDef: SecDefOfUiView = {
     },
   },
   uiView: ViewerKind.MarkdownOutView,
+  display: { collapsed: false },
 };
 
 export const taskConfigJsonSecDef: SecDefOfUiView = {
@@ -68,6 +70,7 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
     },
   },
   uiView: ViewerKind.JsonObjOutView,
+  display: { collapsed: false },
 };
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
@@ -90,6 +93,7 @@ export const genConfigJsonSecDef: SecDefOfUiView = {
     },
   },
   uiView: ViewerKind.JsonObjOutView,
+  display: { collapsed: false },
 };
 
 export function simpleInlineCodeSecDefFn(): SecDefOfWorker & {
@@ -106,6 +110,7 @@ export function simpleInlineCodeSecDefFn(): SecDefOfWorker & {
       kind: CellCodeRefKind.InlineWorkerJsCode,
       js: 'console.log("hello world from simple cell!");',
     },
+    display: { collapsed: false },
   };
 }
 
@@ -124,6 +129,7 @@ export function simpleCellPathSecDefFn(): SecDefOfWorker & {
       tsSrcPath: 'toycell.worker.ts',
       jsPath: 'dist/toycell.worker.js',
     },
+    display: { collapsed: false },
   };
 }
 
@@ -153,6 +159,7 @@ export function simpleUrlCodeSecDefFn(): SecDefOfWorker & {
       tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
       jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js',
     },
+    display: { collapsed: false },
   };
 }
 
@@ -165,6 +172,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
       '/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples',
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     subsections: [],
+    display: { collapsed: false },
   };
   const dataResolver = new LocalCacheDataResolver<JsonValue>();
 
@@ -195,6 +203,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
       },
     },
     uiView: ViewerKind.MarkdownOutView,
+    display: { collapsed: false },
   };
 
   // TODO: add entries for URLs and Paths.

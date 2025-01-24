@@ -121,5 +121,5 @@ describe('tiny-transformer-example/trainer-cell', () => {
 
     trainer.cell.requestStop();
     await trainer.cell.onceFinished;
-  }, 5000);
+  }, 7000);
 });

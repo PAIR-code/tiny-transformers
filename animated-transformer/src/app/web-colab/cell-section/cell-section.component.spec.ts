@@ -41,6 +41,7 @@ describe('CellSectionComponent', () => {
       id: 'toy experiment name 1',
       timestamp: Date.now(),
       subsections: [],
+      display: { collapsed: false },
     };
     // const code = "console.log('Hello from web worker!')";
     const section1: SecDefOfWorker = {
@@ -52,6 +53,7 @@ describe('CellSectionComponent', () => {
         js: '1 + 1;',
       },
       io: {},
+      display: { collapsed: false },
     };
     const experiment = new Experiment(lab, [], exp1Data, new InMemoryDataResolver());
     await experiment.appendLeafSectionFromDataDef(section1);

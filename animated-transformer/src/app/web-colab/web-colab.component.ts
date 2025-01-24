@@ -56,7 +56,7 @@ import {
   LocalCacheDataResolver,
 } from '../../lib/weblab/data-resolver';
 import { SectionComponent } from './section/section.component';
-import { SecDefOfSecList, SecDefWithData, SomeSection } from 'src/lib/weblab/section';
+import { SecDefOfSecList, SecDefWithData, Section } from 'src/lib/weblab/section';
 import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
 import { tryer } from 'src/lib/utils';
 // import { CellRegistryService } from '../cell-registry.service';
@@ -215,15 +215,15 @@ export class WebColabComponent {
     this.tryLoadExperimentFromCache();
   }
 
-  noteInView(section: SomeSection, inView: boolean) {
+  noteInView(section: Section, inView: boolean) {
     if (inView) {
-      this.inViewSections.add(section.def.id);
+      this.inViewSections.add(section.initDef.id);
     } else {
-      this.inViewSections.delete(section.def.id);
+      this.inViewSections.delete(section.initDef.id);
     }
   }
 
-  onSectionEdited(section: SomeSection, edited: boolean) {
+  onSectionEdited(section: Section, edited: boolean) {
     if (edited) {
       this.editedCacheSections.add(section);
       this.diskState.set(SaveState.Edited);

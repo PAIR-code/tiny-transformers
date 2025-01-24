@@ -67,35 +67,36 @@ export enum SecDefKind {
 }
 
 export type SectionDisplay = {
-  hidden?: boolean;
-  collapsed?: boolean;
-  initialLimittedHeightPx?: number;
+  // hidden?: boolean;
+  collapsed: boolean;
+  // initialLimittedHeightPx?: number;
 };
 
 export type SecDefOfPlaceholder = {
   kind: SecDefKind.Placeholder;
   id: string;
-  display?: SectionDisplay;
-  loadingState?: {
-    loadingError?: string;
-    loading: boolean;
-  };
+  display: SectionDisplay;
+  // TODO: consider lazy loading, and placeholders being used to show the status
+  // of something being loaded...
+  //
+  // loadingState?: { loadingError?: string; loading: boolean;
+  // };
 };
 
-export type SecDefByRef = {
+export type SecDefOfRef = {
   kind: SecDefKind.Ref;
   // This cell's ID.
   id: string;
   // Reference to other cell's ID.
   refId: string;
-  display?: SectionDisplay;
+  display: SectionDisplay;
 };
 
 export type SecDefByPath = {
   kind: SecDefKind.Path;
   id: string; // unclear if this should be here, or in the data?
   dataPath: string; // URI to a file containing ExpCellData.
-  display?: SectionDisplay;
+  display: SectionDisplay;
 };
 
 // export type SecDefOfJsonValue = {
@@ -125,7 +126,7 @@ export type SecDefOfSecList = {
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   vsCodePathRoot?: string;
   subsections: SecDef[];
-  display?: SectionDisplay;
+  display: SectionDisplay;
   // displayKind: ExpCellDisplayKind;
 };
 
@@ -141,7 +142,7 @@ export type SecDefOfUiView = {
   timestamp: number;
   io: IOSectionContent;
   uiView: ViewerKind;
-  display?: SectionDisplay;
+  display: SectionDisplay;
 };
 
 export type SecDefOfWorker = {
@@ -150,11 +151,11 @@ export type SecDefOfWorker = {
   timestamp: number;
   io: IOSectionContent;
   cellCodeRef: CellCodeRef;
-  display?: SectionDisplay;
+  display: SectionDisplay;
 };
 
 export type SecDefWithIo = SecDefOfWorker | SecDefOfUiView;
-export type SecDefWithData = SecDefWithIo | SecDefOfSecList | SecDefOfPlaceholder | SecDefByRef;
+export type SecDefWithData = SecDefWithIo | SecDefOfSecList | SecDefOfPlaceholder | SecDefOfRef;
 export type SecDef = SecDefWithData | SecDefByPath;
 
 // ============================================================================
@@ -277,6 +278,9 @@ function isUiSection(s: Section<any>): s is Section<SecDefOfUiView> {
 }
 
 export type PathSection = Section & { initDef: SecDefByPath };
+export type ListSection = Section<SecDefOfSecList> & { subSections: SetableSignal<Section[]> };
+export type WorkerSection = Section<SecDefOfWorker> & { cell: SectionCellData };
+export type RefSection = Section<SecDefOfRef> & { initDef: SecDefOfRef };
 
 // ============================================================================
 //
@@ -306,9 +310,9 @@ export class Section<
   // // For cells initialised by Path
   // pathDef?: SecDefByPath;
   // For WorkerCell
-  cell!: Def extends SecDefOfWorker ? SectionCellData : undefined;
+  cell?: SectionCellData;
   // For Subsections
-  subSections!: Def extends SecDefOfSecList ? SetableSignal<Section[]> : undefined;
+  subSections?: SetableSignal<Section[]>;
 
   // For IO Sections (always empty except for UiCell and Worker)
   inputs = {} as { [Key in keyof I]: AbstractSignal<I[Key] | null> };
@@ -317,6 +321,10 @@ export class Section<
   dependsOnOutputsFrom: Set<Section<SecDefWithIo>> = new Set();
 
   // --------------------------------------------------------------------------
+  isPathSection(): this is PathSection {
+    return this.initDef.kind === SecDefKind.Path;
+  }
+
   isIoSection(): this is Section<SecDefWithIo> {
     return this.defData().kind === SecDefKind.UiCell || this.initDef.kind === SecDefKind.WorkerCell;
   }
@@ -327,38 +335,42 @@ export class Section<
     return this as Section<SecDefWithIo>;
   }
 
-  isWorkerSection(): this is Section<SecDefOfWorker> {
+  isWorkerSection(): this is WorkerSection {
     return this.defData().kind === SecDefKind.WorkerCell;
   }
-  assertWorkerSection(): Section<SecDefOfWorker> & { cell: SectionCellData } {
+  assertWorkerSection(): WorkerSection {
     if (!this.isWorkerSection()) {
       throw new Error(`assertWorkerSection failed on defData: ${JSON.stringify(this.defData())}`);
     }
-    return this as Section<SecDefOfWorker>;
+    return this;
   }
 
   isPlaceholderSection(): this is Section<SecDefOfPlaceholder> {
     return this.defData().kind === SecDefKind.Placeholder;
   }
 
-  isRefSection(): this is Section<SecDefWithData> {
+  isRefSection(): this is RefSection {
     return this.defData().kind === SecDefKind.Ref;
   }
-  assertRefSection(): Section<SecDefWithData> & { initDef: SecDefByRef } {
+  assertRefSection(): RefSection {
     if (!this.isRefSection()) {
       throw new Error(
         `Can only update ref target id of ref, but was: ${JSON.stringify(this.initDef)}`,
       );
     }
-    return this as Section<SecDefWithData> & { initDef: SecDefByRef };
+    return this;
   }
 
-  isPathSection(): this is Section<SecDefWithData> {
-    return this.initDef.kind === SecDefKind.Path;
-  }
-
-  isListSection(): this is Section<SecDefOfSecList> & { subSections: SetableSignal<Section[]> } {
+  isListSection(): this is ListSection {
     return this.initDef.kind === SecDefKind.SectionList;
+  }
+  assertListSection(): ListSection {
+    if (!this.isListSection()) {
+      throw new Error(
+        `Can only update ref target id of ref, but was: ${JSON.stringify(this.initDef)}`,
+      );
+    }
+    return this;
   }
 
   // --------------------------------------------------------------------------
@@ -371,25 +383,24 @@ export class Section<
   ) {
     this.space = this.experiment.space;
     this.initDef.display = this.initDef.display || {};
-    if (initDef.kind === SecDefKind.Ref || initDef.kind === SecDefKind.Path) {
+    if (initDef.kind === SecDefKind.Path) {
       const placeholderDef: SecDefOfPlaceholder = {
         kind: SecDefKind.Placeholder,
         id: initDef.id,
-        loadingState: {
-          loading: true,
-        },
+        display: { collapsed: false },
+        // loadingState: {
+        //   loading: true,
+        // },
       };
       this.defData = this.space.setable(placeholderDef as Def);
     } else {
       this.defData = this.space.setable(initDef as Def);
-      if (isSecListDef(initDef)) {
-        this.subSections = this.space.setable<Section[]>([]) as Def extends SecDefOfSecList
-          ? SetableSignal<Section[]>
-          : undefined;
-      } else if (isIoSecDef(initDef)) {
-        this.initOutputs();
-      }
     }
+  }
+
+  initSubSections() {
+    const thisSection = this.assertListSection();
+    thisSection.subSections = this.space.setable<Section[]>([]);
   }
 
   async substPlaceholder(def: SecDefWithData) {
@@ -470,10 +481,10 @@ export class Section<
           }
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
-          console.log('code', cellCodeCache);
+          console.log('CellCodeRefKind.PathToWorkerCode: code: ', cellCodeCache);
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
-          thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
+          thisSection.cell = { controller, cellCodeCache, cellObjectUrl } as SectionCellData;
         } catch (e) {
           console.error(e);
           const cellCodeCache = 'throw new Error("Failed to init path based cell")';
@@ -582,7 +593,9 @@ export class Section<
     const thisSection = this.assertWorkerSection();
     const data = thisSection.defData();
     if (!this.cell || this.cell.controller.status() !== CellStatus.NotStarted) {
-      throw new Error(`Cell (${this.defData().id}): Can only start a connect a not-started cell`);
+      console.log('connectWorkerCell: data:', data);
+      console.log('connectWorkerCell: cell:', this.cell);
+      throw new Error(`Cell (${this.defData().id}): Can only connect a not-started cell`);
     }
 
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
@@ -628,25 +641,7 @@ export class Section<
   }
 
   serialise(subpathData: { [path: string]: SecDefWithData }): SecDef {
-    switch (this.initDef.kind) {
-      case SecDefKind.Ref:
-        return this.initDef;
-      case SecDefKind.Path:
-        // Note: paths must always go to SecDefWithData, i.e. UiCell or WorkerCell.
-        subpathData[this.initDef.dataPath] = this.defData() as SecDefWithData;
-        return this.initDef;
-      case SecDefKind.SectionList:
-        if (!this.subSections) {
-          throw new Error(`(${this.initDef.id}) serialise SectionList lacks sections.`);
-        }
-        const subSectionDefs = this.subSections().map((section) => section.serialise(subpathData));
-        return { ...this.initDef, subsections: subSectionDefs };
-      case SecDefKind.UiCell:
-      case SecDefKind.WorkerCell:
-        return this.defData();
-      case SecDefKind.Placeholder:
-        return this.defData();
-    }
+    return serialise(this as Section<any>, this.initDef, subpathData);
   }
 
   dispose() {
@@ -666,5 +661,34 @@ export class Section<
       dep.node.dispose();
     }
     // TODO: remove the now un-needed derivedLazy dep.
+  }
+}
+
+// ----------------------------------------------------------------------------
+function serialise(
+  section: Section,
+  def: SecDef,
+  subpathData: { [path: string]: SecDefWithData },
+): SecDef {
+  switch (def.kind) {
+    case SecDefKind.Path:
+      // Note: paths must always have data as SecDefWithData.
+      subpathData[def.dataPath] = serialise(
+        section,
+        section.defData(),
+        subpathData,
+      ) as SecDefWithData;
+      return def;
+    case SecDefKind.SectionList:
+      if (!section.subSections) {
+        throw new Error(`(${def.id}) serialise SectionList lacks sections.`);
+      }
+      const subSectionDefs = section.subSections().map((section) => section.serialise(subpathData));
+      return { ...def, subsections: subSectionDefs };
+    case SecDefKind.Ref:
+    case SecDefKind.UiCell:
+    case SecDefKind.WorkerCell:
+    case SecDefKind.Placeholder:
+      return section.defData();
   }
 }

@@ -38,13 +38,14 @@ import { LabEnv } from '../distr-signals/lab-env';
 import {
   Section,
   SecDefByPath,
-  SecDefByRef,
+  SecDefOfRef,
   SecDefKind,
   SecDefWithData,
   SecDefOfSecList,
   SecDef,
   SecDefOfWorker,
   SecDefOfPlaceholder,
+  ListSection,
 } from './section';
 import { SignalReceiveChannel } from '../distr-signals/channels';
 import { CellKind, ValueStruct } from '../distr-signals/cell-kind';
@@ -82,7 +83,7 @@ export class Experiment {
   // Invariant: Set(sections.values()) === Set(sectionOrdering)
   // Signals an update when list of ids changes.
   //
-  section: Section<SecDefOfSecList>;
+  section: ListSection;
 
   // Map from section id to the canonical ExpSection, for faster lookup, and
   // also for finding canonical instance.
@@ -104,7 +105,8 @@ export class Experiment {
     public dataResolver: AbstractDataResolver<JsonValue>,
   ) {
     this.space = env.space;
-    this.section = new Section<SecDefOfSecList>(this, def);
+    this.section = new Section(this, def) as ListSection;
+    this.section.initSubSections();
 
     // this.topLevelSections = this.space.setable<SomeSection[]>([]);
     // this.section.subSections = this.topLevelSections;
@@ -122,7 +124,7 @@ export class Experiment {
     return this.section.subSections as SetableSignal<Section[]>;
   }
 
-  appendSectionFromRefDef(secRefDef: SecDefByRef): Section {
+  appendSectionFromRefDef(secRefDef: SecDefOfRef): Section {
     const section = new Section(this, secRefDef);
     this.appendSection(section);
 
@@ -162,7 +164,7 @@ export class Experiment {
     const section = new Section(this, secDef);
     if (section.isIoSection()) {
       if (section.isWorkerSection()) {
-        section.initSectionCellData(this.dataResolver, {
+        await section.initSectionCellData(this.dataResolver, {
           // TODO: think about if there are case where this needs to be false for
           // manual construction?
           fromCache: true,
@@ -180,6 +182,7 @@ export class Experiment {
     const secDef: SecDefOfPlaceholder = {
       kind: SecDefKind.Placeholder,
       id: `${Date.now()}`,
+      display: { collapsed: false },
     };
     const newSection = new Section(this, secDef);
     this.sectionMap.set(secDef.id, newSection as Section);
@@ -246,7 +249,7 @@ export class Experiment {
 type SecListBeingLoaded = {
   // addedSubDefs: string[];
   subSecDefs: SecDef[];
-  parentSection: Section<SecDefOfSecList>;
+  parentSection: ListSection;
 };
 
 export async function loadExperiment(
@@ -287,14 +290,15 @@ export async function loadExperiment(
       let subsecDefData: SecDefWithData;
       if (subSecDef.kind === SecDefKind.Path) {
         subsecDefData = (await dataResolver.load(subSecDef.dataPath)) as SecDefWithData;
-        section.substPlaceholder(subsecDefData);
+        section.defData.set(subsecDefData);
       } else {
         subsecDefData = subSecDef;
       }
 
       switch (subsecDefData.kind) {
         case SecDefKind.SectionList: {
-          const listSection = section as Section<SecDefOfSecList>;
+          const listSection = section as ListSection;
+          listSection.initSubSections();
           const toAddSubSecsTo: SecListBeingLoaded = {
             parentSection: listSection,
             subSecDefs: listSection.defData().subsections,
@@ -303,11 +307,13 @@ export async function loadExperiment(
           break;
         }
         case SecDefKind.UiCell: {
+          section.initOutputs();
           ioSections.push(section as Section);
           break;
         }
         case SecDefKind.WorkerCell: {
           const workerSection = section as Section<SecDefOfWorker>;
+          workerSection.initOutputs();
           ioSections.push(workerSection as Section);
           workerSection.initSectionCellData(dataResolver, config);
           break;

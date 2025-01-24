@@ -18,7 +18,7 @@ import { Experiment, loadExperiment } from './experiment';
 import { InMemoryDataResolver } from './data-resolver';
 import {
   SecDefByPath,
-  SecDefByRef,
+  SecDefOfRef,
   SecDefKind,
   SecDefOfSecList,
   SecDefOfUiView,
@@ -44,6 +44,7 @@ describe('experiment', () => {
         },
       },
       uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
     const section2_1: SecDefOfUiView = {
@@ -59,12 +60,14 @@ describe('experiment', () => {
         },
       },
       uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
-    const section2_2: SecDefByRef = {
+    const section2_2: SecDefOfRef = {
       kind: SecDefKind.Ref,
       id: 'section2_2',
       refId: 'section1',
+      display: { collapsed: false },
     };
 
     const section2: SecDefOfSecList = {
@@ -72,12 +75,14 @@ describe('experiment', () => {
       id: 'section2',
       timestamp: Date.now(),
       subsections: [section2_1, section2_2],
+      display: { collapsed: false },
     };
 
     const section3: SecDefByPath = {
       kind: SecDefKind.Path,
       id: 'section3',
       dataPath: 'foo:/exp1/sec3.secdef.json',
+      display: { collapsed: false },
     };
 
     const exp1Data: SecDefOfSecList = {
@@ -85,6 +90,7 @@ describe('experiment', () => {
       id: 'toy experiment name 1',
       timestamp: Date.now(),
       subsections: [section1, section2, section3],
+      display: { collapsed: false },
     };
 
     const sec3Node: SecDefOfUiView = {
@@ -100,6 +106,7 @@ describe('experiment', () => {
         },
       },
       uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
     const dataResolver = new InMemoryDataResolver({
@@ -115,6 +122,8 @@ describe('experiment', () => {
     expect(exp1.topLevelSections().length).toEqual(3);
 
     const { data, subpathData } = exp1.serialise();
+    console.log('data', data);
+    console.log('subpathData', subpathData);
 
     expect(data).toEqual(exp1Data);
     expect(subpathData!['foo:/exp1/sec3.secdef.json']).toEqual(sec3Node);

@@ -46,7 +46,7 @@ import {
   CellCodeRefKind,
   SecDefOfWorker,
   SectionCellData,
-  SomeSection,
+  Section,
 } from '../../../lib/weblab/section';
 import { DomSanitizer } from '@angular/platform-browser';
 
@@ -76,7 +76,7 @@ import { DomSanitizer } from '@angular/platform-browser';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CellSectionComponent implements OnInit, OnDestroy {
-  readonly section = input.required<SomeSection>();
+  readonly section = input.required<Section>();
   cell!: SectionCellData;
   status: WritableSignal<CellStatus>;
   def!: SecDefOfWorker;
@@ -104,7 +104,7 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     const section = this.section();
     const space = section.space;
     this.cell = section.cell as SectionCellData;
-    this.def = section.data() as SecDefOfWorker;
+    this.def = section.defData() as SecDefOfWorker;
 
     space.derived(() => {
       this.status.set(this.cell.controller.status());

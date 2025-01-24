@@ -39,13 +39,7 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import {
-  SecDefKind,
-  SecDefWithData,
-  SectionDisplay,
-  SomeSection,
-  ViewerKind,
-} from 'src/lib/weblab/section';
+import { SecDefKind, SecDefWithData, Section, ViewerKind } from 'src/lib/weblab/section';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -70,7 +64,7 @@ export class SectionComponent {
   readonly edited = output<boolean>();
   readonly inView = output<boolean>();
   readonly experiment = input.required<Experiment>();
-  readonly section = input.required<SomeSection>();
+  readonly section = input.required<Section>();
   // sectionTemplateRef = viewChild.required<Component>('');
 
   intersectionObserver: IntersectionObserver;
@@ -126,7 +120,7 @@ export class SectionComponent {
   }
 
   ngAfterViewInit() {
-    const display = this.section().def.display || {};
+    const display = this.section().initDef.display || {};
     this.collapsed.set(display.collapsed || false);
   }
 
@@ -140,7 +134,7 @@ export class SectionComponent {
     }
     const section = this.section();
     const newDef = update.obj as SecDefWithData;
-    this.section().data.set(newDef);
+    this.section().defData.set(newDef);
     if (newDef.kind === SecDefKind.UiCell) {
       for (const k of Object.keys(section.outputs)) {
         section.outputs[k].set(newDef.io.outputs![k].lastValue);

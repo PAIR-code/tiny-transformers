@@ -1,5 +1,5 @@
 @let sec = section();
-@let data = sec.data();
+@let data = sec.defData();
 
 <div class="small-buttons">
   @if (collapsed()) {
@@ -75,9 +75,9 @@
   <div class="expanded-section">
     @if (editDefView()) {
       <app-codemirror-config-editor
-        [whatIsBeingEditedName]="sec.def.id"
+        [whatIsBeingEditedName]="sec.defData().id"
         [defaultConfig]="'{}'"
-        [config]="stringifyJsonValue(sec.data())"
+        [config]="stringifyJsonValue(sec.defData())"
         [closable]="false"
         (update)="handleDefUpdate($event)"
       ></app-codemirror-config-editor>
@@ -99,7 +99,7 @@
               @let jsonObjSignal = sec.outputs["jsonObj"];
               @if (jsonObjSignal()) {
                 <app-codemirror-config-editor
-                  [whatIsBeingEditedName]="sec.def.id"
+                  [whatIsBeingEditedName]="sec.defData().id"
                   [defaultConfig]="'{}'"
                   [config]="stringifyJsonValue(jsonObjSignal())"
                   [closable]="false"
