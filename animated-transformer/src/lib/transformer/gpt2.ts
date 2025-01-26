@@ -34,10 +34,9 @@ import {
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { initLayerNormParamsWithDims, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { dropout } from './dropout';
-import { BasicTaskTokenRep, StrSeqPrepFn, embedBatchWithTokenizer } from '../tokens/token_gemb';
+import { BasicTaskTokenRep, StrSeqPrepFn, tokenizeAndMapToIdx, embedBatch } from '../tokens/token_gemb';
 import { RandomStream } from '../random/random';
-import { causalMask, BatchAttnHeadComputation } from './transformer_gtensor';
-import r50k_base from 'gpt-tokenizer/esm/encoding/r50k_base';
+import { causalMask, BatchAttnHeadComputation, TransformerComputation, transformerTopPrediction } from './common_transformer';
 
 export type Config = {
   id: string;
@@ -159,7 +158,6 @@ export type AttnHeadParams = {
   keyMBias: GTensor<'heads' | 'kq'>;
   valueMBias: GTensor<'heads' | 'value'>;
   headsToInputRepMBias: GTensor<'inputRepToFF'>;
-
   layerNormHeadsProjection?: LayerNormParams<'inputRepToFF'>;
   layerNormPreAttention?: LayerNormParams<'inputRep'>;
   ff1: FfParams<'inputRepToFF', 'hiddenRep'>;
@@ -367,10 +365,6 @@ export function initDecoderParams(config: Config): TransformerParams {
   return transformerParams;
 }
 
-export type TransformerComputation = {
-  layers: BatchAttnHeadComputation[];
-};
-
 export function computeTransformer(
   model: {
     config: { spec: TransformerParamSpec };
@@ -407,77 +401,6 @@ export function computeTransformer(
   return compute;
 }
 
-/** Batch compute of the final token ids.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function lastTokenLogits(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch' | 'tokenId'> {
-  const lastLayer = computation.layers[computation.layers.length - 1];
-  const positionParams = lastLayer.seqOutput.unstack('pos');
-  const lastPosParams = positionParams[positionParams.length - 1];
-  const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
-  return logits;
-}
-
-/**
- * Returns the average per example loss for the last token prediction.
- */
-export function lastTokenCrossEntropyLoss(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const logits = lastTokenLogits(model, computation);
-  const logProbs = logits.softmax('tokenId').log();
-  const nTokens = model.params.tokenEmbedding.dim.tokenId.size;
-  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, nTokens), ['batch', 'tokenId']);
-  const crossEntopy = logProbs.pointwiseMul(oneHotToken);
-  return (
-    crossEntopy
-      .sumOverDims(['batch', 'tokenId'])
-      ._tfScalarDiv(tf.scalar(targetTokenIdxs.dim.batch.size * -1)).tensor as tf.Scalar
-  );
-}
-
-/** Batch compute the top prediction from the last token of a transformer.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function transformerTopPrediction(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch'> {
-  const dotProd = lastTokenLogits(model, computation);
-  return dotProd.argMax('tokenId');
-}
-
-export function transformerAccuracy(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const predictions = transformerTopPrediction(model, computation);
-  return predictions
-    .pointwiseEqual(targetTokenIdxs)
-    .sumOverDims(['batch'])
-    .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
-}
-
 /** Add positional encodings to the input.
  *
  * This implementation simply creates an embedding for each position.
@@ -490,7 +413,6 @@ export function addPosEmbeddings(
   model: {
     config: {
       spec: TransformerParamSpec;
-      tokenRep?: BasicTaskTokenRep;
     };
     params: TransformerParams;
   },
@@ -554,11 +476,14 @@ export function computeDecoderWithLoadedTokenizer(
   const inputLength = Math.max(model.config.spec.posEncodingSeqLength, maxInputLength);
 
   // Encode inputs using the r50k_base.encode which is the tokenizer used for GPT2.
+  // TODO(@aliciafmachado): There is no clear padding in the vocabulary of GPT2. We are currently using 
+  // the token of idx 0. If propagate the masking to the loss computation this should not be an issue.
   const padTokenId = 0;
-  let gtensorInputs = embedBatchWithTokenizer(
-    tokenize_fn,
+  const inputsIdxs = tokenizeAndMapToIdx(tokenize_fn, inputs);
+
+  let gtensorInputs = embedBatch(
     model.params.tokenEmbedding,
-    inputs,
+    inputsIdxs,
     {
       paddingId: padTokenId,
       padAt: 'start',
