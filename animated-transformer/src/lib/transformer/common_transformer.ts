@@ -153,3 +153,15 @@ export function allPastTokensCrossEntropyLoss(
     return crossEntropyLoss.tensor.asScalar();
 }
 
+export function computeMaxInputLength(
+    posEncodingSeqLength: number,
+    inputs: string[][] | number[][]
+) {
+    const maxInputLength = inputs.reduce(
+        (max, curInput) => (max >= curInput.length ? max : curInput.length),
+        0,
+    );
+    const inputLength = Math.max(posEncodingSeqLength, maxInputLength);
+    return inputLength;
+}
+
