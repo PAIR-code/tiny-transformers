@@ -57,23 +57,38 @@ export function embed(
   return embeddedInput;
 }
 
-// TODO: consider supporting padding string[][] ?
-// pad(inputs: string[][], config: {
-//   paddingId: number;
-//   padAt: 'start' | 'end';
-//   dtype: tf.NumericDataType,
-// }) {
+// Maps tokens in string format to indexes.
+export function mapToIdx(
+  tokenToIdx: { [token: string]: number },
+  examples: string[][]
+): number[][] {
+  const tokenIdxs: number[][] = [];
+  examples.forEach((example) => {
+    tokenIdxs.push(example.map((s) => tokenToIdx[s]))
+  });
+  return tokenIdxs;
+}
 
-// }
+// TODO(@aliciafmachado): Merge this function with the one below
+// once we create a class to wrap the tokenization.
+export function tokenizeAndMapToIdx(
+  tokenize_fn: (input: string) => number[],
+  examples: string[]
+): number[][] {
+  const tokenIdxs: number[][] = [];
+  examples.forEach((example) => {
+    tokenIdxs.push(tokenize_fn(example))
+  });
+  return tokenIdxs;
+}
 
 // When batchSize is defined and batchSize > examples.length, then
 // padding-filled examples are added to the final output GTensor. When
 // batchSize < examples.length, examples is truncated to make the output
 // GTensor.
 export function embedBatch(
-  tokenToIdx: { [token: string]: number },
   embeddings: GTensor<'tokenId' | 'inputRep'>,
-  examples: string[][],
+  examples: number[][],
   config: {
     paddingId: number;
     padAt: 'start' | 'end';
@@ -91,7 +106,6 @@ export function embedBatch(
   let maxInputLength = 0;
   if (!config.maxInputLength) {
     examples.forEach((l) => (maxInputLength = Math.max(l.length, maxInputLength)));
-    examples.map((l) => l.map((s) => tokenToIdx[s]));
   } else {
     maxInputLength = config.maxInputLength;
   }
@@ -99,13 +113,10 @@ export function embedBatch(
   examples.forEach((example) => {
     if (example.length >= maxInputLength) {
       const tensor = tf.tensor1d(
-        example.slice(0, maxInputLength).map((s) => tokenToIdx[s]),
+        example.slice(0, maxInputLength),
         config.dtype
       );
       inputEmbList.push(tensor);
-      // console.log(l)
-      // console.log(l.map(s => this.tokenToIdx[s]))
-      // console.log(tensor.dataSync())
     } else if (example.length === 0) {
       const tensor = tf.fill([maxInputLength], config.paddingId, config.dtype);
       inputEmbList.push(tensor);
@@ -116,7 +127,7 @@ export function embedBatch(
           : [[0, maxInputLength - example.length]];
       const tensor = tf.pad(
         tf.tensor1d(
-          example.map((s) => tokenToIdx[s]),
+          example,
           config.dtype
         ),
         paddingLocation,
@@ -136,72 +147,6 @@ export function embedBatch(
 
   const batchTokenIds = new GTensor(tf.stack(inputEmbList, 0), ['batch', 'pos']);
 
-  const batchedinputEmbs = new GTensor(tf.gather(embeddings.tensor, batchTokenIds.tensor), [
-    'batch',
-    'pos',
-    'inputRep',
-  ]);
-
-  return batchedinputEmbs;
-}
-
-export function embedBatchWithTokenizer(
-  tokenize_fn: (input: string) => number[],
-  embeddings: GTensor<'tokenId' | 'inputRep'>,
-  examples: string[],
-  config: {
-    paddingId: number;
-    padAt: 'start' | 'end';
-    dtype: tf.NumericDataType;
-    batchSize?: number;
-    maxInputLength?: number;
-  }
-): GTensor<'batch' | 'pos' | 'inputRep'> {
-  const inputEmbList: tf.Tensor[] = [];
-
-  if (config.batchSize !== undefined && config.batchSize < examples.length) {
-    examples = examples.slice(0, config.batchSize);
-  }
-
-  let maxInputLength = 0;
-  if (!config.maxInputLength) {
-    examples.forEach((l) => (maxInputLength = Math.max(l.length, maxInputLength)));
-    examples.map((l) => tokenize_fn(l));
-  } else {
-    maxInputLength = config.maxInputLength;
-  }
-
-  // Tokenize first and then slice it.
-  examples.forEach((example) => {
-    let tensor = tf.tensor1d(tokenize_fn(example), config.dtype);
-
-    if (tensor.shape[0] >= maxInputLength) {
-      tensor = tensor.slice(0, maxInputLength);
-    } else if (tensor.shape[0] == 0) {
-      tensor = tf.fill([maxInputLength], config.paddingId, config.dtype);
-    } else if (tensor.shape[0] < maxInputLength) {
-      const paddingLocation: [[number, number]] =
-        config.padAt === 'start'
-          ? [[maxInputLength - tensor.shape[0], 0]]
-          : [[0, maxInputLength - tensor.shape[0]]];
-      tensor = tf.pad(
-        tensor,
-        paddingLocation,
-        config.paddingId
-      );
-    }
-    inputEmbList.push(tensor);
-  });
-
-  if (config.batchSize !== undefined && config.batchSize > examples.length) {
-    const nPaddingExamples = Math.max(examples.length - config.batchSize);
-    for (let i = 0; i < nPaddingExamples; i++) {
-      const tensor = tf.fill([maxInputLength], config.paddingId, config.dtype);
-      inputEmbList.push(tensor);
-    }
-  }
-
-  const batchTokenIds = new GTensor(tf.stack(inputEmbList, 0), ['batch', 'pos']);
   const batchedinputEmbs = new GTensor(tf.gather(embeddings.tensor, batchTokenIds.tensor), [
     'batch',
     'pos',
@@ -288,10 +233,10 @@ export function strSeqPrepFn(
   options: { maxInputLength: number }
 ): GTensor<'batch' | 'pos' | 'inputRep'> {
   const padTokenId = model.config.tokenRep.tokenToIdx[model.config.tokenRep.padToken];
+  const inputSeqsInIdxs = mapToIdx(model.config.tokenRep.tokenToIdx, inputSeqs);
   const batchedInputEmb = embedBatch(
-    model.config.tokenRep.tokenToIdx,
     model.params.tokenEmbedding,
-    inputSeqs,
+    inputSeqsInIdxs,
     {
       paddingId: padTokenId,
       padAt: 'start',
