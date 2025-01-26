@@ -22,7 +22,6 @@ limitations under the License.
  * TODO: Adam optimiser / others (currently only have SGD).
  * TODO: backprop to embeddings too.
  */
-import { oneHot } from '@tensorflow/tfjs';
 import * as tf from '@tensorflow/tfjs';
 import {
   GTensor,
@@ -454,16 +453,10 @@ export function computeDecoder(
     };
     params: TransformerParams;
   },
-  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  inputs: string[][],
+  inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
   generator: RandomStream,
 ): TransformerComputation {
-  const maxInputLength = inputs.reduce(
-    (max, curInput) => (max >= curInput.length ? max : curInput.length),
-    0,
-  );
-  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
-  return computeTransformer(model, gtensorInputs, generator);
+  return computeTransformer(model, inputs, generator);
 }
 
 export function computePrediction(
@@ -475,14 +468,22 @@ export function computePrediction(
   inputs: string[][],
   generator: RandomStream,
 ): string[][] {
+  const maxInputLength = inputs.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0,
+  );
+  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
+
+  // Computation.
+  // This could be extended to be next N token prediction.
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
+    const decoderComputation = computeDecoder(model, gtensorInputs, generator);
     const predictions = transformerTopPrediction(model, decoderComputation);
-    return (predictions.tensor.arraySync() as number[]).map((idx) => [
-      model.config.tokenRep.tokens[idx],
-    ]);
+    return predictions.tensor;
   });
-  return examplePredictions;
+  return (examplePredictions.arraySync() as number[]).map((idx) => [
+    model.config.tokenRep.tokens[idx],
+  ]);
 }
 
 export function makeTransformer(transformerConfig: TransformerConfig): TransformerModel {
