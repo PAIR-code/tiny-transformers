@@ -147,7 +147,7 @@ describe('GTensor Transformers', () => {
 
   it('GPT2 Tokenization', () => {
     const gpt2Model: gpt2.Config = generateTestGPT2Config();
-    // TODO(@aliciafmachado): GPT2 is too big to fit memory locally:
+    // TODO(@aliciafmachado): GPT2 is too big to fit memory locally. Debug where memory might be leaking.
     // const gpt2Model: gpt2.Config = gpt2.defaultGPT2EvalConfig(generateTestTask(), false);
     const params = gpt2.initDecoderParams(gpt2Model);
     const generator = makeRandomStream(0);
@@ -157,12 +157,6 @@ describe('GTensor Transformers', () => {
     };
 
     const input = ["hello world!", "my name starts with "];
-
-    // TODO(@aliciafmachado): Ideas for debugging memory leaking:
-    // TODO(@aliciafmachado): webgl -> webgpu
-    // TODO(@aliciafmachado): onehot int32 -> boolean, 
-    // TODO(@aliciafmachado): check sparse representation instead of one hots.
-    // TODO(@aliciafmachado): check if we are using int 4 bytes
     const result = gpt2.computePredictionWithLoadedTokenizer(
       model, r50k_base.encode, r50k_base.decode, input, generator);
 
