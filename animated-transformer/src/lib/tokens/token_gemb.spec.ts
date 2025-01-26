@@ -39,17 +39,6 @@ function tokenize_fn_test(input: string): number[] {
     input.substring(0, input.length / 2)).concat(tokenize_fn_test(input.substring(input.length / 2, input.length)));
 };
 
-function untokenize_fn_test(input: number[]): string {
-  if (input.length == 0)
-    return "";
-  if (input.length == 1 && input[0] == 0)
-    return "a";
-  if (input.length == 1 && input[0] == 1)
-    return "b";
-  return untokenize_fn_test(
-    input.slice(0, input.length / 2)).concat(untokenize_fn_test(input.slice(input.length / 2, input.length)));
-};
-
 describe('token_gemb', () => {
   it('embed', () => {
     const [aEmb, bEmb, padEmb] = [
