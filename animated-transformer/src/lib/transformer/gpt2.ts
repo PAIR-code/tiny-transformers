@@ -490,9 +490,11 @@ export function computePredictionWithLoadedTokenizer(
   // We tokenize directly with the preprocessing function from gpt-tokenizer.
   inputs: string[],
   generator: RandomStream
-  // TODO(@aliciafmachado): save the input as well, and split in two functions: one that tokenizes and one that doesn't.
+  // TODO(@aliciafmachado): save the input as well, and split in two functions: one that tokenizes and one that does not.
+  // The current blocker is that the StrSeqPrepFn does the mapping from token to idx and transforms into embeddings.
+  // We'd need to refactor how we preprocess the data for tasks.
 ): string[] {
-  // Encode inputs using the r50k_base.encode which is the tokenizer used for GPT2.
+  // Encode inputs using a tokenizer (gpt_tokenizer.r50k_base is the encoder used for GPT2).
   // TODO(@aliciafmachado): There is no clear padding in the vocabulary of GPT2. We are currently using 
   // the token of idx 0. If propagate the masking to the loss computation this should not be an issue.
   const padTokenId = 0;
