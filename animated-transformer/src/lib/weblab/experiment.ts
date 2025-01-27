@@ -105,7 +105,7 @@ export class Experiment {
     public dataResolver: AbstractDataResolver<JsonValue>,
   ) {
     this.space = env.space;
-    this.section = new Section(this, def) as ListSection;
+    this.section = new Section(this, def, null) as ListSection;
     this.section.initSubSections();
 
     // this.topLevelSections = this.space.setable<SomeSection[]>([]);
@@ -125,7 +125,7 @@ export class Experiment {
   }
 
   appendSectionFromRefDef(secRefDef: SecDefOfRef): Section {
-    const section = new Section(this, secRefDef);
+    const section = new Section(this, secRefDef, this.section);
     this.appendSection(section);
 
     const existingSection = this.sectionMap.get(secRefDef.refId);
@@ -152,7 +152,7 @@ export class Experiment {
   ): Promise<Section<SecDefWithData>> {
     // TODO: some subtly here about when what gets updated & how. e.g.
     // Users of setableDataDef should not be changing sectionData or sectionData.content
-    const section = new Section(this, secPathDef);
+    const section = new Section(this, secPathDef, this.section);
     this.appendSection(section);
     return section;
   }
@@ -161,7 +161,7 @@ export class Experiment {
   // these are not going to be handled correctly here. This will only work for
   // leaf data right now.
   async appendLeafSectionFromDataDef(secDef: SecDefWithData): Promise<Section<SecDefWithData>> {
-    const section = new Section(this, secDef);
+    const section = new Section(this, secDef, this.section);
     if (section.isIoSection()) {
       if (section.isWorkerSection()) {
         await section.initSectionCellData(this.dataResolver, {
@@ -184,7 +184,7 @@ export class Experiment {
       id: `${Date.now()}`,
       display: { collapsed: false },
     };
-    const newSection = new Section(this, secDef);
+    const newSection = new Section(this, secDef, this.section);
     this.sectionMap.set(secDef.id, newSection as Section);
 
     this.topLevelSections.change((oldList) => {
@@ -244,6 +244,24 @@ export class Experiment {
     const data: SecDefWithData = { ...this.def, subsections: subSectionDefs };
     return { data, subpathData };
   }
+
+  deleteSection(section: Section) {
+    if (!section.parent) {
+      throw new Error(`Can't delete top level experiment section`);
+    }
+    const parentSubsections = section.parent.subSections();
+    const idx = parentSubsections.findIndex((x) => x === section);
+    section.parent.subSections.change((subsections) => subsections.splice(idx, 1));
+    if (section.isWorkerSection()) {
+      section.cell.controller.forceStop();
+    }
+    for (const dep of section.dependsOnMe) {
+      dep.deleteSecIdInInputDeps(section.initDef.id);
+    }
+
+    this.sectionMap.delete(section.initDef.id);
+    section.dispose();
+  }
 }
 
 type SecListBeingLoaded = {
@@ -284,7 +302,7 @@ export async function loadExperiment(
   while ((cur = subsecListsToPopulate.pop())) {
     for (const subSecDef of cur.subSecDefs) {
       // cur.addedSubDefs.push(subSecDef.id);
-      const section = new Section(experiment, subSecDef);
+      const section = new Section(experiment, subSecDef, cur.parentSection);
       experiment.sectionMap.set(subSecDef.id, section as Section);
       cur.parentSection.subSections.change((secs) => secs.push(section));
       let subsecDefData: SecDefWithData;

@@ -380,6 +380,8 @@ export class Section<
     // be the referenced sections data, or if it's a path, it will be the data
     // resolved from reading that path.
     public initDef: SecDef,
+    // The section we are part of. or null for root section.
+    public parent: ListSection | null,
   ) {
     this.space = this.experiment.space;
     this.initDef.display = this.initDef.display || {};
@@ -419,14 +421,32 @@ export class Section<
     thisSection.initDef.refId = newId;
   }
 
+  deleteSecIdInInputDeps(oldSectionId: string) {
+    const thisSection = this.assertIoSection();
+    const data = thisSection.defData();
+    const inputs = data.io.inputs || {};
+    for (const [i, v] of Object.entries(data.io.inputs || {})) {
+      if (v.sectionId === oldSectionId) {
+        delete inputs[i];
+      }
+    }
+    const inStreams = data.io.inStreams || {};
+    for (const [i, v] of Object.entries(inStreams)) {
+      if (v.cellSectionId === oldSectionId) {
+        delete inStreams[i];
+      }
+    }
+  }
+
   renameSecIdInInputDeps(oldId: string, newId: string) {
     const thisSection = this.assertIoSection();
-    for (const [i, v] of Object.entries(thisSection.defData().io.inputs || {})) {
+    const data = thisSection.defData();
+    for (const [i, v] of Object.entries(data.io.inputs || {})) {
       if (v.sectionId === oldId) {
         v.sectionId = newId;
       }
     }
-    for (const [i, v] of Object.entries(thisSection.defData().io.inStreams || {})) {
+    for (const [i, v] of Object.entries(data.io.inStreams || {})) {
       if (v.cellSectionId === oldId) {
         v.cellSectionId = newId;
       }
@@ -655,6 +675,7 @@ export class Section<
       ) {
         this.cell.controller.forceStop();
       }
+      this.cell.controller.disconnect();
       delete this.cell;
     }
     for (const dep of this.dataUpdateDeps) {

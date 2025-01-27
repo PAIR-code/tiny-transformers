@@ -52,13 +52,18 @@
       mat-icon-button
       class="left-margin"
       [class.hostHoverAppear]="!editDefView()"
+      (click)="editDefView.set(!editDefView())"
     >
-      <mat-icon
-        [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
-        (click)="editDefView.set(!editDefView())"
+      <mat-icon [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
         >settings</mat-icon
       >
     </button>
+
+    @if (editDefView()) {
+      <button mat-icon-button class="left-margin" (click)="deleteThisSection()">
+        <mat-icon [svgIcon]="'delete'">delete</mat-icon>
+      </button>
+    }
   }
 
   <span

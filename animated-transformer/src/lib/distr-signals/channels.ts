@@ -115,36 +115,6 @@ function addPipeSignalFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     },
   };
   sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
-
-  // for (const remoteSender of recEnd.remotes) {
-  //   for (const remoteReceiver of sendEnd.remotes) {
-  //     const channel = new MessageChannel();
-
-  //     const remoteSenderMessage: CellMessage = {
-  //       kind: CellMessageKind.AddOutputRemote,
-  //       recipientChannelId: remoteSender.remoteChannelId,
-  //       remote: {
-  //         kind: RemoteKind.MessagePort,
-  //         remoteCellId: remoteReceiver.remoteCellId,
-  //         remoteChannelId: remoteReceiver.remoteChannelId,
-  //         messagePort: channel.port1,
-  //       },
-  //     };
-  //     recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
-
-  //     const remoteReceiverMessage: CellMessage = {
-  //       kind: CellMessageKind.AddInputRemote,
-  //       recipientChannelId: remoteReceiver.remoteChannelId,
-  //       remote: {
-  //         kind: RemoteKind.MessagePort,
-  //         remoteCellId: remoteSender.remoteCellId,
-  //         remoteChannelId: remoteSender.remoteChannelId,
-  //         messagePort: channel.port2,
-  //       },
-  //     };
-  //     sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
-  //   }
-  // }
 }
 
 // Pipe everywhere that sends to recEnd, to now send to everywhere that this
@@ -175,36 +145,6 @@ function addPipeStreamFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     },
   };
   sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
-
-  // for (const remoteSender of recEnd.remotes) {
-  //   for (const remoteReceiver of sendEnd.remotes) {
-  //     const channel = new MessageChannel();
-
-  //     const remoteSenderMessage: CellMessage = {
-  //       kind: CellMessageKind.AddOutStreamRemote,
-  //       recipientChannelId: remoteSender.remoteChannelId,
-  //       remote: {
-  //         kind: RemoteKind.MessagePort,
-  //         remoteCellId: remoteReceiver.remoteCellId,
-  //         remoteChannelId: remoteReceiver.remoteChannelId,
-  //         messagePort: channel.port1,
-  //       },
-  //     };
-  //     recEnd.cellPostFn(remoteSenderMessage, [channel.port1]);
-
-  //     const remoteReceiverMessage: CellMessage = {
-  //       kind: CellMessageKind.AddInStreamRemote,
-  //       recipientChannelId: remoteReceiver.remoteChannelId,
-  //       remote: {
-  //         kind: RemoteKind.MessagePort,
-  //         remoteCellId: remoteSender.remoteCellId,
-  //         remoteChannelId: remoteSender.remoteChannelId,
-  //         messagePort: channel.port2,
-  //       },
-  //     };
-  //     sendEnd.cellPostFn(remoteReceiverMessage, [channel.port2]);
-  //   }
-  // }
 }
 
 // ----------------------------------------------------------------------------

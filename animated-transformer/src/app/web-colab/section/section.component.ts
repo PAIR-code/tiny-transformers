@@ -109,6 +109,9 @@ export class SectionComponent {
       'keyboard_arrow_up',
       'keyboard_arrow_down',
       'settings_applications',
+      'delete',
+      'input',
+      'output',
     ]);
 
     this.intersectionObserver = new IntersectionObserver(
@@ -174,6 +177,11 @@ export class SectionComponent {
 
   addPlaceholder() {
     this.addSecAbove.emit();
+  }
+
+  deleteThisSection() {
+    const section = this.section();
+    section.experiment.deleteSection(section);
   }
 
   // addJsonObjEditor() {}

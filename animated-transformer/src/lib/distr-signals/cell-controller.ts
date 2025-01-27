@@ -21,7 +21,12 @@ limitations under the License.
 
 import { AbstractSignalStructFn, ValueStruct, CellKind, SomeCellKind } from './cell-kind';
 import { CellMessage, CellMessageKind } from 'src/lib/distr-signals/cell-message';
-import { AbstractSignal, SetableSignal, SignalSpace } from '../signalspace/signalspace';
+import {
+  AbstractSignal,
+  DerivedSignal,
+  SetableSignal,
+  SignalSpace,
+} from '../signalspace/signalspace';
 
 import { LabEnv } from './lab-env';
 import {
@@ -92,6 +97,8 @@ export class CellController<
   // they can be outputs from another cell (outputs from another cell as
   // "SignalInput"s to the environment).
   inputs = {} as { [Key in keyof I]: SignalSendChannel<I[Key]> };
+  inputDerivedSignals = {} as { [Key in keyof Partial<I>]: DerivedSignal<void>[] };
+
   // Note: From the environment's view, streams being given in to the worker are
   // coming out of the environment.
   inStreams = {} as { [Key in keyof IStreams]: StreamSendChannel<IStreams[Key]> };
@@ -199,10 +206,16 @@ export class CellController<
           recChannel.addPipeTo(this.inputs[k as keyof I]);
         } else {
           const sendToChannelInput = this.inputs[k].connect();
-          // TODO: should we track and later delete the derived thing...?
-          this.space.derived(() => {
-            sendToChannelInput.set(receiveThing());
-          });
+          // TODO: we should track and later delete the derived thing.
+          let derivedSenders = this.inputDerivedSignals[k as keyof I];
+          if (!derivedSenders) {
+            derivedSenders = this.inputDerivedSignals[k as keyof I] = [];
+          }
+          derivedSenders.push(
+            this.space.derived(() => {
+              sendToChannelInput.set(receiveThing());
+            }),
+          );
         }
       }
     }
@@ -242,6 +255,7 @@ export class CellController<
     });
   }
 
+  // Keeps existing connections via derived nodes and pipes.
   reInitRemotes() {
     for (const inputSignalId of this.cellKind.inputNames) {
       const channel = this.inputs[inputSignalId];
@@ -263,19 +277,49 @@ export class CellController<
         channel.disconnect();
         channel.connect();
       }
-      // channel.recEnd.onceReady.then((signal) => {
-      //   this.outputSoFar[outSignalId] = signal;
-      //   this.stillExpectedOutputs.delete(outSignalId);
-      //   if (this.stillExpectedOutputs.size === 0) {
-      //     this.resolveWithAllOutputsFn(this.outputSoFar as SetableSignalStructFn<O>);
-      //   }
-      // });
     }
     for (const outStreamId of this.cellKind.outStreamNames) {
       const channel = this.outStreams[outStreamId];
       if (channel.remoteConnection) {
         channel.disconnect();
         channel.connect();
+      }
+    }
+  }
+
+  // Note: this also removed derived connections, so they could need to be
+  // manuall re-connected again.
+  disconnect() {
+    for (const inputSignalId of this.cellKind.inputNames) {
+      const derivedSiganlSenders = this.inputDerivedSignals[inputSignalId];
+      if (derivedSiganlSenders) {
+        for (const d of derivedSiganlSenders) {
+          d.node.dispose();
+        }
+        delete this.inputDerivedSignals[inputSignalId];
+      }
+
+      const channel = this.inputs[inputSignalId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+      }
+    }
+    for (const inStreamId of this.cellKind.inStreamNames) {
+      const channel = this.inStreams[inStreamId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+      }
+    }
+    for (const outSignalId of this.cellKind.outputNames) {
+      const channel = this.outputs[outSignalId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
+      }
+    }
+    for (const outStreamId of this.cellKind.outStreamNames) {
+      const channel = this.outStreams[outStreamId];
+      if (channel.remoteConnection) {
+        channel.disconnect();
       }
     }
   }
