@@ -24,11 +24,11 @@
     class="hostHoverAppear left-margin"
     mat-icon-button
     matTooltip="add section"
-    [matMenuTriggerFor]="expandedAddMenu"
+    (click)="addPlaceholder()"
   >
     <mat-icon svgIcon="add">+</mat-icon>
   </button>
-  <mat-menu #expandedAddMenu>
+  <!-- <mat-menu #expandedAddMenu>
     <button mat-menu-item matTooltip="Inline Code" (click)="addInlineCode()">
       inline code
     </button>
@@ -45,7 +45,7 @@
     <button mat-menu-item matTooltip="Json Object" (click)="addJsonObjEditor()">
       json object
     </button>
-  </mat-menu>
+  </mat-menu> -->
 
   @if (!collapsed()) {
     <button
@@ -115,6 +115,9 @@
           <app-cell-section [section]="section()"></app-cell-section>
         }
         @case (SecDefKind.SectionList) {
+          <div>SubExperiment</div>
+        }
+        @case (SecDefKind.Placeholder) {
           <div>SubExperiment</div>
         }
         @default {

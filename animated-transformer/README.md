@@ -23,6 +23,23 @@ NOTE: The dev server listens on 127.0.0.1. If you intend to access the
 dev server from another machine, you'll need to tunnel the traffic using `ssh`'s
 `-L` flag.
 
+In additon to the angular build server, the current setup assumes an additional
+server on port 9000, that serves some library JS files for web-workers to 
+import. This is done via the command: 
+
+```sh
+npx ts-node src/weblab-examples/build.script.ts --mode=serve
+```
+
+This combination allows scripts `src/weblab-examples/` to be served at `http://localhost:4200/scripts/`
+
+And in particular, `lib.worker.js` to be served so that it can be imported into
+WebWorkers with: 
+
+```ts
+importScripts('/scripts/lib.worker.js');
+```
+
 ## Adding an icon
 
 1. Download the SVG of an icon, e.g. from: https://fonts.google.com/icons into

@@ -65,6 +65,8 @@ import { MatMenuModule } from '@angular/material/menu';
 export class SectionComponent {
   readonly edited = output<boolean>();
   readonly inView = output<boolean>();
+  readonly addSecAbove = output<void>();
+
   readonly experiment = input.required<Experiment>();
   readonly section = input.required<Section>();
   // sectionTemplateRef = viewChild.required<Component>('');
@@ -84,7 +86,7 @@ export class SectionComponent {
   }
   uncollapse() {
     this.collapsed.set(false);
-    this.section().initDef.display.collapsed = true;
+    this.section().initDef.display.collapsed = false;
     this.edited.emit(true);
   }
 
@@ -170,13 +172,17 @@ export class SectionComponent {
     this.edited.emit(true);
   }
 
-  addJsonObjEditor() {}
+  addPlaceholder() {
+    this.addSecAbove.emit();
+  }
 
-  addMarkdownEditor() {}
+  // addJsonObjEditor() {}
 
-  addInlineCode() {}
+  // addMarkdownEditor() {}
 
-  addVsCodeCell() {}
+  // addInlineCode() {}
+
+  // addVsCodeCell() {}
 
   // ngOnInit(): void {
   //   // One could get/set components dynamically, but not clear what the value is...

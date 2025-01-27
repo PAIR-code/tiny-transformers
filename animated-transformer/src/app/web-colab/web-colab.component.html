@@ -113,6 +113,7 @@
               <app-section
                 (inView)="noteInView(section, $event)"
                 (edited)="onSectionEdited(section, $event)"
+                (addSecAbove)="addPlaceholderAboveSec(section)"
                 [experiment]="exp"
                 [section]="section"
               ></app-section>

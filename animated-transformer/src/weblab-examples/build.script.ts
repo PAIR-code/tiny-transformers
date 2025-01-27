@@ -18,12 +18,12 @@ npx ts-node src/weblab-examples/build.script.ts
 */
 
 import * as esbuild from 'esbuild';
+import { ServeOnRequestArgs } from 'esbuild';
 import * as glob from 'glob';
 import * as yargs from 'yargs';
 
 // Note: `__dirname` is the directory of this script.
 const config: esbuild.BuildOptions = {
-  // servedir: `${thisDirectoryName}/dist`,
   entryPoints: glob.sync(`${__dirname}/**/*.worker.ts`),
   bundle: true,
   sourcemap: true,
@@ -31,7 +31,7 @@ const config: esbuild.BuildOptions = {
   color: true,
   logLevel: 'info',
   format: 'esm', // recursive out dir paths.
-  outdir: `${__dirname}/dist`,
+  outdir: `${__dirname}/dist/scripts`,
   tsconfig: `${__dirname}/tsconfig.json`,
   // banner: {
   //   js: `new EventSource('/esbuild').addEventListener('change', () => location.reload());`,
@@ -64,6 +64,12 @@ const config: esbuild.BuildOptions = {
     await context.watch();
     await context.serve({
       port: args.port,
+      servedir: `${__dirname}/dist`,
+      onRequest: (args: ServeOnRequestArgs) => {
+        console.log(
+          `Request Log: ${args.method} ${args.path} - Status: ${args.status} - Time: ${args.timeInMS}ms`,
+        );
+      },
     });
   } else {
     throw Error(`Unknown mode: ${args.mode}`);

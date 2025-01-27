@@ -243,6 +243,14 @@ export class WebColabComponent {
     }
   }
 
+  addPlaceholderAboveSec(addAboveThisSection: Section) {
+    const exp = this.experiment();
+    if (!exp) {
+      throw new Error('addPlaceholderAboveSec');
+    }
+    exp.insertPlaceholderSection(addAboveThisSection);
+  }
+
   async _deleteExperimentCache(): Promise<void> {
     // Avoid a pending saving to cache from undoing our deletion of the cache.
     if (this.saveToCachePlannedCallback) {

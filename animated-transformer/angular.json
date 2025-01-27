@@ -76,7 +76,11 @@
               "buildTarget": "tiny-transformers:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "./proxy.conf.json",
+            "verbose": true
+          }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
