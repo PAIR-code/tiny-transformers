@@ -47,14 +47,25 @@ import {
   SecDefOfWorker,
   SectionCellData,
   Section,
+  WorkerSection,
+  CellCodeRef,
 } from '../../../lib/weblab/section';
 import { DomSanitizer } from '@angular/platform-browser';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+import { DerivedSignal } from 'src/lib/signalspace/signalspace';
+import {
+  CodemirrorJavaScriptEditorComponent,
+  CodeStrUpdate,
+  CodeStrUpdateKind,
+} from 'src/app/codemirror-js-editor/codemirror-js-editor.component';
 
 @Component({
   selector: 'app-cell-section',
   imports: [
     FormsModule,
     ReactiveFormsModule,
+    AutoCompletedTextInputComponent,
+    CodemirrorJavaScriptEditorComponent,
     // --
     MatSidenavModule,
     MatProgressBarModule,
@@ -76,13 +87,18 @@ import { DomSanitizer } from '@angular/platform-browser';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CellSectionComponent implements OnInit, OnDestroy {
-  readonly section = input.required<Section>();
+  readonly section = input.required<WorkerSection>();
   cell!: SectionCellData;
   status: WritableSignal<CellStatus>;
   def!: SecDefOfWorker;
   vsCodeLink = signal('');
+  sectionsWithOutputs = signal<string[]>([]);
+  possibleCellOuputs = signal<string[]>([]);
+
+  signalTrackingDerivations = [] as DerivedSignal<void>[];
 
   CellStatus = CellStatus;
+  CellCodeRefKind = CellCodeRefKind;
 
   constructor() {
     const iconRegistry = inject(MatIconRegistry);
@@ -104,7 +120,7 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     const section = this.section();
     const space = section.space;
     this.cell = section.cell as SectionCellData;
-    this.def = section.defData() as SecDefOfWorker;
+    this.def = section.defData();
 
     space.derived(() => {
       this.status.set(this.cell.controller.status());
@@ -124,6 +140,32 @@ export class CellSectionComponent implements OnInit, OnDestroy {
         this.vsCodeLink.set('');
       }
     }
+
+    this.section().experiment.space.derived(() =>
+      this.sectionsWithOutputs.set([...this.section().experiment.secIdsWithOutputs()].sort()),
+    );
+  }
+
+  selectInputSection(inputId: string, selectedCellId: string | null) {
+    // if (!selectedCellId) {
+    //   this.section().io.inputs[inputId].set(null);
+    // }
+    // this.section().experiment.getSection(selectedCellId);
+  }
+
+  handleJsUpdate(changed$: CodeStrUpdate) {
+    if (this.def.cellCodeRef.kind !== CellCodeRefKind.InlineWorkerJsCode) {
+      throw new Error(`JsUpdates should only be for inline code cells`);
+    }
+    if (changed$.kind !== CodeStrUpdateKind.UpdatedValue) {
+      return;
+    }
+    this.def.cellCodeRef.js = changed$.str;
+    const cell = this.section().cell;
+    URL.revokeObjectURL(cell.cellObjectUrl);
+    const blob = new Blob([this.def.cellCodeRef.js], { type: 'application/javascript' });
+    const cellObjectUrl = URL.createObjectURL(blob);
+    cell.cellObjectUrl = cellObjectUrl;
   }
 
   openCodeLink() {
@@ -162,5 +204,9 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     // this.cell.restart();
   }
 
-  ngOnDestroy() {}
+  ngOnDestroy() {
+    for (const d of this.signalTrackingDerivations) {
+      d.node.dispose();
+    }
+  }
 }

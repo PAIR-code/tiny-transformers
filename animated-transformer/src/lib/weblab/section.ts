@@ -160,11 +160,6 @@ export type SecDef = SecDefWithData | SecDefByPath;
 
 // ============================================================================
 
-export type CellSectionInput = {
-  sectionId: string;
-  outputId: string;
-};
-
 // ============================================================================
 
 export enum CellCodeRefKind {
@@ -194,6 +189,16 @@ export type CellCodeRef =
 
 // ============================================================================
 
+export type SectionInputRef = {
+  sectionId: string;
+  outputId: string;
+} | null;
+
+export type SectionInStreamRef = {
+  sectionId: string;
+  outStreamId: string;
+} | null;
+
 export type CellSectionOutput = {
   // Optionally, the last value. Allows restarting from previous computation.
   lastValue?: JsonValue;
@@ -204,11 +209,11 @@ export type CellSectionOutput = {
 export type IOSectionContent = {
   // How inputs to this cell map to either outputs from other cells, or raw
   // JsonObj values.
-  inputs?: { [inputId: string]: CellSectionInput };
+  inputs: { [inputId: string]: SectionInputRef };
   // OutputIds to the last saved value (undefined when not yet defined)
-  outputs?: { [outputId: string]: CellSectionOutput };
-  inStreams?: { [inStreamId: string]: { cellSectionId: string; cellOutStreamId: string } };
-  outStreamIds?: string[];
+  outputs: { [outputId: string]: CellSectionOutput };
+  inStreams: { [inStreamId: string]: SectionInStreamRef };
+  outStreamIds: string[];
 };
 
 // ============================================================================
@@ -234,7 +239,7 @@ export function cellIoForCellSection(c: SecDefOfWorker | SecDefOfUiView): {
   outStreams: ValueKindFnStruct;
 } {
   const inputs: ValueKindFnStruct = {};
-  for (const k of Object.keys(c.io.inputs || {})) {
+  for (const k of Object.keys(c.io.inputs)) {
     inputs[k] = Kind<unknown>;
   }
   const inStreams: ValueKindFnStruct = {};
@@ -424,16 +429,16 @@ export class Section<
   deleteSecIdInInputDeps(oldSectionId: string) {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
-    const inputs = data.io.inputs || {};
-    for (const [i, v] of Object.entries(data.io.inputs || {})) {
-      if (v.sectionId === oldSectionId) {
-        delete inputs[i];
+    const inputs = data.io.inputs;
+    for (const [i, v] of Object.entries(inputs)) {
+      if (v && v.sectionId === oldSectionId) {
+        inputs[i] = null;
       }
     }
     const inStreams = data.io.inStreams || {};
     for (const [i, v] of Object.entries(inStreams)) {
-      if (v.cellSectionId === oldSectionId) {
-        delete inStreams[i];
+      if (v && v.sectionId === oldSectionId) {
+        inStreams[i] = null;
       }
     }
   }
@@ -441,14 +446,14 @@ export class Section<
   renameSecIdInInputDeps(oldId: string, newId: string) {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
-    for (const [i, v] of Object.entries(data.io.inputs || {})) {
-      if (v.sectionId === oldId) {
+    for (const [i, v] of Object.entries(data.io.inputs)) {
+      if (v && v.sectionId === oldId) {
         v.sectionId = newId;
       }
     }
     for (const [i, v] of Object.entries(data.io.inStreams || {})) {
-      if (v.cellSectionId === oldId) {
-        v.cellSectionId = newId;
+      if (v && v.sectionId === oldId) {
+        v.sectionId = newId;
       }
     }
   }
@@ -460,6 +465,9 @@ export class Section<
     }
     this.initDef.id = newId;
 
+    if (this.cell) {
+      this.experiment.noteRenamedWorkerSection(oldId, newId);
+    }
     this.experiment.sectionMap.delete(oldId);
     this.experiment.sectionMap.set(newId, this as Section<any>);
 
@@ -551,6 +559,9 @@ export class Section<
       default:
         throw new Error(`bad cellCodeRef: ${JSON.stringify(secDef.cellCodeRef)}`);
     }
+
+    // TODO: think about moving this to experiment...
+    this.experiment.noteAddedWorkerSection(secDef.id);
   }
 
   initOutputs() {
@@ -596,15 +607,17 @@ export class Section<
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
 
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
-      const otherSection = thisSection.experiment.getSection(
-        cellInputRef.sectionId,
-      ) as Section<SecDefWithIo>;
-      thisSection.dependsOnOutputsFrom.add(otherSection);
-      otherSection.dependsOnMe.add(thisSection);
-      thisSection.dependsOnMe.add(otherSection);
-      const otherSec = thisSection.experiment.getSection(cellInputRef.sectionId);
-      thisSection.inputs[inputId] = otherSec.outputs[cellInputRef.outputId];
+    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
+      if (cellInputRef) {
+        const otherSection = thisSection.experiment.getSection(
+          cellInputRef.sectionId,
+        ) as Section<SecDefWithIo>;
+        thisSection.dependsOnOutputsFrom.add(otherSection);
+        otherSection.dependsOnMe.add(thisSection);
+        thisSection.dependsOnMe.add(otherSection);
+        const otherSec = thisSection.experiment.getSection(cellInputRef.sectionId);
+        thisSection.inputs[inputId] = otherSec.outputs[cellInputRef.outputId];
+      }
     }
   }
 
@@ -618,38 +631,38 @@ export class Section<
       throw new Error(`Cell (${this.defData().id}): Can only connect a not-started cell`);
     }
 
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs || {})) {
-      // TODO: this is where magic dep-management could happen... we could use
-      // old input value as the input here, so that we don't need to
-      // re-execute past cells. Would need think about what to do with
-      // streams. Likely depends on cell semantics some. e.g. deterministic
-      // cells with no streams are clearly fine. Streams might need some kind
-      // of saved state of the stream. (which StateIter abstraction has!)
-      const otherSection = this.experiment.getSection(
-        cellInputRef.sectionId,
-      ) as Section<SecDefWithIo>;
-      this.dependsOnOutputsFrom.add(otherSection);
-      otherSection.dependsOnMe.add(thisSection as Section<SecDefWithIo>);
-
-      if (otherSection.defData().kind === SecDefKind.WorkerCell) {
-        if (!otherSection.cell) {
-          throw Error(`Worker Cell Section (${cellInputRef.sectionId}) was missing cell property`);
+    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
+      if (cellInputRef) {
+        // TODO: this is where magic dep-management could happen... we could use
+        // old input value as the input here, so that we don't need to
+        // re-execute past cells. Would need think about what to do with
+        // streams. Likely depends on cell semantics some. e.g. deterministic
+        // cells with no streams are clearly fine. Streams might need some kind
+        // of saved state of the stream. (which StateIter abstraction has!)
+        const otherSection = this.experiment.getSection(
+          cellInputRef.sectionId,
+        ) as Section<SecDefWithIo>;
+        this.dependsOnOutputsFrom.add(otherSection);
+        otherSection.dependsOnMe.add(thisSection as Section<SecDefWithIo>);
+        if (otherSection.isWorkerSection()) {
+          otherSection.cell.controller.outputs[cellInputRef.outputId].addPipeTo(
+            this.cell.controller.inputs[inputId],
+          );
+        } else {
+          const thisInputSignal = this.cell.controller.inputs[inputId].connect();
+          this.space.derived(() =>
+            thisInputSignal.set(otherSection.outputs[cellInputRef.outputId]()),
+          );
         }
-        otherSection.cell.controller.outputs[cellInputRef.outputId].addPipeTo(
-          this.cell.controller.inputs[inputId],
-        );
-      } else {
-        const thisInputSignal = this.cell.controller.inputs[inputId].connect();
-        this.space.derived(() =>
-          thisInputSignal.set(otherSection.outputs[cellInputRef.outputId]()),
-        );
       }
     }
-    for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams || {})) {
-      const otherCellController = this.experiment.getSectionLabCell(cellInputRef.cellSectionId);
-      otherCellController.outStreams[cellInputRef.cellOutStreamId].addPipeTo(
-        this.cell.controller.inStreams[inStreamId],
-      );
+    for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams)) {
+      if (cellInputRef) {
+        const otherCellController = this.experiment.getSectionLabCell(cellInputRef.sectionId);
+        otherCellController.outStreams[cellInputRef.outStreamId].addPipeTo(
+          this.cell.controller.inStreams[inStreamId],
+        );
+      }
     }
   }
 
@@ -681,6 +694,8 @@ export class Section<
     for (const dep of this.dataUpdateDeps) {
       dep.node.dispose();
     }
+
+    this.experiment.noteDeletedWorkerSection(this.initDef.id);
     // TODO: remove the now un-needed derivedLazy dep.
   }
 }

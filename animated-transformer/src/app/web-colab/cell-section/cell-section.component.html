@@ -52,12 +52,30 @@
   }
 </div>
 <div>
-  <!-- @let data =  -->
+  @if (def.cellCodeRef.kind === CellCodeRefKind.InlineWorkerJsCode) {
+    <app-codemirror-js-editor
+      [whatIsBeingEditedName]="'inline code'"
+      [defaultStr]="''"
+      [codeStr]="def.cellCodeRef.js"
+      [closable]="false"
+      (update)="handleJsUpdate($event)"
+    ></app-codemirror-js-editor>
+  }
   <div>
     Inputs:
     <div>
       @for (i of inputs(); track $index) {
-        {{ i }}
+        <app-auto-completed-text-input
+          [label]="i"
+          [selectedName]="null"
+          [itemNames]="sectionsWithOutputs()"
+          (itemSelected)="selectInputSection(i, $event)"
+        ></app-auto-completed-text-input>
+        <!-- <app-auto-completed-text-input
+          [label]="i"
+          [selectedName]="null"
+          [itemNames]="outputFromThatCellNames()"
+        ></app-auto-completed-text-input> -->
       }
     </div>
   </div>

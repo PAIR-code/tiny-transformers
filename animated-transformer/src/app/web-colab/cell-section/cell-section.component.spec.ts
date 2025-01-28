@@ -52,7 +52,12 @@ describe('CellSectionComponent', () => {
         kind: CellCodeRefKind.InlineWorkerJsCode,
         js: '1 + 1;',
       },
-      io: {},
+      io: {
+        inputs: {},
+        inStreams: {},
+        outputs: {},
+        outStreamIds: [],
+      },
       display: { collapsed: false },
     };
     const experiment = new Experiment(lab, [], exp1Data, new InMemoryDataResolver());

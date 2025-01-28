@@ -95,6 +95,9 @@ export class Experiment {
   // Code paths to JS code
   jsCode: Map<string, { rawCode: string; objUrl: URL }> = new Map();
 
+  // For auto-complete plugging of cells/outputs.
+  secIdsWithOutputs: SetableSignal<Set<string>>;
+
   constructor(
     public env: LabEnv,
     public ancestors: Experiment[],
@@ -107,6 +110,8 @@ export class Experiment {
     this.space = env.space;
     this.section = new Section(this, def, null) as ListSection;
     this.section.initSubSections();
+
+    this.secIdsWithOutputs = this.space.setable(new Set<string>());
 
     // this.topLevelSections = this.space.setable<SomeSection[]>([]);
     // this.section.subSections = this.topLevelSections;
@@ -136,6 +141,21 @@ export class Experiment {
     section.resolveRef(existingSection);
     this.appendSection(section);
     return section;
+  }
+
+  noteAddedWorkerSection(id: string) {
+    this.secIdsWithOutputs.change((l) => l.add(id));
+  }
+
+  noteRenamedWorkerSection(oldId: string, newId: string) {
+    this.secIdsWithOutputs.change((l) => {
+      l.delete(oldId);
+      l.add(newId);
+    });
+  }
+
+  noteDeletedWorkerSection(id: string) {
+    this.secIdsWithOutputs.change((l) => l.delete(id));
   }
 
   appendSection<S extends Section<any>>(s: S) {

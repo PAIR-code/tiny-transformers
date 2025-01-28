@@ -41,7 +41,13 @@ import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
-import { SecDefKind, SecDefWithData, Section, ViewerKind } from 'src/lib/weblab/section';
+import {
+  SecDefKind,
+  SecDefWithData,
+  Section,
+  ViewerKind,
+  WorkerSection,
+} from 'src/lib/weblab/section';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -182,6 +188,10 @@ export class SectionComponent {
   deleteThisSection() {
     const section = this.section();
     section.experiment.deleteSection(section);
+  }
+
+  workerSection(): WorkerSection {
+    return this.section() as WorkerSection;
   }
 
   // addJsonObjEditor() {}

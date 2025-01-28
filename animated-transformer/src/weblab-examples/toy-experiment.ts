@@ -29,6 +29,7 @@ import { toyCellKind } from './toycell.kind';
 import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
 import { LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
 import { JsonValue } from 'src/lib/json/json';
+import { trainerCellKind } from './tiny-transformer-example/trainer-cell.kind';
 
 export const initExpDef: SecDefOfSecList = {
   kind: SecDefKind.SectionList,
@@ -45,12 +46,15 @@ export const simpleMarkdownSecDef: SecDefOfUiView = {
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
+    inputs: {},
     outputs: {
       markdown: {
         saved: true,
         lastValue: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
       },
     },
+    inStreams: {},
+    outStreamIds: [],
   },
   uiView: ViewerKind.MarkdownOutView,
   display: { collapsed: false },
@@ -62,12 +66,15 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
+    inputs: {},
     outputs: {
       jsonObj: {
         saved: true,
         lastValue: structuredClone(defaultTinyWorldTaskConfig),
       },
     },
+    inStreams: {},
+    outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
   display: { collapsed: false },
@@ -79,6 +86,7 @@ export const genConfigJsonSecDef: SecDefOfUiView = {
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
+    inputs: {},
     outputs: {
       jsonObj: {
         saved: true,
@@ -91,6 +99,8 @@ export const genConfigJsonSecDef: SecDefOfUiView = {
         } as TaskGenConfig,
       },
     },
+    inStreams: {},
+    outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
   display: { collapsed: false },
@@ -105,7 +115,12 @@ export function simpleInlineCodeSecDefFn(): SecDefOfWorker & {
     kind: SecDefKind.WorkerCell,
     id: 'InlineCodeCell',
     timestamp: Date.now(),
-    io: {},
+    io: {
+      inputs: {},
+      inStreams: {},
+      outputs: {},
+      outStreamIds: [],
+    },
     cellCodeRef: {
       kind: CellCodeRefKind.InlineWorkerJsCode,
       js: 'console.log("hello world from simple cell!");',
@@ -123,7 +138,12 @@ export function simpleCellPathSecDefFn(): SecDefOfWorker & {
     kind: SecDefKind.WorkerCell,
     id: toyCellKind.cellKindId,
     timestamp: Date.now(),
-    io: {},
+    io: {
+      inputs: {},
+      inStreams: {},
+      outputs: {},
+      outStreamIds: [],
+    },
     cellCodeRef: {
       kind: CellCodeRefKind.PathToWorkerCode,
       tsSrcPath: 'toycell.worker.ts',
@@ -133,7 +153,7 @@ export function simpleCellPathSecDefFn(): SecDefOfWorker & {
   };
 }
 
-export function simpleUrlCodeSecDefFn(): SecDefOfWorker & {
+export function taskGenUrlCodeSecDefFn(): SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.UrlToCode;
   };
@@ -153,11 +173,44 @@ export function simpleUrlCodeSecDefFn(): SecDefOfWorker & {
           outputId: 'jsonObj',
         },
       },
+      inStreams: {},
+      outputs: { testSet: { saved: false } },
+      outStreamIds: ['trainBatches'],
     },
     cellCodeRef: {
       kind: CellCodeRefKind.UrlToCode,
       tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
       jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js',
+    },
+    display: { collapsed: false },
+  };
+}
+
+export function trainUrlCodeSecDefFn(): SecDefOfWorker & {
+  cellCodeRef: {
+    kind: CellCodeRefKind.UrlToCode;
+  };
+} {
+  return {
+    kind: SecDefKind.WorkerCell,
+    id: trainerCellKind.cellKindId,
+    timestamp: Date.now(),
+    io: {
+      inputs: {
+        testSet: null,
+        modelUpdateEvents: null,
+        trainConfig: null,
+      },
+      inStreams: {
+        trainBatches: null,
+      },
+      outputs: { testSet: { saved: false } },
+      outStreamIds: ['metrics', 'checkpoint'],
+    },
+    cellCodeRef: {
+      kind: CellCodeRefKind.UrlToCode,
+      tsSrcPath: 'tiny-transformer-example/trainer-cell.worker.ts',
+      jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/trainer-cell.worker.js',
     },
     display: { collapsed: false },
   };
@@ -183,9 +236,15 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     'console.log("hello from simpleCellPathSecDef cell!");',
   );
 
-  const simpleUrlCodeSecDef = simpleUrlCodeSecDefFn();
+  const simpleUrlCodeSecDef = taskGenUrlCodeSecDefFn();
   dataResolver.save(
     prefixCacheCodeUrl(simpleUrlCodeSecDef.cellCodeRef.jsUrl),
+    'console.log("hello from simpleUrlCodeSecDef cell!");',
+  );
+
+  const trainUrlCodeSecDef = trainUrlCodeSecDefFn();
+  dataResolver.save(
+    prefixCacheCodeUrl(trainUrlCodeSecDef.cellCodeRef.jsUrl),
     'console.log("hello from simpleUrlCodeSecDef cell!");',
   );
 
@@ -195,12 +254,15 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     timestamp: Date.now(),
     // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
     io: {
+      inputs: {},
       outputs: {
         markdown: {
           saved: true,
           lastValue: 'Footer: the end.',
         },
       },
+      inStreams: {},
+      outStreamIds: [],
     },
     uiView: ViewerKind.MarkdownOutView,
     display: { collapsed: false },
@@ -216,6 +278,8 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   await exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
   await exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
   await exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
+  await exp.appendLeafSectionFromDataDef(trainUrlCodeSecDefFn());
+
   await exp.appendLeafSectionFromDataDef(footerSecDef);
   return exp;
 }
