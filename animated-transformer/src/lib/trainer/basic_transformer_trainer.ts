@@ -25,7 +25,7 @@ import {
   splitGenerativeTaskTestSet,
 } from '../seqtasks/util';
 import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
-import { transformerAccuracy } from '../transformer/transformer_gtensor';
+import { transformerAccuracy, lastTokenCrossEntropyLoss } from '../transformer/common_transformer';
 import { TaskDatasetSplit, TrainState, TrainStateConfig } from './train_state';
 import { RandomStream, makeRandomStream } from '../random/random';
 // import { GTensorTree, GVariableTree } from 'src/lib/gtensor/gtensor_tree';
@@ -74,7 +74,7 @@ export function initTransformerTrainState(
     generator: RandomStream
   ): tf.Scalar {
     const decoderComputation = transformer.computeTransformer(model, inputs, generator);
-    const loss = transformer.lastTokenCrossEntropyLoss(model, decoderComputation, targets);
+    const loss = lastTokenCrossEntropyLoss(model, decoderComputation, targets);
     return loss as tf.Scalar;
   }
 
