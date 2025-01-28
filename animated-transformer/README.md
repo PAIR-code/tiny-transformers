@@ -49,3 +49,10 @@ Run `ng e2e` to execute the end-to-end tests via
 
 To get more help on the Angular CLI use `ng help` or go check out the
 [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+
+## Contributing to the repository
+
+If you want to contribute to the repository, feel free to take an unassigned issue and assign to yourself, and then send a pull request to 
+iislucas@.
+
+When merging your changes into main, please make sure to use the "squash and merge" strategy, so that the final change is a single one linked to your pull request.
