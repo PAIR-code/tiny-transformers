@@ -2,20 +2,26 @@
   "id": "simple experiment",
   "kind": "SectionList",
   "subsections": [ { 
-      "display": {"collapsed": true},
+      "display": {"collapsed": false},
       "id": "about",
       "io": { 
+        "inStreams": {},
+        "inputs": {},
+        "outStreamIds": [],
         "outputs": { 
           "markdown": { 
             "lastValue": "# foo is a title\nAnd this is some normal text, **bold**, and _italic_.",
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737758823352,
+      "timestamp": 1738193853322,
       "uiView": "Markdown" },
     { 
-      "display": {"collapsed": true},
+      "display": {"collapsed": false},
       "id": "Task Configuration",
       "io": { 
+        "inStreams": {},
+        "inputs": {},
+        "outStreamIds": [],
         "outputs": { 
           "jsonObj": { 
             "lastValue": { 
@@ -53,12 +59,15 @@
                 "squishable": ["cat", "monkey", "flower"] } },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737758823352,
+      "timestamp": 1738193853322,
       "uiView": "JsonObj" },
     { 
       "display": {"collapsed": false},
       "id": "Generation Configuration",
       "io": { 
+        "inStreams": {},
+        "inputs": {},
+        "outStreamIds": [],
         "outputs": { 
           "jsonObj": { 
             "lastValue": { 
@@ -69,7 +78,7 @@
               "testSetSize": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1737758823352,
+      "timestamp": 1738193853322,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
@@ -78,35 +87,56 @@
         "tsSrcPath": "toycell.worker.ts" },
       "display": {"collapsed": false},
       "id": "toyCellKind",
-      "io": {},
+      "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
       "kind": "WorkerCell",
-      "timestamp": 1737758825001 },
+      "timestamp": 1738193856055 },
     { 
       "cellCodeRef": {"js": "console.log(\"hello world from simple cell!\");", "kind": "InlineWorkerJsCode"},
       "display": {"collapsed": false},
       "id": "InlineCodeCell",
-      "io": {},
+      "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
       "kind": "WorkerCell",
-      "timestamp": 1737758825004 },
+      "timestamp": 1738193856058 },
     { 
       "cellCodeRef": { 
-        "jsUrl": "http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js",
+        "jsUrl": "http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js",
         "kind": "UrlToCode",
         "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts" },
       "display": {"collapsed": false},
       "id": "Task cell",
       "io": { 
+        "inStreams": {},
         "inputs": { 
           "genConfig": {"outputId": "jsonObj", "sectionId": "Generation Configuration"},
-          "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} } },
+          "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} },
+        "outStreamIds": ["trainBatches"],
+        "outputs": {"testSet": {"saved": false}} },
       "kind": "WorkerCell",
-      "timestamp": 1737758825002 },
+      "timestamp": 1738193856056 },
+    { 
+      "cellCodeRef": { 
+        "jsUrl": "http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js",
+        "kind": "UrlToCode",
+        "tsSrcPath": "tiny-transformer-example/trainer-cell.worker.ts" },
+      "display": {"collapsed": false},
+      "id": "Trainer cell",
+      "io": { 
+        "inStreams": {"trainBatches": null},
+        "inputs": {"modelUpdateEvents": null, "testSet": null, "trainConfig": null},
+        "outStreamIds": ["metrics", "checkpoint"],
+        "outputs": {"testSet": {"saved": false}} },
+      "kind": "WorkerCell",
+      "timestamp": 1738193856059 },
     { 
       "display": {"collapsed": false},
       "id": "footer",
-      "io": {"outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}}},
+      "io": { 
+        "inStreams": {},
+        "inputs": {},
+        "outStreamIds": [],
+        "outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}} },
       "kind": "LocalCell",
-      "timestamp": 1737758825002,
+      "timestamp": 1738193856056,
       "uiView": "Markdown" } ],
-  "timestamp": 1737758825001,
+  "timestamp": 1738193856055,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

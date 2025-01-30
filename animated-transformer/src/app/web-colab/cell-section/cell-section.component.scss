@@ -20,3 +20,40 @@
 .spacer {
   flex: 1;
 }
+
+
+.chip {
+  margin-right: 10px;
+  background-color: #fff;
+  padding: 3px;
+  border-radius: 5px;
+  font-size: small;
+  color: #bbb;
+  z-index: 5;
+}
+.inputsChips {
+  padding: 10px;
+  border: 2px solid #bbb;
+  border-top: none;
+}
+.inputId {
+  border: 1px solid #bbb;
+  border-top: none;
+  z-index: 5;
+}
+.unfilledInput {
+  border: 1px dotted #bbb;
+  border-top: none;
+  z-index: 5;
+}
+
+.outputChips {
+  padding: 10px;
+  border: 2px solid #bbb;
+  border-bottom: none;
+}
+.outputId {
+  border: 1px solid #bbb;
+  border-bottom: none;
+  z-index: 5;
+}

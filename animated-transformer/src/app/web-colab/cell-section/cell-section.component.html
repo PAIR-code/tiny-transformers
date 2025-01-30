@@ -1,57 +1,79 @@
-<div #cellstatus class="header">
-  <!-- <div class="spacer"></div> -->
-  @if (status() === CellStatus.NotStarted) {
-    <button
-      mat-icon-button
-      matTooltip="Start"
-      aria-label="Start"
-      (click)="start()"
-    >
-      <mat-icon svgIcon="play_circle">play</mat-icon>
-    </button>
-  } @else if (
-    status() !== CellStatus.Stopping && status() !== CellStatus.Stopped
-  ) {
-    <button
-      mat-icon-button
-      matTooltip="Request Stop"
-      aria-label="Request Stop"
-      (click)="requestStop()"
-    >
-      <mat-icon svgIcon="stop_circle">stop</mat-icon>
-    </button>
-  } @else if (status() === CellStatus.Stopping) {
-    <button
-      mat-icon-button
-      matTooltip="Force Stop"
-      aria-label="Force Stop"
-      (click)="forceStop()"
-    >
-      <mat-icon svgIcon="cancel"></mat-icon>
-    </button>
-  } @else if (status() === CellStatus.Stopped) {
-    <button
-      mat-icon-button
-      matTooltip="Restart"
-      aria-label="Restart"
-      (click)="reset()"
-    >
-      <mat-icon svgIcon="restart_alt">restart</mat-icon>
-    </button>
-  }
-  <div class="title">{{ cell.controller.id }}</div>
-  @if (vsCodeLink()) {
-    <button
-      mat-icon-button
-      matTooltip="Open code link"
-      aria-label="Open code link"
-      (click)="openCodeLink()"
-    >
-      <mat-icon svgIcon="code">code</mat-icon>
-    </button>
-  }
-</div>
 <div>
+  @let inputs = section().inputNames();
+  @if (inputs.length > 0) {
+    <div class="inputChips">
+      @for (idAndRef of inputs; track idAndRef.id) {
+        @if (idAndRef.ref && idAndRef.ref.outputId === "jsonObj") {
+          <span class="inputId chip">
+            {{ idAndRef.ref.sectionId }}
+          </span>
+        } @else if (idAndRef.ref) {
+          <span class="inputId chip">
+            {{ idAndRef.ref.sectionId }}.{{ idAndRef.ref.outputId }}
+          </span>
+        } @else {
+          <span class="inputId chip unfilledInput">
+            {{ idAndRef.id }}
+          </span>
+        }
+      }
+    </div>
+  }
+
+  <div #cellstatus class="header">
+    <!-- <div class="spacer"></div> -->
+    @if (status() === CellStatus.NotStarted) {
+      <button
+        mat-icon-button
+        matTooltip="Start"
+        aria-label="Start"
+        (click)="start()"
+      >
+        <mat-icon svgIcon="play_circle">play</mat-icon>
+      </button>
+    } @else if (
+      status() !== CellStatus.Stopping && status() !== CellStatus.Stopped
+    ) {
+      <button
+        mat-icon-button
+        matTooltip="Request Stop"
+        aria-label="Request Stop"
+        (click)="requestStop()"
+      >
+        <mat-icon svgIcon="stop_circle">stop</mat-icon>
+      </button>
+    } @else if (status() === CellStatus.Stopping) {
+      <button
+        mat-icon-button
+        matTooltip="Force Stop"
+        aria-label="Force Stop"
+        (click)="forceStop()"
+      >
+        <mat-icon svgIcon="cancel"></mat-icon>
+      </button>
+    } @else if (status() === CellStatus.Stopped) {
+      <button
+        mat-icon-button
+        matTooltip="Restart"
+        aria-label="Restart"
+        (click)="reset()"
+      >
+        <mat-icon svgIcon="restart_alt">restart</mat-icon>
+      </button>
+    }
+    <div class="title">{{ cell.controller.id }}</div>
+    @if (vsCodeLink()) {
+      <button
+        mat-icon-button
+        matTooltip="Open code link"
+        aria-label="Open code link"
+        (click)="openCodeLink()"
+      >
+        <mat-icon svgIcon="code">code</mat-icon>
+      </button>
+    }
+  </div>
+
   @if (def.cellCodeRef.kind === CellCodeRefKind.InlineWorkerJsCode) {
     <app-codemirror-js-editor
       [whatIsBeingEditedName]="'inline code'"
@@ -61,30 +83,44 @@
       (update)="handleJsUpdate($event)"
     ></app-codemirror-js-editor>
   }
-  <div>
-    Inputs:
-    <div>
-      @for (i of inputs(); track $index) {
+
+  @let outputs = section().outputNames();
+  @if (outputs.length > 0) {
+    <div class="ouputChips">
+      @for (idAndOut of outputs; track idAndOut.id) {
+        <span class="outputId chip">
+          {{ idAndOut.id }}
+        </span>
+      }
+    </div>
+  }
+
+  <!-- <div class="inputs">
+    Inputs
+    @for (i of inputs(); track $index) {
+      <div>
+        <span>{{ i }}</span
+        >:
         <app-auto-completed-text-input
           [label]="i"
           [selectedName]="null"
           [itemNames]="sectionsWithOutputs()"
           (itemSelected)="selectInputSection(i, $event)"
         ></app-auto-completed-text-input>
-        <!-- <app-auto-completed-text-input
+        <app-auto-completed-text-input
           [label]="i"
           [selectedName]="null"
           [itemNames]="outputFromThatCellNames()"
-        ></app-auto-completed-text-input> -->
-      }
-    </div>
+        ></app-auto-completed-text-input>
+      </div>
+    }
   </div>
-  <div>
+  <div class="outputs">
     Outputs:
     <div>
       @for (i of outputs(); track $index) {
         {{ i }}
       }
     </div>
-  </div>
+  </div> -->
 </div>

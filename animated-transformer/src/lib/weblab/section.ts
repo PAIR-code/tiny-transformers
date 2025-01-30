@@ -325,6 +325,26 @@ export class Section<
   dependsOnMe: Set<Section<SecDefWithIo>> = new Set();
   dependsOnOutputsFrom: Set<Section<SecDefWithIo>> = new Set();
 
+  inputNames(): { id: string; ref: SectionInputRef }[] {
+    if (!this.isIoSection()) {
+      return [];
+    }
+    const thisSection = this as Section<SecDefWithIo>;
+    return [...Object.entries(thisSection.defData().io.inputs)].map(([id, ref]) => {
+      return { id, ref };
+    });
+  }
+
+  outputNames(): { id: string; out: CellSectionOutput }[] {
+    if (!this.isIoSection()) {
+      return [];
+    }
+    const thisSection = this as Section<SecDefWithIo>;
+    return [...Object.entries(thisSection.defData().io.outputs)].map(([id, out]) => {
+      return { id, out };
+    });
+  }
+
   // --------------------------------------------------------------------------
   isPathSection(): this is PathSection {
     return this.initDef.kind === SecDefKind.Path;
@@ -466,7 +486,7 @@ export class Section<
     this.initDef.id = newId;
 
     if (this.cell) {
-      this.experiment.noteRenamedWorkerSection(oldId, newId);
+      this.experiment.noteRenamedIoSection(oldId, newId);
     }
     this.experiment.sectionMap.delete(oldId);
     this.experiment.sectionMap.set(newId, this as Section<any>);
@@ -559,14 +579,12 @@ export class Section<
       default:
         throw new Error(`bad cellCodeRef: ${JSON.stringify(secDef.cellCodeRef)}`);
     }
-
-    // TODO: think about moving this to experiment...
-    this.experiment.noteAddedWorkerSection(secDef.id);
   }
 
   initOutputs() {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
+    this.experiment.noteAddedIoSection(data.id);
 
     for (const k of Object.keys(data.io.outputs || {})) {
       thisSection.outputs[k] = thisSection.space.setable(null);
@@ -695,7 +713,7 @@ export class Section<
       dep.node.dispose();
     }
 
-    this.experiment.noteDeletedWorkerSection(this.initDef.id);
+    this.experiment.noteDeletedIoSection(this.initDef.id);
     // TODO: remove the now un-needed derivedLazy dep.
   }
 }

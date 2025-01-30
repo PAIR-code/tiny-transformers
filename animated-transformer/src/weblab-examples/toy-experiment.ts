@@ -180,7 +180,7 @@ export function taskGenUrlCodeSecDefFn(): SecDefOfWorker & {
     cellCodeRef: {
       kind: CellCodeRefKind.UrlToCode,
       tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
-      jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/task-cell.worker.js',
+      jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js',
     },
     display: { collapsed: false },
   };
@@ -210,7 +210,7 @@ export function trainUrlCodeSecDefFn(): SecDefOfWorker & {
     cellCodeRef: {
       kind: CellCodeRefKind.UrlToCode,
       tsSrcPath: 'tiny-transformer-example/trainer-cell.worker.ts',
-      jsUrl: 'http://127.0.0.1:9000/tiny-transformer-example/trainer-cell.worker.js',
+      jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js',
     },
     display: { collapsed: false },
   };

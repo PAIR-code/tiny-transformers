@@ -52,6 +52,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MatMenuModule } from '@angular/material/menu';
+import { PlaceholderComponent } from '../placeholder/placeholder.component';
 
 @Component({
   selector: 'app-section',
@@ -62,6 +63,7 @@ import { MatMenuModule } from '@angular/material/menu';
     MatIconModule,
     CodemirrorConfigEditorComponent,
     CellSectionComponent,
+    PlaceholderComponent,
   ],
   providers: [MarkdownService],
   templateUrl: './section.component.html',

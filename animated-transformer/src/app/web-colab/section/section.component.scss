@@ -4,37 +4,42 @@
 }
 
 :host {
+  --my-hover-transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+:host {
   // border-top: 1px dotted #FFF;
   // border-bottom: 1px dotted #FFF;
 
   .hostHover {
     opacity: 0 !important;
-    transition: all 1s ease;
+    transition: var(--my-hover-transition);
   }
 
-  .hostHoverAppear {
+  .hostHoverIconAppear {
     opacity: 0 !important;
     // width: -24px;
     margin-right: -24px;
-    transition: all 1s ease;
+    transition: var(--my-hover-transition);
   }
 }
+
 :host:hover {
   // opacity: 1 !important;
-  transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+  transition: var(--my-hover-transition);
   // border-top: 1px dotted #CCC;
   // border-bottom: 1px dotted #CCC;
 
   .hostHover {
     opacity: 1 !important;
-    transition: all 0.4s ease;
+    transition: var(--my-hover-transition);
     // transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
   }
 
-  .hostHoverAppear {
+  .hostHoverIconAppear {
     margin-right: 0;
     opacity: 1 !important;
-    transition: all 0.4s ease;
+    transition: var(--my-hover-transition);
   }
 }
 
@@ -64,7 +69,7 @@
 }
 .showOnHover:hover {
   opacity: 1 !important;
-  transition: opacity 0.7s ease; /* Optional: adds a smooth fade-in */
+  transition: var(--my-hover-transition);
 }
 
 
@@ -75,11 +80,11 @@
 
 .mini-id-title {
   font-size: small;
-  color: #ccc;
+  color: #bbb;
   background-color: #FFF;
   padding-left: 3px;
   padding-right: 3px;
-  transition:all  0.7s ease; /* Optional: adds a smooth fade-in */
+  transition: var(--my-hover-transition);
   // flex: 1 1 auto;
   z-index: 5;
 }
@@ -138,4 +143,39 @@
       }
     }
   }
+}
+
+
+.chip {
+  margin-left: 5px;
+  background-color: #fff;
+  padding: 3px;
+  border-radius: 5px;
+  font-size: small;
+  color: #bbb;
+  z-index: 5;
+}
+.inputsChips {
+  margin-left: 25px;
+  z-index: 5;
+}
+.inputId {
+  border: 1px solid #bbb;
+  border-top: none;
+  z-index: 5;
+}
+.unfilledInput {
+  border: 1px dotted #bbb;
+  border-top: none;
+  z-index: 5;
+}
+
+.outputChips {
+  margin-left: 25px;
+  z-index: 5;
+}
+.outputId {
+  border: 1px solid #bbb;
+  border-bottom: none;
+  z-index: 5;
 }

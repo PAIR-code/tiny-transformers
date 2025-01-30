@@ -4,7 +4,7 @@
 <div class="small-buttons">
   @if (collapsed()) {
     <button
-      class="hostHoverAppear left-margin"
+      class="hostHoverIconAppear left-margin"
       (click)="uncollapse()"
       mat-icon-button
     >
@@ -13,7 +13,7 @@
   } @else {
     <button
       mat-icon-button
-      class="hostHoverAppear left-margin"
+      class="hostHoverIconAppear left-margin"
       (click)="collapse()"
     >
       <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
@@ -21,37 +21,19 @@
   }
 
   <button
-    class="hostHoverAppear left-margin"
+    class="hostHoverIconAppear left-margin"
     mat-icon-button
     matTooltip="add section"
     (click)="addPlaceholder()"
   >
     <mat-icon svgIcon="add">+</mat-icon>
   </button>
-  <!-- <mat-menu #expandedAddMenu>
-    <button mat-menu-item matTooltip="Inline Code" (click)="addInlineCode()">
-      inline code
-    </button>
-    <button mat-menu-item matTooltip="Inline Code" (click)="addVsCodeCell()">
-      vscode cell
-    </button>
-    <button
-      mat-menu-item
-      matTooltip="Json Object"
-      (click)="addMarkdownEditor()"
-    >
-      json markdown
-    </button>
-    <button mat-menu-item matTooltip="Json Object" (click)="addJsonObjEditor()">
-      json object
-    </button>
-  </mat-menu> -->
 
   @if (!collapsed()) {
     <button
       mat-icon-button
       class="left-margin"
-      [class.hostHoverAppear]="!editDefView()"
+      [class.hostHoverIconAppear]="!editDefView()"
       (click)="editDefView.set(!editDefView())"
     >
       <mat-icon [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
@@ -69,9 +51,45 @@
   <span
     (click)="collapsed() && uncollapse()"
     class="mini-id-title left-margin"
-    [class.hostHoverAppear]="!collapsed()"
+    [class.hostHover]="!collapsed()"
     >{{ data.id }}</span
   >
+  @if (collapsed()) {
+    @let inputs = section().inputNames();
+    @if (inputs.length > 0) {
+      <div class="inputChips">
+        @for (idAndRef of inputs; track idAndRef.id) {
+          @if (idAndRef.ref && idAndRef.ref.outputId === "jsonObj") {
+            <span class="inputId chip" [class.hostHover]="!collapsed()">
+              {{ idAndRef.ref.sectionId }}
+            </span>
+          } @else if (idAndRef.ref) {
+            <span class="inputId chip" [class.hostHover]="!collapsed()">
+              {{ idAndRef.ref.sectionId }}.{{ idAndRef.ref.outputId }}
+            </span>
+          } @else {
+            <span
+              class="inputId chip unfilledInput"
+              [class.hostHover]="!collapsed()"
+            >
+              {{ idAndRef.id }}
+            </span>
+          }
+        }
+      </div>
+    }
+
+    @let outputs = section().outputNames();
+    @if (outputs.length > 0) {
+      <div class="ouputChips">
+        @for (idAndOut of outputs; track idAndOut.id) {
+          <span class="outputId chip" [class.hostHover]="!collapsed()">
+            {{ idAndOut.id }}
+          </span>
+        }
+      </div>
+    }
+  }
 </div>
 
 <div class="top-bar hostHover"></div>
@@ -123,7 +141,7 @@
           <div>SubExperiment</div>
         }
         @case (SecDefKind.Placeholder) {
-          <div>SubExperiment</div>
+          <app-placeholder></app-placeholder>
         }
         @default {
           <div>Impossible/unknown sectionDataKind</div>

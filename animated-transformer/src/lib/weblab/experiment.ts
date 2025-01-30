@@ -93,7 +93,7 @@ export class Experiment {
   // def: SetableSignal<SecDefOfSecList>;
 
   // Code paths to JS code
-  jsCode: Map<string, { rawCode: string; objUrl: URL }> = new Map();
+  // jsCode: Map<string, { rawCode: string; objUrl: URL }> = new Map();
 
   // For auto-complete plugging of cells/outputs.
   secIdsWithOutputs: SetableSignal<Set<string>>;
@@ -143,18 +143,18 @@ export class Experiment {
     return section;
   }
 
-  noteAddedWorkerSection(id: string) {
+  noteAddedIoSection(id: string) {
     this.secIdsWithOutputs.change((l) => l.add(id));
   }
 
-  noteRenamedWorkerSection(oldId: string, newId: string) {
+  noteRenamedIoSection(oldId: string, newId: string) {
     this.secIdsWithOutputs.change((l) => {
       l.delete(oldId);
       l.add(newId);
     });
   }
 
-  noteDeletedWorkerSection(id: string) {
+  noteDeletedIoSection(id: string) {
     this.secIdsWithOutputs.change((l) => l.delete(id));
   }
 
