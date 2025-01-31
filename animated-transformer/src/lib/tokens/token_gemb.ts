@@ -62,11 +62,7 @@ export function mapToIdx(
   tokenToIdx: { [token: string]: number },
   examples: string[][]
 ): number[][] {
-  const tokenIdxs: number[][] = [];
-  examples.forEach((example) => {
-    tokenIdxs.push(example.map((s) => tokenToIdx[s]))
-  });
-  return tokenIdxs;
+  return examples.map((example) => example.map((s) => tokenToIdx[s]));
 }
 
 // TODO(@aliciafmachado): Merge this function with the one below
@@ -75,11 +71,7 @@ export function tokenizeAndMapToIdx(
   tokenize_fn: (input: string) => number[],
   examples: string[]
 ): number[][] {
-  const tokenIdxs: number[][] = [];
-  examples.forEach((example) => {
-    tokenIdxs.push(tokenize_fn(example))
-  });
-  return tokenIdxs;
+  return examples.map((example) => tokenize_fn(example));
 }
 
 // When batchSize is defined and batchSize > examples.length, then
