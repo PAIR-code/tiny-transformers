@@ -21,6 +21,8 @@ import {
   strSeqPrepFn,
   embed,
   prepareBasicTaskTokenRep,
+  tokenizeAndMapToIdx,
+  mapToIdx,
   embedBatch,
   expectedOutputSeqPrepFn,
 } from '../tokens/token_gemb';
@@ -56,8 +58,9 @@ describe('token_gemb', () => {
     const tokenEmbedding = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
     const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
 
-    const seqEmb = embedBatch(tokenRep.tokenToIdx, tokenEmbedding, seqsToEmbed, {
+    const seqEmb = embedBatch(tokenEmbedding, seqsIdxs, {
       paddingId: 2,
       padAt: 'start',
       dtype: 'int32',
@@ -82,8 +85,9 @@ describe('token_gemb', () => {
     const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
     const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
 
-    const seqEmb = embedBatch(tokenRep.tokenToIdx, embeddings, seqsToEmbed, {
+    const seqEmb = embedBatch(embeddings, seqsIdxs, {
       paddingId: 2,
       padAt: 'end',
       dtype: 'int32',
@@ -159,5 +163,34 @@ describe('token_gemb', () => {
 
     expect(targetTokensOneHot.tensor.arraySync()).toEqual(expectedOutputArr);
     expect(targetTokensOneHot.dimNames).toEqual(['batch', 'pos', 'tokenId'])
+  });
+  it('Test tokenizeAndMapToIdx', () => {
+    // Mock a tokenizer for testing tokenizeAndMapToIdx.
+    function tokenize_fn_test(input: string): number[] {
+      let output: number[] = [];
+      for (let i = 0; i < input.length; i++) {
+        if (input[i] == 'a')
+          output = output.concat(0);
+        else
+          output = output.concat(1);
+      }
+      return output;
+    };
+
+    const seqsToEmbed = ['aba', 'ab', '', 'b', 'a'];
+    const seqsIdxs = tokenizeAndMapToIdx(tokenize_fn_test, seqsToEmbed);
+    const expectedIdxs =
+      [[0, 1, 0], [0, 1], [], [1], [0]];
+
+    expect(seqsIdxs).toEqual(expectedIdxs);
+  });
+  it('Test mapToIdx', () => {
+    const tokens = ['a', 'b', '[pad]'];
+    const tokenRep = prepareBasicTaskTokenRep(tokens);
+
+    const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
+    const expectedIdxs = [[0, 1, 2, 0], [0, 1], [], [1], [0]];
+    expect(seqsIdxs).toEqual(expectedIdxs);
   });
 });
