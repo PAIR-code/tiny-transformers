@@ -1,8 +1,61 @@
-<div>
-  <app-auto-completed-text-input
-    [label]="'Kind'"
-    [selectedName]="null"
-    [itemNames]="secKindsList"
-    (itemSelected)="selectKind($event)"
-  ></app-auto-completed-text-input>
-</div>
+<form class="placeholder-form">
+  <h1>New Cell</h1>
+  <div>
+    <mat-form-field class="example-full-width">
+      <mat-label>Name</mat-label>
+      <input
+        matInput
+        #NameId
+        maxlength="256"
+        placeholder="Name for this section"
+      />
+      <mat-hint align="start"><strong>Must be unique</strong> </mat-hint>
+      <mat-hint align="end">{{ NameId.value.length }} / 256</mat-hint>
+    </mat-form-field>
+
+    <app-auto-completed-text-input
+      [label]="'Kind'"
+      [selectedName]="null"
+      [itemNames]="secKindsList"
+      (itemSelected)="selectKind($event)"
+    ></app-auto-completed-text-input>
+  </div>
+
+  @if (kind() === SecKinds.Json) {
+    <div>
+      <button
+        mat-stroked-button
+        matTooltip="Create"
+        aria-label="Create"
+        (click)="turnIntoJsonCell()"
+      >
+        create
+      </button>
+    </div>
+  } @else if (kind() === SecKinds.RemoteCode) {
+    <div>
+      <mat-form-field>
+        <mat-label>Path to code</mat-label>
+        <input matInput required placeholder="Relative path to code" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Url to load code</mat-label>
+        <input matInput required placeholder="URL to load code" />
+      </mat-form-field>
+    </div>
+    <div>
+      <button
+        mat-stroked-button
+        matTooltip="Create"
+        aria-label="Create"
+        (click)="turnIntoRemoteCodeCell()"
+      >
+        create
+      </button>
+    </div>
+  } @else {
+    <!-- Unknown kind: {{ kind() }}
+    {{ SecKinds.RemoteCode }}
+    {{ SecKinds.RemoteCode === kind() }} -->
+  }
+</form>

@@ -141,7 +141,7 @@
           <div>SubExperiment</div>
         }
         @case (SecDefKind.Placeholder) {
-          <app-placeholder></app-placeholder>
+          <app-placeholder [section]="section()"></app-placeholder>
         }
         @default {
           <div>Impossible/unknown sectionDataKind</div>

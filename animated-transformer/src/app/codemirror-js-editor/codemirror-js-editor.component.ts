@@ -112,7 +112,9 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
       return this.defaultStr() === this.getCodeMirrorValue();
     });
 
-    effect(() => this.setCodeMirrorValue(this.codeStr()));
+    effect(() => {
+      this.setCodeMirrorValue(this.codeStr());
+    });
   }
 
   getCodeMirrorValue(): string {
@@ -128,6 +130,9 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
   setCodeMirrorValue(s: string): void {
     if (!this.codeMirror) {
       this.lastValidStr.set(s);
+      return;
+    }
+    if (s === this.getCodeMirrorValue()) {
       return;
     }
 
@@ -184,7 +189,7 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
       return;
     }
     this.tmpConfigString = this.getCodeMirrorValue();
-    this.setCodeMirrorValue(this.defaultStr().slice());
+    this.setCodeMirrorValue(this.defaultStr());
   }
 
   undoChanges() {
@@ -193,7 +198,7 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
       return;
     }
     this.tmpConfigString = this.getCodeMirrorValue();
-    this.setCodeMirrorValue(this.lastValidStr().slice());
+    this.setCodeMirrorValue(this.lastValidStr());
     delete this.configError;
   }
 
@@ -208,7 +213,7 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
     if (this.changed()) {
       return false;
     }
-    return this.tmpConfigString != this.getCodeMirrorValue();
+    return this.tmpConfigString !== this.getCodeMirrorValue();
   }
 
   redoChanges() {
@@ -236,7 +241,7 @@ export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContent
       };
     }
     const codeString = this.getCodeMirrorValue();
-    this.lastValidStr.set(codeString.slice());
+    this.lastValidStr.set(codeString);
     this.changed.set(false);
     return {
       kind: CodeStrUpdateKind.UpdatedValue,
