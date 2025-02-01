@@ -13,7 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { TaskGenConfig } from 'src/weblab-examples/tiny-transformer-example/common.types';
+import {
+  ModelInit,
+  ModelInitKind,
+  TaskGenConfig,
+  TrainConfig,
+} from 'src/weblab-examples/tiny-transformer-example/common.types';
 import { LabEnv } from '../lib/distr-signals/lab-env';
 import { Experiment, prefixCacheCodePath, prefixCacheCodeUrl } from '../lib/weblab/experiment';
 import {
@@ -30,6 +35,7 @@ import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
 import { LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
 import { JsonValue } from 'src/lib/json/json';
 import { trainerCellKind } from './tiny-transformer-example/trainer-cell.kind';
+import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 
 export const initExpDef: SecDefOfSecList = {
   kind: SecDefKind.SectionList,
@@ -57,7 +63,7 @@ export const simpleMarkdownSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.MarkdownOutView,
-  display: { collapsed: false },
+  display: { collapsed: true },
 };
 
 export const taskConfigJsonSecDef: SecDefOfUiView = {
@@ -77,7 +83,7 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: false },
+  display: { collapsed: true },
 };
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
@@ -103,118 +109,167 @@ export const genConfigJsonSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: false },
+  display: { collapsed: true },
 };
 
-export function simpleInlineCodeSecDefFn(): SecDefOfWorker & {
+export const simpleInlineCodeSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.InlineWorkerJsCode;
   };
-} {
-  return {
-    kind: SecDefKind.WorkerCell,
-    id: 'InlineCodeCell',
-    timestamp: Date.now(),
-    io: {
-      inputs: {},
-      inStreams: {},
-      outputs: {},
-      outStreamIds: [],
-    },
-    cellCodeRef: {
-      kind: CellCodeRefKind.InlineWorkerJsCode,
-      js: 'console.log("hello world from simple cell!");',
-    },
-    display: { collapsed: false },
-  };
-}
+} = {
+  kind: SecDefKind.WorkerCell,
+  id: 'InlineCodeCell',
+  timestamp: Date.now(),
+  io: {
+    inputs: {},
+    inStreams: {},
+    outputs: {},
+    outStreamIds: [],
+  },
+  cellCodeRef: {
+    kind: CellCodeRefKind.InlineWorkerJsCode,
+    js: 'console.log("hello world from simple cell!");',
+  },
+  display: { collapsed: true },
+};
 
-export function simpleCellPathSecDefFn(): SecDefOfWorker & {
+export const simpleCellPathSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.PathToWorkerCode;
   };
-} {
-  return {
-    kind: SecDefKind.WorkerCell,
-    id: toyCellKind.cellKindId,
-    timestamp: Date.now(),
-    io: {
-      inputs: {},
-      inStreams: {},
-      outputs: {},
-      outStreamIds: [],
-    },
-    cellCodeRef: {
-      kind: CellCodeRefKind.PathToWorkerCode,
-      tsSrcPath: 'toycell.worker.ts',
-      jsPath: 'dist/toycell.worker.js',
-    },
-    display: { collapsed: false },
-  };
-}
+} = {
+  kind: SecDefKind.WorkerCell,
+  id: toyCellKind.cellKindId,
+  timestamp: Date.now(),
+  io: {
+    inputs: {},
+    inStreams: {},
+    outputs: {},
+    outStreamIds: [],
+  },
+  cellCodeRef: {
+    kind: CellCodeRefKind.PathToWorkerCode,
+    tsSrcPath: 'toycell.worker.ts',
+    jsPath: 'dist/toycell.worker.js',
+  },
+  display: { collapsed: true },
+};
 
-export function taskGenUrlCodeSecDefFn(): SecDefOfWorker & {
+export const taskGenUrlCodeSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.UrlToCode;
   };
-} {
-  return {
-    kind: SecDefKind.WorkerCell,
-    id: taskCellKind.cellKindId,
-    timestamp: Date.now(),
-    io: {
-      inputs: {
-        taskConfig: {
-          sectionId: taskConfigJsonSecDef.id,
-          outputId: 'jsonObj',
-        },
-        genConfig: {
-          sectionId: genConfigJsonSecDef.id,
-          outputId: 'jsonObj',
-        },
+} = {
+  kind: SecDefKind.WorkerCell,
+  id: taskCellKind.cellKindId,
+  timestamp: Date.now(),
+  io: {
+    inputs: {
+      taskConfig: {
+        sectionId: taskConfigJsonSecDef.id,
+        outputId: 'jsonObj',
       },
-      inStreams: {},
-      outputs: { testSet: { saved: false } },
-      outStreamIds: ['trainBatches'],
+      genConfig: {
+        sectionId: genConfigJsonSecDef.id,
+        outputId: 'jsonObj',
+      },
     },
-    cellCodeRef: {
-      kind: CellCodeRefKind.UrlToCode,
-      tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
-      jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js',
-    },
-    display: { collapsed: false },
-  };
-}
+    inStreams: {},
+    outputs: { testSet: { saved: false } },
+    outStreamIds: ['trainBatches'],
+  },
+  cellCodeRef: {
+    kind: CellCodeRefKind.UrlToCode,
+    tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
+    jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js',
+  },
+  display: { collapsed: false },
+};
 
-export function trainUrlCodeSecDefFn(): SecDefOfWorker & {
+const modelTrainConfigDef: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'Model Train Config',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    inputs: {},
+    outputs: {
+      jsonObj: {
+        saved: true,
+        lastValue: {
+          id: 'initial config',
+          kind: 'basicSeqTrainer',
+          // training hyper-params
+          learningRate: 0.5,
+          batchSize: 16,
+          maxInputLength: 2,
+          trainForBatches: 3,
+          randomSeed: 42,
+          // Reporting / eval
+          checkpointFrequencyInBatches: 4,
+          metricReporting: {
+            metricFrequencyInBatches: 2,
+          },
+        } as TrainConfig,
+      },
+    },
+    inStreams: {},
+    outStreamIds: [],
+  },
+  uiView: ViewerKind.JsonObjOutView,
+  display: { collapsed: false },
+};
+
+const modelInitDef: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'Model Init Config',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    inputs: {},
+    outputs: {
+      jsonObj: {
+        saved: true,
+        lastValue: {
+          kind: ModelInitKind.ReinitFromConfig,
+          config: defaultTransformerConfig(),
+        } as JsonValue,
+      },
+    },
+    inStreams: {},
+    outStreamIds: [],
+  },
+  uiView: ViewerKind.JsonObjOutView,
+  display: { collapsed: false },
+};
+
+export const trainUrlCodeSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.UrlToCode;
   };
-} {
-  return {
-    kind: SecDefKind.WorkerCell,
-    id: trainerCellKind.cellKindId,
-    timestamp: Date.now(),
-    io: {
-      inputs: {
-        testSet: null,
-        modelUpdateEvents: null,
-        trainConfig: null,
-      },
-      inStreams: {
-        trainBatches: null,
-      },
-      outputs: { testSet: { saved: false } },
-      outStreamIds: ['metrics', 'checkpoint'],
+} = {
+  kind: SecDefKind.WorkerCell,
+  id: trainerCellKind.cellKindId,
+  timestamp: Date.now(),
+  io: {
+    inputs: {
+      testSet: { sectionId: taskCellKind.cellKindId, outputId: 'testSet' },
+      modelInit: { sectionId: modelInitDef.id, outputId: 'jsonObj' },
+      trainConfig: { sectionId: modelTrainConfigDef.id, outputId: 'jsonObj' },
     },
-    cellCodeRef: {
-      kind: CellCodeRefKind.UrlToCode,
-      tsSrcPath: 'tiny-transformer-example/trainer-cell.worker.ts',
-      jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js',
+    inStreams: {
+      trainBatches: { sectionId: taskCellKind.cellKindId, outStreamId: 'trainBatches' },
     },
-    display: { collapsed: false },
-  };
-}
+    outputs: { testSet: { saved: false } },
+    outStreamIds: ['metrics', 'checkpoint'],
+  },
+  cellCodeRef: {
+    kind: CellCodeRefKind.UrlToCode,
+    tsSrcPath: 'tiny-transformer-example/trainer-cell.worker.ts',
+    jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js',
+  },
+  display: { collapsed: false },
+};
 
 export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experiment> {
   const initExpDef: SecDefOfSecList = {
@@ -230,22 +285,19 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   const dataResolver = new LocalCacheDataResolver<JsonValue>();
 
   // Note: these fake the contents for the path and URL code in the cache.
-  const simpleCellPathSecDef = simpleCellPathSecDefFn();
   dataResolver.save(
     prefixCacheCodePath(simpleCellPathSecDef.cellCodeRef.jsPath),
     'console.log("hello from simpleCellPathSecDef cell!");',
   );
 
-  const simpleUrlCodeSecDef = taskGenUrlCodeSecDefFn();
   dataResolver.save(
-    prefixCacheCodeUrl(simpleUrlCodeSecDef.cellCodeRef.jsUrl),
-    'console.log("hello from simpleUrlCodeSecDef cell!");',
+    prefixCacheCodeUrl(taskGenUrlCodeSecDef.cellCodeRef.jsUrl),
+    'console.log("hello from taskGenUrlCodeSecDef cell!");',
   );
 
-  const trainUrlCodeSecDef = trainUrlCodeSecDefFn();
   dataResolver.save(
     prefixCacheCodeUrl(trainUrlCodeSecDef.cellCodeRef.jsUrl),
-    'console.log("hello from simpleUrlCodeSecDef cell!");',
+    'console.log("hello from trainUrlCodeSecDef cell!");',
   );
 
   const footerSecDef: SecDefOfUiView = {
@@ -272,14 +324,21 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
 
   const exp = new Experiment(env, [], initExpDef, dataResolver);
 
-  await exp.appendLeafSectionFromDataDef(simpleMarkdownSecDef);
-  await exp.appendLeafSectionFromDataDef(taskConfigJsonSecDef);
-  await exp.appendLeafSectionFromDataDef(genConfigJsonSecDef);
-  await exp.appendLeafSectionFromDataDef(simpleCellPathSecDef);
-  await exp.appendLeafSectionFromDataDef(simpleInlineCodeSecDefFn());
-  await exp.appendLeafSectionFromDataDef(simpleUrlCodeSecDef);
-  await exp.appendLeafSectionFromDataDef(trainUrlCodeSecDefFn());
+  const sections = [
+    simpleMarkdownSecDef,
+    simpleCellPathSecDef,
+    simpleInlineCodeSecDef,
+    taskConfigJsonSecDef,
+    genConfigJsonSecDef,
+    taskGenUrlCodeSecDef,
+    modelInitDef,
+    modelTrainConfigDef,
+    trainUrlCodeSecDef,
+    footerSecDef,
+  ];
+  for (const sectionDef of sections) {
+    await exp.appendLeafSectionFromDataDef(sectionDef);
+  }
 
-  await exp.appendLeafSectionFromDataDef(footerSecDef);
   return exp;
 }

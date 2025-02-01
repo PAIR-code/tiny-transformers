@@ -25,7 +25,7 @@ import {
   Checkpoint,
   SimpleMetrics,
   ModelUpdate,
-  ModelUpdateKind,
+  ModelInitKind,
   TaskGenConfig,
 } from './common.types';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
@@ -83,7 +83,7 @@ async function run() {
   });
 
   const modelUpdateEvents = setable<ModelUpdate>({
-    kind: ModelUpdateKind.ReinitFromConfig,
+    kind: ModelInitKind.ReinitFromConfig,
     config: defaultTransformerConfig(),
   });
   // Should be set by checkpoint...

@@ -28,7 +28,9 @@ const { derived } = cell.space;
 
 // ------------------------------------------------------------------------
 cell.onStart(async () => {
+  console.log(`task cell started... waiting for inputs`);
   const { taskConfig, genConfig } = await cell.onceAllInputs;
+  console.log(`task cell got inputs.`);
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   // TODO: make state iterator take in the state for easier random stream

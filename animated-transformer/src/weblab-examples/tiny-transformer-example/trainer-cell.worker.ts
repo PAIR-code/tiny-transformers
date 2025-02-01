@@ -20,7 +20,7 @@ import {
   strSeqPrepFnAddingFinalMask,
 } from 'src/lib/tokens/token_gemb';
 import { workerCell } from 'src/lib/distr-signals/worker-cell';
-import { Batch, ModelUpdateKind, ModelUpdate as ModelUpdate, TrainConfig } from './common.types';
+import { Batch, ModelInitKind, ModelInit as ModelInit, TrainConfig } from './common.types';
 import {
   computeTransformer,
   transformerAccuracy,
@@ -129,22 +129,22 @@ type Model = { config: TransformerConfig; params: VarTransformerParams };
 // TODO: instead of updating all params at the same time, we should use some
 // streaming iterator through the parts... (and save memory), and allow
 // transfer to happen at the same time as we assign in the GPU.
-function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model | null>) {
+function updateModel(modelUpdate: ModelInit, modelSignal: SetableSignal<Model | null>) {
   const model = modelSignal.lastValue();
 
-  if (modelUpdate.kind === ModelUpdateKind.ReinitFromConfig) {
+  if (modelUpdate.kind === ModelInitKind.ReinitFromConfig) {
     if (model) {
       disposeParams(model.params);
     }
     const config = modelUpdate.config;
     modelSignal.set({ config, params: varifyParams(initDecoderParams(config)) });
-  } else if (modelUpdate.kind === ModelUpdateKind.ReplaceParamsAndConfig) {
+  } else if (modelUpdate.kind === ModelInitKind.ReplaceParamsAndConfig) {
     const config = modelUpdate.config;
     modelSignal.set({
       config,
       params: varifyParams(deserializeParams(modelUpdate.serializedParams)),
     });
-  } else if (modelUpdate.kind === ModelUpdateKind.ReplaceParams) {
+  } else if (modelUpdate.kind === ModelInitKind.ReplaceParams) {
     if (!model) {
       throw new Error('updateModel with InitModelAction.ReplaceParams but model is null');
     }
@@ -162,12 +162,12 @@ function updateModel(modelUpdate: ModelUpdate, modelSignal: SetableSignal<Model 
 cell.onStart(async () => {
   // TODO: Test set should be used for metrics reporting at least, and/or evaluated
   // per checkpoint?
-  const { testSet, modelUpdateEvents, trainConfig } = await cell.onceAllInputs;
+  const { testSet, modelInit, trainConfig } = await cell.onceAllInputs;
 
   const randomStream = makeRandomStream(trainConfig().randomSeed);
 
   const model = setable<Model | null>(null);
-  derived(() => updateModel(modelUpdateEvents(), model));
+  derived(() => updateModel(modelInit(), model));
   // Technically, because 'varParamList' is all vars, we don't need to do this;
   // But I want to show how you can backprop/update only to selected params if
   // you wanted.

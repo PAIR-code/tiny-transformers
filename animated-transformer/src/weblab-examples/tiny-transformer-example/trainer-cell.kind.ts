@@ -19,13 +19,13 @@ limitations under the License.
 
 import { Example } from 'src/lib/seqtasks/util';
 import { Kind, CellKind } from 'src/lib/distr-signals/cell-kind';
-import { Batch, Checkpoint, ModelUpdate, SimpleMetrics, TrainConfig } from './common.types';
+import { Batch, Checkpoint, ModelInit, SimpleMetrics, TrainConfig } from './common.types';
 
 export const trainerCellKind = new CellKind('Trainer cell', {
   inputs: {
-    testSet: Kind<Example[]>,
-    modelUpdateEvents: Kind<ModelUpdate>,
+    modelInit: Kind<ModelInit>,
     trainConfig: Kind<TrainConfig>,
+    testSet: Kind<Example[]>,
   },
   inStreams: {
     trainBatches: Kind<Batch>,

@@ -46,25 +46,25 @@ export type TrainConfig = {
   };
 };
 
-export enum ModelUpdateKind {
+export enum ModelInitKind {
   ReinitFromConfig = 'ReinitFromConfig',
   ReplaceParams = 'ReplaceParams',
   ReplaceParamsAndConfig = 'ReplaceParamsAndConfig',
   Null = 'Null',
 }
 
-export type ModelUpdate =
+export type ModelInit =
   | {
-      kind: ModelUpdateKind.ReplaceParams;
+      kind: ModelInitKind.ReplaceParams;
       config: TransformerConfig;
       serializedParams: SerializeTensorParams<TransformerParams>;
     }
   | {
-      kind: ModelUpdateKind.ReinitFromConfig;
+      kind: ModelInitKind.ReinitFromConfig;
       config: TransformerConfig;
     }
   | {
-      kind: ModelUpdateKind.ReplaceParamsAndConfig;
+      kind: ModelInitKind.ReplaceParamsAndConfig;
       config: TransformerConfig;
       serializedParams: SerializeTensorParams<TransformerParams>;
     };
