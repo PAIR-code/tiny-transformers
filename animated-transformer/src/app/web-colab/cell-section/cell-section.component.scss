@@ -22,38 +22,59 @@
 }
 
 
+
+
 .chip {
-  margin-right: 10px;
+  margin-left: 10px;
   background-color: #fff;
   padding: 3px;
   border-radius: 5px;
   font-size: small;
+  z-index: 5;
+}
+
+
+.inputChips {
+  padding-left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  flex: 1 1 auto;
+  margin-bottom: 12px;
   color: #bbb;
-  z-index: 5;
+  // border: 2px solid #bbb;
+  // border-top: none;
+  span.inputId {
+    border: 1px dashed #bbb;
+    // border-left: none;
+    z-index: 5;
+  }
 }
-.inputsChips {
-  padding: 10px;
-  border: 2px solid #bbb;
-  border-top: none;
-}
-.inputId {
-  border: 1px solid #bbb;
-  border-top: none;
-  z-index: 5;
-}
+
 .unfilledInput {
   border: 1px dotted #bbb;
-  border-top: none;
   z-index: 5;
 }
 
 .outputChips {
-  padding: 10px;
-  border: 2px solid #bbb;
-  border-bottom: none;
+  padding-left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  flex: 1 1 auto;
+  color: #bbb;
+  
+  span.outputId {
+    border: 1px dashed #bbb;
+    // border-right: none;
+    z-index: 5;
+  }
 }
-.outputId {
-  border: 1px solid #bbb;
-  border-bottom: none;
-  z-index: 5;
+
+.hasValue {
+  color: #777 !important;
+  border: 1px solid #999 !important; 
 }
+

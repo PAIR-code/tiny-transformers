@@ -283,6 +283,7 @@ export class WebColabComponent {
 
     const exp = await loadExperiment(
       this.cacheDataResolver,
+      this.cacheDataResolver,
       this.env,
       cachedFileData as SecDefOfSecList,
       { fromCache: true },
@@ -323,7 +324,7 @@ export class WebColabComponent {
 
   async newExperiment() {
     this.cacheState.set(SaveState.New);
-    const exp = await makeToyExperiment(this.env, 'simple experiment');
+    const exp = await makeToyExperiment(this.env, 'Toy Tiny Transformers Experiment');
     this.experiment.set(exp);
     await this.saveExperimentToCache();
     this.diskState.set(SaveState.New);
@@ -384,7 +385,9 @@ export class WebColabComponent {
     // TODO: actually do some validation...
     const expDef = secDataDef as SecDefOfSecList;
     const [expLoadErr, exp] = await tryer(
-      loadExperiment(this.fileDataResolver, this.env, expDef, { fromCache: false }),
+      loadExperiment(this.cacheDataResolver, this.fileDataResolver, this.env, expDef, {
+        fromCache: false,
+      }),
     );
     if (expLoadErr) {
       console.error(expLoadErr);

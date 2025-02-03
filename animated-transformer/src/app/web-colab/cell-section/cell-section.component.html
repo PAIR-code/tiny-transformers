@@ -1,25 +1,4 @@
 <div>
-  @let inputs = section().inputNames();
-  @if (inputs.length > 0) {
-    <div class="inputChips">
-      @for (idAndRef of inputs; track idAndRef.id) {
-        @if (idAndRef.ref && idAndRef.ref.outputId === "jsonObj") {
-          <span class="inputId chip">
-            {{ idAndRef.ref.sectionId }}
-          </span>
-        } @else if (idAndRef.ref) {
-          <span class="inputId chip">
-            {{ idAndRef.ref.sectionId }}.{{ idAndRef.ref.outputId }}
-          </span>
-        } @else {
-          <span class="inputId chip unfilledInput">
-            {{ idAndRef.id }}
-          </span>
-        }
-      }
-    </div>
-  }
-
   <div #cellstatus class="header">
     <!-- <div class="spacer"></div> -->
     @if (status() === CellStatus.NotStarted) {
@@ -84,11 +63,40 @@
     ></app-codemirror-js-editor>
   }
 
+  @let inputs = section().inputNames();
+  @if (inputs.length > 0) {
+    <div class="inputChips">
+      <mat-icon svgIcon="input">inputs</mat-icon>
+      @for (idAndRef of inputs; track idAndRef.id) {
+        @if (idAndRef.ref && idAndRef.ref.outputId === "jsonObj") {
+          <span
+            class="inputId chip"
+            [class.hasValue]="!!section().inputs[idAndRef.id]()"
+          >
+            {{ idAndRef.ref.sectionId }}
+          </span>
+        } @else if (idAndRef.ref) {
+          <span class="inputId chip">
+            {{ idAndRef.ref.sectionId }}.{{ idAndRef.ref.outputId }}
+          </span>
+        } @else {
+          <span class="inputId chip unfilledInput">
+            {{ idAndRef.id }}
+          </span>
+        }
+      }
+    </div>
+  }
+
   @let outputs = section().outputNames();
   @if (outputs.length > 0) {
-    <div class="ouputChips">
+    <div class="outputChips">
+      <mat-icon svgIcon="output">outputs</mat-icon>
       @for (idAndOut of outputs; track idAndOut.id) {
-        <span class="outputId chip">
+        <span
+          class="outputId chip"
+          [class.hasValue]="!!section().outputs[idAndOut.id]()"
+        >
           {{ idAndOut.id }}
         </span>
       }

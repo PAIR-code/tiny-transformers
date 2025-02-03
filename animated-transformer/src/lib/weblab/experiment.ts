@@ -105,6 +105,7 @@ export class Experiment {
     // public initSecDef: SecDefOfSecList,
     // How data gets resolved when loading. Needed for remote cell code paths,
     // etc.
+    public cacheResolver: AbstractDataResolver<JsonValue>,
     public dataResolver: AbstractDataResolver<JsonValue>,
   ) {
     this.space = env.space;
@@ -184,7 +185,7 @@ export class Experiment {
     const section = new Section(this, secDef, this.section);
     if (section.isIoSection()) {
       if (section.isWorkerSection()) {
-        await section.initSectionCellData(this.dataResolver, {
+        await section.initSectionCellData(this.cacheResolver, this.dataResolver, {
           // TODO: think about if there are case where this needs to be false for
           // manual construction?
           fromCache: true,
@@ -291,6 +292,7 @@ type SecListBeingLoaded = {
 };
 
 export async function loadExperiment(
+  cacheResolver: AbstractDataResolver<JsonValue>,
   dataResolver: AbstractDataResolver<JsonValue>,
   env: LabEnv,
   secListDef: SecDefOfSecList,
@@ -299,7 +301,7 @@ export async function loadExperiment(
   },
 ): Promise<Experiment> {
   // Sections that refer to another section, but the reference does not exist.
-  const experiment = new Experiment(env, [], secListDef, dataResolver);
+  const experiment = new Experiment(env, [], secListDef, cacheResolver, dataResolver);
   const topLevelNodeTree: SecListBeingLoaded = {
     // addedSubDefs: [],
     subSecDefs: secListDef.subsections,
@@ -364,7 +366,7 @@ export async function loadExperiment(
   for (const sec of ioSections) {
     sec.connectInputsFromOutputs();
     if (sec.isWorkerSection()) {
-      await sec.initSectionCellData(dataResolver, config);
+      await sec.initSectionCellData(cacheResolver, dataResolver, config);
       sec.connectWorkerCell();
     }
   }

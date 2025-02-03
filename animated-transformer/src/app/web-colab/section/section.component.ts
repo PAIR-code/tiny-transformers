@@ -53,6 +53,8 @@ import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MatMenuModule } from '@angular/material/menu';
 import { PlaceholderComponent } from '../placeholder/placeholder.component';
+import { ExampleTableComponent } from '../example-table/example-table.component';
+import { SimpleChartComponent } from '../simple-chart/simple-chart.component';
 
 @Component({
   selector: 'app-section',
@@ -61,6 +63,8 @@ import { PlaceholderComponent } from '../placeholder/placeholder.component';
     MatButtonModule,
     MatMenuModule,
     MatIconModule,
+    ExampleTableComponent,
+    SimpleChartComponent,
     CodemirrorConfigEditorComponent,
     CellSectionComponent,
     PlaceholderComponent,

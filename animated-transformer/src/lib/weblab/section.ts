@@ -43,7 +43,7 @@ import { CellController, CellStatus, SomeCellController } from '../distr-signals
 import { CellKind, Kind, ValueKindFnStruct, ValueStruct } from '../distr-signals/cell-kind';
 import { Experiment, prefixCacheCodePath, prefixCacheCodeUrl } from './experiment';
 import { AbstractDataResolver } from '../data-resolver/data-resolver';
-import { Abs } from '@tensorflow/tfjs';
+import { Abs, data } from '@tensorflow/tfjs';
 import { tryer } from '../utils';
 
 // ============================================================================
@@ -134,6 +134,8 @@ export type SecDefOfSecList = {
 export enum ViewerKind {
   MarkdownOutView = 'Markdown',
   JsonObjOutView = 'JsonObj',
+  ExampleTableView = 'ExampleTableView',
+  SimpleChartView = 'SimpleChartView',
 }
 
 export type SecDefOfUiView = {
@@ -505,6 +507,7 @@ export class Section<
   }
 
   async initSectionCellData(
+    cacheResolver: AbstractDataResolver<JsonValue>,
     dataResolver: AbstractDataResolver<JsonValue>,
     config: {
       fromCache: boolean;
@@ -519,16 +522,22 @@ export class Section<
     switch (secDef.cellCodeRef.kind) {
       case CellCodeRefKind.PathToWorkerCode: {
         try {
-          const paths = config.fromCache
+          const pathList = config.fromCache
             ? [prefixCacheCodePath(secDef.cellCodeRef.jsPath)]
-            : secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
-          const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(paths));
+            : // Match paths, splitting by "/" char, but skipping any that are escaped i.e. "\/"
+              secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
+          const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(pathList));
           if (loadCodeErr) {
             console.error(loadCodeErr);
-            throw new Error(`Unable to load code path in experiment: ${JSON.stringify(paths)}`);
+            throw new Error(
+              `Unable to load code path (${secDef.cellCodeRef.jsPath}) in experiment, pathList: ${JSON.stringify(pathList)}`,
+            );
           }
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
+          if (cacheResolver !== dataResolver) {
+            cacheResolver.save(prefixCacheCodePath(secDef.cellCodeRef.jsPath), cellCodeCache);
+          }
           console.log('CellCodeRefKind.PathToWorkerCode: code: ', cellCodeCache);
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
@@ -564,6 +573,9 @@ export class Section<
           }
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
+          if (cacheResolver !== dataResolver) {
+            cacheResolver.save(prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl), cellCodeCache);
+          }
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
           thisSection.cell = { controller, cellCodeCache, cellObjectUrl };
@@ -598,9 +610,10 @@ export class Section<
         if (thisSection.cell && data.kind === SecDefKind.WorkerCell) {
           const controller = thisSection.cell.controller;
           for (const k of Object.keys(controller.outputs)) {
-            controller.outputs[k].recEnd.onceReady.then((v) =>
-              thisSection.experiment.space.derived(() => thisSection.outputs[k].set(v())),
-            );
+            controller.outputs[k].recEnd.onceReady.then((v) => {
+              console.warn(`${this.initDef.id}: Section output setting [${k}]`);
+              thisSection.experiment.space.derived(() => thisSection.outputs[k].set(v()));
+            });
           }
         } else if (!thisSection.cell && data.kind === SecDefKind.UiCell) {
           thisSection.outputs[outputId].set(cellOutputRef.lastValue);

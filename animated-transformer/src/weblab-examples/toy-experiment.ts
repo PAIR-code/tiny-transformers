@@ -84,7 +84,7 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: false },
+  display: { collapsed: true },
 };
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
@@ -129,7 +129,7 @@ export const simpleInlineCodeSecDef: SecDefOfWorker & {
   },
   cellCodeRef: {
     kind: CellCodeRefKind.InlineWorkerJsCode,
-    js: 'console.log("hello world from simple cell!");',
+    js: `console.log("hello world from simple cell!");`,
   },
   display: { collapsed: true },
 };
@@ -151,7 +151,7 @@ export const toyCellPathSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.PathToWorkerCode,
     tsSrcPath: 'toycell.worker.ts',
-    jsPath: 'dist/toycell.worker.js',
+    jsPath: 'dist/scripts/toycell.worker.js',
   },
   display: { collapsed: true },
 };
@@ -184,6 +184,23 @@ export const taskGenUrlCodeSecDef: SecDefOfWorker & {
     tsSrcPath: 'tiny-transformer-example/task-cell.worker.ts',
     jsUrl: 'http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js',
   },
+  display: { collapsed: false },
+};
+
+export const testSetViewSecDef: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'Test Set View',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    inputs: {
+      examples: { sectionId: taskGenUrlCodeSecDef.id, outputId: 'testSet' },
+    },
+    outputs: {},
+    inStreams: {},
+    outStreamIds: [],
+  },
+  uiView: ViewerKind.ExampleTableView,
   display: { collapsed: false },
 };
 
@@ -241,7 +258,7 @@ const modelInitDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: false },
+  display: { collapsed: true },
 };
 
 export const trainUrlCodeSecDef: SecDefOfWorker & {
@@ -288,17 +305,17 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
   // Note: these fake the contents for the path and URL code in the cache.
   dataResolver.save(
     prefixCacheCodePath(toyCellPathSecDef.cellCodeRef.jsPath),
-    'console.log("hello from simpleCellPathSecDef cell!");',
+    `console.log("hello from toyCellPathSecDef cell!");`,
   );
 
   dataResolver.save(
     prefixCacheCodeUrl(taskGenUrlCodeSecDef.cellCodeRef.jsUrl),
-    'console.log("hello from taskGenUrlCodeSecDef cell!");',
+    `console.log("hello from taskGenUrlCodeSecDef cell!");`,
   );
 
   dataResolver.save(
     prefixCacheCodeUrl(trainUrlCodeSecDef.cellCodeRef.jsUrl),
-    'console.log("hello from trainUrlCodeSecDef cell!");',
+    `console.log("hello from trainUrlCodeSecDef cell!");`,
   );
 
   const footerSecDef: SecDefOfUiView = {
@@ -323,7 +340,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
 
   // TODO: add entries for URLs and Paths.
 
-  const exp = new Experiment(env, [], initExpDef, dataResolver);
+  const exp = new Experiment(env, [], initExpDef, dataResolver, dataResolver);
 
   const sections = [
     simpleMarkdownSecDef,
@@ -332,6 +349,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     taskConfigJsonSecDef,
     genConfigJsonSecDef,
     taskGenUrlCodeSecDef,
+    testSetViewSecDef,
     modelInitDef,
     modelTrainConfigDef,
     trainUrlCodeSecDef,

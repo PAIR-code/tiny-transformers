@@ -160,9 +160,13 @@ function updateModel(modelUpdate: ModelInit, modelSignal: SetableSignal<Model | 
 
 // ----------------------------------------------------------------------------
 cell.onStart(async () => {
+  console.log(`${trainerCellKind.cellKindId}: waiting for inputs`);
+
   // TODO: Test set should be used for metrics reporting at least, and/or evaluated
   // per checkpoint?
   const { testSet, modelInit, trainConfig } = await cell.onceAllInputs;
+
+  console.log(`${trainerCellKind.cellKindId}: got inputs`);
 
   const randomStream = makeRandomStream(trainConfig().randomSeed);
 
@@ -178,10 +182,13 @@ cell.onStart(async () => {
 
   let optimizer = tf.train.adam();
 
+  console.log(`${trainerCellKind.cellKindId}: awaiting all batches`);
+
   for await (const trainBatch of cell.inStream.trainBatches) {
     if (cell.finishRequested) {
       break;
     }
+    console.log(`${trainerCellKind.cellKindId}: got batch: ${trainBatch.batchId}`);
     optimiserBatchCount++;
     const startAtMs = Date.now();
     optimizer.minimize(
@@ -192,9 +199,11 @@ cell.onStart(async () => {
     optimiserTime += Date.now() - startAtMs;
   }
 
+  console.log(`${trainerCellKind.cellKindId}: stopping metics and checkpoints streams`);
   cell.outStream.metrics.done();
   cell.outStream.checkpoint.done();
 
+  console.log(`${trainerCellKind.cellKindId}: waiting to be told to stop.`);
   await cell.onceFinishRequested.then(() => {
     if (optimizer) {
       optimizer.dispose();

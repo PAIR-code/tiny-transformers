@@ -52,21 +52,22 @@ export class BrowserDirDataResolver<T extends JsonValue> implements AbstractData
     },
   ) {}
 
-  async loadArrayBuffer(subpaths: string[]): Promise<ArrayBuffer> {
-    if (subpaths.length === 0) {
+  async loadArrayBuffer(subPaths: string[]): Promise<ArrayBuffer> {
+    const usedSubpaths = [...subPaths];
+    if (usedSubpaths.length === 0) {
       throw new Error('Cannot load empty path');
     }
     if (!this.config.dirHandle) {
       throw new MissingDirHandle();
     }
     let curDirHandle = this.config.dirHandle;
-    console.log('subpaths', JSON.stringify(subpaths));
-    if (subpaths.length > 1) {
-      const nextDirPath = subpaths.shift();
+    console.log('subpaths', JSON.stringify(usedSubpaths));
+    while (usedSubpaths.length > 1) {
+      const nextDirPath = usedSubpaths.shift();
       console.log(`looking in ${nextDirPath}`);
       curDirHandle = await curDirHandle.getDirectoryHandle(nextDirPath!);
     }
-    const finalFilePath = subpaths.shift() as string;
+    const finalFilePath = usedSubpaths.shift() as string;
     console.log(`looking in final filepath: ${finalFilePath}`);
     const fileHandle = await curDirHandle.getFileHandle(finalFilePath);
     const file = await fileHandle.getFile();

@@ -132,6 +132,12 @@
                 JSON not yet defined.
               }
             }
+            @case (ViewerKind.ExampleTableView) {
+              <app-example-table [section]="section()"></app-example-table>
+            }
+            @case (ViewerKind.SimpleChartView) {
+              <app-simple-chart></app-simple-chart>
+            }
           }
         }
         @case (SecDefKind.WorkerCell) {

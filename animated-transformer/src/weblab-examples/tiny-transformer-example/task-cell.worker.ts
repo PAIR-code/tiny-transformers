@@ -28,9 +28,9 @@ const { derived } = cell.space;
 
 // ------------------------------------------------------------------------
 cell.onStart(async () => {
-  console.log(`task cell started... waiting for inputs`);
+  console.log(`${taskCellKind.cellKindId}: started... waiting for inputs`);
   const { taskConfig, genConfig } = await cell.onceAllInputs;
-  console.log(`task cell got inputs.`);
+  console.log(`${taskCellKind.cellKindId}: got inputs.`);
   const task = derived(() => new TinyWorldTask(taskConfig()));
 
   // TODO: make state iterator take in the state for easier random stream
@@ -49,6 +49,8 @@ cell.onStart(async () => {
   });
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
   derived(() => cell.output.testSet(dataSplitByTrainAndTest().testExamples));
+
+  console.log(`${taskCellKind.cellKindId}: test set done.`);
 
   // Update the batch seed if/as needed. Allows restarting generation from an
   // earlier point.
@@ -74,8 +76,12 @@ cell.onStart(async () => {
   ) {
     const batch = makeBatch(batchId++, genConfig().batchSize);
     await cell.outStream.trainBatches.send(batch);
+    console.log(`${taskCellKind.cellKindId}: sent batch ${batchId}`);
   }
   cell.outStream.trainBatches.done();
 
+  console.log(`${taskCellKind.cellKindId}: waiting to be stopped`);
+
   await cell.onceFinishRequested;
+  console.log(`${taskCellKind.cellKindId}: stopped`);
 });

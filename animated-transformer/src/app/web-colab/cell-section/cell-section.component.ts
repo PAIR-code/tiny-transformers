@@ -111,7 +111,7 @@ export class CellSectionComponent implements OnInit, OnDestroy {
         );
       }
     }
-    addIcons(['play_circle', 'code', 'cancel', 'restart_alt', 'stop_circle']);
+    addIcons(['play_circle', 'code', 'cancel', 'restart_alt', 'stop_circle', 'input', 'output']);
 
     this.status = signal(CellStatus.NotStarted);
   }
