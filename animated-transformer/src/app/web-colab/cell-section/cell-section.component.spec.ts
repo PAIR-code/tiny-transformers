@@ -26,7 +26,7 @@ import {
   SecDefOfSecList,
   SecDefOfWorker,
 } from 'src/lib/weblab/section';
-import { InMemoryDataResolver } from 'src/lib/weblab/data-resolver';
+import { InMemoryDataResolver } from 'src/lib/data-resolver/data-resolver';
 import { provideHttpClient } from '@angular/common/http';
 
 describe('CellSectionComponent', () => {

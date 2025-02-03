@@ -42,7 +42,7 @@ import {
 import { CellController, CellStatus, SomeCellController } from '../distr-signals/cell-controller';
 import { CellKind, Kind, ValueKindFnStruct, ValueStruct } from '../distr-signals/cell-kind';
 import { Experiment, prefixCacheCodePath, prefixCacheCodeUrl } from './experiment';
-import { AbstractDataResolver } from './data-resolver';
+import { AbstractDataResolver } from '../data-resolver/data-resolver';
 import { Abs } from '@tensorflow/tfjs';
 import { tryer } from '../utils';
 

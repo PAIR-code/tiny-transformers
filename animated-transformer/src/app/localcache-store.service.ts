@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import json5 from 'json5';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { JsonValue } from 'src/lib/json/json';
-import { defaultLocalCacheStore } from 'src/lib/weblab/data-resolver';
+import { defaultLocalCacheStore } from 'src/lib/data-resolver/data-resolver';
 
 @Injectable({
   providedIn: 'root',

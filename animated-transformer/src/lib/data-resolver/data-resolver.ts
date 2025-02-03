@@ -8,6 +8,7 @@ import json5 from 'json5';
 // TODO: maybe this should just be path <--> object ?
 export abstract class AbstractDataResolver<T> {
   abstract loadArrayBuffer(path: string[]): Promise<ArrayBuffer>;
+  // abstract loadBlob(path: string[]): Promise<Blob>;
   abstract load(path: string): Promise<T>;
   abstract save(path: string, data: T): Promise<void>;
 }
@@ -21,6 +22,11 @@ export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
     const contents = enc.encode(JSON.stringify(obj));
     return contents.buffer as ArrayBuffer;
   }
+
+  // async loadBlob(path: string[]): Promise<Blob> {
+  //   const obj = await this.load(path.join('/'));
+  //   return new Blob(JSON.stringify(obj));
+  // }
 
   async load(path: string): Promise<T> {
     if (!(path in this.nodes)) {

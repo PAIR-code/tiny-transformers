@@ -54,7 +54,7 @@ import {
   AbstractDataResolver,
   BrowserDirDataResolver,
   LocalCacheDataResolver,
-} from '../../lib/weblab/data-resolver';
+} from '../../lib/data-resolver/data-resolver';
 import { SectionComponent } from './section/section.component';
 import { SecDefOfSecList, SecDefWithData, Section } from 'src/lib/weblab/section';
 import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';

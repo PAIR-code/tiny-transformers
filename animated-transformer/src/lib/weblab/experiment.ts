@@ -32,7 +32,7 @@ limitations under the License.
 
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { AbstractDataResolver } from './data-resolver';
+import { AbstractDataResolver } from '../data-resolver/data-resolver';
 import { CellController, CellStatus, SomeCellController } from '../distr-signals/cell-controller';
 import { LabEnv } from '../distr-signals/lab-env';
 import {

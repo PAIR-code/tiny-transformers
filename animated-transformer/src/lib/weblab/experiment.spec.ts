@@ -15,7 +15,7 @@ limitations under the License.
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { Experiment, loadExperiment } from './experiment';
-import { InMemoryDataResolver } from './data-resolver';
+import { InMemoryDataResolver } from '../data-resolver/data-resolver';
 import {
   SecDefByPath,
   SecDefOfRef,

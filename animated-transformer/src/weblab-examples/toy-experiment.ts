@@ -32,14 +32,14 @@ import {
 import { defaultTinyWorldTaskConfig } from '../lib/seqtasks/tiny_worlds';
 import { toyCellKind } from './toycell.kind';
 import { taskCellKind } from './tiny-transformer-example/task-cell.kind';
-import { LocalCacheDataResolver } from 'src/lib/weblab/data-resolver';
+import { LocalCacheDataResolver } from 'src/lib/data-resolver/data-resolver';
 import { JsonValue } from 'src/lib/json/json';
 import { trainerCellKind } from './tiny-transformer-example/trainer-cell.kind';
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 
 export const initExpDef: SecDefOfSecList = {
   kind: SecDefKind.SectionList,
-  id: 'top level exp name/id',
+  id: 'Toy Tiny Transformers Example Experiment',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   subsections: [],
@@ -56,14 +56,15 @@ export const simpleMarkdownSecDef: SecDefOfUiView = {
     outputs: {
       markdown: {
         saved: true,
-        lastValue: '# foo is a title\nAnd this is some normal text, **bold**, and _italic_.',
+        lastValue:
+          '# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.',
       },
     },
     inStreams: {},
     outStreamIds: [],
   },
   uiView: ViewerKind.MarkdownOutView,
-  display: { collapsed: true },
+  display: { collapsed: false },
 };
 
 export const taskConfigJsonSecDef: SecDefOfUiView = {
@@ -83,12 +84,12 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: true },
+  display: { collapsed: false },
 };
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Generation Configuration',
+  id: 'Task Generation Configuration',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -109,7 +110,7 @@ export const genConfigJsonSecDef: SecDefOfUiView = {
     outStreamIds: [],
   },
   uiView: ViewerKind.JsonObjOutView,
-  display: { collapsed: true },
+  display: { collapsed: false },
 };
 
 export const simpleInlineCodeSecDef: SecDefOfWorker & {
@@ -133,7 +134,7 @@ export const simpleInlineCodeSecDef: SecDefOfWorker & {
   display: { collapsed: true },
 };
 
-export const simpleCellPathSecDef: SecDefOfWorker & {
+export const toyCellPathSecDef: SecDefOfWorker & {
   cellCodeRef: {
     kind: CellCodeRefKind.PathToWorkerCode;
   };
@@ -286,7 +287,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
 
   // Note: these fake the contents for the path and URL code in the cache.
   dataResolver.save(
-    prefixCacheCodePath(simpleCellPathSecDef.cellCodeRef.jsPath),
+    prefixCacheCodePath(toyCellPathSecDef.cellCodeRef.jsPath),
     'console.log("hello from simpleCellPathSecDef cell!");',
   );
 
@@ -326,7 +327,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
 
   const sections = [
     simpleMarkdownSecDef,
-    simpleCellPathSecDef,
+    toyCellPathSecDef,
     simpleInlineCodeSecDef,
     taskConfigJsonSecDef,
     genConfigJsonSecDef,
