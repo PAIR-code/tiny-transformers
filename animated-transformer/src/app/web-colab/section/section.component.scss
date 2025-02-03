@@ -88,6 +88,11 @@
   // flex: 1 1 auto;
   z-index: 5;
 }
+.titleAsOuput {
+  border: 1px solid #999 !important;
+  border-radius: 3px;
+  color: #777 !important;
+}
 
 .left-margin {
   margin-left: 5px;
@@ -161,7 +166,6 @@
 }
 .inputId {
   border: 1px solid #bbb;
-  border-top: none;
   z-index: 5;
 }
 .unfilledInput {
@@ -176,6 +180,5 @@
 }
 .outputId {
   border: 1px solid #bbb;
-  border-bottom: none;
   z-index: 5;
 }

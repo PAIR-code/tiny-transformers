@@ -23,5 +23,12 @@
     <tr mat-row *matRowDef="let row; columns: columnNames"></tr>
   </table>
 } @else {
-  This value does not yet exist.
+  <div class="waitingForValue">
+    @let inputFromRefStr = inputFromRef();
+    @if (inputFromRefStr) {
+      <span class="connectedToOutput">{{ inputFromRefStr }}</span>
+    } @else {
+      <span class="notConnectedToOutput">unspecified</span>
+    }
+  </div>
 }

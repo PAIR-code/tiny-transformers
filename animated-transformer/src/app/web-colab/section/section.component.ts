@@ -90,6 +90,7 @@ export class SectionComponent {
 
   collapsed = signal(false);
   editDefView = signal(false);
+  isSingleDefinedOutputSection = signal(false);
 
   collapse() {
     this.collapsed.set(true);
@@ -147,6 +148,18 @@ export class SectionComponent {
       },
     );
     this.intersectionObserver.observe(this.thisElement.nativeElement);
+
+    effect(() => {
+      const outputs = this.section().outputs;
+      const outputKeys = Object.keys(outputs);
+      if (outputKeys.length === 1) {
+        if (outputs[outputKeys[0]]() !== null) {
+          this.isSingleDefinedOutputSection.set(true);
+          return;
+        }
+      }
+      this.isSingleDefinedOutputSection.set(false);
+    });
   }
 
   ngAfterViewInit() {

@@ -1,0 +1,19 @@
+.notConnectedToOutput {
+  border-radius: 5px;
+  border: 1px dotted #bbb;
+  font-size: small;
+  color: #bbb;
+  padding: 3px;
+}
+
+.connectedToOutput {
+  border-radius: 5px;
+  border: 1px dashed #999;
+  font-size: small;
+  color: #777;
+  padding: 3px;
+}
+
+.waitingForValue {
+  margin-bottom: 10px;
+}

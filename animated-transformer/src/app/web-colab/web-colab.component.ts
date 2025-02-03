@@ -53,6 +53,7 @@ import { LocalCacheStoreService } from '../localcache-store.service';
 import {
   AbstractDataResolver,
   BrowserDirDataResolver,
+  jsonDecode,
   LocalCacheDataResolver,
 } from '../../lib/data-resolver/data-resolver';
 import { SectionComponent } from './section/section.component';
@@ -161,8 +162,8 @@ export class WebColabComponent {
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
   viewPath: Signal<Experiment[]>;
-  fileDataResolver?: AbstractDataResolver<JsonValue>;
-  cacheDataResolver: LocalCacheDataResolver<JsonValue>;
+  fileDataResolver?: AbstractDataResolver;
+  cacheDataResolver: LocalCacheDataResolver;
   saveToCachePlannedCallback?: Timeout;
 
   // Sections edited since last cache save.
@@ -276,16 +277,13 @@ export class WebColabComponent {
   @showErrors()
   @loadingUi()
   async tryLoadExperimentFromCache() {
-    const cachedFileData = await this.cacheService.load(defaultLocalFilename);
-    if (!cachedFileData) {
-      return;
-    }
-
+    const cachedFileDataStr = await this.cacheService.load(defaultLocalFilename);
+    const cachedFileData = jsonDecode(cachedFileDataStr) as SecDefOfSecList;
     const exp = await loadExperiment(
       this.cacheDataResolver,
       this.cacheDataResolver,
       this.env,
-      cachedFileData as SecDefOfSecList,
+      cachedFileData,
       { fromCache: true },
     );
     this.cacheState.set(SaveState.Saved);
@@ -376,14 +374,16 @@ export class WebColabComponent {
       return;
     }
     this.fileDataResolver = new BrowserDirDataResolver({ dirHandle });
-    const [expJsonLoadErr, secDataDef] = await tryer(this.fileDataResolver.load('experiment.json'));
+    const [expJsonLoadErr, secDataDefStr] = await tryer(
+      this.fileDataResolver.loadStr(['experiment.json']),
+    );
     if (expJsonLoadErr) {
       console.error(expJsonLoadErr);
       this.error = `Could not open 'experiment.json': ${expJsonLoadErr.message}`;
       return;
     }
     // TODO: actually do some validation...
-    const expDef = secDataDef as SecDefOfSecList;
+    const expDef = jsonDecode(secDataDefStr) as SecDefOfSecList;
     const [expLoadErr, exp] = await tryer(
       loadExperiment(this.cacheDataResolver, this.fileDataResolver, this.env, expDef, {
         fromCache: false,

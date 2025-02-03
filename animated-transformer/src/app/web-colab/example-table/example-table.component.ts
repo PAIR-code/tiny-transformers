@@ -33,4 +33,13 @@ export class ExampleTableComponent implements OnInit {
   ngOnInit() {
     this.section().space.derived(() => this.examples.set(this.section().inputs['examples']()));
   }
+
+  inputFromRef(): string | null {
+    const thisSection = this.section().assertIoSection();
+    const inputInfo = thisSection.defData().io.inputs['examples'];
+    if (!inputInfo) {
+      return null;
+    }
+    return `${inputInfo.sectionId}.${inputInfo.outputId}`;
+  }
 }

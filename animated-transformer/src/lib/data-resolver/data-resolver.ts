@@ -6,37 +6,40 @@ import { stringifyJsonValue } from '../json/pretty_json';
 import json5 from 'json5';
 
 // TODO: maybe this should just be path <--> object ?
-export abstract class AbstractDataResolver<T> {
+export abstract class AbstractDataResolver {
   abstract loadArrayBuffer(path: string[]): Promise<ArrayBuffer>;
-  // abstract loadBlob(path: string[]): Promise<Blob>;
-  abstract load(path: string): Promise<T>;
-  abstract save(path: string, data: T): Promise<void>;
+  abstract saveArrayBuffer(path: string[], data: ArrayBuffer): Promise<void>;
+
+  async loadStr(path: string[]): Promise<string> {
+    const dec = new TextDecoder('utf-8');
+    const arrayBuffer = await this.loadArrayBuffer(path);
+    const str = dec.decode(arrayBuffer);
+    return str;
+  }
+
+  async saveStr(path: string[], data: string): Promise<void> {
+    const enc = new TextEncoder(); // always utf-8
+    const contents = enc.encode(data);
+    this.saveArrayBuffer(path, contents.buffer as ArrayBuffer);
+  }
 }
 
-export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
-  constructor(public nodes: { [id: string]: T } = {}) {}
+// ============================================================================
+export class InMemoryDataResolver extends AbstractDataResolver {
+  constructor(public nodes: { [id: string]: ArrayBuffer } = {}) {
+    super();
+  }
 
   async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
-    const obj = await this.load(path.join('/'));
-    const enc = new TextEncoder();
-    const contents = enc.encode(JSON.stringify(obj));
-    return contents.buffer as ArrayBuffer;
-  }
-
-  // async loadBlob(path: string[]): Promise<Blob> {
-  //   const obj = await this.load(path.join('/'));
-  //   return new Blob(JSON.stringify(obj));
-  // }
-
-  async load(path: string): Promise<T> {
-    if (!(path in this.nodes)) {
-      throw new Error(`no such cell path entry: ${path}`);
+    const pathStr = path.join('/');
+    if (!(pathStr in this.nodes)) {
+      throw new Error(`no such cell path entry: ${pathStr}`);
     }
-    return structuredClone(this.nodes[path]);
+    return this.nodes[path.join('/')];
   }
 
-  async save(path: string, sectionDataDef: T): Promise<void> {
-    this.nodes[path] = structuredClone(sectionDataDef);
+  async saveArrayBuffer(path: string[], data: ArrayBuffer): Promise<void> {
+    this.nodes[path.join('/')] = data;
   }
 }
 
@@ -44,16 +47,18 @@ export class InMemoryDataResolver<T> implements AbstractDataResolver<T> {
 // TODO: maybe this should just be path <--> object ?
 class MissingDirHandle extends Error {}
 
-export class BrowserDirDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
+export class BrowserDirDataResolver extends AbstractDataResolver {
   constructor(
     public config: {
       dirHandle?: FileSystemDirectoryHandle;
       intendedRootPath?: string;
     },
-  ) {}
+  ) {
+    super();
+  }
 
-  async loadArrayBuffer(subPaths: string[]): Promise<ArrayBuffer> {
-    const usedSubpaths = [...subPaths];
+  async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
+    const usedSubpaths = [...path];
     if (usedSubpaths.length === 0) {
       throw new Error('Cannot load empty path');
     }
@@ -75,57 +80,54 @@ export class BrowserDirDataResolver<T extends JsonValue> implements AbstractData
     return fileBuffer;
   }
 
-  async load(path: string): Promise<T> {
-    const buffer = await this.loadArrayBuffer([path]);
-    const dec = new TextDecoder('utf-8');
-    const contents = dec.decode(buffer);
-    // TODO: add better file contents verification.
-    let dataObject: T;
-    dataObject = JSON.parse(contents);
-    return dataObject;
-  }
-
-  async save(path: string, nodeData: T): Promise<void> {
+  async saveArrayBuffer(path: string[], data: ArrayBuffer): Promise<void> {
+    const usedSubpaths = [...path];
+    if (usedSubpaths.length === 0) {
+      throw new Error('saveArrayBuffer: Cannot load empty path');
+    }
     if (!this.config.dirHandle) {
       throw new MissingDirHandle();
     }
-    const fileHandle = await this.config.dirHandle.getFileHandle(path, { create: true });
+    let curDirHandle = this.config.dirHandle;
+    console.log('saveArrayBuffer: subpaths', JSON.stringify(usedSubpaths));
+    while (usedSubpaths.length > 1) {
+      const nextDirPath = usedSubpaths.shift();
+      console.log(`saveArrayBuffer: looking in ${nextDirPath}`);
+      curDirHandle = await curDirHandle.getDirectoryHandle(nextDirPath!);
+    }
+    const finalFilePath = usedSubpaths.shift() as string;
+    console.log(`saveArrayBuffer: looking in final filepath: ${finalFilePath}`);
+    const fileHandle = await curDirHandle.getFileHandle(finalFilePath);
     fileHandle.requestPermission({ mode: 'readwrite' });
     const writable = await fileHandle.createWritable();
-    await writable.write(
-      stringifyJsonValue(nodeData, { arrWrapAt: 100, objWrapAt: 100, quoteAllKeys: true }),
-    );
-    // TODO ERROR HERE.
-    await writable.close();
+    await writable.write(data);
   }
 }
 
 // ============================================================================
-export class LocalCacheStore<T> {
+export class LocalCacheStore {
   constructor(
-    public encoder: (x: T) => string,
-    public decoder: (s: string) => T,
     public defaultStorageId = 'defaultFilePath',
     public pathPrefix = 'LocalCacheStore:',
   ) {}
-  async load(path: string): Promise<T | null> {
+  async load(path: string): Promise<string> {
     const s = localStorage.getItem(this.pathPrefix + path);
     if (!s) {
-      return null;
+      throw new Error(`LocalCacheStore: no such key: ${path}`);
     }
     // TODO: consider if not parsable, clear and return null?
-    return this.decoder(s);
+    return s;
   }
-  async save(path: string, obj: T): Promise<void> {
-    localStorage.setItem(this.pathPrefix + path, this.encoder(obj));
+  async save(path: string, obj: string): Promise<void> {
+    localStorage.setItem(this.pathPrefix + path, obj);
   }
   async delete(path: string): Promise<void> {
     localStorage.removeItem(this.pathPrefix + path);
   }
-  async saveDefault(obj: T): Promise<void> {
+  async saveDefault(obj: string): Promise<void> {
     this.save(this.defaultStorageId, obj);
   }
-  async loadDefault(): Promise<T | null> {
+  async loadDefault(): Promise<string> {
     return this.load(this.defaultStorageId);
   }
   async deleteDefault(): Promise<void> {
@@ -133,36 +135,31 @@ export class LocalCacheStore<T> {
   }
 }
 
-export const defaultLocalCacheStore = new LocalCacheStore<JsonValue>(
-  stringifyJsonValue,
-  json5.parse,
-);
+export const jsonEncode = stringifyJsonValue;
+export const jsonDecode = json5.parse;
+
+export const defaultLocalCacheStore = new LocalCacheStore();
 
 // ============================================================================
 // TODO: maybe this should just be path <--> object ?
-export class LocalCacheDataResolver<T extends JsonValue> implements AbstractDataResolver<T> {
-  localCache: LocalCacheStore<T>;
+export class LocalCacheDataResolver extends AbstractDataResolver {
+  localCache: LocalCacheStore;
 
-  constructor(localCache?: LocalCacheStore<T>) {
-    this.localCache = localCache || (defaultLocalCacheStore as never as LocalCacheStore<T>);
+  constructor(localCache?: LocalCacheStore) {
+    super();
+    this.localCache = localCache || defaultLocalCacheStore;
   }
 
   async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
-    const obj = await this.load(path.join('/'));
-    const enc = new TextEncoder();
-    const contents = enc.encode(JSON.stringify(obj));
+    const s = await this.localCache.load(path.join('/'));
+    const enc = new TextEncoder(); // always utf-8
+    const contents = enc.encode(s);
     return contents.buffer as ArrayBuffer;
   }
 
-  async load(path: string): Promise<T> {
-    const dataObject = await this.localCache.load(path);
-    if (!dataObject) {
-      throw new Error(`No local cache file at path (using loadFileCache): ${path}`);
-    }
-    return dataObject;
-  }
-
-  async save(path: string, data: T): Promise<void> {
-    await this.localCache.save(path, data);
+  async saveArrayBuffer(path: string[], data: ArrayBuffer): Promise<void> {
+    const dec = new TextDecoder('utf-8');
+    const str = dec.decode(data);
+    await this.localCache.save(path.join('/'), str);
   }
 }

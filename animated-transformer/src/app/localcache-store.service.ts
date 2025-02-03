@@ -31,11 +31,11 @@ export class LocalCacheStoreService {
 
   constructor() {}
 
-  async load<T extends JsonValue>(path: string): Promise<T | null> {
-    return this.cache.load(path) as Promise<T | null>;
+  async load(path: string): Promise<string> {
+    return this.cache.load(path) as Promise<string>;
   }
 
-  async save<T extends JsonValue>(path: string, obj: T): Promise<void> {
+  async save(path: string, obj: string): Promise<void> {
     return this.cache.save(path, obj);
   }
 
@@ -43,12 +43,12 @@ export class LocalCacheStoreService {
     this.cache.delete(path);
   }
 
-  async saveDefault<T extends JsonValue>(obj: T): Promise<void> {
+  async saveDefault(obj: string): Promise<void> {
     this.cache.saveDefault(obj);
   }
 
-  async loadDefault<T extends JsonValue>(): Promise<T | null> {
-    return this.cache.loadDefault() as Promise<T | null>;
+  async loadDefault(): Promise<string> {
+    return this.cache.loadDefault() as Promise<string>;
   }
 
   async deleteDefault(): Promise<void> {

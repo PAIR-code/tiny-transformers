@@ -51,7 +51,8 @@
   <span
     (click)="collapsed() && uncollapse()"
     class="mini-id-title left-margin"
-    [class.hostHover]="!collapsed()"
+    [class.hostHover]="!collapsed() && !isSingleDefinedOutputSection()"
+    [class.titleAsOuput]="isSingleDefinedOutputSection()"
     >{{ data.id }}</span
   >
   @if (collapsed()) {
@@ -80,7 +81,7 @@
     }
 
     @let outputs = section().outputNames();
-    @if (outputs.length > 0) {
+    @if (outputs.length > 1) {
       <div class="ouputChips">
         @for (idAndOut of outputs; track idAndOut.id) {
           <span class="outputId chip" [class.hostHover]="!collapsed()">
@@ -92,7 +93,8 @@
   }
 </div>
 
-<div class="top-bar hostHover"></div>
+<div class="top-bar"></div>
+<!-- <div class="top-bar" [class.hostHover]="collapsed()"></div> -->
 
 @if (!collapsed()) {
   <div class="expanded-section">
@@ -155,7 +157,8 @@
       }
     }
   </div>
-  <div class="bottom-bar hostHover"></div>
+
+  <!-- <div class="bottom-bar hostHover"></div> -->
   <!-- <div class="small-buttons showOnHover">
     <span class="spacer"></span>
     

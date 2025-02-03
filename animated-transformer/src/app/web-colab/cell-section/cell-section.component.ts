@@ -64,7 +64,7 @@ import {
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    AutoCompletedTextInputComponent,
+    // AutoCompletedTextInputComponent,
     CodemirrorJavaScriptEditorComponent,
     // --
     MatSidenavModule,
@@ -144,6 +144,15 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     this.section().experiment.space.derived(() =>
       this.sectionsWithOutputs.set([...this.section().experiment.secIdsWithOutputs()].sort()),
     );
+
+    this.section().experiment.space.derived(() => {
+      const outputs = this.section().outputs;
+      for (const k of Object.keys(outputs)) {
+        console.log(
+          `CellSectionComponent: ${this.def.id}.output[${k}]: ${JSON.stringify(outputs[k]())}`,
+        );
+      }
+    });
   }
 
   selectInputSection(inputId: string, selectedCellId: string | null) {

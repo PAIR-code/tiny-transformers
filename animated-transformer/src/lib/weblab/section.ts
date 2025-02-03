@@ -507,8 +507,8 @@ export class Section<
   }
 
   async initSectionCellData(
-    cacheResolver: AbstractDataResolver<JsonValue>,
-    dataResolver: AbstractDataResolver<JsonValue>,
+    cacheResolver: AbstractDataResolver,
+    dataResolver: AbstractDataResolver,
     config: {
       fromCache: boolean;
     },
@@ -523,7 +523,7 @@ export class Section<
       case CellCodeRefKind.PathToWorkerCode: {
         try {
           const pathList = config.fromCache
-            ? [prefixCacheCodePath(secDef.cellCodeRef.jsPath)]
+            ? prefixCacheCodePath([secDef.cellCodeRef.jsPath])
             : // Match paths, splitting by "/" char, but skipping any that are escaped i.e. "\/"
               secDef.cellCodeRef.jsPath.split(/(?<!\\)\//);
           const [loadCodeErr, buffer] = await tryer(dataResolver.loadArrayBuffer(pathList));
@@ -533,11 +533,15 @@ export class Section<
               `Unable to load code path (${secDef.cellCodeRef.jsPath}) in experiment, pathList: ${JSON.stringify(pathList)}`,
             );
           }
+          if (cacheResolver !== dataResolver) {
+            await cacheResolver.saveArrayBuffer(
+              prefixCacheCodePath([secDef.cellCodeRef.jsPath]),
+              buffer,
+            );
+          }
+
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
-          if (cacheResolver !== dataResolver) {
-            cacheResolver.save(prefixCacheCodePath(secDef.cellCodeRef.jsPath), cellCodeCache);
-          }
           console.log('CellCodeRefKind.PathToWorkerCode: code: ', cellCodeCache);
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
@@ -561,9 +565,9 @@ export class Section<
         try {
           let buffer: ArrayBuffer;
           if (config.fromCache) {
-            buffer = await dataResolver.loadArrayBuffer([
-              prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl),
-            ]);
+            buffer = await dataResolver.loadArrayBuffer(
+              prefixCacheCodeUrl([secDef.cellCodeRef.jsUrl]),
+            );
           } else {
             const response = await fetch(secDef.cellCodeRef.jsUrl);
             if (!response.ok) {
@@ -571,11 +575,11 @@ export class Section<
             }
             buffer = await response.arrayBuffer();
           }
+          if (cacheResolver !== dataResolver) {
+            cacheResolver.saveArrayBuffer(prefixCacheCodeUrl([secDef.cellCodeRef.jsUrl]), buffer);
+          }
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
-          if (cacheResolver !== dataResolver) {
-            cacheResolver.save(prefixCacheCodeUrl(secDef.cellCodeRef.jsUrl), cellCodeCache);
-          }
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
           thisSection.cell = { controller, cellCodeCache, cellObjectUrl };

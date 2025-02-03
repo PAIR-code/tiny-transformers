@@ -13,7 +13,7 @@
             "lastValue": "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "Markdown" },
     { 
       "cellCodeRef": { 
@@ -24,16 +24,16 @@
       "id": "toyCellKind",
       "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
       "kind": "WorkerCell",
-      "timestamp": 1738572361199 },
+      "timestamp": 1738594882497 },
     { 
       "cellCodeRef": {"js": "console.log(\"hello world from simple cell!\");", "kind": "InlineWorkerJsCode"},
       "display": {"collapsed": true},
       "id": "InlineCodeCell",
       "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
       "kind": "WorkerCell",
-      "timestamp": 1738572361199 },
+      "timestamp": 1738594882497 },
     { 
-      "display": {"collapsed": false},
+      "display": {"collapsed": true},
       "id": "Task Configuration",
       "io": { 
         "inStreams": {},
@@ -76,11 +76,11 @@
                 "squishable": ["cat", "monkey", "flower"] } },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "JsonObj" },
     { 
       "display": {"collapsed": false},
-      "id": "Task Generation Configuration",
+      "id": "Task Generation",
       "io": { 
         "inStreams": {},
         "inputs": {},
@@ -95,7 +95,7 @@
               "testSetSize": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
@@ -107,12 +107,12 @@
       "io": { 
         "inStreams": {},
         "inputs": { 
-          "genConfig": {"outputId": "jsonObj", "sectionId": "Task Generation Configuration"},
+          "genConfig": {"outputId": "jsonObj", "sectionId": "Task Generation"},
           "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} },
         "outStreamIds": ["trainBatches"],
         "outputs": {"testSet": {"saved": false}} },
       "kind": "WorkerCell",
-      "timestamp": 1738572361199 },
+      "timestamp": 1738594882497 },
     { 
       "display": {"collapsed": false},
       "id": "Test Set View",
@@ -122,11 +122,11 @@
         "outStreamIds": [],
         "outputs": {} },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "ExampleTableView" },
     { 
-      "display": {"collapsed": false},
-      "id": "Model Init Config",
+      "display": {"collapsed": true},
+      "id": "Model Init",
       "io": { 
         "inStreams": {},
         "inputs": {},
@@ -179,11 +179,11 @@
               "kind": "ReinitFromConfig" },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "JsonObj" },
     { 
       "display": {"collapsed": false},
-      "id": "Model Train Config",
+      "id": "Train Config",
       "io": { 
         "inStreams": {},
         "inputs": {},
@@ -202,7 +202,7 @@
               "trainForBatches": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1738572361199,
+      "timestamp": 1738594882497,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
@@ -214,13 +214,13 @@
       "io": { 
         "inStreams": {"trainBatches": {"outStreamId": "trainBatches", "sectionId": "Task cell"}},
         "inputs": { 
-          "modelInit": {"outputId": "jsonObj", "sectionId": "Model Init Config"},
+          "modelInit": {"outputId": "jsonObj", "sectionId": "Model Init"},
           "testSet": {"outputId": "testSet", "sectionId": "Task cell"},
-          "trainConfig": {"outputId": "jsonObj", "sectionId": "Model Train Config"} },
+          "trainConfig": {"outputId": "jsonObj", "sectionId": "Train Config"} },
         "outStreamIds": ["metrics", "checkpoint"],
         "outputs": {"testSet": {"saved": false}} },
       "kind": "WorkerCell",
-      "timestamp": 1738572361199 },
+      "timestamp": 1738594882497 },
     { 
       "display": {"collapsed": false},
       "id": "footer",
@@ -230,7 +230,7 @@
         "outStreamIds": [],
         "outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}} },
       "kind": "LocalCell",
-      "timestamp": 1738573372762,
+      "timestamp": 1738594884993,
       "uiView": "Markdown" } ],
-  "timestamp": 1738573372761,
+  "timestamp": 1738594884993,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

@@ -89,7 +89,7 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Task Generation Configuration',
+  id: 'Task Generation',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -206,7 +206,7 @@ export const testSetViewSecDef: SecDefOfUiView = {
 
 const modelTrainConfigDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Model Train Config',
+  id: 'Train Config',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -240,7 +240,7 @@ const modelTrainConfigDef: SecDefOfUiView = {
 
 const modelInitDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Model Init Config',
+  id: 'Model Init',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -300,21 +300,21 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     subsections: [],
     display: { collapsed: false },
   };
-  const dataResolver = new LocalCacheDataResolver<JsonValue>();
+  const dataResolver = new LocalCacheDataResolver();
 
   // Note: these fake the contents for the path and URL code in the cache.
-  dataResolver.save(
-    prefixCacheCodePath(toyCellPathSecDef.cellCodeRef.jsPath),
+  dataResolver.saveStr(
+    prefixCacheCodePath([toyCellPathSecDef.cellCodeRef.jsPath]),
     `console.log("hello from toyCellPathSecDef cell!");`,
   );
 
-  dataResolver.save(
-    prefixCacheCodeUrl(taskGenUrlCodeSecDef.cellCodeRef.jsUrl),
+  dataResolver.saveStr(
+    prefixCacheCodeUrl([taskGenUrlCodeSecDef.cellCodeRef.jsUrl]),
     `console.log("hello from taskGenUrlCodeSecDef cell!");`,
   );
 
-  dataResolver.save(
-    prefixCacheCodeUrl(trainUrlCodeSecDef.cellCodeRef.jsUrl),
+  dataResolver.saveStr(
+    prefixCacheCodeUrl([trainUrlCodeSecDef.cellCodeRef.jsUrl]),
     `console.log("hello from trainUrlCodeSecDef cell!");`,
   );
 

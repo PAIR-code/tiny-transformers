@@ -32,7 +32,7 @@ limitations under the License.
 
 import { JsonValue } from 'src/lib/json/json';
 import { AbstractSignal, SetableSignal, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { AbstractDataResolver } from '../data-resolver/data-resolver';
+import { AbstractDataResolver, jsonDecode, jsonEncode } from '../data-resolver/data-resolver';
 import { CellController, CellStatus, SomeCellController } from '../distr-signals/cell-controller';
 import { LabEnv } from '../distr-signals/lab-env';
 import {
@@ -69,11 +69,11 @@ function sectionListEqCheck(sections1: Section[], sections2: Section[]): boolean
   return true;
 }
 
-export function prefixCacheCodePath(s: string): string {
-  return 'CacheCodePath:' + s;
+export function prefixCacheCodePath(path: string[]): string[] {
+  return ['CacheCodePath:', ...path];
 }
-export function prefixCacheCodeUrl(s: string): string {
-  return 'CacheCodeUrl:' + s;
+export function prefixCacheCodeUrl(s: string[]): string[] {
+  return ['CacheCodeUrl:', ...s];
 }
 
 // ============================================================================
@@ -105,8 +105,8 @@ export class Experiment {
     // public initSecDef: SecDefOfSecList,
     // How data gets resolved when loading. Needed for remote cell code paths,
     // etc.
-    public cacheResolver: AbstractDataResolver<JsonValue>,
-    public dataResolver: AbstractDataResolver<JsonValue>,
+    public cacheResolver: AbstractDataResolver,
+    public dataResolver: AbstractDataResolver,
   ) {
     this.space = env.space;
     this.section = new Section(this, def, null) as ListSection;
@@ -292,8 +292,8 @@ type SecListBeingLoaded = {
 };
 
 export async function loadExperiment(
-  cacheResolver: AbstractDataResolver<JsonValue>,
-  dataResolver: AbstractDataResolver<JsonValue>,
+  cacheResolver: AbstractDataResolver,
+  dataResolver: AbstractDataResolver,
   env: LabEnv,
   secListDef: SecDefOfSecList,
   config: {
@@ -329,7 +329,9 @@ export async function loadExperiment(
       cur.parentSection.subSections.change((secs) => secs.push(section));
       let subsecDefData: SecDefWithData;
       if (subSecDef.kind === SecDefKind.Path) {
-        subsecDefData = (await dataResolver.load(subSecDef.dataPath)) as SecDefWithData;
+        subsecDefData = jsonDecode(
+          await dataResolver.loadStr([subSecDef.dataPath]),
+        ) as SecDefWithData;
         section.defData.set(subsecDefData);
       } else {
         subsecDefData = subSecDef;
@@ -375,12 +377,12 @@ export async function loadExperiment(
 }
 
 export async function saveExperiment(
-  dataResolver: AbstractDataResolver<JsonValue>,
+  dataResolver: AbstractDataResolver,
   rootExperimentFilePath: string,
   distrSectionDef: DistrSerialization<SecDefWithData, JsonValue>,
 ): Promise<void> {
-  await dataResolver.save(rootExperimentFilePath, distrSectionDef.data);
+  await dataResolver.saveStr([rootExperimentFilePath], jsonEncode(distrSectionDef.data));
   for (const [p, d] of Object.entries(distrSectionDef.subpathData || {})) {
-    await dataResolver.save(p, d);
+    await dataResolver.saveStr([p], jsonEncode(d));
   }
 }
