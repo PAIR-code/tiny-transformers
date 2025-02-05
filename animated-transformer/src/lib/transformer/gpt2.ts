@@ -34,9 +34,9 @@ import {
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { initLayerNormParamsWithDims, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { dropout } from './dropout';
-import { BasicTaskTokenRep, StrSeqPrepFn } from '../tokens/token_gemb';
+import { BasicTaskTokenRep, StrSeqPrepFn, tokenizeAndMapToIdx, embedBatch } from '../tokens/token_gemb';
 import { RandomStream } from '../random/random';
-import { causalMask, BatchAttnHeadComputation } from './transformer_gtensor';
+import { causalMask, BatchAttnHeadComputation, TransformerComputation, transformerTopPrediction, computeMaxInputLength } from './common_transformer';
 
 export type Config = {
   id: string;
@@ -158,7 +158,6 @@ export type AttnHeadParams = {
   keyMBias: GTensor<'heads' | 'kq'>;
   valueMBias: GTensor<'heads' | 'value'>;
   headsToInputRepMBias: GTensor<'inputRepToFF'>;
-
   layerNormHeadsProjection?: LayerNormParams<'inputRepToFF'>;
   layerNormPreAttention?: LayerNormParams<'inputRep'>;
   ff1: FfParams<'inputRepToFF', 'hiddenRep'>;
@@ -366,10 +365,6 @@ export function initDecoderParams(config: Config): TransformerParams {
   return transformerParams;
 }
 
-export type TransformerComputation = {
-  layers: BatchAttnHeadComputation[];
-};
-
 export function computeTransformer(
   model: {
     config: { spec: TransformerParamSpec };
@@ -406,77 +401,6 @@ export function computeTransformer(
   return compute;
 }
 
-/** Batch compute of the final token ids.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function lastTokenLogits(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch' | 'tokenId'> {
-  const lastLayer = computation.layers[computation.layers.length - 1];
-  const positionParams = lastLayer.seqOutput.unstack('pos');
-  const lastPosParams = positionParams[positionParams.length - 1];
-  const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
-  return logits;
-}
-
-/**
- * Returns the average per example loss for the last token prediction.
- */
-export function lastTokenCrossEntropyLoss(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const logits = lastTokenLogits(model, computation);
-  const logProbs = logits.softmax('tokenId').log();
-  const nTokens = model.params.tokenEmbedding.dim.tokenId.size;
-  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, nTokens), ['batch', 'tokenId']);
-  const crossEntopy = logProbs.pointwiseMul(oneHotToken);
-  return (
-    crossEntopy
-      .sumOverDims(['batch', 'tokenId'])
-      ._tfScalarDiv(tf.scalar(targetTokenIdxs.dim.batch.size * -1)).tensor as tf.Scalar
-  );
-}
-
-/** Batch compute the top prediction from the last token of a transformer.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function transformerTopPrediction(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch'> {
-  const dotProd = lastTokenLogits(model, computation);
-  return dotProd.argMax('tokenId');
-}
-
-export function transformerAccuracy(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const predictions = transformerTopPrediction(model, computation);
-  return predictions
-    .pointwiseEqual(targetTokenIdxs)
-    .sumOverDims(['batch'])
-    .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
-}
-
 /** Add positional encodings to the input.
  *
  * This implementation simply creates an embedding for each position.
@@ -489,7 +413,6 @@ export function addPosEmbeddings(
   model: {
     config: {
       spec: TransformerParamSpec;
-      tokenRep: BasicTaskTokenRep;
     };
     params: TransformerParams;
   },
@@ -498,6 +421,8 @@ export function addPosEmbeddings(
   if (model.params.posEmbedding) {
     const indexes = makeRange('pos', 0, input.dim.pos.size, 1, 'int32');
     const stackedIndexes = stackGtensors('batch', Array(input.dim.batch.size).fill(indexes));
+    // TODO(@aliciafmachado): one hot encoding could not be right - what's the right implementation before going into an embedder.
+    // Same applies for the token embedder.
     const oneHotToken = new GTensor(oneHot(stackedIndexes.tensor, model.config.spec.posEncodingSeqLength), [
       'batch',
       'pos',
@@ -512,18 +437,12 @@ export function computeDecoder(
   model: {
     config: {
       spec: TransformerParamSpec;
-      tokenRep: BasicTaskTokenRep;
     };
     params: TransformerParams;
   },
-  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  inputs: string[][],
+  gtensorInputs: GTensor<'batch' | 'pos' | 'inputRep'>,
   generator: RandomStream
 ): TransformerComputation {
-  const maxInputLength = model.config.spec.posEncodingSeqLength;
-  let gtensorInputs = inputPrepFn(
-    model, inputs, { maxInputLength })
-
   if (model.config.spec.addPosEmbeddings) {
     gtensorInputs = addPosEmbeddings(model, gtensorInputs)
   }
@@ -540,14 +459,72 @@ export function computePrediction(
   inputs: string[][],
   generator: RandomStream
 ): string[][] {
+  // Get max input length.
+  const maxInputLength = computeMaxInputLength(model.config.spec.posEncodingSeqLength, inputs);
+
+  // Preprocessing.
+  const tokenEmb = inputPrepFn(
+    model, inputs, { maxInputLength: maxInputLength })
+
+  // Computation.
+  // This could be extended to be next N token prediction.
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
+    const decoderComputation = computeDecoder(model, tokenEmb, generator);
     const predictions = transformerTopPrediction(model, decoderComputation);
-    return (predictions.tensor.arraySync() as number[]).map((idx) => [
-      model.config.tokenRep.tokens[idx],
-    ]);
+    return predictions.tensor;
   });
-  return examplePredictions;
+
+  // Detokenize function depending on the inputs of the function.
+  return (examplePredictions.arraySync() as number[]).map((idx) => [
+    model.config.tokenRep.tokens[idx],
+  ]);
+}
+
+export function computePredictionWithLoadedTokenizer(
+  model: {
+    config: { spec: TransformerParamSpec };
+    params: TransformerParams;
+  },
+  tokenize_fn: (input: string) => number[],
+  decode_token_fn: (input: number[]) => string,
+  // We tokenize directly with the preprocessing function from gpt-tokenizer.
+  inputs: string[],
+  generator: RandomStream
+  // TODO(@aliciafmachado): save the input as well, and split in two functions: one that tokenizes and one that does not.
+  // The current blocker is that the StrSeqPrepFn does the mapping from token to idx and transforms into embeddings.
+  // We'd need to refactor how we preprocess the data for tasks.
+): string[] {
+  // Encode inputs using a tokenizer (gpt_tokenizer.r50k_base is the encoder used for GPT2).
+  // TODO(@aliciafmachado): There is no clear padding in the vocabulary of GPT2. We are currently using 
+  // the token of idx 0. If propagate the masking to the loss computation this should not be an issue.
+  const padTokenId = 0;
+  const inputsIdxs = tokenizeAndMapToIdx(tokenize_fn, inputs);
+
+  // Max input length.
+  const maxInputLength = computeMaxInputLength(model.config.spec.posEncodingSeqLength, inputsIdxs);
+
+  // Create token embeddings.
+  const tokenizedInputs = embedBatch(
+    model.params.tokenEmbedding,
+    inputsIdxs,
+    {
+      paddingId: padTokenId,
+      padAt: 'start',
+      dtype: 'int32',
+      maxInputLength: maxInputLength,
+    }
+  );
+
+  // Computation.
+  // This could be extended to be next N token prediction.
+  const examplePredictions = tf.tidy(() => {
+    const decoderComputation = computeDecoder(model, tokenizedInputs, generator);
+    const predictions = transformerTopPrediction(model, decoderComputation);
+    return predictions.tensor;
+  });
+
+  // Detokenize.
+  return (examplePredictions.arraySync() as number[]).map((arr: number) => decode_token_fn([arr]));
 }
 
 export function makeTransformer(transformerConfig: Config): TransformerModel {

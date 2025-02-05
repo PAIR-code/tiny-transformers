@@ -29,14 +29,15 @@ import {
 } from './ailab';
 import {
   computeTransformer,
-  transformerAccuracy,
   TransformerConfig,
-  lastTokenCrossEntropyLoss,
   TransformerModel,
   VarTransformerParams,
   initDecoderParams,
-  TransformerComputation,
 } from 'src/lib/transformer/transformer_gtensor';
+import {
+  transformerAccuracy,
+  lastTokenCrossEntropyLoss,
+} from 'src/lib/transformer/common_transformer';
 import {
   assignParams,
   deserializeParams,
