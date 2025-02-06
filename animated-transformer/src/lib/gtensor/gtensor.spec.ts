@@ -905,4 +905,109 @@ describe('gtensor', () => {
       [0, 0, 0],
     ]);
   });
+
+  it('where', async () => {
+    const g1 = new gtensor.GTensor(
+      tf.tensor(
+        [
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+        ],
+      ),
+      ['example', 'pos', 'repSize'],
+    );
+
+    const g2 = new gtensor.GTensor(
+      tf.tensor(
+        [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+        ],
+      ),
+      ['pos', 'repSize'],
+    );
+
+    const condition = tf.tensor([1, 0, 0, 1, 1, 0], [3, 2], 'bool');
+
+    const g1WhereCondition = g1.where(condition, g2);
+
+    expect(g1WhereCondition.dimNames).toEqual(['example', 'pos', 'repSize']);
+    tf.test_util.expectArraysEqual(g1WhereCondition.tensor.arraySync(), [
+      [
+        [1, 0],
+        [0, 4],
+        [5, 0],
+      ], // example = 1
+      [
+        [1, 0],
+        [0, 4],
+        [5, 0],
+      ],
+    ]);
+  });
+
+  it('where no broadcast over g2', async () => {
+    const g1 = new gtensor.GTensor(
+      tf.tensor(
+        [
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+        ],
+      ),
+      ['example', 'pos', 'repSize'],
+    );
+
+    const g2 = new gtensor.GTensor(
+      tf.tensor(
+        [
+          [
+            [0, 0],
+            [0, 0],
+            [0, 0],
+          ], // example = 1
+          [
+            [0, 0],
+            [0, 0],
+            [0, 0],
+          ],
+        ], // example = 2
+      ),
+      ['example', 'pos', 'repSize'],
+    );
+
+    const condition = tf.tensor([1, 0, 0, 1, 1, 0], [3, 2], 'bool');
+
+    const g1WhereCondition = g1.where(condition, g2);
+
+    expect(g1WhereCondition.dimNames).toEqual(['example', 'pos', 'repSize']);
+    tf.test_util.expectArraysEqual(g1WhereCondition.tensor.arraySync(), [
+      [
+        [1, 0],
+        [0, 4],
+        [5, 0],
+      ], // example = 1
+      [
+        [1, 0],
+        [0, 4],
+        [5, 0],
+      ],
+    ]);
+  });
 });
