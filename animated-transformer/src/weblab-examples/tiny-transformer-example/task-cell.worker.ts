@@ -48,7 +48,10 @@ cell.onStart(async () => {
     return { testExamples, trainExamplesIter };
   });
   const trainExamplesIter = derived(() => dataSplitByTrainAndTest().trainExamplesIter);
-  derived(() => cell.output.testSet(dataSplitByTrainAndTest().testExamples));
+  derived(() => {
+    console.log(`${taskCellKind.cellKindId}: test set sent.`);
+    cell.output.testSet(dataSplitByTrainAndTest().testExamples);
+  });
 
   console.log(`${taskCellKind.cellKindId}: test set done.`);
 

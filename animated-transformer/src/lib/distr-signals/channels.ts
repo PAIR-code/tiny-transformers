@@ -97,7 +97,7 @@ function addPipeSignalFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     recipientChannelId: recEnd.channelId,
     remote: {
       kind: RemoteKind.MessagePort,
-      remoteCellId: sendEnd.channelId,
+      remoteCellId: sendEnd.cellId,
       remoteChannelId: sendEnd.channelId,
       messagePort: channel.port1,
     },
@@ -109,7 +109,7 @@ function addPipeSignalFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     recipientChannelId: sendEnd.channelId,
     remote: {
       kind: RemoteKind.MessagePort,
-      remoteCellId: recEnd.channelId,
+      remoteCellId: recEnd.cellId,
       remoteChannelId: recEnd.channelId,
       messagePort: channel.port2,
     },
@@ -127,7 +127,7 @@ function addPipeStreamFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     recipientChannelId: recEnd.channelId,
     remote: {
       kind: RemoteKind.MessagePort,
-      remoteCellId: sendEnd.channelId,
+      remoteCellId: sendEnd.cellId,
       remoteChannelId: sendEnd.channelId,
       messagePort: channel.port1,
     },
@@ -139,7 +139,7 @@ function addPipeStreamFrom(recEnd: CellChannelEnd, sendEnd: CellChannelEnd): voi
     recipientChannelId: sendEnd.channelId,
     remote: {
       kind: RemoteKind.MessagePort,
-      remoteCellId: recEnd.channelId,
+      remoteCellId: recEnd.cellId,
       remoteChannelId: recEnd.channelId,
       messagePort: channel.port2,
     },

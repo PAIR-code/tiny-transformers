@@ -200,8 +200,14 @@ export class SignalSenderFanOut<T> implements FanRemotes {
   }
 
   set(value: T): void {
+    console.log(
+      `SignalSenderFanOut ${this.cellId}: ${this.signalId} --> set: ${JSON.stringify(value)}`,
+    );
     this.lastValue = value;
     for (const remoteReceiver of this.remotes) {
+      console.log(
+        `SignalSenderFanOut ${this.cellId}.${this.signalId} --> ${remoteReceiver.remoteCellId}.${remoteReceiver.remoteChannelId}`,
+      );
       const message: RemoteMessage = {
         kind: RemoteMessageKind.SetSignalValue,
         signalId: remoteReceiver.remoteChannelId,

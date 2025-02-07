@@ -46,6 +46,7 @@ import {
   SecDefOfWorker,
   SecDefOfPlaceholder,
   ListSection,
+  WorkerSection,
 } from './section';
 import { SignalReceiveChannel } from '../distr-signals/channels';
 import { CellKind, ValueStruct } from '../distr-signals/cell-kind';
@@ -190,10 +191,10 @@ export class Experiment {
           // manual construction?
           fromCache: true,
         });
-        section.connectWorkerCell();
+        section.connectWorker();
       }
       section.initOutputs();
-      section.connectInputsFromOutputs();
+      section.unifyOutputToInputSignals();
     }
     this.appendSection(section);
     return section;
@@ -312,6 +313,8 @@ export async function loadExperiment(
   // connections/streams need to be initialised before we connect them, that
   // means they all need to be loaded first).
   const ioSections: Section[] = [];
+  // A subset of ioSections
+  const workerSections: WorkerSection[] = [];
 
   // First part of loading is to load all paths and data into a NodeBeingLoaded
   // tree, and construct the sections.
@@ -348,9 +351,15 @@ export async function loadExperiment(
           subsecListsToPopulate.push(toAddSubSecsTo);
           break;
         }
-        case SecDefKind.UiCell:
-        case SecDefKind.WorkerCell: {
+        case SecDefKind.UiCell: {
           section.initOutputs();
+          ioSections.push(section as Section);
+          break;
+        }
+        case SecDefKind.WorkerCell: {
+          await section.initSectionCellData(cacheResolver, dataResolver, config);
+          section.initOutputs();
+          workerSections.push(section as WorkerSection);
           ioSections.push(section as Section);
           break;
         }
@@ -366,11 +375,12 @@ export async function loadExperiment(
 
   // Finally, connect the outputs to inputs, and connect any direct cell connections
   for (const sec of ioSections) {
-    sec.connectInputsFromOutputs();
-    if (sec.isWorkerSection()) {
-      await sec.initSectionCellData(cacheResolver, dataResolver, config);
-      sec.connectWorkerCell();
-    }
+    sec.unifyOutputToInputSignals();
+  }
+
+  // Finally, connect the outputs to inputs, and connect any direct cell connections
+  for (const sec of workerSections) {
+    sec.connectWorker();
   }
 
   return experiment;

@@ -127,6 +127,8 @@ export class SectionComponent {
       'output',
     ]);
 
+    // Used to handle scrolling behaviour, allowing a where we are viewing bar
+    // to be in the left summary index.
     this.intersectionObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {

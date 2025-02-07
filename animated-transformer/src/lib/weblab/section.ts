@@ -515,7 +515,7 @@ export class Section<
   ): Promise<void> {
     const thisSection = this.assertWorkerSection();
     const secDef = thisSection.defData();
-
+    console.log(`initSectionCellData: WokrerCell: ${secDef.id}`);
     const cellKind = new CellKind(secDef.id, cellIoForCellSection(secDef));
     const controller = new CellController(this.experiment.env, secDef.id, cellKind);
 
@@ -542,7 +542,6 @@ export class Section<
 
           const dec = new TextDecoder('utf-8');
           const cellCodeCache = dec.decode(buffer);
-          console.log('CellCodeRefKind.PathToWorkerCode: code: ', cellCodeCache);
           const blob = new Blob([cellCodeCache], { type: 'application/javascript' });
           const cellObjectUrl = URL.createObjectURL(blob);
           thisSection.cell = { controller, cellCodeCache, cellObjectUrl } as SectionCellData;
@@ -602,67 +601,44 @@ export class Section<
     const data = thisSection.defData();
     this.experiment.noteAddedIoSection(data.id);
 
-    for (const k of Object.keys(data.io.outputs || {})) {
-      thisSection.outputs[k] = thisSection.space.setable(null);
-    }
-
+    console.log(`initOutputs: cell: ${data.id}`);
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
-      if (cellOutputRef.saved) {
-        const outputs = data.io.outputs as {
-          [outputId: string]: CellSectionOutput;
-        };
-        if (thisSection.cell && data.kind === SecDefKind.WorkerCell) {
-          const controller = thisSection.cell.controller;
-          for (const k of Object.keys(controller.outputs)) {
-            controller.outputs[k].recEnd.onceReady.then((v) => {
-              console.warn(`${this.initDef.id}: Section output setting [${k}]`);
-              thisSection.experiment.space.derived(() => thisSection.outputs[k].set(v()));
-            });
-          }
-        } else if (!thisSection.cell && data.kind === SecDefKind.UiCell) {
-          thisSection.outputs[outputId].set(cellOutputRef.lastValue);
-          // Propegate changes to the output setable to the broader content object.
-          // TODO: think about tracking this dep to cleanup later?
-        } else {
-          console.warn(`Strange state: ${data.kind} and cell state (${!!thisSection.cell})`);
-          return;
-        }
-        thisSection.space.derived(() => {
-          const newOutput = thisSection.outputs[outputId]();
-          thisSection.defData.change((c) => {
-            outputs[outputId].lastValue = newOutput;
-          });
-        });
-      }
+      thisSection.outputs[outputId] = thisSection.space.setable(cellOutputRef.lastValue || null);
     }
   }
 
   // This happens after construction, but before connecting cells.
-  connectInputsFromOutputs() {
+  unifyOutputToInputSignals() {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
 
     for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
       if (cellInputRef) {
+        console.log(
+          `connectUiInputs: input: ${data.id}; ${inputId} <-- ${cellInputRef.sectionId}.${cellInputRef.outputId}`,
+        );
+
         const otherSection = thisSection.experiment.getSection(
           cellInputRef.sectionId,
         ) as Section<SecDefWithIo>;
         thisSection.dependsOnOutputsFrom.add(otherSection);
         otherSection.dependsOnMe.add(thisSection);
         thisSection.dependsOnMe.add(otherSection);
-        const otherSec = thisSection.experiment.getSection(cellInputRef.sectionId);
-        thisSection.inputs[inputId] = otherSec.outputs[cellInputRef.outputId];
+        thisSection.inputs[inputId] = otherSection.outputs[cellInputRef.outputId];
       }
     }
+    // Note: UI Cells don't have input/output streams. CONSIDER: should they be
+    // able to peek into streams using a setable abstraction?
   }
 
   // Connect the cell in this section to it's inputs/outputs in the experiment.
-  connectWorkerCell() {
+  // This should happen after
+  connectWorker() {
     const thisSection = this.assertWorkerSection();
     const data = thisSection.defData();
     if (!this.cell || this.cell.controller.status() !== CellStatus.NotStarted) {
-      console.log('connectWorkerCell: data:', data);
-      console.log('connectWorkerCell: cell:', this.cell);
+      console.log('connectWorkerCell: data id:', data.id);
+      console.log('connectWorkerCell: cell id:', this.cell!.controller.id);
       throw new Error(`Cell (${this.defData().id}): Can only connect a not-started cell`);
     }
 
@@ -691,6 +667,24 @@ export class Section<
         }
       }
     }
+
+    for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
+      const controller = thisSection.cell.controller;
+      const onceReady = controller.outputs[outputId].connect();
+      onceReady.then((signal) => {
+        console.warn(`initOutputs: ${this.initDef.id}: Section output setting [${outputId}]`);
+        thisSection.experiment.space.derived(() => thisSection.outputs[outputId].set(signal()));
+      });
+
+      // When cell outputs happen, update the def & saved value.
+      thisSection.space.derived(() => {
+        const newOutput = thisSection.outputs[outputId]();
+        thisSection.defData.change(() => {
+          cellOutputRef.lastValue = newOutput;
+        });
+      });
+    }
+
     for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams)) {
       if (cellInputRef) {
         const otherCellController = this.experiment.getSectionLabCell(cellInputRef.sectionId);

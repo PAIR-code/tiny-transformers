@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+// A simple abstarction of a webworker. Allow wrapping of logging.
+
 export interface BasicWorker {
   set onmessage(m: ((ev: MessageEvent) => any) | null);
   postMessage(message: any, transfer?: Transferable[]): void;

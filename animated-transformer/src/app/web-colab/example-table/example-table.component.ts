@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { TokenSeqDisplayComponent } from 'src/app/token-seq-display/token-seq-display.component';
+import { JsonValue } from 'src/lib/json/json';
+import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { Example } from 'src/lib/seqtasks/util';
 import { AbstractSignal } from 'src/lib/signalspace/signalspace';
 import { Section } from 'src/lib/weblab/section';
@@ -24,14 +26,19 @@ import { Section } from 'src/lib/weblab/section';
 export class ExampleTableComponent implements OnInit {
   section = input.required<Section>();
   examples: WritableSignal<Example[] | null> = signal(null);
-  columnNames: WritableSignal<string[]> = signal([]);
+  // columnNames: WritableSignal<string[]> = signal([]);
 
   constructor() {
-    this.columnNames.set(['source (x)', 'target (y)']);
+    // this.columnNames.set(['source (x)', 'target (y)']);
   }
 
   ngOnInit() {
-    this.section().space.derived(() => this.examples.set(this.section().inputs['examples']()));
+    this.section().space.derived(() => {
+      const examples = this.section().inputs['examples']();
+      console.log(examples);
+      console.log(`ExampleTableComponent: setting table... ${JSON.stringify(examples)}`);
+      this.examples.set(examples);
+    });
   }
 
   inputFromRef(): string | null {
@@ -41,5 +48,9 @@ export class ExampleTableComponent implements OnInit {
       return null;
     }
     return `${inputInfo.sectionId}.${inputInfo.outputId}`;
+  }
+
+  stringify(examples: Example[] | null): string {
+    return stringifyJsonValue(examples as JsonValue);
   }
 }
