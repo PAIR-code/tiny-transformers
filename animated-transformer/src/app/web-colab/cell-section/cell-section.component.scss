@@ -1,3 +1,7 @@
+:host {
+  padding-bottom:100px;
+}
+
 .header {
   display: flex;
   flex-wrap: wrap;
@@ -33,7 +37,6 @@
   z-index: 5;
 }
 
-
 .inputChips {
   padding-left: 12px;
   display: flex;
@@ -54,6 +57,7 @@
 
 .unfilledInput {
   border: 1px dotted #bbb;
+  background-color: 1px dotted #Fbb;
   z-index: 5;
 }
 
@@ -78,3 +82,7 @@
   border: 1px solid #999 !important; 
 }
 
+// Just to make some extra space at the bottom
+.footer {
+  margin-bottom: 16px;
+}

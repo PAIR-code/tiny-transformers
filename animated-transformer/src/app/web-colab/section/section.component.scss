@@ -80,13 +80,15 @@
 
 .mini-id-title {
   font-size: small;
-  color: #bbb;
+  color: #777;
   background-color: #FFF;
   padding-left: 3px;
   padding-right: 3px;
   transition: var(--my-hover-transition);
   // flex: 1 1 auto;
   z-index: 5;
+  display: flex;
+  align-items: center;
 }
 .titleAsOuput {
   border: 1px solid #999 !important;
@@ -112,12 +114,15 @@
   --mdc-icon-button-icon-size: 16px !important;
   --mdc-icon-button-state-layer-size: 24px !important;
 
+  .mat-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
   .mat-mdc-icon-button {
     background-color: #FFF !important;
     z-index: 5;
-  }
 
-  button {
     width: 24px !important;
     height: 24px !important;
     // line-height: 24px !important;
@@ -148,6 +153,14 @@
       }
     }
   }
+
+  .mdc-button {
+    height: 24px !important;
+  }
+
+  button {
+    
+  }
 }
 
 
@@ -155,30 +168,41 @@
   margin-left: 5px;
   background-color: #fff;
   padding: 3px;
-  border-radius: 5px;
+  // border-radius: 5px;
   font-size: small;
   color: #bbb;
   z-index: 5;
+
+  display: flex;
+  align-items: center;
+
+  .mat-icon {
+    opacity: 50%;
+  }
 }
-.inputsChips {
-  margin-left: 25px;
+.inputChips {
+  margin-left: 5px;
   z-index: 5;
+  display: flex;
+  align-items: center;
 }
 .inputId {
-  border: 1px solid #bbb;
+  // border: 1px solid #bbb;
   z-index: 5;
+
 }
-.unfilledInput {
-  border: 1px dotted #bbb;
-  border-top: none;
+.lacksValue {
+  border-bottom: 1px dotted #Fbb;
+  // border-top: none;
+  // background-color: #FCC;
   z-index: 5;
 }
 
 .outputChips {
-  margin-left: 25px;
+  margin-left: 5px;
   z-index: 5;
 }
 .outputId {
-  border: 1px solid #bbb;
+  // border: 1px solid #bbb;
   z-index: 5;
 }

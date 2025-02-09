@@ -191,10 +191,12 @@ export class Experiment {
           // manual construction?
           fromCache: true,
         });
-        section.connectWorker();
       }
       section.initOutputs();
       section.unifyOutputToInputSignals();
+      if (section.isWorkerSection()) {
+        section.connectWorker();
+      }
     }
     this.appendSection(section);
     return section;

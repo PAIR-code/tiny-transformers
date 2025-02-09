@@ -69,7 +69,7 @@ export const simpleMarkdownSecDef: SecDefOfUiView = {
 
 export const taskConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Task Configuration',
+  id: 'Define Task',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -89,7 +89,7 @@ export const taskConfigJsonSecDef: SecDefOfUiView = {
 
 export const genConfigJsonSecDef: SecDefOfUiView = {
   kind: SecDefKind.UiCell,
-  id: 'Task Generation',
+  id: 'Task Batches Config',
   timestamp: Date.now(),
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
@@ -278,7 +278,7 @@ export const trainUrlCodeSecDef: SecDefOfWorker & {
     inStreams: {
       trainBatches: { sectionId: taskCellKind.cellKindId, outStreamId: 'trainBatches' },
     },
-    outputs: { testSet: { saved: false } },
+    outputs: {},
     outStreamIds: ['metrics', 'checkpoint'],
   },
   cellCodeRef: {

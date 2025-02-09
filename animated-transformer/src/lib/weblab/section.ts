@@ -289,6 +289,19 @@ export type ListSection = Section<SecDefOfSecList> & { subSections: SetableSigna
 export type WorkerSection = Section<SecDefOfWorker> & { cell: SectionCellData };
 export type RefSection = Section<SecDefOfRef> & { initDef: SecDefOfRef };
 
+export type SectionInputNameRef = {
+  displayId: string;
+  id: string;
+  ref: SectionInputRef;
+  hasValue: boolean;
+};
+
+export type SectionOutputNameRef = {
+  displayId: string;
+  id: string;
+  hasValue: boolean;
+};
+
 // ============================================================================
 //
 // ============================================================================
@@ -327,24 +340,33 @@ export class Section<
   dependsOnMe: Set<Section<SecDefWithIo>> = new Set();
   dependsOnOutputsFrom: Set<Section<SecDefWithIo>> = new Set();
 
-  inputNames(): { id: string; ref: SectionInputRef }[] {
+  inputNames(): SectionInputNameRef[] {
     if (!this.isIoSection()) {
       return [];
     }
     const thisSection = this as Section<SecDefWithIo>;
-    return [...Object.entries(thisSection.defData().io.inputs)].map(([id, ref]) => {
-      return { id, ref };
+    const names = [...Object.entries(thisSection.defData().io.inputs)].map(([id, ref]) => {
+      const displayId = ref
+        ? ref.outputId === 'jsonObj'
+          ? id
+          : `${ref.sectionId}.${ref.outputId}`
+        : `${id}`;
+      return { displayId, ref, id, hasValue: !!this.inputs[id]() };
     });
+    names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
+    return names;
   }
 
-  outputNames(): { id: string; out: CellSectionOutput }[] {
+  outputNames(): SectionOutputNameRef[] {
     if (!this.isIoSection()) {
       return [];
     }
     const thisSection = this as Section<SecDefWithIo>;
-    return [...Object.entries(thisSection.defData().io.outputs)].map(([id, out]) => {
-      return { id, out };
+    const names = [...Object.entries(thisSection.defData().io.outputs)].map(([id, out]) => {
+      return { displayId: id, id, hasValue: !!this.outputs[id]() };
     });
+    names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
+    return names;
   }
 
   // --------------------------------------------------------------------------

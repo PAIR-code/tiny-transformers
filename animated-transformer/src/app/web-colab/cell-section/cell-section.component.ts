@@ -58,6 +58,7 @@ import {
   CodeStrUpdate,
   CodeStrUpdateKind,
 } from 'src/app/codemirror-js-editor/codemirror-js-editor.component';
+import { addIcons } from 'src/app/icon-registry';
 
 @Component({
   selector: 'app-cell-section',
@@ -101,18 +102,9 @@ export class CellSectionComponent implements OnInit, OnDestroy {
   CellCodeRefKind = CellCodeRefKind;
 
   constructor() {
-    const iconRegistry = inject(MatIconRegistry);
-    const sanitizer = inject(DomSanitizer);
-    function addIcons(names: string[]) {
-      for (const name of names) {
-        iconRegistry.addSvgIcon(
-          name,
-          sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
-        );
-      }
-    }
+    // TODO: think about this since it wastes alittle construction time...
+    // should really be some kind of common dependency... ?
     addIcons(['play_circle', 'code', 'cancel', 'restart_alt', 'stop_circle', 'input', 'output']);
-
     this.status = signal(CellStatus.NotStarted);
   }
 

@@ -153,8 +153,10 @@ export class SectionComponent {
 
     effect(() => {
       const outputs = this.section().outputs;
+      const inputs = this.section().inputs;
+      const inputKeys = Object.keys(inputs);
       const outputKeys = Object.keys(outputs);
-      if (outputKeys.length === 1) {
+      if (outputKeys.length === 1 && inputKeys.length === 0) {
         if (outputs[outputKeys[0]]() !== null) {
           this.isSingleDefinedOutputSection.set(true);
           return;

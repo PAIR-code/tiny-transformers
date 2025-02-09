@@ -1,7 +1,16 @@
 @let selectedExamples = examples();
-@let inputFromRefStr = inputFromRef();
+@let info = inputInfo();
+
 @if (selectedExamples) {
-  <span class="connectedToOutput">{{ inputFromRefStr }}</span>
+  @if (info) {
+    <div class="title">
+      <span>{{ info.sectionId }}</span>
+      <mat-icon svgIcon="output">output</mat-icon>
+      <span>{{ info.outputId }}</span>
+    </div>
+  } @else {
+    <div>Badly defined input.</div>
+  }
 
   <table
     #datasetTable
@@ -32,8 +41,10 @@
   </table>
 } @else {
   <div class="waitingForValue">
-    @if (inputFromRefStr) {
-      <span class="connectedToOutput">{{ inputFromRefStr }}</span>
+    @if (info) {
+      <span class="connectedToOutput"
+        >{{ info.sectionId }}.{{ info.outputId }}</span
+      >
     } @else {
       <span class="notConnectedToOutput">unspecified</span>
     }

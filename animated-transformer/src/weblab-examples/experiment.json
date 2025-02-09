@@ -1,236 +1,273 @@
-{ "display": {"collapsed": false},
-  "id": "Toy Tiny Transformers Experiment",
-  "kind": "SectionList",
-  "subsections": [ { 
-      "display": {"collapsed": false},
-      "id": "about",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": { 
-          "markdown": { 
-            "lastValue": "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
-            "saved": true } } },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "Markdown" },
+{ display: {collapsed: false},
+  id: "Toy Tiny Transformers Experiment",
+  kind: "SectionList",
+  subsections: [ { 
+      display: {collapsed: false},
+      id: "about",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          markdown: { 
+            lastValue: "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
+            saved: true } } },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "Markdown" },
     { 
-      "cellCodeRef": { 
-        "jsPath": "dist/scripts/toycell.worker.js",
-        "kind": "PathToWorkerCode",
-        "tsSrcPath": "toycell.worker.ts" },
-      "display": {"collapsed": true},
-      "id": "toyCellKind",
-      "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
-      "kind": "WorkerCell",
-      "timestamp": 1738594882497 },
+      cellCodeRef: { 
+        jsPath: "dist/scripts/toycell.worker.js",
+        kind: "PathToWorkerCode",
+        tsSrcPath: "toycell.worker.ts" },
+      display: {collapsed: true},
+      id: "toyCellKind",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: {} },
+      kind: "WorkerCell",
+      timestamp: 1739056526078 },
     { 
-      "cellCodeRef": {"js": "console.log(\"hello world from simple cell!\");", "kind": "InlineWorkerJsCode"},
-      "display": {"collapsed": true},
-      "id": "InlineCodeCell",
-      "io": {"inStreams": {}, "inputs": {}, "outStreamIds": [], "outputs": {}},
-      "kind": "WorkerCell",
-      "timestamp": 1738594882497 },
+      cellCodeRef: { 
+        js: "console.log(\"hello world from simple cell!\");",
+        kind: "InlineWorkerJsCode" },
+      display: {collapsed: true},
+      id: "InlineCodeCell",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: {} },
+      kind: "WorkerCell",
+      timestamp: 1739056526078 },
     { 
-      "display": {"collapsed": true},
-      "id": "Task Configuration",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": { 
-          "jsonObj": { 
-            "lastValue": { 
-              "baseStory": [],
-              "genStateConfig": {"seed": 42},
-              "id": "tiny synthetic world",
-              "kind": "TinyWorldTask",
-              "maxEntityLimit": 6,
-              "maxInputLen": 10,
-              "maxOutputLen": 10,
-              "relationKinds": { 
-                "is": ["*"],
-                "jumps": ["animal"],
-                "runsAway": ["animal"],
-                "squishes": ["animal", "squishable"] },
-              "rules": [ "S(is ?x:cat) += 1", "S(is ?x:monkey) += 2", "S(is ?x:elephant) += 1",
-                "S(is ?x:rock) += 1", "S(is ?x:tree) += 1", "S(is ?x:flower) += 1",
-                "S(is ?x:animal) += 1", "S(is ?x:inanimate) += 1",
-                "S(is ?x:squishable) += 1", "S(is ?x | is ?y) *= 0.5",
-                "S(jumps ?x | is ?x:animal) += 5", "S(jumps ?x | jumps ?x) += 0.2",
+      display: {collapsed: true},
+      id: "Define Task",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          jsonObj: { 
+            lastValue: { 
+              baseStory: [],
+              genStateConfig: {seed: 42},
+              id: "tiny synthetic world",
+              kind: "TinyWorldTask",
+              maxEntityLimit: 6,
+              maxInputLen: 10,
+              maxOutputLen: 10,
+              relationKinds: { 
+                is: ["*"],
+                jumps: ["animal"],
+                runsAway: ["animal"],
+                squishes: ["animal", "squishable"] },
+              rules: [ "S(is ?x:cat) += 1", "S(is ?x:monkey) += 2",
+                "S(is ?x:elephant) += 1",
+                "S(is ?x:rock) += 1",
+                "S(is ?x:tree) += 1",
+                "S(is ?x:flower) += 1",
+                "S(is ?x:animal) += 1",
+                "S(is ?x:inanimate) += 1",
+                "S(is ?x:squishable) += 1",
+                "S(is ?x | is ?y) *= 0.5",
+                "S(jumps ?x | is ?x:animal) += 5",
+                "S(jumps ?x | jumps ?x) += 0.2",
                 "S(squishes ?x ?y | jumps ?x:monkey, is ?y) += 2",
                 "S(squishes ?x ?y | jumps ?x:cat, is ?y) += 1",
                 "S(squishes ?x ?x | is ?x) *= 0",
                 "S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2",
-                "S(runsAway ?x | is ?x) += 1", "S(runsAway ?x) += 1",
+                "S(runsAway ?x | is ?x) += 1",
+                "S(runsAway ?x) += 1",
                 "S(is ?x:cat | runsAway ?x, -is ?x) += 1",
                 "S(jumps ?a | runsAway ?a:animal) *= 0",
                 "S(squishes ?x ?a | runsAway ?a) *= 0",
                 "S(runsAway ?x | runsAway ?x) *= 0",
                 "S(runsAway ?y | squishes ?x ?y) *= 0",
                 "S(jumps ?y | squishes ?x ?y) *= 0" ],
-              "typeHierarchy": { 
-                "animal": ["cat", "monkey", "elephant"],
-                "inanimate": ["rock", "tree", "flower"],
-                "squishable": ["cat", "monkey", "flower"] } },
-            "saved": true } } },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "JsonObj" },
+              typeHierarchy: { 
+                animal: ["cat", "monkey", "elephant"],
+                inanimate: ["rock", "tree", "flower"],
+                squishable: ["cat", "monkey", "flower"] } },
+            saved: true } } },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "JsonObj" },
     { 
-      "display": {"collapsed": false},
-      "id": "Task Generation",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": { 
-          "jsonObj": { 
-            "lastValue": { 
-              "batchSize": 10,
-              "initBatchId": 0,
-              "initBatchSeed": 0,
-              "maxBatches": 5,
-              "testSetSize": 3 },
-            "saved": true } } },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "JsonObj" },
+      display: {collapsed: false},
+      id: "Task Batches Config",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          jsonObj: { 
+            lastValue: { 
+              batchSize: 10,
+              initBatchId: 0,
+              initBatchSeed: 0,
+              maxBatches: 5,
+              testSetSize: 3 },
+            saved: true } } },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "JsonObj" },
     { 
-      "cellCodeRef": { 
-        "jsUrl": "http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js",
-        "kind": "UrlToCode",
-        "tsSrcPath": "tiny-transformer-example/task-cell.worker.ts" },
-      "display": {"collapsed": false},
-      "id": "Task cell",
-      "io": { 
-        "inStreams": {},
-        "inputs": { 
-          "genConfig": {"outputId": "jsonObj", "sectionId": "Task Generation"},
-          "taskConfig": {"outputId": "jsonObj", "sectionId": "Task Configuration"} },
-        "outStreamIds": ["trainBatches"],
-        "outputs": {"testSet": {"saved": false}} },
-      "kind": "WorkerCell",
-      "timestamp": 1738594882497 },
+      cellCodeRef: { 
+        jsUrl: "http://127.0.0.1:9000/scripts/tiny-transformer-example/task-cell.worker.js",
+        kind: "UrlToCode",
+        tsSrcPath: "tiny-transformer-example/task-cell.worker.ts" },
+      display: {collapsed: false},
+      id: "Task cell",
+      io: { 
+        inStreams: {},
+        inputs: { 
+          genConfig: { 
+            outputId: "jsonObj",
+            sectionId: "Task Batches Config" },
+          taskConfig: { 
+            outputId: "jsonObj",
+            sectionId: "Define Task" } },
+        outStreamIds: ["trainBatches"],
+        outputs: {testSet: {lastValue: null, saved: false}} },
+      kind: "WorkerCell",
+      timestamp: 1739056526078 },
     { 
-      "display": {"collapsed": false},
-      "id": "Test Set View",
-      "io": { 
-        "inStreams": {},
-        "inputs": {"examples": {"outputId": "testSet", "sectionId": "Task cell"}},
-        "outStreamIds": [],
-        "outputs": {} },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "ExampleTableView" },
+      display: {collapsed: false},
+      id: "Test Set View",
+      io: { 
+        inStreams: {},
+        inputs: { 
+          examples: {outputId: "testSet", sectionId: "Task cell"} },
+        outStreamIds: [],
+        outputs: {} },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "ExampleTableView" },
     { 
-      "display": {"collapsed": true},
-      "id": "Model Init",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": { 
-          "jsonObj": { 
-            "lastValue": { 
-              "config": { 
-                "id": "defaultTransformerConfig",
-                "init": {"mean": 0, "seed": 42, "stddev": 0.05},
-                "kind": "Transformer",
-                "spec": { 
-                  "dropoutRate": 0,
-                  "inputRep": 64,
-                  "kqvRep": 64,
-                  "layers": [ { 
-                      "addLayerNormBias": false,
-                      "computeSpec": {"dropoutRate": 0, "residuals": true},
-                      "hasPosEncoding": false,
-                      "layerNormFF": false,
-                      "layerNormHeadsProjection": false,
-                      "nHeads": 4 },
+      display: {collapsed: true},
+      id: "Model Init",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          jsonObj: { 
+            lastValue: { 
+              config: { 
+                id: "defaultTransformerConfig",
+                init: {mean: 0, seed: 42, stddev: 0.05},
+                kind: "Transformer",
+                spec: { 
+                  dropoutRate: 0,
+                  inputRep: 64,
+                  kqvRep: 64,
+                  layers: [ { 
+                      addLayerNormBias: false,
+                      computeSpec: {dropoutRate: 0, residuals: true},
+                      hasPosEncoding: false,
+                      layerNormFF: false,
+                      layerNormHeadsProjection: false,
+                      nHeads: 4 },
                     { 
-                      "addLayerNormBias": false,
-                      "computeSpec": {"dropoutRate": 0, "residuals": true},
-                      "hasPosEncoding": false,
-                      "layerNormFF": false,
-                      "layerNormHeadsProjection": false,
-                      "nHeads": 4 },
+                      addLayerNormBias: false,
+                      computeSpec: {dropoutRate: 0, residuals: true},
+                      hasPosEncoding: false,
+                      layerNormFF: false,
+                      layerNormHeadsProjection: false,
+                      nHeads: 4 },
                     { 
-                      "addLayerNormBias": false,
-                      "computeSpec": {"dropoutRate": 0, "residuals": true},
-                      "hasPosEncoding": false,
-                      "layerNormFF": false,
-                      "layerNormHeadsProjection": false,
-                      "nHeads": 4 },
+                      addLayerNormBias: false,
+                      computeSpec: {dropoutRate: 0, residuals: true},
+                      hasPosEncoding: false,
+                      layerNormFF: false,
+                      layerNormHeadsProjection: false,
+                      nHeads: 4 },
                     { 
-                      "addLayerNormBias": false,
-                      "computeSpec": {"dropoutRate": 0, "residuals": true},
-                      "hasPosEncoding": false,
-                      "layerNormFF": false,
-                      "layerNormHeadsProjection": false,
-                      "nHeads": 4 } ] },
-                "tokenRep": { 
-                  "eosToken": "[EOS]",
-                  "maskToken": "[MASK]",
-                  "padToken": "[PAD]",
-                  "tokenToIdx": {"[EOS]": 5, "[MASK]": 3, "[PAD]": 4, "a": 0, "b": 1, "c": 2},
-                  "tokens": ["a", "b", "c", "[MASK]", "[PAD]", "[EOS]"] } },
-              "kind": "ReinitFromConfig" },
-            "saved": true } } },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "JsonObj" },
+                      addLayerNormBias: false,
+                      computeSpec: {dropoutRate: 0, residuals: true},
+                      hasPosEncoding: false,
+                      layerNormFF: false,
+                      layerNormHeadsProjection: false,
+                      nHeads: 4 } ] },
+                tokenRep: { 
+                  eosToken: "[EOS]",
+                  maskToken: "[MASK]",
+                  padToken: "[PAD]",
+                  tokenToIdx: { 
+                    "[EOS]": 5,
+                    "[MASK]": 3,
+                    "[PAD]": 4,
+                    a: 0,
+                    b: 1,
+                    c: 2 },
+                  tokens: [ "a", "b", "c", "[MASK]", "[PAD]",
+                    "[EOS]" ] } },
+              kind: "ReinitFromConfig" },
+            saved: true } } },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "JsonObj" },
     { 
-      "display": {"collapsed": false},
-      "id": "Train Config",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": { 
-          "jsonObj": { 
-            "lastValue": { 
-              "batchSize": 16,
-              "checkpointFrequencyInBatches": 4,
-              "id": "initial config",
-              "kind": "basicSeqTrainer",
-              "learningRate": 0.5,
-              "maxInputLength": 2,
-              "metricReporting": {"metricFrequencyInBatches": 2},
-              "randomSeed": 42,
-              "trainForBatches": 3 },
-            "saved": true } } },
-      "kind": "LocalCell",
-      "timestamp": 1738594882497,
-      "uiView": "JsonObj" },
+      display: {collapsed: false},
+      id: "Train Config",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          jsonObj: { 
+            lastValue: { 
+              batchSize: 16,
+              checkpointFrequencyInBatches: 4,
+              id: "initial config",
+              kind: "basicSeqTrainer",
+              learningRate: 0.5,
+              maxInputLength: 2,
+              metricReporting: {metricFrequencyInBatches: 2},
+              randomSeed: 42,
+              trainForBatches: 3 },
+            saved: true } } },
+      kind: "LocalCell",
+      timestamp: 1739056526078,
+      uiView: "JsonObj" },
     { 
-      "cellCodeRef": { 
-        "jsUrl": "http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js",
-        "kind": "UrlToCode",
-        "tsSrcPath": "tiny-transformer-example/trainer-cell.worker.ts" },
-      "display": {"collapsed": false},
-      "id": "Trainer cell",
-      "io": { 
-        "inStreams": {"trainBatches": {"outStreamId": "trainBatches", "sectionId": "Task cell"}},
-        "inputs": { 
-          "modelInit": {"outputId": "jsonObj", "sectionId": "Model Init"},
-          "testSet": {"outputId": "testSet", "sectionId": "Task cell"},
-          "trainConfig": {"outputId": "jsonObj", "sectionId": "Train Config"} },
-        "outStreamIds": ["metrics", "checkpoint"],
-        "outputs": {"testSet": {"saved": false}} },
-      "kind": "WorkerCell",
-      "timestamp": 1738594882497 },
+      cellCodeRef: { 
+        jsUrl: "http://127.0.0.1:9000/scripts/tiny-transformer-example/trainer-cell.worker.js",
+        kind: "UrlToCode",
+        tsSrcPath: "tiny-transformer-example/trainer-cell.worker.ts" },
+      display: {collapsed: false},
+      id: "Trainer cell",
+      io: { 
+        inStreams: { 
+          trainBatches: { 
+            outStreamId: "trainBatches",
+            sectionId: "Task cell" } },
+        inputs: { 
+          modelInit: { 
+            outputId: "jsonObj",
+            sectionId: "Model Init" },
+          testSet: {outputId: "testSet", sectionId: "Task cell"},
+          trainConfig: { 
+            outputId: "jsonObj",
+            sectionId: "Train Config" } },
+        outStreamIds: ["metrics", "checkpoint"],
+        outputs: {testSet: {lastValue: null, saved: false}} },
+      kind: "WorkerCell",
+      timestamp: 1739056526079 },
     { 
-      "display": {"collapsed": false},
-      "id": "footer",
-      "io": { 
-        "inStreams": {},
-        "inputs": {},
-        "outStreamIds": [],
-        "outputs": {"markdown": {"lastValue": "Footer: the end.", "saved": true}} },
-      "kind": "LocalCell",
-      "timestamp": 1738594884993,
-      "uiView": "Markdown" } ],
-  "timestamp": 1738594884993,
-  "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }
+      display: {collapsed: false},
+      id: "footer",
+      io: { 
+        inStreams: {},
+        inputs: {},
+        outStreamIds: [],
+        outputs: { 
+          markdown: {lastValue: "Footer: the end.", saved: true} } },
+      kind: "LocalCell",
+      timestamp: 1739056813811,
+      uiView: "Markdown" } ],
+  timestamp: 1739056813810,
+  vsCodePathRoot: "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

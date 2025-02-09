@@ -165,7 +165,11 @@ export class CellWorker<
       case CellMessageKind.AddOutputRemote: {
         const outputSignal = this.outputs[data.recipientChannelId];
         if (!outputSignal) {
-          throw new Error(`${this.id}: No output to pipe entry named: ${data.recipientChannelId}.`);
+          console.warn(data);
+          throw new Error(
+            `${this.id}: CellMessageKind.AddOutputRemote` +
+              `This cell does not have an output named: ${data.recipientChannelId}.`,
+          );
         }
         outputSignal.addRemote(data.remote);
         break;

@@ -2,31 +2,23 @@
 @let data = sec.defData();
 
 <div class="small-buttons">
-  @if (collapsed()) {
-    <button
-      class="hostHoverIconAppear left-margin"
-      (click)="uncollapse()"
-      mat-icon-button
-    >
-      <mat-icon svgIcon="keyboard_arrow_down">uncollapse</mat-icon>
-    </button>
-  } @else {
-    <button
-      mat-icon-button
-      class="hostHoverIconAppear left-margin"
-      (click)="collapse()"
-    >
-      <mat-icon svgIcon="keyboard_arrow_up">collapse</mat-icon>
-    </button>
-  }
+  <!-- [class.hostHover]="!collapsed() && !isSingleDefinedOutputSection()" -->
 
   <button
-    class="hostHoverIconAppear left-margin"
-    mat-icon-button
-    matTooltip="add section"
-    (click)="addPlaceholder()"
+    class="left-margin"
+    (click)="collapsed() ? uncollapse() : collapse()"
+    mat-button
   >
-    <mat-icon svgIcon="add">+</mat-icon>
+    <span
+      class="mini-id-title"
+      [class.titleAsOuput]="isSingleDefinedOutputSection()"
+    >
+      <mat-icon
+        [svgIcon]="collapsed() ? 'keyboard_arrow_down' : 'keyboard_arrow_up'"
+        >{{ collapsed() ? "uncollapse" : "collapse" }}</mat-icon
+      >
+      {{ data.id }}</span
+    >
   </button>
 
   @if (!collapsed()) {
@@ -48,49 +40,40 @@
     }
   }
 
-  <span
-    (click)="collapsed() && uncollapse()"
-    class="mini-id-title left-margin"
-    [class.hostHover]="!collapsed() && !isSingleDefinedOutputSection()"
-    [class.titleAsOuput]="isSingleDefinedOutputSection()"
-    >{{ data.id }}</span
-  >
   @if (collapsed()) {
     @let inputs = section().inputNames();
     @if (inputs.length > 0) {
       <div class="inputChips">
-        @for (idAndRef of inputs; track idAndRef.id) {
-          @if (idAndRef.ref && idAndRef.ref.outputId === "jsonObj") {
-            <span class="inputId chip" [class.hostHover]="!collapsed()">
-              {{ idAndRef.ref.sectionId }}
-            </span>
-          } @else if (idAndRef.ref) {
-            <span class="inputId chip" [class.hostHover]="!collapsed()">
-              {{ idAndRef.ref.sectionId }}.{{ idAndRef.ref.outputId }}
-            </span>
-          } @else {
-            <span
-              class="inputId chip unfilledInput"
-              [class.hostHover]="!collapsed()"
-            >
-              {{ idAndRef.id }}
-            </span>
-          }
+        @for (i of inputs; track i.displayId) {
+          <div class="inputId chip" [class.lacksValue]="!i.hasValue">
+            <mat-icon [svgIcon]="'input'">input</mat-icon>
+            {{ i.displayId }}
+          </div>
         }
       </div>
     }
 
-    @let outputs = section().outputNames();
-    @if (outputs.length > 1) {
-      <div class="ouputChips">
-        @for (idAndOut of outputs; track idAndOut.id) {
-          <span class="outputId chip" [class.hostHover]="!collapsed()">
-            {{ idAndOut.id }}
-          </span>
+    @if (!isSingleDefinedOutputSection()) {
+      @let outputs = section().outputNames();
+      <div class="outputChips">
+        @for (o of outputs; track o.id) {
+          <div class="outputId chip" [class.lacksValue]="!o.hasValue">
+            <mat-icon [svgIcon]="'output'">output</mat-icon>
+            {{ o.id }}
+          </div>
         }
       </div>
     }
   }
+
+  <button
+    class="hostHoverIconAppear left-margin"
+    mat-icon-button
+    matTooltip="add section"
+    (click)="addPlaceholder()"
+  >
+    <mat-icon svgIcon="add">+</mat-icon>
+  </button>
 </div>
 
 <div class="top-bar"></div>

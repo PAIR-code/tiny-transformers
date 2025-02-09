@@ -101,6 +101,7 @@ export class BrowserDirDataResolver extends AbstractDataResolver {
     fileHandle.requestPermission({ mode: 'readwrite' });
     const writable = await fileHandle.createWritable();
     await writable.write(data);
+    await writable.close();
   }
 }
 
