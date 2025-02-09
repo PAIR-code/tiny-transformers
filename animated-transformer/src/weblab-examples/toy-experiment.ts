@@ -289,6 +289,31 @@ export const trainUrlCodeSecDef: SecDefOfWorker & {
   display: { collapsed: false },
 };
 
+export const matericsGraphViewSecDef: SecDefOfUiView = {
+  kind: SecDefKind.UiCell,
+  id: 'Metrics',
+  timestamp: Date.now(),
+  // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
+  io: {
+    inputs: {},
+    outputs: {
+      metricsSummary: {
+        saved: false,
+        lastValue: [] as JsonValue,
+      },
+    },
+    inStreams: {
+      metrics: {
+        sectionId: trainUrlCodeSecDef.id,
+        outStreamId: 'metrics',
+      },
+    },
+    outStreamIds: [],
+  },
+  uiView: ViewerKind.SimpleChartView,
+  display: { collapsed: false },
+};
+
 export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experiment> {
   const initExpDef: SecDefOfSecList = {
     kind: SecDefKind.SectionList,
@@ -353,6 +378,7 @@ export async function makeToyExperiment(env: LabEnv, id: string): Promise<Experi
     modelInitDef,
     modelTrainConfigDef,
     trainUrlCodeSecDef,
+    matericsGraphViewSecDef,
     footerSecDef,
   ];
   for (const sectionDef of sections) {

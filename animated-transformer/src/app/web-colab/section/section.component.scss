@@ -74,26 +74,9 @@
 
 
 .expanded-section {
+  margin-left: 20px;
   padding-left: 10px;
   padding-right: 10px;
-}
-
-.mini-id-title {
-  font-size: small;
-  color: #777;
-  background-color: #FFF;
-  padding-left: 3px;
-  padding-right: 3px;
-  transition: var(--my-hover-transition);
-  // flex: 1 1 auto;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-}
-.titleAsOuput {
-  border: 1px solid #999 !important;
-  border-radius: 3px;
-  color: #777 !important;
 }
 
 .left-margin {
@@ -164,20 +147,61 @@
 }
 
 
+
+.mini-id-title {
+  font-size: small;
+  color: #777;
+  background-color: #FFF;
+  padding: 3px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 7px;
+  transition: var(--my-hover-transition);
+  // flex: 1 1 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+}
+.titleAsOuput {
+  border: 1px solid #999 !important;
+  border-radius: 3px;
+  color: #777 !important;
+}
+
+
+.unknownCellName {
+  background-color: #A00;
+  color: #EEE;
+}
+
+.workerCellName {
+  background-color: #DDF;
+}
+
+.uiCellName {
+  background-color: #DFD;
+}
+
+.singleDataValueName {
+  background-color: #EEE;
+}
+
 .chip {
   margin-left: 5px;
-  background-color: #fff;
   padding: 3px;
-  // border-radius: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 7px;
   font-size: small;
-  color: #bbb;
+  color: #777;
   z-index: 5;
+  background-color: #EEE;
 
   display: flex;
   align-items: center;
 
   .mat-icon {
-    opacity: 50%;
+    opacity: 70%;
   }
 }
 .inputChips {
@@ -192,9 +216,10 @@
 
 }
 .lacksValue {
-  border-bottom: 1px dotted #Fbb;
+  // border-bottom: 1px dotted #Fbb;
+  // color: #bbb;
   // border-top: none;
-  // background-color: #FCC;
+  background-color: #FCC;
   z-index: 5;
 }
 

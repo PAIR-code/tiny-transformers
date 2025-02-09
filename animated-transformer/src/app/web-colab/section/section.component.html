@@ -11,14 +11,19 @@
   >
     <span
       class="mini-id-title"
-      [class.titleAsOuput]="isSingleDefinedOutputSection()"
+      [class.singleDataValueName]="
+        displayKind() === DisplayKind.SingleDataValue
+      "
+      [class.workerCellName]="displayKind() === DisplayKind.WorkerCell"
+      [class.uiCellName]="displayKind() === DisplayKind.UiCell"
+      [class.unknownCellName]="displayKind() === DisplayKind.Unknown"
     >
       <mat-icon
-        [svgIcon]="collapsed() ? 'keyboard_arrow_down' : 'keyboard_arrow_up'"
+        [svgIcon]="collapsed() ? 'keyboard_arrow_right' : 'keyboard_arrow_down'"
         >{{ collapsed() ? "uncollapse" : "collapse" }}</mat-icon
       >
-      {{ data.id }}</span
-    >
+      {{ data.id }}
+    </span>
   </button>
 
   @if (!collapsed()) {
@@ -40,31 +45,31 @@
     }
   }
 
-  @if (collapsed()) {
-    @let inputs = section().inputNames();
-    @if (inputs.length > 0) {
-      <div class="inputChips">
-        @for (i of inputs; track i.displayId) {
-          <div class="inputId chip" [class.lacksValue]="!i.hasValue">
-            <mat-icon [svgIcon]="'input'">input</mat-icon>
-            {{ i.displayId }}
-          </div>
-        }
-      </div>
-    }
-
-    @if (!isSingleDefinedOutputSection()) {
-      @let outputs = section().outputNames();
-      <div class="outputChips">
-        @for (o of outputs; track o.id) {
-          <div class="outputId chip" [class.lacksValue]="!o.hasValue">
-            <mat-icon [svgIcon]="'output'">output</mat-icon>
-            {{ o.id }}
-          </div>
-        }
-      </div>
-    }
+  <!-- @if (collapsed()) { -->
+  @let inputs = section().inputNames();
+  @if (inputs.length > 0) {
+    <div class="inputChips">
+      @for (i of inputs; track i.displayId) {
+        <div class="inputId chip" [class.lacksValue]="!i.hasValue">
+          <mat-icon [svgIcon]="'input'">input</mat-icon>
+          {{ i.displayId }}
+        </div>
+      }
+    </div>
   }
+
+  @if (displayKind() !== DisplayKind.SingleDataValue) {
+    @let outputs = section().outputNames();
+    <div class="outputChips">
+      @for (o of outputs; track o.id) {
+        <div class="outputId chip" [class.lacksValue]="!o.hasValue">
+          <mat-icon [svgIcon]="'output'">output</mat-icon>
+          {{ o.id }}
+        </div>
+      }
+    </div>
+  }
+  <!-- } -->
 
   <button
     class="hostHoverIconAppear left-margin"
@@ -121,7 +126,7 @@
               <app-example-table [section]="section()"></app-example-table>
             }
             @case (ViewerKind.SimpleChartView) {
-              <app-simple-chart></app-simple-chart>
+              <app-simple-chart [section]="section()"></app-simple-chart>
             }
           }
         }

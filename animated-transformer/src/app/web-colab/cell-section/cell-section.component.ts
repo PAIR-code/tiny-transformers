@@ -104,7 +104,16 @@ export class CellSectionComponent implements OnInit, OnDestroy {
   constructor() {
     // TODO: think about this since it wastes alittle construction time...
     // should really be some kind of common dependency... ?
-    addIcons(['play_circle', 'code', 'cancel', 'restart_alt', 'stop_circle', 'input', 'output']);
+    addIcons([
+      'play_circle',
+      'code',
+      'cancel',
+      'restart_alt',
+      'stop_circle',
+      'input',
+      'output',
+      'featured_play_list',
+    ]);
     this.status = signal(CellStatus.NotStarted);
   }
 

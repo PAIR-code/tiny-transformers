@@ -62,29 +62,51 @@
   ></app-codemirror-js-editor>
 }
 
-@let inputs = section().inputNames();
-@if (inputs.length > 0) {
+@let inputNames = section().inputNames();
+@if (inputNames.length > 0) {
   <div class="inputChips">
     <mat-icon svgIcon="input">inputs</mat-icon>
-    @for (i of inputs; track i.displayId) {
+    @for (i of inputNames; track i.displayId) {
       <span
         class="inputId chip"
         [class.hasValue]="i.hasValue"
         [class.unfilledInput]="!i.hasValue"
       >
-        {{ i.displayId }}
+        {{ i.id }} = {{ i.displayId }}
       </span>
     }
   </div>
 }
 
-@let outputs = section().outputNames();
-@if (outputs.length > 0) {
+@let inStreamNames = section().inStreamNames();
+@if (inStreamNames.length > 0) {
+  <div class="streamChips">
+    ...<mat-icon svgIcon="input">inputs</mat-icon>
+    @for (i of inStreamNames; track i.displayId) {
+      <span class="chip">{{ i.id }} ={{ i.displayId }} </span>
+    }
+  </div>
+}
+
+@let outputNames = section().outputNames();
+@if (outputNames.length > 0) {
   <div class="outputChips">
     <mat-icon svgIcon="output">outputs</mat-icon>
-    @for (o of outputs; track o.displayId) {
+    @for (o of outputNames; track o.displayId) {
       <span class="outputId chip" [class.hasValue]="o.hasValue">
         {{ o.displayId }}
+      </span>
+    }
+  </div>
+}
+
+@let outStreamNames = section().outStreamNames();
+@if (outStreamNames.length > 0) {
+  <div class="streamChips">
+    ...<mat-icon svgIcon="output">outputs</mat-icon>
+    @for (o of outStreamNames; track o) {
+      <span class="chip">
+        {{ o }}
       </span>
     }
   </div>

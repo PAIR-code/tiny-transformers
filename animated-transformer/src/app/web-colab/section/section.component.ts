@@ -44,6 +44,7 @@ import { CellSectionComponent } from '../cell-section/cell-section.component';
 import {
   SecDefKind,
   SecDefWithData,
+  SecDefWithIo,
   Section,
   ViewerKind,
   WorkerSection,
@@ -55,7 +56,17 @@ import { MatMenuModule } from '@angular/material/menu';
 import { PlaceholderComponent } from '../placeholder/placeholder.component';
 import { ExampleTableComponent } from '../example-table/example-table.component';
 import { SimpleChartComponent } from '../simple-chart/simple-chart.component';
+import { addIcons } from 'src/app/icon-registry';
+// ============================================================================
 
+export enum DisplayKind {
+  SingleDataValue = 'SingleDataValue',
+  WorkerCell = 'WorkerCell',
+  UiCell = 'UiCell',
+  Unknown = 'Unknown',
+}
+
+// ============================================================================
 @Component({
   selector: 'app-section',
   imports: [
@@ -68,6 +79,7 @@ import { SimpleChartComponent } from '../simple-chart/simple-chart.component';
     CodemirrorConfigEditorComponent,
     CellSectionComponent,
     PlaceholderComponent,
+    SimpleChartComponent,
   ],
   providers: [MarkdownService],
   templateUrl: './section.component.html',
@@ -87,10 +99,11 @@ export class SectionComponent {
 
   SecDefKind = SecDefKind;
   ViewerKind = ViewerKind;
+  DisplayKind = DisplayKind;
 
   collapsed = signal(false);
   editDefView = signal(false);
-  isSingleDefinedOutputSection = signal(false);
+  displayKind = signal<DisplayKind>(DisplayKind.Unknown);
 
   collapse() {
     this.collapsed.set(true);
@@ -104,22 +117,13 @@ export class SectionComponent {
   }
 
   constructor(private thisElement: ElementRef) {
-    const iconRegistry = inject(MatIconRegistry);
-    const sanitizer = inject(DomSanitizer);
-    function addIcons(names: string[]) {
-      for (const name of names) {
-        iconRegistry.addSvgIcon(
-          name,
-          sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
-        );
-      }
-    }
     addIcons([
       'settings',
       'add',
       'visibility',
       'visibility_off',
       'keyboard_arrow_up',
+      'keyboard_arrow_right',
       'keyboard_arrow_down',
       'settings_applications',
       'delete',
@@ -151,18 +155,34 @@ export class SectionComponent {
     );
     this.intersectionObserver.observe(this.thisElement.nativeElement);
 
+    // Set the displaykind.
+    // TODO: make it properly reactive.
+    //
+    // Note: Putting this in an effect allows it to be defined in the construtcor, but not executed until the section input is provided.
     effect(() => {
-      const outputs = this.section().outputs;
-      const inputs = this.section().inputs;
-      const inputKeys = Object.keys(inputs);
-      const outputKeys = Object.keys(outputs);
-      if (outputKeys.length === 1 && inputKeys.length === 0) {
-        if (outputs[outputKeys[0]]() !== null) {
-          this.isSingleDefinedOutputSection.set(true);
-          return;
+      const section = this.section();
+      if (section.isWorkerSection()) {
+        this.displayKind.set(DisplayKind.WorkerCell);
+      } else {
+        const inputKeys = Object.keys(section.inputs);
+        const outputKeys = Object.keys(section.outputs);
+        if (section.isIoSection()) {
+          const data = section.defData() as SecDefWithIo;
+          if (
+            Object.keys(data.io.inStreams).length === 0 &&
+            outputKeys.length === 1 &&
+            inputKeys.length === 0
+          ) {
+            if (section.outputs[outputKeys[0]]() !== null) {
+              this.displayKind.set(DisplayKind.SingleDataValue);
+            } else {
+              this.displayKind.set(DisplayKind.UiCell);
+            }
+          } else {
+            this.displayKind.set(DisplayKind.UiCell);
+          }
         }
       }
-      this.isSingleDefinedOutputSection.set(false);
     });
   }
 

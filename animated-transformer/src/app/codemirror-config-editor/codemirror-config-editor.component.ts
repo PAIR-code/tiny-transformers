@@ -72,6 +72,7 @@ export type ConfigUpdate<T> =
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {
   readonly whatIsBeingEditedName = input<string>('{}');
   readonly defaultConfig = input<string>('{}');
+  readonly showTitle = input<boolean>(false);
   readonly closable = input<boolean>(true);
   readonly config = input.required<string>();
 

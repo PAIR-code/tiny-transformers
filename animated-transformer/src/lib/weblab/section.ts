@@ -296,7 +296,14 @@ export type SectionInputNameRef = {
   hasValue: boolean;
 };
 
-export type SectionOutputNameRef = {
+export type SectionInStreamNameRef = {
+  displayId: string;
+  id: string;
+  ref: SectionInStreamRef;
+};
+
+// For both output values, and output streams.
+export type SectionOutNameRef = {
   displayId: string;
   id: string;
   hasValue: boolean;
@@ -348,7 +355,7 @@ export class Section<
     const names = [...Object.entries(thisSection.defData().io.inputs)].map(([id, ref]) => {
       const displayId = ref
         ? ref.outputId === 'jsonObj'
-          ? id
+          ? ref.sectionId
           : `${ref.sectionId}.${ref.outputId}`
         : `${id}`;
       return { displayId, ref, id, hasValue: !!this.inputs[id]() };
@@ -357,7 +364,7 @@ export class Section<
     return names;
   }
 
-  outputNames(): SectionOutputNameRef[] {
+  outputNames(): SectionOutNameRef[] {
     if (!this.isIoSection()) {
       return [];
     }
@@ -366,6 +373,29 @@ export class Section<
       return { displayId: id, id, hasValue: !!this.outputs[id]() };
     });
     names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
+    return names;
+  }
+
+  inStreamNames(): SectionInStreamNameRef[] {
+    if (!this.isIoSection()) {
+      return [];
+    }
+    const thisSection = this as Section<SecDefWithIo>;
+    const names = [...Object.entries(thisSection.defData().io.inStreams)].map(([id, ref]) => {
+      const displayId = ref ? `${ref.sectionId}.${ref.outStreamId}` : `${id}`;
+      return { displayId, ref, id };
+    });
+    names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
+    return names;
+  }
+
+  outStreamNames(): string[] {
+    if (!this.isIoSection()) {
+      return [];
+    }
+    const thisSection = this as Section<SecDefWithIo>;
+    const names = thisSection.defData().io.outStreamIds;
+    names.sort();
     return names;
   }
 

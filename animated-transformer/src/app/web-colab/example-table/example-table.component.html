@@ -42,7 +42,8 @@
 } @else {
   <div class="waitingForValue">
     @if (info) {
-      <span class="connectedToOutput"
+      <span>Waiting to be set: </span
+      ><span class="connectedToOutput"
         >{{ info.sectionId }}.{{ info.outputId }}</span
       >
     } @else {
