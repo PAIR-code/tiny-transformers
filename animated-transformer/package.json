@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "concurrently 'ng serve' 'ts-node src/weblab-examples/build.script.ts --mode=serve'",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch"
@@ -55,6 +55,7 @@
     "@types/underscore": "^1.11.4",
     "@types/wicg-file-system-access": "^2023.10.5",
     "@types/yargs": "^17.0.24",
+    "concurrently": "^9.1.2",
     "esbuild": "0.24.2",
     "jasmine-core": "~4.5.0",
     "karma": "~6.4.0",
