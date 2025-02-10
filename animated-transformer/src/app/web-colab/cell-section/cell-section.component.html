@@ -1,5 +1,4 @@
-<div #cellstatus class="header">
-  <!-- <div class="spacer"></div> -->
+<!-- <div #cellstatus class="header">
   @if (status() === CellStatus.NotStarted) {
     <button
       mat-icon-button
@@ -39,7 +38,6 @@
       <mat-icon svgIcon="restart_alt">restart</mat-icon>
     </button>
   }
-  <!-- <div class="title">{{ cell.controller.id }}</div> -->
   @if (vsCodeLink()) {
     <button
       mat-icon-button
@@ -50,7 +48,7 @@
       <mat-icon svgIcon="code">code</mat-icon>
     </button>
   }
-</div>
+</div> -->
 
 @if (def.cellCodeRef.kind === CellCodeRefKind.InlineWorkerJsCode) {
   <app-codemirror-js-editor
@@ -63,7 +61,8 @@
 }
 
 @let inputNames = section().inputNames();
-@if (inputNames.length > 0) {
+@let inStreamNames = section().inStreamNames();
+@if (inputNames.length > 0 || inStreamNames.length > 0) {
   <div class="inputChips">
     <mat-icon svgIcon="input">inputs</mat-icon>
     @for (i of inputNames; track i.displayId) {
@@ -75,44 +74,34 @@
         {{ i.id }} = {{ i.displayId }}
       </span>
     }
-  </div>
-}
-
-@let inStreamNames = section().inStreamNames();
-@if (inStreamNames.length > 0) {
-  <div class="streamChips">
-    ...<mat-icon svgIcon="input">inputs</mat-icon>
     @for (i of inStreamNames; track i.displayId) {
-      <span class="chip">{{ i.id }} ={{ i.displayId }} </span>
+      <span class="streamId chip">{{ i.id }} = {{ i.displayId }} </span>
     }
   </div>
 }
 
 @let outputNames = section().outputNames();
-@if (outputNames.length > 0) {
+@let outStreamNames = section().outStreamNames();
+
+@if (outputNames.length > 0 || outStreamNames.length > 0) {
   <div class="outputChips">
     <mat-icon svgIcon="output">outputs</mat-icon>
     @for (o of outputNames; track o.displayId) {
-      <span class="outputId chip" [class.hasValue]="o.hasValue">
+      <span
+        class="outputId chip"
+        [class.hasValue]="o.hasValue"
+        [class.unfilledOutput]="!o.hasValue"
+      >
         {{ o.displayId }}
       </span>
     }
-  </div>
-}
-
-@let outStreamNames = section().outStreamNames();
-@if (outStreamNames.length > 0) {
-  <div class="streamChips">
-    ...<mat-icon svgIcon="output">outputs</mat-icon>
     @for (o of outStreamNames; track o) {
-      <span class="chip">
+      <span class="streamId chip">
         {{ o }}
       </span>
     }
   </div>
 }
-
-<div class="footer"></div>
 
 <!-- <div class="inputs">
     Inputs

@@ -30,13 +30,23 @@
 
 .chip {
   margin-left: 10px;
-  background-color: #fff;
   padding: 3px;
   padding-left: 5px;
   padding-right: 5px;
   border-radius: 5px;
   font-size: small;
+}
+
+.unfilledInput {
+  color: #777;
+  border-bottom: 1px dotted #bbb;
   z-index: 5;
+}
+
+.streamId {
+  background-color: #ffc;
+  border-left: 1px dashed #bbb;
+  border-right: 1px dashed #bbb;
 }
 
 .inputChips {
@@ -48,42 +58,10 @@
   flex: 1 1 auto;
   margin-bottom: 12px;
   color: #bbb;
-  // border: 2px solid #bbb;
-  // border-top: none;
-  span.inputId {
-    // border: 1px dashed #bbb;
-    // border-left: none;
-    z-index: 5;
+
+  mat-icon {
+    opacity: 70%;
   }
-}
-
-
-.streamChips {
-  margin-left: 10px;
-  background-color: #fff;
-  padding: 3px;
-  border-radius: 5px;
-  font-size: small;
-  padding-left: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  flex-direction: row;
-  align-items: center;
-  flex: 1 1 auto;
-  margin-bottom: 12px;
-  color: #777;
-  span.chip {
-    background-color: #ffc;
-    // border: 1px dashed #bbb;
-  }
-}
-
-
-.unfilledInput {
-  color: #777;
-  // border: 1px dotted #bbb;
-  background: #Fbb;
-  z-index: 5;
 }
 
 .outputChips {
@@ -93,12 +71,16 @@
   flex-direction: row;
   align-items: center;
   flex: 1 1 auto;
-  color: #bbb;
-  
+  // color: #bbb;
+  mat-icon {
+    opacity: 70%;
+  }
+
   span.outputId {
-    // border: 1px dashed #bbb;
-    // border-right: none;
-    z-index: 5;
+    // Lacks value
+    border-bottom: 1px dotted #bbb;
+    background-color: #FFF;
+    color: #777 !important;
   }
 }
 
@@ -108,7 +90,10 @@
   // border: 1px solid #999 !important; 
 }
 
+
+
+// color: #bbb;
+// border-top: none;
+
+
 // Just to make some extra space at the bottom
-.footer {
-  margin-bottom: 16px;
-}

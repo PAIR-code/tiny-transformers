@@ -27,7 +27,7 @@ import { Section, SectionInputRef } from 'src/lib/weblab/section';
 })
 export class ExampleTableComponent implements OnInit {
   section = input.required<Section>();
-  examples: WritableSignal<Example[] | null> = signal(null);
+  examples: WritableSignal<Example[]> = signal([]);
   // columnNames: WritableSignal<string[]> = signal([]);
 
   constructor() {
@@ -38,8 +38,8 @@ export class ExampleTableComponent implements OnInit {
   ngOnInit() {
     this.section().space.derived(() => {
       const examples = this.section().inputs['examples']();
-      console.log(examples);
-      console.log(`ExampleTableComponent: setting table... ${JSON.stringify(examples)}`);
+      // console.log(examples);
+      // console.log(`ExampleTableComponent: setting table... ${JSON.stringify(examples)}`);
       this.examples.set(examples);
     });
   }

@@ -1,6 +1,8 @@
 @let sec = section();
 @let data = sec.defData();
 
+<div class="bottom-bar hostHover"></div>
+
 <div class="small-buttons">
   <!-- [class.hostHover]="!collapsed() && !isSingleDefinedOutputSection()" -->
 
@@ -25,6 +27,56 @@
       {{ data.id }}
     </span>
   </button>
+
+  @if (cellStatus()) {
+    <!-- <div class="spacer"></div> -->
+    @if (cellStatus() === CellStatus.NotStarted) {
+      <button
+        class="hostHoverIconAppear"
+        mat-icon-button
+        matTooltip="Start"
+        aria-label="Start"
+        (click)="cellStart()"
+      >
+        <mat-icon svgIcon="play_circle">play</mat-icon>
+      </button>
+    } @else if (
+      cellStatus() !== CellStatus.Stopping &&
+      cellStatus() !== CellStatus.Stopped
+    ) {
+      <button
+        class="hostHoverIconAppear"
+        mat-icon-button
+        matTooltip="Request Stop"
+        aria-label="Request Stop"
+        (click)="cellRequestStop()"
+      >
+        <mat-icon svgIcon="stop_circle">stop</mat-icon>
+      </button>
+    } @else if (cellStatus() === CellStatus.Stopping) {
+      <button
+        class="hostHoverIconAppear"
+        mat-icon-button
+        matTooltip="Force Stop"
+        aria-label="Force Stop"
+        (click)="cellForceStopAndReset()"
+      >
+        <mat-icon svgIcon="cancel"></mat-icon>
+      </button>
+    }
+
+    @if (vsCodeLink()) {
+      <button
+        class="hostHoverIconAppear"
+        mat-icon-button
+        matTooltip="Open code link"
+        aria-label="Open code link"
+        (click)="openCodeLink()"
+      >
+        <mat-icon svgIcon="code">code</mat-icon>
+      </button>
+    }
+  }
 
   @if (!collapsed()) {
     <button
@@ -81,7 +133,7 @@
   </button>
 </div>
 
-<div class="top-bar"></div>
+<!-- <div class="top-bar"></div> -->
 <!-- <div class="top-bar" [class.hostHover]="collapsed()"></div> -->
 
 @if (!collapsed()) {

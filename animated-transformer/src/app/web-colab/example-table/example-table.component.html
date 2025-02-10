@@ -1,17 +1,9 @@
 @let selectedExamples = examples();
 @let info = inputInfo();
 
-@if (selectedExamples) {
-  @if (info) {
-    <div class="title">
-      <span>{{ info.sectionId }}</span>
-      <mat-icon svgIcon="output">output</mat-icon>
-      <span>{{ info.outputId }}</span>
-    </div>
-  } @else {
-    <div>Badly defined input.</div>
-  }
-
+@if (!info) {
+  <div>Badly defined input.</div>
+} @else {
   <table
     #datasetTable
     mat-table
@@ -39,15 +31,4 @@
     <tr mat-header-row *matHeaderRowDef="['id', 'input', 'output']"></tr>
     <tr mat-row *matRowDef="let row; columns: ['id', 'input', 'output']"></tr>
   </table>
-} @else {
-  <div class="waitingForValue">
-    @if (info) {
-      <span>Waiting to be set: </span
-      ><span class="connectedToOutput"
-        >{{ info.sectionId }}.{{ info.outputId }}</span
-      >
-    } @else {
-      <span class="notConnectedToOutput">unspecified</span>
-    }
-  </div>
 }

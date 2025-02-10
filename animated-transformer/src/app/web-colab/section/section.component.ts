@@ -42,7 +42,9 @@ import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
 import {
+  CellCodeRefKind,
   SecDefKind,
+  SecDefOfWorker,
   SecDefWithData,
   SecDefWithIo,
   Section,
@@ -57,6 +59,7 @@ import { PlaceholderComponent } from '../placeholder/placeholder.component';
 import { ExampleTableComponent } from '../example-table/example-table.component';
 import { SimpleChartComponent } from '../simple-chart/simple-chart.component';
 import { addIcons } from 'src/app/icon-registry';
+import { CellStatus } from 'src/lib/distr-signals/cell-controller';
 // ============================================================================
 
 export enum DisplayKind {
@@ -95,13 +98,18 @@ export class SectionComponent {
   readonly section = input.required<Section>();
   // sectionTemplateRef = viewChild.required<Component>('');
 
+  CellStatus = CellStatus;
+  cellStatus: WritableSignal<CellStatus | null>;
+  // Only set when there is a link to the code elsewhere.
+  vsCodeLink = signal('');
+
   intersectionObserver: IntersectionObserver;
 
   SecDefKind = SecDefKind;
   ViewerKind = ViewerKind;
   DisplayKind = DisplayKind;
 
-  collapsed = signal(false);
+  collapsed = signal(true);
   editDefView = signal(false);
   displayKind = signal<DisplayKind>(DisplayKind.Unknown);
 
@@ -129,6 +137,11 @@ export class SectionComponent {
       'delete',
       'input',
       'output',
+      'play_circle',
+      'code',
+      'cancel',
+      'restart_alt',
+      'stop_circle',
     ]);
 
     // Used to handle scrolling behaviour, allowing a where we are viewing bar
@@ -159,36 +172,55 @@ export class SectionComponent {
     // TODO: make it properly reactive.
     //
     // Note: Putting this in an effect allows it to be defined in the construtcor, but not executed until the section input is provided.
-    effect(() => {
-      const section = this.section();
-      if (section.isWorkerSection()) {
-        this.displayKind.set(DisplayKind.WorkerCell);
-      } else {
-        const inputKeys = Object.keys(section.inputs);
-        const outputKeys = Object.keys(section.outputs);
-        if (section.isIoSection()) {
-          const data = section.defData() as SecDefWithIo;
-          if (
-            Object.keys(data.io.inStreams).length === 0 &&
-            outputKeys.length === 1 &&
-            inputKeys.length === 0
-          ) {
-            if (section.outputs[outputKeys[0]]() !== null) {
-              this.displayKind.set(DisplayKind.SingleDataValue);
-            } else {
-              this.displayKind.set(DisplayKind.UiCell);
-            }
+    this.cellStatus = signal(null);
+  }
+
+  ngOnInit() {
+    const section = this.section();
+    if (section.isWorkerSection()) {
+      this.displayKind.set(DisplayKind.WorkerCell);
+      section.space.derived(() => this.cellStatus.set(section.cell.controller.status()));
+      const def = section.defData() as SecDefOfWorker;
+      if (
+        (def.cellCodeRef.kind === CellCodeRefKind.PathToWorkerCode ||
+          def.cellCodeRef.kind === CellCodeRefKind.UrlToCode) &&
+        def.cellCodeRef.tsSrcPath
+      ) {
+        const path = def.cellCodeRef.tsSrcPath;
+        if (section.experiment.def.vsCodePathRoot) {
+          this.vsCodeLink.set(
+            `vscode://file/${this.section().experiment.def.vsCodePathRoot}/${path}`,
+          );
+        } else {
+          this.vsCodeLink.set('');
+        }
+      }
+    } else {
+      const inputKeys = Object.keys(section.inputs);
+      const outputKeys = Object.keys(section.outputs);
+      if (section.isIoSection()) {
+        const data = section.defData() as SecDefWithIo;
+        if (
+          Object.keys(data.io.inStreams).length === 0 &&
+          outputKeys.length === 1 &&
+          inputKeys.length === 0
+        ) {
+          if (section.outputs[outputKeys[0]]() !== null) {
+            this.displayKind.set(DisplayKind.SingleDataValue);
           } else {
             this.displayKind.set(DisplayKind.UiCell);
           }
+        } else {
+          this.displayKind.set(DisplayKind.UiCell);
         }
       }
-    });
-  }
+    }
 
-  ngAfterViewInit() {
+    // Set the collapsed/not setting.
     this.collapsed.set(this.section().initDef.display.collapsed);
   }
+
+  ngAfterViewInit() {}
 
   ngOnDestroy() {
     this.intersectionObserver.disconnect();
@@ -235,6 +267,32 @@ export class SectionComponent {
 
   workerSection(): WorkerSection {
     return this.section() as WorkerSection;
+  }
+
+  async cellStart() {
+    await this.section().startWorker();
+  }
+
+  async cellRequestStop() {
+    const cell = this.section().cell;
+    if (!cell) {
+      throw new Error('cellRequestStop called on section with no cell');
+    }
+    await cell.controller.requestStop();
+  }
+
+  async cellForceStopAndReset() {
+    const cell = this.section().cell;
+    if (!cell) {
+      throw new Error('cellForceStop called on section with no cell');
+    }
+    await cell.controller.forceStop();
+    cell.controller.initLifeCyclePromises();
+    cell.controller.reInitRemotes();
+  }
+
+  openCodeLink() {
+    window.open(this.vsCodeLink());
   }
 
   // addJsonObjEditor() {}
