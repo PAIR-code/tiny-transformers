@@ -35,6 +35,7 @@ limitations under the License.
 import { JsonValue } from 'src/lib/json/json';
 import {
   AbstractSignal,
+  asyncIterToSignal,
   DerivedSignal,
   SetableSignal,
   SignalSpace,
@@ -194,12 +195,12 @@ export type CellCodeRef =
 export type SectionInputRef = {
   sectionId: string;
   outputId: string;
-} | null;
+};
 
 export type SectionInStreamRef = {
   sectionId: string;
   outStreamId: string;
-} | null;
+};
 
 export type CellSectionOutput = {
   // Optionally, the last value. Allows restarting from previous computation.
@@ -211,10 +212,10 @@ export type CellSectionOutput = {
 export type IOSectionContent = {
   // How inputs to this cell map to either outputs from other cells, or raw
   // JsonObj values.
-  inputs: { [inputId: string]: SectionInputRef };
+  inputs: { [inputId: string]: SectionInputRef[] };
   // OutputIds to the last saved value (undefined when not yet defined)
   outputs: { [outputId: string]: CellSectionOutput };
-  inStreams: { [inStreamId: string]: SectionInStreamRef };
+  inStreams: { [inStreamId: string]: SectionInStreamRef[] };
   outStreamIds: string[];
 };
 
@@ -309,11 +310,76 @@ export type SectionOutNameRef = {
   hasValue: boolean;
 };
 
+// --------------------------------------------------------------------------
+//
+// --------------------------------------------------------------------------
+
+export class IoSecDepMap<Container extends Section<SecDefWithIo>> {
+  // Invariant: contain the same local Id and Section relations:
+  // exists k, c. localIdToSecMap[k].has(c) <==> secToLocalIds[c].has(k)
+  //
+  // From a local id (input/output ID, etc) to a remote section, to the
+  // remote section's ids.
+  localIdToSecMap = {} as { [key: string]: Map<Container, Set<string>> };
+
+  // From a remote section, to the local ids that depends on that remote
+  // section. To get the specific remote ids that are connected, use the
+  // ioToSecMap.
+  secToLocalIds = new Map<Container, Set<string>>();
+
+  addLocalId(id: string) {
+    this.localIdToSecMap[id] = new Map();
+  }
+
+  add(ioId: string, sec: Container, secIoId: string) {
+    if (!(ioId in this.localIdToSecMap)) {
+      this.localIdToSecMap[ioId] = new Map();
+    }
+    const secMap = this.localIdToSecMap[ioId];
+    const idSet = secMap.get(sec);
+    if (idSet) {
+      idSet.add(secIoId);
+    } else {
+      secMap.set(sec, new Set([secIoId]));
+    }
+  }
+
+  hasDepsOn(localId: string): boolean {
+    if (!(localId in this.localIdToSecMap)) {
+      throw new Error(`hasDepsOn: ${localId} does not exist.`);
+    }
+    return this.localIdToSecMap[localId].size > 0;
+  }
+
+  // TODO: have a constant empty set?
+  deleteSection(c: Container): Set<string> {
+    const localIds = this.secToLocalIds.get(c);
+    if (!localIds) {
+      console.error(`IoSecDepMap: deleteSection: no such section ${c.initDef.id}`);
+      return new Set();
+    }
+    for (const i of localIds) {
+      this.localIdToSecMap[i].delete(c);
+    }
+    return localIds;
+  }
+
+  renameLocalId(oldLocalId: string, newLocalId: string) {
+    throw new Error('not yet implmented');
+  }
+
+  renameRemoteId(oldRemoteId: string, newRemoteId: string) {
+    throw new Error('not yet implmented');
+  }
+}
+
 // ============================================================================
 //
 // ============================================================================
 export class Section<
   Def extends SecDefWithData = SecDefWithData,
+  // Note: for now, shortcut to treat I and O as including stream names and
+  // input names.
   I extends ValueStruct = ValueStruct,
   O extends ValueStruct = ValueStruct,
 > {
@@ -342,24 +408,77 @@ export class Section<
   subSections?: SetableSignal<Section[]>;
 
   // For IO Sections (always empty except for UiCell and Worker)
-  inputs = {} as { [Key in keyof I]: AbstractSignal<I[Key] | null> };
+  inputs = {} as { [Key in keyof I]: SetableSignal<I[Key] | null> };
   outputs = {} as { [Key in keyof O]: SetableSignal<O[Key] | null> };
-  dependsOnMe: Set<Section<SecDefWithIo>> = new Set();
-  dependsOnOutputsFrom: Set<Section<SecDefWithIo>> = new Set();
+
+  // For IO Sections (always empty except for UiCell and Worker)
+  inStream = {} as {
+    [Key in keyof I]: {
+      lastValue: SetableSignal<I[Key] | null>;
+      openCount: SetableSignal<number>;
+    };
+  };
+  outStream = {} as {
+    [Key in keyof O]: {
+      lastValue: SetableSignal<O[Key] | null>;
+      done: SetableSignal<boolean>;
+    };
+  };
+
+  // this Section's inputs that depend in outputs from other sections.
+  inDeps = new IoSecDepMap();
+  inStreamDeps = new IoSecDepMap();
+
+  // Other Section's inputs that depend in outputs from this section.
+  outDeps = new IoSecDepMap();
+  outStreamDeps = new IoSecDepMap();
+
+  // --------------------------------------------------------------------------
+  constructor(
+    public experiment: Experiment,
+    // Note: SecDef can be a reference or path, and it's data() value will then
+    // be the referenced sections data, or if it's a path, it will be the data
+    // resolved from reading that path.
+    public initDef: SecDef,
+    // The section we are part of. or null for root section.
+    public parent: ListSection | null,
+  ) {
+    this.space = this.experiment.space;
+    this.initDef.display = this.initDef.display || {};
+    if (initDef.kind === SecDefKind.Path) {
+      const placeholderDef: SecDefOfPlaceholder = {
+        kind: SecDefKind.Placeholder,
+        id: initDef.id,
+        display: { collapsed: false },
+        // loadingState: {
+        //   loading: true,
+        // },
+      };
+      this.defData = this.space.setable(placeholderDef as Def);
+    } else {
+      this.defData = this.space.setable(initDef as Def);
+    }
+  }
+
+  // --------------------------------------------------------------------------
 
   inputNames(): SectionInputNameRef[] {
     if (!this.isIoSection()) {
       return [];
     }
     const thisSection = this as Section<SecDefWithIo>;
-    const names = [...Object.entries(thisSection.defData().io.inputs)].map(([id, ref]) => {
-      const displayId = ref
-        ? ref.outputId === 'jsonObj'
-          ? ref.sectionId
-          : `${ref.sectionId}.${ref.outputId}`
-        : `${id}`;
-      return { displayId, ref, id, hasValue: !!this.inputs[id]() };
-    });
+    const names = [...Object.entries(thisSection.defData().io.inputs)]
+      .map(([id, refs]) =>
+        refs.map((ref) => {
+          const displayId = ref
+            ? ref.outputId === 'jsonObj'
+              ? ref.sectionId
+              : `${ref.sectionId}.${ref.outputId}`
+            : `${id}`;
+          return { displayId, ref, id, hasValue: !!this.inputs[id]() };
+        }),
+      )
+      .flat();
     names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
     return names;
   }
@@ -369,7 +488,7 @@ export class Section<
       return [];
     }
     const thisSection = this as Section<SecDefWithIo>;
-    const names = [...Object.entries(thisSection.defData().io.outputs)].map(([id, out]) => {
+    const names = [...Object.entries(thisSection.defData().io.outputs)].map(([id, _out]) => {
       return { displayId: id, id, hasValue: !!this.outputs[id]() };
     });
     names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
@@ -381,10 +500,14 @@ export class Section<
       return [];
     }
     const thisSection = this as Section<SecDefWithIo>;
-    const names = [...Object.entries(thisSection.defData().io.inStreams)].map(([id, ref]) => {
-      const displayId = ref ? `${ref.sectionId}.${ref.outStreamId}` : `${id}`;
-      return { displayId, ref, id };
-    });
+    const names = [...Object.entries(thisSection.defData().io.inStreams)]
+      .map(([id, refs]) =>
+        refs.map((ref) => {
+          const displayId = ref ? `${ref.sectionId}.${ref.outStreamId}` : `${id}`;
+          return { displayId, ref, id };
+        }),
+      )
+      .flat();
     names.sort((a, b) => (a.displayId > b.displayId ? -1 : 1));
     return names;
   }
@@ -452,33 +575,6 @@ export class Section<
     return this;
   }
 
-  // --------------------------------------------------------------------------
-  constructor(
-    public experiment: Experiment,
-    // Note: SecDef can be a reference or path, and it's data() value will then
-    // be the referenced sections data, or if it's a path, it will be the data
-    // resolved from reading that path.
-    public initDef: SecDef,
-    // The section we are part of. or null for root section.
-    public parent: ListSection | null,
-  ) {
-    this.space = this.experiment.space;
-    this.initDef.display = this.initDef.display || {};
-    if (initDef.kind === SecDefKind.Path) {
-      const placeholderDef: SecDefOfPlaceholder = {
-        kind: SecDefKind.Placeholder,
-        id: initDef.id,
-        display: { collapsed: false },
-        // loadingState: {
-        //   loading: true,
-        // },
-      };
-      this.defData = this.space.setable(placeholderDef as Def);
-    } else {
-      this.defData = this.space.setable(initDef as Def);
-    }
-  }
-
   initSubSections() {
     const thisSection = this.assertListSection();
     thisSection.subSections = this.space.setable<Section[]>([]);
@@ -488,48 +584,65 @@ export class Section<
     if (!this.isPlaceholderSection()) {
       throw new Error(`Can only subst Placeholders, but was: ${JSON.stringify(this.defData())}`);
     }
-    // const thisSection = this as Section<SecDefOfPlaceholder>;
-    // const oldDef = thisSection.defData();
+    // const thisSection = this as Section<SecDefOfPlaceholder>; const oldDef =
+    // thisSection.defData();
+    //
+    // Note: no one can depend on a placeholder, so no inDeps or outDeps need
+    // updating.
     this.renameId(def.id);
     this.initDef = def;
     this.defData.set(def as Def);
   }
 
-  updateTargetId(newId: string) {
+  updateRefSectionTargetId(newId: string) {
     const thisSection = this.assertRefSection();
     thisSection.initDef.refId = newId;
   }
 
-  deleteSecIdInInputDeps(oldSectionId: string) {
+  deleteInDep(sec: Section<SecDefWithIo>) {
+    const sectionId = sec.initDef.id;
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
-    const inputs = data.io.inputs;
-    for (const [i, v] of Object.entries(inputs)) {
-      if (v && v.sectionId === oldSectionId) {
-        inputs[i] = null;
-      }
+
+    const localIdsChanged = this.inDeps.deleteSection(sec);
+    for (const i in localIdsChanged) {
+      const iToSecMap = this.inDeps.localIdToSecMap[i];
+      data.io.inputs[i] = [
+        ...iToSecMap.values().map((outsOfSec) =>
+          [...outsOfSec].map((outputId) => {
+            return { sectionId, outputId };
+          }),
+        ),
+      ].flat();
     }
-    const inStreams = data.io.inStreams || {};
-    for (const [i, v] of Object.entries(inStreams)) {
-      if (v && v.sectionId === oldSectionId) {
-        inStreams[i] = null;
-      }
+
+    const localInStreamsIdsChanged = this.inStreamDeps.deleteSection(sec);
+    for (const i in localInStreamsIdsChanged) {
+      const iToSecMap = this.inStreamDeps.localIdToSecMap[i];
+      data.io.inStreams[i] = [
+        ...iToSecMap.values().map((outsOfSec) =>
+          [...outsOfSec].map((outStreamId) => {
+            return { sectionId, outStreamId };
+          }),
+        ),
+      ].flat();
     }
   }
 
   renameSecIdInInputDeps(oldId: string, newId: string) {
-    const thisSection = this.assertIoSection();
-    const data = thisSection.defData();
-    for (const [i, v] of Object.entries(data.io.inputs)) {
-      if (v && v.sectionId === oldId) {
-        v.sectionId = newId;
-      }
-    }
-    for (const [i, v] of Object.entries(data.io.inStreams || {})) {
-      if (v && v.sectionId === oldId) {
-        v.sectionId = newId;
-      }
-    }
+    throw new Error('not yet implemented.');
+    // const thisSection = this.assertIoSection();
+    // const data = thisSection.defData();
+    // for (const [i, v] of Object.entries(data.io.inputs)) {
+    //   if (v && v.sectionId === oldId) {
+    //     v.sectionId = newId;
+    //   }
+    // }
+    // for (const [i, v] of Object.entries(data.io.inStreams || {})) {
+    //   if (v && v.sectionId === oldId) {
+    //     v.sectionId = newId;
+    //   }
+    // }
   }
 
   renameId(newId: string) {
@@ -546,12 +659,11 @@ export class Section<
     this.experiment.sectionMap.set(newId, this as Section<any>);
 
     for (const refSec of this.references) {
-      refSec.updateTargetId(newId);
+      refSec.updateRefSectionTargetId(newId);
     }
     this.defData.change(() => (this.initDef.id = newId));
-    for (const dep of this.dependsOnMe) {
-      dep.renameSecIdInInputDeps(oldId, newId);
-    }
+
+    throw new Error('Renaming of outDeps and outStreamDeps subsections not implemented yet');
   }
 
   resolveRef(s: Section<SecDefWithData>) {
@@ -648,7 +760,7 @@ export class Section<
     }
   }
 
-  initOutputs() {
+  initOutputsAndDeps() {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
     this.experiment.noteAddedIoSection(data.id);
@@ -656,27 +768,65 @@ export class Section<
     console.log(`initOutputs: cell: ${data.id}`);
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
       thisSection.outputs[outputId] = thisSection.space.setable(cellOutputRef.lastValue || null);
+      this.outDeps.addLocalId(outputId);
+    }
+    for (const outStreamId of data.io.outStreamIds || []) {
+      thisSection.outStream[outStreamId] = {
+        lastValue: thisSection.space.setable(null),
+        done: thisSection.space.setable(false),
+      };
+      this.outStreamDeps.addLocalId(outStreamId);
     }
   }
 
-  // This happens after construction, but before connecting cells.
-  unifyOutputToInputSignals() {
+  // This happens after construction, but before connecting to cell workers.
+  // This ensures that the input signals in this section are literally the
+  // same as the output signals from the section they reference.
+  unifyOutputToInputSignalsAndDeps() {
     const thisSection = this.assertIoSection();
     const data = thisSection.defData();
 
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
-      if (cellInputRef) {
-        console.log(
-          `connectUiInputs: input: ${data.id}; ${inputId} <-- ${cellInputRef.sectionId}.${cellInputRef.outputId}`,
-        );
-
+    for (const [inputId, cellInputRefs] of Object.entries(data.io.inputs)) {
+      const inputSignal = this.space.setable(null);
+      thisSection.inputs[inputId] = inputSignal;
+      for (const cellInputRef of cellInputRefs) {
         const otherSection = thisSection.experiment.getSection(
           cellInputRef.sectionId,
         ) as Section<SecDefWithIo>;
-        thisSection.dependsOnOutputsFrom.add(otherSection);
-        otherSection.dependsOnMe.add(thisSection);
-        thisSection.dependsOnMe.add(otherSection);
-        thisSection.inputs[inputId] = otherSection.outputs[cellInputRef.outputId];
+        thisSection.inDeps.add(inputId, otherSection, cellInputRef.outputId);
+        otherSection.outDeps.add(cellInputRef.outputId, thisSection, inputId);
+        this.space.derived(() => inputSignal.set(otherSection.outputs[cellInputRef.outputId]()));
+      }
+    }
+
+    for (const [inputId, cellInStreamRefs] of Object.entries(data.io.inStreams)) {
+      const inStreamValueSignal = this.space.setable(null);
+      const inStreamOpenCountSignal = this.space.setable(0);
+      thisSection.inStream[inputId] = {
+        lastValue: inStreamValueSignal,
+        openCount: inStreamOpenCountSignal,
+      };
+
+      for (const cellInStreamRef of cellInStreamRefs) {
+        const otherSection = thisSection.experiment.getSection(
+          cellInStreamRef.sectionId,
+        ) as Section<SecDefWithIo>;
+        thisSection.inDeps.add(inputId, otherSection, cellInStreamRef.outStreamId);
+        otherSection.outDeps.add(cellInStreamRef.outStreamId, thisSection, inputId);
+        this.space.derived(() =>
+          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].lastValue()),
+        );
+        inStreamOpenCountSignal.update((c) => c + 1);
+        this.space.derived(() => {
+          // Assumes that done cannot become true more than once.
+          if (otherSection.outStream[cellInStreamRef.outStreamId].done()) {
+            inStreamOpenCountSignal.change((c) => c - 1);
+          }
+        });
+        // input stream is done when all outputs feeding into it are done.
+        this.space.derived(() =>
+          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].lastValue()),
+        );
       }
     }
     // Note: UI Cells don't have input/output streams. CONSIDER: should they be
@@ -684,7 +834,8 @@ export class Section<
   }
 
   // Connect the cell in this section to it's inputs/outputs in the experiment.
-  // This should happen after
+  // This should happen after initSectionCellData, initOutputs and
+  // unifyOutputToInputSignals.
   connectWorker() {
     const thisSection = this.assertWorkerSection();
     const data = thisSection.defData();
@@ -694,8 +845,9 @@ export class Section<
       throw new Error(`Cell (${this.defData().id}): Can only connect a not-started cell`);
     }
 
-    for (const [inputId, cellInputRef] of Object.entries(data.io.inputs)) {
-      if (cellInputRef) {
+    for (const [inputId, cellInputRefs] of Object.entries(data.io.inputs)) {
+      const thisInputSignal = this.cell.controller.inputs[inputId].connect();
+      for (const cellInputRef of cellInputRefs) {
         // TODO: this is where magic dep-management could happen... we could use
         // old input value as the input here, so that we don't need to
         // re-execute past cells. Would need think about what to do with
@@ -705,14 +857,11 @@ export class Section<
         const otherSection = this.experiment.getSection(
           cellInputRef.sectionId,
         ) as Section<SecDefWithIo>;
-        this.dependsOnOutputsFrom.add(otherSection);
-        otherSection.dependsOnMe.add(thisSection as Section<SecDefWithIo>);
         if (otherSection.isWorkerSection()) {
           otherSection.cell.controller.outputs[cellInputRef.outputId].addPipeTo(
             this.cell.controller.inputs[inputId],
           );
         } else {
-          const thisInputSignal = this.cell.controller.inputs[inputId].connect();
           this.space.derived(() =>
             thisInputSignal.set(otherSection.outputs[cellInputRef.outputId]()),
           );
@@ -721,28 +870,57 @@ export class Section<
     }
 
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
-      const controller = thisSection.cell.controller;
-      const onceReady = controller.outputs[outputId].connect();
-      onceReady.then((signal) => {
-        console.warn(`initOutputs: ${this.initDef.id}: Section output setting [${outputId}]`);
-        thisSection.experiment.space.derived(() => thisSection.outputs[outputId].set(signal()));
-      });
-
-      // When cell outputs happen, update the def & saved value.
-      thisSection.space.derived(() => {
-        const newOutput = thisSection.outputs[outputId]();
-        thisSection.defData.change(() => {
-          cellOutputRef.lastValue = newOutput;
+      // TODO: this will need to be updated if a section is dynamically added
+      // that takes an output of an existing cell. Because
+      // dependOnMeSections.length may become > 0.
+      if (this.outDeps.hasDepsOn(outputId)) {
+        const controller = thisSection.cell.controller;
+        const onceReady = controller.outputs[outputId].connect();
+        onceReady.then((signal) => {
+          console.warn(`initOutputs: ${this.initDef.id}: Section output setting [${outputId}]`);
+          thisSection.space.derived(() => thisSection.outputs[outputId].set(signal()));
         });
-      });
+
+        // When cell outputs happen, update the defData's saved value.
+        thisSection.space.derived(() => {
+          // TODO: if this was put a line lower, then dependency setup would
+          // fail. This is a fragile aspect of siganl spaces. Think about
+          // documentation about this case.
+          const newOutput = thisSection.outputs[outputId]();
+          if (cellOutputRef.saved) {
+            thisSection.defData.change(() => (cellOutputRef.lastValue = newOutput));
+          }
+        });
+      }
     }
 
-    for (const [inStreamId, cellInputRef] of Object.entries(data.io.inStreams)) {
-      if (cellInputRef) {
+    // TODO: allow input streams from UI cells also?
+    for (const [inStreamId, cellInputRefs] of Object.entries(data.io.inStreams)) {
+      for (const cellInputRef of cellInputRefs) {
         const otherCellController = this.experiment.getSectionLabCell(cellInputRef.sectionId);
         otherCellController.outStreams[cellInputRef.outStreamId].addPipeTo(
           this.cell.controller.inStreams[inStreamId],
         );
+      }
+    }
+
+    for (const outStreamId of data.io.outStreamIds) {
+      // TODO: this will need to be updated if a section is dynamically added
+      // that takes an output of an existing cell. Because
+      // dependOnMeSections.length may become > 0.
+      console.log(
+        `${this.initDef.id}: connectWorker: ${JSON.stringify([...Object.keys(this.outStreamDeps.localIdToSecMap)])}, (${outStreamId})`,
+      );
+      const dependOnMeSections = [...this.outStreamDeps.localIdToSecMap[outStreamId].keys()];
+      let hasUiSecDep = dependOnMeSections.find((sec) => !sec.isWorkerSection());
+      if (hasUiSecDep) {
+        const controller = thisSection.cell.controller;
+        const streamReceiver = controller.outStreams[outStreamId].connect();
+        const signalWrap = asyncIterToSignal(streamReceiver, this.space);
+        signalWrap.onceSignal.then((outStreamSignal) =>
+          this.space.derived(() => this.outStream[outStreamId].lastValue.set(outStreamSignal())),
+        );
+        signalWrap.onceDone.then(() => this.outStream[outStreamId].done.set(true));
       }
     }
   }
@@ -774,6 +952,16 @@ export class Section<
     }
     for (const dep of this.dataUpdateDeps) {
       dep.node.dispose();
+    }
+
+    if (this.isIoSection()) {
+      for (const dep of this.inDeps.secToLocalIds.keys()) {
+        dep.outDeps.deleteSection(this);
+        // dep.deleteOutDep(section);
+      }
+      for (const dep of this.outDeps.secToLocalIds.keys()) {
+        dep.deleteInDep(this);
+      }
     }
 
     this.experiment.noteDeletedIoSection(this.initDef.id);

@@ -192,8 +192,8 @@ export class Experiment {
           fromCache: true,
         });
       }
-      section.initOutputs();
-      section.unifyOutputToInputSignals();
+      section.initOutputsAndDeps();
+      section.unifyOutputToInputSignalsAndDeps();
       if (section.isWorkerSection()) {
         section.connectWorker();
       }
@@ -276,12 +276,6 @@ export class Experiment {
     const parentSubsections = section.parent.subSections();
     const idx = parentSubsections.findIndex((x) => x === section);
     section.parent.subSections.change((subsections) => subsections.splice(idx, 1));
-    if (section.isWorkerSection()) {
-      section.cell.controller.forceStop();
-    }
-    for (const dep of section.dependsOnMe) {
-      dep.deleteSecIdInInputDeps(section.initDef.id);
-    }
 
     this.sectionMap.delete(section.initDef.id);
     section.dispose();
@@ -354,13 +348,13 @@ export async function loadExperiment(
           break;
         }
         case SecDefKind.UiCell: {
-          section.initOutputs();
+          section.initOutputsAndDeps();
           ioSections.push(section as Section);
           break;
         }
         case SecDefKind.WorkerCell: {
           await section.initSectionCellData(cacheResolver, dataResolver, config);
-          section.initOutputs();
+          section.initOutputsAndDeps();
           workerSections.push(section as WorkerSection);
           ioSections.push(section as Section);
           break;
@@ -377,7 +371,7 @@ export async function loadExperiment(
 
   // Finally, connect the outputs to inputs, and connect any direct cell connections
   for (const sec of ioSections) {
-    sec.unifyOutputToInputSignals();
+    sec.unifyOutputToInputSignalsAndDeps();
   }
 
   // Finally, connect the outputs to inputs, and connect any direct cell connections

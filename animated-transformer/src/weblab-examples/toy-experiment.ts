@@ -166,14 +166,18 @@ export const taskGenUrlCodeSecDef: SecDefOfWorker & {
   timestamp: Date.now(),
   io: {
     inputs: {
-      taskConfig: {
-        sectionId: taskConfigJsonSecDef.id,
-        outputId: 'jsonObj',
-      },
-      genConfig: {
-        sectionId: genConfigJsonSecDef.id,
-        outputId: 'jsonObj',
-      },
+      taskConfig: [
+        {
+          sectionId: taskConfigJsonSecDef.id,
+          outputId: 'jsonObj',
+        },
+      ],
+      genConfig: [
+        {
+          sectionId: genConfigJsonSecDef.id,
+          outputId: 'jsonObj',
+        },
+      ],
     },
     inStreams: {},
     outputs: { testSet: { saved: false } },
@@ -194,7 +198,7 @@ export const testSetViewSecDef: SecDefOfUiView = {
   // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
   io: {
     inputs: {
-      examples: { sectionId: taskGenUrlCodeSecDef.id, outputId: 'testSet' },
+      examples: [{ sectionId: taskGenUrlCodeSecDef.id, outputId: 'testSet' }],
     },
     outputs: {},
     inStreams: {},
@@ -271,12 +275,12 @@ export const trainUrlCodeSecDef: SecDefOfWorker & {
   timestamp: Date.now(),
   io: {
     inputs: {
-      testSet: { sectionId: taskCellKind.cellKindId, outputId: 'testSet' },
-      modelInit: { sectionId: modelInitDef.id, outputId: 'jsonObj' },
-      trainConfig: { sectionId: modelTrainConfigDef.id, outputId: 'jsonObj' },
+      testSet: [{ sectionId: taskCellKind.cellKindId, outputId: 'testSet' }],
+      modelInit: [{ sectionId: modelInitDef.id, outputId: 'jsonObj' }],
+      trainConfig: [{ sectionId: modelTrainConfigDef.id, outputId: 'jsonObj' }],
     },
     inStreams: {
-      trainBatches: { sectionId: taskCellKind.cellKindId, outStreamId: 'trainBatches' },
+      trainBatches: [{ sectionId: taskCellKind.cellKindId, outStreamId: 'trainBatches' }],
     },
     outputs: {},
     outStreamIds: ['metrics', 'checkpoint'],
@@ -303,10 +307,12 @@ export const matericsGraphViewSecDef: SecDefOfUiView = {
       },
     },
     inStreams: {
-      metrics: {
-        sectionId: trainUrlCodeSecDef.id,
-        outStreamId: 'metrics',
-      },
+      metrics: [
+        {
+          sectionId: trainUrlCodeSecDef.id,
+          outStreamId: 'metrics',
+        },
+      ],
     },
     outStreamIds: [],
   },

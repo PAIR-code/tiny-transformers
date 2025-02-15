@@ -1,34 +1,27 @@
 @let selectedExamples = examples();
-@let info = inputInfo();
 
-@if (!info) {
-  <div>Badly defined input.</div>
-} @else {
-  <table
-    #datasetTable
-    mat-table
-    [dataSource]="selectedExamples"
-    class="mat-elevation-z0"
-  >
-    <ng-container matColumnDef="id">
-      <th mat-header-cell *matHeaderCellDef class="table-header">id</th>
-      <td mat-cell *matCellDef="let element">{{ element.id }}</td>
-    </ng-container>
-    <ng-container matColumnDef="input">
-      <th mat-header-cell *matHeaderCellDef class="table-header">source</th>
-      <td mat-cell *matCellDef="let element">
-        <app-token-seq-display [tokens]="element.input"></app-token-seq-display>
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="output">
-      <th mat-header-cell *matHeaderCellDef class="table-header">target</th>
-      <td mat-cell *matCellDef="let element">
-        <app-token-seq-display
-          [tokens]="element.output"
-        ></app-token-seq-display>
-      </td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="['id', 'input', 'output']"></tr>
-    <tr mat-row *matRowDef="let row; columns: ['id', 'input', 'output']"></tr>
-  </table>
-}
+<table
+  #datasetTable
+  mat-table
+  [dataSource]="selectedExamples"
+  class="mat-elevation-z0"
+>
+  <ng-container matColumnDef="id">
+    <th mat-header-cell *matHeaderCellDef class="table-header">id</th>
+    <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+  </ng-container>
+  <ng-container matColumnDef="input">
+    <th mat-header-cell *matHeaderCellDef class="table-header">source</th>
+    <td mat-cell *matCellDef="let element">
+      <app-token-seq-display [tokens]="element.input"></app-token-seq-display>
+    </td>
+  </ng-container>
+  <ng-container matColumnDef="output">
+    <th mat-header-cell *matHeaderCellDef class="table-header">target</th>
+    <td mat-cell *matCellDef="let element">
+      <app-token-seq-display [tokens]="element.output"></app-token-seq-display>
+    </td>
+  </ng-container>
+  <tr mat-header-row *matHeaderRowDef="['id', 'input', 'output']"></tr>
+  <tr mat-row *matRowDef="let row; columns: ['id', 'input', 'output']"></tr>
+</table>

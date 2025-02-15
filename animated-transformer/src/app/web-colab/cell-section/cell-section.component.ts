@@ -178,10 +178,6 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     cell.cellObjectUrl = cellObjectUrl;
   }
 
-  openCodeLink() {
-    window.open(this.vsCodeLink());
-  }
-
   inputs() {
     return Object.keys(this.section().inputs || {});
   }
@@ -212,6 +208,10 @@ export class CellSectionComponent implements OnInit, OnDestroy {
     this.cell.controller.reInitRemotes();
     // console.error('not yet implemented');
     // this.cell.restart();
+  }
+
+  openCodeLink() {
+    window.open(this.vsCodeLink());
   }
 
   ngOnDestroy() {

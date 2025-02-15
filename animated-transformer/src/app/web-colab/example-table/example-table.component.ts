@@ -44,7 +44,7 @@ export class ExampleTableComponent implements OnInit {
     });
   }
 
-  inputInfo(): SectionInputRef {
+  inputInfos(): SectionInputRef[] {
     const thisSection = this.section().assertIoSection();
     const inputInfo = thisSection.defData().io.inputs['examples'];
     return inputInfo;

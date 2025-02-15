@@ -639,3 +639,7 @@ export function asyncIterToSignal<T>(
   }, 0);
   return { onceDone, onceSignal };
 }
+
+// TODO: make a concept of a derived subspace, so that all signals in the derived
+// space can be deleted when the subspace is removed.
+// CONSIDER: should this support a kind of copy operation also?
