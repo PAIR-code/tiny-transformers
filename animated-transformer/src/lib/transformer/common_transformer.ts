@@ -163,9 +163,14 @@ export function allPastTokensCrossEntropyLossWithIntegerLabels(
     computation: TransformerComputation,
     labels: GTensor<'batch' | 'pos'>,
 ): tf.Scalar {
+    // A workaround is needed in this function:
+    //  - the gradient on the gather function from tfjs does not work
+    //    if there are more than 1 batch dimension. This means that we need
+    //    to merge the batch dimensions and then split them back.
     const logits = allPastTokensLogits(model, computation);
-    const crossEntropyLoss = logits.softmaxCrossEntropyWithIntegerLabels(labels, 'tokenId');
-    return crossEntropyLoss.tensor.asScalar();
+    const crossEntropyLoss = logits.mergeDims(['batch', 'pos'], 'new_batch').softmaxCrossEntropyWithIntegerLabels(
+        labels.mergeDims(['batch', 'pos'], 'new_batch'), 'tokenId');
+    return crossEntropyLoss.sumOverDims(crossEntropyLoss.dimNames).tensor.asScalar();
 }
 
 export function computeMaxInputLength(

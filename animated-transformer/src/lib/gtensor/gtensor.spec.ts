@@ -712,31 +712,35 @@ describe('gtensor', () => {
     // Making a GTensor from a tensor by naming the dimensions:
     const g = new gtensor.GTensor(
       tf.tensor([
-        [1, 2, 3, 4],
-        [5, 6, 7, 8],
+        [[1, 2, 3, 4],
+        [5, 6, 7, 8]],
+        [[9, 10, 11, 12],
+        [13, 14, 15, 16]],
       ]),
-      ['batch', 'logits'],
+      ['batch', 'pos', 'logits'],
     );
 
     const indexes = new gtensor.GTensor(
       tf.tensor(
         [
-          0, 1
+          [0, 1],
+          [2, 3],
         ],
-        [2],
+        [2, 2],
         'int32',
       ),
-      ['batch'],
+      ['batch', 'pos'],
     );
 
-    const gathered = g.gather(indexes, 'logits', ['batch']);
+    const gathered = g.gather(indexes, 'logits', ['batch', 'pos']);
 
-    expect(gathered.dimNames).toEqual(['batch']);
+    expect(gathered.dimNames).toEqual(['batch', 'pos']);
     tf.test_util.expectArraysClose(
       gathered.tensor.dataSync(),
       tf
         .tensor([
-          1, 6
+          [1, 6],
+          [11, 16],
         ])
         .dataSync(),
     );

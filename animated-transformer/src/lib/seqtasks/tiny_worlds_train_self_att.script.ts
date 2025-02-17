@@ -19,24 +19,24 @@ Tiny Worlds, run with (gtensor-based) transformers.
 TODO: add yargs so this is a real command line tool example.
 
 Run:
-  npx ts-node src/lib/seqtasks/tiny_worlds_train.script.ts
+  npx ts-node src/lib/seqtasks/tiny_worlds_train_self_att.script.ts
 */
 
 import * as tf from '@tensorflow/tfjs-node';
 
 import {
+  TransformerComputation,
+  lastTokenLogits,
+  allPastTokensCrossEntropyLossWithIntegerLabels,
+} from '../transformer/common_transformer';
+import {
   TransformerParamLayerSpec,
   TransformerParamSpec,
   TransformerConfig,
   TransformerParams,
-  TransformerComputation,
-  computeDecoder,
-  lastTokenLogits,
-  lastTokenCrossEntropyLoss,
-  transformerAccuracy,
   TransformerModel,
   initDecoderParams,
-  allPastTokensCrossEntropyLoss,
+  computeTransformer,
 } from '../transformer/transformer_gtensor';
 import { TinyWorldTask, TinyWorldTaskConfig, defaultTinyWorldTaskConfig } from './tiny_worlds';
 import {
@@ -44,8 +44,8 @@ import {
   singleNextTokenIdxOutputPrepFn,
   expectedOutputSeqPrepFn,
   prepareBasicTaskTokenRep,
+  BasicTaskTokenRep,
 } from '../tokens/token_gemb';
-import * as yargs from 'yargs';
 import { varifyParams, listifyVarParams } from '../gtensor/params';
 import { RandomStream, makeRandomStream } from '../random/random';
 
@@ -120,7 +120,10 @@ function* batchGenerator(
 
 function computeLoss(
   model: {
-    config: TransformerConfig;
+    config: {
+      spec: TransformerParamSpec;
+      tokenRep: BasicTaskTokenRep;
+    }
     params: TransformerParams;
   },
   randomStream: RandomStream,
@@ -128,18 +131,22 @@ function computeLoss(
   batchInput: string[][],
   batchOutput: string[][]
 ): tf.Scalar {
-  const computation: TransformerComputation = computeDecoder(
+  const maxInputLength = batchInput.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0,
+  );
+  const gtensorInputs = strSeqPrepFn(model, batchInput, { maxInputLength });
+  const computation: TransformerComputation = computeTransformer(
     model,
-    strSeqPrepFn,
-    batchInput,
+    gtensorInputs,
     randomStream
   );
-  const targetTokensOneHot = expectedOutputSeqPrepFn(model, batchInput, batchOutput);
-  const entropyLoss: tf.Scalar = allPastTokensCrossEntropyLoss(model, computation, targetTokensOneHot);
+  const targetTokens = expectedOutputSeqPrepFn(model, batchInput, batchOutput);
+  const entropyLoss: tf.Scalar = allPastTokensCrossEntropyLossWithIntegerLabels(model, computation, targetTokens);
   if (batchId % printEveryNBatches === 0) {
     console.log(
       `batch: ${batchId} `.padEnd(15) +
-        ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25)
+      ('entropyLoss: ' + entropyLoss.arraySync().toFixed(8)).padEnd(25)
     );
   }
   return entropyLoss;
@@ -202,10 +209,15 @@ function run() {
     // for (let inferStep = 0; inferStep < inferSteps; inferStep += 1) {
     const inferStep = 0;
     const spec = transformerConfig.spec;
-    const computation: TransformerComputation = computeDecoder(
+
+    const maxInputLength = batchInput.reduce(
+      (max, curInput) => (max >= curInput.length ? max : curInput.length),
+      0,
+    );
+    const gtensorInputs = strSeqPrepFn(model, batchInput, { maxInputLength });
+    const computation: TransformerComputation = computeTransformer(
       model,
-      strSeqPrepFn,
-      batchInput,
+      gtensorInputs,
       randomStream
     );
     //
