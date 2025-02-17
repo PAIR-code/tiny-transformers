@@ -7,6 +7,8 @@ import { InMemoryDataResolver } from 'src/lib/data-resolver/data-resolver';
 import { Experiment } from 'src/lib/weblab/experiment';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('SimpleChartComponent', () => {
   let component: SimpleChartComponent;
@@ -30,6 +32,20 @@ describe('SimpleChartComponent', () => {
       new InMemoryDataResolver(),
     );
     // const code = "console.log('Hello from web worker!')";
+    const sectionOutStream: SecDefOfUiView = {
+      kind: SecDefKind.UiCell,
+      id: 'streamOutput',
+      display: { collapsed: false },
+      io: {
+        inputs: {},
+        outputs: {},
+        inStreams: {},
+        outStreamIds: ['fooMetrics'],
+      },
+      timestamp: Date.now(),
+      uiView: ViewerKind.SimpleChartView,
+    };
+    // const code = "console.log('Hello from web worker!')";
     const section1: SecDefOfUiView = {
       kind: SecDefKind.UiCell,
       id: 'section 1',
@@ -37,17 +53,29 @@ describe('SimpleChartComponent', () => {
       io: {
         inputs: {},
         outputs: {},
-        inStreams: {},
+        inStreams: {
+          metrics: [
+            {
+              sectionId: sectionOutStream.id,
+              outStreamId: 'fooMetrics',
+            },
+          ],
+        },
         outStreamIds: [],
       },
       timestamp: Date.now(),
       uiView: ViewerKind.SimpleChartView,
     };
+    await experiment.appendLeafSectionFromDataDef(sectionOutStream);
     await experiment.appendLeafSectionFromDataDef(section1);
-    const section = [...experiment.sectionMap.values()][0];
+    const section = [...experiment.sectionMap.values()][1];
 
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [
+        provideExperimentalZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
       imports: [SimpleChartComponent],
     }).compileComponents();
 

@@ -64,6 +64,7 @@ import { tryer } from 'src/lib/utils';
 import { DomSanitizer } from '@angular/platform-browser';
 // import { isPlatformBrowser } from '@angular/common';
 import { JsonValue } from 'src/lib/json/json';
+import { addIcons } from '../icon-registry';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
@@ -188,16 +189,6 @@ export class WebColabComponent {
     public cacheService: LocalCacheStoreService,
     // public cellRegistry: CellRegistryService,
   ) {
-    const iconRegistry = inject(MatIconRegistry);
-    const sanitizer = inject(DomSanitizer);
-    function addIcons(names: string[]) {
-      for (const name of names) {
-        iconRegistry.addSvgIcon(
-          name,
-          sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
-        );
-      }
-    }
     addIcons(['close', 'menu', 'more_vert']);
 
     this.space = new SignalSpace();

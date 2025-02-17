@@ -23,12 +23,6 @@ describe('PlaceholderComponent', () => {
       subsections: [],
       display: { collapsed: false },
     };
-    // const code = "console.log('Hello from web worker!')";
-    const section1: SecDefOfPlaceholder = {
-      kind: SecDefKind.Placeholder,
-      id: 'section 1',
-      display: { collapsed: false },
-    };
     const experiment = new Experiment(
       lab,
       [],
@@ -36,6 +30,13 @@ describe('PlaceholderComponent', () => {
       new InMemoryDataResolver(),
       new InMemoryDataResolver(),
     );
+
+    // const code = "console.log('Hello from web worker!')";
+    const section1: SecDefOfPlaceholder = {
+      kind: SecDefKind.Placeholder,
+      id: 'section 1',
+      display: { collapsed: false },
+    };
     await experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 

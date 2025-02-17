@@ -770,6 +770,7 @@ export class Section<
       thisSection.outputs[outputId] = thisSection.space.setable(cellOutputRef.lastValue || null);
       this.outDeps.addLocalId(outputId);
     }
+
     for (const outStreamId of data.io.outStreamIds || []) {
       thisSection.outStream[outStreamId] = {
         lastValue: thisSection.space.setable(null),
@@ -800,6 +801,9 @@ export class Section<
     }
 
     for (const [inputId, cellInStreamRefs] of Object.entries(data.io.inStreams)) {
+      console.log(
+        `unifyOutputToInputSignalsAndDeps: inputId: ${inputId}, ${JSON.stringify(cellInStreamRefs)}`,
+      );
       const inStreamValueSignal = this.space.setable(null);
       const inStreamOpenCountSignal = this.space.setable(0);
       thisSection.inStream[inputId] = {
@@ -813,6 +817,13 @@ export class Section<
         ) as Section<SecDefWithIo>;
         thisSection.inDeps.add(inputId, otherSection, cellInStreamRef.outStreamId);
         otherSection.outDeps.add(cellInStreamRef.outStreamId, thisSection, inputId);
+
+        if (!(cellInStreamRef.outStreamId in otherSection.outStream)) {
+          throw new Error(
+            `unifyOutputToInputSignalsAndDeps: ${thisSection.initDef.id} expects ${otherSection.initDef.id} to have an outStream named '${cellInStreamRef.outStreamId}', but it does not.`,
+          );
+        }
+
         this.space.derived(() =>
           inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].lastValue()),
         );
