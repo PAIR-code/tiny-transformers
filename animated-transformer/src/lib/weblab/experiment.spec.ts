@@ -36,12 +36,15 @@ describe('experiment', () => {
       id: 'section1',
       timestamp: Date.now(),
       io: {
+        inputs: {},
         outputs: {
           markdown: {
             lastValue: '# Section 1! \nThis is the start.',
             saved: true,
           },
         },
+        inStreams: {},
+        outStreamIds: [],
       },
       uiView: ViewerKind.MarkdownOutView,
       display: { collapsed: false },
@@ -52,12 +55,15 @@ describe('experiment', () => {
       id: 'section2_1',
       timestamp: Date.now(),
       io: {
+        inputs: {},
         outputs: {
           markdown: {
             lastValue: '# Preamble! \nThis is before the start in the sub exp.',
             saved: true,
           },
         },
+        inStreams: {},
+        outStreamIds: [],
       },
       uiView: ViewerKind.MarkdownOutView,
       display: { collapsed: false },
@@ -98,24 +104,26 @@ describe('experiment', () => {
       id: 'section3',
       timestamp: Date.now(),
       io: {
+        inputs: {},
         outputs: {
           markdown: {
             lastValue: '# Section 3! This is the end.',
             saved: true,
           },
         },
+        inStreams: {},
+        outStreamIds: [],
       },
       uiView: ViewerKind.MarkdownOutView,
       display: { collapsed: false },
     };
 
-    const dataResolver = new InMemoryDataResolver({
-      'foo:/exp1/sec3.secdef.json': sec3Node,
-    });
+    const dataResolver = new InMemoryDataResolver();
+    dataResolver.saveStr(['foo:/exp1/sec3.secdef.json'], JSON.stringify(sec3Node));
 
     const space = new SignalSpace();
     const env = new LabEnv(space);
-    const exp1 = (await loadExperiment(dataResolver, env, exp1Data, {
+    const exp1 = (await loadExperiment(dataResolver, dataResolver, env, exp1Data, {
       fromCache: true,
     })) as Experiment;
 

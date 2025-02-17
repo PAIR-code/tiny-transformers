@@ -60,7 +60,13 @@ describe('CellSectionComponent', () => {
       },
       display: { collapsed: false },
     };
-    const experiment = new Experiment(lab, [], exp1Data, new InMemoryDataResolver());
+    const experiment = new Experiment(
+      lab,
+      [],
+      exp1Data,
+      new InMemoryDataResolver(),
+      new InMemoryDataResolver(),
+    );
     await experiment.appendLeafSectionFromDataDef(section1);
     const section = [...experiment.sectionMap.values()][0];
 

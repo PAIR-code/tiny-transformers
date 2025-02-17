@@ -22,7 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { provideExperimentalZonelessChangeDetection } from '@angular/core';
 
-describe('CodemirrorConfigEditorComponent', () => {
+describe('CodemirrorJsEditorComponent', () => {
   let component: CodemirrorJavaScriptEditorComponent;
   let fixture: ComponentFixture<CodemirrorJavaScriptEditorComponent>;
 
@@ -42,9 +42,6 @@ describe('CodemirrorConfigEditorComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodemirrorJavaScriptEditorComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('whatIsBeingEditedName', '{}');
-    fixture.componentRef.setInput('defaultConfig', '{}');
-    fixture.componentRef.setInput('config', '{}');
     fixture.detectChanges();
   });
 

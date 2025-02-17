@@ -98,10 +98,10 @@ export class DerivedNode<T> {
     public computeFunction: () => T,
     options?: Partial<DerivedNodeOptions<T>>,
   ) {
-    this.nodeId = signalSpace.nodeCount++;
+    this.nodeId = signalSpace.state.nextNodeId++;
     this.options = { ...defaultDerivedOptions(), ...options };
     signalSpace.signalSet.add(this as DerivedNode<unknown>);
-    this.signalSpace.computeStack.push({
+    this.signalSpace.state.computeStack.push({
       kind: ComputeContextKind.Definition,
       node: this as DerivedNode<unknown>,
     });
@@ -130,7 +130,7 @@ export class DerivedNode<T> {
       this.lastValue = computeFunction();
     }
     this.nullBecauseUpstreamNull = false;
-    this.signalSpace.computeStack.pop();
+    this.signalSpace.state.computeStack.pop();
     this.state = DerivedNodeState.UpToDate;
   }
 

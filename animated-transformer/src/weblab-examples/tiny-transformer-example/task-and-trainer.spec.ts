@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { asyncIterToSignal, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
-import { TrainConfig, ModelUpdate, ModelInitKind, TaskGenConfig } from './common.types';
+import { TrainConfig, ModelInit, ModelInitKind, TaskGenConfig } from './common.types';
 import { trainerCellKind } from './trainer-cell.kind';
 import { taskCellKind } from './task-cell.kind';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
@@ -45,7 +45,7 @@ describe('tiny-transformer-example/test-and-trainer', () => {
         metricFrequencyInBatches: 2,
       },
     });
-    const modelUpdateEvents = setable<ModelUpdate>({
+    const modelInit = setable<ModelInit>({
       kind: ModelInitKind.ReinitFromConfig,
       config: defaultTransformerConfig(),
     });
@@ -68,7 +68,7 @@ describe('tiny-transformer-example/test-and-trainer', () => {
     // ------------------------------------------------------------------------
     // Trainer cell
     const trainerCell = env.init(trainerCellKind, {
-      inputs: { modelUpdateEvents, trainConfig },
+      inputs: { modelInit, trainConfig },
     });
 
     // ------------------------------------------------------------------------

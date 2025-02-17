@@ -68,7 +68,7 @@ export class SetableNode<T> {
     public value: T,
     options?: Partial<SetableOptions<T>>,
   ) {
-    this.nodeId = signalSpace.nodeCount++;
+    this.nodeId = signalSpace.state.nextNodeId++;
     this.options = { ...defaultSetableOptions(), ...options };
     signalSpace.signalSet.add(this as SetableNode<unknown>);
   }
@@ -148,6 +148,10 @@ export class SetableNode<T> {
   }
 
   // Remove from the space, removing all things that depend on it in the space.
+  // It would be impossible not to delete them as they are defined in terms of
+  // the value of this. The one kind of dependency that is not accounted for
+  // here are when a derived operation calls set on another signal. Such effect
+  // update dependencies will simply disappear.
   dispose() {
     this.signalSpace.signalSet.delete(this as SetableNode<unknown>);
 
