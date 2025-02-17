@@ -153,6 +153,21 @@ export function allPastTokensCrossEntropyLoss(
     return crossEntropyLoss.tensor.asScalar();
 }
 
+/**
+ * Returns Softmax Cross Entropy Loss with integer labels instead of requiring one hot encoded targets.
+ */
+export function allPastTokensCrossEntropyLossWithIntegerLabels(
+    model: {
+        params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
+    },
+    computation: TransformerComputation,
+    labels: GTensor<'batch' | 'pos'>,
+): tf.Scalar {
+    const logits = allPastTokensLogits(model, computation);
+    const crossEntropyLoss = logits.softmaxCrossEntropyWithIntegerLabels(labels, 'tokenId');
+    return crossEntropyLoss.tensor.asScalar();
+}
+
 export function computeMaxInputLength(
     posEncodingSeqLength: number,
     inputs: string[][] | number[][]
