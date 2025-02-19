@@ -17,7 +17,15 @@ limitations under the License.
 
 import { GVariable, GTensor, makeTruncNormal } from '../gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { strSeqPrepFn, embed, prepareBasicTaskTokenRep, embedBatch } from '../tokens/token_gemb';
+import {
+  strSeqPrepFn,
+  embed,
+  prepareBasicTaskTokenRep,
+  tokenizeAndMapToIdx,
+  mapToIdx,
+  embedBatch,
+  expectedOutputSeqPrepFn,
+} from '../tokens/token_gemb';
 
 describe('token_gemb', () => {
   it('embed', () => {
@@ -50,8 +58,9 @@ describe('token_gemb', () => {
     const tokenEmbedding = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
     const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
 
-    const seqEmb = embedBatch(tokenRep.tokenToIdx, tokenEmbedding, seqsToEmbed, {
+    const seqEmb = embedBatch(tokenEmbedding, seqsIdxs, {
       paddingId: 2,
       padAt: 'start',
       dtype: 'int32',
@@ -76,8 +85,9 @@ describe('token_gemb', () => {
     const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
 
     const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
 
-    const seqEmb = embedBatch(tokenRep.tokenToIdx, embeddings, seqsToEmbed, {
+    const seqEmb = embedBatch(embeddings, seqsIdxs, {
       paddingId: 2,
       padAt: 'end',
       dtype: 'int32',
@@ -99,7 +109,7 @@ describe('token_gemb', () => {
         makeTruncNormal({
           tokenId: tokenRep.tokens.length,
           inputRep: 2,
-        })
+        }),
       ),
     };
 
@@ -124,5 +134,63 @@ describe('token_gemb', () => {
     expect(positionEmb[3].tensor.arraySync()).toEqual(bRep);
     expect(positionEmb[4].tensor.arraySync()).toEqual(padRep);
     expect(positionEmb[5].tensor.arraySync()).toEqual(aRep);
+  });
+
+  it('expectedOutputSeqPrepFn', () => {
+    const tokens = ['a', 'b'];
+    const tokenRep = prepareBasicTaskTokenRep(tokens);
+    const batchInput: string[][] = [
+      ['a', 'b'],
+      ['b', 'a'],
+    ];
+    const batchOutput: string[][] = [['a'], ['b']];
+    const targetTokensOneHot = expectedOutputSeqPrepFn(
+      { config: { tokenRep } },
+      batchInput,
+      batchOutput,
+    );
+
+    const expectedOutputArr: number[][][] = [
+      [
+        [0, 1, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0],
+      ],
+      [
+        [1, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0],
+      ],
+    ];
+
+    expect(targetTokensOneHot.tensor.arraySync()).toEqual(expectedOutputArr);
+    expect(targetTokensOneHot.dimNames).toEqual(['batch', 'pos', 'tokenId'])
+  });
+  it('Test tokenizeAndMapToIdx', () => {
+    // Mock a tokenizer for testing tokenizeAndMapToIdx.
+    function tokenize_fn_test(input: string): number[] {
+      let output: number[] = [];
+      for (let i = 0; i < input.length; i++) {
+        if (input[i] == 'a')
+          output = output.concat(0);
+        else
+          output = output.concat(1);
+      }
+      return output;
+    };
+
+    const seqsToEmbed = ['aba', 'ab', '', 'b', 'a'];
+    const seqsIdxs = tokenizeAndMapToIdx(tokenize_fn_test, seqsToEmbed);
+    const expectedIdxs =
+      [[0, 1, 0], [0, 1], [], [1], [0]];
+
+    expect(seqsIdxs).toEqual(expectedIdxs);
+  });
+  it('Test mapToIdx', () => {
+    const tokens = ['a', 'b', '[pad]'];
+    const tokenRep = prepareBasicTaskTokenRep(tokens);
+
+    const seqsToEmbed = [['a', 'b', '[pad]', 'a'], ['a', 'b'], [], ['b'], ['a']];
+    const seqsIdxs = mapToIdx(tokenRep.tokenToIdx, seqsToEmbed);
+    const expectedIdxs = [[0, 1, 2, 0], [0, 1], [], [1], [0]];
+    expect(seqsIdxs).toEqual(expectedIdxs);
   });
 });

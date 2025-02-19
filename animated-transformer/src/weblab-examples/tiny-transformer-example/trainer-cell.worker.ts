@@ -23,13 +23,15 @@ import { workerCell } from 'src/lib/distr-signals/worker-cell';
 import { Batch, ModelInitKind, ModelInit as ModelInit, TrainConfig } from './common.types';
 import {
   computeTransformer,
-  transformerAccuracy,
   TransformerConfig,
-  lastTokenCrossEntropyLoss,
   TransformerModel,
   VarTransformerParams,
   initDecoderParams,
 } from 'src/lib/transformer/transformer_gtensor';
+import {
+  transformerAccuracy,
+  lastTokenCrossEntropyLoss,
+} from 'src/lib/transformer/common_transformer';
 import {
   assignParams,
   deserializeParams,

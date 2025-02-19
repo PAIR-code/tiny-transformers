@@ -13,21 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeTruncNormal } from '../gtensor/gtensor';
+import { GTensor } from '../gtensor/gtensor';
 import * as transformer from './transformer_gtensor';
-import { AttnHeadParamSpec, AttnHeadComputeSpec } from './transformer_gtensor';
 import * as tf from '@tensorflow/tfjs';
-import * as abtask from '../seqtasks/ab_task';
-import { embedBatch, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
 import { makeRandomStream } from '../random/random';
 
 describe('GTensor Transformers', () => {
   it('basic transformer shapes', () => {
-    const spec: AttnHeadComputeSpec = {
+    const spec: transformer.AttnHeadComputeSpec = {
       residuals: true,
       dropoutRate: 0.0,
     };
-    const paramSizes: AttnHeadParamSpec = {
+    const paramSizes: transformer.AttnHeadParamSpec = {
       inputRep: 2,
       kq: 3,
       heads: 1,
@@ -45,55 +42,18 @@ describe('GTensor Transformers', () => {
           [5, 6],
         ],
       ]),
-      ['batch', 'pos', 'inputRep']
+      ['batch', 'pos', 'inputRep'],
     );
     const generator = makeRandomStream(0);
     const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
     expect(parts.attendedValues.dimNames).toEqual(
-      jasmine.arrayContaining(['batch', 'heads', 'value', 'pos'])
+      jasmine.arrayContaining(['batch', 'heads', 'value', 'pos']),
     );
     expect(parts.attendedValues.gshape()).toEqual({
       batch: 1,
       heads: 1,
       value: 4,
       pos: 3,
-    });
-  });
-
-  it('AB task data prep', async () => {
-    const inputRep = 2;
-    const batchSize = 4;
-    const task = new abtask.AorBisMaxTask({
-      kind: 'AorBisMaxTask',
-      id: 'an A or B is Max task',
-      maxInputLen: 2,
-      maxOutputLen: 2,
-      genStateConfig: { seed: 0 },
-      // Create a tokenEmbedding that also has [MASC] token & [PAD] token.
-      // inputRepSize: inputRep,
-    });
-    const tokenRep = prepareBasicTaskTokenRep(task.baseVocab);
-    const padTokenId = tokenRep.tokenToIdx[tokenRep.padToken];
-    const embeddings = makeTruncNormal({
-      tokenId: tokenRep.tokens.length,
-      inputRep,
-    });
-
-    // len = taskConfig.batchSize
-    const examples = task.exampleIter.takeOutN(4);
-
-    const batchedInputEmb = embedBatch(
-      tokenRep.tokenToIdx,
-      embeddings,
-      examples.map((example) => example.input.concat(tokenRep.maskToken)),
-      { paddingId: padTokenId, padAt: 'start', dtype: 'int32' }
-    );
-
-    expect(batchedInputEmb.gshape()).toEqual({
-      batch: batchSize,
-      // +1 for the appended [MASK] token to be predicted.
-      pos: task.config.maxInputLen + 1,
-      inputRep,
     });
   });
 });

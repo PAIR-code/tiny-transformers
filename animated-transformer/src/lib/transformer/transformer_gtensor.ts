@@ -22,44 +22,29 @@ limitations under the License.
  * TODO: Adam optimiser / others (currently only have SGD).
  * TODO: backprop to embeddings too.
  */
-import { relu, tanh, tensor, Tensor, oneHot, Scalar } from '@tensorflow/tfjs';
 import * as tf from '@tensorflow/tfjs';
 import {
   GTensor,
   DName,
   makeTruncNormal,
-  makeZeros,
-  makeOnes,
   makeScalar,
-  GVariable,
-  SerializedGTensor,
 } from '../gtensor/gtensor';
 import {
-  ConstTKind,
-  serializeParams,
-  GTensorKindFn,
   SerializeTensorParams,
-  SerialTKind,
-  deserializeParams,
-  TensorKind,
   VarifyTensorParams,
-  VarTKind,
 } from '../gtensor/params';
+import { causalMask, BatchAttnHeadComputation, TransformerComputation, transformerTopPrediction } from './common_transformer';
 
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import {
-  BatchedRelativePosAttention,
   initRawRelativePosEncoding,
   makePosAttentionMatrix,
 } from './relative_pos_encoding';
 import { initLayerNormParams, layerNorm, LayerNormParams } from '../gtensor/layer_norm';
 import { dropout } from './dropout';
-// import { GTensorTree, GVariableTree } from '../gtensor/gtensor_tree';
 import { BasicTaskTokenRep, StrSeqPrepFn, toyTokenTep } from '../tokens/token_gemb';
-import * as jstree from '../js_tree/js_tree';
-import { makeModel, modelRegistry } from '../models/model_registry';
+import { modelRegistry } from '../models/model_registry';
 import { RandomStream } from '../random/random';
-// import { SavableValueKind } from '../weblab/savable-value';
 
 // ---------------------------------------------------------------------------
 export type TransformerConfig = {
@@ -267,7 +252,7 @@ export type TransformerModel = {
 export function initAttnHeadParams(
   spec: AttnHeadParamSpec,
   // TODO: take in param initializers, instead of one for all.
-  initConfig?: tf_init.TruncatedNormalArgs
+  initConfig?: tf_init.TruncatedNormalArgs,
 ): AttnHeadParams {
   const { inputRep, kq, value, heads } = spec;
   const attnHeadParams: AttnHeadParams = {
@@ -291,22 +276,11 @@ export function initAttnHeadParams(
     attnHeadParams.relativePosAttention = initRawRelativePosEncoding(
       spec.maxRelPosSeqLen,
       heads,
-      initConfig
+      initConfig,
     );
   }
   return attnHeadParams;
 }
-
-export type BatchAttnHeadCompututation = {
-  seqInput: GTensor<'batch' | 'pos' | 'inputRep'>;
-  keys: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
-  queries: GTensor<'batch' | 'heads' | 'pos' | 'kq'>;
-  attention: GTensor<'batch' | 'heads' | 'keyPos' | 'queryPos'>;
-  values: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
-  attendedValues: GTensor<'batch' | 'heads' | 'pos' | 'value'>;
-  inputToFF: GTensor<'batch' | 'pos' | 'inputRep'>;
-  seqOuput: GTensor<'batch' | 'pos' | 'inputRep'>;
-};
 
 function gelu(x: tf.Tensor) {
   const s0p5 = tf.scalar(0.5);
@@ -326,8 +300,8 @@ export function computeAttnHead(
   spec: AttnHeadComputeSpec,
   params: AttnHeadParams,
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  generator: RandomStream
-): BatchAttnHeadCompututation {
+  generator: RandomStream,
+): BatchAttnHeadComputation {
   const { queryM, keyM, valueM, headsToInputRepM, ff } = params;
 
   const queries = seqInput.contract(queryM, ['inputRep']);
@@ -351,9 +325,9 @@ export function computeAttnHead(
       .scalarDiv(makeScalar(Math.sqrt(seqInput.dim.inputRep.size), 'float32'));
   }
 
-  const attention = rawAttention.softmax('queryPos');
-
-  // Dropout on the attention weights.
+  // TODO: eventually we would like to pass in precomputed attention mask to the function,
+  // rather than recompute attention masks inference pass
+  const attention = causalMask(rawAttention);
   const attentionAfterDropout = dropout(spec.dropoutRate, attention, generator.random());
 
   const attendedValues = values
@@ -370,7 +344,7 @@ export function computeAttnHead(
     normedHeadReduction = layerNorm(
       params.layerNormHeadsProjection,
       headsReductionAfterDropout,
-      'inputRepToFF'
+      'inputRepToFF',
     );
   }
 
@@ -393,19 +367,19 @@ export function computeAttnHead(
   const unNormedSeqOuputAfterDropout = dropout(
     spec.dropoutRate,
     unNormedSeqOuput,
-    generator.random()
+    generator.random(),
   );
 
   if (spec.residuals) {
     // FF residual.
     unNormedSeqOuput = unNormedSeqOuputAfterDropout.pointwiseAdd(
-      inputToFF.rename('inputRepToFF', 'inputRep')
+      inputToFF.rename('inputRepToFF', 'inputRep'),
     );
   }
 
-  let seqOuput = unNormedSeqOuput;
+  let seqOutput = unNormedSeqOuput;
   if (params.layerNormPostFF) {
-    seqOuput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
+    seqOutput = layerNorm(params.layerNormPostFF, unNormedSeqOuput, 'inputRep');
   }
 
   return {
@@ -416,7 +390,7 @@ export function computeAttnHead(
     values,
     attendedValues,
     inputToFF: inputToFF.rename('inputRepToFF', 'inputRep'),
-    seqOuput,
+    seqOutput,
   };
 }
 
@@ -441,14 +415,10 @@ export function initDecoderParams(config: TransformerConfig): TransformerParams 
       tokenId: config.tokenRep.tokens.length,
       inputRep: spec.inputRep,
     },
-    init
+    init,
   );
   return { layers, tokenEmbedding };
 }
-
-export type TransformerComputation = {
-  layers: BatchAttnHeadCompututation[];
-};
 
 export function computeTransformer(
   model: {
@@ -456,7 +426,7 @@ export function computeTransformer(
     params: TransformerParams;
   },
   seqInput: GTensor<'batch' | 'pos' | 'inputRep'>,
-  generator: RandomStream
+  generator: RandomStream,
 ): TransformerComputation {
   const compute: TransformerComputation = { layers: [] };
   let currentLayerInput = dropout(model.config.spec.dropoutRate, seqInput, generator.random());
@@ -465,95 +435,14 @@ export function computeTransformer(
       model.config.spec.layers[i].computeSpec,
       layerParams,
       currentLayerInput,
-      generator
+      generator,
     );
     compute.layers.push(layerCompute);
-    currentLayerInput = layerCompute.seqOuput;
+    currentLayerInput = layerCompute.seqOutput;
   });
   // TODO(@aliciafmachado): Skipped dropout on the output, since I am not sure how to integrate
   // this in the TransformerComputation output.
   return compute;
-}
-
-// TODO: GTensor<never> happens:
-// GTensor<'x'>.sumOverDims('x') = GTensor<never>
-// This is not very good because we use GTensor<never> for errors.
-//
-// Update so that GTensor<'#scalar'> is produced.
-
-/** Batch compute the loss for the last token of a transformer.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function lastTokenLogits(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch' | 'tokenId'> {
-  const lastLayer = computation.layers[computation.layers.length - 1];
-  const positionParams = lastLayer.seqOuput.unstack('pos');
-  const lastPosParams = positionParams[positionParams.length - 1];
-  const logits = lastPosParams.contract(model.params.tokenEmbedding, ['inputRep']);
-  return logits;
-}
-
-/**
- * Returns the average per example loss for the last token prediction.
- */
-export function lastTokenCrossEntropyLoss(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const logits = lastTokenLogits(model, computation);
-  const logProbs = logits.softmax('tokenId').log();
-  const nTokens = model.params.tokenEmbedding.dim.tokenId.size;
-  const oneHotToken = new GTensor(oneHot(targetTokenIdxs.tensor, nTokens), ['batch', 'tokenId']);
-  const crossEntopy = logProbs.pointwiseMul(oneHotToken);
-  return (
-    crossEntopy
-      .sumOverDims(['batch', 'tokenId'])
-      // ._tfScalarMul(tf.scalar(-1))
-      ._tfScalarDiv(tf.scalar(targetTokenIdxs.dim.batch.size * -1)).tensor as tf.Scalar
-  );
-  // const squaredError = signedDelta.pointwiseMul(signedDelta);
-  // const loss = squaredError.sumOverDims(['batch', 'token']);
-  // return loss.tensor;
-}
-
-/** Batch compute the top prediction from the last token of a transformer.
- *
- * params: transformer parameters.
- * tokenEmb: embeddings for all tokens.
- * targetTokenIdxs: a one-hot token vector for the correct token.
- */
-export function transformerTopPrediction(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation
-): GTensor<'batch'> {
-  const dotProd = lastTokenLogits(model, computation);
-  return dotProd.argMax('tokenId');
-}
-
-export function transformerAccuracy(
-  model: {
-    params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-  },
-  computation: TransformerComputation,
-  targetTokenIdxs: GTensor<'batch'>
-): tf.Scalar {
-  const predictions = transformerTopPrediction(model, computation);
-  return predictions
-    .pointwiseEqual(targetTokenIdxs)
-    .sumOverDims(['batch'])
-    .tensor.div(tf.scalar(targetTokenIdxs.dim.batch.size));
 }
 
 export function computeDecoder(
@@ -564,16 +453,10 @@ export function computeDecoder(
     };
     params: TransformerParams;
   },
-  inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
-  inputs: string[][],
-  generator: RandomStream
+  inputs: GTensor<'batch' | 'pos' | 'inputRep'>,
+  generator: RandomStream,
 ): TransformerComputation {
-  const maxInputLength = inputs.reduce(
-    (max, curInput) => (max >= curInput.length ? max : curInput.length),
-    0
-  );
-  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
-  return computeTransformer(model, gtensorInputs, generator);
+  return computeTransformer(model, inputs, generator);
 }
 
 export function computePrediction(
@@ -583,16 +466,24 @@ export function computePrediction(
   },
   inputPrepFn: StrSeqPrepFn<TransformerParams, 'batch' | 'pos' | 'inputRep'>,
   inputs: string[][],
-  generator: RandomStream
+  generator: RandomStream,
 ): string[][] {
+  const maxInputLength = inputs.reduce(
+    (max, curInput) => (max >= curInput.length ? max : curInput.length),
+    0,
+  );
+  const gtensorInputs = inputPrepFn(model, inputs, { maxInputLength });
+
+  // Computation.
+  // This could be extended to be next N token prediction.
   const examplePredictions = tf.tidy(() => {
-    const decoderComputation = computeDecoder(model, inputPrepFn, inputs, generator);
+    const decoderComputation = computeDecoder(model, gtensorInputs, generator);
     const predictions = transformerTopPrediction(model, decoderComputation);
-    return (predictions.tensor.arraySync() as number[]).map((idx) => [
-      model.config.tokenRep.tokens[idx],
-    ]);
+    return predictions.tensor;
   });
-  return examplePredictions;
+  return (examplePredictions.arraySync() as number[]).map((idx) => [
+    model.config.tokenRep.tokens[idx],
+  ]);
 }
 
 export function makeTransformer(transformerConfig: TransformerConfig): TransformerModel {
@@ -603,5 +494,5 @@ export function makeTransformer(transformerConfig: TransformerConfig): Transform
 
 export const transformerModelKind = modelRegistry.register(
   defaultTransformerConfig(),
-  makeTransformer
+  makeTransformer,
 );

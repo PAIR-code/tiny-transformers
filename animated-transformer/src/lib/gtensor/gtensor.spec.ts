@@ -854,7 +854,7 @@ describe('gtensor', () => {
     });
   });
 
-  xit('attentionHead2', () => {
+  it('attentionHead2', () => {
     const queryM = gtensor.makeTruncNormal({ inputRep: 2, kqRep: 3 });
     const keyM = gtensor.makeTruncNormal({ inputRep: 2, kqRep: 3 });
     const valueM = gtensor.makeTruncNormal({ inputRep: 2, valueRep: 4 });
@@ -893,5 +893,16 @@ describe('gtensor', () => {
 
     // const attendedValues2 = attentionHeadFn2(batchedInput); // Has error, yay, but what a mess...
     const attendedValues3 = attentionHeadFn2(oneInput);
+  });
+
+  it('simple triangular matrix', async () => {
+    const size = 3;
+    const g1tril = gtensor.makeTriangularMatrix(size, 'Pos1', 'Pos2', 0, 42);
+    expect(g1tril.dimNames).toEqual(['Pos1', 'Pos2']);
+    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
+      [0, 42, 42],
+      [0, 0, 42],
+      [0, 0, 0],
+    ]);
   });
 });

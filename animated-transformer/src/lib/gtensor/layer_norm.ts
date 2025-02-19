@@ -13,18 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { GTensor, makeScalar } from './gtensor';
+import { GTensor, makeConstant, makeScalar, DName } from './gtensor';
 
-export type LayerNormParams = {
-  gain: GTensor<never>;
-  bias?: GTensor<never>;
-  epsilon: GTensor<never>;
+export type LayerNormParams<D extends DName = never> = {
+  gain: GTensor<D>;
+  bias?: GTensor<D>;
 };
 
-export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerNormParams {
+export function initLayerNormParams(
+  includeBias: boolean
+): LayerNormParams {
   const layerNormParams: LayerNormParams = {
     gain: makeScalar(1.0, 'float32'),
-    epsilon: makeScalar(epsilon, 'float32'),
   };
   if (includeBias) {
     layerNormParams.bias = makeScalar(0, 'float32');
@@ -32,12 +32,30 @@ export function initLayerNormParams(includeBias: boolean, epsilon = 1e5): LayerN
   return layerNormParams;
 }
 
-export function layerNorm<G extends string, D extends G>(
-  layerNormParams: LayerNormParams,
+export function initLayerNormParamsWithDims<T extends string>(
+  includeBias: boolean,
+  dims: { [key in T]: number }
+): LayerNormParams<T> {
+  const layerNormParams: LayerNormParams<T> = {
+    gain: makeConstant(dims, 1.0, 'float32'),
+  }
+
+  if (includeBias) {
+    layerNormParams.bias = makeConstant(dims, 0, 'float32');
+  }
+  return layerNormParams;
+}
+
+export function layerNorm<G extends string, D extends G, T extends G = never>(
+  layerNormParams: LayerNormParams<T>,
   g: GTensor<G>,
-  dim: D
+  dim: D,
+  eps?: GTensor<never>
 ): GTensor<G> {
-  const { gain, bias, epsilon } = layerNormParams;
+  if (!eps) {
+    eps = makeScalar(1e-5, 'float32');
+  }
+  const { gain, bias } = layerNormParams;
   const repSizeScalar = makeScalar(g.dim[dim].size, 'float32');
   const mean = g.sumOverDims([dim]).scalarDiv(repSizeScalar);
   const varianceSquared = g
@@ -47,10 +65,10 @@ export function layerNorm<G extends string, D extends G>(
     .scalarDiv(repSizeScalar);
   const meanAndVarNormalized = g
     .pointwiseSub(mean)
-    .pointwiseDiv(varianceSquared.scalarAdd(epsilon).sqrt());
-  const scaledNorm = meanAndVarNormalized.scalarMul(gain);
+    .pointwiseDiv(varianceSquared.scalarAdd(eps).sqrt());
+  const scaledNorm = meanAndVarNormalized.pointwiseMul(gain);
   if (!bias) {
     return scaledNorm;
   }
-  return scaledNorm.scalarAdd(bias);
+  return scaledNorm.pointwiseAdd(bias);
 }
