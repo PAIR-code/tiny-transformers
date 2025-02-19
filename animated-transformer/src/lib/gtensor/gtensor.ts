@@ -840,6 +840,37 @@ export class GTensor<G extends DName> {
       this.dimNames,
     );
   }
+
+  /* Returns the elements, from this of the gtensor or g2 depending on the condition.
+     If the condition is true, select from the gtensor, otherwise select from g2.
+     if gtensor.dims != g2.dims g2 is broadcasted to this.dimensions!
+     if gtensor.dims != cond.dims condition is broadcasted to this.dimensions! */
+  public where<D extends DName, G2 extends DName>(
+    condition: GTensor<D>,
+    g2: GTensor<G2>,
+  ): GTensor<G> {
+    // Verify that D and G2 are smaller than G or return an error
+    if (condition.dimNames.length > this.dimNames.length) {
+      throw new ValueError('The rank of condition cannot be higher than the rank of this tensor');
+    }
+    if (g2.dimNames.length > this.dimNames.length) {
+      throw new ValueError('The rank of g2 cannot be higher than the rank of this tensor');
+    }
+    // Broadcast G2 to this tensor's dims
+    const g2big = g2.broadcastToCombinedShape(this);
+    const g1big = this.broadcastToCombinedShape(g2);
+    const g2bigLikeG1 = g2big.transposeLike(g1big);
+
+    // Broadcast condition to this tensor's dims
+    const conditionBig = condition.broadcastToCombinedShape(this);
+    const g1bigC = this.broadcastToCombinedShape(condition);
+    const conditionBigLikeG1 = conditionBig.transposeLike(g1bigC);
+
+    return new GTensor(
+      this.tensor.where(conditionBigLikeG1.tensor, g2bigLikeG1.tensor),
+      this.dimNames,
+    );
+  }
 }
 
 export class GVariable<G extends DName> extends GTensor<G> {
@@ -964,13 +995,17 @@ export function makeRange<T extends DName>(
  * - dtype : The type of an element in the resulting tensor. Defaults to 'float32'
  * // TODO add optianal broadcastTo dimensions/GTensor
  * */
-export function makeTriangularMatrix<N1 extends string, N2 extends string, T extends string | number>(
+export function makeTriangularMatrix<
+  N1 extends string,
+  N2 extends string,
+  T extends string | number,
+>(
   size: number,
   d1Name: N1,
   d2Name: N2,
   lowerLeftValue: T,
   upperRightValue: T,
-  dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32'
+  dtype: 'float32' | 'int32' | 'bool' | 'complex64' | 'string' = 'float32',
 ): GTensor<N1 | N2> {
   // Create a range tensor for row indices
   const rowIndices = tf.range(0, size, 1, 'int32');
