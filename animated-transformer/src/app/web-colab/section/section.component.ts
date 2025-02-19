@@ -16,18 +16,10 @@ limitations under the License.
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
-  effect,
   ElementRef,
-  inject,
-  Inject,
   input,
-  model,
   output,
-  PLATFORM_ID,
-  Signal,
   signal,
-  viewChild,
   WritableSignal,
 } from '@angular/core';
 import { Experiment } from '../../../lib/weblab/experiment';
@@ -43,23 +35,27 @@ import { SetableSignal } from 'src/lib/signalspace/signalspace';
 import { CellSectionComponent } from '../cell-section/cell-section.component';
 import {
   CellCodeRefKind,
+  SecDef,
   SecDefKind,
   SecDefOfWorker,
   SecDefWithData,
   SecDefWithIo,
   Section,
+  SectionInputNameRef,
+  SectionInStreamNameRef,
+  SectionOutputNameRef,
   ViewerKind,
   WorkerSection,
 } from 'src/lib/weblab/section';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
-import { DomSanitizer } from '@angular/platform-browser';
+import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { PlaceholderComponent } from '../placeholder/placeholder.component';
 import { ExampleTableComponent } from '../example-table/example-table.component';
 import { SimpleChartComponent } from '../simple-chart/simple-chart.component';
 import { addIcons } from 'src/app/icon-registry';
 import { CellStatus } from 'src/lib/distr-signals/cell-controller';
+import _ from 'underscore';
 // ============================================================================
 
 export enum DisplayKind {
@@ -112,6 +108,13 @@ export class SectionComponent {
   collapsed = signal(true);
   editDefView = signal(false);
   displayKind = signal<DisplayKind>(DisplayKind.Unknown);
+
+  inputNames: WritableSignal<SectionInputNameRef[]> = signal([]);
+  inStreamNames: WritableSignal<SectionInStreamNameRef[]> = signal([]);
+  outputNames: WritableSignal<SectionOutputNameRef[]> = signal([]);
+  outStreamNames: WritableSignal<string[]> = signal([]);
+
+  lastDefData!: SecDef;
 
   collapse() {
     this.collapsed.set(true);
@@ -215,6 +218,24 @@ export class SectionComponent {
         }
       }
     }
+
+    // Make sure that updates to the data, e.g. outputs, result in emiting that
+    // the section has changed.
+    if (section.isIoSection()) {
+      this.lastDefData = structuredClone(section.defData());
+      section.space.derived(() => {
+        const newData = section.defData();
+        if (!_.isEqual(newData, this.lastDefData)) {
+          this.edited.emit(true);
+          this.lastDefData = structuredClone(newData);
+        }
+      });
+    }
+
+    section.space.derived(() => this.inputNames.set(section.inputNames()));
+    section.space.derived(() => this.inStreamNames.set(section.inStreamNames()));
+    section.space.derived(() => this.outputNames.set(section.outputNames()));
+    section.space.derived(() => this.outStreamNames.set(section.outStreamNames()));
 
     // Set the collapsed/not setting.
     this.collapsed.set(this.section().initDef.display.collapsed);

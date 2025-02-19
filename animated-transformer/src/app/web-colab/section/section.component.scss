@@ -1,3 +1,5 @@
+@use '../common_mixins' as common;
+
 :host {
   display: block;
   background-color: #FFF;
@@ -189,49 +191,25 @@
 }
 
 .chip {
-  margin-left: 5px;
-  padding: 3px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-radius: 7px;
-  font-size: small;
-  color: #777;
-  z-index: 5;
-  background-color: #EEE;
-
-  display: flex;
-  align-items: center;
-
-  .mat-icon {
-    opacity: 70%;
-  }
+  @include common.chip;
 }
-.inputChips {
-  margin-left: 5px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-}
+
 .inputId {
-  // border: 1px solid #bbb;
-  z-index: 5;
+  @include common.inputId;
+}
 
+.outputId {
+  @include common.outputId;
+}
+
+.inStreamId {
+  @include common.inStreamId;
+}
+
+.outStreamId {
+  @include common.outStreamId;
 }
 
 .lacksValue {
-  // border: 1px dotted #bbb;
-  border-bottom: 1px dotted #bbb;
-  // color: #bbb;
-  // border-top: none;
-  background-color: #FFF;
-  z-index: 5;
-}
-
-.outputChips {
-  margin-left: 5px;
-  z-index: 5;
-}
-.outputId {
-  // border: 1px solid #bbb;
-  z-index: 5;
+  @include common.lacksValue;
 }

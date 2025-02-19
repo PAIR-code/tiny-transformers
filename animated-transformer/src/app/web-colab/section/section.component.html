@@ -30,7 +30,10 @@
 
   @if (cellStatus()) {
     <!-- <div class="spacer"></div> -->
-    @if (cellStatus() === CellStatus.NotStarted) {
+    @if (
+      cellStatus() === CellStatus.Stopped ||
+      cellStatus() === CellStatus.NotStarted
+    ) {
       <button
         class="hostHoverIconAppear"
         mat-icon-button
@@ -41,8 +44,8 @@
         <mat-icon svgIcon="play_circle">play</mat-icon>
       </button>
     } @else if (
-      cellStatus() !== CellStatus.Stopping &&
-      cellStatus() !== CellStatus.Stopped
+      cellStatus() === CellStatus.Running ||
+      cellStatus() === CellStatus.StartingWaitingForInputs
     ) {
       <button
         class="hostHoverIconAppear"
@@ -63,6 +66,8 @@
       >
         <mat-icon svgIcon="cancel"></mat-icon>
       </button>
+    } @else {
+      {{ cellStatus() }}
     }
 
     @if (vsCodeLink()) {
@@ -98,28 +103,42 @@
   }
 
   <!-- @if (collapsed()) { -->
-  @let inputs = section().inputNames();
+  @let inputs = inputNames();
   @if (inputs.length > 0) {
-    <div class="inputChips">
-      @for (i of inputs; track i.displayId) {
-        <div class="inputId chip" [class.lacksValue]="!i.hasValue">
-          <mat-icon [svgIcon]="'input'">input</mat-icon>
-          {{ i.displayId }}
-        </div>
-      }
-    </div>
+    @for (i of inputs; track i.displayId) {
+      <div class="inputId chip" [class.lacksValue]="!i.hasValue">
+        <!-- <mat-icon [svgIcon]="'input'">input</mat-icon> -->
+        {{ i.displayId }}
+      </div>
+    }
+  }
+
+  @let inStreams = inStreamNames();
+  @if (inStreams.length > 0) {
+    @for (i of inStreams; track i.displayId) {
+      <div class="inStreamId chip">
+        <!-- <mat-icon [svgIcon]="'input'">input</mat-icon> -->
+        {{ i.displayId }}
+      </div>
+    }
   }
 
   @if (displayKind() !== DisplayKind.SingleDataValue) {
-    @let outputs = section().outputNames();
-    <div class="outputChips">
-      @for (o of outputs; track o.id) {
-        <div class="outputId chip" [class.lacksValue]="!o.hasValue">
-          <mat-icon [svgIcon]="'output'">output</mat-icon>
-          {{ o.id }}
-        </div>
-      }
-    </div>
+    @let outputs = outputNames();
+    @for (o of outputs; track o.id) {
+      <div class="outputId chip" [class.lacksValue]="!o.hasValue">
+        <!-- <mat-icon [svgIcon]="'output'">output</mat-icon> -->
+        {{ o.id }}
+      </div>
+    }
+
+    @let outStreams = outStreamNames();
+    @for (s of outStreams; track s) {
+      <div class="outStreamId chip">
+        <!-- <mat-icon [svgIcon]="'output'">output</mat-icon> -->
+        {{ s }}
+      </div>
+    }
   }
   <!-- } -->
 

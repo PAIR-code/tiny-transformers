@@ -180,7 +180,7 @@ export const taskGenUrlCodeSecDef: SecDefOfWorker & {
       ],
     },
     inStreams: {},
-    outputs: { testSet: { saved: false } },
+    outputs: { testSet: { saved: true } },
     outStreamIds: ['trainBatches'],
   },
   cellCodeRef: {
@@ -302,7 +302,7 @@ export const matericsGraphViewSecDef: SecDefOfUiView = {
     inputs: {},
     outputs: {
       metricsSummary: {
-        saved: false,
+        saved: true,
         lastValue: [] as JsonValue,
       },
     },

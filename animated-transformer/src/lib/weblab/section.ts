@@ -293,8 +293,8 @@ export type RefSection = Section<SecDefOfRef> & { initDef: SecDefOfRef };
 export type SectionInputNameRef = {
   displayId: string;
   id: string;
-  ref: SectionInputRef;
   hasValue: boolean;
+  ref: SectionInputRef;
 };
 
 export type SectionInStreamNameRef = {
@@ -304,7 +304,7 @@ export type SectionInStreamNameRef = {
 };
 
 // For both output values, and output streams.
-export type SectionOutNameRef = {
+export type SectionOutputNameRef = {
   displayId: string;
   id: string;
   hasValue: boolean;
@@ -461,7 +461,6 @@ export class Section<
   }
 
   // --------------------------------------------------------------------------
-
   inputNames(): SectionInputNameRef[] {
     if (!this.isIoSection()) {
       return [];
@@ -483,7 +482,7 @@ export class Section<
     return names;
   }
 
-  outputNames(): SectionOutNameRef[] {
+  outputNames(): SectionOutputNameRef[] {
     if (!this.isIoSection()) {
       return [];
     }
@@ -765,9 +764,15 @@ export class Section<
     const data = thisSection.defData();
     this.experiment.noteAddedIoSection(data.id);
 
-    console.log(`initOutputs: cell: ${data.id}`);
     for (const [outputId, cellOutputRef] of Object.entries(data.io.outputs || [])) {
       thisSection.outputs[outputId] = thisSection.space.setable(cellOutputRef.lastValue || null);
+      if (cellOutputRef.saved) {
+        this.space.derived(() => {
+          console.log(`updating defData for ${this.initDef.id}`);
+          const newOutput = thisSection.outputs[outputId]();
+          thisSection.defData.change((d) => (d.io.outputs[outputId].lastValue = newOutput));
+        });
+      }
       this.outDeps.addLocalId(outputId);
     }
 
@@ -815,8 +820,8 @@ export class Section<
         const otherSection = thisSection.experiment.getSection(
           cellInStreamRef.sectionId,
         ) as Section<SecDefWithIo>;
-        thisSection.inDeps.add(inputId, otherSection, cellInStreamRef.outStreamId);
-        otherSection.outDeps.add(cellInStreamRef.outStreamId, thisSection, inputId);
+        thisSection.inStreamDeps.add(inputId, otherSection, cellInStreamRef.outStreamId);
+        otherSection.outStreamDeps.add(cellInStreamRef.outStreamId, thisSection, inputId);
 
         if (!(cellInStreamRef.outStreamId in otherSection.outStream)) {
           throw new Error(
@@ -888,7 +893,6 @@ export class Section<
         const controller = thisSection.cell.controller;
         const onceReady = controller.outputs[outputId].connect();
         onceReady.then((signal) => {
-          console.warn(`initOutputs: ${this.initDef.id}: Section output setting [${outputId}]`);
           thisSection.space.derived(() => thisSection.outputs[outputId].set(signal()));
         });
 
@@ -920,11 +924,13 @@ export class Section<
       // that takes an output of an existing cell. Because
       // dependOnMeSections.length may become > 0.
       console.log(
-        `${this.initDef.id}: connectWorker: ${JSON.stringify([...Object.keys(this.outStreamDeps.localIdToSecMap)])}, (${outStreamId})`,
+        `connectWorker (${this.initDef.id}): ${JSON.stringify([...Object.keys(this.outStreamDeps.localIdToSecMap)])}, outstreamId: ${outStreamId}`,
       );
       const dependOnMeSections = [...this.outStreamDeps.localIdToSecMap[outStreamId].keys()];
+      console.log(dependOnMeSections);
       let hasUiSecDep = dependOnMeSections.find((sec) => !sec.isWorkerSection());
       if (hasUiSecDep) {
+        console.log(`connectWorker (${this.initDef.id}):  outstreamId: ${outStreamId} connected.`);
         const controller = thisSection.cell.controller;
         const streamReceiver = controller.outStreams[outStreamId].connect();
         const signalWrap = asyncIterToSignal(streamReceiver, this.space);

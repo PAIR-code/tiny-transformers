@@ -1,3 +1,5 @@
+@use '../common_mixins' as common;
+
 :host {
   padding-bottom:100px;
 }
@@ -23,30 +25,6 @@
 
 .spacer {
   flex: 1;
-}
-
-
-
-
-.chip {
-  margin-left: 10px;
-  padding: 3px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-radius: 5px;
-  font-size: small;
-}
-
-.unfilledInput {
-  color: #777;
-  border-bottom: 1px dotted #bbb;
-  z-index: 5;
-}
-
-.streamId {
-  background-color: #ffc;
-  border-left: 1px dashed #bbb;
-  border-right: 1px dashed #bbb;
 }
 
 .inputChips {
@@ -75,19 +53,30 @@
   mat-icon {
     opacity: 70%;
   }
-
-  span.outputId {
-    // Lacks value
-    border-bottom: 1px dotted #bbb;
-    background-color: #FFF;
-    color: #777 !important;
-  }
 }
 
-.hasValue {
-  background-color: #eee;
-  color: #777 !important;
-  // border: 1px solid #999 !important; 
+.chip {
+  @include common.chip;
+}
+
+.inputId {
+  @include common.inputId;
+}
+
+.outputId {
+  @include common.outputId;
+}
+
+.inStreamId {
+  @include common.inStreamId;
+}
+
+.outStreamId {
+  @include common.outStreamId;
+}
+
+.lacksValue {
+  @include common.lacksValue;
 }
 
 

@@ -205,6 +205,7 @@ cell.onStart(async () => {
 
   console.log(`${trainerCellKind.cellKindId}: waiting to be told to stop.`);
   await cell.onceFinishRequested.then(() => {
+    console.log(`${trainerCellKind.cellKindId}: told to stop, and cleaning up.`);
     if (optimizer) {
       optimizer.dispose();
     }

@@ -13,7 +13,7 @@
             lastValue: "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "Markdown" },
     { 
       cellCodeRef: { 
@@ -28,7 +28,7 @@
         outStreamIds: [],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1739199047460 },
+      timestamp: 1740005765618 },
     { 
       cellCodeRef: { 
         js: "console.log(\"hello world from simple cell!\");",
@@ -41,7 +41,7 @@
         outStreamIds: [],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1739199047460 },
+      timestamp: 1740005765618 },
     { 
       display: {collapsed: true},
       id: "Define Task",
@@ -93,7 +93,7 @@
                 squishable: ["cat", "monkey", "flower"] } },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "JsonObj" },
     { 
       display: {collapsed: false},
@@ -112,7 +112,7 @@
               testSetSize: 3 },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "JsonObj" },
     { 
       cellCodeRef: { 
@@ -124,27 +124,50 @@
       io: { 
         inStreams: {},
         inputs: { 
-          genConfig: { 
-            outputId: "jsonObj",
-            sectionId: "Task Batches Config" },
-          taskConfig: { 
-            outputId: "jsonObj",
-            sectionId: "Define Task" } },
+          genConfig: [ { 
+              outputId: "jsonObj",
+              sectionId: "Task Batches Config" } ],
+          taskConfig: [ { 
+              outputId: "jsonObj",
+              sectionId: "Define Task" } ] },
         outStreamIds: ["trainBatches"],
-        outputs: {testSet: {lastValue: null, saved: false}} },
+        outputs: { 
+          testSet: { 
+            lastValue: [ { 
+                id: 0,
+                input: [ "is", " ", "_a", ":", "flower", ", ",
+                  "is", " ", "_b", ":" ],
+                output: [ "tree", ", ", "runsAway", " ", "_b", ", ",
+                  "is", " ", "_c", ":" ] },
+              { 
+                id: 1,
+                input: [ "is", " ", "_a", ":", "monkey", ", ",
+                  "is", " ", "_b", ":" ],
+                output: [ "flower", "|", "rock", "|", "tree", ", ",
+                  "is", " ", "_c", ":" ] },
+              { 
+                id: 2,
+                input: [ "is", " ", "_a", ":", "flower", ", ",
+                  "runsAway", " ", "_a",
+                  ", " ],
+                output: [ "is", " ", "_b", ":", "tree", ", ", "is",
+                  " ", "_c", ":" ] } ],
+            saved: true } } },
       kind: "WorkerCell",
-      timestamp: 1739199047460 },
+      timestamp: 1740005765618 },
     { 
       display: {collapsed: false},
       id: "Test Set View",
       io: { 
         inStreams: {},
         inputs: { 
-          examples: {outputId: "testSet", sectionId: "Task cell"} },
+          examples: [ { 
+              outputId: "testSet",
+              sectionId: "Task cell" } ] },
         outStreamIds: [],
         outputs: {} },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "ExampleTableView" },
     { 
       display: {collapsed: true},
@@ -208,7 +231,7 @@
               kind: "ReinitFromConfig" },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "JsonObj" },
     { 
       display: {collapsed: false},
@@ -231,7 +254,7 @@
               trainForBatches: 3 },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "JsonObj" },
     { 
       cellCodeRef: { 
@@ -242,35 +265,37 @@
       id: "Trainer cell",
       io: { 
         inStreams: { 
-          trainBatches: { 
-            outStreamId: "trainBatches",
-            sectionId: "Task cell" } },
+          trainBatches: [ { 
+              outStreamId: "trainBatches",
+              sectionId: "Task cell" } ] },
         inputs: { 
-          modelInit: { 
-            outputId: "jsonObj",
-            sectionId: "Model Init" },
-          testSet: {outputId: "testSet", sectionId: "Task cell"},
-          trainConfig: { 
-            outputId: "jsonObj",
-            sectionId: "Train Config" } },
+          modelInit: [ { 
+              outputId: "jsonObj",
+              sectionId: "Model Init" } ],
+          testSet: [ { 
+              outputId: "testSet",
+              sectionId: "Task cell" } ],
+          trainConfig: [ { 
+              outputId: "jsonObj",
+              sectionId: "Train Config" } ] },
         outStreamIds: ["checkpoint", "metrics"],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1739199047460 },
+      timestamp: 1740005765618 },
     { 
       display: {collapsed: false},
       id: "Metrics",
       io: { 
         inStreams: { 
-          metrics: { 
-            outStreamId: "metrics",
-            sectionId: "Trainer cell" } },
+          metrics: [ { 
+              outStreamId: "metrics",
+              sectionId: "Trainer cell" } ] },
         inputs: {},
         outStreamIds: [],
         outputs: { 
-          metricsSummary: {lastValue: [], saved: false} } },
+          metricsSummary: {lastValue: [], saved: true} } },
       kind: "LocalCell",
-      timestamp: 1739199047460,
+      timestamp: 1740005765618,
       uiView: "SimpleChartView" },
     { 
       display: {collapsed: false},
@@ -282,7 +307,7 @@
         outputs: { 
           markdown: {lastValue: "Footer: the end.", saved: true} } },
       kind: "LocalCell",
-      timestamp: 1739199480729,
+      timestamp: 1740005785337,
       uiView: "Markdown" } ],
-  timestamp: 1739199480729,
+  timestamp: 1740005785336,
   vsCodePathRoot: "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

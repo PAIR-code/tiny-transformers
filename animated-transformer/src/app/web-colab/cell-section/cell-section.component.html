@@ -66,16 +66,12 @@
   <div class="inputChips">
     <mat-icon svgIcon="input">inputs</mat-icon>
     @for (i of inputNames; track i.displayId) {
-      <span
-        class="inputId chip"
-        [class.hasValue]="i.hasValue"
-        [class.unfilledInput]="!i.hasValue"
-      >
+      <span class="inputId chip" [class.lacksValue]="!i.hasValue">
         {{ i.id }} = {{ i.displayId }}
       </span>
     }
     @for (i of inStreamNames; track i.displayId) {
-      <span class="streamId chip">{{ i.id }} = {{ i.displayId }} </span>
+      <span class="inStreamId chip">{{ i.id }} = {{ i.displayId }} </span>
     }
   </div>
 }
@@ -87,16 +83,12 @@
   <div class="outputChips">
     <mat-icon svgIcon="output">outputs</mat-icon>
     @for (o of outputNames; track o.displayId) {
-      <span
-        class="outputId chip"
-        [class.hasValue]="o.hasValue"
-        [class.unfilledOutput]="!o.hasValue"
-      >
+      <span class="outputId chip" [class.lacksValue]="!o.hasValue">
         {{ o.displayId }}
       </span>
     }
     @for (o of outStreamNames; track o) {
-      <span class="streamId chip">
+      <span class="outStreamId chip">
         {{ o }}
       </span>
     }
