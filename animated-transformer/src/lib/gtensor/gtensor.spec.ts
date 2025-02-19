@@ -942,7 +942,7 @@ describe('gtensor', () => {
         [3, 2],
         'bool',
       ),
-      ['pos', 'repsize'],
+      ['pos', 'repSize'],
     );
 
     const g1WhereCondition = g1.where(condition, g2);
