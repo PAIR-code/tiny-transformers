@@ -9,6 +9,7 @@ import {
 } from 'src/app/d3-line-chart/d3-line-chart.component';
 import { addIcons } from 'src/app/icon-registry';
 import { Metrics } from 'src/lib/distr-signals/cell-kind';
+import { SetableUpdateKind } from 'src/lib/signalspace/setable-node';
 import { AbstractSignal, defined } from 'src/lib/signalspace/signalspace';
 import { Section } from 'src/lib/weblab/section';
 
@@ -50,8 +51,12 @@ export class SimpleChartComponent implements OnInit {
         };
         newPoints.push(p);
       }
-      this.data.update((oldValue) => oldValue.concat(...newPoints));
+      this.section().outputs['metricsSummary'].update((old) => old.concat(...newPoints), {
+        updateStrategy: SetableUpdateKind.ForceUpdate,
+      });
     });
+
+    this.section().space.derived(() => this.data.set(this.section().outputs['metricsSummary']()));
   }
 
   clear() {

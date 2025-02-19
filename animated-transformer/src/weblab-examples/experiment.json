@@ -13,7 +13,7 @@
             lastValue: "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "Markdown" },
     { 
       cellCodeRef: { 
@@ -28,7 +28,7 @@
         outStreamIds: [],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1740005765618 },
+      timestamp: 1740008154359 },
     { 
       cellCodeRef: { 
         js: "console.log(\"hello world from simple cell!\");",
@@ -41,7 +41,7 @@
         outStreamIds: [],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1740005765618 },
+      timestamp: 1740008154359 },
     { 
       display: {collapsed: true},
       id: "Define Task",
@@ -93,7 +93,7 @@
                 squishable: ["cat", "monkey", "flower"] } },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "JsonObj" },
     { 
       display: {collapsed: false},
@@ -112,7 +112,7 @@
               testSetSize: 3 },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "JsonObj" },
     { 
       cellCodeRef: { 
@@ -131,30 +131,9 @@
               outputId: "jsonObj",
               sectionId: "Define Task" } ] },
         outStreamIds: ["trainBatches"],
-        outputs: { 
-          testSet: { 
-            lastValue: [ { 
-                id: 0,
-                input: [ "is", " ", "_a", ":", "flower", ", ",
-                  "is", " ", "_b", ":" ],
-                output: [ "tree", ", ", "runsAway", " ", "_b", ", ",
-                  "is", " ", "_c", ":" ] },
-              { 
-                id: 1,
-                input: [ "is", " ", "_a", ":", "monkey", ", ",
-                  "is", " ", "_b", ":" ],
-                output: [ "flower", "|", "rock", "|", "tree", ", ",
-                  "is", " ", "_c", ":" ] },
-              { 
-                id: 2,
-                input: [ "is", " ", "_a", ":", "flower", ", ",
-                  "runsAway", " ", "_a",
-                  ", " ],
-                output: [ "is", " ", "_b", ":", "tree", ", ", "is",
-                  " ", "_c", ":" ] } ],
-            saved: true } } },
+        outputs: {testSet: {lastValue: null, saved: true}} },
       kind: "WorkerCell",
-      timestamp: 1740005765618 },
+      timestamp: 1740008154359 },
     { 
       display: {collapsed: false},
       id: "Test Set View",
@@ -167,7 +146,7 @@
         outStreamIds: [],
         outputs: {} },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "ExampleTableView" },
     { 
       display: {collapsed: true},
@@ -231,7 +210,7 @@
               kind: "ReinitFromConfig" },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "JsonObj" },
     { 
       display: {collapsed: false},
@@ -254,7 +233,7 @@
               trainForBatches: 3 },
             saved: true } } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "JsonObj" },
     { 
       cellCodeRef: { 
@@ -281,7 +260,7 @@
         outStreamIds: ["checkpoint", "metrics"],
         outputs: {} },
       kind: "WorkerCell",
-      timestamp: 1740005765618 },
+      timestamp: 1740008154359 },
     { 
       display: {collapsed: false},
       id: "Metrics",
@@ -295,7 +274,7 @@
         outputs: { 
           metricsSummary: {lastValue: [], saved: true} } },
       kind: "LocalCell",
-      timestamp: 1740005765618,
+      timestamp: 1740008154359,
       uiView: "SimpleChartView" },
     { 
       display: {collapsed: false},
@@ -307,7 +286,7 @@
         outputs: { 
           markdown: {lastValue: "Footer: the end.", saved: true} } },
       kind: "LocalCell",
-      timestamp: 1740005785337,
+      timestamp: 1740008169609,
       uiView: "Markdown" } ],
-  timestamp: 1740005785336,
+  timestamp: 1740008169608,
   vsCodePathRoot: "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

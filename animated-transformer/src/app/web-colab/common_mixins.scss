@@ -27,12 +27,12 @@
 }
 
 @mixin inStreamId {
-  border-top: 2px solid #bbb;
-  border-left: 2px dotted #bbb;
+  border-top: 2px dashed #bbb;
+  // border-left: 2px dotted #bbb;
 }
 @mixin outStreamId {
-  border-bottom: 2px solid #bbb;
-  border-right: 2px dotted #bbb;
+  border-bottom: 2px dashed #bbb;
+  // border-right: 2px dotted #bbb;
 }
 
 @mixin lacksValue {

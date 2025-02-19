@@ -25,6 +25,8 @@ export interface NamedChartPoint {
   name: string;
 }
 
+// TODO: make it handle NaNs sensibly: use same value as before, but use dotted line and X marker.
+
 export interface LineChartConfig {
   x?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (temporal) x-value
   y?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (quantitative) y-value

@@ -296,7 +296,7 @@ export class SignalSpace {
     // you cannot define loopy derived compute functions, and all compute
     // functions eventually depend on setables, and setables can only be updated
     // by set calls, and we loop-check setable set calls.
-    if (this.state.computeStack.length > 10) {
+    if (this.state.computeStack.length > 100) {
       throw new Error('stack too big');
     }
     if (this.state.update) {
