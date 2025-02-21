@@ -679,7 +679,7 @@ export class GTensor<G extends DName> {
     );
   }
 
-  public dropDims<D extends G>(dims: D[]): G[] {
+  public allDNamesBut<D extends G>(dims: D[]): G[] {
     return this.dimNames.filter((d) => !dims.includes(d as D))
   }
 
@@ -807,17 +807,24 @@ export class GTensor<G extends DName> {
     return new GTensor<G>(this.tensor.equal(g2.tensor), this.dimNames);
   }
 
+  // TODO(@aliciafmachado): Reshape batch dimensions into a single one
+  // directly in the gtensor function instead of doing it in the cross-entropy
+  // loss function.
+  // Context: The gradient on the gather function from tfjs does not work
+  // if there are more than 1 batch dimension. This means that we need
+  // to merge the batch dimensions and then split them back when using this 
+  // function.
   public gather<D extends G, B extends G & G2, G2 extends DName>(
     indexes: GTensor<G2>,
     dim: D,
     batchDims: B[] = [],
   ): GTensor<Exclude<G, D> | Exclude<G2, B>> {
     // Dimensions before gather for self.
-    const dimsInTheMiddle = this.dropDims([dim, ...batchDims]);
+    const dimsInTheMiddle = this.allDNamesBut([dim, ...batchDims]);
     const tensorDimsBeforeGather = [...batchDims, ...dimsInTheMiddle, dim];
 
     // Reshape indexes.
-    const indexesDimNamesWithoutBatch = indexes.dropDims(batchDims);
+    const indexesDimNamesWithoutBatch = indexes.allDNamesBut(batchDims);
     let indexesDimsBeforeGather = [...batchDims, ...indexesDimNamesWithoutBatch];
 
     // Dimensions after gather.

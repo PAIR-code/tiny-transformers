@@ -138,22 +138,6 @@ export function allPastTokensLogits(
 }
 
 /**
- * Returns the Softmax Cross Entropy Loss between the logits and the oneHotEncoded targets
- * Batch compute the loss for all the past tokens of a transformer.
- */
-export function allPastTokensCrossEntropyLoss(
-    model: {
-        params: { tokenEmbedding: GTensor<'tokenId' | 'inputRep'> };
-    },
-    computation: TransformerComputation,
-    oneHotToken: GTensor<'batch' | 'pos' | 'tokenId'>,
-): tf.Scalar {
-    const logits = allPastTokensLogits(model, computation);
-    const crossEntropyLoss = logits.softmaxCrossEntropy(oneHotToken);
-    return crossEntropyLoss.tensor.asScalar();
-}
-
-/**
  * Returns Softmax Cross Entropy Loss with integer labels instead of requiring one hot encoded targets.
  */
 export function allPastTokensCrossEntropyLossWithIntegerLabels(
@@ -163,7 +147,7 @@ export function allPastTokensCrossEntropyLossWithIntegerLabels(
     computation: TransformerComputation,
     labels: GTensor<'batch' | 'pos'>,
 ): tf.Scalar {
-    // A workaround is needed in this function:
+    // A workaround is done in this function:
     //  - the gradient on the gather function from tfjs does not work
     //    if there are more than 1 batch dimension. This means that we need
     //    to merge the batch dimensions and then split them back.
