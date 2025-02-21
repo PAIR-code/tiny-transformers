@@ -37,7 +37,7 @@ describe('token_gemb', () => {
     const tokens = ['a', 'b', '[pad]'];
     const tokenRep = prepareBasicTaskTokenRep(tokens);
     const embeddings = new GTensor(tf.tensor([aEmb, bEmb, padEmb]), ['tokenId', 'inputRep']);
-    const seqToEmbed = ['a', 'b', '[PAD]', 'a'];
+    const seqToEmbed = ['a', 'b', '[pad]', 'a'];
     const embeddedSeq = embed(tokenRep.tokenToIdx, embeddings, seqToEmbed);
     const positionEmb = embeddedSeq.unstack('pos');
     expect(positionEmb.length).toEqual(4);
@@ -144,25 +144,23 @@ describe('token_gemb', () => {
       ['b', 'a'],
     ];
     const batchOutput: string[][] = [['a'], ['b']];
-    const targetTokensOneHot = expectedOutputSeqPrepFn(
+    const targetTokens = expectedOutputSeqPrepFn(
       { config: { tokenRep } },
       batchInput,
       batchOutput,
     );
 
-    const expectedOutputArr: number[][][] = [
+    const expectedOutputArr: number[][] = [
       [
-        [0, 1, 0, 0, 0, 0],
-        [1, 0, 0, 0, 0, 0],
+        1, 0
       ],
       [
-        [1, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0],
+        0, 1
       ],
     ];
 
-    expect(targetTokensOneHot.tensor.arraySync()).toEqual(expectedOutputArr);
-    expect(targetTokensOneHot.dimNames).toEqual(['batch', 'pos', 'tokenId'])
+    expect(targetTokens.tensor.arraySync()).toEqual(expectedOutputArr);
+    expect(targetTokens.dimNames).toEqual(['batch', 'pos'])
   });
   it('Test tokenizeAndMapToIdx', () => {
     // Mock a tokenizer for testing tokenizeAndMapToIdx.
