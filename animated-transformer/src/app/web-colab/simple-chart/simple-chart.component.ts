@@ -4,13 +4,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import {
   D3LineChartComponent,
-  LineChartConfig,
+  ChartConfig,
   NamedChartPoint,
 } from 'src/app/d3-line-chart/d3-line-chart.component';
 import { addIcons } from 'src/app/icon-registry';
 import { Metrics } from 'src/lib/distr-signals/cell-kind';
 import { SetableUpdateKind } from 'src/lib/signalspace/setable-node';
-import { AbstractSignal, defined } from 'src/lib/signalspace/signalspace';
+import { AbstractSignal, defined, SetableSignal } from 'src/lib/signalspace/signalspace';
 import { Section } from 'src/lib/weblab/section';
 
 function lenEqual<T>(a: T[], b: T[]) {
@@ -20,16 +20,11 @@ function lenEqual<T>(a: T[], b: T[]) {
 const graphDataId = 'graphData';
 type GraphData = {
   points: NamedChartPoint[];
-  keyConfig: {
-    [keyName: string]: {
-      hide: boolean;
-    };
-  };
-  plotConfig: LineChartConfig;
+  config?: ChartConfig;
 };
 
 function initGraphData(): GraphData {
-  return { points: [], keyConfig: {}, plotConfig: {} };
+  return { points: [] };
 }
 
 @Component({
@@ -41,22 +36,27 @@ function initGraphData(): GraphData {
 })
 export class SimpleChartComponent implements OnInit {
   section = input.required<Section>();
-  data = signal<GraphData>(initGraphData());
-  metrics!: AbstractSignal<Metrics<'entropyLoss' | 'accuracy'> | null>;
+  secOutGraphData!: SetableSignal<GraphData>;
+  secInMetrics!: AbstractSignal<Metrics<string> | null>;
+
+  // set from secOutGraphData
+  graphData = signal<GraphData>(initGraphData());
 
   constructor() {
     addIcons(['more_vert']);
   }
 
   ngOnInit() {
-    this.metrics = this.section().inStream['metrics'].signal;
+    this.secInMetrics = this.section().inStream['metrics'].signal;
+    this.secOutGraphData = this.section().outputs[graphDataId];
+
     this.section().space.derived(() => {
-      const m = this.metrics();
+      const m = this.secInMetrics();
       if (!m) {
         return;
       }
       const newPoints: NamedChartPoint[] = [];
-      for (const n of Object.keys(m.values) as ('entropyLoss' | 'accuracy')[]) {
+      for (const n of Object.keys(m.values)) {
         const p = {
           x: m.batchId,
           y: m.values[n],
@@ -64,17 +64,18 @@ export class SimpleChartComponent implements OnInit {
         };
         newPoints.push(p);
       }
-      const graphData: GraphData =
-        this.section().outputs[graphDataId].lastValue() || initGraphData();
-      this.section().outputs[graphDataId].set(graphData);
-      this.section().outputs[graphDataId].change(
-        (graphData) => (graphData.points = graphData.points.concat(...newPoints)),
-      );
+      const latestGraphData = this.secOutGraphData.lastValue() || initGraphData();
+      this.secOutGraphData.set(latestGraphData);
+      this.secOutGraphData.change((d) => (d.points = d.points.concat(...newPoints)));
     });
 
     this.section().space.derived(() => {
-      this.data.set({ ...(this.section().outputs[graphDataId]() || initGraphData()) });
+      this.graphData.set({ ...(this.secOutGraphData() || initGraphData()) });
     });
+  }
+
+  updateChartConfig(newChartConfig: ChartConfig) {
+    this.secOutGraphData.change((d) => (d.config = newChartConfig));
   }
 
   clear() {
