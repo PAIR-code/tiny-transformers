@@ -169,7 +169,7 @@ export class D3LineChartComponent {
 
   readonly configUpdate = output<ChartConfig>();
   readonly inChartConfig = input<ChartConfig | undefined>();
-  readonly dataPoints = input.required<NamedChartPoint[]>();
+  readonly dataPoints = input<NamedChartPoint[]>([]);
 
   readonly chartElements = signal<ChartElements | null>(null);
   readonly config = signal<ChartConfig>(defaultChartConfig());
