@@ -73,6 +73,8 @@ export function curveFn(kind: CurveKind): d3.CurveFactory {
 
 export type ChartConfig = {
   hiddenLineNames: string[];
+  // Partial mapping from line-names to colors;
+  nameToColor: { [name: string]: string };
 
   width: number; // outer width, in pixels
   height: number; // outer height, in pixels
@@ -109,6 +111,7 @@ export type ChartConfig = {
 export function defaultChartConfig(): ChartConfig {
   return {
     hiddenLineNames: [],
+    nameToColor: {},
     width: 400, // outer width, in pixels
     height: 200, // outer height, in pixels
 
@@ -156,6 +159,16 @@ type ChartElements = {
   pathsG: d3.Selection<SVGGElement, unknown, null, undefined>;
 };
 
+type PositionalContext = {
+  // The target range of the chart to plot into.
+  xRange: [number, number];
+  yRange: [number, number];
+  xDomain: [number, number];
+  yDomain: [number, number];
+  xScale: ScaleFn;
+  yScale: ScaleFn;
+};
+
 // ============================================================================
 
 @Component({
@@ -176,6 +189,14 @@ export class D3LineChartComponent {
 
   readonly hiddenLineSet: Signal<Set<string>>;
 
+  shownData: Signal<NamedChartPoint[]>;
+  allPointsByName: Signal<{ [name: string]: NamedChartPoint[] }>;
+  allPointNames: Signal<string[]>; // the keys of allPointsByName
+  // General positioning information/cache.
+  positionalContext: Signal<PositionalContext>;
+  // How to get the color for a given line's name.
+  nameToColor: Signal<{ [lineName: string]: string }>;
+
   constructor() {
     effect(() => {
       const chartConfig = this.inChartConfig();
@@ -185,6 +206,51 @@ export class D3LineChartComponent {
     });
 
     this.hiddenLineSet = computed(() => new Set(this.config().hiddenLineNames));
+    this.shownData = computed(() => {
+      const hiddenLines = this.hiddenLineSet();
+      return this.dataPoints().filter((d) => !hiddenLines.has(d.name));
+    });
+    this.allPointsByName = computed(() => {
+      const pointsByName: { [name: string]: NamedChartPoint[] } = {};
+      const lastPointByName: { [name: string]: NamedChartPoint } = {};
+      this.dataPoints().forEach((d) => {
+        if (!(d.name in pointsByName)) {
+          pointsByName[d.name] = [];
+        }
+        if (isNaN(d.y)) {
+          d.y = lastPointByName[d.name].y;
+          d.isNaN = true;
+        }
+        lastPointByName[d.name] = d;
+        pointsByName[d.name].push(d);
+      });
+      return pointsByName;
+    });
+    this.allPointNames = computed(() => Object.keys(this.allPointsByName).sort());
+    this.positionalContext = computed(() => {
+      const config = this.config();
+      const { width, height, xScaleKind, yScaleKind } = config;
+      const { marginLeft, marginRight, marginTop, marginBottom } = config;
+      const shownData = this.shownData();
+      // The target range of the chart to plot into.
+      const xRange: [number, number] = [marginLeft, width - marginRight];
+      const yRange: [number, number] = [height - marginBottom, marginTop];
+      // TODO: I think when shownData is [], then these are actually undefined.
+      const xDomain = d3.extent(shownData.map((d) => d.x)) as [number, number];
+      const yDomain = d3.extent(shownData.map((d) => d.y)) as [number, number];
+      const xScale = scaleFn(xScaleKind, xDomain, xRange);
+      const yScale = scaleFn(yScaleKind, yDomain, yRange);
+      return { xRange, yRange, xDomain, yDomain, xScale, yScale };
+    });
+    this.nameToColor = computed(() => {
+      const nameToColor = { ...this.config().nameToColor };
+      this.allPointNames().forEach((p, i) => {
+        if (!(p in nameToColor)) {
+          nameToColor[p] = d3.schemeSet2[i];
+        }
+      });
+      return nameToColor;
+    });
 
     effect(() => {
       const chartElements = this.chartElements();
@@ -214,42 +280,15 @@ export class D3LineChartComponent {
   }
 
   updateChart(chartElements: ChartElements, config: ChartConfig, data: NamedChartPoint[]) {
-    const { width, height, marginLeft, marginRight, marginTop, marginBottom } = config;
     const hiddenLineNames = this.hiddenLineSet();
-
-    const shownData = data.filter((d) => !hiddenLineNames.has(d.name));
-    const pointsByName: { [name: string]: NamedChartPoint[] } = {};
-    {
-      const lastPointByName: { [name: string]: NamedChartPoint } = {};
-      data.forEach((d) => {
-        if (!(d.name in pointsByName)) {
-          pointsByName[d.name] = [];
-        }
-        if (isNaN(d.y)) {
-          d.y = lastPointByName[d.name].y;
-          d.isNaN = true;
-        }
-        lastPointByName[d.name] = d;
-        pointsByName[d.name].push(d);
-      });
-    }
-
-    // The target range of the chart to plot into.
-    const xRange = [marginLeft, width - marginRight];
-    const yRange = [height - marginBottom, marginTop];
-
-    const xDomain = d3.extent(shownData.map((d) => d.x)) as [number, number];
-    const yDomain = d3.extent(shownData.map((d) => d.y)) as [number, number];
-    const xScale = scaleFn(config.xScaleKind, xDomain, xRange);
-    const yScale = scaleFn(config.yScaleKind, yDomain, yRange);
-
-    // The x and y axis lines, labels, and ticks.
-    this.updateAxis(chartElements, config, xScale, yScale);
 
     const color = d3
       .scaleOrdinal<string, string>()
       .domain(Object.keys(pointsByName))
       .range(d3.schemeSet2);
+
+    // The x and y axis lines, labels, and ticks.
+    this.updateAxis(chartElements, config, xScale, yScale);
 
     // The Key/Lengend.
     this.updateLegend(chartElements, config, color, hiddenLineNames, pointsByName);

@@ -1,1 +1,14 @@
-<svg #chart></svg>
+@let width = config().width;
+@let height = config().height;
+<svg
+  #chart
+  [attr.width]="width"
+  [attr.height]="height"
+  [attr.viewBox]="[0, 0, width, height]"
+>
+  <g #legend></g>
+  <g #xAxisG></g>
+  <g #yAxisG></g>
+  <g #yAxisLinesG></g>
+  <g #pathsG></g>
+</svg>

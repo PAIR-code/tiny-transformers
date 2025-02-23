@@ -16,6 +16,10 @@ limitations under the License.
 import { DerivedNode, DerivedNodeState, DerivedNodeOptions } from './derived-node';
 import { SetableNode, SetableOptions, SignalSetOptions } from './setable-node';
 
+// TODO: always keep signal execution context, so that additional dependencies
+// can be added in any execution, and thereby we don't need to declare
+// dependencies in side channel, like we current do for nullDerived.
+
 /**
  * This is a special opinionated take on Signals, inspired by the syntax of
  * Angular's implementation, but allowing for both lazy and eager updates.
