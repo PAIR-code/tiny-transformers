@@ -1,0 +1,80 @@
+<svg width="400" height="200" viewBox="0,0,400,200">
+    <g>
+        <circle cx="200" cy="10" r="4" style="stroke: rgb(102, 194, 165); fill: rgb(102, 194, 165);"></circle>
+        <circle cx="200" cy="25" r="4" style="stroke: rgb(252, 141, 98); fill: rgb(252, 141, 98);"></circle>
+        <circle cx="200" cy="40" r="4" style="stroke: rgb(141, 160, 203); fill: rgb(141, 160, 203);"></circle>
+        <circle cx="200" cy="55" r="4" style="stroke: rgb(231, 138, 195); fill: rgb(231, 138, 195);"></circle>
+        <circle cx="200" cy="70" r="4" style="stroke: rgb(166, 216, 84); fill: rgb(255, 255, 255);"></circle>
+        <circle cx="200" cy="85" r="4" style="stroke: rgb(255, 217, 47); fill: rgb(255, 217, 47);"></circle>
+        <text font-size="smaller" x="210" y="10" text-anchor="left" style="fill: rgb(102, 194, 165); alignment-baseline: middle;">entropyLoss</text>
+        <text font-size="smaller" x="210" y="25" text-anchor="left" style="fill: rgb(252, 141, 98); alignment-baseline: middle;">accuracy</text>
+        <text font-size="smaller" x="210" y="40" text-anchor="left" style="fill: rgb(141, 160, 203); alignment-baseline: middle;">metricTime</text>
+        <text font-size="smaller" x="210" y="55" text-anchor="left" style="fill: rgb(231, 138, 195); alignment-baseline: middle;">lossTime</text>
+        <text font-size="smaller" x="210" y="70" text-anchor="left" style="fill: rgb(166, 216, 84); alignment-baseline: middle;">avgOptimiserTime</text>
+        <text font-size="smaller" x="210" y="85" text-anchor="left" style="fill: rgb(255, 217, 47); alignment-baseline: middle;">optimiserBatchCount</text>
+    </g>
+    <g transform="translate(0,170)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle">
+        <path class="domain" stroke="currentColor" d="M50,0H370"></path>
+        <g class="tick" opacity="1" transform="translate(50,0)">
+            <line stroke="currentColor" y2="6"></line>
+            <text fill="currentColor" y="9" dy="0.71em">0</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(130,0)">
+            <line stroke="currentColor" y2="6"></line>
+            <text fill="currentColor" y="9" dy="0.71em">1</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(210,0)">
+            <line stroke="currentColor" y2="6"></line>
+            <text fill="currentColor" y="9" dy="0.71em">2</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(290,0)">
+            <line stroke="currentColor" y2="6"></line>
+            <text fill="currentColor" y="9" dy="0.71em">3</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(370,0)">
+            <line stroke="currentColor" y2="6"></line>
+            <text fill="currentColor" y="9" dy="0.71em">4</text>
+        </g>
+    </g>
+    <g transform="translate(50,0)" fill="none" font-size="10" font-family="sans-serif" text-anchor="end">
+        <path class="domain" stroke="currentColor" d="M-6,170H0V20H-6"></path>
+        <g class="tick" opacity="1" transform="translate(0,134.72799283189607)">
+            <line stroke="currentColor" x2="-6"></line>
+            <text fill="currentColor" x="-9" dy="0.32em">50</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,99.31811850106394)">
+            <line stroke="currentColor" x2="-6"></line>
+            <text fill="currentColor" x="-9" dy="0.32em">100</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,63.908244170231825)">
+            <line stroke="currentColor" x2="-6"></line>
+            <text fill="currentColor" x="-9" dy="0.32em">150</text>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,28.498369839399707)">
+            <line stroke="currentColor" x2="-6"></line>
+            <text fill="currentColor" x="-9" dy="0.32em">200</text>
+        </g>
+    </g>
+    <g transform="translate(50,0)" fill="none" font-size="10" font-family="sans-serif" text-anchor="end">
+        <path class="domain" stroke="currentColor" d="M-6,170H0V20H-6"></path>
+        <g class="tick" opacity="1" transform="translate(0,134.72799283189607)">
+            <line stroke="currentColor" x2="320" stroke-opacity="0.1"></line>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,99.31811850106394)">
+            <line stroke="currentColor" x2="320" stroke-opacity="0.1"></line>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,63.908244170231825)">
+            <line stroke="currentColor" x2="320" stroke-opacity="0.1"></line>
+        </g>
+        <g class="tick" opacity="1" transform="translate(0,28.498369839399707)">
+            <line stroke="currentColor" x2="320" stroke-opacity="0.1"></line>
+        </g>
+    </g>
+    <g>
+        <path fill="none" stroke="#66c2a5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M50,169.201L210,169.598L370,170L370,170"></path>
+        <path fill="none" stroke="#fc8d62" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M50,169.43L210,169.43L370,169.43L370,169.43"></path>
+        <path fill="none" stroke="#8da0cb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M50,158.099L210,121.98L370,88.695L370,88.695"></path>
+        <path fill="none" stroke="#e78ac3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M50,20L210,167.305L370,166.597L370,166.597"></path>
+        <path fill="none" stroke="#ffd92f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M50,169.43L210,168.721L370,168.721L370,168.721"></path>
+    </g>
+</svg>

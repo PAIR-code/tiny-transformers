@@ -193,7 +193,7 @@ export class D3LineChartComponent {
   allPointsByName: Signal<{ [name: string]: NamedChartPoint[] }>;
   allPointNames: Signal<string[]>; // the keys of allPointsByName
   // General positioning information/cache.
-  positionalContext: Signal<PositionalContext>;
+  posCtxt: Signal<PositionalContext>;
   // How to get the color for a given line's name.
   nameToColor: Signal<{ [lineName: string]: string }>;
 
@@ -227,7 +227,7 @@ export class D3LineChartComponent {
       return pointsByName;
     });
     this.allPointNames = computed(() => Object.keys(this.allPointsByName).sort());
-    this.positionalContext = computed(() => {
+    this.posCtxt = computed(() => {
       const config = this.config();
       const { width, height, xScaleKind, yScaleKind } = config;
       const { marginLeft, marginRight, marginTop, marginBottom } = config;
@@ -240,6 +240,7 @@ export class D3LineChartComponent {
       const yDomain = d3.extent(shownData.map((d) => d.y)) as [number, number];
       const xScale = scaleFn(xScaleKind, xDomain, xRange);
       const yScale = scaleFn(yScaleKind, yDomain, yRange);
+      xScale.domain;
       return { xRange, yRange, xDomain, yDomain, xScale, yScale };
     });
     this.nameToColor = computed(() => {
@@ -277,6 +278,10 @@ export class D3LineChartComponent {
       pathsG: svg.append('g'),
     };
     this.chartElements.set(chartElements);
+  }
+
+  commaSepStr(values: (string | number)[]) {
+    return values.join(',');
   }
 
   updateChart(chartElements: ChartElements, config: ChartConfig, data: NamedChartPoint[]) {
