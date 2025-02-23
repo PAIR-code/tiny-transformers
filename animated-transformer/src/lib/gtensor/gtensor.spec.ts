@@ -19,7 +19,7 @@ import { DName, Dims, GTensor, gtensorOfDims } from './gtensor';
 import * as tf from '@tensorflow/tfjs';
 
 describe('gtensor', () => {
-  beforeEach(() => {});
+  beforeEach(() => { });
 
   it('creatingGTensors', () => {
     // Making a GTensor with an initializer:
@@ -708,6 +708,44 @@ describe('gtensor', () => {
     );
   });
 
+  it('gather with batch dimensions', () => {
+    // Making a GTensor from a tensor by naming the dimensions:
+    const g = new gtensor.GTensor(
+      tf.tensor([
+        [[1, 2, 3, 4],
+        [5, 6, 7, 8]],
+        [[9, 10, 11, 12],
+        [13, 14, 15, 16]],
+      ]),
+      ['batch', 'pos', 'logits'],
+    );
+
+    const indexes = new gtensor.GTensor(
+      tf.tensor(
+        [
+          [0, 1],
+          [2, 3],
+        ],
+        [2, 2],
+        'int32',
+      ),
+      ['batch', 'pos'],
+    );
+
+    const gathered = g.gather(indexes, 'logits', ['batch', 'pos']);
+
+    expect(gathered.dimNames).toEqual(['batch', 'pos']);
+    tf.test_util.expectArraysClose(
+      gathered.tensor.dataSync(),
+      tf
+        .tensor([
+          [1, 6],
+          [11, 16],
+        ])
+        .dataSync(),
+    );
+  });
+
   it('variable assign', () => {
     // Making a GTensor from a tensor by naming the dimensions:
     const x = new gtensor.GTensor(tf.tensor([1, 2, 3, 4]), ['foo']);
@@ -786,6 +824,39 @@ describe('gtensor', () => {
     tf.test_util.expectArraysClose(
       gsoftmax.tensor.dataSync(),
       expectedGTensor.transposeLike(gsoftmax).tensor.dataSync(),
+    );
+  });
+
+  it('softmax cross entropy with integer labels', () => {
+    const g = new gtensor.GTensor(
+      tf.tensor([
+        [
+          1.2, -0.8, -0.5,
+        ],
+        [
+          0.9, -1.2, 1.1,
+        ],
+      ], [2, 3]),
+      ['batch', 'logits'],
+    );
+
+    const labels = new gtensor.GTensor(
+      tf.tensor([
+        0, 1
+      ], [2], 'int32'),
+      ['batch'],
+    )
+
+    const loss = g.softmaxCrossEntropyWithIntegerLabels(labels, 'logits');
+
+    expect(loss.dimNames).toEqual(['batch']);
+    tf.test_util.expectArraysClose(
+      loss.tensor.dataSync(),
+      tf
+        .tensor([
+          0.27612971, 2.9517988
+        ])
+        .dataSync(),
     );
   });
 
@@ -873,8 +944,8 @@ describe('gtensor', () => {
 
     type ExactGTensor<Exact extends string, Given extends string> =
       Exclude<Given, Exact> extends never
-        ? GTensor<Given>
-        : ErrorGivenHadExtraTypes<Exclude<Given, Exact>>;
+      ? GTensor<Given>
+      : ErrorGivenHadExtraTypes<Exclude<Given, Exact>>;
 
     function attentionHeadFn2<T extends string>(
       maybeInput: ExactGTensor<'seqLen' | 'inputRep', T>,
