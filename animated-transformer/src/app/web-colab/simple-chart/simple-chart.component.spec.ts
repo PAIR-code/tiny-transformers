@@ -52,7 +52,11 @@ describe('SimpleChartComponent', () => {
       display: { collapsed: false },
       io: {
         inputs: {},
-        outputs: {},
+        outputs: {
+          graphData: {
+            saved: true,
+          },
+        },
         inStreams: {
           metrics: [
             {
