@@ -6,7 +6,9 @@
     } @else {
       <div class="radio-indicator-off"></div>
     }
-    <div class="description">Use sample training data (boundary task, 100 tokens)</div>
+    <div class="description">
+      Use sample training data (boundary task, 100 tokens)
+    </div>
   </div>
   <div class="training-data-option" (click)="selectUpload()">
     @if (useUploadedTrainingData) {
@@ -17,7 +19,7 @@
     <div class="description">Or, upload training data</div>
     @if (useUploadedTrainingData) {
       <div class="uploader">
-        <input type="file" (change)="uploadTrainingData($event)">
+        <input type="file" (change)="uploadTrainingData($event)" />
       </div>
     }
   </div>
@@ -28,29 +30,34 @@
         <form class="param-form">
           <mat-form-field class="short-width" appearance="fill">
             <mat-label>Dict multiplier</mat-label>
-            <input matInput required [formControl]="dictionaryMultiplier">
+            <input matInput required [formControl]="dictionaryMultiplier" />
           </mat-form-field>
           <mat-form-field class="short-width" appearance="fill">
             <mat-label>L1 coefficient</mat-label>
-            <input matInput required [formControl]="l1Coeff">
+            <input matInput required [formControl]="l1Coeff" />
           </mat-form-field>
           <mat-form-field class="short-width" appearance="fill">
             <mat-label>Batch size</mat-label>
-            <input matInput required [formControl]="batchSize">
+            <input matInput required [formControl]="batchSize" />
           </mat-form-field>
           <mat-form-field class="short-width" appearance="fill">
             <mat-label>Num epochs</mat-label>
-            <input matInput required [formControl]="epochs">
+            <input matInput required [formControl]="epochs" />
           </mat-form-field>
         </form>
-        <button [disabled]="trained" mat-flat-button color="primary" (click)="train()">
+        <button
+          [disabled]="trained"
+          mat-flat-button
+          color="primary"
+          (click)="train()"
+        >
           train
         </button>
       </div>
 
       @if (lossPoints.length > 0) {
         <div>
-          <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+          <app-d3-line-chart [dataPoints]="lossPoints"></app-d3-line-chart>
         </div>
       }
     </div>
@@ -61,9 +68,16 @@
       @if (learnedFeatureActivationFrequencies.length) {
         <div class="frequencies">
           <div class="label">Neuron activation frequency</div>
-          @for (item of learnedFeatureActivationFrequencies; track item; let i = $index) {
+          @for (
+            item of learnedFeatureActivationFrequencies;
+            track item;
+            let i = $index
+          ) {
             <div class="neuron">
-              <span class="neuron-index">{{i}}</span><span class="activation-frequency">{{item | number:'1.2-2'}}</span>
+              <span class="neuron-index">{{ i }}</span
+              ><span class="activation-frequency">{{
+                item | number: "1.2-2"
+              }}</span>
             </div>
           }
         </div>
@@ -73,7 +87,7 @@
         <form (ngSubmit)="interpret()">
           <mat-form-field class="short-width" appearance="fill">
             <mat-label>Neuron index</mat-label>
-            <input matInput required [formControl]="neuronIndexToInspect">
+            <input matInput required [formControl]="neuronIndexToInspect" />
           </mat-form-field>
           <button mat-flat-button color="primary" (click)="interpret()">
             Inspect
@@ -82,10 +96,17 @@
         @if (topActivationsForUserInputFeature) {
           <div class="top-activations">
             <div class="label">Top activating data</div>
-            @for (item of topActivationsForUserInputFeature; track item; let i = $index) {
+            @for (
+              item of topActivationsForUserInputFeature;
+              track item;
+              let i = $index
+            ) {
               <div class="neuron">
-                <span class="neuron-index">{{i}}</span>
-                <span>{{item.token}}: {{item.value | number:'1.2-2'}} (Pos {{item.tokenPos}}: {{item.sequence}})</span>
+                <span class="neuron-index">{{ i }}</span>
+                <span
+                  >{{ item.token }}: {{ item.value | number: "1.2-2" }} (Pos
+                  {{ item.tokenPos }}: {{ item.sequence }})</span
+                >
               </div>
             }
           </div>

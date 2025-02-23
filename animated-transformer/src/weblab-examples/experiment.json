@@ -13,7 +13,7 @@
             "lastValue": "# Toy Tiny Transformers Example \nThis is a small illustrative experiment with Tiny Transformers.",
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "Markdown" },
     { 
       "cellCodeRef": { 
@@ -28,7 +28,7 @@
         "outStreamIds": [],
         "outputs": {} },
       "kind": "WorkerCell",
-      "timestamp": 1740246861211 },
+      "timestamp": 1740318392036 },
     { 
       "cellCodeRef": { 
         "js": "console.log(\"hello world from simple cell!\");",
@@ -41,7 +41,7 @@
         "outStreamIds": [],
         "outputs": {} },
       "kind": "WorkerCell",
-      "timestamp": 1740246861211 },
+      "timestamp": 1740318392036 },
     { 
       "display": {"collapsed": true},
       "id": "Define Task",
@@ -93,7 +93,7 @@
                 "squishable": ["cat", "monkey", "flower"] } },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "JsonObj" },
     { 
       "display": {"collapsed": false},
@@ -112,7 +112,7 @@
               "testSetSize": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
@@ -133,7 +133,7 @@
         "outStreamIds": ["trainBatches"],
         "outputs": {"testSet": {"lastValue": null, "saved": true}} },
       "kind": "WorkerCell",
-      "timestamp": 1740246861211 },
+      "timestamp": 1740318392036 },
     { 
       "display": {"collapsed": false},
       "id": "Test Set View",
@@ -146,7 +146,7 @@
         "outStreamIds": [],
         "outputs": {} },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "ExampleTableView" },
     { 
       "display": {"collapsed": true},
@@ -196,14 +196,6 @@
                       "nHeads": 4 } ] },
                 "tokenRep": { 
                   "eosToken": "[EOS]",
-                  "idxToOneHot": { 
-                    "0": [1, 0, 0, 0, 0, 0, 0],
-                    "1": [0, 1, 0, 0, 0, 0, 0],
-                    "2": [0, 0, 1, 0, 0, 0, 0],
-                    "3": [0, 0, 0, 1, 0, 0, 0],
-                    "4": [0, 0, 0, 0, 1, 0, 0],
-                    "5": [0, 0, 0, 0, 0, 1, 0],
-                    "6": [0, 0, 0, 0, 0, 0, 1] },
                   "maskToken": "[MASK]",
                   "padToken": "[PAD]",
                   "spaceToken": " ",
@@ -220,7 +212,7 @@
               "kind": "ReinitFromConfig" },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "JsonObj" },
     { 
       "display": {"collapsed": false},
@@ -243,7 +235,7 @@
               "trainForBatches": 3 },
             "saved": true } } },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "JsonObj" },
     { 
       "cellCodeRef": { 
@@ -270,7 +262,7 @@
         "outStreamIds": ["checkpoint", "metrics"],
         "outputs": {} },
       "kind": "WorkerCell",
-      "timestamp": 1740246861211 },
+      "timestamp": 1740318392036 },
     { 
       "display": {"collapsed": false},
       "id": "Metrics",
@@ -283,7 +275,7 @@
         "outStreamIds": [],
         "outputs": {"graphData": {"lastValue": null, "saved": true}} },
       "kind": "LocalCell",
-      "timestamp": 1740246861211,
+      "timestamp": 1740318392036,
       "uiView": "SimpleChartView" },
     { 
       "display": {"collapsed": false},
@@ -295,7 +287,7 @@
         "outputs": { 
           "markdown": {"lastValue": "Footer: the end.", "saved": true} } },
       "kind": "LocalCell",
-      "timestamp": 1740246862798,
+      "timestamp": 1740318407270,
       "uiView": "Markdown" } ],
-  "timestamp": 1740246862798,
+  "timestamp": 1740318407270,
   "vsCodePathRoot": "/Users/ldixon/code/github/tiny-transformers/animated-transformer/src/weblab-examples" }

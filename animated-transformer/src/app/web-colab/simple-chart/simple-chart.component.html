@@ -1,7 +1,8 @@
 <div class="main" tabindex="0">
   <app-d3-line-chart
-    [data]="data().points"
-    [config]="data().plotConfig"
+    [dataPoints]="graphData().points"
+    [inChartConfig]="graphData().config"
+    (configUpdate)="updateChartConfig($event)"
   ></app-d3-line-chart>
 
   <button
