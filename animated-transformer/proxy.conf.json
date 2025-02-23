@@ -1,0 +1,11 @@
+{
+  "/scripts": {
+    "target": "http://localhost:9000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "devMiddleware": {
+      "index": false
+    }
+  }
+}

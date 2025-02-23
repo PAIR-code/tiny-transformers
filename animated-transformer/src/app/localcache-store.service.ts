@@ -12,47 +12,46 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+/* 
+  Service to wrap a basic abstraction for local browser caching of data,
+  currently using localStorage, but can be migrate to indexDB later. 
+*/
 
 import { Injectable } from '@angular/core';
 import json5 from 'json5';
-import { ConfigStoreService, ModelData } from './config-store.service';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { JsonValue } from 'src/lib/json/json';
-
-function itemPathToId(path: string): string {
-  return `file:${path}`;
-}
-
-const DEFAULT_STORAGE_ID = 'defaultFilePath';
+import { defaultLocalCacheStore } from 'src/lib/data-resolver/data-resolver';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LocalCacheStoreService {
+  cache = defaultLocalCacheStore;
+
   constructor() {}
 
-  async loadFileCache<T = unknown>(path: string): Promise<T | null> {
-    const s = localStorage.getItem(itemPathToId(path));
-    if (!s) {
-      return null;
-    }
-
-    return json5.parse(s);
+  async load(path: string): Promise<string> {
+    return this.cache.load(path) as Promise<string>;
   }
 
-  async saveFileCache<T extends JsonValue>(path: string, obj: T): Promise<void> {
-    localStorage.setItem(itemPathToId(path), stringifyJsonValue(obj));
+  async save(path: string, obj: string): Promise<void> {
+    return this.cache.save(path, obj);
   }
 
-  async deleteFileCache(path: string): Promise<void> {
-    localStorage.removeItem(itemPathToId(path));
+  async delete(path: string): Promise<void> {
+    this.cache.delete(path);
   }
 
-  async setDefaultPath(path: string): Promise<void> {
-    localStorage.setItem(DEFAULT_STORAGE_ID, path);
+  async saveDefault(obj: string): Promise<void> {
+    this.cache.saveDefault(obj);
   }
 
-  async getDefaultPath(): Promise<string | null> {
-    return localStorage.getItem(DEFAULT_STORAGE_ID);
+  async loadDefault(): Promise<string> {
+    return this.cache.loadDefault() as Promise<string>;
+  }
+
+  async deleteDefault(): Promise<void> {
+    return this.cache.deleteDefault();
   }
 }

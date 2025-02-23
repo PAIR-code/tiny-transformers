@@ -34,6 +34,22 @@ describe('stringify', () => {
   "z; fat": "boo" }`);
   });
 
+  it('basic stringifyJsonVaue with quoteAllKeys', () => {
+    const obj = {
+      b: [1, 2, 3],
+      a: 'fat',
+      c: { x: 1, y: 2 },
+      d: 'very ',
+    };
+
+    // Notice: c gets placeds on a single line, top level does not, and nothing
+    // silly about wrapping d.
+    expect(stringifyJsonValue(obj, { quoteAllKeys: true })).toEqual(`{ "a": "fat",
+  "b": [1, 2, 3],
+  "c": {"x": 1, "y": 2},
+  "d": "very " }`);
+  });
+
   it('basic stringifyJson of number list configs', () => {
     const obj = {
       paramValues: [[0], [1], [1], [0]],

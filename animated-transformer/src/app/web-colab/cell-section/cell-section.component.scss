@@ -1,12 +1,88 @@
-.cellStatus {
+@use '../common_mixins' as common;
+
+:host {
+  padding-bottom:100px;
+}
+
+.header {
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
+  // justify-content: space-between;
+  align-items: center;
   flex: 1 1 auto;
+
+  .title {
+    font-weight: 800;
+  }  
+
+  .codeLink {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: smaller;
+  }
 }
+
 
 .spacer {
   flex: 1;
 }
+
+.inputChips {
+  padding-left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  flex: 1 1 auto;
+  margin-bottom: 12px;
+  color: #bbb;
+
+  mat-icon {
+    opacity: 70%;
+  }
+}
+
+.outputChips {
+  padding-left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  flex: 1 1 auto;
+
+  mat-icon {
+    opacity: 70%;
+  }
+}
+
+.chip {
+  @include common.chip;
+}
+
+.inputId {
+  @include common.inputId;
+}
+
+.outputId {
+  @include common.outputId;
+}
+
+.inStreamId {
+  @include common.inStreamId;
+}
+
+.outStreamId {
+  @include common.outStreamId;
+}
+
+.lacksValue {
+  @include common.lacksValue;
+}
+
+
+
+// color: #bbb;
+// border-top: none;
+
+
+// Just to make some extra space at the bottom

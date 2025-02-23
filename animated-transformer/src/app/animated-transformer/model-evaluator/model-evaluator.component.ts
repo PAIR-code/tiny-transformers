@@ -54,7 +54,7 @@ import {
   tap,
 } from 'rxjs';
 import { mapNonNull } from 'src/lib/rxjs/util';
-import { EnvModel } from 'src/app/web-colab/tiny-transformer-example/ailab';
+import { EnvModel } from 'src/weblab-examples/tiny-transformer-example/common.types';
 // import { TinyModelsService } from 'src/app/tiny-models.service';
 
 function typedGetData<N extends string>(

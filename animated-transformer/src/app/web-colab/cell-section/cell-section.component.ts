@@ -1,20 +1,34 @@
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 import {
+  ChangeDetectionStrategy,
   Component,
-  computed,
-  effect,
-  ElementRef,
   input,
+  OnInit,
   Signal,
+  OnDestroy,
   signal,
-  viewChild,
   WritableSignal,
+  inject,
 } from '@angular/core';
 
-import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { CellStatus, SomeLabEnvCell } from 'src/lib/distr-signal-exec/lab-env-cell';
+import { CellStatus, SomeCellController } from 'src/lib/distr-signals/cell-controller';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -28,17 +42,34 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialogModule } from '@angular/material/dialog';
-import { Experiment } from '../../../lib/weblab/experiment';
-import { CellSectionData } from '../../../lib/weblab/section';
-import { CellRegistryService } from 'src/app/cell-registry.service';
-import { SomeCellKind } from 'src/lib/distr-signal-exec/cell-types';
-import { Section } from 'src/lib/weblab/section';
+import {
+  CellCodeRefKind,
+  SecDefOfWorker,
+  SectionCellData,
+  Section,
+  WorkerSection,
+  CellCodeRef,
+  SectionInputNameRef,
+  SectionInStreamNameRef,
+  SectionOutputNameRef,
+} from '../../../lib/weblab/section';
+import { DomSanitizer } from '@angular/platform-browser';
+import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
+import { DerivedSignal } from 'src/lib/signalspace/signalspace';
+import {
+  CodemirrorJavaScriptEditorComponent,
+  CodeStrUpdate,
+  CodeStrUpdateKind,
+} from 'src/app/codemirror-js-editor/codemirror-js-editor.component';
+import { addIcons } from 'src/app/icon-registry';
 
 @Component({
   selector: 'app-cell-section',
   imports: [
     FormsModule,
     ReactiveFormsModule,
+    // AutoCompletedTextInputComponent,
+    CodemirrorJavaScriptEditorComponent,
     // --
     MatSidenavModule,
     MatProgressBarModule,
@@ -57,50 +88,148 @@ import { Section } from 'src/lib/weblab/section';
   ],
   templateUrl: './cell-section.component.html',
   styleUrl: './cell-section.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CellSectionComponent {
-  readonly experiment = input.required<Experiment>();
-  readonly section = input.required<Section>();
-  readonly cellData = input.required<CellSectionData>();
-  cell: Signal<SomeLabEnvCell>;
-  status: Signal<CellStatus>;
+export class CellSectionComponent implements OnInit, OnDestroy {
+  readonly section = input.required<WorkerSection>();
+  cell!: SectionCellData;
+  status: WritableSignal<CellStatus>;
+  def!: SecDefOfWorker;
+  vsCodeLink = signal('');
+  // sectionsWithOutputs = signal<string[]>([]);
+  // possibleCellOuputs = signal<string[]>([]);
+
+  inputNames: WritableSignal<SectionInputNameRef[]> = signal([]);
+  inStreamNames: WritableSignal<SectionInStreamNameRef[]> = signal([]);
+  outputNames: WritableSignal<SectionOutputNameRef[]> = signal([]);
+  outStreamNames: WritableSignal<string[]> = signal([]);
+
+  signalTrackingDerivations = [] as DerivedSignal<void>[];
 
   CellStatus = CellStatus;
+  CellCodeRefKind = CellCodeRefKind;
 
   constructor() {
-    // Should only be constructable when/if cell is defined.
-    this.cell = computed(() => this.section().cell as SomeLabEnvCell);
-    this.status = computed(() => this.cell().status);
+    // TODO: think about this since it wastes alittle construction time...
+    // should really be some kind of common dependency... ?
+    addIcons([
+      'play_circle',
+      'code',
+      'cancel',
+      'restart_alt',
+      'stop_circle',
+      'input',
+      'output',
+      'featured_play_list',
+    ]);
+    this.status = signal(CellStatus.NotStarted);
+  }
+
+  ngOnInit() {
+    const section = this.section();
+    const space = section.space;
+    this.cell = section.cell as SectionCellData;
+    this.def = section.defData();
+
+    space.derived(() => {
+      this.status.set(this.cell.controller.status());
+    });
+
+    if (
+      (this.def.cellCodeRef.kind === CellCodeRefKind.PathToWorkerCode ||
+        this.def.cellCodeRef.kind === CellCodeRefKind.UrlToCode) &&
+      this.def.cellCodeRef.tsSrcPath
+    ) {
+      const path = this.def.cellCodeRef.tsSrcPath;
+      if (section.experiment.def.vsCodePathRoot) {
+        this.vsCodeLink.set(
+          `vscode://file/${this.section().experiment.def.vsCodePathRoot}/${path}`,
+        );
+      } else {
+        this.vsCodeLink.set('');
+      }
+    }
+
+    // this.section().experiment.space.derived(() =>
+    //   this.sectionsWithOutputs.set([...this.section().experiment.secIdsWithOutputs()].sort()),
+    // );
+
+    section.space.derived(() => this.inputNames.set(section.inputNames()));
+    section.space.derived(() => this.inStreamNames.set(section.inStreamNames()));
+    section.space.derived(() => this.outputNames.set(section.outputNames()));
+    section.space.derived(() => this.outStreamNames.set(section.outStreamNames()));
+
+    // this.section().experiment.space.derived(() => {
+    //   const outputs = this.section().outputs;
+    //   for (const k of Object.keys(outputs)) {
+    //     console.log(
+    //       `CellSectionComponent: ${this.def.id}.output[${k}]: ${JSON.stringify(outputs[k]())}`,
+    //     );
+    //   }
+    // });
+  }
+
+  selectInputSection(inputId: string, selectedCellId: string | null) {
+    // if (!selectedCellId) {
+    //   this.section().io.inputs[inputId].set(null);
+    // }
+    // this.section().experiment.getSection(selectedCellId);
+  }
+
+  handleJsUpdate(changed$: CodeStrUpdate) {
+    if (this.def.cellCodeRef.kind !== CellCodeRefKind.InlineWorkerJsCode) {
+      throw new Error(`JsUpdates should only be for inline code cells`);
+    }
+    if (changed$.kind !== CodeStrUpdateKind.UpdatedValue) {
+      return;
+    }
+    this.def.cellCodeRef.js = changed$.str;
+    const cell = this.section().cell;
+    URL.revokeObjectURL(cell.cellObjectUrl);
+    const blob = new Blob([this.def.cellCodeRef.js], { type: 'application/javascript' });
+    const cellObjectUrl = URL.createObjectURL(blob);
+    cell.cellObjectUrl = cellObjectUrl;
   }
 
   inputs() {
-    return Object.keys(this.cellData().content.inputs);
+    return Object.keys(this.section().inputs || {});
   }
   outputs() {
-    return this.cellData().content.outputIds;
+    return Object.keys(this.section().outputs || {});
   }
-  inStreams() {
-    return Object.keys(this.cellData().content.inStreams);
-  }
-  outStreams() {
-    return this.cellData().content.outStreamIds;
-  }
+  // inStreams() {
+  //   return Object.keys(this.section().inStreams || {});
+  // }
+  // outStreams() {
+  //   return this.data().io.outStreamIds || [];
+  // }
 
-  start() {
-    this.cell().start();
+  async start() {
+    this.section().startWorker();
   }
 
   requestStop() {
-    this.cell().requestStop();
+    this.cell.controller.requestStop();
   }
 
   forceStop() {
-    console.error('not yet implemented');
-    // this.cell.forceStop();
+    this.cell.controller.forceStop();
   }
 
-  restart() {
-    console.error('not yet implemented');
+  reset() {
+    this.cell.controller.initLifeCyclePromises();
+    this.cell.controller.reInitRemotes();
+    // console.error('not yet implemented');
     // this.cell.restart();
+  }
+
+  openCodeLink() {
+    window.open(this.vsCodeLink());
+  }
+
+  ngOnDestroy() {
+    for (const d of this.signalTrackingDerivations) {
+      d.node.dispose();
+    }
   }
 }

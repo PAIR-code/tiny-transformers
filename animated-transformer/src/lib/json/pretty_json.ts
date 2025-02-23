@@ -41,7 +41,11 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
       // JsonObj.
       const objTube = new ObjTube();
       for (const k of Object.keys(value)) {
-        if (Object.prototype.hasOwnProperty.call(value, k)) {
+        // For every normal object key that is not assigned to undefined add a
+        // printout for it's key.
+        //
+        // This treats an object { foo: undefined } to have the same serialization as {}
+        if (Object.prototype.hasOwnProperty.call(value, k) && value[k] !== undefined) {
           const child = tubeifyJsonValue(value[k]);
           objTube.addKeyChild(k, child);
         }
@@ -50,13 +54,14 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
   }
 }
 
-export function stringifyJsonValue(value: JsonValue, config?: StringifyConfig): string {
-  config = config || {
+export function stringifyJsonValue(value: JsonValue, config?: Partial<StringifyConfig>): string {
+  const completeConfig = {
+    quoteAllKeys: false,
     curIndent: '',
     arrWrapAt: 60,
     objWrapAt: 60,
     sortObjKeys: true,
+    ...config,
   };
-
-  return stringifyTube(config, tubeifyJsonValue(value));
+  return stringifyTube(completeConfig, tubeifyJsonValue(value));
 }

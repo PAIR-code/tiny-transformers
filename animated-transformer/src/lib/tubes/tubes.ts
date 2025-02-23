@@ -161,6 +161,7 @@ function isArr(t: AbsTube): t is ArrTube {
 }
 
 export interface StringifyConfig {
+  quoteAllKeys: boolean;
   curIndent: string;
   arrWrapAt: number;
   objWrapAt: number;
@@ -191,7 +192,7 @@ export function stringifyOneLine(config: StringifyConfig, t: Tube): string {
     return (
       '{' +
       keys
-        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyOneLine(config, t.obj[k])}`)
+        .map((k) => `${quoteObjectKeyIfNeeded(k, config)}: ${stringifyOneLine(config, t.obj[k])}`)
         .join(', ') +
       '}'
     );
@@ -214,8 +215,8 @@ function maxLineStrWidth(s: string): {
 }
 
 const skipQuotingRegExp = /^[\_\d\w]+$/;
-function quoteObjectKeyIfNeeded(k: string): string {
-  if (skipQuotingRegExp.test(k)) {
+function quoteObjectKeyIfNeeded(k: string, config: { quoteAllKeys: boolean }): string {
+  if (!config.quoteAllKeys && skipQuotingRegExp.test(k)) {
     return k;
   } else {
     return quote(k);
@@ -226,12 +227,15 @@ function quoteObjectKeyIfNeeded(k: string): string {
 // Note: Caller is responsible for the adding the indent to the returned string.
 export function stringifyTube(config: StringifyConfig, t: Tube): string {
   if (isLeaf(t)) {
+    // STRING, NUMBER, BOOLEAN, NULL, UNDEFINED
     return t.str;
   } else if (isArr(t)) {
+    // ARRAY
     // fits on one line...
     if (t.totalStrLen() + config.curIndent.length < config.arrWrapAt) {
       return stringifyOneLine(config, t);
     } else if (t.hasCompoundChild) {
+      // ARRAY with compound children.
       // Break the child nodes onto separate lines
       const subConfig = { ...config };
       subConfig.curIndent += '  ';
@@ -240,6 +244,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       // in list.
       return `[ ${t.arr.map((c) => stringifyTube(subConfig, c)).join(joinStr)} ]`;
     } else {
+      // ARRAY without compound (lots of strings, numbers etc... block display them)
       if (t.arr.length === 0) {
         return stringifyOneLine(config, t);
       }
@@ -277,6 +282,7 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       // return stringifyOneLine(config, t);
     }
   } else {
+    // OBJECT
     if (t.totalStrLen() + config.curIndent.length < config.objWrapAt) {
       return stringifyOneLine(config, t);
     } else {
@@ -288,14 +294,13 @@ export function stringifyTube(config: StringifyConfig, t: Tube): string {
       subConfig.curIndent += '  ';
       let joinStr = ',\n' + subConfig.curIndent;
       const innerStr = keys
-        .map((k) => `${quoteObjectKeyIfNeeded(k)}: ${stringifyTube(subConfig, t.obj[k])}`)
+        .map((k) => `${quoteObjectKeyIfNeeded(k, config)}: ${stringifyTube(subConfig, t.obj[k])}`)
         .join(joinStr);
-      // TODO:
       let prefix = '{ ';
       const postfix = ' }';
-      const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } = maxLineStrWidth(innerStr);
 
       // Ideas for smarter positioning...
+      //  const { maxLineWidth, firstLineWidth, lastLineWidth, nLines } = maxLineStrWidth(innerStr);
       // (maxLineWidth > config.objWrapAt ||
       //   (firstLineWidth + prefix.length) > config.objWrapAt ||
       //   (lastLineWidth + postfix.length) > config.objWrapAt)

@@ -29,21 +29,21 @@ import { MatSidenavModule } from '@angular/material/sidenav';
   styleUrls: ['./app.component.scss'],
   standalone: true,
   imports: [
-    RouterLink,
+    // RouterLink,
     RouterOutlet,
-    MatSidenavModule,
-    // ---
-    MatButtonModule,
-    MatIconModule,
-    MatInputModule,
-    MatMenuModule,
-    MatListModule,
-    FormsModule,
+    // MatSidenavModule,
+    // // ---
+    // MatButtonModule,
+    // MatIconModule,
+    // MatInputModule,
+    // MatMenuModule,
+    // MatListModule,
+    // FormsModule,
   ],
 })
 export class AppComponent {
-  constructor(
-    private route: ActivatedRoute,
-    public router: Router,
-  ) {}
+  // private route: ActivatedRoute,
+  // public router: Router,
+
+  constructor() {}
 }

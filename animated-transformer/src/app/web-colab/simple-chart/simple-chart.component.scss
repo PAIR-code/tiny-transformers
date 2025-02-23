@@ -1,0 +1,49 @@
+.main {
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  
+}
+.main:focus {
+  border: 1px dotted
+}
+
+:host {
+  --my-hover-transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+:host {
+  // border-top: 1px dotted #FFF;
+  // border-bottom: 1px dotted #FFF;
+
+  .hostHover {
+    opacity: 0 !important;
+    transition: var(--my-hover-transition);
+  }
+
+  .hostHoverIconAppear {
+    opacity: 0 !important;
+    // width: -24px;
+    margin-right: -24px;
+    transition: var(--my-hover-transition);
+  }
+}
+
+:host:hover, :host:focus, .main:focus {
+  // opacity: 1 !important;
+  transition: var(--my-hover-transition);
+  // border-top: 1px dotted #CCC;
+  // border-bottom: 1px dotted #CCC;
+
+  .hostHover {
+    opacity: 1 !important;
+    transition: var(--my-hover-transition);
+    // transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+  }
+
+  .hostHoverIconAppear {
+    margin-right: 0;
+    opacity: 1 !important;
+    transition: var(--my-hover-transition);
+  }
+}

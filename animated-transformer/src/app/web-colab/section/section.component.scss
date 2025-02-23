@@ -1,0 +1,233 @@
+@use '../common_mixins' as common;
+
+:host {
+  // display: block;
+  // background-color: #FFF;
+}
+
+:host {
+  --my-hover-transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+:host {
+  // border-top: 1px dotted #FFF;
+  // border-bottom: 1px dotted #FFF;
+
+  .hostHover {
+    opacity: 0 !important;
+    transition: var(--my-hover-transition);
+  }
+
+  .hostHoverIconAppear {
+    opacity: 0 !important;
+    // width: -24px;
+    margin-right: -24px;
+    transition: var(--my-hover-transition);
+  }
+}
+
+:host:hover, :host:focus-within {
+  // opacity: 1 !important;
+  transition: var(--my-hover-transition);
+  // border-top: 1px dotted #CCC;
+  // border-bottom: 1px dotted #CCC;
+
+  .hostHover {
+    opacity: 1 !important;
+    transition: var(--my-hover-transition);
+    // transition: opacity 0.3s ease; /* Optional: adds a smooth fade-in */
+  }
+
+  .hostHoverIconAppear {
+    margin-right: 0;
+    opacity: 1 !important;
+    transition: var(--my-hover-transition);
+  }
+}
+
+.nonBarSectionPart {
+  border-left: 6px solid #fff;
+}
+
+:host:focus-within, :host:focus {
+  .nonBarSectionPart {
+    border-left: 6px solid #ccc;  
+  }
+}
+
+
+.horiz-center {
+  display: flex;
+  justify-content: center;
+}
+
+.bottom-bar {
+  height: 0px;
+  border-top: 1px dotted #CCC;
+  // border-bottom: 1px dotted #CCC;
+  flex: 1 1 auto;
+  // height: 12px;
+  // margin-bottom: -12px;
+  margin-top: -6px;
+  // padding-top: -6px;
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  z-index: 2;
+}
+
+.top-bar {
+  height: 0px;
+  border-top: 1px dotted #CCC;
+  flex: 1 1 auto;
+  margin-top: -12px;
+  height: 12px;
+  z-index: 2;
+}
+
+.showOnHover {
+  opacity: 0 !important;
+}
+.showOnHover:hover {
+  opacity: 1 !important;
+  transition: var(--my-hover-transition);
+}
+
+
+.expanded-section {
+  margin-left: 20px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.left-margin {
+  margin-left: 5px;
+}
+
+.small-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  // justify-content: space-between;
+  // align-items: flex-start;
+  align-items: center;
+  flex: 1 1 auto;
+  z-index: 5;
+  min-height: 24px;
+
+  --mdc-icon-button-icon-size: 16px !important;
+  --mdc-icon-button-state-layer-size: 24px !important;
+
+  .mat-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .mat-mdc-icon-button {
+    background-color: #FFF !important;
+    z-index: 5;
+
+    width: 24px !important;
+    height: 24px !important;
+    // line-height: 24px !important;
+    // background-color: #fff;
+
+    padding: 0px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  
+    & > *[role=img] {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+ 
+      svg {
+         width: 16px !important;
+         height: 16px !important;
+      }
+    }
+
+    ::ng-deep { 
+      .mat-mdc-button-touch-target {
+        height: unset !important;
+        width: unset !important;
+        // width: 24px !important;
+        // height: 24px !important;
+      }
+    }
+  }
+
+  .mdc-button {
+    height: 24px !important;
+  }
+
+  button {
+    
+  }
+}
+
+
+
+.mini-id-title {
+  font-size: small;
+  color: #777;
+  background-color: #FFF;
+  padding: 3px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 7px;
+  transition: var(--my-hover-transition);
+  // flex: 1 1 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+}
+.titleAsOuput {
+  border: 1px solid #999 !important;
+  border-radius: 3px;
+  color: #777 !important;
+}
+
+
+.unknownCellName {
+  background-color: #A00;
+  color: #EEE;
+}
+
+.workerCellName {
+  background-color: #DDF;
+}
+
+.uiCellName {
+  background-color: #DFD;
+}
+
+.singleDataValueName {
+  background-color: #EEE;
+}
+
+.chip {
+  @include common.chip;
+}
+
+.inputId {
+  @include common.inputId;
+}
+
+.outputId {
+  @include common.outputId;
+}
+
+.inStreamId {
+  @include common.inStreamId;
+}
+
+.outStreamId {
+  @include common.outStreamId;
+}
+
+.lacksValue {
+  @include common.lacksValue;
+}

@@ -114,7 +114,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
     MatButtonModule,
     TensorImageComponent,
     AxisWrapperComponent,
-    ActivationManagerComponent,
+    // ActivationManagerComponent,
   ],
   templateUrl: './corner-activation.component.html',
   styleUrls: ['./corner-activation.component.scss'],
@@ -368,7 +368,6 @@ export class CornerActivationComponent extends ActivationManagerComponent implem
     const configUpdate = event as ConfigUpdate<ActivationVizConfig>;
 
     if (configUpdate.close) {
-      console.log(`this.view (was: ${this.view()}) is being set to vis`);
       this.view.set('vis');
     }
 

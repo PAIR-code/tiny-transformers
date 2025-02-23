@@ -14,94 +14,130 @@ limitations under the License.
 ==============================================================================*/
 
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { ExpDefKind, loadExperiment } from './experiment';
-import { InMemoryDataResolver } from './data-resolver';
-import { ExpSectionDataDef, SectionDef, SectionKind } from './section';
-import { LabEnv } from '../distr-signal-exec/lab-env';
+import { Experiment, loadExperiment } from './experiment';
+import { InMemoryDataResolver } from '../data-resolver/data-resolver';
+import {
+  SecDefByPath,
+  SecDefOfRef,
+  SecDefKind,
+  SecDefOfSecList,
+  SecDefOfUiView,
+  ViewerKind,
+} from './section';
+import { LabEnv } from '../distr-signals/lab-env';
 
 describe('experiment', () => {
   beforeEach(() => {});
 
   it('Basic saving and loading experiments identity', async () => {
-    const section1: SectionDef = {
-      kind: ExpDefKind.Data,
-      id: 'section 1',
+    // TODO: make a nicer way to make these... right now there is an implicit non-obvious dependency between `outputs: { markdown: ... }` and `uiView: ViewerKind.MarkdownOutView`
+    const section1: SecDefOfUiView = {
+      kind: SecDefKind.UiCell,
+      id: 'section1',
       timestamp: Date.now(),
-      sectionData: {
-        sectionKind: SectionKind.Markdown,
-        content: '# Section 1! \nThis is the start.',
+      io: {
+        inputs: {},
+        outputs: {
+          markdown: {
+            lastValue: '# Section 1! \nThis is the start.',
+            saved: true,
+          },
+        },
+        inStreams: {},
+        outStreamIds: [],
       },
+      uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
-    const section2_1: SectionDef = {
-      kind: ExpDefKind.Data,
+    const section2_1: SecDefOfUiView = {
+      kind: SecDefKind.UiCell,
       id: 'section2_1',
       timestamp: Date.now(),
-      sectionData: {
-        sectionKind: SectionKind.Markdown,
-        content: '# Preamble! \nThis is before the start in the sub exp.',
+      io: {
+        inputs: {},
+        outputs: {
+          markdown: {
+            lastValue: '# Preamble! \nThis is before the start in the sub exp.',
+            saved: true,
+          },
+        },
+        inStreams: {},
+        outStreamIds: [],
       },
+      uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
-    const section2_2: SectionDef = {
-      kind: ExpDefKind.Ref,
+    const section2_2: SecDefOfRef = {
+      kind: SecDefKind.Ref,
       id: 'section2_2',
-      refId: 'section 1',
+      refId: 'section1',
+      display: { collapsed: false },
     };
 
-    const section2: SectionDef = {
-      kind: ExpDefKind.Data,
-      id: 'section 2',
+    const section2: SecDefOfSecList = {
+      kind: SecDefKind.SectionList,
+      id: 'section2',
       timestamp: Date.now(),
-      sectionData: {
-        sectionKind: SectionKind.SubExperiment,
-        // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-        content: [section2_1, section2_2],
-      },
+      subsections: [section2_1, section2_2],
+      display: { collapsed: false },
     };
 
-    const section3: SectionDef = {
-      kind: ExpDefKind.Path,
-      id: 'section 3',
-      dataPath: 'foo:/exp1/sec3.exp.json',
+    const section3: SecDefByPath = {
+      kind: SecDefKind.Path,
+      id: 'section3',
+      dataPath: 'foo:/exp1/sec3.secdef.json',
+      display: { collapsed: false },
     };
 
-    const exp1Data: ExpSectionDataDef = {
-      kind: ExpDefKind.Data,
+    const exp1Data: SecDefOfSecList = {
+      kind: SecDefKind.SectionList,
       id: 'toy experiment name 1',
       timestamp: Date.now(),
-      sectionData: {
-        sectionKind: SectionKind.SubExperiment,
-        content: [section1, section2, section3],
-      },
+      subsections: [section1, section2, section3],
+      display: { collapsed: false },
     };
 
-    const sec3Node: SectionDef = {
-      kind: ExpDefKind.Data,
-      id: 'section 3',
+    const sec3Node: SecDefOfUiView = {
+      kind: SecDefKind.UiCell,
+      id: 'section3',
       timestamp: Date.now(),
-      sectionData: {
-        sectionKind: SectionKind.Markdown,
-        // TODO: consider making this dependent on ExpCellKind, and resolve to the right type.
-        content: '# Section 3! This is the end.',
+      io: {
+        inputs: {},
+        outputs: {
+          markdown: {
+            lastValue: '# Section 3! This is the end.',
+            saved: true,
+          },
+        },
+        inStreams: {},
+        outStreamIds: [],
       },
+      uiView: ViewerKind.MarkdownOutView,
+      display: { collapsed: false },
     };
 
-    const dataResolver = new InMemoryDataResolver({
-      'foo:/exp1/sec3.exp.json': sec3Node,
-      'foo:/exp1/exp1.exp.json': exp1Data,
-    });
+    const dataResolver = new InMemoryDataResolver();
+    dataResolver.saveStr(['foo:/exp1/sec3.secdef.json'], JSON.stringify(sec3Node));
 
     const space = new SignalSpace();
     const env = new LabEnv(space);
-    const exp1 = await loadExperiment(dataResolver, env, exp1Data);
+    const exp1 = (await loadExperiment(dataResolver, dataResolver, env, exp1Data, {
+      fromCache: true,
+    })) as Experiment;
+
+    expect(exp1.topLevelSections().length).toEqual(3);
 
     const { data, subpathData } = exp1.serialise();
-
-    // console.log(`data: ${JSON.stringify(data, null, 2)}`);
-    // console.log(`subpathData: ${JSON.stringify(subpathData, null, 2)}`);
+    console.log('data', data);
+    console.log('subpathData', subpathData);
 
     expect(data).toEqual(exp1Data);
-    expect(subpathData!['foo:/exp1/sec3.exp.json']).toEqual(sec3Node);
+    expect(subpathData!['foo:/exp1/sec3.secdef.json']).toEqual(sec3Node);
   });
+
+  // TODO: add sub-sub-path loading example.
+  // TODO: add sub-sub-path loading cell example.
+  // TODO: add sub-sub-path loading UI example.
 });

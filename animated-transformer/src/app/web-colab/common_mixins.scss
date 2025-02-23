@@ -1,0 +1,45 @@
+
+@mixin chip {
+  margin-left: 5px;
+  padding: 3px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 7px;
+  font-size: small;
+  color: #777;
+  z-index: 5;
+  background-color: #EEE;
+
+  display: flex;
+  align-items: center;
+
+  .mat-icon {
+    opacity: 70%;
+  }
+}
+
+@mixin inputId {
+  border-top: 2px solid #bbb;
+}
+
+@mixin outputId {
+  border-bottom: 2px solid #bbb;
+}
+
+@mixin inStreamId {
+  border-top: 2px dashed #bbb;
+  // border-left: 2px dotted #bbb;
+}
+@mixin outStreamId {
+  border-bottom: 2px dashed #bbb;
+  // border-right: 2px dotted #bbb;
+}
+
+@mixin lacksValue {
+  // border: 1px dotted #bbb;
+  // border: 2px dotted #bbb;
+  // color: #bbb;
+  // border-top: none;
+  background-color: #FFF;
+  z-index: 5;
+}

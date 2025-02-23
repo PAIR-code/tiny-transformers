@@ -75,7 +75,8 @@ export type SetableSignal<T> = AbstractSignal<T> & {
   set(newValue: T, options?: Partial<SignalSetOptions>): void;
   // Note: propegate signal semantics by default does eqCheck.
   update(f: (oldValue: T) => T, options?: Partial<SignalSetOptions>): void;
-  // Note: always forces an update;
+  // Always forces an update. Used to update internals of the object, and make
+  // any downstream dependencies on the change get an update.
   change(f: (changedValue: T) => void): void;
   node: SetableNode<T>;
 };
@@ -166,28 +167,34 @@ export type ComputeContext =
 export type SignalSpaceUpdate = {
   // Values touched in this update. Used to track loops of setting values.
   valuesUpdated: SetableNode<unknown>[];
-  counter: number;
 };
 
-// ----------------------------------------------------------------------------
-export class SignalSpace {
-  nodeCount = 0;
-  updateCounts = 0;
-
+export type SignalSpaceState = {
+  nextNodeId: number;
   // Stack of actively being defined/updated computation signals. Used to know
   // how/when to connect nodes in the dependency tree. When a signal.get call is
   // made in the context of a 'def' ComputeStackEntry, then we add that the
   // signal making the get call needed to compute the signal in the 'def'
   // ComputeStackEntry. We also track/stack updates.
-  public computeStack: ComputeContext[] = [];
+  computeStack: ComputeContext[];
+  // Set from the time between a value has been updated, and
+  // when the update all effects has been completed.
+  update?: SignalSpaceUpdate;
+};
 
+// ----------------------------------------------------------------------------
+export class SignalSpace {
+  // The local space set of signals, used for tracking what to dispose of when a
+  // sub-space is disposed. This is the only role of signalSet.
+  //
   // CONSIDER: are there better alterantive to `unknown` here? unknown doesn't
   // have the semantics of valid but unknown, which is what we mean.
   public signalSet: Set<DerivedNode<unknown> | SetableNode<unknown>> = new Set();
 
-  // Set from the time between a value has been updated, and
-  // when the update all effects has been completed.
-  public update?: SignalSpaceUpdate;
+  // Tracking subspaces, when this signalspace is disposed, all subspaces are
+  // disposed of too. This is the only this this tracks, and the only role of
+  // subspaces here.
+  public subspaces: Set<SignalSpace> = new Set();
 
   // Convenience functions so you can write {setable} = new SignalSpace();
   public setable = setable.bind(null, this) as <T>(
@@ -215,27 +222,48 @@ export class SignalSpace {
     options?: Partial<DerivedNullableOptions<T>>,
   ) => DerivedSignal<T | null>;
 
-  constructor() {}
+  constructor(
+    // The space state, used for defining, and updating a signal space.
+    // Should be shared between a space and sub-spaces.
+    public state: SignalSpaceState = {
+      nextNodeId: 0,
+      computeStack: [] as ComputeContext[],
+    },
+  ) {}
+
+  subspace(): SignalSpace {
+    const subspace = new SignalSpace(this.state);
+    this.subspaces.add(subspace);
+    return subspace;
+  }
+
+  dispose() {
+    for (const s of this.signalSet) {
+      s.dispose();
+    }
+    for (const subspace of this.subspaces) {
+      subspace.dispose();
+    }
+  }
 
   computeContext(): ComputeContext {
-    if (this.computeStack.length === 0) {
+    if (this.state.computeStack.length === 0) {
       return { kind: ComputeContextKind.NoComputeContext };
     }
-    return this.computeStack[this.computeStack.length - 1];
+    return this.state.computeStack[this.state.computeStack.length - 1];
   }
 
   // Called whenever a setable value is set and it changes the value.
   propegateValueUpdate(valueSignal: SetableNode<unknown>): void {
-    if (!this.update) {
-      this.update = {
-        // Values in a transaction that were set.
+    if (!this.state.update) {
+      this.state.update = {
+        // Values in an update transaction that were set.
         valuesUpdated: [],
-        counter: this.updateCounts++,
       };
     }
 
     // Error and stop updating if we are looping.
-    if (this.update.valuesUpdated.includes(valueSignal)) {
+    if (this.state.update.valuesUpdated.includes(valueSignal)) {
       // console.error(
       //   `A cyclic value update happened in a computation:`,
       //   '\nvalueSignal & new value:',
@@ -245,7 +273,7 @@ export class SignalSpace {
       throw new Error('loopy setting of values');
     }
     //
-    this.update.valuesUpdated.push(valueSignal);
+    this.state.update.valuesUpdated.push(valueSignal);
     // Make sure that we know dependencies may need updating,
     // in case they are called in a c.get() in the same JS
     // execution tick/stage.
@@ -260,7 +288,7 @@ export class SignalSpace {
       }
     }
 
-    delete this.update;
+    delete this.state.update;
   }
 
   noteStartedDerivedUpdate(node: DerivedNode<unknown>) {
@@ -268,20 +296,22 @@ export class SignalSpace {
     // you cannot define loopy derived compute functions, and all compute
     // functions eventually depend on setables, and setables can only be updated
     // by set calls, and we loop-check setable set calls.
-    if (this.computeStack.length > 10) {
+    if (this.state.computeStack.length > 100) {
       throw new Error('stack too big');
     }
-    if (this.update) {
-      this.computeStack.push({
+    if (this.state.update) {
+      this.state.computeStack.push({
         kind: ComputeContextKind.Update,
         node,
       });
     }
   }
 
-  noteEndedDerivedUpdate(node: DerivedNode<unknown>) {
-    if (this.update) {
-      this.computeStack.pop();
+  // TODO: think about the argument... maybe we should check this is what was
+  // popped?
+  noteEndedDerivedUpdate(_node: DerivedNode<unknown>) {
+    if (this.state.update) {
+      this.state.computeStack.pop();
     }
   }
 
@@ -295,7 +325,6 @@ export class SignalSpace {
   // Every update to the signal becomes an item in the async iterable.
   // CONSIDER: T must not be undefined?
   async *toIter<T>(s: SetableSignal<T> | DerivedSignal<T>): AsyncIterable<T> {
-    // const self = this;
     const buffer = [] as Promise<T>[];
     let resolveFn: (v: T) => void;
     let curPromise: Promise<T> = new Promise<T>((resolve) => {
@@ -580,6 +609,7 @@ export function asyncSignalIter<T>(
     if (nextIsWaiting) {
       resolveFn({ done: true, value: null });
     }
+    derivedPromiseUpdate.node.dispose();
   };
 
   const myIterator = {
@@ -609,7 +639,7 @@ export function asyncSignalIter<T>(
 export function asyncIterToSignal<T>(
   iter: AsyncIterable<T>,
   space: SignalSpace,
-): { done: Promise<void>; signal: Promise<AbstractSignal<T>> } {
+): { onceDone: Promise<void>; onceSignal: Promise<AbstractSignal<T>> } {
   let resolveDoneFn: () => void;
   const onceDone = new Promise<void>((resolve) => {
     resolveDoneFn = resolve;
@@ -635,5 +665,9 @@ export function asyncIterToSignal<T>(
       rejectSignalFn();
     }
   }, 0);
-  return { done: onceDone, signal: onceSignal };
+  return { onceDone, onceSignal };
 }
+
+// TODO: make a concept of a derived subspace, so that all signals in the derived
+// space can be deleted when the subspace is removed.
+// CONSIDER: should this support a kind of copy operation also?

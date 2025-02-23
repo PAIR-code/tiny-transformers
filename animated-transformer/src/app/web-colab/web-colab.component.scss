@@ -2,10 +2,31 @@
 
 }
 
+.saveState {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: smaller;
+}
+
 .path {
   padding: 5px;
 }
+
+.onScreen {
+  border-right: 6px solid #EEE;
+  --mat-list-active-indicator-shape: 0px
+  /* border-radius: 0px; */
+}
+
+.focusedSectionStyle {
+  border-right: 6px solid #BBB;
+}
   
+.menu-buttons {
+  a {
+    all: unset;
+  }
+}
+
 .vmenu {
   display: block;
 }
@@ -15,8 +36,23 @@
   border-color: #880000;
   color: #880000;
   background-color: #FFAAAA;
+  padding: 10px;
   font-size: 10pt;
   margin: 10px;
+  border-radius: 5px;
+  
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  // align-items: start;
+  
+  flex: 1 1 auto;
+}
+
+.main-buttons {
+  // display: flex;
 }
 
 .buttons {
@@ -24,34 +60,49 @@
   flex-wrap: wrap;
   flex-direction: row;
   justify-content: space-between;
-  align-items: flex-start;
+  // align-items: flex-start;
+  align-items: center;
   flex: 1 1 auto;
 }
 
-.hoverButtons {
-  &:hover {
-    .buttons {
-      opacity: 1 !important;
-    }
-  }
-
-  .buttons {
-    opacity: 0;
-    transition: 0.2s opacity;
-  }
-}
-
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   flex: 1 1 auto;
+  padding-left: 10px;
+
+  .title {
+    font-weight: bold;
+  }
 }
 
-.section {
+.container {
+  position: absolute;
+  top: 60px;
+  bottom: 0px;
+  left: 0;
+  right: 0;
 }
+
+.sections {
+  background-color: #FFF;
+}
+
+// .section {
+//   border-left: 8px solid #FFF;
+// }
+
+// .section:focus-within, .section:focus {
+//   border-left: 8px solid #AAA;
+// }
 
 .spacer {
   flex: 1;

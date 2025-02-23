@@ -1,31 +1,238 @@
 @let sec = section();
-@let data = sec.data();
-@let sectionData = sec.data().sectionData;
+@let data = sec.defData();
 
-@switch (sectionData.sectionKind) {
-  @case (SectionKind.Markdown) {
-    <markdown>{{ data.sectionData.content }}</markdown>
+<div class="horiz-center small-buttons">
+  <button
+    class="hostHoverIconAppear left-margin"
+    mat-icon-button
+    matTooltip="add section"
+    (click)="addPlaceholder()"
+  >
+    <mat-icon svgIcon="add">+</mat-icon>
+  </button>
+</div>
+<div class="top-bar hostHover"></div>
+
+<div class="nonBarSectionPart">
+  <div class="small-buttons">
+    <!-- [class.hostHover]="!collapsed() && !isSingleDefinedOutputSection()" -->
+
+    <button
+      class="left-margin"
+      (click)="collapsed() ? uncollapse() : collapse()"
+      mat-button
+    >
+      <span
+        class="mini-id-title"
+        [class.singleDataValueName]="
+          displayKind() === DisplayKind.SingleDataValue
+        "
+        [class.workerCellName]="displayKind() === DisplayKind.WorkerCell"
+        [class.uiCellName]="displayKind() === DisplayKind.UiCell"
+        [class.unknownCellName]="displayKind() === DisplayKind.Unknown"
+      >
+        <mat-icon
+          [svgIcon]="
+            collapsed() ? 'keyboard_arrow_right' : 'keyboard_arrow_down'
+          "
+          >{{ collapsed() ? "uncollapse" : "collapse" }}</mat-icon
+        >
+        {{ data.id }}
+      </span>
+    </button>
+
+    <!-- @if (collapsed()) { -->
+    @let inputs = inputNames();
+    @if (displayKind() !== DisplayKind.WorkerCell && inputs.length > 0) {
+      @for (i of inputs; track i.displayId) {
+        <div class="inputId chip" [class.lacksValue]="!i.hasValue">
+          <!-- <mat-icon [svgIcon]="'input'">input</mat-icon> -->
+          {{ i.displayId }}
+        </div>
+      }
+    }
+
+    @let inStreams = inStreamNames();
+    @if (displayKind() !== DisplayKind.WorkerCell && inStreams.length > 0) {
+      @for (i of inStreams; track i.displayId) {
+        <div class="inStreamId chip">
+          <!-- <mat-icon [svgIcon]="'input'">input</mat-icon> -->
+          {{ i.displayId }}
+        </div>
+      }
+    }
+
+    @if (displayKind() !== DisplayKind.SingleDataValue) {
+      @let outputs = outputNames();
+      @for (o of outputs; track o.id) {
+        <div class="outputId chip" [class.lacksValue]="!o.hasValue">
+          <!-- <mat-icon [svgIcon]="'output'">output</mat-icon> -->
+          {{ o.id }}
+        </div>
+      }
+
+      @let outStreams = outStreamNames();
+      @for (s of outStreams; track s) {
+        <div class="outStreamId chip">
+          <!-- <mat-icon [svgIcon]="'output'">output</mat-icon> -->
+          {{ s }}
+        </div>
+      }
+    }
+
+    @if (cellStatus()) {
+      @if (vsCodeLink()) {
+        <button
+          class="hostHoverIconAppear"
+          mat-icon-button
+          matTooltip="Open code link"
+          aria-label="Open code link"
+          (click)="openCodeLink()"
+        >
+          <mat-icon svgIcon="code">code</mat-icon>
+        </button>
+      }
+
+      <!-- <div class="spacer"></div> -->
+      @if (
+        cellStatus() === CellStatus.Stopped ||
+        cellStatus() === CellStatus.NotStarted
+      ) {
+        <button
+          class="hostHoverIconAppear"
+          mat-icon-button
+          matTooltip="Start"
+          aria-label="Start"
+          (click)="cellStart()"
+        >
+          <mat-icon svgIcon="play_circle">play</mat-icon>
+        </button>
+      } @else if (
+        cellStatus() === CellStatus.Running ||
+        cellStatus() === CellStatus.StartingWaitingForInputs
+      ) {
+        <button
+          class="hostHoverIconAppear"
+          mat-icon-button
+          matTooltip="Request Stop"
+          aria-label="Request Stop"
+          (click)="cellRequestStop()"
+        >
+          <mat-icon svgIcon="stop_circle">stop</mat-icon>
+        </button>
+      } @else if (cellStatus() === CellStatus.Stopping) {
+        <button
+          class="hostHoverIconAppear"
+          mat-icon-button
+          matTooltip="Force Stop"
+          aria-label="Force Stop"
+          (click)="cellForceStopAndReset()"
+        >
+          <mat-icon svgIcon="cancel"></mat-icon>
+        </button>
+      } @else {
+        {{ cellStatus() }}
+      }
+    }
+
+    @if (!collapsed()) {
+      <button
+        mat-icon-button
+        class="left-margin"
+        [class.hostHoverIconAppear]="!editDefView()"
+        (click)="editDefView.set(!editDefView())"
+      >
+        <mat-icon
+          [svgIcon]="editDefView() ? 'settings_applications' : 'settings'"
+          >settings</mat-icon
+        >
+      </button>
+
+      @if (editDefView()) {
+        <button
+          mat-icon-button
+          class="left-margin"
+          (click)="deleteThisSection()"
+        >
+          <mat-icon [svgIcon]="'delete'">delete</mat-icon>
+        </button>
+      }
+    }
+
+    <!-- } -->
+  </div>
+
+  <!-- <div class="top-bar"></div> -->
+  <!-- <div class="top-bar" [class.hostHover]="collapsed()"></div> -->
+
+  @if (!collapsed()) {
+    <div class="expanded-section">
+      @if (editDefView()) {
+        <app-codemirror-config-editor
+          [whatIsBeingEditedName]="sec.defData().id"
+          [defaultConfig]="'{}'"
+          [config]="stringifyJsonValue(sec.defData())"
+          [closable]="false"
+          (update)="handleDefUpdate($event)"
+        ></app-codemirror-config-editor>
+      } @else {
+        <!-- @if (!display().hidden) {
+}  -->
+        @switch (data.kind) {
+          @case (SecDefKind.UiCell) {
+            @switch (data.uiView) {
+              @case (ViewerKind.MarkdownOutView) {
+                @let markdown = sec.outputs["markdown"]();
+                @if (markdown) {
+                  <markdown>{{ sec.outputs["markdown"]() }}</markdown>
+                } @else {
+                  markdown not yet defined.
+                }
+              }
+              @case (ViewerKind.JsonObjOutView) {
+                @let jsonObjSignal = sec.outputs["jsonObj"];
+                @if (jsonObjSignal()) {
+                  <app-codemirror-config-editor
+                    [whatIsBeingEditedName]="sec.defData().id"
+                    [defaultConfig]="'{}'"
+                    [config]="stringifyJsonValue(jsonObjSignal())"
+                    [closable]="false"
+                    (update)="handleJsonUpdate($event, jsonObjSignal)"
+                  ></app-codemirror-config-editor>
+                } @else {
+                  JSON not yet defined.
+                }
+              }
+              @case (ViewerKind.ExampleTableView) {
+                <app-example-table [section]="section()"></app-example-table>
+              }
+              @case (ViewerKind.SimpleChartView) {
+                <app-simple-chart [section]="section()"></app-simple-chart>
+              }
+            }
+          }
+          @case (SecDefKind.WorkerCell) {
+            <app-cell-section [section]="workerSection()"></app-cell-section>
+          }
+          @case (SecDefKind.SectionList) {
+            <div>SubExperiment</div>
+          }
+          @case (SecDefKind.Placeholder) {
+            <app-placeholder [section]="section()"></app-placeholder>
+          }
+          @default {
+            <div>Impossible/unknown sectionDataKind</div>
+          }
+        }
+      }
+    </div>
+
+    <!-- <div class="bottom-bar hostHover"></div> -->
+    <!-- <div class="small-buttons showOnHover">
+    <span class="spacer"></span>
+    
+
+    <span class="spacer"></span>
+  </div> -->
   }
-  @case (SectionKind.JsonObj) {
-    <app-codemirror-config-editor
-      [whatIsBeingEditedName]="sec.def.id"
-      [defaultConfig]="'{}'"
-      [config]="stringifyJsonValue(data.sectionData.content)"
-      [closable]="false"
-      (update)="handleSectionJsonUpdate($event, sec.content)"
-    ></app-codemirror-config-editor>
-  }
-  @case (SectionKind.Cell) {
-    <app-cell-section
-      [experiment]="experiment()"
-      [section]="section()"
-      [cellData]="sectionData"
-    ></app-cell-section>
-  }
-  @case (SectionKind.SubExperiment) {
-    <div>SubExperiment</div>
-  }
-  @default {
-    <div>Impossible/unknown sectionDataKind</div>
-  }
-}
+</div>

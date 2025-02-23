@@ -1,70 +1,124 @@
-<div #cellstatus class="cellStatus">
-  [ {{ status() }} ]
-  <div class="spacer"></div>
+<!-- <div #cellstatus class="header">
   @if (status() === CellStatus.NotStarted) {
-    <button icon-button matTooltip="Start" aria-label="Start" (click)="start()">
-      <mat-icon>start</mat-icon>
-    </button>
-  } @else if (status() === CellStatus.Running) {
     <button
-      icon-button
+      mat-icon-button
+      matTooltip="Start"
+      aria-label="Start"
+      (click)="start()"
+    >
+      <mat-icon svgIcon="play_circle">play</mat-icon>
+    </button>
+  } @else if (
+    status() !== CellStatus.Stopping && status() !== CellStatus.Stopped
+  ) {
+    <button
+      mat-icon-button
       matTooltip="Request Stop"
       aria-label="Request Stop"
       (click)="requestStop()"
     >
-      <mat-icon>stop</mat-icon>
+      <mat-icon svgIcon="stop_circle">stop</mat-icon>
     </button>
   } @else if (status() === CellStatus.Stopping) {
     <button
-      icon-button
+      mat-icon-button
       matTooltip="Force Stop"
       aria-label="Force Stop"
       (click)="forceStop()"
     >
-      <mat-icon>force stop</mat-icon>
+      <mat-icon svgIcon="cancel"></mat-icon>
+    </button>
+  } @else if (status() === CellStatus.Stopped) {
+    <button
+      mat-icon-button
+      matTooltip="Restart"
+      aria-label="Restart"
+      (click)="reset()"
+    >
+      <mat-icon svgIcon="restart_alt">restart</mat-icon>
     </button>
   }
-  <button
-    icon-button
-    matTooltip="Restart"
-    aria-label="Restart"
-    (click)="restart()"
-  >
-    <mat-icon>restart</mat-icon>
-  </button>
-</div>
-<div>
-  <!-- @let data =  -->
-  <div>
-    Inputs:
-    <div>
-      @for (i of inputs(); track $index) {
-        {{ i }}
-      }
-    </div>
+  @if (vsCodeLink()) {
+    <button
+      mat-icon-button
+      matTooltip="Open code link"
+      aria-label="Open code link"
+      (click)="openCodeLink()"
+    >
+      <mat-icon svgIcon="code">code</mat-icon>
+    </button>
+  }
+</div> -->
+
+@if (def.cellCodeRef.kind === CellCodeRefKind.InlineWorkerJsCode) {
+  <app-codemirror-js-editor
+    [whatIsBeingEditedName]="'inline code'"
+    [defaultStr]="''"
+    [codeStr]="def.cellCodeRef.js"
+    [closable]="false"
+    (update)="handleJsUpdate($event)"
+  ></app-codemirror-js-editor>
+}
+
+@let inputNames = this.inputNames();
+@let inStreamNames = this.inStreamNames();
+@if (inputNames.length > 0 || inStreamNames.length > 0) {
+  <div class="inputChips">
+    <mat-icon svgIcon="input">inputs</mat-icon>
+    @for (i of inputNames; track i.displayId) {
+      <span class="inputId chip" [class.lacksValue]="!i.hasValue">
+        {{ i.id }} = {{ i.displayId }}
+      </span>
+    }
+    @for (i of inStreamNames; track i.displayId) {
+      <span class="inStreamId chip">{{ i.id }} = {{ i.displayId }} </span>
+    }
   </div>
-  <div>
+}
+
+@let outputNames = this.outputNames();
+@let outStreamNames = this.outStreamNames();
+@if (outputNames.length > 0 || outStreamNames.length > 0) {
+  <div class="outputChips">
+    <mat-icon svgIcon="output">outputs</mat-icon>
+    @for (o of outputNames; track o.displayId) {
+      <span class="outputId chip" [class.lacksValue]="!o.hasValue">
+        {{ o.displayId }}
+      </span>
+    }
+    @for (o of outStreamNames; track o) {
+      <span class="outStreamId chip">
+        {{ o }}
+      </span>
+    }
+  </div>
+}
+
+<!-- <div class="inputs">
+    Inputs
+    @for (i of inputs(); track $index) {
+      <div>
+        <span>{{ i }}</span
+        >:
+        <app-auto-completed-text-input
+          [label]="i"
+          [selectedName]="null"
+          [itemNames]="sectionsWithOutputs()"
+          (itemSelected)="selectInputSection(i, $event)"
+        ></app-auto-completed-text-input>
+        <app-auto-completed-text-input
+          [label]="i"
+          [selectedName]="null"
+          [itemNames]="outputFromThatCellNames()"
+        ></app-auto-completed-text-input>
+      </div>
+    }
+  </div>
+  <div class="outputs">
     Outputs:
     <div>
       @for (i of outputs(); track $index) {
         {{ i }}
       }
     </div>
-  </div>
-  <div>
-    InStreams:
-    <div>
-      @for (i of inStreams(); track $index) {
-        {{ i }}
-      }
-    </div>
-  </div>
-  <div>
-    OuStreams:
-    <div>
-      @for (i of outStreams(); track $index) {
-        {{ i }}
-      }
-    </div>
-  </div>
-</div>
+  </div> -->

@@ -1,0 +1,51 @@
+.notConnectedToOutput {
+  border-radius: 5px;
+  border: 1px dotted #bbb;
+  font-size: small;
+  color: #bbb;
+  padding: 3px;
+}
+
+.connectedToOutput {
+  border-radius: 5px;
+  border: 1px dashed #999;
+  font-size: small;
+  color: #777;
+  padding: 3px;
+}
+
+.waitingForValue {
+  margin-bottom: 10px;
+}
+
+.mat-mdc-table {
+  min-width: 100px;
+}
+
+table {
+  --mat-table-header-container-height: auto;
+  --mat-table-footer-container-height: auto;
+  --mat-table-row-item-container-height: auto;
+  // border-spacing: 2px;
+
+  th {
+    padding-top: 5px;
+  }
+  
+  td {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+}
+
+.title {
+  display: flex;
+  align-items: center;
+
+  mat-icon {
+    width: 16px !important;
+    height: 16px !important;
+    margin-left: 5px;
+    margin-right: 5px;
+  }
+}

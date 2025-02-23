@@ -1,5 +1,5 @@
 export function nullableEqFn<T>(
-  eq: (a: T, b: T) => boolean
+  eq: (a: T, b: T) => boolean,
 ): (a: T | null, b: T | null) => boolean {
   return (a, b) => (a === null && b === null) || (a !== null && b !== null && eq(a, b));
 }
@@ -30,4 +30,17 @@ export function asyncIterify<T>(iter: Iterator<T>): AsyncIterator<T> {
       return await iter.next();
     },
   };
+}
+
+export type ErrorXorValue<T> = [Error, undefined] | [undefined, T];
+
+export async function tryer<T>(p: Promise<T>): Promise<ErrorXorValue<T>> {
+  let result: T | undefined;
+  let err: Error | undefined;
+  try {
+    result = await p;
+  } catch (e) {
+    err = e as Error;
+  }
+  return [err, result] as never as Promise<ErrorXorValue<T>>;
 }
