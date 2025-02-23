@@ -162,6 +162,7 @@ export class WebColabComponent {
   env: LabEnv;
   space: SignalSpace;
   experiment = signal<Experiment | null>(null);
+  currentSection = signal<Section | null>(null);
   viewPath: Signal<Experiment[]>;
   fileDataResolver?: AbstractDataResolver;
   cacheDataResolver: LocalCacheDataResolver;
@@ -206,6 +207,16 @@ export class WebColabComponent {
     this.cacheDataResolver = new LocalCacheDataResolver(this.cacheService.cache);
     this.tryLoadExperimentFromCache();
   }
+
+  noteFocusIn(section: Section, focusEvent: FocusEvent) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      fragment: `sec:${section.initDef.id}`,
+      queryParamsHandling: 'merge', // Preserve existing query params
+    });
+    this.currentSection.set(section);
+  }
+  noteFocusOut(section: Section, focusEvent: FocusEvent) {}
 
   noteInView(section: Section, inView: boolean) {
     if (inView) {

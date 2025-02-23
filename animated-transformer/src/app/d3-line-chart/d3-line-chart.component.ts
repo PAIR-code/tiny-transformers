@@ -23,29 +23,21 @@ export interface NamedChartPoint {
   x: number;
   y: number;
   name: string;
+  // Used for display purposes, sometimes we set points to be the same as the
+  // previous point (to flatline, but also change the style to let the user know
+  // it's NaN).
+  isNaN?: boolean;
 }
 
 // TODO: make it handle NaNs sensibly: use same value as before, but use dotted line and X marker.
-
 export interface LineChartConfig {
-  x?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (temporal) x-value
-  y?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (quantitative) y-value
-  curve?: typeof d3.curveLinear; // method of interpolation between points
+  hiddenLineNames?: string[];
   marginTop?: number; // top margin, in pixels
   marginRight?: number; // right margin, in pixels
   marginBottom?: number; // bottom margin, in pixels
   marginLeft?: number; // left margin, in pixels
   width?: number; // outer width, in pixels
   height?: number; // outer height, in pixels
-  xType?: typeof d3.scaleLinear;
-  // typeof d3.scaleUtc; // the x-scale type
-  xDomain?: [number, number]; // [xmin, xmax]
-  xRange?: [number, number]; //  = [marginLeft, width - marginRight], // [left, right]
-  xFormat?: string | ((v: number) => string); // a format specifier string for the y-axis
-  yType?: typeof d3.scaleLinear; // the y-scale type
-  yDomain?: [number, number]; // [ymin, ymax]
-  yRange?: [number, number]; //  = [height - marginBottom, marginTop], // [bottom, top]
-  yFormat?: string | ((v: number) => string); // a format specifier string for the y-axis
   yLabel?: string; // a label for the y-axis
   strokeLinecap?: string; // = "round", // stroke line cap of the line
   strokeLinejoin?: string; // = "round", // stroke line join of the line
@@ -53,11 +45,30 @@ export interface LineChartConfig {
   strokeOpacity?: number; // = 1, // stroke opacity of line
   legendX?: number; // legend X position.
   legendY?: number; // legend Y position.
+  yDomain?: [number, number]; // [ymin, ymax]
+  yRange?: [number, number]; //  = [height - marginBottom, marginTop], // [bottom, top]
+  xDomain?: [number, number]; // [xmin, xmax]
+  xRange?: [number, number]; //  = [marginLeft, width - marginRight], // [left, right]
+}
+
+export interface LineChartParams extends LineChartConfig {
+  x?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (temporal) x-value
+  y?: (d: NamedChartPoint, i: number) => number; // given d in data, returns the (quantitative) y-value
+  curve?: typeof d3.curveLinear; // method of interpolation between points
+  xType?: typeof d3.scaleLinear;
+  // typeof d3.scaleUtc; // the x-scale type
+  xFormat?: string | ((v: number) => string); // a format specifier string for the y-axis
+  yType?: typeof d3.scaleLinear; // the y-scale type
+  yFormat?: string | ((v: number) => string); // a format specifier string for the y-axis
 }
 
 interface DrawData {
-  pointsByName: { [name: string]: NamedChartPoint[] };
+  data: NamedChartPoint[];
+  // expected to be a subset of data.name;
+  hiddenLineNames: Set<string>;
 
+  xRange: [number, number];
+  yRange: [number, number];
   // X: number[]; // all x values
   // Y: number[]; // all y values
   // I: number[]; // indexes into X,Y,D.
@@ -72,12 +83,6 @@ interface DrawData {
   marginBottom: number;
   marginLeft: number;
 
-  xScale: d3.ScaleLinear<number, number, never>;
-  yScale: d3.ScaleLinear<number, number, never>;
-
-  xAxis: d3.Axis<d3.NumberValue>;
-  yAxis: d3.Axis<d3.NumberValue>;
-  yAxisLines: d3.Axis<d3.NumberValue>;
   yLabel: string;
 
   strokeWidth: number;
@@ -99,7 +104,7 @@ interface DrawData {
 })
 export class D3LineChartComponent {
   dataPoints: NamedChartPoint[] = [];
-  chartConfig: LineChartConfig = {};
+  chartConfig: LineChartParams = {};
   drawData?: DrawData;
   // config: LineChartConfig = {};
   chartParts?: ChartParts;
@@ -114,11 +119,11 @@ export class D3LineChartComponent {
   }
 
   @Input()
-  set config(newConfig: LineChartConfig) {
+  set config(newConfig: LineChartParams) {
     this.chartConfig = newConfig;
     this.updateChart();
   }
-  get config(): LineChartConfig {
+  get config(): LineChartParams {
     return this.chartConfig;
   }
 
@@ -168,18 +173,15 @@ function updateChart(drawData: DrawData, chartParts: ChartParts) {
   const { svg, legend, xAxisG, yAxisG, pathsG, yAxisLinesG } = chartParts;
 
   const {
-    pointsByName,
+    data,
     width,
     height,
-    xScale,
-    yScale,
+    xRange,
+    yRange,
     marginBottom,
     marginTop,
     marginLeft,
     marginRight,
-    xAxis,
-    yAxis,
-    yAxisLines,
     yLabel,
     strokeWidth,
     strokeLinecap,
@@ -189,6 +191,53 @@ function updateChart(drawData: DrawData, chartParts: ChartParts) {
     legendY,
     curveFn,
   } = drawData;
+
+  // Scale and Axis
+  // If we wanted to allow dynamic config, we'd do something like this...
+  // const xType = config.xType || d3.scaleLinear; // d3.scaleUtc;
+  // const yType = config.yType || d3.scaleLinear;
+  // const xDomain = config.xDomain || (d3.extent(X) as [number, number]);
+  // const yDomain = config.yDomain || ([d3.min(Y), d3.max(Y)] as [number, number]);
+  // const xScale = xType(xDomain, xRange);
+  // const yScale = yType(yDomain, yRange);
+  // const yFormat = config.yFormat || d3.format('f');
+  // const xFormat = config.xFormat || d3.format('f');
+
+  const pointsByName: { [name: string]: NamedChartPoint[] } = {};
+  {
+    const lastPointByName: { [name: string]: NamedChartPoint } = {};
+    data.forEach((d) => {
+      if (!(d.name in pointsByName)) {
+        pointsByName[d.name] = [];
+      }
+      if (isNaN(d.y)) {
+        d.y = lastPointByName[d.name].y;
+        d.isNaN = true;
+      }
+      lastPointByName[d.name] = d;
+      pointsByName[d.name].push(d);
+    });
+  }
+
+  const shownData = data.filter((d) => !drawData.hiddenLineNames.has(d.name));
+
+  const X = d3.map(shownData, (d) => d.x);
+  const Y = d3.map(shownData, (d) => d.y);
+  const xType = d3.scaleLinear; // d3.scaleUtc;
+  const yType = d3.scaleLinear;
+  const xDomain = d3.extent(X) as [number, number];
+  const yDomain = [d3.min(Y), d3.max(Y)] as [number, number];
+  const xScale = xType(xDomain, xRange) as d3.ScaleLinear<number, number, never>;
+  const yScale = yType(yDomain, yRange) as d3.ScaleLinear<number, number, never>;
+  const yFormat = d3.format('f');
+  const xFormat = d3.format('f');
+
+  const xAxis = d3
+    .axisBottom(xScale)
+    .ticks(width / 80, xFormat)
+    .tickSizeOuter(0);
+  const yAxis = d3.axisLeft(yScale).ticks(height / 40, yFormat);
+  const yAxisLines = d3.axisLeft(yScale).ticks(height / 40, null);
 
   // Construct a line generator.
   const line = d3
@@ -224,27 +273,41 @@ function updateChart(drawData: DrawData, chartParts: ChartParts) {
     .attr('stroke-opacity', 0.1);
   yAxisLinesSelection.selectAll('text').remove();
 
-  const colorDomains = Object.keys(pointsByName);
-  const color = d3.scaleOrdinal<string, string>().domain(colorDomains).range(d3.schemeSet2);
+  const allLineNames = Object.keys(pointsByName);
+  const pointNamesToPlot = allLineNames.filter((n) => !drawData.hiddenLineNames.has(n));
+  const color = d3.scaleOrdinal<string, string>().domain(allLineNames).range(d3.schemeSet2);
 
   // Add one dot in the legend for each name.
   legend
     .selectAll('circle')
-    .data(colorDomains)
+    .data(allLineNames)
     .join('circle')
+    .on('click', (_event, d) => {
+      console.log('clicked on circle', d);
+      if (drawData.hiddenLineNames.has(d)) {
+        drawData.hiddenLineNames.delete(d);
+      } else {
+        drawData.hiddenLineNames.add(d);
+      }
+      updateChart(drawData, chartParts);
+    })
     .attr('cx', legendX)
     .attr('cy', function (d, i) {
       return legendY + i * 15;
     })
     .attr('r', 4)
-    .style('fill', function (d) {
+    .style('stroke', (d) => color(d))
+    .style('fill', (d) => {
+      if (drawData.hiddenLineNames.has(d)) {
+        return '#FFF';
+      }
       return color(d);
     });
 
   // Add one dot in the legend for each name.
   legend
     .selectAll('text')
-    .data(colorDomains)
+    .data(allLineNames)
     .join('text')
     .attr('font-size', 'smaller')
     .attr('x', legendX + 10)
@@ -262,7 +325,7 @@ function updateChart(drawData: DrawData, chartParts: ChartParts) {
 
   pathsG
     .selectAll('path')
-    .data(Object.keys(pointsByName))
+    .data(pointNamesToPlot)
     .join('path')
     // append("path")
     .attr('fill', 'none')
@@ -274,19 +337,7 @@ function updateChart(drawData: DrawData, chartParts: ChartParts) {
     .attr('d', (d) => line(pointsByName[d]));
 }
 
-function initDrawData(config: LineChartConfig, data: NamedChartPoint[]): DrawData {
-  const pointsByName: { [name: string]: NamedChartPoint[] } = {};
-  data.forEach((d) => {
-    if (!(d.name in pointsByName)) {
-      pointsByName[d.name] = [];
-    }
-    pointsByName[d.name].push(d);
-  });
-
-  const x = config.x || ((d) => d.x);
-  const y = config.y || ((d) => d.y);
-  const X = d3.map(data, x);
-  const Y = d3.map(data, y);
+function initDrawData(config: LineChartParams, data: NamedChartPoint[]): DrawData {
   // const I = d3.range(X.length);
   const curveFn = config.curve || d3.curveLinear;
 
@@ -296,24 +347,8 @@ function initDrawData(config: LineChartConfig, data: NamedChartPoint[]): DrawDat
   const marginRight = config.marginRight === undefined ? 30 : config.marginRight;
   const marginBottom = config.marginBottom === undefined ? 30 : config.marginBottom;
   const marginLeft = config.marginLeft === undefined ? 50 : config.marginLeft;
-  const xDomain = config.xDomain || (d3.extent(X) as [number, number]);
-  const yDomain = config.yDomain || ([d3.min(Y), d3.max(Y)] as [number, number]);
   const xRange = config.xRange || [marginLeft, width - marginRight];
   const yRange = config.yRange || [height - marginBottom, marginTop];
-
-  // Scale and Axis
-  const xType = config.xType || d3.scaleLinear; // d3.scaleUtc;
-  const yType = config.yType || d3.scaleLinear;
-  const xScale = xType(xDomain, xRange);
-  const yScale = yType(yDomain, yRange);
-  const yFormat = config.yFormat || d3.format('f');
-  const xFormat = config.xFormat || d3.format('f');
-  const xAxis = d3
-    .axisBottom(xScale)
-    .ticks(width / 80, xFormat)
-    .tickSizeOuter(0);
-  const yAxis = d3.axisLeft(yScale).ticks(height / 40, yFormat);
-  const yAxisLines = d3.axisLeft(yScale).ticks(height / 40, null);
 
   const yLabel = config.yLabel || '';
   const strokeLinecap = config.strokeLinecap || 'round';
@@ -325,20 +360,18 @@ function initDrawData(config: LineChartConfig, data: NamedChartPoint[]): DrawDat
   // y format precision decided implicitly by data.
   // const color = config.color || '#000';
 
-  return {
+  const drawData: DrawData = {
     // X, Y, I, N,
-    pointsByName,
+    data,
+    hiddenLineNames: new Set(config.hiddenLineNames || []),
     width,
     height,
-    xScale,
-    yScale,
+    xRange,
+    yRange,
     marginBottom,
     marginTop,
     marginLeft,
     marginRight,
-    xAxis,
-    yAxis,
-    yAxisLines,
     yLabel,
     strokeWidth,
     strokeLinecap,
@@ -347,5 +380,6 @@ function initDrawData(config: LineChartConfig, data: NamedChartPoint[]): DrawDat
     legendX,
     legendY,
     curveFn,
-  } as DrawData;
+  };
+  return drawData;
 }

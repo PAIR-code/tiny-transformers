@@ -41,7 +41,11 @@ export function tubeifyJsonValue(value: JsonValue): Tube {
       // JsonObj.
       const objTube = new ObjTube();
       for (const k of Object.keys(value)) {
-        if (Object.prototype.hasOwnProperty.call(value, k)) {
+        // For every normal object key that is not assigned to undefined add a
+        // printout for it's key.
+        //
+        // This treats an object { foo: undefined } to have the same serialization as {}
+        if (Object.prototype.hasOwnProperty.call(value, k) && value[k] !== undefined) {
           const child = tubeifyJsonValue(value[k]);
           objTube.addKeyChild(k, child);
         }

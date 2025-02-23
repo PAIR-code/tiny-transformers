@@ -93,7 +93,11 @@
         <mat-nav-list class="menu-buttons">
           @for (section of sections; track section.initDef.id) {
             <a [href]="'#sec:' + section.initDef.id">
+              @let currentSec = currentSection();
               <mat-list-item
+                [class.focusedSectionStyle]="
+                  currentSec && currentSec.initDef.id === section.initDef.id
+                "
                 [class.onScreen]="this.inViewSections.has(section.initDef.id)"
                 matListItemTitle
                 ariaCurrentWhenActive="sections"
@@ -108,16 +112,17 @@
       <mat-sidenav-content>
         <div class="sections">
           @for (section of sections; track section.initDef.id) {
-            <div class="section">
-              <a [name]="'sec:' + section.initDef.id"></a>
-              <app-section
-                (inView)="noteInView(section, $event)"
-                (edited)="onSectionEdited(section, $event)"
-                (addSecAbove)="addPlaceholderAboveSec(section)"
-                [experiment]="exp"
-                [section]="section"
-              ></app-section>
-            </div>
+            <a [name]="'sec:' + section.initDef.id"></a>
+            <app-section
+              tabindex="0"
+              (focusin)="noteFocusIn(section, $event)"
+              (focusout)="noteFocusOut(section, $event)"
+              (inView)="noteInView(section, $event)"
+              (edited)="onSectionEdited(section, $event)"
+              (addSecAbove)="addPlaceholderAboveSec(section)"
+              [experiment]="exp"
+              [section]="section"
+            />
           }
         </div>
       </mat-sidenav-content>

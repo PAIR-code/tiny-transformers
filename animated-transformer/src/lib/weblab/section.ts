@@ -414,13 +414,13 @@ export class Section<
   // For IO Sections (always empty except for UiCell and Worker)
   inStream = {} as {
     [Key in keyof I]: {
-      lastValue: SetableSignal<I[Key] | null>;
+      signal: SetableSignal<I[Key] | null>;
       openCount: SetableSignal<number>;
     };
   };
   outStream = {} as {
     [Key in keyof O]: {
-      lastValue: SetableSignal<O[Key] | null>;
+      signal: SetableSignal<O[Key] | null>;
       done: SetableSignal<boolean>;
     };
   };
@@ -678,7 +678,6 @@ export class Section<
   ): Promise<void> {
     const thisSection = this.assertWorkerSection();
     const secDef = thisSection.defData();
-    console.log(`initSectionCellData: WokrerCell: ${secDef.id}`);
     const cellKind = new CellKind(secDef.id, cellIoForCellSection(secDef));
     const controller = new CellController(this.experiment.env, secDef.id, cellKind);
 
@@ -768,7 +767,6 @@ export class Section<
       thisSection.outputs[outputId] = thisSection.space.setable(cellOutputRef.lastValue || null);
       if (cellOutputRef.saved) {
         this.space.derived(() => {
-          console.log(`updating defData for ${this.initDef.id}`);
           const newOutput = thisSection.outputs[outputId]();
           thisSection.defData.change((d) => (d.io.outputs[outputId].lastValue = newOutput));
         });
@@ -778,7 +776,7 @@ export class Section<
 
     for (const outStreamId of data.io.outStreamIds || []) {
       thisSection.outStream[outStreamId] = {
-        lastValue: thisSection.space.setable(null),
+        signal: thisSection.space.setable(null),
         done: thisSection.space.setable(false),
       };
       this.outStreamDeps.addLocalId(outStreamId);
@@ -806,13 +804,10 @@ export class Section<
     }
 
     for (const [inputId, cellInStreamRefs] of Object.entries(data.io.inStreams)) {
-      console.log(
-        `unifyOutputToInputSignalsAndDeps: inputId: ${inputId}, ${JSON.stringify(cellInStreamRefs)}`,
-      );
       const inStreamValueSignal = this.space.setable(null);
       const inStreamOpenCountSignal = this.space.setable(0);
       thisSection.inStream[inputId] = {
-        lastValue: inStreamValueSignal,
+        signal: inStreamValueSignal,
         openCount: inStreamOpenCountSignal,
       };
 
@@ -830,7 +825,7 @@ export class Section<
         }
 
         this.space.derived(() =>
-          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].lastValue()),
+          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].signal()),
         );
         inStreamOpenCountSignal.update((c) => c + 1);
         this.space.derived(() => {
@@ -841,7 +836,7 @@ export class Section<
         });
         // input stream is done when all outputs feeding into it are done.
         this.space.derived(() =>
-          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].lastValue()),
+          inStreamValueSignal.set(otherSection.outStream[cellInStreamRef.outStreamId].signal()),
         );
       }
     }
@@ -923,20 +918,15 @@ export class Section<
       // TODO: this will need to be updated if a section is dynamically added
       // that takes an output of an existing cell. Because
       // dependOnMeSections.length may become > 0.
-      console.log(
-        `connectWorker (${this.initDef.id}): ${JSON.stringify([...Object.keys(this.outStreamDeps.localIdToSecMap)])}, outstreamId: ${outStreamId}`,
-      );
       const dependOnMeSections = [...this.outStreamDeps.localIdToSecMap[outStreamId].keys()];
-      console.log(dependOnMeSections);
       let hasUiSecDep = dependOnMeSections.find((sec) => !sec.isWorkerSection());
       if (hasUiSecDep) {
-        console.log(`connectWorker (${this.initDef.id}):  outstreamId: ${outStreamId} connected.`);
         const controller = thisSection.cell.controller;
         const streamReceiver = controller.outStreams[outStreamId].connect();
         const signalWrap = asyncIterToSignal(streamReceiver, this.space);
-        signalWrap.onceSignal.then((outStreamSignal) =>
-          this.space.derived(() => this.outStream[outStreamId].lastValue.set(outStreamSignal())),
-        );
+        signalWrap.onceSignal.then((outStreamSignal) => {
+          this.space.derived(() => this.outStream[outStreamId].signal.set(outStreamSignal()));
+        });
         signalWrap.onceDone.then(() => this.outStream[outStreamId].done.set(true));
       }
     }

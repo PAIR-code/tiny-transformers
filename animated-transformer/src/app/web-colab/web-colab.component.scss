@@ -16,6 +16,10 @@
   --mat-list-active-indicator-shape: 0px
   /* border-radius: 0px; */
 }
+
+.focusedSectionStyle {
+  border-right: 6px solid #BBB;
+}
   
 .menu-buttons {
   a {
@@ -92,8 +96,13 @@
   background-color: #FFF;
 }
 
-.section {
-}
+// .section {
+//   border-left: 8px solid #FFF;
+// }
+
+// .section:focus-within, .section:focus {
+//   border-left: 8px solid #AAA;
+// }
 
 .spacer {
   flex: 1;

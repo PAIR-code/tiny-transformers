@@ -1,8 +1,8 @@
 @use '../common_mixins' as common;
 
 :host {
-  display: block;
-  background-color: #FFF;
+  // display: block;
+  // background-color: #FFF;
 }
 
 :host {
@@ -26,7 +26,7 @@
   }
 }
 
-:host:hover {
+:host:hover, :host:focus-within {
   // opacity: 1 !important;
   transition: var(--my-hover-transition);
   // border-top: 1px dotted #CCC;
@@ -45,13 +45,31 @@
   }
 }
 
+.nonBarSectionPart {
+  border-left: 6px solid #fff;
+}
+
+:host:focus-within, :host:focus {
+  .nonBarSectionPart {
+    border-left: 6px solid #ccc;  
+  }
+}
+
+
+.horiz-center {
+  display: flex;
+  justify-content: center;
+}
+
 .bottom-bar {
   height: 0px;
-  border-bottom: 1px dotted #CCC;
+  border-top: 1px dotted #CCC;
   // border-bottom: 1px dotted #CCC;
   flex: 1 1 auto;
   // height: 12px;
   // margin-bottom: -12px;
+  margin-top: -6px;
+  // padding-top: -6px;
   padding-bottom: 12px;
   margin-bottom: 6px;
   z-index: 2;

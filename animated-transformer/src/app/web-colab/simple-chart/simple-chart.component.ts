@@ -17,6 +17,21 @@ function lenEqual<T>(a: T[], b: T[]) {
   return a === b && a.length === b.length;
 }
 
+const graphDataId = 'graphData';
+type GraphData = {
+  points: NamedChartPoint[];
+  keyConfig: {
+    [keyName: string]: {
+      hide: boolean;
+    };
+  };
+  plotConfig: LineChartConfig;
+};
+
+function initGraphData(): GraphData {
+  return { points: [], keyConfig: {}, plotConfig: {} };
+}
+
 @Component({
   selector: 'app-simple-chart',
   imports: [D3LineChartComponent, MatButtonModule, MatIconModule, MatMenuModule],
@@ -26,8 +41,7 @@ function lenEqual<T>(a: T[], b: T[]) {
 })
 export class SimpleChartComponent implements OnInit {
   section = input.required<Section>();
-  data = signal<NamedChartPoint[]>([]);
-  config = signal<LineChartConfig>({});
+  data = signal<GraphData>(initGraphData());
   metrics!: AbstractSignal<Metrics<'entropyLoss' | 'accuracy'> | null>;
 
   constructor() {
@@ -35,8 +49,7 @@ export class SimpleChartComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log(`SimpleChartComponent`, this.section().defData());
-    this.metrics = this.section().inStream['metrics'].lastValue;
+    this.metrics = this.section().inStream['metrics'].signal;
     this.section().space.derived(() => {
       const m = this.metrics();
       if (!m) {
@@ -51,15 +64,20 @@ export class SimpleChartComponent implements OnInit {
         };
         newPoints.push(p);
       }
-      this.section().outputs['metricsSummary'].update((old) => old.concat(...newPoints), {
-        updateStrategy: SetableUpdateKind.ForceUpdate,
-      });
+      const graphData: GraphData =
+        this.section().outputs[graphDataId].lastValue() || initGraphData();
+      this.section().outputs[graphDataId].set(graphData);
+      this.section().outputs[graphDataId].change(
+        (graphData) => (graphData.points = graphData.points.concat(...newPoints)),
+      );
     });
 
-    this.section().space.derived(() => this.data.set(this.section().outputs['metricsSummary']()));
+    this.section().space.derived(() => {
+      this.data.set({ ...(this.section().outputs[graphDataId]() || initGraphData()) });
+    });
   }
 
   clear() {
-    this.data.set([]);
+    this.section().outputs[graphDataId].set(initGraphData());
   }
 }

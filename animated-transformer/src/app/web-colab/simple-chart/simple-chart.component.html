@@ -1,14 +1,20 @@
-<app-d3-line-chart [data]="data()" [config]="config()"></app-d3-line-chart>
+<div class="main" tabindex="0">
+  <app-d3-line-chart
+    [data]="data().points"
+    [config]="data().plotConfig"
+  ></app-d3-line-chart>
 
-<button
-  mat-icon-button
-  matTooltip=""
-  [matMenuTriggerFor]="chartMenu"
-  aria-label="Chart Menu"
->
-  <mat-icon svgIcon="more_vert">more_vert</mat-icon>
-</button>
-<mat-menu #chartMenu>
-  <button mat-menu-item matTooltip="clear" (click)="clear()">clear</button>
-  <!-- TODO: add a button to show/hide every entry, and or separate the charts? -->
-</mat-menu>
+  <button
+    class="hostHover"
+    mat-icon-button
+    matTooltip=""
+    [matMenuTriggerFor]="chartMenu"
+    aria-label="Chart Menu"
+  >
+    <mat-icon svgIcon="more_vert">more_vert</mat-icon>
+  </button>
+  <mat-menu #chartMenu>
+    <button mat-menu-item matTooltip="clear" (click)="clear()">clear</button>
+    <!-- TODO: add a button to show/hide every entry, and or separate the charts? -->
+  </mat-menu>
+</div>

@@ -60,8 +60,8 @@
   ></app-codemirror-js-editor>
 }
 
-@let inputNames = section().inputNames();
-@let inStreamNames = section().inStreamNames();
+@let inputNames = this.inputNames();
+@let inStreamNames = this.inStreamNames();
 @if (inputNames.length > 0 || inStreamNames.length > 0) {
   <div class="inputChips">
     <mat-icon svgIcon="input">inputs</mat-icon>
@@ -76,9 +76,8 @@
   </div>
 }
 
-@let outputNames = section().outputNames();
-@let outStreamNames = section().outStreamNames();
-
+@let outputNames = this.outputNames();
+@let outStreamNames = this.outStreamNames();
 @if (outputNames.length > 0 || outStreamNames.length > 0) {
   <div class="outputChips">
     <mat-icon svgIcon="output">outputs</mat-icon>

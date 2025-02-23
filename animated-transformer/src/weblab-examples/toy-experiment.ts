@@ -301,9 +301,8 @@ export const matericsGraphViewSecDef: SecDefOfUiView = {
   io: {
     inputs: {},
     outputs: {
-      metricsSummary: {
+      graphData: {
         saved: true,
-        lastValue: [] as JsonValue,
       },
     },
     inStreams: {

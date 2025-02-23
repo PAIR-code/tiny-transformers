@@ -49,6 +49,9 @@ import {
   Section,
   WorkerSection,
   CellCodeRef,
+  SectionInputNameRef,
+  SectionInStreamNameRef,
+  SectionOutputNameRef,
 } from '../../../lib/weblab/section';
 import { DomSanitizer } from '@angular/platform-browser';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
@@ -93,8 +96,13 @@ export class CellSectionComponent implements OnInit, OnDestroy {
   status: WritableSignal<CellStatus>;
   def!: SecDefOfWorker;
   vsCodeLink = signal('');
-  sectionsWithOutputs = signal<string[]>([]);
-  possibleCellOuputs = signal<string[]>([]);
+  // sectionsWithOutputs = signal<string[]>([]);
+  // possibleCellOuputs = signal<string[]>([]);
+
+  inputNames: WritableSignal<SectionInputNameRef[]> = signal([]);
+  inStreamNames: WritableSignal<SectionInStreamNameRef[]> = signal([]);
+  outputNames: WritableSignal<SectionOutputNameRef[]> = signal([]);
+  outStreamNames: WritableSignal<string[]> = signal([]);
 
   signalTrackingDerivations = [] as DerivedSignal<void>[];
 
@@ -142,18 +150,23 @@ export class CellSectionComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.section().experiment.space.derived(() =>
-      this.sectionsWithOutputs.set([...this.section().experiment.secIdsWithOutputs()].sort()),
-    );
+    // this.section().experiment.space.derived(() =>
+    //   this.sectionsWithOutputs.set([...this.section().experiment.secIdsWithOutputs()].sort()),
+    // );
 
-    this.section().experiment.space.derived(() => {
-      const outputs = this.section().outputs;
-      for (const k of Object.keys(outputs)) {
-        console.log(
-          `CellSectionComponent: ${this.def.id}.output[${k}]: ${JSON.stringify(outputs[k]())}`,
-        );
-      }
-    });
+    section.space.derived(() => this.inputNames.set(section.inputNames()));
+    section.space.derived(() => this.inStreamNames.set(section.inStreamNames()));
+    section.space.derived(() => this.outputNames.set(section.outputNames()));
+    section.space.derived(() => this.outStreamNames.set(section.outStreamNames()));
+
+    // this.section().experiment.space.derived(() => {
+    //   const outputs = this.section().outputs;
+    //   for (const k of Object.keys(outputs)) {
+    //     console.log(
+    //       `CellSectionComponent: ${this.def.id}.output[${k}]: ${JSON.stringify(outputs[k]())}`,
+    //     );
+    //   }
+    // });
   }
 
   selectInputSection(inputId: string, selectedCellId: string | null) {

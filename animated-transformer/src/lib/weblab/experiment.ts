@@ -387,8 +387,11 @@ export async function saveExperiment(
   rootExperimentFilePath: string,
   distrSectionDef: DistrSerialization<SecDefWithData, JsonValue>,
 ): Promise<void> {
-  await dataResolver.saveStr([rootExperimentFilePath], jsonEncode(distrSectionDef.data));
+  await dataResolver.saveStr(
+    [rootExperimentFilePath],
+    jsonEncode(distrSectionDef.data, { quoteAllKeys: true }),
+  );
   for (const [p, d] of Object.entries(distrSectionDef.subpathData || {})) {
-    await dataResolver.saveStr([p], jsonEncode(d));
+    await dataResolver.saveStr([p], jsonEncode(d, { quoteAllKeys: true }));
   }
 }
