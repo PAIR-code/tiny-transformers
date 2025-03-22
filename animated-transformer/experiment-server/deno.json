@@ -5,8 +5,6 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
     "@std/path": "jsr:@std/path@^1.0.6",
-    "@trpc/client": "npm:@trpc/client@^11.0.0-rc.730",
-    "@trpc/server": "npm:@trpc/server@^11.0.0-rc.730",
-    "zod": "npm:zod@^3.23.8"
+    "lib/utils": "../src/lib/utils.ts"
   }
 }

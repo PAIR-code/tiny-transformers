@@ -4,7 +4,7 @@ Recommended dependendies:
 
 - Install node `v22` using the [nvm](https://github.com/nvm-sh/nvm) tool: `$ nvm install v22`
   - Set the default to be this version: `nvm alias default v22`
-- \[optional\] Install globally the Angular 18 CLI with `$ npm install -g @angular/cli` so that you can directly use `ng` commands, otherwise you have to use `npx ng`.
+- \[optional\] Install globally the Angular 19+ CLI with `$ npm install -g @angular/cli` so that you can directly use `ng` commands, otherwise you have to use `npx ng`.
 
 ## Development server
 
@@ -14,18 +14,19 @@ First time setup:
 - Change into the right subdirectory: `cd tiny-transformers/animated-transformer`
 - Install dependencies: `npm install`
 
-Start a dev sever with `npm start`.
+Start a dev sever with `npm run start`.
 
 Navigate to `http://localhost:4200/`. The app will automatically reload if you
 change any of the source files.
 
-NOTE: The dev server listens on 127.0.0.1. If you intend to access the
-dev server from another machine, you'll need to tunnel the traffic using `ssh`'s
-`-L` flag.
+NOTE: The dev server listens on 127.0.0.1 (aka `localhost`). If you intend to
+access the dev server from another machine, you'll need to tunnel the traffic
+using `ssh`'s `-L` flag.
 
 In additon to the angular build server, the current setup assumes an additional
-server on port 9000, that serves some library JS files for web-workers to 
-import. This is done via the command: 
+server on port `9000`, that serves some library JS files for web-workers to
+import. This get started by `npm run start`, but it can also be started
+seperately if you want via the command: 
 
 ```sh
 npx ts-node src/weblab-examples/build.script.ts --mode=serve
@@ -44,21 +45,15 @@ importScripts('/scripts/lib.worker.js');
 
 1. Download the SVG of an icon, e.g. from: https://fonts.google.com/icons into
    the `src/assets/icons` directory, e.g. the [`settings`](https://fonts.google.com/icons?selected=Material+Symbols+Outlined:settings:FILL@0;wght@400;GRAD@0;opsz@24&icon.size=24&icon.color=%235f6368) icon.
-1. Make the component import `MatIconModule`, and add code like this to the
-   constructor: 
+1. Import `MatIconModule` and `addIcons` to then let you use the
+   `addIcons` function inside the constructor: 
     
 ```ts
-const iconRegistry = inject(MatIconRegistry);
-const sanitizer = inject(DomSanitizer);
-function addIcons(names: string[]) {
-  for (const name of names) {
-    iconRegistry.addSvgIcon(
-      name,
-      sanitizer.bypassSecurityTrustResourceUrl(`assets/icons/${name}.svg`),
-    );
-  }
-}
-addIcons(['settings']);
+import { addIcons } from 'src/app/icon-registry';
+import { MatIconModule } from '@angular/material/icon';
+
+// Inside of your component's constuctor(...) { ...
+  addIcons(['settings']);
 ```
 
 

@@ -94,7 +94,8 @@ export class CellWorker<
 
   constructor(
     public kind: CellKind<Inputs, InputStreams, Outputs, OutputStreams>,
-    public defaultPostMessageFn: (value: CellMessage, ports?: MessagePort[]) => void,
+    // public defaultPostMessageFn: (value: CellMessage, ports?: MessagePort[]) => void,
+    public defaultPostMessageFn: (value: CellMessage) => void,
   ) {
     this.runFn = async () => {
       throw new Error('No run function was set.');
