@@ -650,6 +650,14 @@ export class GTensor<G extends DName> {
     return new GTensor(tf.exp(this.tensor), this.dimNames);
   }
 
+  public logSumExp<D extends G>(dims: D[]): GTensor<Exclude<G, D>> {
+    const dimIndexes = dims.map((d) => this.dim[d].index);
+    return new GTensor(
+      tf.logSumExp(this.tensor, dimIndexes),
+      this.dimNames.filter((d) => !dims.includes(d as D)) as Exclude<G, D>[],
+    ) as GTensor<Exclude<G, D>>;
+  }
+
   public logSoftmax<D extends G>(n: D): GTensor<G> {
     return new GTensor(tf.logSoftmax(this.tensor, this.dim[n].index), this.dimNames);
   }
@@ -861,8 +869,8 @@ export class GTensor<G extends DName> {
   public softmaxCrossEntropyWithIntegerLabels<D extends G, D2 extends G>
     (integerLabels: GTensor<D>, dimension: D2): GTensor<Exclude<G, D2>> {
     let loss: GTensor<Exclude<G, D2>> = this.gather(integerLabels, dimension, integerLabels.dimNames);
-    let normalizer: GTensor<Exclude<G, D2>> = this.exp().sumOverDims([dimension]);
-    return normalizer.log().pointwiseSub(loss);
+    let normalizer: GTensor<Exclude<G, D2>> = this.logSumExp([dimension]);
+    return normalizer.pointwiseSub(loss);
   }
 }
 
