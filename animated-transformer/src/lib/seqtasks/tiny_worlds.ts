@@ -139,9 +139,9 @@ export const defaultTinyWorldTaskConfig: TinyWorldTaskConfig = {
     // Cats sometimes run away away when elephants jump
     'S(runsAway ?c | jumps ?e:elephant, is ?c:cat) += 2',
     // Any existing animal might run away at any time
-    'S(runsAway ?x | is ?x) += 1',
+    'S(runsAway ?x:animal | is ?x) += 1',
     // A new never mentioned animal might run away
-    'S(runsAway ?x) += 1',
+    'S(runsAway ?x:animal) += 1',
 
     // We might note that an animal that ran away is a cat (if we didn't say it before)
     //
