@@ -28,7 +28,7 @@ import {
   computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -66,7 +66,7 @@ export type ConfigUpdate<T> =
   selector: 'app-codemirror-config-editor',
   templateUrl: './codemirror-config-editor.component.html',
   styleUrls: ['./codemirror-config-editor.component.scss'],
-  imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
+  imports: [MatButtonModule, MatIconModule, MatMenuModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodemirrorConfigEditorComponent implements OnInit, AfterContentInit {

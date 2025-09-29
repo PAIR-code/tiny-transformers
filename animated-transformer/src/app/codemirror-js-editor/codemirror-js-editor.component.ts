@@ -28,7 +28,7 @@ import {
   computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -65,7 +65,7 @@ export type CodeStrUpdate =
   selector: 'app-codemirror-js-editor',
   templateUrl: './codemirror-js-editor.component.html',
   styleUrls: ['./codemirror-js-editor.component.scss'],
-  imports: [MatButtonModule, CommonModule, MatIconModule, MatMenuModule],
+  imports: [MatButtonModule, MatIconModule, MatMenuModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodemirrorJavaScriptEditorComponent implements OnInit, AfterContentInit {

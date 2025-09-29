@@ -53,7 +53,7 @@ import { strSeqPrepFn, singleNextTokenIdxOutputPrepFn } from 'src/lib/tokens/tok
 import { BasicLmTask, BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { ConfigObj } from 'src/lib/json/config-obj';
 import { EnvModel } from 'src/weblab-examples/tiny-transformer-example/common.types';
-import { CommonModule } from '@angular/common';
+
 
 export type TrainerConfig = {
   name: string;
@@ -116,7 +116,6 @@ function nullOrComputed<T, T2>(
   templateUrl: './model-task-trainer.component.html',
   styleUrls: ['./model-task-trainer.component.scss'],
   imports: [
-    CommonModule,
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
@@ -129,8 +128,8 @@ function nullOrComputed<T, T2>(
     MatAutocompleteModule,
     CodemirrorConfigEditorComponent,
     D3LineChartComponent,
-    AutoCompletedTextInputComponent,
-  ],
+    AutoCompletedTextInputComponent
+],
 })
 export class ModelTaskTrainerComponent {
   // lastModelUpdate: ModelUpdate = { model: null };

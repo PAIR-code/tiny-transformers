@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { CommonModule } from '@angular/common';
+
 import {
   Component,
   Input,
@@ -162,7 +162,7 @@ type ChartElements = {
   selector: 'app-d3-line-chart',
   templateUrl: './d3-line-chart.component.html',
   styleUrls: ['./d3-line-chart.component.scss'],
-  imports: [CommonModule],
+  imports: [],
 })
 export class D3LineChartComponent {
   readonly chartRef = viewChild.required<ElementRef>('chart');

@@ -26,7 +26,7 @@ import {
   computed,
 } from '@angular/core';
 
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -80,10 +80,8 @@ import { nullableEqFn } from 'src/lib/utils';
   templateUrl: './seq-task-selector.component.html',
   styleUrls: ['./seq-task-selector.component.scss'],
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    // ---
     MatButtonModule,
     MatIconModule,
     MatInputModule,
@@ -92,8 +90,8 @@ import { nullableEqFn } from 'src/lib/utils';
     MatAutocompleteModule,
     MatTableModule,
     MatCardModule,
-    AutoCompletedTextInputComponent,
-  ],
+    AutoCompletedTextInputComponent
+],
 })
 export class SeqTaskSelectorComponent {
   view: 'edit' | 'view' = 'view';

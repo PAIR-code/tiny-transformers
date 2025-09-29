@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { signal, Component, Input, OnInit, effect, Signal, computed, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -71,10 +71,8 @@ function typedGetData<N extends string>(
   templateUrl: './model-evaluator.component.html',
   styleUrls: ['./model-evaluator.component.scss'],
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    // ---
     MatButtonModule,
     MatIconModule,
     MatInputModule,
@@ -83,9 +81,8 @@ function typedGetData<N extends string>(
     MatAutocompleteModule,
     MatTableModule,
     MatCardModule,
-    // ---
-    CodemirrorConfigEditorComponent,
-  ],
+    CodemirrorConfigEditorComponent
+],
   standalone: true,
 })
 export class ModelEvaluatorComponent {

@@ -15,7 +15,7 @@ limitations under the License.
 
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 
-import { CommonModule } from '@angular/common';
+
 import { TransformerVisComponent } from './transformer-vis/transformer-vis.component';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -58,12 +58,10 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
   templateUrl: './animated-transformer.component.html',
   styleUrls: ['./animated-transformer.component.scss'],
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
     JsonStrListValidatorDirective,
-    // --
     MatAutocompleteModule,
     MatButtonModule,
     MatCardModule,
@@ -74,9 +72,7 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     MatMenuModule,
     MatSlideToggleModule,
     MatTableModule,
-    // ---
     CodemirrorConfigEditorComponent,
-    // VegaChartModule,
     D3LineChartComponent,
     SeqTaskSelectorComponent,
     ModelEvaluatorComponent,
@@ -85,8 +81,8 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     TokenSeqDisplayComponent,
     ModelSelectorComponent,
     AnimatedTransformerComponent,
-    TransformerVisComponent,
-  ],
+    TransformerVisComponent
+],
 })
 export class AnimatedTransformerComponent {
   jsonComputation = '';
