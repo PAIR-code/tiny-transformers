@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 /*
-npx ts-node src/weblab-examples/build.script.ts
+pnpx ts-node src/weblab-examples/build.script.ts
 */
 
 import * as esbuild from 'esbuild';
