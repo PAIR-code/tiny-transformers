@@ -12,8 +12,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-/**
- * A simple library for creating fresh names.
+/** A simple library for creating fresh names.
+
+ Names can have prefixes, they have an id, and there is a set of used names. 
+
+ There is programatic a way to go from id to string name.
+
+ To make a new name, it increments ID until the string name is fresh in the set
+ of names.
+
  */
 
 const a_to_z_Chars: string[] = [];
@@ -67,18 +74,13 @@ export class FreshNames {
     return newName;
   }
 
-  makeAndAddNextName(
-    options: { prefix?: string; postfix?: string } = {}
-  ): string {
+  makeAndAddNextName(options: { prefix?: string; postfix?: string } = {}): string {
     const newName = this.makeNextName(options);
     this.config.usedNameSet.add(newName);
     return newName;
   }
 
-  nameForId(
-    id: number,
-    options: { prefix?: string; postfix?: string } = {}
-  ): string {
+  nameForId(id: number, options: { prefix?: string; postfix?: string } = {}): string {
     const charIdx = id % this.config.chars.length;
     const num = Math.floor(id / this.config.chars.length);
     let numStr = '';
@@ -87,8 +89,6 @@ export class FreshNames {
     }
     return `${options.prefix ? options.prefix : this.config.defaultPrefix}${
       this.config.chars[charIdx]
-    }${numStr}${
-      options.postfix ? options.postfix : this.config.defaultPostfix
-    }`;
+    }${numStr}${options.postfix ? options.postfix : this.config.defaultPostfix}`;
   }
 }

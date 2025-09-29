@@ -1,4 +1,17 @@
-import { Type } from '@angular/core';
+/* Copyright 2023 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
 import { filterSet } from '../seqtasks/util';
 
 export type TypeHierarchySpec = string[] | { [name: string]: TypeHierarchySpec };
@@ -49,7 +62,7 @@ export function extendTypesWithDecendent(
   newty: string,
   // The type hierarchy defined under the current type.
   // These are maps from a type to all it's (sub)children or (super)parents.
-  types: TypeDef<string>
+  types: TypeDef<string>,
 ) {
   // Add child/parent
   const currentChildren = types.children.get(current.type);
@@ -107,7 +120,7 @@ export function extendTypeDef(
   // The type hierarchy defined under the current type.
   currentTypeHierarchy: TypeHierarchySpec,
   // These are maps from a type to all it's (sub)children or (super)parents.
-  types: TypeDef<string>
+  types: TypeDef<string>,
 ): void {
   if (Array.isArray(currentTypeHierarchy)) {
     currentTypeHierarchy.forEach((t) => {
@@ -164,7 +177,7 @@ export type Relation<TypeName, VarName, RelName> = {
 export function flattenType<TypeName>(
   typeDef: TypeDef<TypeName>,
   typeName: TypeName,
-  onlyLeaves = true
+  onlyLeaves = true,
 ): Set<TypeName> {
   const decendents = typeDef.decendent.get(typeName)!;
   if (decendents.size === 0) {
@@ -180,7 +193,7 @@ export function flattenType<TypeName>(
 export function flattenTypeset<TypeName>(
   decendentMap: Map<TypeName, Set<TypeName>>,
   tyset: Set<TypeName>,
-  onlyLeaves = true
+  onlyLeaves = true,
 ): Set<TypeName> {
   const flattenedTypeset = new Set<TypeName>();
   tyset.forEach((ty) => {
@@ -288,7 +301,7 @@ export function flattenTypeset<TypeName>(
 export function typeSetIsSubsetOf<TypeName>(
   decendentMap: Map<TypeName, Set<TypeName>>,
   subTypes: Set<TypeName>,
-  superTypes: Set<TypeName>
+  superTypes: Set<TypeName>,
 ): boolean {
   const flatTys1 = flattenTypeset(decendentMap, subTypes);
   const flatTys2 = flattenTypeset(decendentMap, superTypes);
@@ -300,7 +313,7 @@ export function typesetSymmetricDifference<TypeName>(
   typeDef: TypeDef<TypeName>,
   // decendentMap: Map<TypeName, Set<TypeName>>,
   tys1: Set<TypeName>,
-  tys2: Set<TypeName>
+  tys2: Set<TypeName>,
 ): Set<TypeName> {
   const flatTys1 = flattenTypeset(typeDef.decendent, tys1);
   const flatTys2 = flattenTypeset(typeDef.decendent, tys2);
@@ -311,7 +324,7 @@ export function typesetIntersection<TypeName>(
   // A map from types to every type in it.
   typeDef: TypeDef<TypeName>,
   tys1: Set<TypeName>,
-  tys2: Set<TypeName>
+  tys2: Set<TypeName>,
 ): Set<TypeName> {
   const flatTys1 = flattenTypeset(typeDef.decendent, tys1);
   const flatTys2 = flattenTypeset(typeDef.decendent, tys2);
@@ -329,7 +342,7 @@ export function typesetEquality<TypeName>(
   // A map from types to every type in it.
   typeDef: TypeDef<TypeName>,
   tys1: Set<TypeName>,
-  tys2: Set<TypeName>
+  tys2: Set<TypeName>,
 ): boolean {
   return typesetSymmetricDifference(typeDef, tys1, tys2).size === 0;
 }
@@ -350,7 +363,7 @@ export function stringifyTypes<TypeName>(types: Set<TypeName>) {
 }
 
 export function stringifyRelation<TypeName, VarName, RelName>(
-  r: Relation<TypeName, VarName, RelName>
+  r: Relation<TypeName, VarName, RelName>,
 ) {
   const argsString = r.args
     .map((a) => {
@@ -372,13 +385,13 @@ export function parseTypeSet(typesetString: string): Set<string> {
 }
 
 export function parseTypeSetArgs<TypeName extends string>(
-  argTypeStrings: TypeName[]
+  argTypeStrings: TypeName[],
 ): Set<TypeName>[] {
   return argTypeStrings.map((argString) => new Set<TypeName>(argString.split('|') as TypeName[]));
 }
 
 export function initRelationMap<RelName extends string, TypeName extends string>(
-  relSpec: RelTypeArgsSpec<RelName, TypeName>
+  relSpec: RelTypeArgsSpec<RelName, TypeName>,
 ): Map<RelName, Set<TypeName>[]> {
   const relations = new Map<RelName, Set<TypeName>[]>();
   for (const relName of Object.keys(relSpec)) {
@@ -388,7 +401,7 @@ export function initRelationMap<RelName extends string, TypeName extends string>
 }
 
 export function parseRel<TypeName extends string, VarName extends string, RelName extends string>(
-  relString: string
+  relString: string,
 ): Relation<TypeName, VarName, RelName> {
   const match = relString.match(relRegexp)?.groups as RelMatch;
   if (!match) {
