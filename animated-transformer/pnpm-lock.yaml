@@ -61,10 +61,10 @@ importers:
         version: 1.5.1(@tensorflow/tfjs-core@4.22.0(encoding@0.1.13))(encoding@0.1.13)
       '@trpc/client':
         specifier: ^11.0.0-rc.730
-        version: 11.6.0(@trpc/server@11.6.0(typescript@5.9.2))(typescript@5.9.2)
+        version: 11.6.0(@trpc/server@11.8.0(typescript@5.9.2))(typescript@5.9.2)
       '@trpc/server':
-        specifier: ^11.0.0-rc.730
-        version: 11.6.0(typescript@5.9.2)
+        specifier: ^11.8.0
+        version: 11.8.0(typescript@5.9.2)
       codemirror:
         specifier: ^6.0.1
         version: 6.0.2
@@ -1800,8 +1800,8 @@ packages:
       '@trpc/server': 11.6.0
       typescript: '>=5.7.2'
 
-  '@trpc/server@11.6.0':
-    resolution: {integrity: sha512-skTso0AWbOZck40jwNeYv++AMZXNWLUWdyk+pB5iVaYmEKTuEeMoPrEudR12VafbEU6tZa8HK3QhBfTYYHDCdg==}
+  '@trpc/server@11.8.0':
+    resolution: {integrity: sha512-DphyQnLuyX2nwJCQGWQ9zYz4hZGvRhSBqDhQ0SH3tDhQ3PU4u68xofA0pJ741Ir4InEAFD+TtJVLAQy+wVOkiQ==}
     peerDependencies:
       typescript: '>=5.7.2'
 
@@ -3983,8 +3983,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  sax@1.4.1:
-    resolution: {integrity: sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==}
+  sax@1.4.3:
+    resolution: {integrity: sha512-yqYn1JhPczigF94DMS+shiDMjDowYO6y9+wB/4WgO0Y19jWYk0lQ4tuG5KI7kj4FTp1wxPj5IFfcrz/s1c3jjQ==}
 
   seedrandom@3.0.5:
     resolution: {integrity: sha512-8OwmbklUNzwezjGInmZ+2clQmExQPvomqjL7LFqOYqtmuxRgQYqOD3mHaU+MvZn5FLUeVxVfQjwLZW/n/JFuqg==}
@@ -6238,12 +6238,12 @@ snapshots:
       - encoding
       - seedrandom
 
-  '@trpc/client@11.6.0(@trpc/server@11.6.0(typescript@5.9.2))(typescript@5.9.2)':
+  '@trpc/client@11.6.0(@trpc/server@11.8.0(typescript@5.9.2))(typescript@5.9.2)':
     dependencies:
-      '@trpc/server': 11.6.0(typescript@5.9.2)
+      '@trpc/server': 11.8.0(typescript@5.9.2)
       typescript: 5.9.2
 
-  '@trpc/server@11.6.0(typescript@5.9.2)':
+  '@trpc/server@11.8.0(typescript@5.9.2)':
     dependencies:
       typescript: 5.9.2
 
@@ -8271,7 +8271,7 @@ snapshots:
   needle@3.3.1:
     dependencies:
       iconv-lite: 0.6.3
-      sax: 1.4.1
+      sax: 1.4.3
     optional: true
 
   negotiator@0.6.3: {}
@@ -8789,7 +8789,7 @@ snapshots:
     optionalDependencies:
       '@parcel/watcher': 2.5.1
 
-  sax@1.4.1:
+  sax@1.4.3:
     optional: true
 
   seedrandom@3.0.5: {}
