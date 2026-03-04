@@ -16,10 +16,11 @@ limitations under the License.
 export type TypeConstructor = {
   constructorName: string;
   createdTypeName: string;
-  arguments: {
+  argumentTypes: {
     [argName: string]: string;
   };
-  argOrder?: string[];
+  implicitNameOrder?: string[]; // Argument names in order
+  moreIterArgNames?: string; // Type of more iterated arguments
 };
 
 export type TypeConstructions = {
@@ -42,6 +43,7 @@ export type ConstrTerm = {
   namedArgs: {
     [argName: string]: Term;
   };
+  moreIterArgs: Term[];
 };
 export type VarTerm = {
   kind: TermKind.Variable;
@@ -65,3 +67,12 @@ export function createTypeContext(constructors: TypeConstructor[]): TypeContext 
   }
   return ctxt;
 }
+
+export type UnifyState<TypeName> = {
+  kind: 'UnifyState';
+  // Maps a variable name to the set of alternative possible valid types for
+  // that variable.
+  varTypes: Map<string, Set<TypeName>>;
+  // Substitutions for variable names.
+  varSubsts: Map<string, Term>;
+};
