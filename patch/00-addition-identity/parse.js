@@ -36,6 +36,6 @@ function updatePatch(experimentIndex){
   io.writeDataSync(`${root}/output-top/${indexStr}.csv`, topTokens.flat())
 }
 
-// gsutil -m cp -n -r add-patch-v0/output-top/*  gs://uncertainty-over-space/tiny-transformers/patch/add-v0/output-top
+// gcloud storage cp --no-clobber --recursive add-patch-v0/output-top/*  gs://uncertainty-over-space/tiny-transformers/patch/add-v0/output-top
 d3.range(5000).forEach(updatePatch)
 
