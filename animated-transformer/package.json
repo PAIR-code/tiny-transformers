@@ -43,7 +43,7 @@
     "rxjs": "~7.5.0",
     "ts-node": "^10.9.2",
     "tslib": "^2.3.0",
-    "underscore": "^1.13.6",
+    "underscore": "^1.13.8",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
