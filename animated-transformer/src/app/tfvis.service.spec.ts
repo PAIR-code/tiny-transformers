@@ -17,6 +17,7 @@ import { vi } from 'vitest';
 
 vi.mock('@tensorflow/tfjs-vis', () => {
   return {
+    __esModule: true,
     visor: () => ({
       close: () => {},
       open: () => {},

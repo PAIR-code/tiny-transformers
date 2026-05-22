@@ -95,7 +95,7 @@ describe('stories', () => {
       const s = initStory(types, relations);
       s.extendScene([rel2]);
       // console.log(c);
-    }).toThrowError(''); // Assert
+    }).toThrowError('UnifyFailure:argRelationTypeClash'); // Assert
   });
 
   it('Story.unify', () => {

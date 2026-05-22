@@ -37,7 +37,7 @@ describe('v2_logic of peano natural numbers', () => {
         nat: {
           constructors: {
             suc: suc,
-            zero: zero,
+            '0': zero,
           },
         },
       },

@@ -56,12 +56,13 @@ export function createTypeContext(constructors: TypeConstructor[]): TypeContext 
     types: {},
   };
   for (const c of constructors) {
-    if (c.createdTypeName in ctxt) {
-      if (c.constructorName in ctxt.types[c.createdTypeName].constructors) {
-        throw new Error(`Cannot add constructor twice: ${c.constructorName}`);
-      }
-      ctxt.types[c.createdTypeName].constructors[c.constructorName] = c;
+    if (!(c.createdTypeName in ctxt.types)) {
+      ctxt.types[c.createdTypeName] = { constructors: {} };
     }
+    if (c.constructorName in ctxt.types[c.createdTypeName].constructors) {
+      throw new Error(`Cannot add constructor twice: ${c.constructorName}`);
+    }
+    ctxt.types[c.createdTypeName].constructors[c.constructorName] = c;
   }
   return ctxt;
 }
