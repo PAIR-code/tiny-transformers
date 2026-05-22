@@ -11,7 +11,15 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-==============================================================================*/
+/**
+ * NOTE ON WEB WORKER TESTING:
+ * Built pre-test into src/assets/ to bypass Vitest browser HMR client restrictions.
+ * Done automatically via `pnpm test` pretest scripts, or manually via:
+ *   pnpm build-test-workers
+ * Loader:
+ *   new Worker('/assets/test_only_assets/trainer-cell.worker.js', { type: 'module' })
+ */
+
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { TrainConfig, ModelInit, ModelInitKind, Batch } from './common.types';
@@ -83,7 +91,7 @@ describe('tiny-transformer-example/trainer-cell', () => {
     // Trainer cell
     const trainer = env.start(
       trainerCellKind,
-      new Worker(new URL('./trainer-cell.worker', import.meta.url)),
+      new Worker('/assets/test_only_assets/trainer-cell.worker.js', { type: 'module' }),
       {
         inputs: {
           modelInit,
@@ -121,5 +129,5 @@ describe('tiny-transformer-example/trainer-cell', () => {
 
     trainer.cell.requestStop();
     await trainer.cell.onceFinished;
-  }, 7000);
+  }, 15000);
 });

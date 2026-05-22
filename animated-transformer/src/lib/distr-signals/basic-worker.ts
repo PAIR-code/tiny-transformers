@@ -23,7 +23,7 @@ export interface BasicWorker {
 
 export class LoggingMessagesWorker implements BasicWorker {
   constructor(
-    public worker: Worker,
+    public worker: BasicWorker,
     public localCellId: string,
     public remoteCellId: string,
   ) {}

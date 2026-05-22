@@ -11,12 +11,32 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-==============================================================================*/
+/**
+ * NOTE ON TESTING WEB WORKERS IN BROWSER SPEC TESTS:
+ *
+ * Playwright/Chromium test environments running under Vitest's dev server fail to load
+ * workers natively using 'new Worker(new URL("./name.worker", import.meta.url))' because:
+ * 1. Vite dev server injects HMR client-side code (which references the 'window' object)
+ *    into compiled .ts files. This throws ReferenceError inside worker threads.
+ * 2. Angular unit-test builder compiles worker TS files as hashed lazy chunk files 
+ *    (e.g. 'worker-xxxx.js') in its output directory, which is not reachable via standard 
+ *    Vite project-relative URLs.
+ *
+ * WORKAROUND / BUILD PROCESS:
+ * All worker entrypoints are pre-compiled to the static asset folder. This is done
+ * automatically as a pretest script when running `pnpm test`, or can be executed manually via:
+ *   pnpm build-test-workers
+ * (under the hood: `pnpm esbuild src/lib/distr-signals/example.worker.ts --bundle --outfile=src/assets/test_only_assets/example.worker.js --format=esm`)
+ *
+ * The Vitest server maps '/src/assets/' directly to '/assets/' without injecting any Vite/HMR 
+ * client HMR code, allowing standard ES module workers to load seamlessly and with 
+ * high performance on a real thread:
+ *   new Worker('/assets/test_only_assets/example.worker.js', { type: 'module' })
+ */
 
 import { LabEnv } from './lab-env';
 import { exampleCellAbstract } from './example.ailab';
 import { SignalSpace } from '../signalspace/signalspace';
-import { sigmoid } from '@tensorflow/tfjs';
 import { CellStatus } from './cell-controller';
 
 describe('lab-env', () => {
@@ -27,9 +47,8 @@ describe('lab-env', () => {
     const prefix = env.space.setable('Foo');
     const { cell, onceStarted } = env.start(
       exampleCellAbstract,
-      new Worker(new URL('./example.worker', import.meta.url)),
+      new Worker('/assets/test_only_assets/example.worker.js', { type: 'module' }),
       { inputs: { prefix } },
-      // config: { logCellMessages: true },
     );
     expect(cell.status()).toEqual(CellStatus.StartingWaitingForInputs);
     await onceStarted;
@@ -92,13 +111,11 @@ describe('lab-env', () => {
       inputs: { prefix },
       config: {
         id: 'cell1',
-        // logCellMessages: true
       },
     });
     const cell2 = env.init(exampleCellAbstract, {
       config: {
         id: 'cell2',
-        // logCellMessages: true
       },
     });
 
@@ -106,8 +123,8 @@ describe('lab-env', () => {
     cell2.inStreams.strStream.addPipeFrom(cell.outStreams.prefixedStream);
     const doublePrefixedStream = cell2.outStreams.prefixedStream.connect();
 
-    cell.startWithWorker(new Worker(new URL('./example.worker', import.meta.url)));
-    cell2.startWithWorker(new Worker(new URL('./example.worker', import.meta.url)));
+    cell.startWithWorker(new Worker('/assets/test_only_assets/example.worker.js', { type: 'module' }));
+    cell2.startWithWorker(new Worker('/assets/test_only_assets/example.worker.js', { type: 'module' }));
 
     const strStream = cell.inStreams.strStream.connect();
     for (const i of [1, 2, 3]) {

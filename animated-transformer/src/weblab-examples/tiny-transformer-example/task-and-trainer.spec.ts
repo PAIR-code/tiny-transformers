@@ -11,7 +11,16 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-==============================================================================*/
+/**
+ * NOTE ON WEB WORKER TESTING:
+ * Both task-cell and trainer-cell workers are built pre-test into src/assets/ to bypass Vitest browser HMR client restrictions.
+ * Done automatically via `pnpm test` pretest scripts, or manually via:
+ *   pnpm build-test-workers
+ * Loader:
+ *   new Worker('/assets/test_only_assets/task-cell.worker.js', { type: 'module' })
+ *   new Worker('/assets/test_only_assets/trainer-cell.worker.js', { type: 'module' })
+ */
+
 import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
 import { asyncIterToSignal, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { TrainConfig, ModelInit, ModelInitKind, TaskGenConfig } from './common.types';
@@ -80,8 +89,8 @@ describe('tiny-transformer-example/test-and-trainer', () => {
     trainerCell.inputs.testSet.addPipeFrom(taskCell.outputs.testSet);
     trainerCell.inStreams.trainBatches.addPipeFrom(taskCell.outStreams.trainBatches);
 
-    taskCell.startWithWorker(new Worker(new URL('./task-cell.worker', import.meta.url)));
-    trainerCell.startWithWorker(new Worker(new URL('./trainer-cell.worker', import.meta.url)));
+    taskCell.startWithWorker(new Worker('/assets/test_only_assets/task-cell.worker.js', { type: 'module' }));
+    trainerCell.startWithWorker(new Worker('/assets/test_only_assets/trainer-cell.worker.js', { type: 'module' }));
 
     const testSet = await taskCell.outputs.testSet.connect();
     expect(testSet().length).toEqual(5);

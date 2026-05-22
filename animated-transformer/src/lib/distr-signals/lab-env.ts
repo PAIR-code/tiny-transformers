@@ -15,6 +15,7 @@ limitations under the License.
 
 import { ValueStruct, CellKind } from './cell-kind';
 import { SignalSpace } from '../signalspace/signalspace';
+import { BasicWorker } from './basic-worker';
 
 import {
   CellController,
@@ -53,7 +54,7 @@ export class LabEnv {
     OStreams extends ValueStruct,
   >(
     kind: CellKind<I, IStreams, O, OStreams>,
-    worker: Worker,
+    worker: BasicWorker,
     uses?: InConnections<I, IStreams> & { config?: Partial<LabEnvCellConfig> },
   ): { cell: CellController<I, IStreams, O, OStreams>; onceStarted: Promise<void> } {
     const cell = this.init(kind, uses);

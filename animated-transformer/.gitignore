@@ -48,6 +48,9 @@ yarn-error.log
 .DS_Store
 Thumbs.db
 
+# Test-only assets
+/src/assets/test_only_assets/
+
 
 
 

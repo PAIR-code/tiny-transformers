@@ -35,7 +35,7 @@ import {
   StreamReceiveChannel,
   StreamSendChannel,
 } from './channels';
-import { BasicWorker } from './basic-worker';
+import { BasicWorker, LoggingMessagesWorker } from './basic-worker';
 
 // Class wrapper to communicate with a cell in a webworker.
 export type LabEnvCellConfig = {
@@ -328,8 +328,13 @@ export class CellController<
   //
   // This CellController now takes ownership of the Worker.
   // e.g. for memory management.
-  async startWithWorker(worker: Worker): Promise<void> {
-    this.worker = worker;
+  async startWithWorker(worker: BasicWorker): Promise<void> {
+    if ('onerror' in worker) {
+      (worker as any).onerror = (err: ErrorEvent) => {
+        console.error('Worker encountered an error:', err);
+      };
+    }
+    this.worker = new LoggingMessagesWorker(worker, this.id + ':controller', this.id + ':worker');
 
     // Protocall of stuff a worker can send us, and we respond to...
     this.worker.onmessage = ({ data }) => {

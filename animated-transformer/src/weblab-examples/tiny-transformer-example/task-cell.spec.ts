@@ -11,7 +11,15 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-==============================================================================*/
+/**
+ * NOTE ON WEB WORKER TESTING:
+ * Built pre-test into src/assets/ to bypass Vitest browser HMR client restrictions.
+ * Done automatically via `pnpm test` pretest scripts, or manually via:
+ *   pnpm build-test-workers
+ * Loader:
+ *   new Worker('/assets/test_only_assets/task-cell.worker.js', { type: 'module' })
+ */
+
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { Batch, TaskGenConfig } from './common.types';
 import { taskCellKind } from './task-cell.kind';
@@ -36,7 +44,7 @@ describe('tiny-transformer-example/task-cell', () => {
     });
     const task = env.start(
       taskCellKind,
-      new Worker(new URL('./task-cell.worker', import.meta.url)),
+      new Worker('/assets/test_only_assets/task-cell.worker.js', { type: 'module' }),
       { inputs: { taskConfig, genConfig } },
     );
     const testSet = await task.cell.outputs.testSet.connect();

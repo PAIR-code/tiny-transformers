@@ -141,6 +141,7 @@ export class CellWorker<
       console.warn('unexpected null data', message);
       return;
     }
+    console.log(`Worker ${this.id} received message:`, data);
     switch (data.kind) {
       case CellMessageKind.StartCellRun: {
         this.id = data.id + ':worker'; //`${data.id}.${this.id}`;
@@ -264,19 +265,25 @@ export class CellWorker<
   // get all inputs, run the function on them, and then provide the outputs.
   // Basically an RPC.
   async startWithInputs() {
+    console.log(`Worker ${this.id} waiting for onceAllInputs...`);
     const inputs = await this.onceAllInputs;
+    console.log(`Worker ${this.id} received all inputs. Posting ReceivedAllInputsAndStarting and executing runFn...`);
     this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
     await this.runFn(inputs as ExpandOnce<SetableSignalStructFn<Inputs>>);
+    console.log(`Worker ${this.id} completed runFn. Closing...`);
     this.close();
   }
 
   async startWithAsyncInputs(runFn: () => Promise<void>) {
+    console.log(`Worker ${this.id} startWithAsyncInputs. Posting ReceivedAllInputsAndStarting and executing runFn...`);
     this.defaultPostMessageFn({ kind: CellMessageKind.ReceivedAllInputsAndStarting });
     await runFn();
+    console.log(`Worker ${this.id} completed startWithAsyncInputs. Closing...`);
     this.close();
   }
 
   close() {
+    console.log(`Worker ${this.id} close called. Posting Finished to main thread.`);
     const message: CellMessage = { kind: CellMessageKind.Finished };
     this.defaultPostMessageFn(message);
     close();
