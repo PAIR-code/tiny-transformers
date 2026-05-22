@@ -17,7 +17,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WebColabComponent } from './web-colab.component';
 import { provideRouter } from '@angular/router';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('WebColabComponent', () => {
   let component: WebColabComponent;
@@ -25,7 +25,7 @@ describe('WebColabComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection(), provideRouter([])],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
       imports: [WebColabComponent],
     }).compileComponents();
 

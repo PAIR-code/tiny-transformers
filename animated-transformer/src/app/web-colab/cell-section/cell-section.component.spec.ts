@@ -16,7 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CellSectionComponent } from './cell-section.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { Experiment } from 'src/lib/weblab/experiment';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
@@ -71,7 +71,7 @@ describe('CellSectionComponent', () => {
     const section = [...experiment.sectionMap.values()][0];
 
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection(), provideHttpClient()],
+      providers: [provideZonelessChangeDetection(), provideHttpClient()],
       imports: [CellSectionComponent],
     }).compileComponents();
 

@@ -18,15 +18,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ModelEvaluatorComponent } from './model-evaluator.component';
 
 import { RouterModule } from '@angular/router';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
-xdescribe('ModelEvaluatorComponent', () => {
+describe.skip('ModelEvaluatorComponent', () => {
   let component: ModelEvaluatorComponent;
   let fixture: ComponentFixture<ModelEvaluatorComponent>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection(), RouterModule.forRoot([])],
+      providers: [provideZonelessChangeDetection(), RouterModule.forRoot([])],
       imports: [ModelEvaluatorComponent],
       declarations: [],
     }).compileComponents();

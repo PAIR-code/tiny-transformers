@@ -16,14 +16,14 @@ limitations under the License.
 import { TestBed } from '@angular/core/testing';
 
 import { TfvisService } from './tfvis.service';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('TfvisService', () => {
   let service: TfvisService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
     });
     service = TestBed.inject(TfvisService);
   });

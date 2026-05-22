@@ -16,7 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivationManagerComponent } from './activation-manager.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('ActivationManagerComponent', () => {
   let component: ActivationManagerComponent;
@@ -24,7 +24,7 @@ describe('ActivationManagerComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [ActivationManagerComponent],
     });
     fixture = TestBed.createComponent(ActivationManagerComponent);

@@ -15,7 +15,7 @@ limitations under the License.
 
 import { NanValidatorDirective } from './nan-validator.directive';
 
-xdescribe('NanValidatorDirective', () => {
+describe.skip('NanValidatorDirective', () => {
   it('should create an instance', () => {
     const directive = new NanValidatorDirective();
     expect(directive).toBeTruthy();

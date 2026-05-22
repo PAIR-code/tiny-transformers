@@ -4,8 +4,8 @@
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
     "types": [
-      "jasmine",
-      "wicg-file-system-access",
+      "vitest/globals",
+      "wicg-file-system-access"
     ],
   },
   "include": [

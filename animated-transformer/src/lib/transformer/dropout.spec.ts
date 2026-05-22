@@ -17,6 +17,7 @@ limitations under the License.
 import * as tf from '@tensorflow/tfjs';
 import { gtensor } from '..';
 import { dropout } from './dropout';
+import { expectArraysClose, expectArraysEqual } from '../gtensor/test_util';
 
 describe('dropout', () => {
 
@@ -33,7 +34,7 @@ describe('dropout', () => {
       );
     const afterDropout = dropout(0.5, beforeDropout, 1);
 
-    tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
+    expectArraysClose(afterDropout.tensor.dataSync(),
         [
             [
               [2, 0, 0, 8],
@@ -49,7 +50,7 @@ describe('dropout', () => {
       gtensor.makeRange('input', 1, 5, 1, 'float32');
     const afterDropout = dropout(0, beforeDropout, 0);
 
-    tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
+    expectArraysClose(afterDropout.tensor.dataSync(),
       [1, 2, 3, 4]);
     expect(afterDropout.dimNames).toEqual(
       ['input']);
@@ -68,7 +69,7 @@ describe('dropout', () => {
       );
     const afterDropout = dropout(0.5, beforeDropout, 1, ['pos']);
 
-    tf.test_util.expectArraysClose(afterDropout.tensor.dataSync(),
+    expectArraysClose(afterDropout.tensor.dataSync(),
     [
         [
           [2, 4, 6, 8],

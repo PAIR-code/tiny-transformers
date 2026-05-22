@@ -16,7 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { D3LineChartComponent } from './d3-line-chart.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('D3LineChartComponent', () => {
   let component: D3LineChartComponent;
@@ -24,7 +24,7 @@ describe('D3LineChartComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [D3LineChartComponent],
     }).compileComponents();
 

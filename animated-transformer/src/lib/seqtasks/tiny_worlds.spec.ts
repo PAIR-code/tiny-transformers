@@ -89,7 +89,7 @@ describe('tiny_worlds', () => {
   });
 
   // Special case that causes "runsAway _a" to be generated more than once.
-  xit('bad world example', () => {
+  it.skip('bad world example', () => {
     const initConfig: TinyWorldTaskConfig = structuredClone(defaultTinyWorldTaskConfig);
     initConfig.maxInputLen = 0;
     initConfig.maxOutputLen = 50;

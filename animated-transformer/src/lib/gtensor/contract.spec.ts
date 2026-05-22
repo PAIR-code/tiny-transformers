@@ -16,6 +16,7 @@ limitations under the License.
 
 import * as tf from '@tensorflow/tfjs'
 import { contract, ContractSpec } from './contract';
+import { expectArraysClose, expectArraysEqual } from './test_util';
 
 describe('contract', () => {
   beforeEach(() => { });
@@ -43,7 +44,7 @@ describe('contract', () => {
 
     const c = contract(a, b, spec);
 
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       c.arraySync(), [[0], [1], [1], [0]]);
 
     expect(c.shape).toEqual([4, 1]);
@@ -66,11 +67,11 @@ describe('contract', () => {
     const gradients = tf.grads((xa, xb) =>
       contract(xa, xb, spec))([a, b], dy);
 
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       gradients[0].arraySync(),
       [[0, 0, 0, 0], [0, 2, 2, 0], [0, 2, 2, 0], [0, -2, -2, 0]]
     );
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       gradients[1].arraySync(),
       [[0], [2], [2], [-2]]);
 
@@ -91,7 +92,7 @@ describe('contract', () => {
 
     const c = contract(a, b, spec);
 
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       c.arraySync(), [[[0], [1], [1], [0]]]);
 
     expect(c.shape).toEqual([1, 4, 1]);
@@ -111,7 +112,7 @@ describe('contract', () => {
 
     const c = contract(a, b, spec);
 
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       c.arraySync(), [[0], [1], [1], [0]]);
 
     expect(c.shape).toEqual([4, 1]);

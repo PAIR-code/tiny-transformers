@@ -19,6 +19,7 @@ import * as tf from '@tensorflow/tfjs'
 import { pointWiseEval } from './boolfns';
 import * as gtensor_util from './gtensor_util';
 import { xorGTensorDataset, TwoVarGTensorDataset } from './the_16_two_var_bool_fns';
+import { expectArraysClose, expectArraysEqual } from './test_util';
 
 describe('boolfns', () => {
   let paramPositions: gtensor.GTensor<'pointId' | 'inputRepSize'>;
@@ -40,7 +41,7 @@ describe('boolfns', () => {
 
     const outputPoints = pointWiseEval(xorParams, paramPositions, grid);
 
-    expect(() => tf.test_util.expectArraysClose(
+    expect(() => expectArraysClose(
       outputPoints.tensor.dataSync(),
       [
         [0], [0.5], [1],
@@ -56,7 +57,7 @@ describe('boolfns', () => {
 
     const outputPoints = pointWiseEval(xorParams, paramPositions, xorGTensorDataset.inputs);
 
-    expect(() => tf.test_util.expectArraysClose(
+    expect(() => expectArraysClose(
       outputPoints.tensor.dataSync(),
       xorGTensorDataset.outputs.tensor.dataSync())).not.toThrow();
   });
@@ -68,7 +69,7 @@ describe('boolfns', () => {
 
   //   const outputPoints = pointWiseEval(xorParams, paramPositions, xorGTensorDataset.inputs);
 
-  //   expect(() => tf.test_util.expectArraysClose(
+  //   expect(() => expectArraysClose(
   //     outputPoints.tensor.dataSync(),
   //     xorGTensorDataset.outputs.tensor.dataSync())).toThrow();
   // });

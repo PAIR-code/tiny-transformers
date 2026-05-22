@@ -47,6 +47,7 @@ import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/au
 import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
 import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
+import { MarkdownModule } from 'ngx-markdown';
 
 interface DatasetExample {
   input: number[];
@@ -77,12 +78,73 @@ interface DatasetExample {
     // ActivationManagerDirective,
     // NanValidatorDirective,
     // BoundedFloatValidatorDirective,
+    MarkdownModule,
   ],
   templateUrl: './activation-vis.component.html',
   styleUrls: ['./activation-vis.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ActivationVisComponent implements OnInit {
+  explainerMarkdown = `
+### Learning Boolean Circuits via Continuous Relaxation
+
+This visualization demonstrates how **gradient descent** can be used to learn arbitrary boolean circuits (such as **AND**, **OR**, **XOR**, etc.) by relaxing a discrete, boolean search space into a continuous, differentiable field.
+
+---
+
+#### 1. The Key Idea: Hypercube Relaxation
+A standard boolean function of two inputs **x, y ∈ {0, 1}** maps the four corners of a unit square to an output **z ∈ {0, 1}**:
+* **Corner p₀₀ = (0, 0)** &rarr; parameter **w₀₀**
+* **Corner p₁₀ = (1, 0)** &rarr; parameter **w₁₀**
+* **Corner p₀₁ = (0, 1)** &rarr; parameter **w₀₁**
+* **Corner p₁₁ = (1, 1)** &rarr; parameter **w₁₁**
+
+To allow gradient-based learning, we relax the discrete domain. Instead of discrete lookups, the output at any continuous coordinate **v = (x, y) ∈ [0, 1]²** is defined as a **smooth interpolation** of the four corner parameters **w_p ∈ [0, 1]**.
+
+---
+
+#### 2. How Activations are Interpolated
+For any input point **v = (x, y)**, we compute a **coordinate-wise similarity weight** **w_p(x, y)** for each corner **p = (p_x, p_y)**:
+
+**w_p(x, y) = (1 - (x - p_x)²) · (1 - (y - p_y)²)**
+
+* When **(x, y)** is exactly at a corner **p**, its similarity weight **w_p(x, y)** is **1**, while all other corner weights are **0**.
+* As **(x, y)** moves away from a corner, the weight decays quadratically.
+
+The final predicted activation **ẑ(x, y)** is the **normalized weighted average** of the corner values:
+
+**ẑ(x, y) = Σ [w_p(x, y) · w_p] / Σ w_p(x, y)**
+
+This formulation yields the smooth, continuous landscape visualized in the **Param eval matrix**. It perfectly matches the parameters at the corners and blends them smoothly across the space.
+
+---
+
+#### 3. How Gradients are Computed & Learned
+When you select a dataset (e.g., XOR):
+1. **Define a Loss Function**: We measure the Mean Squared Error (MSE) between the model's predictions **ẑ(x, y)** and the true target outputs **z** across the dataset examples:
+   
+   **Loss = Σ (ẑ(x_j, y_j) - z_j)²**
+
+2. **Backpropagation**: Since **ẑ(x, y)** is fully differentiable, we can compute the exact gradient of the loss with respect to each corner parameter:
+   
+   **∂Loss / ∂w_p**
+   
+   This gradient represents the direction and magnitude of the error contribution for each corner parameter.
+
+3. **Gradient Descent Steps**: Clicking **"Apply Gradient Step"** subtracts a fraction of this gradient (scaled by the **Learning Rate** **η**) from the parameters:
+   
+   **w_p &larr; w_p - η · (∂Loss / ∂w_p)**
+
+By taking successive gradient steps, the corner values converge to the exact truth table of the target boolean function!
+
+---
+
+#### 4. Properties & Theoretical Trade-offs
+This continuous relaxation approach has remarkable theoretical properties:
+* **Guaranteed Convergence**: Because the interpolated output is a linear function of the corner parameters **w_p**, the Mean Squared Error (MSE) loss is a convex quadratic function with respect to these parameters. This means there are **no local minima**&mdash;gradient descent is mathematically guaranteed to learn any target boolean circuit from **any arbitrary initialization**!
+* **Exponential Parameter Cost**: The main drawback is scalability. Since we define a separate parameter **w_p** for every single corner of the input hypercube, the number of parameters required is **2ⁿ** (where **n** is the number of input variables). For complex functions with many inputs, this parameter growth becomes exponentially expensive.
+`;
+
   view = signal('vis' as 'edit' | 'vis');
 
   readonly activationManager = viewChild.required(ActivationManagerDirective);

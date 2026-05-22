@@ -16,7 +16,7 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ErrorPageComponent } from './error-page.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('ErrorPageComponent', () => {
   let component: ErrorPageComponent;
@@ -24,7 +24,7 @@ describe('ErrorPageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [ErrorPageComponent],
     }).compileComponents();
   });

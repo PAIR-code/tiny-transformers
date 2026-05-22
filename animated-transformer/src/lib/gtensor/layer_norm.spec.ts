@@ -18,6 +18,7 @@ import { GTensor, makeScalar, makeConstant, makeRange } from './gtensor';
 import { layerNorm, initLayerNormParams, initLayerNormParamsWithDims, LayerNormParams } from './layer_norm';
 import * as tf from '@tensorflow/tfjs';
 import { computeLossAndGrads } from './grad';
+import { expectArraysClose, expectArraysEqual } from './test_util';
 
 describe('layer_norm', () => {
   beforeEach(() => { });
@@ -46,7 +47,7 @@ describe('layer_norm', () => {
     const gNormed = layerNorm({ gain, bias }, g, 'rep', epsilon);
 
     // console.log(gNormed.dimNames);
-    tf.test_util.expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
+    expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
       [0, 0, 0],
       [-1, 0, 1].map((x) => x / Math.sqrt(2 + 1e3)),
       [-4, -2, 6].map((x) => x / approxStdDev3),
@@ -79,7 +80,7 @@ describe('layer_norm', () => {
 
     const gNormed = layerNorm({ gain, bias }, g, 'rep', epsilon);
 
-    tf.test_util.expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
+    expectArraysClose(gNormed.transposeTo(['pos', 'rep']).tensor.dataSync(), [
       [0, 0, 0],
       [-1, 0, 1].map((x) => x / Math.sqrt(2 + 1e3)).map((x) => x + 1),
       [-4, -2, 6].map((x) => x / approxStdDev3).map((x) => x + 2),
@@ -90,21 +91,21 @@ describe('layer_norm', () => {
 
   it('Init simple Layer Norm', () => {
     const layerNormParams: LayerNormParams = initLayerNormParams(true);
-    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
+    expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");
     }
-    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
+    expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0]);
   });
 
   it('Init multi-dimensional Layer Norm', () => {
     const layerNormDim = 3;
     const layerNormParams: LayerNormParams<"pos"> = initLayerNormParamsWithDims(true, { "pos": layerNormDim });
-    tf.test_util.expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1, 1, 1]);
+    expectArraysClose(layerNormParams.gain.tensor.dataSync(), [1, 1, 1]);
     if (layerNormParams.bias == undefined) {
       throw new Error("Bias is undefined when it shouldn't be.");
     }
-    tf.test_util.expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0, 0, 0]);
+    expectArraysClose(layerNormParams.bias.tensor.dataSync(), [0, 0, 0]);
   });
 
   it('Layer Norm grad', () => {
@@ -147,7 +148,7 @@ describe('layer_norm', () => {
     );
 
     // console.log(gNormed.dimNames);
-    tf.test_util.expectArraysClose(lossAndGrads.grads.p.tensor.dataSync(), [
+    expectArraysClose(lossAndGrads.grads.p.tensor.dataSync(), [
       [-2, -2.0632245540618896, -2.2506535053253174],
       [-2, -2, -2.1253268718719482],
       [-2, -1.9367755651474, -1.6240196228027344],

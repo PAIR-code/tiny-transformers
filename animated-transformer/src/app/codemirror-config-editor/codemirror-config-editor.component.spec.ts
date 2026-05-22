@@ -20,7 +20,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('CodemirrorConfigEditorComponent', () => {
   let component: CodemirrorConfigEditorComponent;
@@ -28,7 +28,7 @@ describe('CodemirrorConfigEditorComponent', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [
         CommonModule,
         MatButtonModule,

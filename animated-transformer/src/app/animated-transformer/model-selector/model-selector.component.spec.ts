@@ -17,15 +17,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ModelSelectorComponent } from './model-selector.component';
 import { RouterModule } from '@angular/router';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
-xdescribe('ModelSelectorComponent', () => {
+describe.skip('ModelSelectorComponent', () => {
   let component: ModelSelectorComponent;
   let fixture: ComponentFixture<ModelSelectorComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection(), RouterModule.forRoot([])],
+      providers: [provideZonelessChangeDetection(), RouterModule.forRoot([])],
       imports: [ModelSelectorComponent],
       declarations: [],
     }).compileComponents();

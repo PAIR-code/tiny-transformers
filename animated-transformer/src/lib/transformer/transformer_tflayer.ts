@@ -14,7 +14,6 @@ limitations under the License.
 ==============================================================================*/
 
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import {
   AttentionHead,
   ATTENDED_VALUES_PART_IDX,

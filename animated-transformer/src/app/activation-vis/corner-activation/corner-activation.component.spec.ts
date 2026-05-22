@@ -26,7 +26,7 @@ import {
   OnDestroy,
   Signal,
   WritableSignal,
-  provideExperimentalZonelessChangeDetection,
+  provideZonelessChangeDetection,
 } from '@angular/core';
 
 import { TwoVarGTensorDataset } from 'src/lib/gtensor/the_16_two_var_bool_fns';
@@ -45,7 +45,7 @@ describe('CornerActivationComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection(), provideNoopAnimations()],
+      providers: [provideZonelessChangeDetection(), provideNoopAnimations()],
       imports: [
         CommonModule,
         FormsModule,

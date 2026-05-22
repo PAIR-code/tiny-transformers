@@ -15,7 +15,7 @@ limitations under the License.
 
 import { BoundedFloatValidatorDirective } from './bounded-float-validator.directive';
 
-xdescribe('NanValidatorDirective', () => {
+describe.skip('NanValidatorDirective', () => {
   it('should create an instance', () => {
     const directive = new BoundedFloatValidatorDirective();
     expect(directive).toBeTruthy();

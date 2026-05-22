@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ExampleTableComponent } from './example-table.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SecDefKind, SecDefOfSecList, SecDefOfUiView, ViewerKind } from 'src/lib/weblab/section';
@@ -73,7 +73,7 @@ describe('ExampleTableComponent', () => {
     const section = [...experiment.sectionMap.values()][1];
 
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [ExampleTableComponent],
     }).compileComponents();
 

@@ -16,14 +16,14 @@ limitations under the License.
 import { TestBed } from '@angular/core/testing';
 
 import { ModelStoreService } from './model-store.service';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('ModelStoreService', () => {
   let service: ModelStoreService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
     });
     service = TestBed.inject(ModelStoreService);
   });

@@ -17,6 +17,7 @@ limitations under the License.
 import * as gtensor from './gtensor';
 import { DName, Dims, GTensor, gtensorOfDims } from './gtensor';
 import * as tf from '@tensorflow/tfjs';
+import { expectArraysClose, expectArraysEqual } from './test_util';
 
 describe('gtensor', () => {
   beforeEach(() => { });
@@ -157,7 +158,7 @@ describe('gtensor', () => {
     const likeg2 = g1.transposeLike(g2);
     expect(likeg2.dimNames).toEqual(g2.dimNames);
     expect(likeg2.tensor.shape).toEqual(g2.tensor.shape);
-    tf.test_util.expectArraysClose(likeg2.tensor.dataSync(), g2.tensor.dataSync());
+    expectArraysClose(likeg2.tensor.dataSync(), g2.tensor.dataSync());
   });
 
   // TODO: add exception test also.
@@ -180,7 +181,7 @@ describe('gtensor', () => {
     const g2big = g2.broadcastToCombinedShape(g1);
 
     expect(g2big.dimNames).toEqual(['repSize', 'pos']);
-    tf.test_util.expectArraysEqual(g2big.tensor.arraySync(), [
+    expectArraysEqual(g2big.tensor.arraySync(), [
       [1, 2, 3],
       [1, 2, 3],
       [1, 2, 3],
@@ -307,7 +308,7 @@ describe('gtensor', () => {
     expect(r.gshape()).toEqual({ example: 2, point_id: 3, repSize: 2 });
     expect(r.dimNames).toEqual(['example', 'point_id', 'repSize']);
     expect(r.tensor.shape).toEqual([2, 3, 2]);
-    tf.test_util.expectArraysClose(await r.tensor.data(), [
+    expectArraysClose(await r.tensor.data(), [
       [
         [2, 4],
         [4, 6],
@@ -347,7 +348,7 @@ describe('gtensor', () => {
       repSize: 2,
     });
     expect(r.tensor.shape).toEqual([1, 2, 3, 2]);
-    tf.test_util.expectArraysClose(await r.tensor.data(), [
+    expectArraysClose(await r.tensor.data(), [
       [
         [
           [2, 4],
@@ -376,13 +377,13 @@ describe('gtensor', () => {
     const s1 = bar.pointwiseAdd(foo);
     const s2 = foo.pointwiseAdd(bar);
 
-    tf.test_util.expectArraysEqual(s1.transpose().tensor.arraySync(), [
+    expectArraysEqual(s1.transpose().tensor.arraySync(), [
       [2, 3, 4],
       [4, 5, 6],
       [7, 8, 9],
     ]);
     expect(s1.dimNames).toEqual(['repSize', 'pos']);
-    tf.test_util.expectArraysEqual(s2.tensor.arraySync(), [
+    expectArraysEqual(s2.tensor.arraySync(), [
       [2, 3, 4],
       [4, 5, 6],
       [7, 8, 9],
@@ -411,7 +412,7 @@ describe('gtensor', () => {
     // r.tensor.print();
     expect(r.dimNames).toEqual(['example', 'repSize', 'point_id', 'repSize2']);
     expect(r.tensor.shape).toEqual([2, 2, 3, 3]);
-    tf.test_util.expectArraysClose(await r.tensor.data(), [
+    expectArraysClose(await r.tensor.data(), [
       [
         [
           [2, 3, 4],
@@ -459,7 +460,7 @@ describe('gtensor', () => {
     expect(r.gshape()).toEqual({ example: 2, point_id: 3, repSize: 2 });
     expect(r.dimNames).toEqual(['example', 'point_id', 'repSize']);
     expect(r.tensor.shape).toEqual([2, 3, 2]);
-    tf.test_util.expectArraysClose(await r.tensor.data(), [
+    expectArraysClose(await r.tensor.data(), [
       [
         [1, 4],
         [3, 8],
@@ -489,7 +490,7 @@ describe('gtensor', () => {
     );
     const t2 = t.mergeDims(['a', 'b'], 'ab');
     expect(t2.gshape()).toEqual({ ab: 4, c: 2 });
-    tf.test_util.expectArraysClose(t2.tensor.dataSync(), [
+    expectArraysClose(t2.tensor.dataSync(), [
       [0, 0],
       [0, 1],
       [1, 0],
@@ -498,14 +499,14 @@ describe('gtensor', () => {
 
     const t3 = t.mergeDims(['b', 'c'], 'bc');
     expect(t3.gshape()).toEqual({ a: 2, bc: 4 });
-    tf.test_util.expectArraysClose(t3.tensor.dataSync(), [
+    expectArraysClose(t3.tensor.dataSync(), [
       [0, 0, 0, 1],
       [1, 0, 1, 1],
     ]);
 
     const t4 = t.mergeDims(['a', 'c'], 'ac');
     expect(t4.gshape()).toEqual({ ac: 4, b: 2 });
-    tf.test_util.expectArraysClose(t3.tensor.dataSync(), [
+    expectArraysClose(t3.tensor.dataSync(), [
       [0, 0],
       [0, 1],
       [1, 0],
@@ -525,7 +526,7 @@ describe('gtensor', () => {
     );
     const t2 = t.splitDim('example', { x: 2, y: 2 });
     expect(t2.gshape()).toEqual({ x: 2, y: 2, rep: 3 });
-    tf.test_util.expectArraysClose(t2.tensor.dataSync(), [
+    expectArraysClose(t2.tensor.dataSync(), [
       [
         [0, 0, 0],
         [0, 1, 0],
@@ -554,28 +555,28 @@ describe('gtensor', () => {
 
     const rSumA = t.prodOverDims(['a']);
     expect(rSumA.gshape()).toEqual({ b: 2, c: 2 });
-    tf.test_util.expectArraysClose(rSumA.tensor.dataSync(), [
+    expectArraysClose(rSumA.tensor.dataSync(), [
       [0, 0],
       [0, 1],
     ]);
 
     const rSumB = t.prodOverDims(['b']);
     expect(rSumB.gshape()).toEqual({ a: 2, c: 2 });
-    tf.test_util.expectArraysClose(rSumB.tensor.dataSync(), [
+    expectArraysClose(rSumB.tensor.dataSync(), [
       [0, 0],
       [1, 0],
     ]);
 
     const rSumC = t.prodOverDims(['c']);
     expect(rSumC.gshape()).toEqual({ a: 2, b: 2 });
-    tf.test_util.expectArraysClose(rSumC.tensor.dataSync(), [
+    expectArraysClose(rSumC.tensor.dataSync(), [
       [0, 0],
       [0, 1],
     ]);
 
     const rSumAB = t.prodOverDims(['a', 'b']);
     expect(rSumAB.gshape()).toEqual({ c: 2 });
-    tf.test_util.expectArraysClose(rSumAB.tensor.dataSync(), [0, 0]);
+    expectArraysClose(rSumAB.tensor.dataSync(), [0, 0]);
   });
 
   it('sumOverDims', () => {
@@ -595,28 +596,28 @@ describe('gtensor', () => {
 
     const rSumA = t.sumOverDims(['a']);
     expect(rSumA.gshape()).toEqual({ b: 2, c: 2 });
-    tf.test_util.expectArraysClose(rSumA.tensor.dataSync(), [
+    expectArraysClose(rSumA.tensor.dataSync(), [
       [1, 0],
       [1, 2],
     ]);
 
     const rSumB = t.sumOverDims(['b']);
     expect(rSumB.gshape()).toEqual({ a: 2, c: 2 });
-    tf.test_util.expectArraysClose(rSumB.tensor.dataSync(), [
+    expectArraysClose(rSumB.tensor.dataSync(), [
       [0, 1],
       [2, 1],
     ]);
 
     const rSumC = t.sumOverDims(['c']);
     expect(rSumC.gshape()).toEqual({ a: 2, b: 2 });
-    tf.test_util.expectArraysClose(rSumC.tensor.dataSync(), [
+    expectArraysClose(rSumC.tensor.dataSync(), [
       [0, 1],
       [1, 2],
     ]);
 
     const rSumAB = t.sumOverDims(['a', 'b']);
     expect(rSumAB.gshape()).toEqual({ c: 2 });
-    tf.test_util.expectArraysClose(rSumAB.tensor.dataSync(), [2, 2]);
+    expectArraysClose(rSumAB.tensor.dataSync(), [2, 2]);
   });
 
   it('serialisation', () => {
@@ -645,7 +646,7 @@ describe('gtensor', () => {
     const r = paramPositions.squaredDifference(paramPositions.rename('point_id', 'point_id2'));
 
     expect(r.gshape()).toEqual({ point_id: 3, point_id2: 3, inputRepSize: 2 });
-    tf.test_util.expectArraysClose(await r.tensor.data(), [
+    expectArraysClose(await r.tensor.data(), [
       [
         [0, 0],
         [1, 1],
@@ -689,7 +690,7 @@ describe('gtensor', () => {
 
     const gathered = g.gather(indexes, 'relativePos');
     expect(gathered.dimNames).toEqual(['heads', 'keyPos', 'queryPos']);
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       gathered.tensor.dataSync(),
       tf
         .tensor([
@@ -735,7 +736,7 @@ describe('gtensor', () => {
     const gathered = g.gather(indexes, 'logits', ['batch', 'pos']);
 
     expect(gathered.dimNames).toEqual(['batch', 'pos']);
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       gathered.tensor.dataSync(),
       tf
         .tensor([
@@ -756,11 +757,11 @@ describe('gtensor', () => {
 
     const y = new gtensor.GVariable(x);
 
-    tf.test_util.expectArraysEqual(y.tensor.dataSync(), x.tensor.dataSync());
+    expectArraysEqual(y.tensor.dataSync(), x.tensor.dataSync());
 
     y.assign(x2);
 
-    tf.test_util.expectArraysEqual(y.tensor.dataSync(), x2.tensor.dataSync());
+    expectArraysEqual(y.tensor.dataSync(), x2.tensor.dataSync());
   });
 
   it('softmax', () => {
@@ -782,7 +783,7 @@ describe('gtensor', () => {
       ['batch', 'pos', 'repSize'],
     );
 
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       g.softmax('repSize').tensor.dataSync(),
       tf
         .tensor([
@@ -821,7 +822,7 @@ describe('gtensor', () => {
       ]),
       ['batch', 'pos', 'repSize'],
     );
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       gsoftmax.tensor.dataSync(),
       expectedGTensor.transposeLike(gsoftmax).tensor.dataSync(),
     );
@@ -850,7 +851,7 @@ describe('gtensor', () => {
     const loss = g.softmaxCrossEntropyWithIntegerLabels(labels, 'logits');
 
     expect(loss.dimNames).toEqual(['batch']);
-    tf.test_util.expectArraysClose(
+    expectArraysClose(
       loss.tensor.dataSync(),
       tf
         .tensor([
@@ -970,7 +971,7 @@ describe('gtensor', () => {
     const size = 3;
     const g1tril = gtensor.makeTriangularMatrix(size, 'Pos1', 'Pos2', 0, 42);
     expect(g1tril.dimNames).toEqual(['Pos1', 'Pos2']);
-    tf.test_util.expectArraysEqual(g1tril.tensor.arraySync(), [
+    expectArraysEqual(g1tril.tensor.arraySync(), [
       [0, 42, 42],
       [0, 0, 42],
       [0, 0, 0],

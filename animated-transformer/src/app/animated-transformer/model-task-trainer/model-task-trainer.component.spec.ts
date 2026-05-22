@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ModelTaskTrainerComponent } from './model-task-trainer.component';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('ModelTaskTrainerComponent', () => {
   let component: ModelTaskTrainerComponent;
@@ -27,7 +27,7 @@ describe('ModelTaskTrainerComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [
-        provideExperimentalZonelessChangeDetection(),
+        provideZonelessChangeDetection(),
         provideRouter([]),
         provideNoopAnimations(),
       ],

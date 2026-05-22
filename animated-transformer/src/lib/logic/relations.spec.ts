@@ -191,8 +191,7 @@ describe('relations', () => {
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['A', '1']), new Set(['A', '1']))).toBeTrue();
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['A']), new Set(['AB']))).toBeTrue();
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['A']), new Set(['AB', 'B']))).toBeTrue();
-    // expect(typeSetIsSubsetOf(decendentMap, new Set(['A']), new Set(['a1', 'a2']))).toBeTrue();
-    expect(typeSetIsSubsetOf(decendent, new Set(['a1', 'a2']), new Set(['A']))).toBeTrue();
+    expect(typeSetIsSubsetOf(decendent, new Set(['a1', 'a2']), new Set(['A']))).toBe(true);
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['a1', 'a2']), new Set(['AB']))).toBeTrue();
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['a1', 'a2']), new Set(['AB', '1']))).toBeTrue();
     // expect(typeSetIsSubsetOf(decendentMap, new Set(['B', 'A']), new Set(['AB']))).toBeTrue();

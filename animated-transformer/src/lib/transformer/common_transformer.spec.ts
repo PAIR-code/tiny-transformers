@@ -18,6 +18,7 @@ import { causalMask } from './common_transformer';
 import * as tf from '@tensorflow/tfjs';
 import * as abtask from '../seqtasks/ab_task';
 import { embedBatch, mapToIdx, prepareBasicTaskTokenRep } from '../tokens/token_gemb';
+import { expectArraysClose, expectArraysEqual } from '../gtensor/test_util';
 
 describe('Common Transformer util types and functions', () => {
     it('AB task data prep', async () => {
@@ -73,7 +74,7 @@ describe('Common Transformer util types and functions', () => {
         const masked = causalMask(exampleAffinities);
 
         expect(masked.dimNames).toEqual(['batch', 'heads', 'keyPos', 'queryPos']);
-        tf.test_util.expectArraysClose(masked.tensor.arraySync(), [
+        expectArraysClose(masked.tensor.arraySync(), [
             [
                 [
                     [1, 0, 0],

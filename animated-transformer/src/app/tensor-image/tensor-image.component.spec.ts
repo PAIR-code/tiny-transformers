@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TensorImageComponent } from './tensor-image.component';
 import { GTensor } from 'src/lib/gtensor/gtensor';
 import * as tf from '@tensorflow/tfjs';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('TensorImageComponent', () => {
   let component: TensorImageComponent;
@@ -26,7 +26,7 @@ describe('TensorImageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideExperimentalZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection()],
       imports: [TensorImageComponent],
     }).compileComponents();
   });

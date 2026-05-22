@@ -19,13 +19,13 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.config';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [
-        provideExperimentalZonelessChangeDetection(),
+        provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding()),
       ],
       imports: [NoopAnimationsModule, AppComponent],

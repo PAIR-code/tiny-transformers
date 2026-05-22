@@ -103,13 +103,13 @@
         @if (lossPoints.length > 0) {
           <div>
             <div>Loss:</div>
-            <app-d3-line-chart [data]="lossPoints"></app-d3-line-chart>
+            <app-d3-line-chart [dataPoints]="lossPoints"></app-d3-line-chart>
           </div>
         }
         @if (accPoints.length > 0) {
           <div>
             <div>Accuracy:</div>
-            <app-d3-line-chart [data]="accPoints"></app-d3-line-chart>
+            <app-d3-line-chart [dataPoints]="accPoints"></app-d3-line-chart>
           </div>
         }
       </div>

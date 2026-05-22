@@ -16,6 +16,7 @@ limitations under the License.
 /* Relative Positional Encoding */
 import * as tf from '@tensorflow/tfjs';
 import { gtensor } from '..';
+import { expectArraysClose, expectArraysEqual } from '../gtensor/test_util';
 
 describe('relative_pos_encoding', () => {
   it('Basic Relative position encoding', () => {
@@ -38,7 +39,7 @@ describe('relative_pos_encoding', () => {
     const posMatrix = posEncoding.gather(posIndexes, 'pos');
     // posMatrix.tensor.print();
 
-    tf.test_util.expectArraysClose(posMatrix.tensor.dataSync(), [
+    expectArraysClose(posMatrix.tensor.dataSync(), [
       [-7, -6, -5, -4],
       [-6, -5, -4, -3],
       [-5, -4, -3, -2],

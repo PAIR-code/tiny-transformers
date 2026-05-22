@@ -16,6 +16,7 @@ limitations under the License.
 
 import * as gtensor_util from './gtensor_util';
 import * as tf from '@tensorflow/tfjs';
+import { expectArraysClose, expectArraysEqual } from './test_util';
 
 describe('gtensor_util', () => {
   beforeEach(() => {
@@ -30,7 +31,7 @@ describe('gtensor_util', () => {
   it('grid', () => {
     // Making a GTensor with an initializer:
     const grid = gtensor_util.grid([0, 0], [1, 1], [0.3, .5]);
-    expect(() => tf.test_util.expectArraysClose(grid, [
+    expect(() => expectArraysClose(grid, [
       [0, 0], [0.3, 0], [0.6, 0], [0.9, 0],
       [0, 0.5], [0.3, 0.5], [0.6, 0.5], [0.9, 0.5],
       [0, 1], [0.3, 1], [0.6, 1], [0.9, 1],

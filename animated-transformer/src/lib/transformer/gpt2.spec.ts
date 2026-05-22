@@ -21,6 +21,7 @@ import * as jstree from '../js_tree/js_tree';
 import r50k_base from "gpt-tokenizer/esm/encoding/r50k_base";
 import { makeRandomStream } from '../random/random';
 import { generate } from 'rxjs';
+import { expectArraysClose, expectArraysEqual } from '../gtensor/test_util';
 
 function generateTestTask(): BasicTaskTokenRep {
   // The vocabulary size for GPT2 is 50257. However, the prepareBasicTaskToken adds four
@@ -131,7 +132,7 @@ describe('GTensor Transformers', () => {
       ['batch', 'pos', 'inputRep']
     );
     const result = gpt2.addPosEmbeddings(model, inputExample);
-    tf.test_util.expectArraysClose(result.tensor.dataSync(), [
+    expectArraysClose(result.tensor.dataSync(), [
       [
         [2, 3],
         [3, 5],

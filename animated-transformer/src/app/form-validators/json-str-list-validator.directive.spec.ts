@@ -15,7 +15,7 @@ limitations under the License.
 
 import { JsonStrListValidatorDirective } from './json-str-list-validator.directive';
 
-xdescribe('JsonStrListValidatorDirective', () => {
+describe.skip('JsonStrListValidatorDirective', () => {
   it('should create an instance', () => {
     const directive = new JsonStrListValidatorDirective();
     expect(directive).toBeTruthy();

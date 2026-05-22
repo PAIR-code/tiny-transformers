@@ -56,3 +56,101 @@
 .card {
   margin: 1em;
 }
+
+.explainer-card {
+  flex: 1 1 100%; /* Span full width */
+  margin: 1.5em 1em 3em 1em;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #faf9fc 0%, #f5f3f7 100%);
+  border-left: 5px solid #673ab7; /* Deep Purple theme color */
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(103, 58, 183, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(103, 58, 183, 0.12);
+  }
+
+  markdown {
+    color: #333333;
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+
+    h3 {
+      color: #673ab7; /* Deep Purple primary theme color */
+      font-size: 1.8rem;
+      font-weight: 500;
+      margin-top: 0;
+      margin-bottom: 0.5em;
+      letter-spacing: -0.02em;
+    }
+
+    h4 {
+      color: #ffb300; /* Amber accent color */
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+      border-bottom: 2px solid rgba(255, 179, 0, 0.15);
+      padding-bottom: 4px;
+      width: fit-content;
+    }
+
+    hr {
+      border: 0;
+      height: 1px;
+      background: linear-gradient(to right, rgba(103, 58, 183, 0.2), rgba(103, 58, 183, 0));
+      margin: 1.5em 0;
+    }
+
+    p {
+      margin-bottom: 1em;
+      font-size: 1.05rem;
+    }
+
+    ul {
+      padding-left: 1.5em;
+      margin-bottom: 1em;
+      list-style-type: square;
+
+      li {
+        margin-bottom: 0.5em;
+        font-size: 1.05rem;
+      }
+    }
+
+    strong {
+      color: #673ab7;
+      font-weight: 600;
+    }
+
+    /* Style block formulas */
+    p > span.katex-display,
+    p > em > strong,
+    p > strong {
+      display: block;
+      text-align: center;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.15rem;
+      background-color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 6px;
+      border: 1px solid rgba(103, 58, 183, 0.1);
+      margin: 1em auto;
+      width: fit-content;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+      color: #673ab7;
+    }
+    
+    /* Ensure we don't format normal inline bolding as block math */
+    p > strong:not(:only-child) {
+      display: inline;
+      background: none;
+      border: none;
+      padding: 0;
+      box-shadow: none;
+      margin: 0;
+    }
+  }
+}

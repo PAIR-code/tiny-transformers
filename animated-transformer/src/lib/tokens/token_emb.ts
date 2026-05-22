@@ -14,7 +14,6 @@ limitations under the License.
 ==============================================================================*/
 
 import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-core/dist/public/chained_ops/register_all_chained_ops';
 import * as gtensor from '../gtensor/gtensor';
 
 // CONSIDER: parameterise by the tokens, e.g. by a <T extends string>?

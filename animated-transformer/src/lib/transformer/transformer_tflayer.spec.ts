@@ -92,7 +92,7 @@ describe('TFJS Layers Transformer', () => {
     ]);
   });
 
-  xit('training a transformer', async () => {
+  it.skip('training a transformer', async () => {
     config.returnAllParts = false;
     const encoder = transformer.encoder(config);
 

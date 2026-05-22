@@ -4,7 +4,7 @@ import { AnimatedTransformerComponent } from './animated-transformer.component';
 import { TinyModelsService } from '../tiny-models.service';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('AnimatedTransformerComponent', () => {
   let component: AnimatedTransformerComponent;
@@ -13,7 +13,7 @@ describe('AnimatedTransformerComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [
-        provideExperimentalZonelessChangeDetection(),
+        provideZonelessChangeDetection(),
         TinyModelsService,
         provideNoopAnimations(),
         provideRouter([]),

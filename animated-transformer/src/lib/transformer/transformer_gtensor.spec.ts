@@ -47,7 +47,7 @@ describe('GTensor Transformers', () => {
     const generator = makeRandomStream(0);
     const parts = transformer.computeAttnHead(spec, params, inputExample1, generator);
     expect(parts.attendedValues.dimNames).toEqual(
-      jasmine.arrayContaining(['batch', 'heads', 'value', 'pos']),
+      expect.arrayContaining(['batch', 'heads', 'value', 'pos']),
     );
     expect(parts.attendedValues.gshape()).toEqual({
       batch: 1,

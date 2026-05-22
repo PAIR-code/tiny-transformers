@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SimpleChartComponent } from './simple-chart.component';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { SecDefKind, SecDefOfSecList, SecDefOfUiView, ViewerKind } from 'src/lib/weblab/section';
 import { InMemoryDataResolver } from 'src/lib/data-resolver/data-resolver';
 import { Experiment } from 'src/lib/weblab/experiment';
@@ -76,7 +76,7 @@ describe('SimpleChartComponent', () => {
 
     await TestBed.configureTestingModule({
       providers: [
-        provideExperimentalZonelessChangeDetection(),
+        provideZonelessChangeDetection(),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
