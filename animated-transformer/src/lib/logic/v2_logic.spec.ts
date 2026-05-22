@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { TypeConstructor, createTypeContext, extendTypeContext, constr, variable, inferType, typeCheck } from './v2_logic';
+import { TypeConstructor, createTypeContext, extendTypeContext, constr, variable, inferType, typeCheck, parseTypeContext, printTypeContext, parseTerm, printTerm } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -251,6 +251,80 @@ describe('v2_logic of peano natural numbers', () => {
       // typeCheck should succeed by resolving 'c' based on expected type!
       expect(() => typeCheck(multiCtxt, term, 'T1')).not.toThrow();
       expect(() => typeCheck(multiCtxt, term, 'T2')).not.toThrow();
+    });
+  });
+
+  describe('SML-like Parser and Printer', () => {
+    it('parses and prints TypeContext correctly (roundtrip)', () => {
+      const src = [
+        'datatype nat = 0 | suc of nat;',
+        'datatype natList = nil | cons of nat * natList;',
+        'datatype tree = leaf | node of { left: tree, val: nat, right: tree };',
+      ].join('\n');
+
+      const ctxt = parseTypeContext(src);
+
+      // Check that parsed context is well-formed and has correct types
+      expect(ctxt.types['nat']).toBeDefined();
+      expect(ctxt.types['natList']).toBeDefined();
+      expect(ctxt.types['tree']).toBeDefined();
+
+      // Check specific constructor definitions
+      const cons = ctxt.types['natList'].constructors['cons'];
+      expect(cons.argOrder).toEqual(['arg0', 'arg1']);
+      expect(cons.arguments).toEqual({ arg0: 'nat', arg1: 'natList' });
+
+      const node = ctxt.types['tree'].constructors['node'];
+      expect(node.argOrder).toEqual(['left', 'val', 'right']);
+      expect(node.arguments).toEqual({ left: 'tree', val: 'nat', right: 'tree' });
+
+      // Print back and compare
+      const printed = printTypeContext(ctxt);
+      // Note: printed output is sorted by typeName and constructorName alphabetically
+      const expectedPrinted = [
+        'datatype nat = 0 | suc of nat;',
+        'datatype natList = cons of nat * natList | nil;',
+        'datatype tree = leaf | node of { left: tree, val: nat, right: tree };',
+      ].join('\n');
+      expect(printed).toBe(expectedPrinted);
+
+      // Roundtrip: parse printed again and ensure equality
+      const ctxt2 = parseTypeContext(printed);
+      expect(ctxt2).toEqual(ctxt);
+    });
+
+    it('parses and prints Terms correctly (roundtrip)', () => {
+      const ctxtSrc = [
+        'datatype nat = 0 | suc of nat;',
+        'datatype natList = nil | cons of nat * natList;',
+        'datatype tree = leaf | node of { left: tree, right: tree, val: nat };',
+      ].join('\n');
+      const ctxt = parseTypeContext(ctxtSrc);
+
+      const testCases = [
+        { termSrc: '0', printed: '0' },
+        { termSrc: 'suc 0', printed: 'suc 0' },
+        { termSrc: 'suc (suc 0)', printed: 'suc (suc 0)' },
+        { termSrc: 'cons(suc 0, nil)', printed: 'cons(suc 0, nil)' },
+        { termSrc: 'node { left = leaf, val = suc 0, right = leaf }', printed: 'node { left = leaf, val = suc 0, right = leaf }' },
+        { termSrc: 'x', printed: 'x' }, // variable
+        { termSrc: 'cons (suc x) nil', printed: 'cons(suc x, nil)' }, // variable & nested curried
+      ];
+
+      for (const tc of testCases) {
+        const parsed = parseTerm(tc.termSrc, ctxt);
+        const printed = printTerm(parsed);
+        expect(printed).toBe(tc.printed);
+
+        // Parse again and ensure they are identical Terms
+        const parsed2 = parseTerm(printed, ctxt);
+        expect(parsed2).toEqual(parsed);
+      }
+    });
+
+    it('throws on invalid syntax', () => {
+      expect(() => parseTypeContext('datatype nat = ;')).toThrow();
+      expect(() => parseTerm('cons(0, nil', new Set(['cons', 'nil', '0']))).toThrow();
     });
   });
 });
