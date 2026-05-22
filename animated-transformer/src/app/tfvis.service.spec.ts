@@ -13,8 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
+vi.mock('@tensorflow/tfjs-vis', () => {
+  return {
+    visor: () => ({
+      close: () => {},
+      open: () => {},
+      isOpen: () => false,
+    }),
+  };
+});
+
+import { TestBed } from '@angular/core/testing';
 import { TfvisService } from './tfvis.service';
 import { provideZonelessChangeDetection } from '@angular/core';
 

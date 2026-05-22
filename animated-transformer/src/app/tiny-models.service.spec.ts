@@ -13,21 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// import { TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { TinyModelsService } from './tiny-models.service';
+import { provideZonelessChangeDetection } from '@angular/core';
 
-// import { TinyModelsService } from './tiny-models.service';
+describe('TinyModelsService', () => {
+  let service: TinyModelsService;
 
-// describe('TinyModelsService', () => {
-//   let service: TinyModelsService;
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection()],
+    });
+    service = TestBed.inject(TinyModelsService);
+  });
 
-//   beforeEach(() => {
-//     TestBed.configureTestingModule({
-//       providers: [RouterModule.forRoot([])],
-//     });
-//     service = TestBed.inject(TinyModelsService);
-//   });
-
-//   it('should be created', () => {
-//     expect(service).toBeTruthy();
-//   });
-// });
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+});
