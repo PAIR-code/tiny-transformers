@@ -254,12 +254,12 @@ describe('v2_logic of peano natural numbers', () => {
     });
   });
 
-  describe('SML-like Parser and Printer', () => {
+  describe('Custom Parser and Printer', () => {
     it('parses and prints TypeContext correctly (roundtrip)', () => {
       const src = [
-        'datatype nat = 0 | suc of nat;',
-        'datatype natList = nil | cons of nat * natList;',
-        'datatype tree = leaf | node of { left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(n:nat);',
+        'type natList = nil | cons(h: nat, t: natList);',
+        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
       ].join('\n');
 
       const ctxt = parseTypeContext(src);
@@ -271,8 +271,8 @@ describe('v2_logic of peano natural numbers', () => {
 
       // Check specific constructor definitions
       const cons = ctxt.types['natList'].constructors['cons'];
-      expect(cons.argOrder).toEqual(['arg0', 'arg1']);
-      expect(cons.arguments).toEqual({ arg0: 'nat', arg1: 'natList' });
+      expect(cons.argOrder).toEqual(['h', 't']);
+      expect(cons.arguments).toEqual({ h: 'nat', t: 'natList' });
 
       const node = ctxt.types['tree'].constructors['node'];
       expect(node.argOrder).toEqual(['left', 'val', 'right']);
@@ -282,9 +282,9 @@ describe('v2_logic of peano natural numbers', () => {
       const printed = printTypeContext(ctxt);
       // Note: printed output is sorted by typeName and constructorName alphabetically
       const expectedPrinted = [
-        'datatype nat = 0 | suc of nat;',
-        'datatype natList = cons of nat * natList | nil;',
-        'datatype tree = leaf | node of { left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(n: nat);',
+        'type natList = cons(h: nat, t: natList) | nil;',
+        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
@@ -295,20 +295,22 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('parses and prints Terms correctly (roundtrip)', () => {
       const ctxtSrc = [
-        'datatype nat = 0 | suc of nat;',
-        'datatype natList = nil | cons of nat * natList;',
-        'datatype tree = leaf | node of { left: tree, right: tree, val: nat };',
+        'type nat = 0 | suc(n:nat);',
+        'type natList = nil | cons(h: nat, t: natList);',
+        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
       ].join('\n');
       const ctxt = parseTypeContext(ctxtSrc);
 
       const testCases = [
         { termSrc: '0', printed: '0' },
-        { termSrc: 'suc 0', printed: 'suc 0' },
-        { termSrc: 'suc (suc 0)', printed: 'suc (suc 0)' },
-        { termSrc: 'cons(suc 0, nil)', printed: 'cons(suc 0, nil)' },
-        { termSrc: 'node { left = leaf, val = suc 0, right = leaf }', printed: 'node { left = leaf, val = suc 0, right = leaf }' },
-        { termSrc: 'x', printed: 'x' }, // variable
-        { termSrc: 'cons (suc x) nil', printed: 'cons(suc x, nil)' }, // variable & nested curried
+        { termSrc: 'suc(0)', printed: 'suc(0)' },
+        { termSrc: 'suc(suc(0))', printed: 'suc(suc(0))' },
+        { termSrc: 'cons(suc(0), nil)', printed: 'cons(suc(0), nil)' },
+        { termSrc: 'node{ left = leaf, val = suc(0), right = leaf }', printed: 'node{ left = leaf, val = suc(0), right = leaf }' },
+        { termSrc: '?x', printed: '?x' }, // variable
+        { termSrc: 'cons(suc(?x), nil)', printed: 'cons(suc(?x), nil)' }, // variable & nested
+        { termSrc: 'node{ left = ?left, val = suc(?v), right = ?right }', printed: 'node{ ?left, val = suc(?v), ?right }' }, // verbose input, concise output
+        { termSrc: 'node{ ?left, val = suc(?v), ?right }', printed: 'node{ ?left, val = suc(?v), ?right }' }, // concise input, concise output
       ];
 
       for (const tc of testCases) {
@@ -322,8 +324,24 @@ describe('v2_logic of peano natural numbers', () => {
       }
     });
 
+    it('prints verbose terms when requested', () => {
+      const ctxtSrc = [
+        'type nat = 0 | suc(n:nat);',
+        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
+      ].join('\n');
+      const ctxt = parseTypeContext(ctxtSrc);
+
+      const term = parseTerm('node{ ?left, val = suc(?v), ?right }', ctxt);
+
+      // Concise is default
+      expect(printTerm(term)).toBe('node{ ?left, val = suc(?v), ?right }');
+
+      // Verbose option
+      expect(printTerm(term, { verbose: true })).toBe('node{ left = ?left, val = suc(?v), right = ?right }');
+    });
+
     it('throws on invalid syntax', () => {
-      expect(() => parseTypeContext('datatype nat = ;')).toThrow();
+      expect(() => parseTypeContext('type nat = ;')).toThrow();
       expect(() => parseTerm('cons(0, nil', new Set(['cons', 'nil', '0']))).toThrow();
     });
   });

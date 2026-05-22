@@ -42,6 +42,7 @@ export type TypeConstructor = {
     [argName: string]: string;
   };
   argOrder?: string[];
+  isRecord?: boolean;
 };
 
 export type TypeConstructions = {
@@ -380,17 +381,18 @@ export function typeCheck(
 }
 
 /**
- * Parses a TypeContext from an SML-like datatype declaration string.
+ * Parses a TypeContext from a custom type declaration string.
  * Example:
- *   datatype nat = 0 | suc of nat;
- *   datatype natList = nil | cons of nat * natList;
+ *   type nat = 0 | suc(n:nat);
+ *   type natList = nil | cons(h: nat, t: natList);
+ *   type tree = leaf | node{ left: tree, val: nat, right: tree };
  */
 export function parseTypeContext(src: string): TypeContext {
   const logicTokens = new RegexMatchers({
-    keyword: /datatype\b|of\b/,
+    keyword: /type\b/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | * { } : , ( ) ;"),
+    symbol: matchOneOf("= | { } : , ( ) ;"),
     ws: /\s+/,
   });
 
@@ -404,44 +406,56 @@ export function parseTypeContext(src: string): TypeContext {
 
   const recordField = seq(ident, ":", ident).map(r => ({ name: r[0], type: r[2] }));
   const recordArgs = delimited("{", withSep(",", recordField), "}");
+  const parenArgs = delimited("(", withSep(",", recordField), ")");
 
-  const argsParser = or(
-    recordArgs.map(fields => {
+  const constructorDecl = or(
+    // Curly / Record style: node{ left: tree, val: nat, right: tree }
+    seq(constrName, recordArgs).map(r => {
+      const name = r[0];
+      const fields = r[1];
       const argumentsMap: { [name: string]: string } = {};
       const argOrder: string[] = [];
       for (const f of fields) {
         argumentsMap[f.name] = f.type;
         argOrder.push(f.name);
       }
-      return { arguments: argumentsMap, argOrder };
+      return {
+        constructorName: name,
+        arguments: argumentsMap,
+        argOrder,
+        isRecord: true,
+      };
     }),
-    withSepPlus("*", ident).map(types => {
+    // Parenthesized style: suc(n:nat) or cons(h: nat, t: natList)
+    seq(constrName, parenArgs).map(r => {
+      const name = r[0];
+      const fields = r[1];
       const argumentsMap: { [name: string]: string } = {};
       const argOrder: string[] = [];
-      for (let i = 0; i < types.length; i++) {
-        const name = `arg${i}`;
-        argumentsMap[name] = types[i];
-        argOrder.push(name);
+      for (const f of fields) {
+        argumentsMap[f.name] = f.type;
+        argOrder.push(f.name);
       }
-      return { arguments: argumentsMap, argOrder };
+      return {
+        constructorName: name,
+        arguments: argumentsMap,
+        argOrder,
+        isRecord: false,
+      };
+    }),
+    // Zero-arg: 0 or leaf or nil
+    constrName.map(name => {
+      return {
+        constructorName: name,
+        arguments: {},
+        argOrder: [],
+        isRecord: false,
+      };
     })
   );
 
-  const constructorDecl = seq(
-    constrName,
-    opt(preceded("of", argsParser))
-  ).map(r => {
-    const name = r[0];
-    const argsOpt = r[1];
-    return {
-      constructorName: name,
-      arguments: argsOpt?.arguments ?? {},
-      argOrder: argsOpt?.argOrder ?? [],
-    };
-  });
-
   const datatypeDecl = seq(
-    "datatype",
+    "type",
     ident,
     "=",
     withSepPlus("|", constructorDecl),
@@ -468,7 +482,7 @@ export function parseTypeContext(src: string): TypeContext {
 }
 
 /**
- * Prints a TypeContext in SML-like datatype syntax.
+ * Prints a TypeContext in the custom type syntax.
  */
 export function printTypeContext(ctxt: TypeContext): string {
   const declarations: string[] = [];
@@ -481,29 +495,25 @@ export function printTypeContext(ctxt: TypeContext): string {
       if (argKeys.length === 0) {
         constrDecls.push(c.constructorName);
       } else {
-        const isPositional = argKeys.every((k, idx) => k === `arg${idx}`);
-        if (isPositional) {
-          const typesList = argKeys.map(k => c.arguments[k]);
-          if (typesList.length === 1) {
-            constrDecls.push(`${c.constructorName} of ${typesList[0]}`);
-          } else {
-            constrDecls.push(`${c.constructorName} of ${typesList.join(' * ')}`);
-          }
+        const fields = argKeys.map(k => `${k}: ${c.arguments[k]}`).join(', ');
+        if (c.isRecord) {
+          constrDecls.push(`${c.constructorName}{ ${fields} }`);
         } else {
-          const fields = argKeys.map(k => `${k}: ${c.arguments[k]}`).join(', ');
-          constrDecls.push(`${c.constructorName} of { ${fields} }`);
+          constrDecls.push(`${c.constructorName}(${fields})`);
         }
       }
     }
-    declarations.push(`datatype ${typeName} = ${constrDecls.join(' | ')};`);
+    declarations.push(`type ${typeName} = ${constrDecls.join(' | ')};`);
   }
   return declarations.join('\n');
 }
 
 /**
- * Parses a Term from an SML-like term string.
- * Supports positional constructors, record-style constructors, space-separated curried constructor terms,
- * and variables.
+ * Parses a Term from a custom term string.
+ * Example:
+ *   suc(suc(0));
+ *   cons(suc(0), nil); 
+ *   node{ left = leaf, val = suc(0), right = leaf };
  */
 export function parseTerm(src: string, constructors?: Set<string> | TypeContext): Term {
   const knownConstructors = new Set<string>();
@@ -520,10 +530,11 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
   }
 
   const termTokens = new RegexMatchers({
-    keyword: /datatype\b|of\b/,
+    keyword: /type\b/,
+    var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | * { } : , ( ) ;"),
+    symbol: matchOneOf("= | { } : , ( ) ;"),
     ws: /\s+/,
   });
 
@@ -537,42 +548,52 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
     tokenOf("ident", Array.from(knownConstructors)).map(t => t.text)
   );
 
-  type SimpleAst = Term | { kind: 'Tuple'; elements: Term[] } | { kind: 'Record'; fields: { [name: string]: Term } };
-
   const termParser: Parser<any, Term> = fn(() => {
     return or(
-      // Constructor application: C simple_term1 simple_term2 ...
-      seq(constrNameParser, repeatPlus(simpleTermParser)).map(r => {
+      // Constructor with curly named arguments: C{ left = leaf, val = suc(0), right = leaf }
+      seq(
+        constrNameParser,
+        delimited(
+          "{",
+          withSep(
+            ",",
+            or(
+              seq(kind("ident"), "=", termParser).map(r => ({ name: r[0], val: r[2] })),
+              kind("var").map(name => {
+                const varName = name.substring(1);
+                return {
+                  name: varName,
+                  val: {
+                    kind: TermKind.Variable as const,
+                    varName,
+                  },
+                };
+              })
+            )
+          ),
+          "}"
+        )
+      ).map(r => {
         const constructorName = r[0];
-        const simpleTerms = r[1] as SimpleAst[];
-
-        if (simpleTerms.length === 1) {
-          const first = simpleTerms[0];
-          if ('kind' in first && first.kind === 'Tuple') {
-            return {
-              kind: TermKind.Constructor as const,
-              constructorName,
-              unNamedArgs: first.elements,
-              namedArgs: {},
-            };
-          }
-          if ('kind' in first && first.kind === 'Record') {
-            return {
-              kind: TermKind.Constructor as const,
-              constructorName,
-              unNamedArgs: [],
-              namedArgs: first.fields,
-            };
-          }
+        const fields = r[1];
+        const namedArgs: { [argName: string]: Term } = {};
+        for (const f of fields) {
+          namedArgs[f.name] = f.val;
         }
-
-        const args = simpleTerms.map(t => {
-          if ('kind' in t && (t.kind === 'Tuple' || t.kind === 'Record')) {
-            throw new Error("Unexpected nested tuple or record");
-          }
-          return t as Term;
-        });
-
+        return {
+          kind: TermKind.Constructor as const,
+          constructorName,
+          unNamedArgs: [],
+          namedArgs,
+        };
+      }),
+      // Constructor with paren arguments: cons(suc(0), nil) or suc(suc(0))
+      seq(
+        constrNameParser,
+        delimited("(", withSep(",", termParser), ")")
+      ).map(r => {
+        const constructorName = r[0];
+        const args = r[1];
         return {
           kind: TermKind.Constructor as const,
           constructorName,
@@ -580,43 +601,15 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
           namedArgs: {},
         };
       }),
-      // Or just a simple term (which must be a Term, not a bare Tuple/Record)
-      simpleTermParser.map(t => {
-        if ('kind' in t && (t.kind === 'Tuple' || t.kind === 'Record')) {
-          throw new Error("Bare tuple or record not allowed as a top-level term");
-        }
-        return t as Term;
-      })
+      // Or simple term (parenthesized, zero-arg constructor, or variable)
+      simpleTermParser
     );
   });
 
-  const simpleTermParser: Parser<any, SimpleAst> = fn(() => {
+  const simpleTermParser: Parser<any, Term> = fn(() => {
     return or(
-      // Parenthesized term or Tuple: ( t1, t2, ... )
-      delimited("(", withSepPlus(",", termParser), ")").map(list => {
-        if (list.length === 1) {
-          return list[0];
-        }
-        return {
-          kind: 'Tuple' as const,
-          elements: list,
-        };
-      }),
-      // Record term: { k1 = t1, k2 = t2, ... }
-      delimited(
-        "{",
-        withSep(",", seq(kind("ident"), "=", termParser).map(r => ({ name: r[0], val: r[2] }))),
-        "}"
-      ).map(fields => {
-        const recordFields: { [name: string]: Term } = {};
-        for (const f of fields) {
-          recordFields[f.name] = f.val;
-        }
-        return {
-          kind: 'Record' as const,
-          fields: recordFields,
-        };
-      }),
+      // Parenthesized term
+      delimited("(", termParser, ")"),
       // Zero-arg constructor
       constrNameParser.map(name => {
         return {
@@ -626,11 +619,11 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
           namedArgs: {},
         };
       }),
-      // Variable
-      kind("ident").map(name => {
+      // Variable: starting with ?
+      kind("var").map(name => {
         return {
           kind: TermKind.Variable as const,
-          varName: name,
+          varName: name.substring(1),
         };
       })
     );
@@ -644,42 +637,35 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
 }
 
 /**
- * Prints a Term in SML-like syntax.
+ * Prints a Term in the custom term syntax.
  */
-export function printTerm(term: Term): string {
+export function printTerm(term: Term, options?: { verbose?: boolean }): string {
   if (term.kind === TermKind.Variable) {
-    return term.varName;
+    return `?${term.varName}`;
   }
 
   const hasNamed = Object.keys(term.namedArgs).length > 0;
   if (hasNamed) {
     const fields = Object.entries(term.namedArgs)
-      .map(([k, v]) => `${k} = ${printTerm(v)}`)
+      .map(([k, v]) => {
+        const isConciseVar =
+          !options?.verbose &&
+          v.kind === TermKind.Variable &&
+          v.varName === k;
+        if (isConciseVar) {
+          return `?${k}`;
+        } else {
+          return `${k} = ${printTerm(v, options)}`;
+        }
+      })
       .join(', ');
-    return `${term.constructorName} { ${fields} }`;
+    return `${term.constructorName}{ ${fields} }`;
   }
 
   if (term.unNamedArgs.length === 0) {
     return term.constructorName;
   }
 
-  if (term.unNamedArgs.length === 1) {
-    const arg = term.unNamedArgs[0];
-    if (isSimpleTerm(arg)) {
-      return `${term.constructorName} ${printTerm(arg)}`;
-    } else {
-      return `${term.constructorName} (${printTerm(arg)})`;
-    }
-  }
-
-  const args = term.unNamedArgs.map(printTerm).join(', ');
+  const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
   return `${term.constructorName}(${args})`;
-}
-
-function isSimpleTerm(t: Term): boolean {
-  if (t.kind === TermKind.Variable) return true;
-  if (t.kind === TermKind.Constructor) {
-    return t.unNamedArgs.length === 0 && Object.keys(t.namedArgs).length === 0;
-  }
-  return false;
 }
