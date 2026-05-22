@@ -19,6 +19,7 @@ import { ActivationVisComponent } from './activation-vis.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { provideMarkdown } from 'ngx-markdown';
 
 describe('ActivationVisComponent', () => {
   let component: ActivationVisComponent;
@@ -26,7 +27,10 @@ describe('ActivationVisComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection()],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideMarkdown()
+      ],
       imports: [NoopAnimationsModule, ActivationVisComponent, CornerActivationComponent],
     }).compileComponents();
   });

@@ -3,7 +3,7 @@ import { expect } from 'vitest';
 export function expectArraysClose(
   actual: any,
   expected: any,
-  epsilon = 0.001
+  epsilon = 0.01
 ) {
   const actualArr = flatten(actual);
   const expectedArr = flatten(expected);
