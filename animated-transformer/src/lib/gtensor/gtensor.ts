@@ -40,7 +40,6 @@ import * as tf from '@tensorflow/tfjs';
 import * as tf_init from '@tensorflow/tfjs-layers/dist/initializers';
 import { contract, ContractSpec } from './contract';
 import { range } from './gtensor_util';
-import { number } from 'yargs';
 
 // export type DName = string | number | symbol;
 
