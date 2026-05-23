@@ -35,21 +35,50 @@ import {
   withSepPlus,
 } from 'mini-parse';
 
+/**
+ * Represents the signature of a constructor within an algebraic data type.
+ * A constructor can hold any number of named arguments whose types are either
+ * simple type names (e.g. 'nat') or parameterised type references (e.g. 'list(?x)').
+ */
 export type TypeConstructor = {
   constructorName: string;
   createdTypeName: string;
   arguments: {
-    [argName: string]: string;
+    [argName: string]: Term | string;
   };
   argOrder?: string[];
 };
 
-export type TypeConstructions = {
+/**
+ * Represents the set of constructors that construct a particular algebraic data type,
+ * along with any defined type parameters (e.g. ?x: _).
+ */
+export type AlgDataType = {
+  typeParams?: { [paramName: string]: string };
+  typeParamOrder?: string[];
   constructors: { [constructorName: string]: TypeConstructor };
 };
 
+/**
+ * The Context represents the unified logical context (traditional Γ).
+ * It maintains:
+ *  1. Algebraic type definitions (types)
+ *  2. Term definition shortcuts/aliases (termDefinitions)
+ *  3. Linear/intuitionistic variables (variables)
+ *
+ * Example of Custom Syntax:
+ * ```
+ * type nat = 0 | suc(?n: nat);
+ * type list(?x: _) = nil | cons(?h: ?x, ?t: list(?x));
+ *
+ * let 2 = suc(suc(0));
+ * ?l: list(nat);
+ * ?y: _; 
+ * ?m: list(?y);
+ * ```
+ */
 export type Context = {
-  types: { [typeName: string]: TypeConstructions };
+  types: { [typeName: string]: AlgDataType };
   termDefinitions: { [name: string]: { def: Term; typ: string } };
   variables: { [varName: string]: string };
 };
@@ -59,6 +88,11 @@ export enum TermKind {
   Variable = 'Variable',
 }
 
+/**
+ * Represents a constructor term application, supporting both positional
+ * applications like `cons(suc(0), nil)` and record-style applications like
+ * `node{ left = leaf, val = suc(0), right = leaf }`.
+ */
 export type ConstrTerm = {
   kind: TermKind.Constructor;
   constructorName: string;
@@ -67,6 +101,10 @@ export type ConstrTerm = {
     [argName: string]: Term;
   };
 };
+
+/**
+ * Represents a logical/type variable term, prefixed with `?` in the syntax.
+ */
 export type VarTerm = {
   kind: TermKind.Variable;
   varName: string;
@@ -74,6 +112,9 @@ export type VarTerm = {
 
 export type Term = ConstrTerm | VarTerm;
 
+/**
+ * Creates a completely empty context.
+ */
 export function emptyContext(): Context {
   return {
     types: {},
@@ -87,6 +128,151 @@ export function getBaseType(ctxt: Context, typeName: string): string {
     return getBaseType(ctxt, ctxt.termDefinitions[typeName].typ);
   }
   return typeName;
+}
+
+export function getBaseTypeName(typeRef: Term | string): string {
+  if (typeof typeRef === 'string') return typeRef;
+  if (typeRef.kind === TermKind.Constructor) return typeRef.constructorName;
+  return typeRef.varName;
+}
+
+export function getFreeVars(term: Term): Set<string> {
+  const vars = new Set<string>();
+  function visit(t: Term) {
+    if (t.kind === TermKind.Variable) {
+      vars.add(t.varName);
+    } else {
+      t.unNamedArgs.forEach(visit);
+      Object.values(t.namedArgs).forEach(visit);
+    }
+  }
+  visit(term);
+  return vars;
+}
+
+export function getBaseTypeRef(ctxt: Context, typeRef: Term | string): Term | string {
+  if (typeof typeRef === 'string') {
+    if (ctxt.termDefinitions && typeRef in ctxt.termDefinitions) {
+      return getBaseTypeRef(ctxt, ctxt.termDefinitions[typeRef].typ);
+    }
+    return typeRef;
+  }
+  if (typeRef.kind === TermKind.Constructor) {
+    const baseName = getBaseType(ctxt, typeRef.constructorName);
+    return {
+      ...typeRef,
+      constructorName: baseName,
+    };
+  }
+  return typeRef;
+}
+
+export function matchTypes(ctxt: Context, actual: Term | string | undefined, expected: Term | string | undefined): boolean {
+  if (!actual || !expected) return false;
+  if (actual === '_' || expected === '_') return true;
+
+  if (typeof actual === 'string') {
+    actual = parseTerm(actual, ctxt);
+  }
+  if (typeof expected === 'string') {
+    expected = parseTerm(expected, ctxt);
+  }
+
+  if (actual.kind === TermKind.Variable) {
+    const actualType = ctxt.variables[actual.varName] ?? '_';
+    return actualType === '_' || matchTypes(ctxt, actualType, expected);
+  }
+  if (expected.kind === TermKind.Variable) {
+    const expectedType = ctxt.variables[expected.varName] ?? '_';
+    return expectedType === '_' || matchTypes(ctxt, actual, expectedType);
+  }
+
+  if (actual.kind === TermKind.Constructor && expected.kind === TermKind.Constructor) {
+    if (actual.constructorName !== expected.constructorName) {
+      const actualBase = getBaseType(ctxt, actual.constructorName);
+      const expectedBase = getBaseType(ctxt, expected.constructorName);
+      if (actualBase !== expectedBase) return false;
+    }
+
+    if (actual.unNamedArgs.length !== expected.unNamedArgs.length) return false;
+    for (let i = 0; i < actual.unNamedArgs.length; i++) {
+      if (!matchTypes(ctxt, actual.unNamedArgs[i], expected.unNamedArgs[i])) return false;
+    }
+
+    const actualNamedKeys = Object.keys(actual.namedArgs);
+    const expectedNamedKeys = Object.keys(expected.namedArgs);
+    if (actualNamedKeys.length !== expectedNamedKeys.length) return false;
+    for (const k of actualNamedKeys) {
+      if (!matchTypes(ctxt, actual.namedArgs[k], expected.namedArgs[k])) return false;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+export function substitute(term: Term | string, subst: { [name: string]: Term | string }): Term | string {
+  if (typeof term === 'string') {
+    if (term in subst) return subst[term];
+    return term;
+  }
+  if (term.kind === TermKind.Variable) {
+    if (term.varName in subst) return subst[term.varName];
+    return term;
+  }
+  const unNamedArgs = term.unNamedArgs.map(arg => {
+    const r = substitute(arg, subst);
+    return typeof r === 'string' ? parseTerm(r) : r;
+  });
+  const namedArgs: { [argName: string]: Term } = {};
+  for (const [k, v] of Object.entries(term.namedArgs)) {
+    const r = substitute(v, subst);
+    namedArgs[k] = typeof r === 'string' ? parseTerm(r) : r;
+  }
+  return {
+    ...term,
+    unNamedArgs,
+    namedArgs,
+  };
+}
+
+export function unify(
+  ctxt: Context,
+  formal: Term | string | undefined,
+  actual: Term | string | undefined,
+  subst: { [name: string]: Term | string }
+): void {
+  if (!formal || !actual) return;
+  if (formal === '_' || actual === '_') return;
+
+  if (typeof formal === 'string') {
+    formal = parseTerm(formal, ctxt);
+  }
+  if (typeof actual === 'string') {
+    actual = parseTerm(actual, ctxt);
+  }
+
+  if (formal.kind === TermKind.Variable) {
+    const varName = formal.varName;
+    if (!(varName in subst)) {
+      subst[varName] = actual;
+    }
+    return;
+  }
+
+  if (formal.kind === TermKind.Constructor && actual.kind === TermKind.Constructor) {
+    if (formal.unNamedArgs.length === actual.unNamedArgs.length) {
+      for (let i = 0; i < formal.unNamedArgs.length; i++) {
+        unify(ctxt, formal.unNamedArgs[i], actual.unNamedArgs[i], subst);
+      }
+    }
+    for (const k of Object.keys(formal.namedArgs)) {
+      if (k in actual.namedArgs) {
+        unify(ctxt, formal.namedArgs[k], actual.namedArgs[k], subst);
+      }
+    }
+  }
 }
 
 /**
@@ -112,7 +298,8 @@ export function validateContext(ctxt: Context): void {
       const hasWellFoundedConstructor = constructors.some(c => {
         const argTypes = Object.values(c.arguments);
         return argTypes.every(argType => {
-          return !ctxt.types[argType] || wellFounded.has(argType);
+          const baseName = getBaseTypeName(argType);
+          return !ctxt.types[baseName] || wellFounded.has(baseName);
         });
       });
 
@@ -175,7 +362,8 @@ export function validateAddedTypes(ctxt: Context, constructors: TypeConstructor[
         return argTypes.every(argType => {
           // An arg type is well-founded if it is not in newTypes (pre-existing or primitive)
           // or if we have already proven it is well-founded in this pass.
-          return !newTypes.has(argType) || wellFounded.has(argType);
+          const baseName = getBaseTypeName(argType);
+          return !newTypes.has(baseName) || wellFounded.has(baseName);
         });
       });
 
@@ -305,29 +493,57 @@ export function inferType(
     }
   }
 
-  // Typecheck all the arguments
+  // Deduce type parameters by unifying formal argument types with actual inferred types
+  const subst: { [name: string]: Term | string } = {};
   for (const [argName, argTerm] of matchedArgs.entries()) {
-    const expectedArgType = c.arguments[argName];
-    typeCheck(ctxt, argTerm, expectedArgType, varTypes);
+    const formalType = c.arguments[argName];
+    try {
+      const actualType = inferType(ctxt, argTerm, varTypes);
+      unify(ctxt, formalType, actualType, subst);
+    } catch (e) {
+      // If type inference fails on arguments, we just skip it
+    }
   }
 
-  return c.createdTypeName;
+  const T = c.createdTypeName;
+  const ctxtType = ctxt.types[T];
+  if (ctxtType) {
+    const typeParams = ctxtType.typeParamOrder ?? [];
+    if (typeParams.length > 0) {
+      const actualParams = typeParams.map(p => {
+        const val = subst[p] ?? '_';
+        return typeof val === 'string' ? parseTerm(val, ctxt) : val;
+      });
+      return printTerm({
+        kind: TermKind.Constructor,
+        constructorName: T,
+        unNamedArgs: actualParams,
+        namedArgs: {},
+      });
+    }
+  }
+
+  return T;
 }
 
+/**
+ * Checks a term against an expected type under a context and variable type assignments.
+ */
 /**
  * Checks a term against an expected type under a context and variable type assignments.
  */
 export function typeCheck(
   ctxt: Context,
   term: Term,
-  expectedType: string,
+  expectedType: Term | string,
   varTypes: { [varName: string]: string } = {}
 ): void {
   if (term.kind === TermKind.Variable) {
     const actualType = inferType(ctxt, term, varTypes);
-    if (getBaseType(ctxt, actualType) !== getBaseType(ctxt, expectedType)) {
+    if (!matchTypes(ctxt, actualType, expectedType)) {
+      const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType);
       throw new Error(
-        `Type mismatch for variable '${term.varName}': expected '${expectedType}', got '${actualType}'`
+        `Type mismatch for variable '${term.varName}': expected '${expectedStr}', got '${actualType}'`
       );
     }
     return;
@@ -335,7 +551,9 @@ export function typeCheck(
 
   // If it's a constructor term, we can check if its constructor is defined for the expectedType.
   // This resolves overloaded constructor names based on the expected type.
-  const baseExpectedType = getBaseType(ctxt, expectedType);
+  const baseExpectedType = typeof expectedType === 'string'
+    ? getBaseType(ctxt, expectedType)
+    : (expectedType.kind === TermKind.Constructor ? getBaseType(ctxt, expectedType.constructorName) : '_');
   const ctxtType = ctxt.types[baseExpectedType];
   if (ctxtType) {
     const c = ctxtType.constructors[term.constructorName];
@@ -375,10 +593,23 @@ export function typeCheck(
         }
       }
 
-      // Typecheck all arguments
+      // Map type parameters to actual type arguments
+      const subst: { [name: string]: Term | string } = {};
+      if (typeof expectedType !== 'string' && expectedType.kind === TermKind.Constructor) {
+        const typeParamOrder = ctxtType.typeParamOrder ?? [];
+        for (let i = 0; i < typeParamOrder.length; i++) {
+          const paramName = typeParamOrder[i];
+          if (i < expectedType.unNamedArgs.length) {
+            subst[paramName] = expectedType.unNamedArgs[i];
+          }
+        }
+      }
+
+      // Typecheck all arguments with substitution
       for (const [argName, argTerm] of matchedArgs.entries()) {
         const expectedArgType = c.arguments[argName];
-        typeCheck(ctxt, argTerm, expectedArgType, varTypes);
+        const substitutedType = substitute(expectedArgType, subst);
+        typeCheck(ctxt, argTerm, substitutedType, varTypes);
       }
       return;
     }
@@ -386,9 +617,10 @@ export function typeCheck(
 
   // Fallback to inferring the type and comparing
   const inferredType = inferType(ctxt, term, varTypes);
-  if (getBaseType(ctxt, inferredType) !== getBaseType(ctxt, expectedType)) {
+  if (!matchTypes(ctxt, inferredType, expectedType)) {
+    const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType);
     throw new Error(
-      `Type mismatch for constructor term '${term.constructorName}': expected '${expectedType}', got '${inferredType}'`
+      `Type mismatch for constructor term '${term.constructorName}': expected '${expectedStr}', got '${inferredType}'`
     );
   }
 }
@@ -423,7 +655,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const constrName = or(kind("ident"), kind("number"));
   const typeNameParser = or(kind("ident"), kind("number"));
 
-  const recordField = seq(kind("var"), ":", typeNameParser).map(r => ({ name: r[0].substring(1), type: r[2] }));
+  const recordField = seq(kind("var"), ":", fn(() => termParser)).map(r => ({ name: r[0].substring(1), type: r[2] }));
   const recordArgs = delimited("{", withSep(",", recordField), "}");
   const parenArgs = delimited("(", withSep(",", recordField), ")");
 
@@ -432,7 +664,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     seq(constrName, parenArgs).map(r => {
       const name = r[0];
       const fields = r[1];
-      const argumentsMap: { [name: string]: string } = {};
+      const argumentsMap: { [name: string]: Term | string } = {};
       const argOrder: string[] = [];
       for (const f of fields) {
         argumentsMap[f.name] = f.type;
@@ -454,21 +686,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     })
   );
 
-  const getKnownConstructors = () => {
-    const set = new Set<string>();
-    for (const typeName of Object.keys(ctxt.types)) {
-      for (const constrName of Object.keys(ctxt.types[typeName].constructors)) {
-        set.add(constrName);
-      }
-    }
-    ['0', 'suc', 'nil', 'cons', 'true', 'false', 'leaf', 'node'].forEach(c => set.add(c));
-    return set;
-  };
-
-  const constrNameParser = or(
-    kind("number"),
-    fn(() => tokenOf("ident", Array.from(getKnownConstructors())).map(t => t.text))
-  );
+  const constrNameParser = or(kind("number"), kind("ident"));
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
@@ -551,17 +769,39 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     );
   });
 
+  const typeParamDecl = seq(kind("var"), ":", typeNameParser).map(r => ({ name: r[0].substring(1), type: r[2] }));
+  const typeParamsParser = opt(delimited("(", withSep(",", typeParamDecl), ")"));
+
   const letTypeDecl = seq(
     "type",
     ident,
+    typeParamsParser,
     "=",
     withSepPlus("|", constructorDecl),
     opt(";")
-  ).map(r => ({
-    kind: 'Type' as const,
-    typeName: r[1],
-    constructors: r[3].map(c => ({ ...c, createdTypeName: r[1] })),
-  }));
+  ).map(r => {
+    const typeName = r[1];
+    const typeParamsList = r[2];
+    const constructorsList = r[4];
+
+    const typeParams: { [paramName: string]: string } = {};
+    const typeParamOrder: string[] = [];
+    if (typeParamsList) {
+      for (const p of typeParamsList) {
+        typeParams[p.name] = p.type;
+        typeParamOrder.push(p.name);
+      }
+    }
+
+    const constructors = constructorsList.map(c => ({ ...c, createdTypeName: typeName }));
+    return {
+      kind: 'Type' as const,
+      typeName,
+      typeParams,
+      typeParamOrder,
+      constructors,
+    };
+  });
 
   const letTermDecl = seq(
     "let",
@@ -578,7 +818,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const varDecl = seq(
     kind("var"),
     ":",
-    typeNameParser,
+    termParser,
     opt(";")
   ).map(r => ({
     kind: 'Var' as const,
@@ -599,15 +839,28 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   for (const decl of parsedDecls.value) {
     if (decl.kind === 'Type') {
       extendContext(ctxt, decl.constructors);
+      if (decl.typeParamOrder.length > 0) {
+        ctxt.types[decl.typeName].typeParams = decl.typeParams;
+        ctxt.types[decl.typeName].typeParamOrder = decl.typeParamOrder;
+      }
     } else if (decl.kind === 'Term') {
+      const freeVars = getFreeVars(decl.term);
+      for (const fv of freeVars) {
+        if (!(fv in ctxt.variables)) {
+          ctxt.variables[fv] = '_';
+        }
+      }
       const typeName = inferType(ctxt, decl.term, ctxt.variables);
       ctxt.termDefinitions[decl.termName] = { def: decl.term, typ: typeName };
     } else if (decl.kind === 'Var') {
-      const baseType = getBaseType(ctxt, decl.typeName);
-      if (!(baseType in ctxt.types) && !['nat', 'natList', 'tree'].includes(baseType)) {
-        throw new Error(`Unknown type: '${decl.typeName}'`);
+      const typeRef = decl.typeName;
+      const freeVars = getFreeVars(typeRef);
+      for (const fv of freeVars) {
+        if (!(fv in ctxt.variables)) {
+          ctxt.variables[fv] = '_';
+        }
       }
-      ctxt.variables[decl.varName] = decl.typeName;
+      ctxt.variables[decl.varName] = printTerm(typeRef);
     }
   }
 
@@ -630,11 +883,24 @@ export function printContext(ctxt: Context): string {
       if (argKeys.length === 0) {
         constrDecls.push(c.constructorName);
       } else {
-        const fields = argKeys.map(k => `?${k}: ${c.arguments[k]}`).join(', ');
+        const fields = argKeys.map(k => {
+          const typeVal = c.arguments[k];
+          const typeStr = typeof typeVal === 'string' ? typeVal : printTerm(typeVal);
+          return `?${k}: ${typeStr}`;
+        }).join(', ');
         constrDecls.push(`${c.constructorName}(${fields})`);
       }
     }
-    declarations.push(`type ${typeName} = ${constrDecls.join(' | ')};`);
+
+    // Print type parameters if defined
+    let paramsStr = '';
+    if (typeConstruction.typeParamOrder && typeConstruction.typeParams) {
+      const params = typeConstruction.typeParamOrder
+        .map(p => `?${p}: ${typeConstruction.typeParams![p]}`)
+        .join(', ');
+      paramsStr = `(${params})`;
+    }
+    declarations.push(`type ${typeName}${paramsStr} = ${constrDecls.join(' | ')};`);
   }
 
   // 2. Print Term Definitions
@@ -660,24 +926,6 @@ export function printContext(ctxt: Context): string {
  * Parses a Term from a custom term string.
  */
 export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
-  const knownConstructors = new Set<string>();
-  if (constructors instanceof Set) {
-    constructors.forEach(c => knownConstructors.add(c));
-  } else if (constructors && typeof constructors === 'object' && 'types' in constructors) {
-    for (const typeName of Object.keys(constructors.types)) {
-      for (const constrName of Object.keys(constructors.types[typeName].constructors)) {
-        knownConstructors.add(constrName);
-      }
-    }
-    if (constructors.termDefinitions) {
-      for (const termName of Object.keys(constructors.termDefinitions)) {
-        knownConstructors.add(termName);
-      }
-    }
-  } else {
-    ['0', 'suc', 'nil', 'cons', 'true', 'false'].forEach(c => knownConstructors.add(c));
-  }
-
   const termTokens = new RegexMatchers({
     keyword: /let\b|type\b/,
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -692,10 +940,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     (t: Token) => t.kind !== "ws"
   );
 
-  const constrNameParser = or(
-    kind("number"),
-    tokenOf("ident", Array.from(knownConstructors)).map(t => t.text)
-  );
+  const constrNameParser = or(kind("number"), kind("ident"));
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(

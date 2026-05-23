@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { TypeConstructor, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType } from './v2_logic';
+import { TypeConstructor, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -274,11 +274,18 @@ describe('v2_logic of peano natural numbers', () => {
       // Check specific constructor definitions with ? prefixed args
       const cons = ctxt.types['natList'].constructors['cons'];
       expect(cons.argOrder).toEqual(['h', 't']);
-      expect(cons.arguments).toEqual({ h: 'nat', t: 'natList' });
+      expect(cons.arguments).toEqual({
+        h: { kind: TermKind.Constructor, constructorName: 'nat', unNamedArgs: [], namedArgs: {} },
+        t: { kind: TermKind.Constructor, constructorName: 'natList', unNamedArgs: [], namedArgs: {} },
+      });
 
       const node = ctxt.types['tree'].constructors['node'];
       expect(node.argOrder).toEqual(['left', 'right', 'val']);
-      expect(node.arguments).toEqual({ left: 'tree', right: 'tree', val: 'nat' });
+      expect(node.arguments).toEqual({
+        left: { kind: TermKind.Constructor, constructorName: 'tree', unNamedArgs: [], namedArgs: {} },
+        right: { kind: TermKind.Constructor, constructorName: 'tree', unNamedArgs: [], namedArgs: {} },
+        val: { kind: TermKind.Constructor, constructorName: 'nat', unNamedArgs: [], namedArgs: {} },
+      });
 
       // Print back and compare (Note: printed output types are sorted alphabetically by typeName and constructorName)
       const printed = printContext(ctxt);
@@ -367,6 +374,70 @@ describe('v2_logic of peano natural numbers', () => {
 
       // Verbose option
       expect(printTerm(term, { verbose: true })).toBe('node{ left = ?left, val = suc(?v), right = ?right }');
+    });
+
+    it('parses, typechecks, and prints parameterised types and implicitly introduces free type variables', () => {
+      const src = [
+        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
+        '?l: list(?y);',
+      ].join('\n');
+
+      const ctxt = parseContext(src);
+
+      // Verify roundtrip printing (which includes the implicitly introduced ?y: _)
+      const printed = printContext(ctxt);
+      const expectedPrinted = [
+        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
+        '?l: list(?y);',
+        '?y: _;',
+      ].join('\n');
+      expect(printed).toBe(expectedPrinted);
+
+      // Verify type definitions
+      expect(ctxt.types['list']).toBeDefined();
+      expect(ctxt.types['list'].typeParamOrder).toEqual(['x']);
+      expect(ctxt.types['list'].typeParams).toEqual({ x: '_' });
+
+      // Verify h and t constructors are defined with generic Term-based type references
+      const cons = ctxt.types['list'].constructors['cons'];
+      expect(cons.arguments['h']).toEqual({ kind: TermKind.Variable, varName: 'x' });
+
+      // cons t argument is list(?x) represented as a ConstrTerm
+      expect(cons.arguments['t']).toEqual({
+        kind: TermKind.Constructor,
+        constructorName: 'list',
+        unNamedArgs: [{ kind: TermKind.Variable, varName: 'x' }],
+        namedArgs: {},
+      });
+
+      // Check that ?y was implicitly introduced as a variable of type _!
+      expect(ctxt.variables['y']).toBe('_');
+
+      // Check that ?l was declared with type list(?y)
+      expect(ctxt.variables['l']).toBe('list(?y)');
+
+      // Verify typeCheck of parameterised terms:
+      // cons(suc(0), nil) should typeCheck against list(nat)!
+      const natCtxtSrc = 'type nat = 0 | suc(?n: nat);';
+      const fullCtxt = parseContext(natCtxtSrc, ctxt);
+
+      const term = parseTerm('cons(suc(0), nil)', fullCtxt);
+      expect(() => typeCheck(fullCtxt, term, 'list(nat)')).not.toThrow();
+
+      // typeCheck cons(suc(0), nil) against list(natList) should fail because of h (suc(0) has type nat, not natList)!
+      expect(() => typeCheck(fullCtxt, term, 'list(natList)')).toThrowError(
+        /Type mismatch/
+      );
+
+      // Verify print of full context containing 'nat'
+      const fullPrinted = printContext(fullCtxt);
+      const expectedFullPrinted = [
+        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
+        'type nat = 0 | suc(?n: nat);',
+        '?l: list(?y);',
+        '?y: _;',
+      ].join('\n');
+      expect(fullPrinted).toBe(expectedFullPrinted);
     });
 
     it('throws on invalid syntax', () => {
