@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { TypeConstructor, createTypeContext, extendTypeContext, constr, variable, inferType, typeCheck, parseTypeContext, printTypeContext, parseTerm, printTerm } from './v2_logic';
+import { TypeConstructor, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -30,7 +30,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: {},
     };
 
-    const ctxt = createTypeContext([suc, zero]);
+    const ctxt = createContext([suc, zero]);
 
     expect(ctxt).toEqual({
       types: {
@@ -41,6 +41,8 @@ describe('v2_logic of peano natural numbers', () => {
           },
         },
       },
+      termDefinitions: {},
+      variables: {},
     });
   });
 
@@ -51,7 +53,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: { recursive: 'bad' },
     };
 
-    expect(() => createTypeContext([bad])).toThrowError(
+    expect(() => createContext([bad])).toThrowError(
       /have no base case/
     );
   });
@@ -68,7 +70,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: { toA: 'A' },
     };
 
-    expect(() => createTypeContext([a, b])).toThrowError(
+    expect(() => createContext([a, b])).toThrowError(
       /have no base case/
     );
   });
@@ -90,7 +92,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: {},
     };
 
-    const ctxt = createTypeContext([a, bConstr, bBase]);
+    const ctxt = createContext([a, bConstr, bBase]);
     expect(ctxt.types['A']).toBeDefined();
     expect(ctxt.types['B']).toBeDefined();
   });
@@ -101,7 +103,7 @@ describe('v2_logic of peano natural numbers', () => {
       createdTypeName: 'nat',
       arguments: {},
     };
-    const ctxt = createTypeContext([zero]);
+    const ctxt = createContext([zero]);
 
     // Let's add a new type that depends on nat
     const listNil: TypeConstructor = {
@@ -115,7 +117,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: { head: 'nat', tail: 'natList' },
     };
 
-    const extended = extendTypeContext(ctxt, [listNil, listCons]);
+    const extended = extendContext(ctxt, [listNil, listCons]);
     expect(extended.types['nat']).toBeDefined();
     expect(extended.types['natList']).toBeDefined();
   });
@@ -126,7 +128,7 @@ describe('v2_logic of peano natural numbers', () => {
       createdTypeName: 'nat',
       arguments: {},
     };
-    const ctxt = createTypeContext([zero]);
+    const ctxt = createContext([zero]);
 
     const bad: TypeConstructor = {
       constructorName: 'badConstr',
@@ -134,7 +136,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: { recursive: 'bad' },
     };
 
-    expect(() => extendTypeContext(ctxt, [bad])).toThrowError(
+    expect(() => extendContext(ctxt, [bad])).toThrowError(
       /have no base case/
     );
     // Verify ctxt wasn't contaminated
@@ -163,7 +165,7 @@ describe('v2_logic of peano natural numbers', () => {
       arguments: { head: 'nat', tail: 'natList' },
     };
 
-    const ctxt = createTypeContext([zero, suc, listNil, listCons]);
+    const ctxt = createContext([zero, suc, listNil, listCons]);
 
     it('infers type of simple constructor term', () => {
       const term = constr('0');
@@ -240,7 +242,7 @@ describe('v2_logic of peano natural numbers', () => {
         createdTypeName: 'T2',
         arguments: {},
       };
-      const multiCtxt = createTypeContext([c1, c2]);
+      const multiCtxt = createContext([c1, c2]);
 
       const term = constr('c');
       // inferType should throw an Ambiguous constructor error
@@ -254,52 +256,79 @@ describe('v2_logic of peano natural numbers', () => {
     });
   });
 
-  describe('Custom Parser and Printer', () => {
-    it('parses and prints TypeContext correctly (roundtrip)', () => {
+  describe('Logical Context Parser and Printer (Linear & Intuitionistic)', () => {
+    it('parses and prints Context correctly (roundtrip)', () => {
       const src = [
-        'type nat = 0 | suc(n:nat);',
-        'type natList = nil | cons(h: nat, t: natList);',
-        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(?n: nat);',
+        'type natList = cons(?h: nat, ?t: natList) | nil;',
+        'type tree = leaf | node{ ?left: tree, ?right: tree, ?val: nat };',
       ].join('\n');
 
-      const ctxt = parseTypeContext(src);
+      const ctxt = parseContext(src);
 
       // Check that parsed context is well-formed and has correct types
       expect(ctxt.types['nat']).toBeDefined();
       expect(ctxt.types['natList']).toBeDefined();
       expect(ctxt.types['tree']).toBeDefined();
 
-      // Check specific constructor definitions
+      // Check specific constructor definitions with ? prefixed args
       const cons = ctxt.types['natList'].constructors['cons'];
       expect(cons.argOrder).toEqual(['h', 't']);
       expect(cons.arguments).toEqual({ h: 'nat', t: 'natList' });
 
       const node = ctxt.types['tree'].constructors['node'];
-      expect(node.argOrder).toEqual(['left', 'val', 'right']);
-      expect(node.arguments).toEqual({ left: 'tree', val: 'nat', right: 'tree' });
+      expect(node.argOrder).toEqual(['left', 'right', 'val']);
+      expect(node.arguments).toEqual({ left: 'tree', right: 'tree', val: 'nat' });
 
-      // Print back and compare
-      const printed = printTypeContext(ctxt);
-      // Note: printed output is sorted by typeName and constructorName alphabetically
+      // Print back and compare (Note: printed output types are sorted alphabetically by typeName and constructorName)
+      const printed = printContext(ctxt);
       const expectedPrinted = [
-        'type nat = 0 | suc(n: nat);',
-        'type natList = cons(h: nat, t: natList) | nil;',
-        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(?n: nat);',
+        'type natList = cons(?h: nat, ?t: natList) | nil;',
+        'type tree = leaf | node{ ?left: tree, ?right: tree, ?val: nat };',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
       // Roundtrip: parse printed again and ensure equality
-      const ctxt2 = parseTypeContext(printed);
+      const ctxt2 = parseContext(printed);
       expect(ctxt2).toEqual(ctxt);
+    });
+
+    it('handles unified syntax with type definitions, term definitions, and linear variables', () => {
+      const src = [
+        'type nat = 0 | suc(?n: nat);',
+        'let 2 = suc(suc(0));',
+        '?x: 2;',
+      ].join('\n');
+
+      const ctxt = parseContext(src);
+
+      // Check type definitions
+      expect(ctxt.types['nat']).toBeDefined();
+
+      // Check term definitions / shortcuts
+      expect(ctxt.termDefinitions['2']).toBeDefined();
+      expect(ctxt.termDefinitions['2'].typ).toBe('nat');
+
+      // Check variables
+      expect(ctxt.variables['x']).toBe('2');
+
+      // Verify getBaseType resolution
+      expect(getBaseType(ctxt, '2')).toBe('nat');
+      expect(getBaseType(ctxt, 'nat')).toBe('nat');
+
+      // Check roundtrip printing
+      const printed = printContext(ctxt);
+      expect(printed).toBe(src);
     });
 
     it('parses and prints Terms correctly (roundtrip)', () => {
       const ctxtSrc = [
-        'type nat = 0 | suc(n:nat);',
-        'type natList = nil | cons(h: nat, t: natList);',
-        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(?n: nat);',
+        'type natList = nil | cons(?h: nat, ?t: natList);',
+        'type tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };',
       ].join('\n');
-      const ctxt = parseTypeContext(ctxtSrc);
+      const ctxt = parseContext(ctxtSrc);
 
       const testCases = [
         { termSrc: '0', printed: '0' },
@@ -326,10 +355,10 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('prints verbose terms when requested', () => {
       const ctxtSrc = [
-        'type nat = 0 | suc(n:nat);',
-        'type tree = leaf | node{ left: tree, val: nat, right: tree };',
+        'type nat = 0 | suc(?n: nat);',
+        'type tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };',
       ].join('\n');
-      const ctxt = parseTypeContext(ctxtSrc);
+      const ctxt = parseContext(ctxtSrc);
 
       const term = parseTerm('node{ ?left, val = suc(?v), ?right }', ctxt);
 
@@ -341,9 +370,8 @@ describe('v2_logic of peano natural numbers', () => {
     });
 
     it('throws on invalid syntax', () => {
-      expect(() => parseTypeContext('type nat = ;')).toThrow();
+      expect(() => parseContext('type nat = ;')).toThrow();
       expect(() => parseTerm('cons(0, nil', new Set(['cons', 'nil', '0']))).toThrow();
     });
   });
 });
-

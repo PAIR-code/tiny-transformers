@@ -49,8 +49,10 @@ export type TypeConstructions = {
   constructors: { [constructorName: string]: TypeConstructor };
 };
 
-export type TypeContext = {
+export type Context = {
   types: { [typeName: string]: TypeConstructions };
+  termDefinitions: { [name: string]: { def: Term; typ: string } };
+  variables: { [varName: string]: string };
 };
 
 export enum TermKind {
@@ -73,15 +75,26 @@ export type VarTerm = {
 
 export type Term = ConstrTerm | VarTerm;
 
-export function emptyContext(): TypeContext {
-  return { types: {} };
+export function emptyContext(): Context {
+  return {
+    types: {},
+    termDefinitions: {},
+    variables: {},
+  };
+}
+
+export function getBaseType(ctxt: Context, typeName: string): string {
+  if (ctxt.termDefinitions && typeName in ctxt.termDefinitions) {
+    return getBaseType(ctxt, ctxt.termDefinitions[typeName].typ);
+  }
+  return typeName;
 }
 
 /**
  * Validates a TypeContext to ensure there are no loop types or types with no base case
  * (i.e. all of their constructors recursively depend on themselves directly or indirectly).
  */
-export function validateTypeContext(ctxt: TypeContext): void {
+export function validateContext(ctxt: Context): void {
   const wellFounded = new Set<string>();
   const types = Object.keys(ctxt.types);
 
@@ -123,7 +136,7 @@ export function validateTypeContext(ctxt: TypeContext): void {
  * Compositionally validates that newly added constructors do not introduce types with no base case,
  * assuming that all pre-existing types in the context are already well-founded.
  */
-export function validateAddedTypes(ctxt: TypeContext, constructors: TypeConstructor[]): void {
+export function validateAddedTypes(ctxt: Context, constructors: TypeConstructor[]): void {
   const newTypes = new Set(constructors.map(c => c.createdTypeName));
   const wellFounded = new Set<string>();
 
@@ -182,7 +195,7 @@ export function validateAddedTypes(ctxt: TypeContext, constructors: TypeConstruc
   }
 }
 
-export function extendTypeContext(ctxt: TypeContext, constructors: TypeConstructor[]): TypeContext {
+export function extendContext(ctxt: Context, constructors: TypeConstructor[]): Context {
   validateAddedTypes(ctxt, constructors);
 
   for (const c of constructors) {
@@ -198,8 +211,8 @@ export function extendTypeContext(ctxt: TypeContext, constructors: TypeConstruct
   return ctxt;
 }
 
-export function createTypeContext(constructors: TypeConstructor[]): TypeContext {
-  return extendTypeContext(emptyContext(), constructors);
+export function createContext(constructors: TypeConstructor[]): Context {
+  return extendContext(emptyContext(), constructors);
 }
 
 export function constr(
@@ -226,7 +239,7 @@ export function variable(varName: string): VarTerm {
  * Infers the type of a term from the context and variable type assignments.
  */
 export function inferType(
-  ctxt: TypeContext,
+  ctxt: Context,
   term: Term,
   varTypes: { [varName: string]: string } = {}
 ): string {
@@ -306,14 +319,14 @@ export function inferType(
  * Checks a term against an expected type under a context and variable type assignments.
  */
 export function typeCheck(
-  ctxt: TypeContext,
+  ctxt: Context,
   term: Term,
   expectedType: string,
   varTypes: { [varName: string]: string } = {}
 ): void {
   if (term.kind === TermKind.Variable) {
     const actualType = inferType(ctxt, term, varTypes);
-    if (actualType !== expectedType) {
+    if (getBaseType(ctxt, actualType) !== getBaseType(ctxt, expectedType)) {
       throw new Error(
         `Type mismatch for variable '${term.varName}': expected '${expectedType}', got '${actualType}'`
       );
@@ -323,7 +336,8 @@ export function typeCheck(
 
   // If it's a constructor term, we can check if its constructor is defined for the expectedType.
   // This resolves overloaded constructor names based on the expected type.
-  const ctxtType = ctxt.types[expectedType];
+  const baseExpectedType = getBaseType(ctxt, expectedType);
+  const ctxtType = ctxt.types[baseExpectedType];
   if (ctxtType) {
     const c = ctxtType.constructors[term.constructorName];
     if (c) {
@@ -373,7 +387,7 @@ export function typeCheck(
 
   // Fallback to inferring the type and comparing
   const inferredType = inferType(ctxt, term, varTypes);
-  if (inferredType !== expectedType) {
+  if (getBaseType(ctxt, inferredType) !== getBaseType(ctxt, expectedType)) {
     throw new Error(
       `Type mismatch for constructor term '${term.constructorName}': expected '${expectedType}', got '${inferredType}'`
     );
@@ -383,13 +397,18 @@ export function typeCheck(
 /**
  * Parses a TypeContext from a custom type declaration string.
  * Example:
- *   type nat = 0 | suc(n:nat);
- *   type natList = nil | cons(h: nat, t: natList);
- *   type tree = leaf | node{ left: tree, val: nat, right: tree };
+ *   let nat = 0 | suc(?n:nat);
+ *   let natList = nil | cons(?h: nat, ?t: natList);
+ *   let tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };
+ *   let 2 = suc(suc(0));
+ *   ?x: 2;
  */
-export function parseTypeContext(src: string): TypeContext {
+export function parseContext(src: string, existingCtxt?: Context): Context {
+  const ctxt = existingCtxt ?? emptyContext();
+
   const logicTokens = new RegexMatchers({
-    keyword: /type\b/,
+    keyword: /let\b|type\b/,
+    var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
     symbol: matchOneOf("= | { } : , ( ) ;"),
@@ -403,13 +422,14 @@ export function parseTypeContext(src: string): TypeContext {
 
   const ident = kind("ident");
   const constrName = or(kind("ident"), kind("number"));
+  const typeNameParser = or(kind("ident"), kind("number"));
 
-  const recordField = seq(ident, ":", ident).map(r => ({ name: r[0], type: r[2] }));
+  const recordField = seq(kind("var"), ":", typeNameParser).map(r => ({ name: r[0].substring(1), type: r[2] }));
   const recordArgs = delimited("{", withSep(",", recordField), "}");
   const parenArgs = delimited("(", withSep(",", recordField), ")");
 
   const constructorDecl = or(
-    // Curly / Record style: node{ left: tree, val: nat, right: tree }
+    // Curly / Record style: node{ ?left: tree, ?val: nat, ?right: tree }
     seq(constrName, recordArgs).map(r => {
       const name = r[0];
       const fields = r[1];
@@ -426,7 +446,7 @@ export function parseTypeContext(src: string): TypeContext {
         isRecord: true,
       };
     }),
-    // Parenthesized style: suc(n:nat) or cons(h: nat, t: natList)
+    // Parenthesized style: suc(?n:nat) or cons(?h: nat, ?t: natList)
     seq(constrName, parenArgs).map(r => {
       const name = r[0];
       const fields = r[1];
@@ -454,38 +474,173 @@ export function parseTypeContext(src: string): TypeContext {
     })
   );
 
-  const datatypeDecl = seq(
+  const getKnownConstructors = () => {
+    const set = new Set<string>();
+    for (const typeName of Object.keys(ctxt.types)) {
+      for (const constrName of Object.keys(ctxt.types[typeName].constructors)) {
+        set.add(constrName);
+      }
+    }
+    ['0', 'suc', 'nil', 'cons', 'true', 'false', 'leaf', 'node'].forEach(c => set.add(c));
+    return set;
+  };
+
+  const constrNameParser = or(
+    kind("number"),
+    fn(() => tokenOf("ident", Array.from(getKnownConstructors())).map(t => t.text))
+  );
+
+  const termParser: Parser<any, Term> = fn(() => {
+    return or(
+      // Constructor with curly named arguments: C{ left = leaf, val = suc(0), right = leaf }
+      seq(
+        constrNameParser,
+        delimited(
+          "{",
+          withSep(
+            ",",
+            or(
+              seq(kind("ident"), "=", termParser).map(r => ({ name: r[0], val: r[2] })),
+              kind("var").map(name => {
+                const varName = name.substring(1);
+                return {
+                  name: varName,
+                  val: {
+                    kind: TermKind.Variable as const,
+                    varName,
+                  },
+                };
+              })
+            )
+          ),
+          "}"
+        )
+      ).map(r => {
+        const constructorName = r[0];
+        const fields = r[1];
+        const namedArgs: { [argName: string]: Term } = {};
+        for (const f of fields) {
+          namedArgs[f.name] = f.val;
+        }
+        return {
+          kind: TermKind.Constructor as const,
+          constructorName,
+          unNamedArgs: [],
+          namedArgs,
+        };
+      }),
+      // Constructor with paren arguments: cons(suc(0), nil) or suc(suc(0))
+      seq(
+        constrNameParser,
+        delimited("(", withSep(",", termParser), ")")
+      ).map(r => {
+        const constructorName = r[0];
+        const args = r[1];
+        return {
+          kind: TermKind.Constructor as const,
+          constructorName,
+          unNamedArgs: args,
+          namedArgs: {},
+        };
+      }),
+      // Or simple term (parenthesized, zero-arg constructor, or variable)
+      simpleTermParser
+    );
+  });
+
+  const simpleTermParser: Parser<any, Term> = fn(() => {
+    return or(
+      // Parenthesized term
+      delimited("(", termParser, ")"),
+      // Zero-arg constructor
+      constrNameParser.map(name => {
+        return {
+          kind: TermKind.Constructor as const,
+          constructorName: name,
+          unNamedArgs: [],
+          namedArgs: {},
+        };
+      }),
+      // Variable: starting with ?
+      kind("var").map(name => {
+        return {
+          kind: TermKind.Variable as const,
+          varName: name.substring(1),
+        };
+      })
+    );
+  });
+
+  const letTypeDecl = seq(
     "type",
     ident,
     "=",
     withSepPlus("|", constructorDecl),
     opt(";")
-  ).map(r => {
-    const typeName = r[1];
-    const constructorsList = r[3];
-    return constructorsList.map(c => ({
-      ...c,
-      createdTypeName: typeName,
-    }));
-  });
+  ).map(r => ({
+    kind: 'Type' as const,
+    typeName: r[1],
+    constructors: r[3].map(c => ({ ...c, createdTypeName: r[1] })),
+  }));
 
-  const contextParser = seq(repeat(datatypeDecl), eof()).map(r => {
-    return r[0].flat();
-  });
+  const letTermDecl = seq(
+    "let",
+    constrName,
+    "=",
+    termParser,
+    opt(";")
+  ).map(r => ({
+    kind: 'Term' as const,
+    termName: r[1],
+    term: r[3],
+  }));
 
-  const result = contextParser.parse({ stream });
-  if (!result) {
-    throw new Error("Failed to parse TypeContext");
+  const varDecl = seq(
+    kind("var"),
+    ":",
+    typeNameParser,
+    opt(";")
+  ).map(r => ({
+    kind: 'Var' as const,
+    varName: r[0].substring(1),
+    typeName: r[2],
+  }));
+
+  const declParser = or(letTypeDecl, letTermDecl, varDecl);
+
+  const contextParser = seq(repeat(declParser), eof()).map(r => r[0]);
+
+  const parsedDecls = contextParser.parse({ stream });
+  if (!parsedDecls) {
+    throw new Error("Failed to parse Context declarations");
   }
 
-  return createTypeContext(result.value);
+  // Process declarations progressively
+  for (const decl of parsedDecls.value) {
+    if (decl.kind === 'Type') {
+      extendContext(ctxt, decl.constructors);
+    } else if (decl.kind === 'Term') {
+      const typeName = inferType(ctxt, decl.term, ctxt.variables);
+      ctxt.termDefinitions[decl.termName] = { def: decl.term, typ: typeName };
+    } else if (decl.kind === 'Var') {
+      const baseType = getBaseType(ctxt, decl.typeName);
+      if (!(baseType in ctxt.types) && !['nat', 'natList', 'tree'].includes(baseType)) {
+        throw new Error(`Unknown type: '${decl.typeName}'`);
+      }
+      ctxt.variables[decl.varName] = decl.typeName;
+    }
+  }
+
+  return ctxt;
 }
 
 /**
  * Prints a TypeContext in the custom type syntax.
  */
-export function printTypeContext(ctxt: TypeContext): string {
+export function printContext(ctxt: Context): string {
   const declarations: string[] = [];
+
+  // 1. Print Type Definitions
   for (const typeName of Object.keys(ctxt.types).sort()) {
     const typeConstruction = ctxt.types[typeName];
     const constrDecls: string[] = [];
@@ -495,7 +650,7 @@ export function printTypeContext(ctxt: TypeContext): string {
       if (argKeys.length === 0) {
         constrDecls.push(c.constructorName);
       } else {
-        const fields = argKeys.map(k => `${k}: ${c.arguments[k]}`).join(', ');
+        const fields = argKeys.map(k => `?${k}: ${c.arguments[k]}`).join(', ');
         if (c.isRecord) {
           constrDecls.push(`${c.constructorName}{ ${fields} }`);
         } else {
@@ -505,17 +660,30 @@ export function printTypeContext(ctxt: TypeContext): string {
     }
     declarations.push(`type ${typeName} = ${constrDecls.join(' | ')};`);
   }
+
+  // 2. Print Term Definitions
+  if (ctxt.termDefinitions) {
+    for (const termName of Object.keys(ctxt.termDefinitions).sort()) {
+      const termInfo = ctxt.termDefinitions[termName];
+      declarations.push(`let ${termName} = ${printTerm(termInfo.def)};`);
+    }
+  }
+
+  // 3. Print Variables
+  if (ctxt.variables) {
+    for (const varName of Object.keys(ctxt.variables).sort()) {
+      const typeName = ctxt.variables[varName];
+      declarations.push(`?${varName}: ${typeName};`);
+    }
+  }
+
   return declarations.join('\n');
 }
 
 /**
  * Parses a Term from a custom term string.
- * Example:
- *   suc(suc(0));
- *   cons(suc(0), nil); 
- *   node{ left = leaf, val = suc(0), right = leaf };
  */
-export function parseTerm(src: string, constructors?: Set<string> | TypeContext): Term {
+export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
   const knownConstructors = new Set<string>();
   if (constructors instanceof Set) {
     constructors.forEach(c => knownConstructors.add(c));
@@ -525,12 +693,17 @@ export function parseTerm(src: string, constructors?: Set<string> | TypeContext)
         knownConstructors.add(constrName);
       }
     }
+    if (constructors.termDefinitions) {
+      for (const termName of Object.keys(constructors.termDefinitions)) {
+        knownConstructors.add(termName);
+      }
+    }
   } else {
     ['0', 'suc', 'nil', 'cons', 'true', 'false'].forEach(c => knownConstructors.add(c));
   }
 
   const termTokens = new RegexMatchers({
-    keyword: /type\b/,
+    keyword: /let\b|type\b/,
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
