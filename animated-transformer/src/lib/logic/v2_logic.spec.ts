@@ -261,7 +261,7 @@ describe('v2_logic of peano natural numbers', () => {
       const src = [
         'type nat = 0 | suc(?n: nat);',
         'type natList = cons(?h: nat, ?t: natList) | nil;',
-        'type tree = leaf | node{ ?left: tree, ?right: tree, ?val: nat };',
+        'type tree = leaf | node(?left: tree, ?right: tree, ?val: nat);',
       ].join('\n');
 
       const ctxt = parseContext(src);
@@ -285,7 +285,7 @@ describe('v2_logic of peano natural numbers', () => {
       const expectedPrinted = [
         'type nat = 0 | suc(?n: nat);',
         'type natList = cons(?h: nat, ?t: natList) | nil;',
-        'type tree = leaf | node{ ?left: tree, ?right: tree, ?val: nat };',
+        'type tree = leaf | node(?left: tree, ?right: tree, ?val: nat);',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
@@ -326,7 +326,7 @@ describe('v2_logic of peano natural numbers', () => {
       const ctxtSrc = [
         'type nat = 0 | suc(?n: nat);',
         'type natList = nil | cons(?h: nat, ?t: natList);',
-        'type tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };',
+        'type tree = leaf | node(?left: tree, ?val: nat, ?right: tree);',
       ].join('\n');
       const ctxt = parseContext(ctxtSrc);
 
@@ -356,7 +356,7 @@ describe('v2_logic of peano natural numbers', () => {
     it('prints verbose terms when requested', () => {
       const ctxtSrc = [
         'type nat = 0 | suc(?n: nat);',
-        'type tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };',
+        'type tree = leaf | node(?left: tree, ?val: nat, ?right: tree);',
       ].join('\n');
       const ctxt = parseContext(ctxtSrc);
 

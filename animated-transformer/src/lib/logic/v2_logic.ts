@@ -42,7 +42,6 @@ export type TypeConstructor = {
     [argName: string]: string;
   };
   argOrder?: string[];
-  isRecord?: boolean;
 };
 
 export type TypeConstructions = {
@@ -429,24 +428,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const parenArgs = delimited("(", withSep(",", recordField), ")");
 
   const constructorDecl = or(
-    // Curly / Record style: node{ ?left: tree, ?val: nat, ?right: tree }
-    seq(constrName, recordArgs).map(r => {
-      const name = r[0];
-      const fields = r[1];
-      const argumentsMap: { [name: string]: string } = {};
-      const argOrder: string[] = [];
-      for (const f of fields) {
-        argumentsMap[f.name] = f.type;
-        argOrder.push(f.name);
-      }
-      return {
-        constructorName: name,
-        arguments: argumentsMap,
-        argOrder,
-        isRecord: true,
-      };
-    }),
-    // Parenthesized style: suc(?n:nat) or cons(?h: nat, ?t: natList)
+    // Parenthesized style: suc(?n:nat) or cons(?h: nat, ?t: natList) or node(?left: tree, ?val: nat, ?right: tree)
     seq(constrName, parenArgs).map(r => {
       const name = r[0];
       const fields = r[1];
@@ -460,7 +442,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         constructorName: name,
         arguments: argumentsMap,
         argOrder,
-        isRecord: false,
       };
     }),
     // Zero-arg: 0 or leaf or nil
@@ -469,7 +450,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         constructorName: name,
         arguments: {},
         argOrder: [],
-        isRecord: false,
       };
     })
   );
@@ -651,11 +631,7 @@ export function printContext(ctxt: Context): string {
         constrDecls.push(c.constructorName);
       } else {
         const fields = argKeys.map(k => `?${k}: ${c.arguments[k]}`).join(', ');
-        if (c.isRecord) {
-          constrDecls.push(`${c.constructorName}{ ${fields} }`);
-        } else {
-          constrDecls.push(`${c.constructorName}(${fields})`);
-        }
+        constrDecls.push(`${c.constructorName}(${fields})`);
       }
     }
     declarations.push(`type ${typeName} = ${constrDecls.join(' | ')};`);
