@@ -297,3 +297,82 @@ export class LinearStory {
       .join('\n');
   }
 }
+
+/**
+ * Scans a logical Context, matching all registered lolli actions against
+ * the active linear variables in the context.
+ */
+export function getApplicableActions(ctxt: Context): ActionMatch[] {
+  const story = LinearStory.fromContext(ctxt);
+  const matches: ActionMatch[] = [];
+  for (const action of Object.values(ctxt.actions)) {
+    const actionMatches = matchAction(ctxt, action, story.resources);
+    matches.push(...actionMatches);
+  }
+  return matches;
+}
+
+export type StoryStep = {
+  /** The Context before the action was applied. */
+  contextBefore: Context;
+  /** The ActionMatch details (which action was applied and which resources matched). */
+  actionMatch: ActionMatch;
+  /** The Context after the action was applied. */
+  contextAfter: Context;
+};
+
+/**
+ * Represents a linear logic story execution trace.
+ * Maintains an initial context, and a chronological sequence of applied actions/steps,
+ * along with the context before and after each step.
+ */
+export class V2Story {
+  public steps: StoryStep[] = [];
+
+  constructor(public initialContext: Context) {}
+
+  /**
+   * Returns the active Context after the latest step,
+   * or the initial context if no actions have been performed yet.
+   */
+  getCurrentContext(): Context {
+    if (this.steps.length === 0) {
+      return this.initialContext;
+    }
+    return this.steps[this.steps.length - 1].contextAfter;
+  }
+
+  /**
+   * Applies a matched linear action to transition the story's state, adding a step to the trace.
+   */
+  applyAction(match: ActionMatch): void {
+    const currentCtxt = this.getCurrentContext();
+
+    // 1. Reconstruct the linear resource story state
+    const linearStory = LinearStory.fromContext(currentCtxt);
+
+    // 2. Transition the resources by applying the action
+    const nextLinearStory = linearStory.applyAction(match);
+
+    // 3. Build the new Context inheriting the types, functions, and actions,
+    // but populated with the new active linear resources
+    const nextCtxt = new Context({
+      literals: { ...currentCtxt.getRawData().literals },
+      functions: { ...currentCtxt.getRawData().functions },
+      actions: { ...currentCtxt.getRawData().actions },
+      variables: {}, // start with fresh active resources map
+    });
+
+    // Populate the next context with transition resources
+    for (const res of nextLinearStory.resources) {
+      nextCtxt.declareVariable(res.name.substring(1), res.type);
+    }
+
+    // 4. Log the step to the story trace
+    this.steps.push({
+      contextBefore: currentCtxt,
+      actionMatch: match,
+      contextAfter: nextCtxt,
+    });
+  }
+}

@@ -75,6 +75,7 @@ describe('v2_logic of peano natural numbers', () => {
       },
       variables: {},
       functions: {},
+      actions: {},
     });
   });
 

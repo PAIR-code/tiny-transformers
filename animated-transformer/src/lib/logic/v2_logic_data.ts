@@ -152,13 +152,26 @@ export type FunctionDef = {
   clauses: FunctionClauseDef[];
 };
 
+export type ActionResource = {
+  varName: string;
+  typePattern: Term;
+};
+
+export type LolliAction = {
+  name: string;
+  lhs: ActionResource[];
+  rhs: ActionResource[];
+};
+
 /**
  * Safe, validated Context storage structure.
  * Stores all sum types, polymorphic binders, and constructor record signatures
- * uniformly in the `literals` registry, and term-level functions in the `functions` registry.
+ * uniformly in the `literals` registry, term-level functions in the `functions` registry,
+ * and linear lolli actions in the `actions` registry.
  */
 export type ContextData = {
   literals: { [typeName: string]: TypeDef };
   variables: { [varName: string]: string };
   functions: { [funcName: string]: FunctionDef };
+  actions: { [actionName: string]: LolliAction };
 };

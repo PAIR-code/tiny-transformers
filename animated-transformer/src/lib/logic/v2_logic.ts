@@ -48,6 +48,7 @@ import {
   ContextData,
   Term,
   FunctionDef,
+  LolliAction,
 } from './v2_logic_data';
 
 export * from './v2_logic_data';
@@ -131,6 +132,7 @@ export class Context {
       literals: {},
       variables: {},
       functions: {},
+      actions: {},
     });
   }
 
@@ -159,6 +161,10 @@ export class Context {
 
   get variables(): { [varName: string]: string } {
     return this.data.variables;
+  }
+
+  get actions(): { [actionName: string]: LolliAction } {
+    return this.data.actions;
   }
 
   getRawData(): ContextData {
@@ -853,12 +859,12 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
 
   const logicTokens = new RegexMatchers({
-    keyword: /let\b|type\b|fun\b/,
+    keyword: /let\b|type\b|fun\b|action\b/,
     typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | { } : , ( ) ; < >"),
+    symbol: matchOneOf("= | { } : , ( ) ; < > -o"),
     ws: /\s+/,
   });
 
@@ -1076,7 +1082,40 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     typeName: r[2],
   }));
 
-  const declParser = or(letTypeDecl, letTermDecl, letFunDecl, varDecl);
+  const actionResourceParser = seq(
+    kind("var"),
+    ":",
+    termParser
+  ).map(r => ({
+    varName: r[0].substring(1),
+    typePattern: r[2],
+  }));
+
+  const actionResourcesParser = delimited(
+    "{",
+    withSep(",", actionResourceParser),
+    "}"
+  );
+
+  const actionDecl = seq(
+    "action",
+    ident,
+    ":",
+    actionResourcesParser,
+    "-o",
+    actionResourcesParser,
+    opt(";")
+  ).map(r => {
+    const name = r[1];
+    const lhs = r[3];
+    const rhs = r[5];
+    return {
+      kind: 'Action' as const,
+      action: { name, lhs, rhs },
+    };
+  });
+
+  const declParser = or(letTypeDecl, letTermDecl, letFunDecl, varDecl, actionDecl);
 
   const contextParser = seq(repeat(declParser), eof()).map(r => r[0]);
 
@@ -1100,6 +1139,11 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       };
     } else if (decl.kind === 'Var') {
       ctxt.declareVariable(decl.varName, decl.typeName);
+    } else if (decl.kind === 'Action') {
+      if (decl.action.name in ctxt.getRawData().literals || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
+        throw new Error(`Literal '${decl.action.name}' already defined in the context.`);
+      }
+      ctxt.getRawData().actions[decl.action.name] = decl.action;
     }
   }
 
@@ -1152,6 +1196,41 @@ export function printContext(ctxt: Context): string {
         return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;
       });
       declarations.push(`${clauseStrs.join(' | ')};`);
+    }
+  }
+
+  const actions = ctxt.getRawData().actions;
+  if (actions) {
+    for (const actionName of Object.keys(actions).sort()) {
+      const action = actions[actionName];
+      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
+      const lhs = action.lhs.map(printResource).join(', ');
+      const rhs = action.rhs.map(printResource).join(', ');
+      declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);
+    }
+  }
+
+  if (ctxt.variables) {
+    for (const varName of Object.keys(ctxt.variables).sort()) {
+      const typeName = ctxt.variables[varName];
+      declarations.push(`?${varName}: ${typeName};`);
+    }
+  }
+
+  return declarations.join('\n');
+}
+
+export function printLinearContext(ctxt: Context): string {
+  const declarations: string[] = [];
+
+  const actions = ctxt.getRawData().actions;
+  if (actions) {
+    for (const actionName of Object.keys(actions).sort()) {
+      const action = actions[actionName];
+      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
+      const lhs = action.lhs.map(printResource).join(', ');
+      const rhs = action.rhs.map(printResource).join(', ');
+      declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);
     }
   }
 
