@@ -13,18 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { TypeConstructor, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind } from './v2_logic';
+import { ConjunctiveType, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
 
   it('simple construction', () => {
-    const suc: TypeConstructor = {
+    const suc: ConjunctiveType = {
       constructorName: 'suc',
       createdTypeName: 'nat',
       arguments: { num: 'nat' },
     };
-    const zero: TypeConstructor = {
+    const zero: ConjunctiveType = {
       constructorName: '0',
       createdTypeName: 'nat',
       arguments: {},
@@ -47,7 +47,7 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   it('throws error if type has no base case (direct self-loop)', () => {
-    const bad: TypeConstructor = {
+    const bad: ConjunctiveType = {
       constructorName: 'badConstr',
       createdTypeName: 'bad',
       arguments: { recursive: 'bad' },
@@ -59,12 +59,12 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   it('throws error if types have no base case (mutual recursion loop)', () => {
-    const a: TypeConstructor = {
+    const a: ConjunctiveType = {
       constructorName: 'aConstr',
       createdTypeName: 'A',
       arguments: { toB: 'B' },
     };
-    const b: TypeConstructor = {
+    const b: ConjunctiveType = {
       constructorName: 'bConstr',
       createdTypeName: 'B',
       arguments: { toA: 'A' },
@@ -76,17 +76,17 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   it('succeeds with mutual recursion that has a base case', () => {
-    const a: TypeConstructor = {
+    const a: ConjunctiveType = {
       constructorName: 'aConstr',
       createdTypeName: 'A',
       arguments: { toB: 'B' },
     };
-    const bConstr: TypeConstructor = {
+    const bConstr: ConjunctiveType = {
       constructorName: 'bConstr',
       createdTypeName: 'B',
       arguments: { toA: 'A' },
     };
-    const bBase: TypeConstructor = {
+    const bBase: ConjunctiveType = {
       constructorName: 'bBase',
       createdTypeName: 'B',
       arguments: {},
@@ -98,7 +98,7 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   it('compositionally extends a valid context with new valid types', () => {
-    const zero: TypeConstructor = {
+    const zero: ConjunctiveType = {
       constructorName: '0',
       createdTypeName: 'nat',
       arguments: {},
@@ -106,12 +106,12 @@ describe('v2_logic of peano natural numbers', () => {
     const ctxt = createContext([zero]);
 
     // Let's add a new type that depends on nat
-    const listNil: TypeConstructor = {
+    const listNil: ConjunctiveType = {
       constructorName: 'nil',
       createdTypeName: 'natList',
       arguments: {},
     };
-    const listCons: TypeConstructor = {
+    const listCons: ConjunctiveType = {
       constructorName: 'cons',
       createdTypeName: 'natList',
       arguments: { head: 'nat', tail: 'natList' },
@@ -123,14 +123,14 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   it('refuses to extend context with invalid type, leaving it unchanged', () => {
-    const zero: TypeConstructor = {
+    const zero: ConjunctiveType = {
       constructorName: '0',
       createdTypeName: 'nat',
       arguments: {},
     };
     const ctxt = createContext([zero]);
 
-    const bad: TypeConstructor = {
+    const bad: ConjunctiveType = {
       constructorName: 'badConstr',
       createdTypeName: 'bad',
       arguments: { recursive: 'bad' },
@@ -144,22 +144,22 @@ describe('v2_logic of peano natural numbers', () => {
   });
 
   describe('term creation and type checking/inference', () => {
-    const zero: TypeConstructor = {
+    const zero: ConjunctiveType = {
       constructorName: '0',
       createdTypeName: 'nat',
       arguments: {},
     };
-    const suc: TypeConstructor = {
+    const suc: ConjunctiveType = {
       constructorName: 'suc',
       createdTypeName: 'nat',
       arguments: { num: 'nat' },
     };
-    const listNil: TypeConstructor = {
+    const listNil: ConjunctiveType = {
       constructorName: 'nil',
       createdTypeName: 'natList',
       arguments: {},
     };
-    const listCons: TypeConstructor = {
+    const listCons: ConjunctiveType = {
       constructorName: 'cons',
       createdTypeName: 'natList',
       arguments: { head: 'nat', tail: 'natList' },
@@ -232,12 +232,12 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('handles overloaded constructors based on expected type', () => {
       // Suppose we have constructor 'c' in two different types
-      const c1: TypeConstructor = {
+      const c1: ConjunctiveType = {
         constructorName: 'c',
         createdTypeName: 'T1',
         arguments: {},
       };
-      const c2: TypeConstructor = {
+      const c2: ConjunctiveType = {
         constructorName: 'c',
         createdTypeName: 'T2',
         arguments: {},
@@ -259,9 +259,9 @@ describe('v2_logic of peano natural numbers', () => {
   describe('Logical Context Parser and Printer (Linear & Intuitionistic)', () => {
     it('parses and prints Context correctly (roundtrip)', () => {
       const src = [
-        'type nat = 0 | suc(?n: nat);',
-        'type natList = cons(?h: nat, ?t: natList) | nil;',
-        'type tree = leaf | node(?left: tree, ?right: tree, ?val: nat);',
+        'type nat = 0 | suc(n: nat);',
+        'type natList = cons(h: nat, t: natList) | nil;',
+        'type tree = leaf | node(left: tree, right: tree, val: nat);',
       ].join('\n');
 
       const ctxt = parseContext(src);
@@ -271,7 +271,7 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.types['natList']).toBeDefined();
       expect(ctxt.types['tree']).toBeDefined();
 
-      // Check specific constructor definitions with ? prefixed args
+      // Check specific constructor definitions with non-prefixed args
       const cons = ctxt.types['natList'].constructors['cons'];
       expect(cons.argOrder).toEqual(['h', 't']);
       expect(cons.arguments).toEqual({
@@ -290,9 +290,9 @@ describe('v2_logic of peano natural numbers', () => {
       // Print back and compare (Note: printed output types are sorted alphabetically by typeName and constructorName)
       const printed = printContext(ctxt);
       const expectedPrinted = [
-        'type nat = 0 | suc(?n: nat);',
-        'type natList = cons(?h: nat, ?t: natList) | nil;',
-        'type tree = leaf | node(?left: tree, ?right: tree, ?val: nat);',
+        'type nat = 0 | suc(n: nat);',
+        'type natList = cons(h: nat, t: natList) | nil;',
+        'type tree = leaf | node(left: tree, right: tree, val: nat);',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
@@ -303,7 +303,7 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('handles unified syntax with type definitions, term definitions, and linear variables', () => {
       const src = [
-        'type nat = 0 | suc(?n: nat);',
+        'type nat = 0 | suc(n: nat);',
         'let 2 = suc(suc(0));',
         '?x: 2;',
       ].join('\n');
@@ -331,9 +331,9 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('parses and prints Terms correctly (roundtrip)', () => {
       const ctxtSrc = [
-        'type nat = 0 | suc(?n: nat);',
-        'type natList = nil | cons(?h: nat, ?t: natList);',
-        'type tree = leaf | node(?left: tree, ?val: nat, ?right: tree);',
+        'type nat = 0 | suc(n: nat);',
+        'type natList = nil | cons(h: nat, t: natList);',
+        'type tree = leaf | node(left: tree, val: nat, right: tree);',
       ].join('\n');
       const ctxt = parseContext(ctxtSrc);
 
@@ -362,8 +362,8 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('prints verbose terms when requested', () => {
       const ctxtSrc = [
-        'type nat = 0 | suc(?n: nat);',
-        'type tree = leaf | node(?left: tree, ?val: nat, ?right: tree);',
+        'type nat = 0 | suc(n: nat);',
+        'type tree = leaf | node(left: tree, val: nat, right: tree);',
       ].join('\n');
       const ctxt = parseContext(ctxtSrc);
 
@@ -378,7 +378,7 @@ describe('v2_logic of peano natural numbers', () => {
 
     it('parses, typechecks, and prints parameterised types and implicitly introduces free type variables', () => {
       const src = [
-        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
+        'type list<x> = cons(h: x, t: list(x)) | nil;',
         '?l: list(?y);',
       ].join('\n');
 
@@ -387,7 +387,7 @@ describe('v2_logic of peano natural numbers', () => {
       // Verify roundtrip printing (which includes the implicitly introduced ?y: _)
       const printed = printContext(ctxt);
       const expectedPrinted = [
-        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
+        'type list<x> = cons(h: x, t: list(x)) | nil;',
         '?l: list(?y);',
         '?y: _;',
       ].join('\n');
@@ -400,13 +400,13 @@ describe('v2_logic of peano natural numbers', () => {
 
       // Verify h and t constructors are defined with generic Term-based type references
       const cons = ctxt.types['list'].constructors['cons'];
-      expect(cons.arguments['h']).toEqual({ kind: TermKind.Variable, varName: 'x' });
+      expect(cons.arguments['h']).toEqual({ kind: TermKind.Constructor, constructorName: 'x', unNamedArgs: [], namedArgs: {} });
 
-      // cons t argument is list(?x) represented as a ConstrTerm
+      // cons t argument is list(x) represented as a ConstrTerm
       expect(cons.arguments['t']).toEqual({
         kind: TermKind.Constructor,
         constructorName: 'list',
-        unNamedArgs: [{ kind: TermKind.Variable, varName: 'x' }],
+        unNamedArgs: [{ kind: TermKind.Constructor, constructorName: 'x', unNamedArgs: [], namedArgs: {} }],
         namedArgs: {},
       });
 
@@ -418,7 +418,7 @@ describe('v2_logic of peano natural numbers', () => {
 
       // Verify typeCheck of parameterised terms:
       // cons(suc(0), nil) should typeCheck against list(nat)!
-      const natCtxtSrc = 'type nat = 0 | suc(?n: nat);';
+      const natCtxtSrc = 'type nat = 0 | suc(n: nat);';
       const fullCtxt = parseContext(natCtxtSrc, ctxt);
 
       const term = parseTerm('cons(suc(0), nil)', fullCtxt);
@@ -432,8 +432,8 @@ describe('v2_logic of peano natural numbers', () => {
       // Verify print of full context containing 'nat'
       const fullPrinted = printContext(fullCtxt);
       const expectedFullPrinted = [
-        'type list(?x: _) = cons(?h: ?x, ?t: list(?x)) | nil;',
-        'type nat = 0 | suc(?n: nat);',
+        'type list<x> = cons(h: x, t: list(x)) | nil;',
+        'type nat = 0 | suc(n: nat);',
         '?l: list(?y);',
         '?y: _;',
       ].join('\n');
