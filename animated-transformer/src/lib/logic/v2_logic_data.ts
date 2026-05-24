@@ -13,28 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import {
-  FilterStream,
-  MatchersStream,
-  Parser,
-  RegexMatchers,
-  Token,
-  delimited,
-  eof,
-  fn,
-  kind,
-  matchOneOf,
-  opt,
-  or,
-  preceded,
-  repeat,
-  repeatPlus,
-  seq,
-  tokenOf,
-  withSep,
-  withSepPlus,
-} from 'mini-parse';
-
 
 export enum TermKind {
   Literal = 'Literal',
@@ -65,63 +43,90 @@ export type Variable = {
 
 export type Term = Literal | Variable;
 
-
-enum TypeKind {
+/**
+ * Identifies the kind of Type definition.
+ */
+export enum TypeKind {
+  /** Product type / constructor record signature (e.g., cons). */
   Conjunction = 'Conjunction',
+  /** Sum type / Algebraic Data Type (e.g., list). */
   Disjunction = 'Disjunction',
+  /** Polymorphic/generic type parameter binding wrapper. */
   Binding = 'Binding'
 }
 
 /**
- * Represents a Conjunction (constructor), which is a product of named field arguments.
- * Sometimes also called a record.
+ * Represents a Conjunction (constructor product type), which is a product of named field arguments.
+ * Sometimes also called a record signature.
  * 
- * Example: cons(h: x, t: list(x))
+ * Example: cons(h: 'x, t: list<'x>) has created productTypeName `list_cons`.
  */
 export type ConjunctionDef = {
   kind: TypeKind.Conjunction;
+  /** The name of the constructor (e.g., 'cons'). */
   constructorName: string;
+  /** Programmatically generated product type name (e.g., 'list_cons'). */
   productTypeName: string;
+  /** Record fields mapping argument names to their Type Terms. */
   arguments: {
     // The argument name and it's type as a term: may use variable to refer to 
     // parameters, or literal names for types.
     [argName: string]: Term; 
   };
+  /** Optional explicit order of record field arguments. */
   argOrder?: string[];
 };
 
 /**
  * Represents a disjunction of types, also called a sum, or Abstract Data Type (ADT).
  * 
- * Example: List is the disjunction of nil or cons.
+ * Example: List is the sum disjunction of nil or cons.
  */
 export type DisjunctionDef = {
   kind: TypeKind.Disjunction;
+  /** The name of the sum type (e.g., 'list'). */
   sumTypeName: string;
+  /** The sum constructors map. */
   constructors: { [constructorName: string]: ConjunctionDef };
 };
 
+/**
+ * Represents a polymorphic generic parameter binding wrapper.
+ * Wraps a DisjunctionDef or ConjunctionDef with generic parameters mapping to '_'.
+ */
 export type BindingDef = {
   kind: TypeKind.Binding;
+  /** The generic bound type name (e.g., 'list'). */
   boundTypeName: string;
+  /** Generic parameter names map (e.g., { "'x": '_' }). */
   params: { [paramName: string]: string };
+  /** The explicit order of generic parameters. */
   paramOrder: string[];
+  /** The bound concrete sum type or record type. */
   boundType: DisjunctionDef | ConjunctionDef;
 };
 
+/**
+ * Unified Type Definition algebraic sum.
+ */
 export type TypeDef = BindingDef | DisjunctionDef | ConjunctionDef;
 
-
-// Definition for a `literal`, e.g. the term `cons(suc(0), nil)` refers to 4 literals:
-// `cons`, `suc`, `0`, and `nil`. The literal `cons`, for it's part has type 
-// Binding <?a>, then takes a record with fields head and tail of type ?a and List<?a> 
-// respectively. 
+/**
+ * Definition for a `literal`, e.g. the term `cons(suc(0), nil)` refers to 4 literals:
+ * `cons`, `suc`, `0`, and `nil`. The literal `cons`, for it's part has type 
+ * Binding <?a>, then takes a record with fields head and tail of type ?a and List<?a> 
+ * respectively. 
+ */
 export type LiteralDef = {
   literalName: string;
   type: TypeDef;
 };
 
-
+/**
+ * Safe, validated Context storage structure.
+ * Stores all sum types, polymorphic binders, and constructor record signatures
+ * uniformly in the `literals` registry.
+ */
 export type ContextData = {
   literals: { [typeName: string]: TypeDef };
   variables: { [varName: string]: string };

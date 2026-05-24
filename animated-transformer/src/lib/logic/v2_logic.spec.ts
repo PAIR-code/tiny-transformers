@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, Conjunction, Disjunction, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind } from './v2_logic';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -33,15 +33,46 @@ describe('v2_logic of peano natural numbers', () => {
     const ctxt = createContext([suc, zero]);
 
     expect(ctxt.getRawData()).toEqual({
-      types: {
+      literals: {
         nat: {
+          kind: TypeKind.Disjunction,
+          sumTypeName: 'nat',
           constructors: {
-            suc: suc,
-            '0': zero,
+            suc: {
+              kind: TypeKind.Conjunction,
+              constructorName: 'suc',
+              productTypeName: 'nat_suc',
+              arguments: {
+                num: { kind: TermKind.Literal, literalName: 'nat', unNamedArgs: [], namedArgs: {} },
+              },
+              argOrder: undefined,
+            },
+            '0': {
+              kind: TypeKind.Conjunction,
+              constructorName: '0',
+              productTypeName: 'nat_0',
+              arguments: {},
+              argOrder: undefined,
+            },
           },
         },
+        suc: {
+          kind: TypeKind.Conjunction,
+          constructorName: 'suc',
+          productTypeName: 'nat_suc',
+          arguments: {
+            num: { kind: TermKind.Literal, literalName: 'nat', unNamedArgs: [], namedArgs: {} },
+          },
+          argOrder: undefined,
+        },
+        '0': {
+          kind: TypeKind.Conjunction,
+          constructorName: '0',
+          productTypeName: 'nat_0',
+          arguments: {},
+          argOrder: undefined,
+        },
       },
-      termDefinitions: {},
       variables: {},
     });
   });
@@ -230,8 +261,7 @@ describe('v2_logic of peano natural numbers', () => {
       );
     });
 
-    it('handles overloaded constructors based on expected type', () => {
-      // Suppose we have constructor 'c' in two different types
+    it('refuses to define overloaded constructors due to literal clash', () => {
       const c1: ConjunctionData = {
         constructorName: 'c',
         createdTypeName: 'T1',
@@ -242,17 +272,9 @@ describe('v2_logic of peano natural numbers', () => {
         createdTypeName: 'T2',
         arguments: {},
       };
-      const multiCtxt = createContext([c1, c2]);
-
-      const term = constr('c');
-      // inferType should throw an Ambiguous constructor error
-      expect(() => inferType(multiCtxt, term)).toThrowError(
-        /Ambiguous constructor name/
+      expect(() => createContext([c1, c2])).toThrowError(
+        /Constructor literal 'c' already defined/
       );
-
-      // typeCheck should succeed by resolving 'c' based on expected type!
-      expect(() => typeCheck(multiCtxt, term, 'T1')).not.toThrow();
-      expect(() => typeCheck(multiCtxt, term, 'T2')).not.toThrow();
     });
   });
 
@@ -272,14 +294,14 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.types['tree']).toBeDefined();
 
       // Check specific constructor definitions with non-prefixed args
-      const cons = ctxt.types['natList'].constructors['cons'];
+      const cons = (ctxt.types['natList'] as DisjunctionDef).constructors['cons'];
       expect(cons.argOrder).toEqual(['h', 't']);
       expect(cons.arguments).toEqual({
         h: { kind: TermKind.Literal, literalName: 'nat', unNamedArgs: [], namedArgs: {} },
         t: { kind: TermKind.Literal, literalName: 'natList', unNamedArgs: [], namedArgs: {} },
       });
 
-      const node = ctxt.types['tree'].constructors['node'];
+      const node = (ctxt.types['tree'] as DisjunctionDef).constructors['node'];
       expect(node.argOrder).toEqual(['left', 'right', 'val']);
       expect(node.arguments).toEqual({
         left: { kind: TermKind.Literal, literalName: 'tree', unNamedArgs: [], namedArgs: {} },
@@ -395,11 +417,13 @@ describe('v2_logic of peano natural numbers', () => {
 
       // Verify type definitions
       expect(ctxt.types['list']).toBeDefined();
-      expect(ctxt.types['list'].typeParamOrder).toEqual(["'x"]);
-      expect(ctxt.types['list'].typeParams).toEqual({ "'x": '_' });
+      const listDef = ctxt.types['list'] as BindingDef;
+      expect(listDef.paramOrder).toEqual(["'x"]);
+      expect(listDef.params).toEqual({ "'x": '_' });
 
+      const disj = listDef.boundType as DisjunctionDef;
       // Verify h and t constructors are defined with generic Term-based type references
-      const cons = ctxt.types['list'].constructors['cons'];
+      const cons = disj.constructors['cons'];
       expect(cons.arguments['h']).toEqual({ kind: TermKind.Literal, literalName: "'x", unNamedArgs: [], namedArgs: {} });
 
       // cons t argument is list<'x> represented as a ConstrTerm
@@ -438,6 +462,38 @@ describe('v2_logic of peano natural numbers', () => {
         '?y: _;',
       ].join('\n');
       expect(fullPrinted).toBe(expectedFullPrinted);
+    });
+
+    it('validates programmatic record naming and prevents sum/constructor literal clashes', () => {
+      const ctxt = parseContext([
+        "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
+      ].join('\n'));
+
+      // 1. Assert programmatic record product names for constructors
+      const listDef = ctxt.getRawData().literals['list'];
+      const disj = (listDef.kind === 'Binding' ? listDef.boundType : listDef) as DisjunctionDef;
+      expect(disj.constructors['cons'].productTypeName).toBe('list_cons');
+      expect(disj.constructors['nil'].productTypeName).toBe('list_nil');
+
+      // 2. Assert constructor literals registered directly in context
+      expect(ctxt.getRawData().literals['cons']).toBeDefined();
+      expect(ctxt.getRawData().literals['nil']).toBeDefined();
+
+      // 3. Check sum type clash: attempting to define 'list' again throws
+      const duplicateSum = [
+        "type list<'a> = empty | cons2(h: 'a, t: list<'a>);"
+      ].join('\n');
+      expect(() => parseContext(duplicateSum, ctxt)).toThrowError(
+        /Type literal 'list' already defined in the context/
+      );
+
+      // 4. Check constructor literal clash: defining another type with clashing constructor name 'nil' throws
+      const duplicateConstr = [
+        "type natList = nil | cons2(h: nat, t: natList);"
+      ].join('\n');
+      expect(() => parseContext(duplicateConstr, ctxt)).toThrowError(
+        /Constructor literal 'nil' already defined in the context/
+      );
     });
 
     it('throws on invalid syntax', () => {

@@ -35,76 +35,41 @@ import {
   withSepPlus,
 } from 'mini-parse';
 
-import {TermKind, Literal, Variable, TypeKind, ConjunctionDef, DisjunctionDef, BindingDef, TypeDef, LiteralDef, ContextData} from './v2_logic_data';
+import {
+  TermKind,
+  Literal,
+  Variable,
+  TypeKind,
+  ConjunctionDef,
+  DisjunctionDef,
+  BindingDef,
+  TypeDef,
+  LiteralDef,
+  ContextData,
+  Term,
+} from './v2_logic_data';
+
+export * from './v2_logic_data';
 
 /**
- * Represents a Conjunctive Type (constructor), which is a product of named field arguments.
- * Example: cons(h: x, t: list(x))
- *
- * Instances of Conjunction can only be created if they are well-formed and registered
- * in a valid parent Disjunction and Context.
+ * Raw user-facing parsed constructor structure.
+ * Serves as the intermediate AST structure before compilation and validation.
  */
-export class Conjunction {
-  /**
-   * Constructs a Conjunction.
-   * Validates that:
-   *  1. The parent Disjunction context matches the given Context.
-   *  2. The Conjunction createdTypeName matches the parent Disjunction typeName.
-   *  3. The constructor is already registered and matches the data in the parent Disjunction.
-   */
-  constructor(
-    public readonly context: Context,
-    public readonly disjunction: Disjunction,
-    private readonly data: ConjunctionDef
-  ) {
-    if (context !== disjunction.context) {
-      throw new Error(`ConjunctiveType context does not match parent DisjunctiveType context.`);
-    }
-    if (data.createdTypeName !== disjunction.typeName) {
-      throw new Error(
-        `ConjunctiveType constructor '${data.constructorName}' createdTypeName '${data.createdTypeName}' does not match parent disjunctive type name '${disjunction.typeName}'.`
-      );
-    }
-    const registered = disjunction.getRawData().constructors[data.constructorName];
-    if (!registered) {
-      throw new Error(
-        `Cannot construct ConjunctiveType: constructor '${data.constructorName}' is not registered in type '${disjunction.typeName}'.`
-      );
-    }
-    if (registered !== data) {
-      throw new Error(
-        `ConjunctiveType data for constructor '${data.constructorName}' does not match registered disjunctive type data.`
-      );
-    }
-  }
-
-  get constructorName(): string {
-    return this.data.constructorName;
-  }
-
-  get createdTypeName(): string {
-    return this.data.createdTypeName;
-  }
-
-  get arguments(): { [argName: string]: Term | string } {
-    return this.data.arguments;
-  }
-
-  get argOrder(): string[] {
-    return this.data.argOrder ?? Object.keys(this.data.arguments).sort();
-  }
-
-  getRawData(): ConjunctionDef {
-    return this.data;
-  }
-}
+export type ConjunctionData = {
+  constructorName: string;
+  createdTypeName: string;
+  arguments: {
+    [argName: string]: Term | string;
+  };
+  argOrder?: string[];
+};
 
 /**
- * Represents a Disjunctive Type (ADT), which is a sum (union) of conjunctive type constructors,
- * optionally parameterised by type parameters (generic types, e.g., <x>).
- *
- * Instances of DisjunctiveType can only be created if they are well-formed and registered
- * in a valid Context.
+ * Recursively validates that a type term reference is well-formed in the context.
+ * Ensures every type reference is either:
+ *  1. A bound generic parameter variable (e.g. 'x).
+ *  2. The recursive type itself being defined (e.g. list<'x>).
+ *  3. A pre-existing Sum type or literal in the context.
  */
 export function validateTypeRef(
   ctxt: Context,
@@ -116,7 +81,7 @@ export function validateTypeRef(
     if (allowedVars.has(typeRef)) return;
     if (typeRef === recursiveTypeName) return;
     const baseType = getBaseType(ctxt, typeRef);
-    if (baseType in ctxt.getRawData().types || ['nat', 'natList', 'tree', '_'].includes(baseType)) return;
+    if (baseType in ctxt.getRawData().literals || ['nat', 'natList', 'tree', '_'].includes(baseType)) return;
     throw new Error(`Unknown type reference: '${typeRef}'`);
   }
 
@@ -139,7 +104,7 @@ export function validateTypeRef(
       return;
     }
     const baseType = getBaseType(ctxt, constrName);
-    if (baseType in ctxt.getRawData().types || ['nat', 'natList', 'tree', '_'].includes(baseType)) {
+    if (baseType in ctxt.getRawData().literals || ['nat', 'natList', 'tree', '_'].includes(baseType)) {
       for (const arg of typeRef.unNamedArgs) {
         validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
       }
@@ -153,90 +118,16 @@ export function validateTypeRef(
 }
 
 /**
- * Represents a Disjunctive Type (ADT), which is a sum (union) of conjunctive type constructors,
- * optionally parameterised by type parameters (generic types, e.g., <x>).
- *
- * Instances of Disjunction can only be created if they are well-formed and registered
- * in a valid Context.
+ * The Context represents the unified logical context (traditional Γ).
+ * All sum types, constructor record products, let aliases, and variables
+ * are fully validated and maintained in a cohesive state.
  */
-export class Disjunction {
-  /**
-   * Constructs a Disjunction.
-   * Validates that:
-   *  1. The typeName matches a valid identifier pattern.
-   *  2. All type parameters start with a single quote (') and do not conflict with existing types.
-   *  3. All field argument types are well-formed (either recursive, type parameters, or pre-existing).
-   *  4. The typeName is registered and matches the data in the parent Context.
-   */
-  constructor(
-    public readonly context: Context,
-    public readonly typeName: string,
-    private readonly data: DisjunctionDef
-  ) {
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(typeName)) {
-      throw new Error(`Invalid type name identifier: '${typeName}'`);
-    }
-    
-    // Validate type parameters
-    const paramOrder = data.typeParamOrder ?? [];
-    for (const p of paramOrder) {
-      if (!p.startsWith("'")) {
-        throw new Error(`Type parameter '${p}' must start with a single quote character.`);
-      }
-      if (p in context.getRawData().types) {
-        throw new Error(`Type parameter name '${p}' conflicts with an existing type name in the context.`);
-      }
-    }
-
-    // Validate all constructor argument type references
-    const allowedVars = new Set(paramOrder);
-    for (const c of Object.values(data.constructors)) {
-      for (const [argName, argType] of Object.entries(c.arguments)) {
-        validateTypeRef(context, argType, allowedVars, typeName);
-      }
-    }
-
-    const registered = context.getRawData().types[typeName];
-    if (!registered) {
-      throw new Error(`Cannot construct DisjunctiveType: type '${typeName}' is not registered in the context.`);
-    }
-    if (registered !== data) {
-      throw new Error(`DisjunctiveType data for type '${typeName}' does not match registered context data.`);
-    }
-  }
-
-  get typeParams(): { [paramName: string]: string } {
-    return this.data.typeParams ?? {};
-  }
-
-  get typeParamOrder(): string[] {
-    return this.data.typeParamOrder ?? [];
-  }
-
-  get constructors(): { [constructorName: string]: Conjunction } {
-    const result: { [constructorName: string]: Conjunction } = {};
-    for (const constrName of Object.keys(this.data.constructors)) {
-      result[constrName] = new Conjunction(
-        this.context,
-        this,
-        this.data.constructors[constrName]
-      );
-    }
-    return result;
-  }
-
-  getRawData(): DisjunctionDef {
-    return this.data;
-  }
-}
-
 export class Context {
-  private constructor(private readonly data: ContextData) {}
+  constructor(private readonly data: ContextData) {}
 
   static empty(): Context {
     return new Context({
-      types: {},
-      termDefinitions: {},
+      literals: {},
       variables: {},
     });
   }
@@ -245,17 +136,24 @@ export class Context {
     return parseContext(src, existing);
   }
 
-  get types(): { [typeName: string]: Disjunction } {
-    const result: { [typeName: string]: Disjunction } = {};
-    for (const typeName of Object.keys(this.data.types)) {
-      result[typeName] = new Disjunction(this, typeName, this.data.types[typeName]);
+  /** Returns all registered ADT Disjunctions and generic parameterised Disjunction bindings. */
+  get types(): { [typeName: string]: TypeDef } {
+    const result: { [typeName: string]: TypeDef } = {};
+    for (const name of Object.keys(this.data.literals)) {
+      const tdef = this.data.literals[name];
+      const isDisj = tdef.kind === TypeKind.Disjunction || (tdef.kind === TypeKind.Binding && (tdef as BindingDef).boundType.kind === TypeKind.Disjunction);
+      if (isDisj) {
+        result[name] = tdef;
+      }
     }
     return result;
   }
 
   get termDefinitions(): { [name: string]: { def: Term; typ: string } } {
-    return this.data.termDefinitions;
+    return this.privateTermDefs;
   }
+
+  private readonly privateTermDefs: { [name: string]: { def: Term; typ: string } } = {};
 
   get variables(): { [varName: string]: string } {
     return this.data.variables;
@@ -265,42 +163,103 @@ export class Context {
     return this.data;
   }
 
+  /** Compositionally extends the context, registering record product types and literals. */
   extend(
-    constructors: ConjunctionDef[],
+    constructors: ConjunctionData[],
     typeParams?: { [paramName: string]: string },
     typeParamOrder?: string[]
   ): void {
-    const createdKeys = new Set<string>();
+    // Group constructors by their createdTypeName to support bulk extensions
+    const groups = new Map<string, ConjunctionData[]>();
     for (const c of constructors) {
-      if (!(c.createdTypeName in this.data.types)) {
-        this.data.types[c.createdTypeName] = { constructors: {} };
-        createdKeys.add(c.createdTypeName);
+      if (!groups.has(c.createdTypeName)) {
+        groups.set(c.createdTypeName, []);
       }
-    }
-    const typeName = constructors[0]?.createdTypeName;
-    if (typeName && typeParams && typeParamOrder) {
-      this.data.types[typeName].typeParams = typeParams;
-      this.data.types[typeName].typeParamOrder = typeParamOrder;
+      groups.get(c.createdTypeName)!.push(c);
     }
 
+    const createdLiterals = new Set<string>();
+
     try {
+      for (const [sumTypeName, groupConstrs] of groups.entries()) {
+        // Check sum type literal clash
+        if (sumTypeName in this.data.literals) {
+          throw new Error(`Type literal '${sumTypeName}' already defined in the context.`);
+        }
+
+        // Check constructor literals clashes
+        for (const c of groupConstrs) {
+          if (c.constructorName in this.data.literals) {
+            throw new Error(`Constructor literal '${c.constructorName}' already defined in the context.`);
+          }
+        }
+
+        // Build the Conjunction record types for the sum constructors
+        const conjDefs: { [name: string]: ConjunctionDef } = {};
+        for (const c of groupConstrs) {
+          const termArgs: { [argName: string]: Term } = {};
+          for (const [k, v] of Object.entries(c.arguments)) {
+            termArgs[k] = typeof v === 'string' ? parseTerm(v, this) : v;
+          }
+          conjDefs[c.constructorName] = {
+            kind: TypeKind.Conjunction,
+            constructorName: c.constructorName,
+            productTypeName: `${sumTypeName}_${c.constructorName}`,
+            arguments: termArgs,
+            argOrder: c.argOrder,
+          };
+        }
+
+        const disjDef: DisjunctionDef = {
+          kind: TypeKind.Disjunction,
+          sumTypeName: sumTypeName,
+          constructors: conjDefs,
+        };
+
+        // Build the TypeDef (with optional BindingDef wrapper if generic)
+        let typeDef: TypeDef = disjDef;
+        if (typeParams && typeParamOrder && typeParamOrder.length > 0 && sumTypeName === constructors[0]?.createdTypeName) {
+          typeDef = {
+            kind: TypeKind.Binding,
+            boundTypeName: sumTypeName,
+            params: typeParams,
+            paramOrder: typeParamOrder,
+            boundType: disjDef,
+          };
+        }
+
+        // Register the type literal
+        this.data.literals[sumTypeName] = typeDef;
+        createdLiterals.add(sumTypeName);
+
+        // Register each constructor literal
+        for (const c of groupConstrs) {
+          const conjDef = conjDefs[c.constructorName];
+          let constrTypeDef: TypeDef = conjDef;
+          if (typeParams && typeParamOrder && typeParamOrder.length > 0 && sumTypeName === constructors[0]?.createdTypeName) {
+            constrTypeDef = {
+              kind: TypeKind.Binding,
+              boundTypeName: c.constructorName,
+              params: typeParams,
+              paramOrder: typeParamOrder,
+              boundType: conjDef,
+            };
+          }
+          this.data.literals[c.constructorName] = constrTypeDef;
+          createdLiterals.add(c.constructorName);
+        }
+      }
+
+      // Run validation checks on the newly extended context data
       validateAddedTypes(this, constructors);
+      validateContext(this);
     } catch (e) {
-      // Transactional rollback: delete any newly initialized types
-      for (const tk of createdKeys) {
-        delete this.data.types[tk];
+      // Rollback: transactional deletion of any newly registered literals
+      for (const litName of createdLiterals) {
+        delete this.data.literals[litName];
       }
       throw e;
     }
-
-    for (const c of constructors) {
-      if (c.constructorName in this.data.types[c.createdTypeName].constructors && this.data.types[c.createdTypeName].constructors[c.constructorName] !== c) {
-        throw new Error(`Cannot add constructor twice: ${c.constructorName}`);
-      }
-      this.data.types[c.createdTypeName].constructors[c.constructorName] = c;
-    }
-
-    validateContext(this);
   }
 
   defineTerm(name: string, term: Term): void {
@@ -311,7 +270,7 @@ export class Context {
       }
     }
     const typeName = inferType(this, term, this.data.variables);
-    this.data.termDefinitions[name] = { def: term, typ: typeName };
+    this.privateTermDefs[name] = { def: term, typ: typeName };
   }
 
   declareVariable(name: string, typeRef: Term): void {
@@ -325,9 +284,6 @@ export class Context {
   }
 }
 
-/**
- * Creates a completely empty context.
- */
 export function emptyContext(): Context {
   return Context.empty();
 }
@@ -510,10 +466,6 @@ export function unify(
   }
 }
 
-/**
- * Validates a TypeContext to ensure there are no loop types or types with no base case
- * (i.e. all of their constructors recursively depend on themselves directly or indirectly).
- */
 export function validateContext(ctxt: Context): void {
   const wellFounded = new Set<string>();
   const types = Object.keys(ctxt.types);
@@ -525,16 +477,18 @@ export function validateContext(ctxt: Context): void {
       if (wellFounded.has(typeName)) {
         continue;
       }
-      const constructors = Object.values(ctxt.types[typeName].constructors);
+      const typeDef = ctxt.getRawData().literals[typeName];
+      const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
+      const constructors = Object.values(disj.constructors);
       if (constructors.length === 0) {
         continue;
       }
 
       const hasWellFoundedConstructor = constructors.some(c => {
-        const argTypes = Object.values(c.arguments) as (Term | string)[];
+        const argTypes = Object.values(c.arguments);
         return argTypes.every(argType => {
           const baseName = getBaseTypeName(argType);
-          return !ctxt.types[baseName] || wellFounded.has(baseName);
+          return !ctxt.getRawData().literals[baseName] || wellFounded.has(baseName);
         });
       });
 
@@ -553,21 +507,32 @@ export function validateContext(ctxt: Context): void {
   }
 }
 
-/**
- * Compositionally validates that newly added constructors do not introduce types with no base case,
- * assuming that all pre-existing types in the context are already well-founded.
- */
-export function validateAddedTypes(ctxt: Context, constructors: ConjunctionDef[]): void {
+export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[]): void {
   const newTypes = new Set(constructors.map(c => c.createdTypeName));
   const wellFounded = new Set<string>();
 
-  // Combine existing constructors in ctxt with the newly added ones for validation
   const newConstructorsMap = new Map<string, ConjunctionDef[]>();
   for (const typeName of newTypes) {
-    const existingConstrs = ctxt.types[typeName]
-      ? Object.values(ctxt.types[typeName].constructors).map(c => c.getRawData())
-      : [];
-    const addedConstrs = constructors.filter(c => c.createdTypeName === typeName);
+    const typeDef = ctxt.getRawData().literals[typeName];
+    const disj = typeDef
+      ? (typeDef.kind === TypeKind.Binding ? ((typeDef as BindingDef).boundType as DisjunctionDef) : (typeDef as DisjunctionDef))
+      : null;
+    const existingConstrs = disj ? Object.values(disj.constructors) : [];
+    const addedConstrs = constructors
+      .filter(c => c.createdTypeName === typeName)
+      .map(c => {
+        const termArgs: { [argName: string]: Term } = {};
+        for (const [k, v] of Object.entries(c.arguments)) {
+          termArgs[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
+        }
+        return {
+          kind: TypeKind.Conjunction as const,
+          constructorName: c.constructorName,
+          productTypeName: `${typeName}_${c.constructorName}`,
+          arguments: termArgs,
+          argOrder: c.argOrder,
+        };
+      });
 
     const combined = new Map<string, ConjunctionDef>();
     for (const c of existingConstrs) {
@@ -593,10 +558,8 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionDef[]
       }
 
       const hasWellFoundedConstructor = typeConstrs.some(c => {
-        const argTypes = Object.values(c.arguments) as (Term | string)[];
+        const argTypes = Object.values(c.arguments);
         return argTypes.every(argType => {
-          // An arg type is well-founded if it is not in newTypes (pre-existing or primitive)
-          // or if we have already proven it is well-founded in this pass.
           const baseName = getBaseTypeName(argType);
           return !newTypes.has(baseName) || wellFounded.has(baseName);
         });
@@ -619,7 +582,7 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionDef[]
 
 export function extendContext(
   ctxt: Context,
-  constructors: ConjunctionDef[],
+  constructors: ConjunctionData[],
   typeParams?: { [paramName: string]: string },
   typeParamOrder?: string[]
 ): Context {
@@ -627,7 +590,7 @@ export function extendContext(
   return ctxt;
 }
 
-export function createContext(constructors: ConjunctionDef[]): Context {
+export function createContext(constructors: ConjunctionData[]): Context {
   return extendContext(emptyContext(), constructors);
 }
 
@@ -651,9 +614,6 @@ export function variable(varName: string): Variable {
   };
 }
 
-/**
- * Infers the type of a term from the context and variable type assignments.
- */
 export function inferType(
   ctxt: Context,
   term: Term,
@@ -667,17 +627,13 @@ export function inferType(
     return typeName;
   }
 
-  // Locate constructor name in ctxt
-  let foundConstructor: Conjunction | null = null;
-  for (const typeName of Object.keys(ctxt.types)) {
-    const c = ctxt.types[typeName].constructors[term.literalName];
-    if (c) {
-      if (foundConstructor) {
-        throw new Error(
-          `Ambiguous constructor name: '${term.literalName}' is defined in both '${foundConstructor.createdTypeName}' and '${typeName}'`
-        );
-      }
-      foundConstructor = c;
+  // Locate constructor name in ctxt literals
+  let foundConstructor: ConjunctionDef | null = null;
+  const constructorTypeDef = ctxt.getRawData().literals[term.literalName];
+  if (constructorTypeDef) {
+    const conj = constructorTypeDef.kind === TypeKind.Binding ? (constructorTypeDef.boundType as ConjunctionDef) : constructorTypeDef;
+    if (conj.kind === TypeKind.Conjunction) {
+      foundConstructor = conj;
     }
   }
 
@@ -734,12 +690,12 @@ export function inferType(
     }
   }
 
-  const T = c.createdTypeName;
-  const ctxtType = ctxt.types[T];
+  const T = c.productTypeName.split('_')[0];
+  const ctxtType = ctxt.getRawData().literals[T];
   if (ctxtType) {
-    const typeParams = ctxtType.typeParamOrder ?? [];
-    if (typeParams.length > 0) {
-      const actualParams = typeParams.map(p => {
+    const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
+    if (typeParamOrder.length > 0) {
+      const actualParams = typeParamOrder.map(p => {
         const val = subst[p] ?? '_';
         return typeof val === 'string' ? parseTerm(val, ctxt) : val;
       });
@@ -748,19 +704,13 @@ export function inferType(
         literalName: T,
         unNamedArgs: actualParams,
         namedArgs: {},
-      });
+      }, { ctxt });
     }
   }
 
   return T;
 }
 
-/**
- * Checks a term against an expected type under a context and variable type assignments.
- */
-/**
- * Checks a term against an expected type under a context and variable type assignments.
- */
 export function typeCheck(
   ctxt: Context,
   term: Term,
@@ -770,7 +720,7 @@ export function typeCheck(
   if (term.kind === TermKind.Variable) {
     const actualType = inferType(ctxt, term, varTypes);
     if (!matchTypes(ctxt, actualType, expectedType)) {
-      const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType);
+      const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType, { ctxt });
       throw new Error(
         `Type mismatch for variable '${term.varName}': expected '${expectedStr}', got '${actualType}'`
       );
@@ -778,16 +728,15 @@ export function typeCheck(
     return;
   }
 
-  // If it's a constructor term, we can check if its constructor is defined for the expectedType.
-  // This resolves overloaded constructor names based on the expected type.
   const baseExpectedType = typeof expectedType === 'string'
     ? getBaseType(ctxt, expectedType)
     : (expectedType.kind === TermKind.Literal ? getBaseType(ctxt, expectedType.literalName) : '_');
-  const ctxtType = ctxt.types[baseExpectedType];
+  
+  const ctxtType = ctxt.getRawData().literals[baseExpectedType];
   if (ctxtType) {
-    const c = ctxtType.constructors[term.literalName];
+    const disj = ctxtType.kind === TypeKind.Binding ? (ctxtType.boundType as DisjunctionDef) : (ctxtType as DisjunctionDef);
+    const c = disj.constructors ? disj.constructors[term.literalName] : null;
     if (c) {
-      // Match positional and named arguments
       const argNames = c.argOrder ?? Object.keys(c.arguments).sort();
       if (term.unNamedArgs.length > argNames.length) {
         throw new Error(
@@ -822,10 +771,9 @@ export function typeCheck(
         }
       }
 
-      // Map type parameters to actual type arguments
       const subst: { [name: string]: Term | string } = {};
       if (typeof expectedType !== 'string' && expectedType.kind === TermKind.Literal) {
-        const typeParamOrder = ctxtType.typeParamOrder ?? [];
+        const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
         for (let i = 0; i < typeParamOrder.length; i++) {
           const paramName = typeParamOrder[i];
           if (i < expectedType.unNamedArgs.length) {
@@ -834,7 +782,6 @@ export function typeCheck(
         }
       }
 
-      // Typecheck all arguments with substitution
       for (const [argName, argTerm] of matchedArgs.entries()) {
         const expectedArgType = c.arguments[argName];
         const substitutedType = substitute(expectedArgType, subst);
@@ -844,25 +791,15 @@ export function typeCheck(
     }
   }
 
-  // Fallback to inferring the type and comparing
   const inferredType = inferType(ctxt, term, varTypes);
   if (!matchTypes(ctxt, inferredType, expectedType)) {
-    const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType);
+    const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType, { ctxt });
     throw new Error(
       `Type mismatch for constructor term '${term.literalName}': expected '${expectedStr}', got '${inferredType}'`
     );
   }
 }
 
-/**
- * Parses a TypeContext from a custom type declaration string.
- * Example:
- *   let nat = 0 | suc(?n:nat);
- *   let natList = nil | cons(?h: nat, ?t: natList);
- *   let tree = leaf | node{ ?left: tree, ?val: nat, ?right: tree };
- *   let 2 = suc(suc(0));
- *   ?x: 2;
- */
 export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
 
@@ -890,7 +827,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const parenArgs = delimited("(", withSep(",", recordField), ")");
 
   const constructorDecl = or(
-    // Parenthesized style: suc(?n:nat) or cons(?h: nat, ?t: natList) or node(?left: tree, ?val: nat, ?right: tree)
     seq(constrName, parenArgs).map(r => {
       const name = r[0];
       const fields = r[1];
@@ -906,7 +842,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         argOrder,
       };
     }),
-    // Zero-arg: 0 or leaf or nil
     constrName.map(name => {
       return {
         constructorName: name,
@@ -920,7 +855,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
-      // Constructor with curly named arguments: C{ left = leaf, val = suc(0), right = leaf }
       seq(
         constrNameParser,
         delimited(
@@ -952,12 +886,11 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         }
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: [],
           namedArgs,
         };
       }),
-      // Constructor with angle bracket arguments: list<'a> or list<nat>
       seq(
         constrNameParser,
         delimited("<", withSep(",", termParser), ">")
@@ -966,12 +899,11 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         const args = r[1];
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: args,
           namedArgs: {},
         };
       }),
-      // Constructor with paren arguments: cons(suc(0), nil) or suc(suc(0))
       seq(
         constrNameParser,
         delimited("(", withSep(",", termParser), ")")
@@ -980,30 +912,26 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         const args = r[1];
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: args,
           namedArgs: {},
         };
       }),
-      // Or simple term (parenthesized, zero-arg constructor, or variable)
       simpleTermParser
     );
   });
 
   const simpleTermParser: Parser<any, Term> = fn(() => {
     return or(
-      // Parenthesized term
       delimited("(", termParser, ")"),
-      // Zero-arg constructor
       constrNameParser.map(name => {
         return {
           kind: TermKind.Literal as const,
-          constructorName: name,
+          literalName: name,
           unNamedArgs: [],
           namedArgs: {},
         };
       }),
-      // Variable: starting with ?
       kind("var").map(name => {
         return {
           kind: TermKind.Variable as const,
@@ -1078,7 +1006,6 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     throw new Error("Failed to parse Context declarations");
   }
 
-  // Process declarations progressively
   for (const decl of parsedDecls.value) {
     if (decl.kind === 'Type') {
       ctxt.extend(decl.constructors, decl.typeParams, decl.typeParamOrder);
@@ -1092,17 +1019,14 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   return ctxt;
 }
 
-/**
- * Prints a TypeContext in the custom type syntax.
- */
 export function printContext(ctxt: Context): string {
   const declarations: string[] = [];
 
-  // 1. Print Type Definitions
   for (const typeName of Object.keys(ctxt.types).sort()) {
-    const typeConstruction = ctxt.types[typeName];
+    const typeDef = ctxt.getRawData().literals[typeName];
+    const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
     const constrDecls: string[] = [];
-    const constructorsList = Object.values(typeConstruction.constructors) as Conjunction[];
+    const constructorsList = Object.values(disj.constructors);
     for (const c of constructorsList.sort((a, b) => a.constructorName.localeCompare(b.constructorName))) {
       const argKeys = c.argOrder ?? Object.keys(c.arguments).sort();
       if (argKeys.length === 0) {
@@ -1117,23 +1041,21 @@ export function printContext(ctxt: Context): string {
       }
     }
 
-    // Print type parameters if defined using angle brackets
     let paramsStr = '';
-    if (typeConstruction.typeParamOrder && typeConstruction.typeParamOrder.length > 0) {
-      paramsStr = `<${typeConstruction.typeParamOrder.join(', ')}>`;
+    const typeParamOrder = typeDef.kind === TypeKind.Binding ? (typeDef as BindingDef).paramOrder : [];
+    if (typeParamOrder.length > 0) {
+      paramsStr = `<${typeParamOrder.join(', ')}>`;
     }
     declarations.push(`type ${typeName}${paramsStr} = ${constrDecls.join(' | ')};`);
   }
 
-  // 2. Print Term Definitions
   if (ctxt.termDefinitions) {
     for (const termName of Object.keys(ctxt.termDefinitions).sort()) {
       const termInfo = ctxt.termDefinitions[termName];
-      declarations.push(`let ${termName} = ${printTerm(termInfo.def)};`);
+      declarations.push(`let ${termName} = ${printTerm(termInfo.def, { ctxt })};`);
     }
   }
 
-  // 3. Print Variables
   if (ctxt.variables) {
     for (const varName of Object.keys(ctxt.variables).sort()) {
       const typeName = ctxt.variables[varName];
@@ -1144,9 +1066,6 @@ export function printContext(ctxt: Context): string {
   return declarations.join('\n');
 }
 
-/**
- * Parses a Term from a custom term string.
- */
 export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
   const termTokens = new RegexMatchers({
     keyword: /let\b|type\b/,
@@ -1167,7 +1086,6 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
-      // Constructor with curly named arguments: C{ left = leaf, val = suc(0), right = leaf }
       seq(
         constrNameParser,
         delimited(
@@ -1199,12 +1117,11 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
         }
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: [],
           namedArgs,
         };
       }),
-      // Constructor with angle bracket arguments: list<'a> or list<nat>
       seq(
         constrNameParser,
         delimited("<", withSep(",", termParser), ">")
@@ -1213,12 +1130,11 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
         const args = r[1];
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: args,
           namedArgs: {},
         };
       }),
-      // Constructor with paren arguments: cons(suc(0), nil) or suc(suc(0))
       seq(
         constrNameParser,
         delimited("(", withSep(",", termParser), ")")
@@ -1227,30 +1143,26 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
         const args = r[1];
         return {
           kind: TermKind.Literal as const,
-          constructorName,
+          literalName: constructorName,
           unNamedArgs: args,
           namedArgs: {},
         };
       }),
-      // Or simple term (parenthesized, zero-arg constructor, or variable)
       simpleTermParser
     );
   });
 
   const simpleTermParser: Parser<any, Term> = fn(() => {
     return or(
-      // Parenthesized term
       delimited("(", termParser, ")"),
-      // Zero-arg constructor
       constrNameParser.map(name => {
         return {
           kind: TermKind.Literal as const,
-          constructorName: name,
+          literalName: name,
           unNamedArgs: [],
           namedArgs: {},
         };
       }),
-      // Variable: starting with ?
       kind("var").map(name => {
         return {
           kind: TermKind.Variable as const,
@@ -1267,9 +1179,6 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
   return result.value[0];
 }
 
-/**
- * Prints a Term in the custom term syntax.
- */
 export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Context }): string {
   if (term.kind === TermKind.Variable) {
     return `?${term.varName}`;
@@ -1293,13 +1202,15 @@ export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Cont
     return `${term.literalName}{ ${fields} }`;
   }
 
-  // Check if it represents an angle-bracket parameterised type application
   if (options?.ctxt && term.unNamedArgs.length > 0) {
     const baseTypeName = getBaseType(options.ctxt, term.literalName);
-    const typeConst = options.ctxt.types[baseTypeName];
-    if (typeConst && typeConst.typeParamOrder && typeConst.typeParamOrder.length > 0) {
-      const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
-      return `${term.literalName}<${args}>`;
+    const typeConst = options.ctxt.getRawData().literals[baseTypeName];
+    if (typeConst) {
+      const typeParamOrder = typeConst.kind === TypeKind.Binding ? (typeConst as BindingDef).paramOrder : [];
+      if (typeParamOrder.length > 0) {
+        const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
+        return `${term.literalName}<${args}>`;
+      }
     }
   }
 
