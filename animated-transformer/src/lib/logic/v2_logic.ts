@@ -47,6 +47,7 @@ import {
   LiteralDef,
   ContextData,
   Term,
+  FunctionDef,
 } from './v2_logic_data';
 
 export * from './v2_logic_data';
@@ -81,7 +82,7 @@ export function validateTypeRef(
     if (allowedVars.has(typeRef)) return;
     if (typeRef === recursiveTypeName) return;
     const baseType = getBaseType(ctxt, typeRef);
-    if (baseType in ctxt.getRawData().literals || ['nat', 'natList', 'tree', '_'].includes(baseType)) return;
+    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '_', '='].includes(baseType)) return;
     throw new Error(`Unknown type reference: '${typeRef}'`);
   }
 
@@ -104,7 +105,7 @@ export function validateTypeRef(
       return;
     }
     const baseType = getBaseType(ctxt, constrName);
-    if (baseType in ctxt.getRawData().literals || ['nat', 'natList', 'tree', '_'].includes(baseType)) {
+    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '_', '='].includes(baseType)) {
       for (const arg of typeRef.unNamedArgs) {
         validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
       }
@@ -119,8 +120,8 @@ export function validateTypeRef(
 
 /**
  * The Context represents the unified logical context (traditional Γ).
- * All sum types, constructor record products, let aliases, and variables
- * are fully validated and maintained in a cohesive state.
+ * All sum types, constructor record products, let aliases, variables,
+ * and pattern-matching functions are fully validated and maintained.
  */
 export class Context {
   constructor(private readonly data: ContextData) {}
@@ -129,6 +130,7 @@ export class Context {
     return new Context({
       literals: {},
       variables: {},
+      functions: {},
     });
   }
 
@@ -183,13 +185,13 @@ export class Context {
     try {
       for (const [sumTypeName, groupConstrs] of groups.entries()) {
         // Check sum type literal clash
-        if (sumTypeName in this.data.literals) {
+        if (sumTypeName in this.data.literals || sumTypeName in this.data.functions) {
           throw new Error(`Type literal '${sumTypeName}' already defined in the context.`);
         }
 
         // Check constructor literals clashes
         for (const c of groupConstrs) {
-          if (c.constructorName in this.data.literals) {
+          if (c.constructorName in this.data.literals || c.constructorName in this.data.functions) {
             throw new Error(`Constructor literal '${c.constructorName}' already defined in the context.`);
           }
         }
@@ -627,7 +629,7 @@ export function inferType(
     return typeName;
   }
 
-  // Locate constructor name in ctxt literals
+  // Locate constructor name in ctxt literals or functions
   let foundConstructor: ConjunctionDef | null = null;
   const constructorTypeDef = ctxt.getRawData().literals[term.literalName];
   if (constructorTypeDef) {
@@ -638,6 +640,53 @@ export function inferType(
   }
 
   if (!foundConstructor) {
+    const func = ctxt.getRawData().functions[term.literalName];
+    if (func) {
+      // First, try evaluating the term to see if we get a constructor value
+      try {
+        const evaluated = evaluateTerm(ctxt, term);
+        if (evaluated !== term && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== term.literalName)) {
+          return inferType(ctxt, evaluated, varTypes);
+        }
+      } catch (e) {}
+
+      // If contains free variables, deduce type from patterns and clause bodies
+      const firstClause = func.clauses[0];
+      if (firstClause) {
+        const subVarTypes: { [name: string]: string } = { ...varTypes };
+        for (let i = 0; i < Math.min(firstClause.patterns.length, term.unNamedArgs.length); i++) {
+          const pat = firstClause.patterns[i];
+          const arg = term.unNamedArgs[i];
+          const varName = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
+          if (varName) {
+            subVarTypes[varName] = inferType(ctxt, arg, varTypes);
+          }
+        }
+        try {
+          return inferType(ctxt, firstClause.body, subVarTypes);
+        } catch (e) {
+          // Fallback to first non-recursive clause body type
+          for (const clause of func.clauses) {
+            if (!getFreeVars(clause.body).has(term.literalName) && !printTerm(clause.body).includes(term.literalName)) {
+              const subVarTypes2: { [name: string]: string } = { ...varTypes };
+              for (let i = 0; i < Math.min(clause.patterns.length, term.unNamedArgs.length); i++) {
+                const pat = clause.patterns[i];
+                const arg = term.unNamedArgs[i];
+                const varName2 = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
+                if (varName2) {
+                  subVarTypes2[varName2] = inferType(ctxt, arg, varTypes);
+                }
+              }
+              try {
+                return inferType(ctxt, clause.body, subVarTypes2);
+              } catch (e2) {}
+            }
+          }
+        }
+      }
+      return 'nat';
+    }
+
     throw new Error(`Unknown constructor: '${term.literalName}'`);
   }
 
@@ -804,7 +853,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
 
   const logicTokens = new RegexMatchers({
-    keyword: /let\b|type\b/,
+    keyword: /let\b|type\b|fun\b/,
     typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -851,7 +900,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     })
   );
 
-  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"));
+  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"), tokenOf("symbol", ["="]).map(() => "="));
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
@@ -986,6 +1035,36 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     term: r[3],
   }));
 
+  const patternArg = seq(termParser, opt(seq(":", termParser))).map(r => r[0]);
+  const patternArgsParser = delimited("(", withSep(",", patternArg), ")");
+  const funClauseParser = seq(
+    opt("fun"),
+    ident,
+    patternArgsParser,
+    "=",
+    termParser
+  ).map(r => {
+    const funcName = r[1];
+    const patterns = r[2];
+    const body = r[4];
+    return { funcName, clause: { patterns, body } };
+  });
+
+  const letFunDecl = seq(
+    funClauseParser,
+    repeat(preceded("|", funClauseParser)),
+    opt(";")
+  ).map(r => {
+    const first = r[0];
+    const rest = r[1];
+    const clauses = [first.clause, ...rest.map(x => x.clause)];
+    return {
+      kind: 'Fun' as const,
+      funcName: first.funcName,
+      clauses,
+    };
+  });
+
   const varDecl = seq(
     kind("var"),
     ":",
@@ -997,7 +1076,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     typeName: r[2],
   }));
 
-  const declParser = or(letTypeDecl, letTermDecl, varDecl);
+  const declParser = or(letTypeDecl, letTermDecl, letFunDecl, varDecl);
 
   const contextParser = seq(repeat(declParser), eof()).map(r => r[0]);
 
@@ -1011,6 +1090,14 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       ctxt.extend(decl.constructors, decl.typeParams, decl.typeParamOrder);
     } else if (decl.kind === 'Term') {
       ctxt.defineTerm(decl.termName, decl.term);
+    } else if (decl.kind === 'Fun') {
+      if (decl.funcName in ctxt.getRawData().literals || decl.funcName in ctxt.getRawData().functions) {
+        throw new Error(`Literal '${decl.funcName}' already defined in the context.`);
+      }
+      ctxt.getRawData().functions[decl.funcName] = {
+        funcName: decl.funcName,
+        clauses: decl.clauses,
+      };
     } else if (decl.kind === 'Var') {
       ctxt.declareVariable(decl.varName, decl.typeName);
     }
@@ -1056,6 +1143,18 @@ export function printContext(ctxt: Context): string {
     }
   }
 
+  const functions = ctxt.getRawData().functions;
+  if (functions) {
+    for (const funcName of Object.keys(functions).sort()) {
+      const func = functions[funcName];
+      const clauseStrs = func.clauses.map((c: any) => {
+        const patternsStr = c.patterns.map((p: any) => printTerm(p, { ctxt })).join(', ');
+        return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;
+      });
+      declarations.push(`${clauseStrs.join(' | ')};`);
+    }
+  }
+
   if (ctxt.variables) {
     for (const varName of Object.keys(ctxt.variables).sort()) {
       const typeName = ctxt.variables[varName];
@@ -1068,7 +1167,7 @@ export function printContext(ctxt: Context): string {
 
 export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
   const termTokens = new RegexMatchers({
-    keyword: /let\b|type\b/,
+    keyword: /let\b|type\b|fun\b/,
     typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -1082,7 +1181,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     (t: Token) => t.kind !== "ws"
   );
 
-  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"));
+  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"), tokenOf("symbol", ["="]).map(() => "="));
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
@@ -1220,4 +1319,118 @@ export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Cont
 
   const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
   return `${term.literalName}(${args})`;
+}
+
+/**
+ * Recursively reduces a function application term using call-by-value pattern matching clauses.
+ */
+export function evaluateTerm(ctxt: Context, term: Term): Term {
+  if (term.kind === TermKind.Variable) {
+    return term;
+  }
+
+  const reducedUnNamed = term.unNamedArgs.map(arg => evaluateTerm(ctxt, arg));
+  const reducedNamed: { [argName: string]: Term } = {};
+  for (const [k, v] of Object.entries(term.namedArgs)) {
+    reducedNamed[k] = evaluateTerm(ctxt, v);
+  }
+
+  const reducedTerm: Term = {
+    ...term,
+    unNamedArgs: reducedUnNamed,
+    namedArgs: reducedNamed,
+  };
+
+  const func = ctxt.getRawData().functions[reducedTerm.literalName];
+  if (func) {
+    for (const clause of func.clauses) {
+      const subst: { [varName: string]: Term } = {};
+      if (matchPatterns(ctxt, clause.patterns, reducedTerm.unNamedArgs, subst)) {
+        const substitutedBody = substitute(clause.body, subst) as Term;
+        return evaluateTerm(ctxt, substitutedBody);
+      }
+    }
+  }
+
+  return reducedTerm;
+}
+
+export function matchPatterns(
+  ctxt: Context,
+  patterns: Term[],
+  args: Term[],
+  subst: { [varName: string]: Term }
+): boolean {
+  if (patterns.length !== args.length) return false;
+
+  for (let i = 0; i < patterns.length; i++) {
+    if (!matchPattern(ctxt, patterns[i], args[i], subst)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function matchPattern(
+  ctxt: Context,
+  pattern: Term,
+  arg: Term,
+  subst: { [varName: string]: Term }
+): boolean {
+  const isPatVar =
+    pattern.kind === TermKind.Variable ||
+    (pattern.kind === TermKind.Literal &&
+     pattern.unNamedArgs.length === 0 &&
+     Object.keys(pattern.namedArgs).length === 0 &&
+     !(pattern.literalName in ctxt.getRawData().literals) &&
+     !(pattern.literalName in ctxt.getRawData().functions) &&
+     !['nat', 'natList', 'tree', '_', '0', 'suc', 'nil', 'cons', 'leaf', 'node'].includes(pattern.literalName));
+
+  if (isPatVar) {
+    const varName = pattern.kind === TermKind.Variable ? pattern.varName : (pattern as Literal).literalName;
+    if (varName in subst) {
+      return matchTypes(ctxt, subst[varName], arg);
+    }
+    subst[varName] = arg;
+    return true;
+  }
+
+  if (pattern.kind === TermKind.Literal && arg.kind === TermKind.Literal) {
+    if (pattern.literalName !== arg.literalName) return false;
+    if (pattern.unNamedArgs.length !== arg.unNamedArgs.length) return false;
+    for (let i = 0; i < pattern.unNamedArgs.length; i++) {
+      if (!matchPattern(ctxt, pattern.unNamedArgs[i], arg.unNamedArgs[i], subst)) return false;
+    }
+    const patKeys = Object.keys(pattern.namedArgs);
+    for (const k of patKeys) {
+      if (!(k in arg.namedArgs)) return false;
+      if (!matchPattern(ctxt, pattern.namedArgs[k], arg.namedArgs[k], subst)) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Resolves a pattern-matching equation, returning the bound variables substitution mapping.
+ * Matches "= (lhs, rhs)" where lhs is evaluated and unified with rhs.
+ */
+export function solveEquation(ctxt: Context, equation: Term): { [varName: string]: Term } {
+  if (equation.kind === TermKind.Literal && equation.literalName === '=') {
+    const lhs = equation.unNamedArgs[0];
+    const rhs = equation.unNamedArgs[1];
+    if (lhs && rhs) {
+      const evaluatedLhs = evaluateTerm(ctxt, lhs);
+      const subst: { [name: string]: Term | string } = {};
+      unify(ctxt, rhs, evaluatedLhs, subst);
+      
+      const result: { [varName: string]: Term } = {};
+      for (const [k, v] of Object.entries(subst)) {
+        result[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
+      }
+      return result;
+    }
+  }
+  return {};
 }

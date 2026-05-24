@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind } from './v2_logic';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation } from './v2_logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -74,6 +74,7 @@ describe('v2_logic of peano natural numbers', () => {
         },
       },
       variables: {},
+      functions: {},
     });
   });
 
@@ -494,6 +495,32 @@ describe('v2_logic of peano natural numbers', () => {
       expect(() => parseContext(duplicateConstr, ctxt)).toThrowError(
         /Constructor literal 'nil' already defined in the context/
       );
+    });
+
+    it('parses, prints, and reduces intuitionistic functions and solves equations', () => {
+      const src = [
+        'type nat = 0 | suc(n: nat);',
+        'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
+      ].join('\n');
+
+      const ctxt = parseContext(src);
+
+      // 1. Assert printContext outputs the functions correctly
+      const printed = printContext(ctxt);
+      expect(printed).toContain('fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;');
+
+      // 2. Evaluate term add(suc(0), suc(0))
+      // Should reduce to suc(suc(0)) (which is 2)
+      const testTerm = parseTerm('add(suc(0), suc(0))', ctxt);
+      const reduced = evaluateTerm(ctxt, testTerm);
+      expect(printTerm(reduced)).toBe('suc(suc(0))');
+
+      // 3. Solve equation add(suc(0), suc(0)) = ?x
+      // Should conclude ?x is suc(suc(0))!
+      const eqTerm = parseTerm('= (add(suc(0), suc(0)), ?x)', ctxt);
+      const solutions = solveEquation(ctxt, eqTerm);
+      expect(solutions['x']).toBeDefined();
+      expect(printTerm(solutions['x'])).toBe('suc(suc(0))');
     });
 
     it('throws on invalid syntax', () => {

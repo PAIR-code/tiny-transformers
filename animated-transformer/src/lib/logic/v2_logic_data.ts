@@ -11,8 +11,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-==============================================================================*/
-
+=============================================================================*/
 
 export enum TermKind {
   Literal = 'Literal',
@@ -44,7 +43,7 @@ export type Variable = {
 export type Term = Literal | Variable;
 
 /**
- * Identifies the kind of Type definition.
+ * Identifies the kind of Type/Literal definition.
  */
 export enum TypeKind {
   /** Product type / constructor record signature (e.g., cons). */
@@ -107,7 +106,8 @@ export type BindingDef = {
 };
 
 /**
- * Unified Type Definition algebraic sum.
+ * Unified Type & Function Definition algebraic sum.
+ * All declarations are represented uniformly as TypeDefs in the Context.
  */
 export type TypeDef = BindingDef | DisjunctionDef | ConjunctionDef;
 
@@ -123,11 +123,42 @@ export type LiteralDef = {
 };
 
 /**
+ * Represents a single pattern-matching clause for an intuitionistic function.
+ * 
+ * Example pattern clause:
+ *   `fun add(suc(x), y) = suc(add(x, y))`
+ * has `patterns: [suc(x), y]` and `body: suc(add(x, y))`.
+ */
+export type FunctionClauseDef = {
+  /** List of pattern terms (constructors, constants, or pattern variables). */
+  patterns: Term[];
+  /** The body reduction term. */
+  body: Term;
+};
+
+/**
+ * Represents a pattern-matching function definition.
+ * 
+ * Example:
+ * ```sml
+ * fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;
+ * ```
+ * is stored under key `'add'` in the `functions` context data registry!
+ */
+export type FunctionDef = {
+  /** The name of the function literal (e.g., 'add'). */
+  funcName: string;
+  /** List of pattern-matching clauses. */
+  clauses: FunctionClauseDef[];
+};
+
+/**
  * Safe, validated Context storage structure.
  * Stores all sum types, polymorphic binders, and constructor record signatures
- * uniformly in the `literals` registry.
+ * uniformly in the `literals` registry, and term-level functions in the `functions` registry.
  */
 export type ContextData = {
   literals: { [typeName: string]: TypeDef };
   variables: { [varName: string]: string };
+  functions: { [funcName: string]: FunctionDef };
 };
