@@ -258,7 +258,7 @@ export class LinearStory {
    */
   static fromContext(ctxt: Context): LinearStory {
     const story = new LinearStory(ctxt);
-    for (const [varName, typeStr] of Object.entries(ctxt.variables)) {
+    for (const [varName, typeStr] of Object.entries(ctxt.linearResources)) {
       const typeTerm = parseTerm(typeStr, ctxt);
       const name = varName;
       story.resources.push({ name, type: typeTerm });
@@ -291,7 +291,7 @@ export class LinearStory {
     const name = `_r${this.nextResourceId++}`;
     const res = { name, type };
     this.resources.push(res);
-    this.ctxt.declareVariable(name, type);
+    this.ctxt.declareLinearResource(name, type);
     return res;
   }
 

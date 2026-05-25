@@ -64,12 +64,13 @@ export class Story {
       literals: { ...currentCtxt.getRawData().literals },
       functions: { ...currentCtxt.getRawData().functions },
       actions: { ...currentCtxt.getRawData().actions },
-      variables: {}, // start with fresh active resources map
+      linearResources: {}, // start with fresh active resources map
+      variables: {}, // start with fresh active type variables map
     });
 
     // Populate the next context with transition resources
     for (const res of nextLinearStory.resources) {
-      nextCtxt.declareVariable(res.name, res.type);
+      nextCtxt.declareLinearResource(res.name, res.type);
     }
 
     // 4. Log the step to the story trace

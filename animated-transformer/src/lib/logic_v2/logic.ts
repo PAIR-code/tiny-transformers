@@ -53,6 +53,12 @@ import {
 
 export * from './logic_data';
 
+export function isWildcard(t: Term | string | undefined): boolean {
+  if (!t) return false;
+  if (t === '*') return true;
+  return typeof t !== 'string' && t.kind === TermKind.Literal && t.literalName === '*';
+}
+
 /**
  * Raw user-facing parsed constructor structure.
  * Serves as the intermediate AST structure before compilation and validation.
@@ -83,13 +89,13 @@ export function validateTypeRef(
     if (allowedVars.has(typeRef)) return;
     if (typeRef === recursiveTypeName) return;
     const baseType = getBaseType(ctxt, typeRef);
-    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '_', '='].includes(baseType)) return;
+    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '*', '='].includes(baseType)) return;
     throw new Error(`Unknown type reference: '${typeRef}'`);
   }
 
   if (typeRef.kind === TermKind.Variable) {
     const varName = typeRef.varName;
-    if (varName in ctxt.variables || allowedVars.has(varName)) return;
+    if (varName in ctxt.linearResources || allowedVars.has(varName)) return;
     throw new Error(`Unknown variable type reference: '?${varName}'`);
   }
 
@@ -106,7 +112,7 @@ export function validateTypeRef(
       return;
     }
     const baseType = getBaseType(ctxt, constrName);
-    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '_', '='].includes(baseType)) {
+    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '*', '='].includes(baseType)) {
       for (const arg of typeRef.unNamedArgs) {
         validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
       }
@@ -130,6 +136,7 @@ export class Context {
   static empty(): Context {
     return new Context({
       literals: {},
+      linearResources: {},
       variables: {},
       functions: {},
       actions: {},
@@ -159,7 +166,11 @@ export class Context {
 
   private readonly privateTermDefs: { [name: string]: { def: Term; typ: string } } = {};
 
-  get variables(): { [varName: string]: string } {
+  get linearResources(): { [resName: string]: string } {
+    return this.data.linearResources;
+  }
+
+  get variables(): { [varName: string]: Term } {
     return this.data.variables;
   }
 
@@ -174,7 +185,7 @@ export class Context {
   /** Compositionally extends the context, registering record product types and literals. */
   extend(
     constructors: ConjunctionData[],
-    typeParams?: { [paramName: string]: string },
+    typeParams?: { [paramName: string]: Term },
     typeParamOrder?: string[]
   ): void {
     // Group constructors by their createdTypeName to support bulk extensions
@@ -274,7 +285,7 @@ export class Context {
     const freeVars = getFreeVars(term);
     for (const fv of freeVars) {
       if (!(fv in this.data.variables)) {
-        this.data.variables[fv] = '_';
+        this.data.variables[fv] = constr('*');
       }
     }
     const typeName = inferType(this, term, this.data.variables);
@@ -285,10 +296,23 @@ export class Context {
     const freeVars = getFreeVars(typeRef);
     for (const fv of freeVars) {
       if (!(fv in this.data.variables)) {
-        this.data.variables[fv] = '_';
+        this.data.variables[fv] = constr('*');
       }
     }
-    this.data.variables[name] = printTerm(typeRef, { ctxt: this });
+    this.data.variables[name] = typeRef;
+  }
+
+  declareLinearResource(name: string, typeRef: Term): void {
+    if (!name.startsWith('_')) {
+      throw new Error(`Linear resource name '${name}' must start with '_'`);
+    }
+    const freeVars = getFreeVars(typeRef);
+    for (const fv of freeVars) {
+      if (!(fv in this.data.variables)) {
+        this.data.variables[fv] = constr('*');
+      }
+    }
+    this.data.linearResources[name] = printTerm(typeRef, { ctxt: this });
   }
 }
 
@@ -342,7 +366,7 @@ export function getBaseTypeRef(ctxt: Context, typeRef: Term | string): Term | st
 
 export function matchTypes(ctxt: Context, actual: Term | string | undefined, expected: Term | string | undefined): boolean {
   if (!actual || !expected) return false;
-  if (actual === '_' || expected === '_') return true;
+  if (isWildcard(actual) || isWildcard(expected)) return true;
 
   if (typeof actual === 'string') {
     actual = parseTerm(actual, ctxt);
@@ -352,12 +376,12 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
   }
 
   if (actual.kind === TermKind.Variable) {
-    const actualType = ctxt.variables[actual.varName] ?? '_';
-    return actualType === '_' || matchTypes(ctxt, actualType, expected);
+    const actualType = ctxt.variables[actual.varName] ?? ctxt.linearResources[actual.varName] ?? '*';
+    return isWildcard(actualType) || matchTypes(ctxt, actualType, expected);
   }
   if (expected.kind === TermKind.Variable) {
-    const expectedType = ctxt.variables[expected.varName] ?? '_';
-    return expectedType === '_' || matchTypes(ctxt, actual, expectedType);
+    const expectedType = ctxt.variables[expected.varName] ?? ctxt.linearResources[expected.varName] ?? '*';
+    return isWildcard(expectedType) || matchTypes(ctxt, actual, expectedType);
   }
 
   if (actual.kind === TermKind.Literal && expected.kind === TermKind.Literal) {
@@ -420,7 +444,7 @@ export function unify(
   subst: { [name: string]: Term | string }
 ): void {
   if (!formal || !actual) return;
-  if (formal === '_' || actual === '_') return;
+  if (formal === '*' || actual === '*') return;
 
   if (typeof formal === 'string') {
     formal = parseTerm(formal, ctxt);
@@ -591,7 +615,7 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[
 export function extendContext(
   ctxt: Context,
   constructors: ConjunctionData[],
-  typeParams?: { [paramName: string]: string },
+  typeParams?: { [paramName: string]: Term },
   typeParamOrder?: string[]
 ): Context {
   ctxt.extend(constructors, typeParams, typeParamOrder);
@@ -625,14 +649,14 @@ export function variable(varName: string): Variable {
 export function inferType(
   ctxt: Context,
   term: Term,
-  varTypes: { [varName: string]: string } = {}
+  varTypes: { [varName: string]: Term | string } = {}
 ): string {
   if (term.kind === TermKind.Variable) {
-    const typeName = varTypes[term.varName];
+    const typeName = varTypes[term.varName] ?? ctxt.variables[term.varName] ?? ctxt.linearResources[term.varName];
     if (!typeName) {
-      throw new Error(`Variable '${term.varName}' has no declared type.`);
+      throw new Error(`Variable or resource '${term.varName}' has no declared type.`);
     }
-    return typeName;
+    return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt });
   }
 
   // Locate constructor name in ctxt literals or functions
@@ -659,7 +683,7 @@ export function inferType(
       // If contains free variables, deduce type from patterns and clause bodies
       const firstClause = func.clauses[0];
       if (firstClause) {
-        const subVarTypes: { [name: string]: string } = { ...varTypes };
+        const subVarTypes: { [name: string]: Term | string } = { ...varTypes };
         for (let i = 0; i < Math.min(firstClause.patterns.length, term.unNamedArgs.length); i++) {
           const pat = firstClause.patterns[i];
           const arg = term.unNamedArgs[i];
@@ -674,7 +698,7 @@ export function inferType(
           // Fallback to first non-recursive clause body type
           for (const clause of func.clauses) {
             if (!getFreeVars(clause.body).has(term.literalName) && !printTerm(clause.body).includes(term.literalName)) {
-              const subVarTypes2: { [name: string]: string } = { ...varTypes };
+              const subVarTypes2: { [name: string]: Term | string } = { ...varTypes };
               for (let i = 0; i < Math.min(clause.patterns.length, term.unNamedArgs.length); i++) {
                 const pat = clause.patterns[i];
                 const arg = term.unNamedArgs[i];
@@ -751,7 +775,7 @@ export function inferType(
     const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
     if (typeParamOrder.length > 0) {
       const actualParams = typeParamOrder.map(p => {
-        const val = subst[p] ?? '_';
+        const val = subst[p] ?? '*';
         return typeof val === 'string' ? parseTerm(val, ctxt) : val;
       });
       return printTerm({
@@ -770,7 +794,7 @@ export function typeCheck(
   ctxt: Context,
   term: Term,
   expectedType: Term | string,
-  varTypes: { [varName: string]: string } = {}
+  varTypes: { [varName: string]: Term | string } = {}
 ): void {
   if (term.kind === TermKind.Variable) {
     const actualType = inferType(ctxt, term, varTypes);
@@ -785,7 +809,7 @@ export function typeCheck(
 
   const baseExpectedType = typeof expectedType === 'string'
     ? getBaseType(ctxt, expectedType)
-    : (expectedType.kind === TermKind.Literal ? getBaseType(ctxt, expectedType.literalName) : '_');
+    : (expectedType.kind === TermKind.Literal ? getBaseType(ctxt, expectedType.literalName) : '*');
   
   const ctxtType = ctxt.getRawData().literals[baseExpectedType];
   if (ctxtType) {
@@ -864,7 +888,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | { } : , ( ) ; < > -o"),
+    symbol: matchOneOf("= | { } : , ( ) ; < > -o *"),
     ws: /\s+/,
   });
 
@@ -906,7 +930,13 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     })
   );
 
-  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"), tokenOf("symbol", ["="]).map(() => "="));
+  const constrNameParser = or(
+    kind("number"),
+    kind("ident"),
+    kind("typeParam"),
+    tokenOf("symbol", ["="]).map(() => "="),
+    tokenOf("symbol", ["*"]).map(() => "*")
+  );
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
@@ -1010,11 +1040,11 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     const typeParamsList = r[2];
     const constructorsList = r[4];
 
-    const typeParams: { [paramName: string]: string } = {};
+    const typeParams: { [paramName: string]: Term } = {};
     const typeParamOrder: string[] = [];
     if (typeParamsList) {
       for (const p of typeParamsList) {
-        typeParams[p] = '_';
+        typeParams[p] = constr('*');
         typeParamOrder.push(p);
       }
     }
@@ -1072,15 +1102,21 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   });
 
   const resourceDecl = seq(
-    ident,
+    or(ident, kind("var")),
     ":",
     termParser,
     opt(";")
-  ).map(r => ({
-    kind: 'Var' as const,
-    varName: r[0],
-    typeName: r[2],
-  }));
+  ).map(r => {
+    const rawName = r[0];
+    const isTypeVar = rawName.startsWith('?');
+    const varName = isTypeVar ? rawName.substring(1) : rawName;
+    return {
+      kind: 'Var' as const,
+      varName,
+      isTypeVar,
+      typeName: r[2],
+    };
+  });
 
   const actionResourceParser = seq(
     kind("var"),
@@ -1138,7 +1174,14 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         clauses: decl.clauses,
       };
     } else if (decl.kind === 'Var') {
-      ctxt.declareVariable(decl.varName, decl.typeName);
+      if (decl.isTypeVar) {
+        ctxt.declareVariable(decl.varName, decl.typeName);
+      } else {
+        if (!decl.varName.startsWith('_')) {
+          throw new Error(`Linear resource name '${decl.varName}' must start with '_'`);
+        }
+        ctxt.declareLinearResource(decl.varName, decl.typeName);
+      }
     } else if (decl.kind === 'Action') {
       if (decl.action.name in ctxt.getRawData().literals || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
         throw new Error(`Literal '${decl.action.name}' already defined in the context.`);
@@ -1210,10 +1253,18 @@ export function printContext(ctxt: Context): string {
     }
   }
 
+  if (ctxt.linearResources) {
+    for (const varName of Object.keys(ctxt.linearResources).sort()) {
+      const typeName = ctxt.linearResources[varName];
+      declarations.push(`${varName}: ${typeName};`);
+    }
+  }
+
   if (ctxt.variables) {
     for (const varName of Object.keys(ctxt.variables).sort()) {
-      const typeName = ctxt.variables[varName];
-      declarations.push(`${varName}: ${typeName};`);
+      const typeVal = ctxt.variables[varName];
+      const typeStr = printTerm(typeVal, { ctxt });
+      declarations.push(`?${varName}: ${typeStr};`);
     }
   }
 
@@ -1234,9 +1285,9 @@ export function printLinearContext(ctxt: Context): string {
     }
   }
 
-  if (ctxt.variables) {
-    for (const varName of Object.keys(ctxt.variables).sort()) {
-      const typeName = ctxt.variables[varName];
+  if (ctxt.linearResources) {
+    for (const varName of Object.keys(ctxt.linearResources).sort()) {
+      const typeName = ctxt.linearResources[varName];
       declarations.push(`${varName}: ${typeName};`);
     }
   }
@@ -1463,7 +1514,7 @@ export function matchPattern(
      Object.keys(pattern.namedArgs).length === 0 &&
      !(pattern.literalName in ctxt.getRawData().literals) &&
      !(pattern.literalName in ctxt.getRawData().functions) &&
-     !['nat', 'natList', 'tree', '_', '0', 'suc', 'nil', 'cons', 'leaf', 'node'].includes(pattern.literalName));
+     !['nat', 'natList', 'tree', '*', '0', 'suc', 'nil', 'cons', 'leaf', 'node'].includes(pattern.literalName));
 
   if (isPatVar) {
     const varName = pattern.kind === TermKind.Variable ? pattern.varName : (pattern as Literal).literalName;

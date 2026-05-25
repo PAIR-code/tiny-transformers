@@ -97,8 +97,12 @@ export type BindingDef = {
   kind: TypeKind.Binding;
   /** The generic bound type name (e.g., 'list'). */
   boundTypeName: string;
-  /** Generic parameter names map (e.g., { "'x": '_' }). */
-  params: { [paramName: string]: string };
+  /** 
+   * Generic parameter names map.
+   * - Key: Generic parameter variable name (e.g., "'x").
+   * - Value: A placeholder/wildcard type term (e.g., '*').
+   */
+  params: { [paramName: string]: Term };
   /** The explicit order of generic parameters. */
   paramOrder: string[];
   /** The bound concrete sum type or record type. */
@@ -170,8 +174,27 @@ export type LolliAction = {
  * and linear lolli actions in the `actions` registry.
  */
 export type ContextData = {
+  /** Mapping from a type name (e.g., an ADT for 'nat') to its Definition. */
   literals: { [typeName: string]: TypeDef };
-  variables: { [varName: string]: string };
+
+  /**
+   * Mapping representing active transient linear resources.
+   * - Key: The unique linear resource identifier name (must start with '_', e.g., '_r1').
+   * - Value: The pretty-printed type term string of the resource (e.g., 'suc(0)').
+   */
+  linearResources: { [resName: string]: string };
+
+  /**
+   * Mapping representing context-wide type variables that can be instantiated.
+   * - Key: The context-wide variable name (e.g., '?y').
+   * - Value: The pretty-printed declared or inferred type term (e.g., 'nat' or '*' for 
+   *   unknown/universal type).
+   */
+  variables: { [varName: string]: Term };
+
+  /** Mapping from a function literal name (e.g., 'add') to its pattern-matching definition. */
   functions: { [funcName: string]: FunctionDef };
+
+  /** Mapping from a linear lolli action name (e.g., 'sum') to its LolliAction definition. */
   actions: { [actionName: string]: LolliAction };
 };

@@ -73,6 +73,7 @@ describe('v2_logic of peano natural numbers', () => {
           argOrder: undefined,
         },
       },
+      linearResources: {},
       variables: {},
       functions: {},
       actions: {},
@@ -342,7 +343,7 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.termDefinitions['2'].typ).toBe('nat');
 
       // Check variables
-      expect(ctxt.variables['_x']).toBe('2');
+      expect(ctxt.linearResources['_x']).toBe('2');
 
       // Verify getBaseType resolution
       expect(getBaseType(ctxt, '2')).toBe('nat');
@@ -408,12 +409,12 @@ describe('v2_logic of peano natural numbers', () => {
 
       const ctxt = parseContext(src);
 
-      // Verify roundtrip printing (which includes the implicitly introduced y: _)
+      // Verify roundtrip printing (which includes the implicitly introduced ?y: *)
       const printed = printContext(ctxt);
       const expectedPrinted = [
         "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
         '_l: list<?y>;',
-        'y: _;',
+        '?y: *;',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
@@ -421,7 +422,7 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.types['list']).toBeDefined();
       const listDef = ctxt.types['list'] as BindingDef;
       expect(listDef.paramOrder).toEqual(["'x"]);
-      expect(listDef.params).toEqual({ "'x": '_' });
+      expect(listDef.params).toEqual({ "'x": constr('*') });
 
       const disj = listDef.boundType as DisjunctionDef;
       // Verify h and t constructors are defined with generic Term-based type references
@@ -436,11 +437,11 @@ describe('v2_logic of peano natural numbers', () => {
         namedArgs: {},
       });
 
-      // Check that ?y was implicitly introduced as a variable of type _!
-      expect(ctxt.variables['y']).toBe('_');
+      // Check that ?y was implicitly introduced as a variable of type *!
+      expect(ctxt.variables['y']).toEqual(constr('*'));
 
       // Check that ?l was declared with type list(?y)
-      expect(ctxt.variables['_l']).toBe('list<?y>');
+      expect(ctxt.linearResources['_l']).toBe('list<?y>');
 
       // Verify typeCheck of parameterised terms:
       // cons(suc(0), nil) should typeCheck against list(nat)!
@@ -461,7 +462,7 @@ describe('v2_logic of peano natural numbers', () => {
         "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
         'type nat = 0 | suc(n: nat);',
         '_l: list<?y>;',
-        'y: _;',
+        '?y: *;',
       ].join('\n');
       expect(fullPrinted).toBe(expectedFullPrinted);
     });
