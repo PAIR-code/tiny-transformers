@@ -21,10 +21,10 @@ describe('V2Story concept and trace execution', () => {
   it('handles basic state transition trace step-by-step', () => {
     const ctxtSrc = [
       'type nat = 0 | suc(num: nat);',
-      'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
+      'fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;',
       'action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };',
-      '?r1: suc(0);',
-      '?r2: suc(suc(0));',
+      '_r1: suc(0);',
+      '_r2: suc(suc(0));',
     ].join('\n');
 
     const initialCtxt = parseContext(ctxtSrc);
@@ -36,8 +36,8 @@ describe('V2Story concept and trace execution', () => {
     // Print linear context before
     const beforeStr = printLinearContext(initialCtxt);
     expect(beforeStr).toContain('action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };');
-    expect(beforeStr).toContain('?r1: suc(0);');
-    expect(beforeStr).toContain('?r2: suc(suc(0));');
+    expect(beforeStr).toContain('_r1: suc(0);');
+    expect(beforeStr).toContain('_r2: suc(suc(0));');
 
     // Find applicable actions
     const applicable = getApplicableActions(initialCtxt);
@@ -55,26 +55,26 @@ describe('V2Story concept and trace execution', () => {
     expect(story.getCurrentContext()).toBe(finalCtxt);
 
     // Check variables in the final context: resources should be transitioned
-    expect(finalCtxt.variables['r1']).toBeUndefined();
-    expect(finalCtxt.variables['r2']).toBeUndefined();
+    expect(finalCtxt.variables['_r1']).toBeUndefined();
+    expect(finalCtxt.variables['_r2']).toBeUndefined();
     // Result is 1 + 2 = 3: suc(suc(suc(0)))
-    expect(finalCtxt.variables['r3']).toBe('suc(suc(suc(0)))');
+    expect(finalCtxt.variables['_r3']).toBe('suc(suc(suc(0)))');
 
     // Print linear context after
     const afterStr = printLinearContext(finalCtxt);
     expect(afterStr).toContain('action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };');
-    expect(afterStr).toContain('?r3: suc(suc(suc(0)));');
-    expect(afterStr).not.toContain('?r1:');
-    expect(afterStr).not.toContain('?r2:');
+    expect(afterStr).toContain('_r3: suc(suc(suc(0)));');
+    expect(afterStr).not.toContain('_r1:');
+    expect(afterStr).not.toContain('_r2:');
   });
 
   it('verifies multiple applicable actions in a complex setup', () => {
     const src = [
       'type nat = 0 | suc(num: nat);',
       'action doubleGrow: { ?x: nat } -o { ?y: suc(?x), ?z: suc(?x) };',
-      '?r1: 0;',
-      '?r2: suc(0);',
-      '?r3: suc(suc(0));',
+      '_r1: 0;',
+      '_r2: suc(0);',
+      '_r3: suc(suc(0));',
     ].join('\n');
 
     const ctxt = parseContext(src);
@@ -106,11 +106,11 @@ describe('V2Story concept and trace execution', () => {
       
       // Active linear resources:
       // - Monkey jumped over flower (triggers monkeySquish)
-      '?r1: jumpedOver(animal(monkey), flower);',
+      '_r1: jumpedOver(animal(monkey), flower);',
       // - Elephant jumped over cat (triggers catEscape)
-      '?r2: jumpedOver(animal(elephant), animal(cat));',
+      '_r2: jumpedOver(animal(elephant), animal(cat));',
       // - Rock jumped over tree (no action applicable)
-      '?r3: jumpedOver(rock, tree);',
+      '_r3: jumpedOver(rock, tree);',
     ].join('\n');
 
     const ctxt = parseContext(src);
@@ -133,11 +133,11 @@ describe('V2Story concept and trace execution', () => {
     const firstCtxt = story.steps[0].contextAfter;
 
     // _r1 should be consumed, squished resource _r4 should be produced
-    expect(firstCtxt.variables['r1']).toBeUndefined();
-    expect(firstCtxt.variables['r4']).toBe('squished(animal(monkey), flower)');
+    expect(firstCtxt.variables['_r1']).toBeUndefined();
+    expect(firstCtxt.variables['_r4']).toBe('squished(animal(monkey), flower)');
     // _r2 and _r3 should remain unaffected
-    expect(firstCtxt.variables['r2']).toBe('jumpedOver(animal(elephant), animal(cat))');
-    expect(firstCtxt.variables['r3']).toBe('jumpedOver(rock, tree)');
+    expect(firstCtxt.variables['_r2']).toBe('jumpedOver(animal(elephant), animal(cat))');
+    expect(firstCtxt.variables['_r3']).toBe('jumpedOver(rock, tree)');
 
     // Find applicable actions in the new context state
     const applicable2 = getApplicableActions(firstCtxt);
@@ -151,11 +151,11 @@ describe('V2Story concept and trace execution', () => {
     const secondCtxt = story.steps[1].contextAfter;
 
     // _r2 should be consumed, ranAway resource _r5 should be produced
-    expect(secondCtxt.variables['r2']).toBeUndefined();
-    expect(secondCtxt.variables['r5']).toBe('ranAway(animal(cat))');
+    expect(secondCtxt.variables['_r2']).toBeUndefined();
+    expect(secondCtxt.variables['_r5']).toBe('ranAway(animal(cat))');
     // _r3 and _r4 should remain unaffected
-    expect(secondCtxt.variables['r3']).toBe('jumpedOver(rock, tree)');
-    expect(secondCtxt.variables['r4']).toBe('squished(animal(monkey), flower)');
+    expect(secondCtxt.variables['_r3']).toBe('jumpedOver(rock, tree)');
+    expect(secondCtxt.variables['_r4']).toBe('squished(animal(monkey), flower)');
 
     // Final context should have 0 applicable actions left
     const applicable3 = getApplicableActions(secondCtxt);

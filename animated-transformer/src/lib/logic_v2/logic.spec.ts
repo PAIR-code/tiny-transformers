@@ -329,7 +329,7 @@ describe('v2_logic of peano natural numbers', () => {
       const src = [
         'type nat = 0 | suc(n: nat);',
         'let 2 = suc(suc(0));',
-        '?x: 2;',
+        '_x: 2;',
       ].join('\n');
 
       const ctxt = parseContext(src);
@@ -342,7 +342,7 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.termDefinitions['2'].typ).toBe('nat');
 
       // Check variables
-      expect(ctxt.variables['x']).toBe('2');
+      expect(ctxt.variables['_x']).toBe('2');
 
       // Verify getBaseType resolution
       expect(getBaseType(ctxt, '2')).toBe('nat');
@@ -403,17 +403,17 @@ describe('v2_logic of peano natural numbers', () => {
     it('parses, typechecks, and prints parameterised types and implicitly introduces free type variables', () => {
       const src = [
         "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
-        '?l: list<?y>;',
+        '_l: list<?y>;',
       ].join('\n');
 
       const ctxt = parseContext(src);
 
-      // Verify roundtrip printing (which includes the implicitly introduced ?y: _)
+      // Verify roundtrip printing (which includes the implicitly introduced y: _)
       const printed = printContext(ctxt);
       const expectedPrinted = [
         "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
-        '?l: list<?y>;',
-        '?y: _;',
+        '_l: list<?y>;',
+        'y: _;',
       ].join('\n');
       expect(printed).toBe(expectedPrinted);
 
@@ -440,7 +440,7 @@ describe('v2_logic of peano natural numbers', () => {
       expect(ctxt.variables['y']).toBe('_');
 
       // Check that ?l was declared with type list(?y)
-      expect(ctxt.variables['l']).toBe('list<?y>');
+      expect(ctxt.variables['_l']).toBe('list<?y>');
 
       // Verify typeCheck of parameterised terms:
       // cons(suc(0), nil) should typeCheck against list(nat)!
@@ -460,8 +460,8 @@ describe('v2_logic of peano natural numbers', () => {
       const expectedFullPrinted = [
         "type list<'x> = cons(h: 'x, t: list<'x>) | nil;",
         'type nat = 0 | suc(n: nat);',
-        '?l: list<?y>;',
-        '?y: _;',
+        '_l: list<?y>;',
+        'y: _;',
       ].join('\n');
       expect(fullPrinted).toBe(expectedFullPrinted);
     });
@@ -501,14 +501,14 @@ describe('v2_logic of peano natural numbers', () => {
     it('parses, prints, and reduces intuitionistic functions and solves equations', () => {
       const src = [
         'type nat = 0 | suc(n: nat);',
-        'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
+        'fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;',
       ].join('\n');
 
       const ctxt = parseContext(src);
 
       // 1. Assert printContext outputs the functions correctly
       const printed = printContext(ctxt);
-      expect(printed).toContain('fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;');
+      expect(printed).toContain('fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;');
 
       // 2. Evaluate term add(suc(0), suc(0))
       // Should reduce to suc(suc(0)) (which is 2)

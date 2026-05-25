@@ -59,7 +59,7 @@ describe('linear lolli logic', () => {
   it('matches general type resource pattern', () => {
     const ctxtSrc = [
       'type nat = 0 | suc(num: nat);',
-      '?r1: 0;',
+      '_r1: 0;',
     ].join('\n');
     const ctxt = parseContext(ctxtSrc);
     const story = LinearStory.fromContext(ctxt);
@@ -76,7 +76,7 @@ describe('linear lolli logic', () => {
   it('matches specific term pattern', () => {
     const ctxtSrc = [
       'type nat = 0 | suc(num: nat);',
-      '?r1: suc(0);',
+      '_r1: suc(0);',
     ].join('\n');
     const ctxt = parseContext(ctxtSrc);
     const story = LinearStory.fromContext(ctxt);
@@ -94,9 +94,9 @@ describe('linear lolli logic', () => {
   it('applies action and transitions state, including evaluating functions', () => {
     const ctxtSrc = [
       'type nat = 0 | suc(num: nat);',
-      'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
-      '?r1: suc(0);',
-      '?r2: suc(suc(0));',
+      'fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;',
+      '_r1: suc(0);',
+      '_r2: suc(suc(0));',
     ].join('\n');
     const ctxt = parseContext(ctxtSrc);
     const story = LinearStory.fromContext(ctxt);

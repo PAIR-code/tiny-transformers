@@ -1071,14 +1071,14 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     };
   });
 
-  const varDecl = seq(
-    kind("var"),
+  const resourceDecl = seq(
+    ident,
     ":",
     termParser,
     opt(";")
   ).map(r => ({
     kind: 'Var' as const,
-    varName: r[0].substring(1),
+    varName: r[0],
     typeName: r[2],
   }));
 
@@ -1115,7 +1115,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     };
   });
 
-  const declParser = or(letTypeDecl, letTermDecl, letFunDecl, varDecl, actionDecl);
+  const declParser = or(letTypeDecl, letTermDecl, letFunDecl, resourceDecl, actionDecl);
 
   const contextParser = seq(repeat(declParser), eof()).map(r => r[0]);
 
@@ -1213,7 +1213,7 @@ export function printContext(ctxt: Context): string {
   if (ctxt.variables) {
     for (const varName of Object.keys(ctxt.variables).sort()) {
       const typeName = ctxt.variables[varName];
-      declarations.push(`?${varName}: ${typeName};`);
+      declarations.push(`${varName}: ${typeName};`);
     }
   }
 
@@ -1237,7 +1237,7 @@ export function printLinearContext(ctxt: Context): string {
   if (ctxt.variables) {
     for (const varName of Object.keys(ctxt.variables).sort()) {
       const typeName = ctxt.variables[varName];
-      declarations.push(`?${varName}: ${typeName};`);
+      declarations.push(`${varName}: ${typeName};`);
     }
   }
 

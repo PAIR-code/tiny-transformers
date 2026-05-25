@@ -260,7 +260,7 @@ export class LinearStory {
     const story = new LinearStory(ctxt);
     for (const [varName, typeStr] of Object.entries(ctxt.variables)) {
       const typeTerm = parseTerm(typeStr, ctxt);
-      const name = varName.startsWith('_') ? varName : `_${varName}`;
+      const name = varName;
       story.resources.push({ name, type: typeTerm });
 
       const match = name.match(/^_r(\d+)$/);
@@ -291,7 +291,7 @@ export class LinearStory {
     const name = `_r${this.nextResourceId++}`;
     const res = { name, type };
     this.resources.push(res);
-    this.ctxt.declareVariable(name.substring(1), type);
+    this.ctxt.declareVariable(name, type);
     return res;
   }
 
@@ -320,7 +320,7 @@ export class LinearStory {
    */
   print(): string {
     return this.resources
-      .map(r => `?${r.name.substring(1)}: ${printTerm(r.type)};`)
+      .map(r => `${r.name}: ${printTerm(r.type)};`)
       .join('\n');
   }
 }

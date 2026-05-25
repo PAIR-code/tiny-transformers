@@ -69,7 +69,7 @@ export class Story {
 
     // Populate the next context with transition resources
     for (const res of nextLinearStory.resources) {
-      nextCtxt.declareVariable(res.name.substring(1), res.type);
+      nextCtxt.declareVariable(res.name, res.type);
     }
 
     // 4. Log the step to the story trace
