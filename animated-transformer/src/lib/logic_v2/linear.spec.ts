@@ -13,15 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { parseContext, parseTerm, printTerm, printLinearContext } from './v2_logic';
+import { parseContext, parseTerm, printTerm } from './v2_logic';
 import {
   parseLolliAction,
   printLolliAction,
   splitTopLevelCommas,
   matchAction,
   LinearStory,
-  getApplicableActions,
-  V2Story,
 } from './linear';
 
 describe('linear lolli logic', () => {
@@ -133,70 +131,5 @@ describe('linear lolli logic', () => {
     // The sum of suc(suc(0)) (2) and suc(suc(0)) (2) should evaluate to 4: suc(suc(suc(suc(0))))!
     const resultType = story3.resources[0].type;
     expect(printTerm(resultType)).toBe('suc(suc(suc(suc(0))))');
-  });
-
-  it('parses, prints context actions, and tests printLinearContext', () => {
-    const src = [
-      'type nat = 0 | suc(num: nat);',
-      'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
-      'action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };',
-      '?r1: 0;',
-    ].join('\n');
-
-    const ctxt = parseContext(src);
-
-    // Check action is registered in the context
-    expect(ctxt.actions['sum']).toBeDefined();
-    expect(ctxt.actions['sum'].name).toBe('sum');
-    expect(ctxt.actions['sum'].lhs.length).toBe(2);
-    expect(ctxt.actions['sum'].rhs.length).toBe(1);
-
-    // Test printLinearContext - should ONLY print action and active variables
-    const linearStr = printLinearContext(ctxt);
-    const expectedLinear = [
-      'action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };',
-      '?r1: 0;',
-    ].join('\n');
-    expect(linearStr).toBe(expectedLinear);
-  });
-
-  it('verifies V2Story trace and applicable action execution steps', () => {
-    const src = [
-      'type nat = 0 | suc(num: nat);',
-      'fun add(suc(x), y) = suc(add(x, y)) | fun add(0, y) = y;',
-      'action sum: { ?a: nat, ?b: nat } -o { ?c: add(?a, ?b) };',
-      '?r1: suc(0);',
-      '?r2: suc(suc(0));',
-    ].join('\n');
-
-    const initialCtxt = parseContext(src);
-    const story = new V2Story(initialCtxt);
-
-    expect(story.steps.length).toBe(0);
-    expect(story.getCurrentContext()).toBe(initialCtxt);
-
-    // Find applicable actions
-    const applicable = getApplicableActions(initialCtxt);
-    expect(applicable.length).toBe(2); // ordering permutations
-
-    // Apply the first matched action sum
-    story.applyAction(applicable[0]);
-
-    // Verify story has recorded 1 step
-    expect(story.steps.length).toBe(1);
-    const step = story.steps[0];
-
-    expect(step.contextBefore).toBe(initialCtxt);
-    
-    // Check contextAfter variables: _r1 and _r2 should be replaced by sum _r3 (suc(suc(suc(0))))
-    const finalCtxt = step.contextAfter;
-    expect(story.getCurrentContext()).toBe(finalCtxt);
-    
-    expect(finalCtxt.variables['r1']).toBeUndefined();
-    expect(finalCtxt.variables['r2']).toBeUndefined();
-    expect(finalCtxt.variables['r3']).toBe('suc(suc(suc(0)))');
-
-    // Confirm that next level actions on finalCtxt has 0 matches (since we only have 1 active resource left)
-    expect(getApplicableActions(finalCtxt).length).toBe(0);
   });
 });

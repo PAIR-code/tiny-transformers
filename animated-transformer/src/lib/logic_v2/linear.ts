@@ -120,6 +120,20 @@ export function printLolliAction(action: LolliAction): string {
   return `${action.name}: { ${lhs} } -o { ${rhs} }`;
 }
 
+export function getPatternVariables(term: Term): Set<string> {
+  const vars = new Set<string>();
+  function visit(t: Term) {
+    if (t.kind === TermKind.Variable) {
+      vars.add(t.varName);
+    } else {
+      t.unNamedArgs.forEach(visit);
+      Object.values(t.namedArgs).forEach(visit);
+    }
+  }
+  visit(term);
+  return vars;
+}
+
 /**
  * Matches a resource type against a pattern type under the context and substitution.
  */
@@ -150,8 +164,21 @@ export function matchResourcePattern(
     tempSubst[k] = v;
   }
 
+  const allowedVars = getPatternVariables(pattern);
+
   try {
     unify(ctxt, pattern, resourceType, tempSubst);
+    
+    // Ensure unify didn't accidentally bind any non-variable literal (like 'monkey') to a different value
+    for (const k of Object.keys(tempSubst)) {
+      if (!(k in subst) && !allowedVars.has(k)) {
+        const valStr = typeof tempSubst[k] === 'string' ? tempSubst[k] : printTerm(tempSubst[k] as Term);
+        if (valStr !== k) {
+          return false;
+        }
+      }
+    }
+
     const substituted = substitute(pattern, tempSubst) as Term;
     if (matchTypes(ctxt, resourceType, substituted)) {
       for (const [k, v] of Object.entries(tempSubst)) {
@@ -310,69 +337,4 @@ export function getApplicableActions(ctxt: Context): ActionMatch[] {
     matches.push(...actionMatches);
   }
   return matches;
-}
-
-export type StoryStep = {
-  /** The Context before the action was applied. */
-  contextBefore: Context;
-  /** The ActionMatch details (which action was applied and which resources matched). */
-  actionMatch: ActionMatch;
-  /** The Context after the action was applied. */
-  contextAfter: Context;
-};
-
-/**
- * Represents a linear logic story execution trace.
- * Maintains an initial context, and a chronological sequence of applied actions/steps,
- * along with the context before and after each step.
- */
-export class V2Story {
-  public steps: StoryStep[] = [];
-
-  constructor(public initialContext: Context) {}
-
-  /**
-   * Returns the active Context after the latest step,
-   * or the initial context if no actions have been performed yet.
-   */
-  getCurrentContext(): Context {
-    if (this.steps.length === 0) {
-      return this.initialContext;
-    }
-    return this.steps[this.steps.length - 1].contextAfter;
-  }
-
-  /**
-   * Applies a matched linear action to transition the story's state, adding a step to the trace.
-   */
-  applyAction(match: ActionMatch): void {
-    const currentCtxt = this.getCurrentContext();
-
-    // 1. Reconstruct the linear resource story state
-    const linearStory = LinearStory.fromContext(currentCtxt);
-
-    // 2. Transition the resources by applying the action
-    const nextLinearStory = linearStory.applyAction(match);
-
-    // 3. Build the new Context inheriting the types, functions, and actions,
-    // but populated with the new active linear resources
-    const nextCtxt = new Context({
-      literals: { ...currentCtxt.getRawData().literals },
-      functions: { ...currentCtxt.getRawData().functions },
-      actions: { ...currentCtxt.getRawData().actions },
-      variables: {}, // start with fresh active resources map
-    });
-
-    // Populate the next context with transition resources
-    for (const res of nextLinearStory.resources) {
-      nextCtxt.declareVariable(res.name.substring(1), res.type);
-    }
-
-    // 4. Log the step to the story trace
-    this.steps.push({
-      contextBefore: currentCtxt,
-      actionMatch: match,
-      contextAfter: nextCtxt,
-    });
-  }
 }
