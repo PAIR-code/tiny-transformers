@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Context, Term, substitute, evaluateTerm } from './v2_logic';
+import { Context, Term, substitute, evaluateTerm } from './logic';
 import { ActionMatch, LinearStory } from './linear';
 
 export type StoryStep = {
@@ -30,7 +30,7 @@ export type StoryStep = {
  * Maintains an initial context, and a chronological sequence of applied actions/steps,
  * along with the context before and after each step.
  */
-export class V2Story {
+export class Story {
   public steps: StoryStep[] = [];
 
   constructor(public initialContext: Context) {}

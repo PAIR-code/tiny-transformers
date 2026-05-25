@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { parseContext, parseTerm, printTerm, printLinearContext } from './v2_logic';
+import { parseContext, parseTerm, printTerm, printLinearContext } from './logic';
 import { getApplicableActions } from './linear';
-import { V2Story } from './v2_story';
+import { Story } from './story';
 
 describe('V2Story concept and trace execution', () => {
   it('handles basic state transition trace step-by-step', () => {
@@ -28,7 +28,7 @@ describe('V2Story concept and trace execution', () => {
     ].join('\n');
 
     const initialCtxt = parseContext(ctxtSrc);
-    const story = new V2Story(initialCtxt);
+    const story = new Story(initialCtxt);
 
     expect(story.steps.length).toBe(0);
     expect(story.getCurrentContext()).toBe(initialCtxt);
@@ -114,7 +114,7 @@ describe('V2Story concept and trace execution', () => {
     ].join('\n');
 
     const ctxt = parseContext(src);
-    const story = new V2Story(ctxt);
+    const story = new Story(ctxt);
 
     // Find applicable actions
     const applicable = getApplicableActions(ctxt);

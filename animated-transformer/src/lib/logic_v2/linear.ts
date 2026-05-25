@@ -24,7 +24,7 @@ import {
   substitute,
   matchTypes,
   inferType,
-} from './v2_logic';
+} from './logic';
 
 export type LinearResource = {
   name: string; // e.g., '_r1'

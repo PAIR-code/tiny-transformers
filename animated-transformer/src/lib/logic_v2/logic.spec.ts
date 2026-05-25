@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation } from './v2_logic';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation } from './logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});

@@ -49,9 +49,9 @@ import {
   Term,
   FunctionDef,
   LolliAction,
-} from './v2_logic_data';
+} from './logic_data';
 
-export * from './v2_logic_data';
+export * from './logic_data';
 
 /**
  * Raw user-facing parsed constructor structure.
