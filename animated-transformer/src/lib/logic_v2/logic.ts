@@ -53,10 +53,41 @@ import {
 
 export * from './logic_data';
 
-export function isWildcard(t: Term | string | undefined): boolean {
-  if (!t) return false;
-  if (t === '*') return true;
-  return typeof t !== 'string' && t.kind === TermKind.Literal && t.literalName === '*';
+export function isWildcard(t: Term): boolean {
+  return t.kind === TermKind.Literal && t.literalName === '*';
+}
+
+export const allTypes: Term = {
+  kind: TermKind.Literal,
+  literalName: '*',
+  unNamedArgs: [],
+  namedArgs: {},
+};
+
+export function constr(
+  constructorName: string,
+  unNamedArgs: Term[] = [],
+  namedArgs: { [argName: string]: Term } = {}
+): Literal {
+  return {
+    kind: TermKind.Literal,
+    literalName: constructorName,
+    unNamedArgs,
+    namedArgs,
+  };
+}
+
+export function variable(varName: string): Variable {
+  return {
+    kind: TermKind.Variable,
+    varName,
+  };
+}
+
+export const allType: Term = constr('*');
+
+export function isAllType(t: Term): boolean {
+  return t.kind === TermKind.Literal && t.literalName === '*';
 }
 
 /**
@@ -72,58 +103,7 @@ export type ConjunctionData = {
   argOrder?: string[];
 };
 
-/**
- * Recursively validates that a type term reference is well-formed in the context.
- * Ensures every type reference is either:
- *  1. A bound generic parameter variable (e.g. 'x).
- *  2. The recursive type itself being defined (e.g. list<'x>).
- *  3. A pre-existing Sum type or literal in the context.
- */
-export function validateTypeRef(
-  ctxt: Context,
-  typeRef: Term | string,
-  allowedVars: Set<string>,
-  recursiveTypeName: string
-): void {
-  if (typeof typeRef === 'string') {
-    if (allowedVars.has(typeRef)) return;
-    if (typeRef === recursiveTypeName) return;
-    const baseType = getBaseType(ctxt, typeRef);
-    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '*', '='].includes(baseType)) return;
-    throw new Error(`Unknown type reference: '${typeRef}'`);
-  }
 
-  if (typeRef.kind === TermKind.Variable) {
-    const varName = typeRef.varName;
-    if (varName in ctxt.linearResources || allowedVars.has(varName)) return;
-    throw new Error(`Unknown variable type reference: '?${varName}'`);
-  }
-
-  if (typeRef.kind === TermKind.Literal) {
-    const constrName = typeRef.literalName;
-    if (allowedVars.has(constrName)) return;
-    if (constrName === recursiveTypeName) {
-      for (const arg of typeRef.unNamedArgs) {
-        validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
-      }
-      for (const arg of Object.values(typeRef.namedArgs)) {
-        validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
-      }
-      return;
-    }
-    const baseType = getBaseType(ctxt, constrName);
-    if (baseType in ctxt.getRawData().literals || baseType in ctxt.getRawData().functions || ['nat', 'natList', 'tree', '*', '='].includes(baseType)) {
-      for (const arg of typeRef.unNamedArgs) {
-        validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
-      }
-      for (const arg of Object.values(typeRef.namedArgs)) {
-        validateTypeRef(ctxt, arg, allowedVars, recursiveTypeName);
-      }
-      return;
-    }
-    throw new Error(`Unknown type reference: '${constrName}'`);
-  }
-}
 
 /**
  * The Context represents the unified logical context (traditional Γ).
@@ -285,7 +265,7 @@ export class Context {
     const freeVars = getFreeVars(term);
     for (const fv of freeVars) {
       if (!(fv in this.data.variables)) {
-        this.data.variables[fv] = constr('*');
+        this.data.variables[fv] = allType;
       }
     }
     const typeName = inferType(this, term, this.data.variables);
@@ -296,7 +276,7 @@ export class Context {
     const freeVars = getFreeVars(typeRef);
     for (const fv of freeVars) {
       if (!(fv in this.data.variables)) {
-        this.data.variables[fv] = constr('*');
+        this.data.variables[fv] = allType;
       }
     }
     this.data.variables[name] = typeRef;
@@ -306,10 +286,13 @@ export class Context {
     if (!name.startsWith('_')) {
       throw new Error(`Linear resource name '${name}' must start with '_'`);
     }
+    if (typeRef.kind === TermKind.Literal && !isSumTypeName(this, typeRef.literalName)) {
+      inferType(this, typeRef);
+    }
     const freeVars = getFreeVars(typeRef);
     for (const fv of freeVars) {
       if (!(fv in this.data.variables)) {
-        this.data.variables[fv] = constr('*');
+        this.data.variables[fv] = allType;
       }
     }
     this.data.linearResources[name] = printTerm(typeRef, { ctxt: this });
@@ -326,6 +309,38 @@ export function getBaseType(ctxt: Context, typeName: string): string {
   }
   return typeName;
 }
+
+export function getParentSumType(ctxt: Context, typeName: string): string {
+  const def = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
+  if (def) {
+    if (def.kind === TypeKind.Conjunction) {
+      return (def as ConjunctionDef).productTypeName.split('_')[0];
+    }
+    if (def.kind === TypeKind.Binding) {
+      const bound = (def as BindingDef).boundType;
+      if (bound.kind === TypeKind.Conjunction) {
+        return (bound as ConjunctionDef).productTypeName.split('_')[0];
+      }
+      if (bound.kind === TypeKind.Disjunction) {
+        return (bound as DisjunctionDef).sumTypeName;
+      }
+    }
+    if (def.kind === TypeKind.Disjunction) {
+      return (def as DisjunctionDef).sumTypeName;
+    }
+  }
+  return typeName;
+}
+
+export function isSumTypeName(ctxt: Context, typeName: string): boolean {
+  const typeDef = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
+  if (typeDef) {
+    return typeDef.kind === TypeKind.Disjunction || (typeDef.kind === TypeKind.Binding && (typeDef as BindingDef).boundType.kind === TypeKind.Disjunction);
+  }
+  return false;
+}
+
+
 
 export function getBaseTypeName(typeRef: Term | string): string {
   if (typeof typeRef === 'string') return typeRef;
@@ -347,47 +362,61 @@ export function getFreeVars(term: Term): Set<string> {
   return vars;
 }
 
-export function getBaseTypeRef(ctxt: Context, typeRef: Term | string): Term | string {
-  if (typeof typeRef === 'string') {
-    if (ctxt.termDefinitions && typeRef in ctxt.termDefinitions) {
-      return getBaseTypeRef(ctxt, ctxt.termDefinitions[typeRef].typ);
-    }
-    return typeRef;
-  }
-  if (typeRef.kind === TermKind.Literal) {
-    const baseName = getBaseType(ctxt, typeRef.literalName);
-    return {
-      ...typeRef,
-      literalName: baseName,
-    };
-  }
-  return typeRef;
-}
+
 
 export function matchTypes(ctxt: Context, actual: Term | string | undefined, expected: Term | string | undefined): boolean {
   if (!actual || !expected) return false;
-  if (isWildcard(actual) || isWildcard(expected)) return true;
 
-  if (typeof actual === 'string') {
-    actual = parseTerm(actual, ctxt);
+  const actualTerm = typeof actual === 'string' ? parseTerm(actual, ctxt) : actual;
+  const expectedTerm = typeof expected === 'string' ? parseTerm(expected, ctxt) : expected;
+
+  if (isAllType(actualTerm) || isAllType(expectedTerm)) return true;
+
+  if (actualTerm.kind === TermKind.Variable) {
+    const actualType = ctxt.variables[actualTerm.varName] ?? (actualTerm.varName in ctxt.linearResources ? parseTerm(ctxt.linearResources[actualTerm.varName], ctxt) : allType);
+    return isAllType(actualType) || matchTypes(ctxt, actualType, expectedTerm);
   }
-  if (typeof expected === 'string') {
-    expected = parseTerm(expected, ctxt);
+  if (expectedTerm.kind === TermKind.Variable) {
+    const expectedType = ctxt.variables[expectedTerm.varName] ?? (expectedTerm.varName in ctxt.linearResources ? parseTerm(ctxt.linearResources[expectedTerm.varName], ctxt) : allType);
+    return isAllType(expectedType) || matchTypes(ctxt, actualTerm, expectedType);
   }
 
-  if (actual.kind === TermKind.Variable) {
-    const actualType = ctxt.variables[actual.varName] ?? ctxt.linearResources[actual.varName] ?? '*';
-    return isWildcard(actualType) || matchTypes(ctxt, actualType, expected);
-  }
-  if (expected.kind === TermKind.Variable) {
-    const expectedType = ctxt.variables[expected.varName] ?? ctxt.linearResources[expected.varName] ?? '*';
-    return isWildcard(expectedType) || matchTypes(ctxt, actual, expectedType);
-  }
+  actual = actualTerm;
+  expected = expectedTerm;
 
   if (actual.kind === TermKind.Literal && expected.kind === TermKind.Literal) {
     if (actual.literalName !== expected.literalName) {
-      const actualBase = getBaseType(ctxt, actual.literalName);
-      const expectedBase = getBaseType(ctxt, expected.literalName);
+      const actualBase = getParentSumType(ctxt, actual.literalName);
+      const expectedBase = getParentSumType(ctxt, expected.literalName);
+      if (actualBase === expectedBase) {
+        const actualTypeDef = ctxt.getRawData().literals[actual.literalName] ?? ctxt.types[actual.literalName];
+        const expectedTypeDef = ctxt.getRawData().literals[expected.literalName] ?? ctxt.types[expected.literalName];
+
+        const isActualConstr = actualTypeDef && (actualTypeDef.kind === TypeKind.Conjunction || (actualTypeDef.kind === TypeKind.Binding && (actualTypeDef as BindingDef).boundType.kind === TypeKind.Conjunction));
+        const isExpectedSumType = expectedTypeDef && (expectedTypeDef.kind === TypeKind.Disjunction || (expectedTypeDef.kind === TypeKind.Binding && (expectedTypeDef as BindingDef).boundType.kind === TypeKind.Disjunction));
+
+        if (isActualConstr && isExpectedSumType) {
+          try {
+            const actualSumType = parseTerm(inferType(ctxt, actual), ctxt);
+            return matchTypes(ctxt, actualSumType, expected);
+          } catch (e) {}
+        }
+
+        const isExpectedConstr = expectedTypeDef && (expectedTypeDef.kind === TypeKind.Conjunction || (expectedTypeDef.kind === TypeKind.Binding && (expectedTypeDef as BindingDef).boundType.kind === TypeKind.Conjunction));
+        const isActualSumType = actualTypeDef && (actualTypeDef.kind === TypeKind.Disjunction || (actualTypeDef.kind === TypeKind.Binding && (actualTypeDef as BindingDef).boundType.kind === TypeKind.Disjunction));
+
+        if (isActualSumType && isExpectedConstr) {
+          try {
+            const expectedSumType = parseTerm(inferType(ctxt, expected), ctxt);
+            return matchTypes(ctxt, actual, expectedSumType);
+          } catch (e) {}
+        }
+
+        if (isActualConstr && isExpectedConstr) {
+          return false;
+        }
+      }
+
       if (actualBase !== expectedBase) return false;
     }
 
@@ -409,11 +438,7 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
   return false;
 }
 
-export function substitute(term: Term | string, subst: { [name: string]: Term | string }): Term | string {
-  if (typeof term === 'string') {
-    if (term in subst) return subst[term];
-    return term;
-  }
+export function substitute(term: Term, subst: { [name: string]: Term }): Term {
   if (term.kind === TermKind.Variable) {
     if (term.varName in subst) return subst[term.varName];
     return term;
@@ -421,14 +446,10 @@ export function substitute(term: Term | string, subst: { [name: string]: Term | 
   if (term.kind === TermKind.Literal && term.unNamedArgs.length === 0 && Object.keys(term.namedArgs).length === 0) {
     if (term.literalName in subst) return subst[term.literalName];
   }
-  const unNamedArgs = term.unNamedArgs.map(arg => {
-    const r = substitute(arg, subst);
-    return typeof r === 'string' ? parseTerm(r) : r;
-  });
+  const unNamedArgs = term.unNamedArgs.map(arg => substitute(arg, subst));
   const namedArgs: { [argName: string]: Term } = {};
   for (const [k, v] of Object.entries(term.namedArgs)) {
-    const r = substitute(v, subst);
-    namedArgs[k] = typeof r === 'string' ? parseTerm(r) : r;
+    namedArgs[k] = substitute(v, subst);
   }
   return {
     ...term,
@@ -439,19 +460,12 @@ export function substitute(term: Term | string, subst: { [name: string]: Term | 
 
 export function unify(
   ctxt: Context,
-  formal: Term | string | undefined,
-  actual: Term | string | undefined,
-  subst: { [name: string]: Term | string }
+  formal: Term | undefined,
+  actual: Term | undefined,
+  subst: { [name: string]: Term }
 ): void {
   if (!formal || !actual) return;
-  if (formal === '*' || actual === '*') return;
-
-  if (typeof formal === 'string') {
-    formal = parseTerm(formal, ctxt);
-  }
-  if (typeof actual === 'string') {
-    actual = parseTerm(actual, ctxt);
-  }
+  if (isWildcard(formal) || isWildcard(actual)) return;
 
   if (formal.kind === TermKind.Variable) {
     const varName = formal.varName;
@@ -471,8 +485,28 @@ export function unify(
 
   if (formal.kind === TermKind.Literal && actual.kind === TermKind.Literal) {
     if (formal.literalName !== actual.literalName) {
-      const formalBase = getBaseType(ctxt, formal.literalName);
-      const actualBase = getBaseType(ctxt, actual.literalName);
+      const formalBase = getParentSumType(ctxt, formal.literalName);
+      const actualBase = getParentSumType(ctxt, actual.literalName);
+      if (formalBase === actualBase) {
+        const formalType = ctxt.getRawData().literals[formal.literalName] ?? ctxt.types[formal.literalName];
+        const isFormalSumType = formalType && (formalType.kind === TypeKind.Disjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Disjunction));
+        const actualType = ctxt.getRawData().literals[actual.literalName] ?? ctxt.types[actual.literalName];
+        const isActualConstr = actualType && (actualType.kind === TypeKind.Conjunction || (actualType.kind === TypeKind.Binding && (actualType as BindingDef).boundType.kind === TypeKind.Conjunction));
+
+        const isFormalConstr = formalType && (formalType.kind === TypeKind.Conjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Conjunction));
+
+        if (isFormalSumType && isActualConstr) {
+          try {
+            const actualSumType = parseTerm(inferType(ctxt, actual), ctxt);
+            return unify(ctxt, formal, actualSumType, subst);
+          } catch (e) {}
+        }
+
+        if (isFormalConstr && isActualConstr) {
+          return;
+        }
+      }
+
       if (formalBase !== actualBase) {
         if (formal.unNamedArgs.length === 0 && Object.keys(formal.namedArgs).length === 0) {
           const constrName = formal.literalName;
@@ -626,168 +660,164 @@ export function createContext(constructors: ConjunctionData[]): Context {
   return extendContext(emptyContext(), constructors);
 }
 
-export function constr(
-  constructorName: string,
-  unNamedArgs: Term[] = [],
-  namedArgs: { [argName: string]: Term } = {}
-): Literal {
-  return {
-    kind: TermKind.Literal,
-    literalName: constructorName,
-    unNamedArgs,
-    namedArgs,
-  };
-}
-
-export function variable(varName: string): Variable {
-  return {
-    kind: TermKind.Variable,
-    varName,
-  };
-}
 
 export function inferType(
   ctxt: Context,
   term: Term,
   varTypes: { [varName: string]: Term | string } = {}
 ): string {
-  if (term.kind === TermKind.Variable) {
-    const typeName = varTypes[term.varName] ?? ctxt.variables[term.varName] ?? ctxt.linearResources[term.varName];
-    if (!typeName) {
-      throw new Error(`Variable or resource '${term.varName}' has no declared type.`);
-    }
-    return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt });
+  const varsTerms: { [varName: string]: Term } = {};
+  for (const [k, v] of Object.entries(varTypes)) {
+    varsTerms[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
   }
 
-  // Locate constructor name in ctxt literals or functions
-  let foundConstructor: ConjunctionDef | null = null;
-  const constructorTypeDef = ctxt.getRawData().literals[term.literalName];
-  if (constructorTypeDef) {
-    const conj = constructorTypeDef.kind === TypeKind.Binding ? (constructorTypeDef.boundType as ConjunctionDef) : constructorTypeDef;
-    if (conj.kind === TypeKind.Conjunction) {
-      foundConstructor = conj;
+  function infer(t: Term, vars: { [varName: string]: Term }): string {
+    if (t.kind === TermKind.Variable) {
+      const typeName = vars[t.varName] ?? ctxt.variables[t.varName] ?? ctxt.linearResources[t.varName];
+      if (!typeName) {
+        throw new Error(`Variable or resource '${t.varName}' has no declared type.`);
+      }
+      return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt });
     }
-  }
 
-  if (!foundConstructor) {
-    const func = ctxt.getRawData().functions[term.literalName];
-    if (func) {
-      // First, try evaluating the term to see if we get a constructor value
-      try {
-        const evaluated = evaluateTerm(ctxt, term);
-        if (evaluated !== term && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== term.literalName)) {
-          return inferType(ctxt, evaluated, varTypes);
-        }
-      } catch (e) {}
+    if (t.kind === TermKind.Literal && ctxt.termDefinitions && t.literalName in ctxt.termDefinitions) {
+      return ctxt.termDefinitions[t.literalName].typ;
+    }
 
-      // If contains free variables, deduce type from patterns and clause bodies
-      const firstClause = func.clauses[0];
-      if (firstClause) {
-        const subVarTypes: { [name: string]: Term | string } = { ...varTypes };
-        for (let i = 0; i < Math.min(firstClause.patterns.length, term.unNamedArgs.length); i++) {
-          const pat = firstClause.patterns[i];
-          const arg = term.unNamedArgs[i];
-          const varName = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
-          if (varName) {
-            subVarTypes[varName] = inferType(ctxt, arg, varTypes);
-          }
-        }
+    // Locate constructor name in ctxt literals or functions
+    let foundConstructor: ConjunctionDef | null = null;
+    const constructorTypeDef = ctxt.getRawData().literals[t.literalName] ?? ctxt.types[t.literalName];
+    if (constructorTypeDef) {
+      const conj = constructorTypeDef.kind === TypeKind.Binding ? (constructorTypeDef.boundType as ConjunctionDef) : constructorTypeDef;
+      if (conj.kind === TypeKind.Conjunction) {
+        foundConstructor = conj;
+      }
+    }
+
+    if (!foundConstructor) {
+      const func = ctxt.getRawData().functions[t.literalName];
+      if (func) {
+        // First, try evaluating the term to see if we get a constructor value
         try {
-          return inferType(ctxt, firstClause.body, subVarTypes);
-        } catch (e) {
-          // Fallback to first non-recursive clause body type
-          for (const clause of func.clauses) {
-            if (!getFreeVars(clause.body).has(term.literalName) && !printTerm(clause.body).includes(term.literalName)) {
-              const subVarTypes2: { [name: string]: Term | string } = { ...varTypes };
-              for (let i = 0; i < Math.min(clause.patterns.length, term.unNamedArgs.length); i++) {
-                const pat = clause.patterns[i];
-                const arg = term.unNamedArgs[i];
-                const varName2 = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
-                if (varName2) {
-                  subVarTypes2[varName2] = inferType(ctxt, arg, varTypes);
+          const evaluated = evaluateTerm(ctxt, t);
+          if (evaluated !== t && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== t.literalName)) {
+            return infer(evaluated, vars);
+          }
+        } catch (e) {}
+
+        // If contains free variables, deduce type from patterns and clause bodies
+        const firstClause = func.clauses[0];
+        if (firstClause) {
+          const subVarTypes: { [name: string]: Term } = { ...vars };
+          for (let i = 0; i < Math.min(firstClause.patterns.length, t.unNamedArgs.length); i++) {
+            const pat = firstClause.patterns[i];
+            const arg = t.unNamedArgs[i];
+            const varName = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
+            if (varName) {
+              subVarTypes[varName] = parseTerm(infer(arg, vars), ctxt);
+            }
+          }
+          try {
+            return infer(firstClause.body, subVarTypes);
+          } catch (e) {
+            // Fallback to first non-recursive clause body type
+            for (const clause of func.clauses) {
+              if (!getFreeVars(clause.body).has(t.literalName) && !printTerm(clause.body).includes(t.literalName)) {
+                const subVarTypes2: { [name: string]: Term } = { ...vars };
+                for (let i = 0; i < Math.min(clause.patterns.length, t.unNamedArgs.length); i++) {
+                  const pat = clause.patterns[i];
+                  const arg = t.unNamedArgs[i];
+                  const varName2 = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
+                  if (varName2) {
+                    subVarTypes2[varName2] = parseTerm(infer(arg, vars), ctxt);
+                  }
                 }
+                try {
+                  return infer(clause.body, subVarTypes2);
+                } catch (e2) {}
               }
-              try {
-                return inferType(ctxt, clause.body, subVarTypes2);
-              } catch (e2) {}
             }
           }
         }
+        return 'nat';
       }
-      return 'nat';
+
+      throw new Error(`Unknown constructor: '${t.literalName}'`);
     }
 
-    throw new Error(`Unknown constructor: '${term.literalName}'`);
-  }
+    const c = foundConstructor;
 
-  const c = foundConstructor;
-
-  // Match positional and named arguments
-  const argNames = c.argOrder ?? Object.keys(c.arguments).sort();
-  if (term.unNamedArgs.length > argNames.length) {
-    throw new Error(
-      `Too many positional arguments for constructor '${c.constructorName}': expected at most ${argNames.length}, got ${term.unNamedArgs.length}`
-    );
-  }
-
-  const matchedArgs = new Map<string, Term>();
-  for (let i = 0; i < term.unNamedArgs.length; i++) {
-    matchedArgs.set(argNames[i], term.unNamedArgs[i]);
-  }
-
-  for (const [argName, argTerm] of Object.entries(term.namedArgs)) {
-    if (!(argName in c.arguments)) {
+    // Match positional and named arguments
+    const argNames = c.argOrder ?? Object.keys(c.arguments).sort();
+    if (t.unNamedArgs.length > argNames.length) {
       throw new Error(
-        `Unknown named argument '${argName}' for constructor '${c.constructorName}'`
+        `Too many positional arguments for constructor '${c.constructorName}': expected at most ${argNames.length}, got ${t.unNamedArgs.length}`
       );
     }
-    if (matchedArgs.has(argName)) {
-      throw new Error(
-        `Duplicate argument '${argName}' for constructor '${c.constructorName}' (specified both positionally and by name)`
-      );
+
+    const matchedArgs = new Map<string, Term>();
+    for (let i = 0; i < t.unNamedArgs.length; i++) {
+      matchedArgs.set(argNames[i], t.unNamedArgs[i]);
     }
-    matchedArgs.set(argName, argTerm);
+
+    for (const [argName, argTerm] of Object.entries(t.namedArgs)) {
+      if (!(argName in c.arguments)) {
+        throw new Error(
+          `Unknown named argument '${argName}' for constructor '${c.constructorName}'`
+        );
+      }
+      if (matchedArgs.has(argName)) {
+        throw new Error(
+          `Duplicate argument '${argName}' for constructor '${c.constructorName}' (specified both positionally and by name)`
+        );
+      }
+      matchedArgs.set(argName, argTerm);
+    }
+
+    for (const argName of Object.keys(c.arguments)) {
+      if (!matchedArgs.has(argName)) {
+        throw new Error(
+          `Missing argument '${argName}' for constructor '${c.constructorName}'`
+        );
+      }
+    }
+
+    // Deduce type parameters by unifying formal argument types with actual inferred types
+    const subst: { [name: string]: Term } = {};
+    for (const [argName, argTerm] of matchedArgs.entries()) {
+      const formalType = c.arguments[argName];
+      try {
+        const formalTypeTerm = typeof formalType === 'string' ? parseTerm(formalType, ctxt) : formalType;
+        const actualType = infer(argTerm, vars);
+        const actualTypeTerm = parseTerm(actualType, ctxt);
+        unify(ctxt, formalTypeTerm, actualTypeTerm, subst);
+      } catch (e) {
+        // If type inference fails on arguments, we just skip it
+      }
+    }
+
+    const T = c.productTypeName.split('_')[0];
+    const ctxtType = ctxt.getRawData().literals[T] ?? ctxt.types[T];
+    if (ctxtType) {
+      const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
+      if (typeParamOrder.length > 0) {
+        const actualParams = typeParamOrder.map(p => {
+          const val = subst[p] ?? allTypes;
+          return val;
+        });
+        return printTerm({
+          kind: TermKind.Literal,
+          literalName: T,
+          unNamedArgs: actualParams,
+          namedArgs: {},
+        }, { ctxt });
+      }
+    }
+
+    return T;
   }
 
-  for (const argName of Object.keys(c.arguments)) {
-    if (!matchedArgs.has(argName)) {
-      throw new Error(
-        `Missing argument '${argName}' for constructor '${c.constructorName}'`
-      );
-    }
-  }
-
-  // Deduce type parameters by unifying formal argument types with actual inferred types
-  const subst: { [name: string]: Term | string } = {};
-  for (const [argName, argTerm] of matchedArgs.entries()) {
-    const formalType = c.arguments[argName];
-    try {
-      const actualType = inferType(ctxt, argTerm, varTypes);
-      unify(ctxt, formalType, actualType, subst);
-    } catch (e) {
-      // If type inference fails on arguments, we just skip it
-    }
-  }
-
-  const T = c.productTypeName.split('_')[0];
-  const ctxtType = ctxt.getRawData().literals[T];
-  if (ctxtType) {
-    const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
-    if (typeParamOrder.length > 0) {
-      const actualParams = typeParamOrder.map(p => {
-        const val = subst[p] ?? '*';
-        return typeof val === 'string' ? parseTerm(val, ctxt) : val;
-      });
-      return printTerm({
-        kind: TermKind.Literal,
-        literalName: T,
-        unNamedArgs: actualParams,
-        namedArgs: {},
-      }, { ctxt });
-    }
-  }
-
-  return T;
+  return infer(term, varsTerms);
 }
 
 export function typeCheck(
@@ -796,87 +826,92 @@ export function typeCheck(
   expectedType: Term | string,
   varTypes: { [varName: string]: Term | string } = {}
 ): void {
-  if (term.kind === TermKind.Variable) {
-    const actualType = inferType(ctxt, term, varTypes);
-    if (!matchTypes(ctxt, actualType, expectedType)) {
-      const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType, { ctxt });
-      throw new Error(
-        `Type mismatch for variable '${term.varName}': expected '${expectedStr}', got '${actualType}'`
-      );
-    }
-    return;
+  const expectedTerm = typeof expectedType === 'string' ? parseTerm(expectedType, ctxt) : expectedType;
+  const varsTerms: { [varName: string]: Term } = {};
+  for (const [k, v] of Object.entries(varTypes)) {
+    varsTerms[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
   }
 
-  const baseExpectedType = typeof expectedType === 'string'
-    ? getBaseType(ctxt, expectedType)
-    : (expectedType.kind === TermKind.Literal ? getBaseType(ctxt, expectedType.literalName) : '*');
-  
-  const ctxtType = ctxt.getRawData().literals[baseExpectedType];
-  if (ctxtType) {
-    const disj = ctxtType.kind === TypeKind.Binding ? (ctxtType.boundType as DisjunctionDef) : (ctxtType as DisjunctionDef);
-    const c = disj.constructors ? disj.constructors[term.literalName] : null;
-    if (c) {
-      const argNames = c.argOrder ?? Object.keys(c.arguments).sort();
-      if (term.unNamedArgs.length > argNames.length) {
+  function check(t: Term, expected: Term): void {
+    if (t.kind === TermKind.Variable) {
+      const actualType = inferType(ctxt, t, varsTerms);
+      if (!matchTypes(ctxt, actualType, expected)) {
         throw new Error(
-          `Too many positional arguments for constructor '${c.constructorName}': expected at most ${argNames.length}, got ${term.unNamedArgs.length}`
+          `Type mismatch for variable '${t.varName}': expected '${printTerm(expected, { ctxt })}', got '${actualType}'`
         );
-      }
-
-      const matchedArgs = new Map<string, Term>();
-      for (let i = 0; i < term.unNamedArgs.length; i++) {
-        matchedArgs.set(argNames[i], term.unNamedArgs[i]);
-      }
-
-      for (const [argName, argTerm] of Object.entries(term.namedArgs)) {
-        if (!(argName in c.arguments)) {
-          throw new Error(
-            `Unknown named argument '${argName}' for constructor '${c.constructorName}'`
-          );
-        }
-        if (matchedArgs.has(argName)) {
-          throw new Error(
-            `Duplicate argument '${argName}' for constructor '${c.constructorName}' (specified both positionally and by name)`
-          );
-        }
-        matchedArgs.set(argName, argTerm);
-      }
-
-      for (const argName of Object.keys(c.arguments)) {
-        if (!matchedArgs.has(argName)) {
-          throw new Error(
-            `Missing argument '${argName}' for constructor '${c.constructorName}'`
-          );
-        }
-      }
-
-      const subst: { [name: string]: Term | string } = {};
-      if (typeof expectedType !== 'string' && expectedType.kind === TermKind.Literal) {
-        const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
-        for (let i = 0; i < typeParamOrder.length; i++) {
-          const paramName = typeParamOrder[i];
-          if (i < expectedType.unNamedArgs.length) {
-            subst[paramName] = expectedType.unNamedArgs[i];
-          }
-        }
-      }
-
-      for (const [argName, argTerm] of matchedArgs.entries()) {
-        const expectedArgType = c.arguments[argName];
-        const substitutedType = substitute(expectedArgType, subst);
-        typeCheck(ctxt, argTerm, substitutedType, varTypes);
       }
       return;
     }
+
+    const baseExpectedType = expected.kind === TermKind.Literal ? getBaseType(ctxt, expected.literalName) : '*';
+    const ctxtType = ctxt.getRawData().literals[baseExpectedType] ?? ctxt.types[baseExpectedType];
+    if (ctxtType) {
+      const disj = ctxtType.kind === TypeKind.Binding ? (ctxtType.boundType as DisjunctionDef) : (ctxtType as DisjunctionDef);
+      const c = disj.constructors ? disj.constructors[t.literalName] : null;
+      if (c) {
+        const argNames = c.argOrder ?? Object.keys(c.arguments).sort();
+        if (t.unNamedArgs.length > argNames.length) {
+          throw new Error(
+            `Too many positional arguments for constructor '${c.constructorName}': expected at most ${argNames.length}, got ${t.unNamedArgs.length}`
+          );
+        }
+
+        const matchedArgs = new Map<string, Term>();
+        for (let i = 0; i < t.unNamedArgs.length; i++) {
+          matchedArgs.set(argNames[i], t.unNamedArgs[i]);
+        }
+
+        for (const [argName, argTerm] of Object.entries(t.namedArgs)) {
+          if (!(argName in c.arguments)) {
+            throw new Error(
+              `Unknown named argument '${argName}' for constructor '${c.constructorName}'`
+            );
+          }
+          if (matchedArgs.has(argName)) {
+            throw new Error(
+              `Duplicate argument '${argName}' for constructor '${c.constructorName}' (specified both positionally and by name)`
+            );
+          }
+          matchedArgs.set(argName, argTerm);
+        }
+
+        for (const argName of Object.keys(c.arguments)) {
+          if (!matchedArgs.has(argName)) {
+            throw new Error(
+              `Missing argument '${argName}' for constructor '${c.constructorName}'`
+            );
+          }
+        }
+
+        const subst: { [name: string]: Term } = {};
+        if (expected.kind === TermKind.Literal) {
+          const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
+          for (let i = 0; i < typeParamOrder.length; i++) {
+            const paramName = typeParamOrder[i];
+            if (i < expected.unNamedArgs.length) {
+              subst[paramName] = expected.unNamedArgs[i];
+            }
+          }
+        }
+
+        for (const [argName, argTerm] of matchedArgs.entries()) {
+          const expectedArgType = c.arguments[argName];
+          const substitutedType = substitute(expectedArgType, subst) as Term;
+          check(argTerm, substitutedType);
+        }
+        return;
+      }
+    }
+
+    const inferredType = inferType(ctxt, t, varsTerms);
+    if (!matchTypes(ctxt, inferredType, expected)) {
+      throw new Error(
+        `Type mismatch for constructor term '${t.literalName}': expected '${printTerm(expected, { ctxt })}', got '${inferredType}'`
+      );
+    }
   }
 
-  const inferredType = inferType(ctxt, term, varTypes);
-  if (!matchTypes(ctxt, inferredType, expectedType)) {
-    const expectedStr = typeof expectedType === 'string' ? expectedType : printTerm(expectedType, { ctxt });
-    throw new Error(
-      `Type mismatch for constructor term '${term.literalName}': expected '${expectedStr}', got '${inferredType}'`
-    );
-  }
+  check(term, expectedTerm);
 }
 
 export function parseContext(src: string, existingCtxt?: Context): Context {
@@ -1044,7 +1079,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     const typeParamOrder: string[] = [];
     if (typeParamsList) {
       for (const p of typeParamsList) {
-        typeParams[p] = constr('*');
+        typeParams[p] = allType;
         typeParamOrder.push(p);
       }
     }
@@ -1302,7 +1337,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
     ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
     number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | { } : , ( ) ; < >"),
+    symbol: matchOneOf("= | { } : , ( ) ; < > *"),
     ws: /\s+/,
   });
 
@@ -1311,7 +1346,13 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     (t: Token) => t.kind !== "ws"
   );
 
-  const constrNameParser = or(kind("number"), kind("ident"), kind("typeParam"), tokenOf("symbol", ["="]).map(() => "="));
+  const constrNameParser = or(
+    kind("number"),
+    kind("ident"),
+    kind("typeParam"),
+    tokenOf("symbol", ["="]).map(() => "="),
+    tokenOf("symbol", ["*"]).map(() => "*")
+  );
 
   const termParser: Parser<any, Term> = fn(() => {
     return or(
@@ -1552,7 +1593,7 @@ export function solveEquation(ctxt: Context, equation: Term): { [varName: string
     const rhs = equation.unNamedArgs[1];
     if (lhs && rhs) {
       const evaluatedLhs = evaluateTerm(ctxt, lhs);
-      const subst: { [name: string]: Term | string } = {};
+      const subst: { [name: string]: Term } = {};
       unify(ctxt, rhs, evaluatedLhs, subst);
       
       const result: { [varName: string]: Term } = {};

@@ -159,12 +159,8 @@ export function matchResourcePattern(
   }
 
   // Case 2: pattern is a specific term pattern (e.g., 'suc(?x)', '0')
-  const tempSubst: { [name: string]: Term | string } = {};
-  for (const [k, v] of Object.entries(subst)) {
-    tempSubst[k] = v;
-  }
-
   const allowedVars = getPatternVariables(pattern);
+  const tempSubst = { ...subst };
 
   try {
     unify(ctxt, pattern, resourceType, tempSubst);
@@ -291,7 +287,6 @@ export class LinearStory {
     const name = `_r${this.nextResourceId++}`;
     const res = { name, type };
     this.resources.push(res);
-    this.ctxt.declareLinearResource(name, type);
     return res;
   }
 
