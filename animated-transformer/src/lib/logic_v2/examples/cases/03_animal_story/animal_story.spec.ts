@@ -19,25 +19,23 @@ import { parseContext } from '../../../logic';
 
 export const INVALID_ANIMAL_STORY_SRC = [
   'type species = cat | monkey | elephant;',
-  'type animal = animal(kind: species);',
-  'type item = animalVal(who: animal) | flower | rock | tree;',
+  'type item = animal(kind: species) | flower | rock | tree;',
   'type state = active(what: item) | jumpedOver(jumper: animal, target: item) | squished(jumper: animal, target: item) | ranAway(who: animal);',
   'action monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squished(animal(monkey), flower) };',
-  'action catEscape: { ?j: jumpedOver(?any, animalVal(animal(cat))) } -o { ?r: ranAway(animal(cat)) };',
+  'action catEscape: { ?j: jumpedOver(?any, animal(cat)) } -o { ?r: ranAway(animal(cat)) };',
   '_r1: jumpedOver(animal(monkey), flower);',
-  '_r2: jumpedOver(animal(elephant), animalVal(animal(cat)));',
+  '_r2: jumpedOver(animal(elephant), animal(cat));',
   '_r3: jumpedOver(rock, tree);', // INVALID! rock is not animal
 ].join('\n');
 
 export const VALID_ANIMAL_STORY_SRC = [
   'type species = cat | monkey | elephant;',
-  'type animal = animal(kind: species);',
-  'type item = animalVal(who: animal) | flower | rock | tree;',
+  'type item = animal(kind: species) | flower | rock | tree;',
   'type state = active(what: item) | jumpedOver(jumper: animal, target: item) | squished(jumper: animal, target: item) | ranAway(who: animal);',
   'action monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squished(animal(monkey), flower) };',
-  'action catEscape: { ?j: jumpedOver(?any, animalVal(animal(cat))) } -o { ?r: ranAway(animal(cat)) };',
+  'action catEscape: { ?j: jumpedOver(?any, animal(cat)) } -o { ?r: ranAway(animal(cat)) };',
   '_r1: jumpedOver(animal(monkey), flower);',
-  '_r2: jumpedOver(animal(elephant), animalVal(animal(cat)));',
+  '_r2: jumpedOver(animal(elephant), animal(cat));',
   '_r3: jumpedOver(animal(monkey), tree);', // VALID!
 ].join('\n');
 

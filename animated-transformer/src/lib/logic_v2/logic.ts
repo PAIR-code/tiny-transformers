@@ -286,7 +286,9 @@ export class Context {
     if (!name.startsWith('_')) {
       throw new Error(`Linear resource name '${name}' must start with '_'`);
     }
-    if (typeRef.kind === TermKind.Literal && !isSumTypeName(this, typeRef.literalName)) {
+    if ('state' in this.data.literals) {
+      typeCheck(this, typeRef, 'state');
+    } else if (typeRef.kind === TermKind.Literal && !isSumTypeName(this, typeRef.literalName)) {
       inferType(this, typeRef);
     }
     const freeVars = getFreeVars(typeRef);
@@ -418,6 +420,14 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
       }
 
       if (actualBase !== expectedBase) return false;
+    }
+
+    if (actual.literalName === expected.literalName) {
+      // If expected is a constructor used as a type signature without arguments,
+      // any concrete term of that constructor (regardless of actual arguments) matches it.
+      if (expected.unNamedArgs.length === 0 && Object.keys(expected.namedArgs).length === 0) {
+        return true;
+      }
     }
 
     if (actual.unNamedArgs.length !== expected.unNamedArgs.length) return false;
@@ -903,8 +913,21 @@ export function typeCheck(
       }
     }
 
+    const isConstructor = (() => {
+      const def = ctxt.getRawData().literals[t.literalName] ?? ctxt.types[t.literalName];
+      if (def) {
+        const conj = def.kind === TypeKind.Binding ? (def as BindingDef).boundType : def;
+        return conj.kind === TypeKind.Conjunction;
+      }
+      return false;
+    })();
+
     const inferredType = inferType(ctxt, t, varsTerms);
-    if (!matchTypes(ctxt, inferredType, expected)) {
+    const matches = isConstructor
+      ? matchTypes(ctxt, t, expected)
+      : matchTypes(ctxt, inferredType, expected);
+
+    if (!matches) {
       throw new Error(
         `Type mismatch for constructor term '${t.literalName}': expected '${printTerm(expected, { ctxt })}', got '${inferredType}'`
       );
