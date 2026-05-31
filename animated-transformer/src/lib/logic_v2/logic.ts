@@ -305,6 +305,11 @@ export function emptyContext(): Context {
   return Context.empty();
 }
 
+/**
+ * Recursively resolves the underlying base type name of a given type name.
+ * If the type name refers to a constant let-binding term, it returns the inferred 
+ * type of that binding; otherwise, it returns the type name itself.
+ */
 export function getBaseType(ctxt: Context, typeName: string): string {
   if (ctxt.termDefinitions && typeName in ctxt.termDefinitions) {
     return getBaseType(ctxt, ctxt.termDefinitions[typeName].typ);
@@ -312,6 +317,12 @@ export function getBaseType(ctxt: Context, typeName: string): string {
   return typeName;
 }
 
+/**
+ * Resolves the parent sum type (disjunction type) for a given type name or constructor name.
+ * For example:
+ * - Given constructor "animal" of sum type "item", it returns "item".
+ * - Given a sum type "item" itself, it returns "item".
+ */
 export function getParentSumType(ctxt: Context, typeName: string): string {
   const def = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
   if (def) {
@@ -334,6 +345,10 @@ export function getParentSumType(ctxt: Context, typeName: string): string {
   return typeName;
 }
 
+/**
+ * Returns whether the specified type name corresponds to a sum type (DisjunctionDef) 
+ * in the context's literals registry.
+ */
 export function isSumTypeName(ctxt: Context, typeName: string): boolean {
   const typeDef = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
   if (typeDef) {
@@ -344,12 +359,18 @@ export function isSumTypeName(ctxt: Context, typeName: string): boolean {
 
 
 
+/**
+ * Extracts the base string name of a type reference term or raw string.
+ */
 export function getBaseTypeName(typeRef: Term | string): string {
   if (typeof typeRef === 'string') return typeRef;
   if (typeRef.kind === TermKind.Literal) return typeRef.literalName;
   return typeRef.varName;
 }
 
+/**
+ * Collects all unique logic variable names (starting with '?') present in a given term.
+ */
 export function getFreeVars(term: Term): Set<string> {
   const vars = new Set<string>();
   function visit(t: Term) {
@@ -366,6 +387,20 @@ export function getFreeVars(term: Term): Set<string> {
 
 
 
+/**
+ * Performs a set-theoretic, semantic subtyping compatibility check:
+ * returns true if the `actual` type is a subtype of (or equal to) the `expected` type.
+ * 
+ * Subtyping rules enforced:
+ * 1. Variable/Wildcard matching: Wildcards '*' or logic variables match anything.
+ * 2. Union/Sum Subtyping: A variant constructor (Conjunction) is a subtype of its 
+ *    parent sum type union (Disjunction) (e.g., `rock` is a subtype of `item`).
+ * 3. Constructor Covariance: Constructor terms of the same constructor name match 
+ *    if all positional and named arguments are pairwise subtypes.
+ * 4. Nullary Constructor type reference: A constructor type used as a type constraint 
+ *    without arguments (e.g., `animal`) matches any concrete term of that constructor 
+ *    (e.g., `animal(monkey)`).
+ */
 export function matchTypes(ctxt: Context, actual: Term | string | undefined, expected: Term | string | undefined): boolean {
   if (!actual || !expected) return false;
 
@@ -448,6 +483,10 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
   return false;
 }
 
+/**
+ * Recursively substitutes logic/type variables in a term with their concrete 
+ * substitutions defined in the `subst` dictionary.
+ */
 export function substitute(term: Term, subst: { [name: string]: Term }): Term {
   if (term.kind === TermKind.Variable) {
     if (term.varName in subst) return subst[term.varName];
@@ -468,6 +507,11 @@ export function substitute(term: Term, subst: { [name: string]: Term }): Term {
   };
 }
 
+/**
+ * Performs unification between a `formal` pattern term and an `actual` value term.
+ * Synthesizes substitution bindings for logic variables in the `subst` dictionary.
+ * If unification is not possible, it exits silently (leaving substitutions unchanged).
+ */
 export function unify(
   ctxt: Context,
   formal: Term | undefined,
@@ -542,6 +586,11 @@ export function unify(
   }
 }
 
+/**
+ * Validates the well-foundedness of all registered types in the context.
+ * Throws an error if any recursive type is defined without a base case (e.g., 
+ * if a type cannot be constructed without depending infinitely on itself).
+ */
 export function validateContext(ctxt: Context): void {
   const wellFounded = new Set<string>();
   const types = Object.keys(ctxt.types);
@@ -583,6 +632,11 @@ export function validateContext(ctxt: Context): void {
   }
 }
 
+/**
+ * Transactional validator for newly added types and constructors.
+ * Verifies that the union of existing type constructors and newly added constructors
+ * remains well-founded, throwing an error if a recursive cycle without a base case is formed.
+ */
 export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[]): void {
   const newTypes = new Set(constructors.map(c => c.createdTypeName));
   const wellFounded = new Set<string>();
@@ -656,6 +710,10 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[
   }
 }
 
+/**
+ * Extends an existing context with a list of new constructor declarations.
+ * Supports optional generic type parameterization.
+ */
 export function extendContext(
   ctxt: Context,
   constructors: ConjunctionData[],
@@ -666,11 +724,19 @@ export function extendContext(
   return ctxt;
 }
 
+/**
+ * Creates a brand new context populated with a list of constructor declarations.
+ */
 export function createContext(constructors: ConjunctionData[]): Context {
   return extendContext(emptyContext(), constructors);
 }
 
 
+/**
+ * Performs type inference on a logic term within the given context.
+ * Recursively deduces types for logic variables, constructor terms, and pattern-matched 
+ * function calls, returning the string name of the inferred principal type.
+ */
 export function inferType(
   ctxt: Context,
   term: Term,
@@ -830,6 +896,12 @@ export function inferType(
   return infer(term, varsTerms);
 }
 
+/**
+ * Strictly validates that a given logic term matches the `expectedType`.
+ * Supports recursive checking, sum-type variant resolution, generic type parameter 
+ * substitution, and custom constructor type refinement.
+ * Throws a detailed descriptive Error if a type mismatch is encountered.
+ */
 export function typeCheck(
   ctxt: Context,
   term: Term,
@@ -937,6 +1009,11 @@ export function typeCheck(
   check(term, expectedTerm);
 }
 
+/**
+ * Parses a raw source string containing logic definitions into a fully-typed `Context`.
+ * Supports type declarations (`type ...`), constant declarations (`let ...`), 
+ * function clauses (`fun ...`), and logic resource declarations.
+ */
 export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
 
@@ -1353,6 +1430,12 @@ export function printLinearContext(ctxt: Context): string {
   return declarations.join('\n');
 }
 
+/**
+ * Parses a raw string representation of a logic term into a structured `Term` object.
+ * Supports constructor terms with named arguments (e.g., `c{x = 1, y = 2}`), generic 
+ * parameterized terms (e.g., `cons<nat>(1, nil)`), standard positional terms, 
+ * logic variables, and simple literals.
+ */
 export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
   const termTokens = new RegexMatchers({
     keyword: /let\b|type\b|fun\b/,
@@ -1472,6 +1555,10 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
   return result.value[0];
 }
 
+/**
+ * Pretty-prints a structured `Term` object back into its canonical string representation.
+ * Handles concise printing of variables, parameterized terms, and named-argument syntax.
+ */
 export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Context }): string {
   if (term.kind === TermKind.Variable) {
     return `?${term.varName}`;
@@ -1516,7 +1603,9 @@ export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Cont
 }
 
 /**
- * Recursively reduces a function application term using call-by-value pattern matching clauses.
+ * Recursively evaluates and reduces a logic term using call-by-value (CBV) reduction.
+ * If the term is a function application, it matches patterns against active function 
+ * clauses, performs variable substitution, and evaluates the resulting clause body.
  */
 export function evaluateTerm(ctxt: Context, term: Term): Term {
   if (term.kind === TermKind.Variable) {
@@ -1549,6 +1638,11 @@ export function evaluateTerm(ctxt: Context, term: Term): Term {
   return reducedTerm;
 }
 
+/**
+ * Matches an array of pattern terms against an array of actual value arguments.
+ * Iteratively unifies each pair, populating the `subst` bindings mapping.
+ * Returns true if all arguments successfully match their corresponding patterns.
+ */
 export function matchPatterns(
   ctxt: Context,
   patterns: Term[],
@@ -1565,6 +1659,12 @@ export function matchPatterns(
   return true;
 }
 
+/**
+ * Matches a single pattern term against an actual value argument.
+ * Detects implicit pattern variables (lower-case literals or logic variables) 
+ * and binds them to value terms in the `subst` mapping.
+ * Performs recursive structural matching for constructor literals.
+ */
 export function matchPattern(
   ctxt: Context,
   pattern: Term,
@@ -1607,8 +1707,9 @@ export function matchPattern(
 }
 
 /**
- * Resolves a pattern-matching equation, returning the bound variables substitution mapping.
- * Matches "= (lhs, rhs)" where lhs is evaluated and unified with rhs.
+ * Solves a pattern-matching equation of the form `= (lhs, rhs)` (i.e. `lhs = rhs`).
+ * Evaluates the left-hand side (LHS) and unifies it with the right-hand side (RHS) pattern,
+ * returning a dictionary containing all synthesized variable bindings.
  */
 export function solveEquation(ctxt: Context, equation: Term): { [varName: string]: Term } {
   if (equation.kind === TermKind.Literal && equation.literalName === '=') {
