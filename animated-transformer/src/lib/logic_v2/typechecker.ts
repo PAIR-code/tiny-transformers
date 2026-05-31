@@ -407,32 +407,37 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[
  * Recursively deduces types for logic variables, constructor terms, and pattern-matched 
  * function calls, returning the string name of the inferred principal type.
  */
-export function inferType(
-  ctxt: Context,
-  term: Term,
-  varTypes: { [varName: string]: Term | string } = {}
-): string {
-  const varsTerms: { [varName: string]: Term } = {};
-  for (const [k, v] of Object.entries(varTypes)) {
-    varsTerms[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
+export class TypeChecker {
+  private readonly varsTerms: { [varName: string]: Term } = {};
+
+  constructor(
+    private readonly ctxt: Context,
+    varTypes: { [varName: string]: Term | string } = {}
+  ) {
+    for (const [k, v] of Object.entries(varTypes)) {
+      this.varsTerms[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
+    }
   }
 
-  function infer(t: Term, vars: { [varName: string]: Term }): string {
+  /**
+   * Performs type inference on a logic term.
+   */
+  infer(t: Term, vars: { [varName: string]: Term } = this.varsTerms): string {
     if (t.kind === TermKind.Variable) {
-      const typeName = vars[t.varName] ?? ctxt.variables[t.varName] ?? ctxt.linearResources[t.varName];
+      const typeName = vars[t.varName] ?? this.ctxt.variables[t.varName] ?? this.ctxt.linearResources[t.varName];
       if (!typeName) {
         throw new Error(`Variable or resource '${t.varName}' has no declared type.`);
       }
-      return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt });
+      return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt: this.ctxt });
     }
 
-    if (t.kind === TermKind.Literal && ctxt.termDefinitions && t.literalName in ctxt.termDefinitions) {
-      return ctxt.termDefinitions[t.literalName].typ;
+    if (t.kind === TermKind.Literal && this.ctxt.termDefinitions && t.literalName in this.ctxt.termDefinitions) {
+      return this.ctxt.termDefinitions[t.literalName].typ;
     }
 
-    // Locate constructor name in ctxt literals or functions
+    // Locate constructor name in ctxt constructors or types or functions
     let foundConstructor: ConjunctionDef | null = null;
-    const constructorTypeDef = ctxt.getRawData().constructors[t.literalName] ?? ctxt.getRawData().types[t.literalName];
+    const constructorTypeDef = this.ctxt.getRawData().constructors[t.literalName] ?? this.ctxt.getRawData().types[t.literalName];
     if (constructorTypeDef) {
       const conj = constructorTypeDef.kind === TypeKind.Binding ? (constructorTypeDef.boundType as ConjunctionDef) : constructorTypeDef;
       if (conj.kind === TypeKind.Conjunction) {
@@ -441,12 +446,12 @@ export function inferType(
     }
 
     if (!foundConstructor) {
-      const func = ctxt.getRawData().functions[t.literalName];
+      const func = this.ctxt.getRawData().functions[t.literalName];
       if (func) {
         try {
-          const evaluated = evaluateTerm(ctxt, t);
+          const evaluated = evaluateTerm(this.ctxt, t);
           if (evaluated !== t && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== t.literalName)) {
-            return infer(evaluated, vars);
+            return this.infer(evaluated, vars);
           }
         } catch (e) {}
 
@@ -458,11 +463,11 @@ export function inferType(
             const arg = t.unNamedArgs[i];
             const varName = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
             if (varName) {
-              subVarTypes[varName] = parseTerm(infer(arg, vars), ctxt);
+              subVarTypes[varName] = parseTerm(this.infer(arg, vars), this.ctxt);
             }
           }
           try {
-            return infer(firstClause.body, subVarTypes);
+            return this.infer(firstClause.body, subVarTypes);
           } catch (e) {
             for (const clause of func.clauses) {
               if (!getFreeVars(clause.body).has(t.literalName) && !printTerm(clause.body).includes(t.literalName)) {
@@ -472,11 +477,11 @@ export function inferType(
                   const arg = t.unNamedArgs[i];
                   const varName2 = pat.kind === TermKind.Variable ? pat.varName : (pat.kind === TermKind.Literal ? pat.literalName : '');
                   if (varName2) {
-                    subVarTypes2[varName2] = parseTerm(infer(arg, vars), ctxt);
+                    subVarTypes2[varName2] = parseTerm(this.infer(arg, vars), this.ctxt);
                   }
                 }
                 try {
-                  return infer(clause.body, subVarTypes2);
+                  return this.infer(clause.body, subVarTypes2);
                 } catch (e2) {}
               }
             }
@@ -527,15 +532,15 @@ export function inferType(
     for (const [argName, argTerm] of matchedArgs.entries()) {
       const formalType = c.arguments[argName];
       try {
-        const formalTypeTerm = typeof formalType === 'string' ? parseTerm(formalType, ctxt) : formalType;
-        const actualType = infer(argTerm, vars);
-        const actualTypeTerm = parseTerm(actualType, ctxt);
-        unify(ctxt, formalTypeTerm, actualTypeTerm, subst);
+        const formalTypeTerm = typeof formalType === 'string' ? parseTerm(formalType, this.ctxt) : formalType;
+        const actualType = this.infer(argTerm, vars);
+        const actualTypeTerm = parseTerm(actualType, this.ctxt);
+        unify(this.ctxt, formalTypeTerm, actualTypeTerm, subst);
       } catch (e) {}
     }
 
     const T = c.productTypeName.split('_')[0];
-    const ctxtType = ctxt.getRawData().types[T];
+    const ctxtType = this.ctxt.getRawData().types[T];
     if (ctxtType) {
       const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
       if (typeParamOrder.length > 0) {
@@ -548,47 +553,29 @@ export function inferType(
           literalName: T,
           unNamedArgs: actualParams,
           namedArgs: {},
-        }, { ctxt });
+        }, { ctxt: this.ctxt });
       }
     }
 
     return T;
   }
 
-  return infer(term, varsTerms);
-}
-
-/**
- * Strictly validates that a given logic term matches the `expectedType`.
- * Supports recursive checking, sum-type variant resolution, generic type parameter 
- * substitution, and custom constructor type refinement.
- * Throws a detailed descriptive Error if a type mismatch is encountered.
- */
-export function typeCheck(
-  ctxt: Context,
-  term: Term,
-  expectedType: Term | string,
-  varTypes: { [varName: string]: Term | string } = {}
-): void {
-  const expectedTerm = typeof expectedType === 'string' ? parseTerm(expectedType, ctxt) : expectedType;
-  const varsTerms: { [varName: string]: Term } = {};
-  for (const [k, v] of Object.entries(varTypes)) {
-    varsTerms[k] = typeof v === 'string' ? parseTerm(v, ctxt) : v;
-  }
-
-  function check(t: Term, expected: Term): void {
+  /**
+   * Strictly check that a given logic term matches the `expected` type.
+   */
+  check(t: Term, expected: Term): void {
     if (t.kind === TermKind.Variable) {
-      const actualType = inferType(ctxt, t, varsTerms);
-      if (!matchTypes(ctxt, actualType, expected)) {
+      const actualType = this.infer(t, this.varsTerms);
+      if (!matchTypes(this.ctxt, actualType, expected)) {
         throw new Error(
-          `Type mismatch for variable '${t.varName}': expected '${printTerm(expected, { ctxt })}', got '${actualType}'`
+          `Type mismatch for variable '${t.varName}': expected '${printTerm(expected, { ctxt: this.ctxt })}', got '${actualType}'`
         );
       }
       return;
     }
 
-    const baseExpectedType = expected.kind === TermKind.Literal ? getBaseType(ctxt, expected.literalName) : '*';
-    const ctxtType = ctxt.getRawData().types[baseExpectedType];
+    const baseExpectedType = expected.kind === TermKind.Literal ? getBaseType(this.ctxt, expected.literalName) : '*';
+    const ctxtType = this.ctxt.getRawData().types[baseExpectedType];
     if (ctxtType) {
       const disj = ctxtType.kind === TypeKind.Binding ? (ctxtType.boundType as DisjunctionDef) : (ctxtType as DisjunctionDef);
       const c = disj.constructors ? disj.constructors[t.literalName] : null;
@@ -641,14 +628,14 @@ export function typeCheck(
         for (const [argName, argTerm] of matchedArgs.entries()) {
           const expectedArgType = c.arguments[argName];
           const substitutedType = substitute(expectedArgType, subst) as Term;
-          check(argTerm, substitutedType);
+          this.check(argTerm, substitutedType);
         }
         return;
       }
     }
 
     const isConstructor = (() => {
-      const def = ctxt.getRawData().constructors[t.literalName] ?? ctxt.getRawData().types[t.literalName];
+      const def = this.ctxt.getRawData().constructors[t.literalName] ?? this.ctxt.getRawData().types[t.literalName];
       if (def) {
         const conj = def.kind === TypeKind.Binding ? (def as BindingDef).boundType : def;
         return conj.kind === TypeKind.Conjunction;
@@ -656,19 +643,46 @@ export function typeCheck(
       return false;
     })();
 
-    const inferredType = inferType(ctxt, t, varsTerms);
+    const inferredType = this.infer(t, this.varsTerms);
     const matches = isConstructor
-      ? matchTypes(ctxt, t, expected)
-      : matchTypes(ctxt, inferredType, expected);
+      ? matchTypes(this.ctxt, t, expected)
+      : matchTypes(this.ctxt, inferredType, expected);
 
     if (!matches) {
       throw new Error(
-        `Type mismatch for constructor term '${t.literalName}': expected '${printTerm(expected, { ctxt })}', got '${inferredType}'`
+        `Type mismatch for constructor term '${t.literalName}': expected '${printTerm(expected, { ctxt: this.ctxt })}', got '${inferredType}'`
       );
     }
   }
+}
 
-  check(term, expectedTerm);
+/**
+ * Performs type inference on a logic term within the given context.
+ * Recursively deduces types for logic variables, constructor terms, and pattern-matched 
+ * function calls, returning the string name of the inferred principal type.
+ */
+export function inferType(
+  ctxt: Context,
+  term: Term,
+  varTypes: { [varName: string]: Term | string } = {}
+): string {
+  return new TypeChecker(ctxt, varTypes).infer(term);
+}
+
+/**
+ * Strictly validates that a given logic term matches the `expectedType`.
+ * Supports recursive checking, sum-type variant resolution, generic type parameter 
+ * substitution, and custom constructor type refinement.
+ * Throws a detailed descriptive Error if a type mismatch is encountered.
+ */
+export function typeCheck(
+  ctxt: Context,
+  term: Term,
+  expectedType: Term | string,
+  varTypes: { [varName: string]: Term | string } = {}
+): void {
+  const expectedTerm = typeof expectedType === 'string' ? parseTerm(expectedType, ctxt) : expectedType;
+  new TypeChecker(ctxt, varTypes).check(term, expectedTerm);
 }
 
 // Helper imports for validation
