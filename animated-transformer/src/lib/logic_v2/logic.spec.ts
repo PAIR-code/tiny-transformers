@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation } from './logic';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation, TypeChecker } from './logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -280,6 +280,34 @@ describe('v2_logic of peano natural numbers', () => {
       expect(() => createContext([c1, c2])).toThrowError(
         /Constructor literal 'c' already defined/
       );
+    });
+  });
+
+  describe('TypeChecker Class direct usage', () => {
+    const zero: ConjunctionData = {
+      constructorName: '0',
+      createdTypeName: 'nat',
+      arguments: {},
+    };
+    const suc: ConjunctionData = {
+      constructorName: 'suc',
+      createdTypeName: 'nat',
+      arguments: { num: 'nat' },
+    };
+    const ctxt = createContext([zero, suc]);
+
+    it('instantiates and performs type inference directly', () => {
+      const checker = new TypeChecker(ctxt, { x: 'nat' });
+      expect(checker.infer(variable('x'))).toBe('nat');
+      expect(checker.infer(constr('0'))).toBe('nat');
+      expect(checker.infer(constr('suc', [variable('x')]))).toBe('nat');
+    });
+
+    it('performs strict checking directly', () => {
+      const checker = new TypeChecker(ctxt, { x: 'nat' });
+      expect(() => checker.check(variable('x'), parseTerm('nat', ctxt))).not.toThrow();
+      expect(() => checker.check(constr('suc', [constr('0')]), parseTerm('nat', ctxt))).not.toThrow();
+      expect(() => checker.check(variable('x'), parseTerm('natList', ctxt))).toThrow();
     });
   });
 

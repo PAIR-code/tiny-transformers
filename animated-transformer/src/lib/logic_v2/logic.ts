@@ -50,6 +50,7 @@ import {
   validateAddedTypes,
   inferType,
   typeCheck,
+  TypeChecker,
 } from './typechecker';
 export {
   getBaseType,
@@ -62,6 +63,7 @@ export {
   validateAddedTypes,
   inferType,
   typeCheck,
+  TypeChecker,
 };
 import { parseContext, parseTerm } from './parser';
 export { parseContext, parseTerm };
