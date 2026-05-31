@@ -45,7 +45,7 @@ export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Cont
 
   if (options?.ctxt && term.unNamedArgs.length > 0) {
     const baseTypeName = getBaseType(options.ctxt, term.literalName);
-    const typeConst = options.ctxt.getRawData().literals[baseTypeName];
+    const typeConst = options.ctxt.getRawData().types[baseTypeName] ?? options.ctxt.getRawData().constructors[baseTypeName];
     if (typeConst) {
       const typeParamOrder = typeConst.kind === TypeKind.Binding ? (typeConst as BindingDef).paramOrder : [];
       if (typeParamOrder.length > 0) {
@@ -71,7 +71,7 @@ export function printContext(ctxt: Context): string {
   const declarations: string[] = [];
 
   for (const typeName of Object.keys(ctxt.types).sort()) {
-    const typeDef = ctxt.getRawData().literals[typeName];
+    const typeDef = ctxt.getRawData().types[typeName];
     const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
     const constrs = Object.keys(disj.constructors).sort();
     const constrDecls: string[] = [];

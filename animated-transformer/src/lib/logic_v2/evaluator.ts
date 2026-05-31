@@ -91,7 +91,8 @@ export function matchPattern(
     (pattern.kind === TermKind.Literal &&
      pattern.unNamedArgs.length === 0 &&
      Object.keys(pattern.namedArgs).length === 0 &&
-     !(pattern.literalName in ctxt.getRawData().literals) &&
+     !(pattern.literalName in ctxt.getRawData().types) &&
+     !(pattern.literalName in ctxt.getRawData().constructors) &&
      !(pattern.literalName in ctxt.getRawData().functions) &&
      !['nat', 'natList', 'tree', '*', '0', 'suc', 'nil', 'cons', 'leaf', 'node'].includes(pattern.literalName));
 

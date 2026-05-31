@@ -137,7 +137,8 @@ export class Context {
 
   static empty(): Context {
     return new Context({
-      literals: {},
+      types: {},
+      constructors: {},
       linearResources: {},
       variables: {},
       functions: {},
@@ -151,15 +152,7 @@ export class Context {
 
   /** Returns all registered ADT Disjunctions and generic parameterised Disjunction bindings. */
   get types(): { [typeName: string]: TypeDef } {
-    const result: { [typeName: string]: TypeDef } = {};
-    for (const name of Object.keys(this.data.literals)) {
-      const tdef = this.data.literals[name];
-      const isDisj = tdef.kind === TypeKind.Disjunction || (tdef.kind === TypeKind.Binding && (tdef as BindingDef).boundType.kind === TypeKind.Disjunction);
-      if (isDisj) {
-        result[name] = tdef;
-      }
-    }
-    return result;
+    return this.data.types;
   }
 
   get termDefinitions(): { [name: string]: { def: Term; typ: string } } {
@@ -204,13 +197,13 @@ export class Context {
     try {
       for (const [sumTypeName, groupConstrs] of groups.entries()) {
         // Check sum type literal clash
-        if (sumTypeName in this.data.literals || sumTypeName in this.data.functions) {
+        if (sumTypeName in this.data.types || sumTypeName in this.data.constructors || sumTypeName in this.data.functions) {
           throw new Error(`Type literal '${sumTypeName}' already defined in the context.`);
         }
 
         // Check constructor literals clashes
         for (const c of groupConstrs) {
-          if (c.constructorName in this.data.literals || c.constructorName in this.data.functions) {
+          if (c.constructorName in this.data.types || c.constructorName in this.data.constructors || c.constructorName in this.data.functions) {
             throw new Error(`Constructor literal '${c.constructorName}' already defined in the context.`);
           }
         }
@@ -250,7 +243,7 @@ export class Context {
         }
 
         // Register the type literal
-        this.data.literals[sumTypeName] = typeDef;
+        this.data.types[sumTypeName] = typeDef;
         createdLiterals.add(sumTypeName);
 
         // Register each constructor literal
@@ -266,7 +259,7 @@ export class Context {
               boundType: conjDef,
             };
           }
-          this.data.literals[c.constructorName] = constrTypeDef;
+          this.data.constructors[c.constructorName] = constrTypeDef;
           createdLiterals.add(c.constructorName);
         }
       }
@@ -277,7 +270,8 @@ export class Context {
     } catch (e) {
       // Rollback: transactional deletion of any newly registered literals
       for (const litName of createdLiterals) {
-        delete this.data.literals[litName];
+        delete this.data.types[litName];
+        delete this.data.constructors[litName];
       }
       throw e;
     }
@@ -308,7 +302,7 @@ export class Context {
     if (!name.startsWith('_')) {
       throw new Error(`Linear resource name '${name}' must start with '_'`);
     }
-    if ('state' in this.data.literals) {
+    if ('state' in this.data.types) {
       typeCheck(this, typeRef, 'state');
     } else if (typeRef.kind === TermKind.Literal && !isSumTypeName(this, typeRef.literalName)) {
       inferType(this, typeRef);

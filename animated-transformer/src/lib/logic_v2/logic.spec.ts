@@ -33,7 +33,7 @@ describe('v2_logic of peano natural numbers', () => {
     const ctxt = createContext([suc, zero]);
 
     expect(ctxt.getRawData()).toEqual({
-      literals: {
+      types: {
         nat: {
           kind: TypeKind.Disjunction,
           sumTypeName: 'nat',
@@ -56,6 +56,8 @@ describe('v2_logic of peano natural numbers', () => {
             },
           },
         },
+      },
+      constructors: {
         suc: {
           kind: TypeKind.Conjunction,
           constructorName: 'suc',
@@ -473,14 +475,14 @@ describe('v2_logic of peano natural numbers', () => {
       ].join('\n'));
 
       // 1. Assert programmatic record product names for constructors
-      const listDef = ctxt.getRawData().literals['list'];
+      const listDef = ctxt.getRawData().types['list'];
       const disj = (listDef.kind === 'Binding' ? listDef.boundType : listDef) as DisjunctionDef;
       expect(disj.constructors['cons'].productTypeName).toBe('list_cons');
       expect(disj.constructors['nil'].productTypeName).toBe('list_nil');
 
       // 2. Assert constructor literals registered directly in context
-      expect(ctxt.getRawData().literals['cons']).toBeDefined();
-      expect(ctxt.getRawData().literals['nil']).toBeDefined();
+      expect(ctxt.getRawData().constructors['cons']).toBeDefined();
+      expect(ctxt.getRawData().constructors['nil']).toBeDefined();
 
       // 3. Check sum type clash: attempting to define 'list' again throws
       const duplicateSum = [

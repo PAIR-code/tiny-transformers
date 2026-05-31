@@ -331,7 +331,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     } else if (decl.kind === 'Term') {
       ctxt.defineTerm(decl.termName, decl.term);
     } else if (decl.kind === 'Fun') {
-      if (decl.funcName in ctxt.getRawData().literals || decl.funcName in ctxt.getRawData().functions) {
+      if (decl.funcName in ctxt.getRawData().types || decl.funcName in ctxt.getRawData().constructors || decl.funcName in ctxt.getRawData().functions) {
         throw new Error(`Literal '${decl.funcName}' already defined in the context.`);
       }
       ctxt.getRawData().functions[decl.funcName] = {
@@ -348,7 +348,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         ctxt.declareLinearResource(decl.varName, decl.typeName);
       }
     } else if (decl.kind === 'Action') {
-      if (decl.action.name in ctxt.getRawData().literals || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
+      if (decl.action.name in ctxt.getRawData().types || decl.action.name in ctxt.getRawData().constructors || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
         throw new Error(`Literal '${decl.action.name}' already defined in the context.`);
       }
       ctxt.getRawData().actions[decl.action.name] = decl.action;

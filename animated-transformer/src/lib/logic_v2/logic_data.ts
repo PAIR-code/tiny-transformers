@@ -175,7 +175,10 @@ export type LolliAction = {
  */
 export type ContextData = {
   /** Mapping from a type name (e.g., an ADT for 'nat') to its Definition. */
-  literals: { [typeName: string]: TypeDef };
+  types: { [typeName: string]: TypeDef };
+
+  /** Mapping from a constructor name (e.g., 'cons') to its Definition. */
+  constructors: { [constrName: string]: TypeDef };
 
   /**
    * Mapping representing active transient linear resources.

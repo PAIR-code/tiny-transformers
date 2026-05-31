@@ -46,7 +46,7 @@ export function getBaseType(ctxt: Context, typeName: string): string {
  * - Given a sum type "item" itself, it returns "item".
  */
 export function getParentSumType(ctxt: Context, typeName: string): string {
-  const def = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
+  const def = ctxt.getRawData().constructors[typeName] ?? ctxt.getRawData().types[typeName];
   if (def) {
     if (def.kind === TypeKind.Conjunction) {
       return (def as ConjunctionDef).productTypeName.split('_')[0];
@@ -69,10 +69,10 @@ export function getParentSumType(ctxt: Context, typeName: string): string {
 
 /**
  * Returns whether the specified type name corresponds to a sum type (DisjunctionDef) 
- * in the context's literals registry.
+ * in the context's literals/types registry.
  */
 export function isSumTypeName(ctxt: Context, typeName: string): boolean {
-  const typeDef = ctxt.getRawData().literals[typeName] ?? ctxt.types[typeName];
+  const typeDef = ctxt.getRawData().types[typeName] ?? ctxt.getRawData().constructors[typeName];
   if (typeDef) {
     return typeDef.kind === TypeKind.Disjunction || (typeDef.kind === TypeKind.Binding && (typeDef as BindingDef).boundType.kind === TypeKind.Disjunction);
   }
@@ -119,8 +119,8 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
       const actualBase = getParentSumType(ctxt, actual.literalName);
       const expectedBase = getParentSumType(ctxt, expected.literalName);
       if (actualBase === expectedBase) {
-        const actualTypeDef = ctxt.getRawData().literals[actual.literalName] ?? ctxt.types[actual.literalName];
-        const expectedTypeDef = ctxt.getRawData().literals[expected.literalName] ?? ctxt.types[expected.literalName];
+        const actualTypeDef = ctxt.getRawData().constructors[actual.literalName] ?? ctxt.getRawData().types[actual.literalName];
+        const expectedTypeDef = ctxt.getRawData().constructors[expected.literalName] ?? ctxt.getRawData().types[expected.literalName];
 
         const isActualConstr = actualTypeDef && (actualTypeDef.kind === TypeKind.Conjunction || (actualTypeDef.kind === TypeKind.Binding && (actualTypeDef as BindingDef).boundType.kind === TypeKind.Conjunction));
         const isExpectedSumType = expectedTypeDef && (expectedTypeDef.kind === TypeKind.Disjunction || (expectedTypeDef.kind === TypeKind.Binding && (expectedTypeDef as BindingDef).boundType.kind === TypeKind.Disjunction));
@@ -234,9 +234,9 @@ export function unify(
       const formalBase = getParentSumType(ctxt, formal.literalName);
       const actualBase = getParentSumType(ctxt, actual.literalName);
       if (formalBase === actualBase) {
-        const formalType = ctxt.getRawData().literals[formal.literalName] ?? ctxt.types[formal.literalName];
+        const formalType = ctxt.getRawData().types[formal.literalName] ?? ctxt.getRawData().constructors[formal.literalName];
         const isFormalSumType = formalType && (formalType.kind === TypeKind.Disjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Disjunction));
-        const actualType = ctxt.getRawData().literals[actual.literalName] ?? ctxt.types[actual.literalName];
+        const actualType = ctxt.getRawData().constructors[actual.literalName] ?? ctxt.getRawData().types[actual.literalName];
         const isActualConstr = actualType && (actualType.kind === TypeKind.Conjunction || (actualType.kind === TypeKind.Binding && (actualType as BindingDef).boundType.kind === TypeKind.Conjunction));
 
         const isFormalConstr = formalType && (formalType.kind === TypeKind.Conjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Conjunction));
@@ -294,7 +294,7 @@ export function validateContext(ctxt: Context): void {
       if (wellFounded.has(typeName)) {
         continue;
       }
-      const typeDef = ctxt.getRawData().literals[typeName];
+      const typeDef = ctxt.getRawData().types[typeName];
       const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
       const constructors = Object.values(disj.constructors);
       if (constructors.length === 0) {
@@ -305,7 +305,7 @@ export function validateContext(ctxt: Context): void {
         const argTypes = Object.values(c.arguments);
         return argTypes.every(argType => {
           const baseName = getBaseTypeName(argType);
-          return !ctxt.getRawData().literals[baseName] || wellFounded.has(baseName);
+          return !ctxt.getRawData().types[baseName] || wellFounded.has(baseName);
         });
       });
 
@@ -335,7 +335,7 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[
 
   const newConstructorsMap = new Map<string, ConjunctionDef[]>();
   for (const typeName of newTypes) {
-    const typeDef = ctxt.getRawData().literals[typeName];
+    const typeDef = ctxt.getRawData().types[typeName];
     const disj = typeDef
       ? (typeDef.kind === TypeKind.Binding ? ((typeDef as BindingDef).boundType as DisjunctionDef) : (typeDef as DisjunctionDef))
       : null;
@@ -432,7 +432,7 @@ export function inferType(
 
     // Locate constructor name in ctxt literals or functions
     let foundConstructor: ConjunctionDef | null = null;
-    const constructorTypeDef = ctxt.getRawData().literals[t.literalName] ?? ctxt.types[t.literalName];
+    const constructorTypeDef = ctxt.getRawData().constructors[t.literalName] ?? ctxt.getRawData().types[t.literalName];
     if (constructorTypeDef) {
       const conj = constructorTypeDef.kind === TypeKind.Binding ? (constructorTypeDef.boundType as ConjunctionDef) : constructorTypeDef;
       if (conj.kind === TypeKind.Conjunction) {
@@ -535,7 +535,7 @@ export function inferType(
     }
 
     const T = c.productTypeName.split('_')[0];
-    const ctxtType = ctxt.getRawData().literals[T] ?? ctxt.types[T];
+    const ctxtType = ctxt.getRawData().types[T];
     if (ctxtType) {
       const typeParamOrder = ctxtType.kind === TypeKind.Binding ? (ctxtType as BindingDef).paramOrder : [];
       if (typeParamOrder.length > 0) {
@@ -588,7 +588,7 @@ export function typeCheck(
     }
 
     const baseExpectedType = expected.kind === TermKind.Literal ? getBaseType(ctxt, expected.literalName) : '*';
-    const ctxtType = ctxt.getRawData().literals[baseExpectedType] ?? ctxt.types[baseExpectedType];
+    const ctxtType = ctxt.getRawData().types[baseExpectedType];
     if (ctxtType) {
       const disj = ctxtType.kind === TypeKind.Binding ? (ctxtType.boundType as DisjunctionDef) : (ctxtType as DisjunctionDef);
       const c = disj.constructors ? disj.constructors[t.literalName] : null;
@@ -648,7 +648,7 @@ export function typeCheck(
     }
 
     const isConstructor = (() => {
-      const def = ctxt.getRawData().literals[t.literalName] ?? ctxt.types[t.literalName];
+      const def = ctxt.getRawData().constructors[t.literalName] ?? ctxt.getRawData().types[t.literalName];
       if (def) {
         const conj = def.kind === TypeKind.Binding ? (def as BindingDef).boundType : def;
         return conj.kind === TypeKind.Conjunction;

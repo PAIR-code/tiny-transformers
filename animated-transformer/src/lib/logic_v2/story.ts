@@ -61,7 +61,8 @@ export class Story {
     // 3. Build the new Context inheriting the types, functions, and actions,
     // but populated with the new active linear resources
     const nextCtxt = new Context({
-      literals: { ...currentCtxt.getRawData().literals },
+      types: { ...currentCtxt.getRawData().types },
+      constructors: { ...currentCtxt.getRawData().constructors },
       functions: { ...currentCtxt.getRawData().functions },
       actions: { ...currentCtxt.getRawData().actions },
       linearResources: {}, // start with fresh active resources map
