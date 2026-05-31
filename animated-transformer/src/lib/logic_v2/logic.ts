@@ -52,6 +52,8 @@ import {
 } from './logic_data';
 
 export * from './logic_data';
+import { printTerm, printContext, printLinearContext } from './printer';
+export { printTerm, printContext, printLinearContext };
 
 export const LOGIC_TOKENS = new RegexMatchers({
   keyword: /let\b|type\b|fun\b|action\b/,
@@ -1328,107 +1330,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   return ctxt;
 }
 
-export function printContext(ctxt: Context): string {
-  const declarations: string[] = [];
 
-  for (const typeName of Object.keys(ctxt.types).sort()) {
-    const typeDef = ctxt.getRawData().literals[typeName];
-    const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
-    const constrDecls: string[] = [];
-    const constructorsList = Object.values(disj.constructors);
-    for (const c of constructorsList.sort((a, b) => a.constructorName.localeCompare(b.constructorName))) {
-      const argKeys = c.argOrder ?? Object.keys(c.arguments).sort();
-      if (argKeys.length === 0) {
-        constrDecls.push(c.constructorName);
-      } else {
-        const fields = argKeys.map(k => {
-          const typeVal = c.arguments[k];
-          const typeStr = typeof typeVal === 'string' ? typeVal : printTerm(typeVal, { ctxt });
-          return `${k}: ${typeStr}`;
-        }).join(', ');
-        constrDecls.push(`${c.constructorName}(${fields})`);
-      }
-    }
-
-    let paramsStr = '';
-    const typeParamOrder = typeDef.kind === TypeKind.Binding ? (typeDef as BindingDef).paramOrder : [];
-    if (typeParamOrder.length > 0) {
-      paramsStr = `<${typeParamOrder.join(', ')}>`;
-    }
-    declarations.push(`type ${typeName}${paramsStr} = ${constrDecls.join(' | ')};`);
-  }
-
-  if (ctxt.termDefinitions) {
-    for (const termName of Object.keys(ctxt.termDefinitions).sort()) {
-      const termInfo = ctxt.termDefinitions[termName];
-      declarations.push(`let ${termName} = ${printTerm(termInfo.def, { ctxt })};`);
-    }
-  }
-
-  const functions = ctxt.getRawData().functions;
-  if (functions) {
-    for (const funcName of Object.keys(functions).sort()) {
-      const func = functions[funcName];
-      const clauseStrs = func.clauses.map((c: any) => {
-        const patternsStr = c.patterns.map((p: any) => printTerm(p, { ctxt })).join(', ');
-        return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;
-      });
-      declarations.push(`${clauseStrs.join(' | ')};`);
-    }
-  }
-
-  const actions = ctxt.getRawData().actions;
-  if (actions) {
-    for (const actionName of Object.keys(actions).sort()) {
-      const action = actions[actionName];
-      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
-      const lhs = action.lhs.map(printResource).join(', ');
-      const rhs = action.rhs.map(printResource).join(', ');
-      declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);
-    }
-  }
-
-  if (ctxt.linearResources) {
-    for (const varName of Object.keys(ctxt.linearResources).sort()) {
-      const typeName = ctxt.linearResources[varName];
-      declarations.push(`${varName}: ${typeName};`);
-    }
-  }
-
-  if (ctxt.variables) {
-    for (const varName of Object.keys(ctxt.variables).sort()) {
-      const typeVal = ctxt.variables[varName];
-      const typeStr = printTerm(typeVal, { ctxt });
-      declarations.push(`?${varName}: ${typeStr};`);
-    }
-  }
-
-  return declarations.join('\n');
-}
-
-export function printLinearContext(ctxt: Context): string {
-  const declarations: string[] = [];
-
-  const actions = ctxt.getRawData().actions;
-  if (actions) {
-    for (const actionName of Object.keys(actions).sort()) {
-      const action = actions[actionName];
-      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
-      const lhs = action.lhs.map(printResource).join(', ');
-      const rhs = action.rhs.map(printResource).join(', ');
-      declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);
-    }
-  }
-
-  if (ctxt.linearResources) {
-    for (const varName of Object.keys(ctxt.linearResources).sort()) {
-      const typeName = ctxt.linearResources[varName];
-      declarations.push(`${varName}: ${typeName};`);
-    }
-  }
-
-  return declarations.join('\n');
-}
 
 /**
  * Parses a raw string representation of a logic term into a structured `Term` object.
@@ -1545,52 +1447,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
   return result.value[0];
 }
 
-/**
- * Pretty-prints a structured `Term` object back into its canonical string representation.
- * Handles concise printing of variables, parameterized terms, and named-argument syntax.
- */
-export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Context }): string {
-  if (term.kind === TermKind.Variable) {
-    return `?${term.varName}`;
-  }
 
-  const hasNamed = Object.keys(term.namedArgs).length > 0;
-  if (hasNamed) {
-    const fields = Object.entries(term.namedArgs)
-      .map(([k, v]) => {
-        const isConciseVar =
-          !options?.verbose &&
-          v.kind === TermKind.Variable &&
-          v.varName === k;
-        if (isConciseVar) {
-          return `?${k}`;
-        } else {
-          return `${k} = ${printTerm(v, options)}`;
-        }
-      })
-      .join(', ');
-    return `${term.literalName}{ ${fields} }`;
-  }
-
-  if (options?.ctxt && term.unNamedArgs.length > 0) {
-    const baseTypeName = getBaseType(options.ctxt, term.literalName);
-    const typeConst = options.ctxt.getRawData().literals[baseTypeName];
-    if (typeConst) {
-      const typeParamOrder = typeConst.kind === TypeKind.Binding ? (typeConst as BindingDef).paramOrder : [];
-      if (typeParamOrder.length > 0) {
-        const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
-        return `${term.literalName}<${args}>`;
-      }
-    }
-  }
-
-  if (term.unNamedArgs.length === 0) {
-    return term.literalName;
-  }
-
-  const args = term.unNamedArgs.map(t => printTerm(t, options)).join(', ');
-  return `${term.literalName}(${args})`;
-}
 
 /**
  * Recursively evaluates and reduces a logic term using call-by-value (CBV) reduction.
