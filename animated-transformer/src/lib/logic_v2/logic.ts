@@ -53,6 +53,16 @@ import {
 
 export * from './logic_data';
 
+export const LOGIC_TOKENS = new RegexMatchers({
+  keyword: /let\b|type\b|fun\b|action\b/,
+  typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
+  var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
+  ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
+  number: /0|[1-9][0-9]*/,
+  symbol: matchOneOf("= | { } : , ( ) ; < > -o *"),
+  ws: /\s+/,
+});
+
 export function isWildcard(t: Term): boolean {
   return t.kind === TermKind.Literal && t.literalName === '*';
 }
@@ -1017,18 +1027,8 @@ export function typeCheck(
 export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
 
-  const logicTokens = new RegexMatchers({
-    keyword: /let\b|type\b|fun\b|action\b/,
-    typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
-    var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
-    ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
-    number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | { } : , ( ) ; < > -o *"),
-    ws: /\s+/,
-  });
-
   const stream = new FilterStream(
-    new MatchersStream(src, logicTokens),
+    new MatchersStream(src, LOGIC_TOKENS),
     (t: Token) => t.kind !== "ws"
   );
 
@@ -1437,18 +1437,8 @@ export function printLinearContext(ctxt: Context): string {
  * logic variables, and simple literals.
  */
 export function parseTerm(src: string, constructors?: Set<string> | Context): Term {
-  const termTokens = new RegexMatchers({
-    keyword: /let\b|type\b|fun\b/,
-    typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
-    var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
-    ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
-    number: /0|[1-9][0-9]*/,
-    symbol: matchOneOf("= | { } : , ( ) ; < > *"),
-    ws: /\s+/,
-  });
-
   const stream = new FilterStream(
-    new MatchersStream(src, termTokens),
+    new MatchersStream(src, LOGIC_TOKENS),
     (t: Token) => t.kind !== "ws"
   );
 
