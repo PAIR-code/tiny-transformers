@@ -34,7 +34,7 @@ import { ActivationManagerComponent } from '../activation-manager/activation-man
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { CodemirrorConfigEditorComponent } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from 'src/app/monaco-config-editor/monaco-config-editor.component';
 import { TensorImageComponent } from 'src/app/tensor-image/tensor-image.component';
 import { MatInputModule } from '@angular/material/input';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -51,7 +51,7 @@ describe('CornerActivationComponent', () => {
         FormsModule,
         ReactiveFormsModule,
         MatInputModule,
-        CodemirrorConfigEditorComponent,
+        MonacoConfigEditorComponent,
         TensorImageComponent,
         AxisWrapperComponent,
         ActivationManagerComponent,

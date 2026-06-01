@@ -25,10 +25,10 @@ import {
 import { Experiment } from '../../../lib/weblab/experiment';
 import { MarkdownModule, MarkdownService } from 'ngx-markdown';
 import {
-  CodemirrorConfigEditorComponent,
+  MonacoConfigEditorComponent,
   ConfigUpdate,
   ConfigUpdateKind,
-} from '../../codemirror-config-editor/codemirror-config-editor.component';
+} from '../../monaco-config-editor/monaco-config-editor.component';
 import { JsonValue } from 'src/lib/json/json';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 import { SetableSignal } from 'src/lib/signalspace/signalspace';
@@ -75,7 +75,7 @@ export enum DisplayKind {
     MatIconModule,
     ExampleTableComponent,
     SimpleChartComponent,
-    CodemirrorConfigEditorComponent,
+    MonacoConfigEditorComponent,
     CellSectionComponent,
     PlaceholderComponent,
     SimpleChartComponent,

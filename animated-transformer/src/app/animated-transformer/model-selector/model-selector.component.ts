@@ -36,7 +36,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorComponent } from '../../codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from '../../monaco-config-editor/monaco-config-editor.component';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 
 import json5 from 'json5';
@@ -52,7 +52,7 @@ import {
 import {
   ConfigUpdate,
   ConfigUpdateKind,
-} from '../../codemirror-config-editor/codemirror-config-editor.component';
+} from '../../monaco-config-editor/monaco-config-editor.component';
 import { Output, EventEmitter } from '@angular/core';
 import { BasicLmTaskUpdate, BasicRandLmTask } from 'src/lib/seqtasks/util';
 import { transformer } from 'src/lib';
@@ -110,7 +110,7 @@ export interface ModelUpdate {
     MatAutocompleteModule,
     MatTableModule,
     MatCardModule,
-    CodemirrorConfigEditorComponent,
+    MonacoConfigEditorComponent,
     AutoCompletedTextInputComponent
 ],
 })

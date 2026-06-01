@@ -57,10 +57,10 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { AutoCompletedTextInputComponent } from 'src/app/auto-completed-text-input/auto-completed-text-input.component';
 import { DerivedSignal } from 'src/lib/signalspace/signalspace';
 import {
-  CodemirrorJavaScriptEditorComponent,
+  MonacoJavaScriptEditorComponent,
   CodeStrUpdate,
   CodeStrUpdateKind,
-} from 'src/app/codemirror-js-editor/codemirror-js-editor.component';
+} from 'src/app/monaco-js-editor/monaco-js-editor.component';
 import { addIcons } from 'src/app/icon-registry';
 
 @Component({
@@ -69,7 +69,7 @@ import { addIcons } from 'src/app/icon-registry';
     FormsModule,
     ReactiveFormsModule,
     // AutoCompletedTextInputComponent,
-    CodemirrorJavaScriptEditorComponent,
+    MonacoJavaScriptEditorComponent,
     // --
     MatSidenavModule,
     MatProgressBarModule,

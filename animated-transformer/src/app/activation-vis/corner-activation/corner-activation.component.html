@@ -1,11 +1,11 @@
 @if (view() === "edit") {
   <div class="code-full-screen">
-    <app-codemirror-config-editor
+    <app-monaco-config-editor
       (update)="configUpdated($event)"
       whatIsBeingEditedName="Configuration"
       [defaultConfig]="defaultConfigStr"
       [config]="currentConfigStr"
-    ></app-codemirror-config-editor>
+    ></app-monaco-config-editor>
   </div>
 }
 

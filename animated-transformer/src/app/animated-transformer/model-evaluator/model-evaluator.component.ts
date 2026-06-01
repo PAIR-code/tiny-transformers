@@ -24,7 +24,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorComponent } from '../../codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from '../../monaco-config-editor/monaco-config-editor.component';
 import { FormControl } from '@angular/forms';
 import { BasicLmTask, BasicLmTaskConfig, BasicLmTaskUpdate } from 'src/lib/seqtasks/util';
 import { stringifyJsonValue } from '../../../lib/json/pretty_json';
@@ -81,7 +81,7 @@ function typedGetData<N extends string>(
     MatAutocompleteModule,
     MatTableModule,
     MatCardModule,
-    CodemirrorConfigEditorComponent
+    MonacoConfigEditorComponent
 ],
   standalone: true,
 })

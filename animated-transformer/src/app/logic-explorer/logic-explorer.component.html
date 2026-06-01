@@ -58,16 +58,15 @@
             <mat-icon>play_arrow</mat-icon> Run & Compile
           </button>
         </div>
-        <div class="editor-container-layered">
-          <pre #backdrop class="syntax-backdrop"><code [innerHTML]="highlightedHtml()"></code></pre>
-          <textarea 
-            [(ngModel)]="rawSource" 
-            (scroll)="onScroll($event)"
-            (input)="onScroll($event)"
-            class="monospace-editor-textarea" 
-            spellcheck="false"
-            placeholder="Type logic context here..."
-          ></textarea>
+        <div class="editor-container-monaco">
+          <app-monaco-js-editor
+            [whatIsBeingEditedName]="'logic program'"
+            [language]="'linear-logic'"
+            [codeStr]="rawSource()"
+            [closable]="false"
+            [showTitle]="false"
+            (update)="handleCodeUpdate($event)"
+          ></app-monaco-js-editor>
         </div>
       </div>
 

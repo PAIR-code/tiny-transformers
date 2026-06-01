@@ -272,12 +272,28 @@
   box-sizing: border-box;
 }
 
+.editor-container-monaco {
+  flex-grow: 1;
+  min-height: 300px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+
+  ::ng-deep {
+    .monaco-editor-container {
+      height: 350px !important;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+    }
+  }
+}
+
 .monospace-editor-textarea, .syntax-backdrop {
   margin: 0;
   padding: 16px;
   font-family: 'Fira Code', 'Courier New', Courier, monospace;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 20px !important;
   tab-size: 2;
   white-space: pre; /* keeps spaces and linebreaks perfectly formatted */
   word-wrap: normal;
@@ -308,6 +324,16 @@
   background: transparent;
   color: #94a3b8;
   pointer-events: none;
+}
+
+.syntax-backdrop code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-block;
 }
 
 /* Highlight Tokens */

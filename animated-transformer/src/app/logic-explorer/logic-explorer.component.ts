@@ -15,6 +15,11 @@ import { parseContext, printTerm, Term, Context } from '../../lib/logic_v2/logic
 import { getApplicableActions, printLolliAction, ActionMatch, LolliAction, LinearResource } from '../../lib/logic_v2/linear';
 import { Story, StoryStep } from '../../lib/logic_v2/story';
 import { PRESET_EXAMPLES, PresetExample } from './preset-examples';
+import {
+  MonacoJavaScriptEditorComponent,
+  CodeStrUpdate,
+  CodeStrUpdateKind,
+} from '../monaco-js-editor/monaco-js-editor.component';
 
 @Component({
   selector: 'app-logic-explorer',
@@ -27,6 +32,7 @@ import { PRESET_EXAMPLES, PresetExample } from './preset-examples';
     MatIconModule,
     MatButtonModule,
     RouterModule,
+    MonacoJavaScriptEditorComponent,
   ],
 })
 export class LogicExplorerComponent implements OnInit {
@@ -162,6 +168,15 @@ export class LogicExplorerComponent implements OnInit {
    */
   onCompileClick() {
     this.compileSource(this.rawSource());
+  }
+
+  /**
+   * Handles updates from the Monaco Editor.
+   */
+  handleCodeUpdate(update: CodeStrUpdate) {
+    if (update.kind === CodeStrUpdateKind.UpdatedValue) {
+      this.rawSource.set(update.str);
+    }
   }
 
   /**

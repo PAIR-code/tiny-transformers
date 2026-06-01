@@ -39,7 +39,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CodemirrorConfigEditorComponent } from '../codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from '../monaco-config-editor/monaco-config-editor.component';
 import { RouterModule } from '@angular/router';
 
 import { AxisWrapperComponent } from './axis-wrapper/axis-wrapper.component';
@@ -72,7 +72,6 @@ interface DatasetExample {
     MatTableModule,
     // ActivationManagerComponent,
     CornerActivationComponent,
-    // CodemirrorConfigEditorComponent,
     TensorImageComponent,
     AxisWrapperComponent,
     // ActivationManagerDirective,

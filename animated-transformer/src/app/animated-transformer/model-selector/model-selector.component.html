@@ -30,11 +30,11 @@
     }
   </div>
   <div *ngIf="view == 'edit'" class="code-full-screen full-width">
-    <app-codemirror-config-editor
+    <app-monaco-config-editor
       (update)="modelConfigUpdated($event)"
       [whatIsBeingEditedName]="this.tmService.modelId"
       [defaultConfig]="this.tmService.modelConfigDefaultStr"
-      [config]="currentConfigStr()"></app-codemirror-config-editor>
+      [config]="currentConfigStr()"></app-monaco-config-editor>
   </div>
 
 </div> -->

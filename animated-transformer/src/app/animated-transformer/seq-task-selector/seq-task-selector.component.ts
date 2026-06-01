@@ -58,7 +58,8 @@ import { Output, EventEmitter } from '@angular/core';
 import {
   ConfigUpdate,
   ConfigUpdateKind,
-} from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+  MonacoConfigEditorComponent
+} from 'src/app/monaco-config-editor/monaco-config-editor.component';
 import { SecretTokenTask, SecretTokenTaskConfig } from 'src/lib/seqtasks/secret_token_task';
 import {
   TinyWorldTask,
@@ -90,7 +91,8 @@ import { nullableEqFn } from 'src/lib/utils';
     MatAutocompleteModule,
     MatTableModule,
     MatCardModule,
-    AutoCompletedTextInputComponent
+    AutoCompletedTextInputComponent,
+    MonacoConfigEditorComponent
 ],
 })
 export class SeqTaskSelectorComponent {

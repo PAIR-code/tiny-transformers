@@ -32,7 +32,7 @@ import {
 import {
   ConfigUpdate,
   ConfigUpdateKind,
-} from '../../codemirror-config-editor/codemirror-config-editor.component';
+} from '../../monaco-config-editor/monaco-config-editor.component';
 import * as tf from '@tensorflow/tfjs';
 import * as gtensor from '../../../lib/gtensor/gtensor';
 import { mkVisTensor, TensorImageComponent } from '../../tensor-image/tensor-image.component';
@@ -52,7 +52,7 @@ import {
 import { JsonValue } from 'src/lib/json/json';
 import { ActivationManagerComponent } from '../activation-manager/activation-manager.component';
 import * as _ from 'underscore';
-import { CodemirrorConfigEditorComponent } from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from 'src/app/monaco-config-editor/monaco-config-editor.component';
 import { MatInputModule } from '@angular/material/input';
 import { AxisWrapperComponent } from '../axis-wrapper/axis-wrapper.component';
 
@@ -109,7 +109,7 @@ const floatValidator = boundedFloatValidator(validatorConfig);
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    CodemirrorConfigEditorComponent,
+    MonacoConfigEditorComponent,
     MatInputModule,
     MatButtonModule,
     TensorImageComponent,

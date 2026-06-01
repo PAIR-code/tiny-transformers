@@ -8,7 +8,6 @@ import {
   Signal,
   WritableSignal,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { addIcons } from 'src/app/icon-registry';
 import { TokenSeqDisplayComponent } from 'src/app/token-seq-display/token-seq-display.component';
@@ -20,7 +19,7 @@ import { Section, SectionInputRef } from 'src/lib/weblab/section';
 
 @Component({
   selector: 'app-example-table',
-  imports: [MatTableModule, TokenSeqDisplayComponent, MatIcon],
+  imports: [MatTableModule, TokenSeqDisplayComponent],
   templateUrl: './example-table.component.html',
   styleUrl: './example-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

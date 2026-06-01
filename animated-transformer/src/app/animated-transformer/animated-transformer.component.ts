@@ -32,7 +32,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 // import { TensorImageModule } from '../tensor-image/tensor-image.module';
 
-import { CodemirrorConfigEditorComponent } from '../codemirror-config-editor/codemirror-config-editor.component';
+import { MonacoConfigEditorComponent } from '../monaco-config-editor/monaco-config-editor.component';
 import { SeqTaskSelectorComponent } from './seq-task-selector/seq-task-selector.component';
 import { ModelSelectorComponent } from './model-selector/model-selector.component';
 // import { VegaChartModule } from '../vega-chart/vega-chart.module';
@@ -72,7 +72,7 @@ import { JsonStrListValidatorDirective } from '../form-validators/json-str-list-
     MatMenuModule,
     MatSlideToggleModule,
     MatTableModule,
-    CodemirrorConfigEditorComponent,
+    MonacoConfigEditorComponent,
     D3LineChartComponent,
     SeqTaskSelectorComponent,
     ModelEvaluatorComponent,

@@ -30,11 +30,11 @@
     </div>
   } @else if(view == 'edit') {
     <div class="code-full-screen full-width">
-      <app-codemirror-config-editor
+      <app-monaco-config-editor
         (update)="taskConfigUpdated($event)"
         [whatIsBeingEditedName]="task.config.id"
         [defaultConfig]="this.tmService.modelConfigDefaultStr"
-        [config]="currentTaskConfigStr()"></app-codemirror-config-editor>
+        [config]="currentTaskConfigStr()"></app-monaco-config-editor>
     </div>
   }
   </div>

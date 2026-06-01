@@ -27,10 +27,10 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { AutoCompletedTextInputComponent } from '../../auto-completed-text-input/auto-completed-text-input.component';
 
 import {
-  CodemirrorConfigEditorComponent,
+  MonacoConfigEditorComponent,
   ConfigUpdate,
   ConfigUpdateKind,
-} from 'src/app/codemirror-config-editor/codemirror-config-editor.component';
+} from 'src/app/monaco-config-editor/monaco-config-editor.component';
 import { ModelUpdate } from '../model-selector/model-selector.component';
 import json5 from 'json5';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -126,7 +126,7 @@ function nullOrComputed<T, T2>(
     MatListModule,
     MatMenuModule,
     MatAutocompleteModule,
-    CodemirrorConfigEditorComponent,
+    MonacoConfigEditorComponent,
     D3LineChartComponent,
     AutoCompletedTextInputComponent
 ],
