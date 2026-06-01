@@ -703,13 +703,37 @@ h3 {
   color: #e2e8f0;
 }
 
-.action-syntax {
-  font-family: monospace;
-  font-size: 11px;
+.action-signature-display {
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #94a3b8;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.fn-name-sig {
+  color: #818cf8;
+  font-weight: 700;
+}
+
+.sig-char {
   color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.sig-param {
+  display: inline;
+}
+
+.sig-var {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.sig-type {
+  color: #38bdf8;
+  font-weight: 500;
 }
 
 .action-status {

@@ -279,13 +279,30 @@ export class LogicExplorerComponent implements OnInit {
    */
   formatRhsOutputs(match: ActionMatch): string[] {
     return match.action.rhs.map(pattern => {
-      // In logic_v2 we can substitute and format
-      // Let's print resource patterns with substituted values
       try {
         return `?${pattern.varName}: ${printTerm(pattern.typePattern)}`;
       } catch(e) {
         return `?${pattern.varName}: (untyped)`;
       }
     });
+  }
+
+  /**
+   * Prints a term's type pattern cleanly.
+   */
+  getTermString(term: Term): string {
+    return printTerm(term, { ctxt: this.currentContext() || undefined });
+  }
+
+  /**
+   * Formats a matched action combination as a concrete function application call.
+   * Example: concat(_r1, _r2)
+   */
+  formatApplicationCall(match: ActionMatch): string {
+    const args = match.action.lhs.map(p => {
+      const rName = match.matchedResources.get(p.varName) || `?${p.varName}`;
+      return rName;
+    }).join(', ');
+    return `${match.action.name}(${args})`;
   }
 }

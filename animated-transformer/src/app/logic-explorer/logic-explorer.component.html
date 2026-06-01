@@ -148,7 +148,7 @@
             <div class="step-marker">{{ i + 1 }}</div>
             <div class="step-content">
               <div class="step-meta">
-                <span class="step-action-name">Action: {{ step.actionMatch.action.name }}</span>
+                <span class="step-action-name">Applied: <code>{{ formatApplicationCall(step.actionMatch) }}</code></span>
                 <span class="step-time">Step {{ i + 1 }}</span>
               </div>
               
@@ -212,7 +212,21 @@
           >
             <div class="action-info">
               <span class="action-name">{{ act.name }}</span>
-              <code class="action-syntax">{{ formatAction(act) }}</code>
+              <div class="action-signature-display">
+                <span class="fn-name-sig">{{ act.name }}</span><span class="sig-char">(</span>
+                <span *ngFor="let p of act.lhs; let isLast = last" class="sig-param">
+                  <span class="sig-var">?{{ p.varName }}</span><span class="sig-char">:</span>
+                  <span class="sig-type">{{ getTermString(p.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
+                </span>
+                <span class="sig-char">)</span>
+                <span class="sig-char"> ➔ </span>
+                <span class="sig-char">{{ '{' }}</span>
+                <span *ngFor="let r of act.rhs; let isLast = last" class="sig-param">
+                  <span class="sig-var">?{{ r.varName }}</span><span class="sig-char">:</span>
+                  <span class="sig-type">{{ getTermString(r.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
+                </span>
+                <span class="sig-char">{{ '}' }}</span>
+              </div>
             </div>
             <div class="action-status">
               <span 
@@ -247,7 +261,7 @@
               class="application-item card-glass"
             >
               <div class="app-header">
-                <span class="app-action-name">{{ app.action.name }}</span>
+                <span class="app-action-name">Call: <code>{{ formatApplicationCall(app) }}</code></span>
                 <button class="btn btn-primary btn-xs" (click)="applyTransition(app)">
                   Apply Match
                 </button>
@@ -283,7 +297,7 @@
               class="application-item card-glass"
             >
               <div class="app-header">
-                <span class="app-index">Match Combination #{{ idx + 1 }}</span>
+                <span class="app-index">Call: <code>{{ formatApplicationCall(app) }}</code></span>
                 <button class="btn btn-primary btn-xs" (click)="applyTransition(app)">
                   Apply Transition
                 </button>
