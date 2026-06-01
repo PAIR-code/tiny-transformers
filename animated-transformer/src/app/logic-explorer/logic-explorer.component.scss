@@ -92,6 +92,20 @@
   flex-grow: 1;
   overflow: hidden;
   height: calc(100vh - 60px);
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.editor-expanded {
+    grid-template-columns: 1fr 0px 0px;
+
+    .panel-context, .panel-rules {
+      display: none !important;
+    }
+
+    .panel-editor {
+      max-width: 100%;
+      border-right: none;
+    }
+  }
 }
 
 /* Panels */
@@ -134,7 +148,7 @@
 }
 
 /* Scrollbars */
-.monospace-editor::-webkit-scrollbar,
+.monospace-editor-textarea::-webkit-scrollbar,
 .panel-context::-webkit-scrollbar,
 .panel-rules::-webkit-scrollbar,
 .steps-list::-webkit-scrollbar,
@@ -144,7 +158,7 @@
   height: 6px;
 }
 
-.monospace-editor::-webkit-scrollbar-thumb,
+.monospace-editor-textarea::-webkit-scrollbar-thumb,
 .steps-list::-webkit-scrollbar-thumb,
 .actions-list::-webkit-scrollbar-thumb,
 .applications-list::-webkit-scrollbar-thumb {
@@ -152,7 +166,7 @@
   border-radius: 3px;
 }
 
-.monospace-editor::-webkit-scrollbar-thumb:hover,
+.monospace-editor-textarea::-webkit-scrollbar-thumb:hover,
 .steps-list::-webkit-scrollbar-thumb:hover,
 .actions-list::-webkit-scrollbar-thumb:hover,
 .applications-list::-webkit-scrollbar-thumb:hover {
@@ -220,18 +234,110 @@
   font-family: monospace;
 }
 
-.monospace-editor {
-  flex-grow: 1;
+.editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon-toggle {
   background: transparent;
-  color: #e2e8f0;
   border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-icon-toggle mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.btn-icon-toggle:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.editor-container-layered {
+  position: relative;
+  flex-grow: 1;
+  min-height: 300px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.monospace-editor-textarea, .syntax-backdrop {
+  margin: 0;
   padding: 16px;
   font-family: 'Fira Code', 'Courier New', Courier, monospace;
   font-size: 12px;
   line-height: 1.6;
+  tab-size: 2;
+  white-space: pre; /* keeps spaces and linebreaks perfectly formatted */
+  word-wrap: normal;
+  overflow: auto;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.monospace-editor-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  color: transparent;
+  background: transparent;
+  caret-color: #6366f1;
   resize: none;
   outline: none;
-  tab-size: 2;
+}
+
+.syntax-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  background: transparent;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* Highlight Tokens */
+.hl-keyword {
+  color: #c084fc !important;
+  font-weight: 700;
+}
+
+.hl-var {
+  color: #fca5a5 !important;
+  font-weight: 700;
+}
+
+.hl-type-param {
+  color: #fbbf24 !important;
+  font-weight: 600;
+}
+
+.hl-resource {
+  color: #818cf8 !important;
+  font-weight: 700;
+}
+
+.hl-number {
+  color: #f472b6 !important;
+}
+
+.hl-symbol {
+  color: #38bdf8 !important;
+  font-weight: 600;
 }
 
 .btn {

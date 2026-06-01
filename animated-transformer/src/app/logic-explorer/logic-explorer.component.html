@@ -19,7 +19,7 @@
   </header>
 
   <!-- Main layout grid -->
-  <main class="explorer-layout">
+  <main class="explorer-layout" [class.editor-expanded]="editorExpanded()">
     
     <!-- LEFT PANEL: Editor and Preset Selector -->
     <section class="panel panel-editor">
@@ -44,17 +44,31 @@
 
       <div class="editor-wrapper">
         <div class="editor-header">
-          <span>lolli_src.txt</span>
+          <div class="editor-header-left">
+            <span>lolli_src.txt</span>
+            <button 
+              class="btn-icon-toggle" 
+              (click)="toggleEditorExpansion()" 
+              [title]="editorExpanded() ? 'Minimize Editor' : 'Expand Editor'"
+            >
+              <mat-icon>{{ editorExpanded() ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+            </button>
+          </div>
           <button class="btn btn-compile" (click)="onCompileClick()">
             <mat-icon>play_arrow</mat-icon> Run & Compile
           </button>
         </div>
-        <textarea 
-          [(ngModel)]="rawSource" 
-          class="monospace-editor" 
-          spellcheck="false"
-          placeholder="Type logic context here..."
-        ></textarea>
+        <div class="editor-container-layered">
+          <pre #backdrop class="syntax-backdrop"><code [innerHTML]="highlightedHtml()"></code></pre>
+          <textarea 
+            [(ngModel)]="rawSource" 
+            (scroll)="onScroll($event)"
+            (input)="onScroll($event)"
+            class="monospace-editor-textarea" 
+            spellcheck="false"
+            placeholder="Type logic context here..."
+          ></textarea>
+        </div>
       </div>
 
       <div *ngIf="errorMessage()" class="error-alert animate-shake">

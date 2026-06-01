@@ -4,7 +4,7 @@ you may not use this file except in compliance with the License.
 ...
 ==============================================================================*/
 
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, viewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -39,6 +39,11 @@ export class LogicExplorerComponent implements OnInit {
   readonly story = signal<Story | null>(null);
   readonly currentContext = signal<Context | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  // Syntax Editor Backdrop & Highlight computed signals
+  readonly backdropElement = viewChild<ElementRef>('backdrop');
+  readonly highlightedHtml = computed(() => this.tokenizeSource(this.rawSource()));
+  readonly editorExpanded = signal<boolean>(false);
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
@@ -157,6 +162,13 @@ export class LogicExplorerComponent implements OnInit {
    */
   onCompileClick() {
     this.compileSource(this.rawSource());
+  }
+
+  /**
+   * Toggles editor expansion full page state.
+   */
+  toggleEditorExpansion() {
+    this.editorExpanded.set(!this.editorExpanded());
   }
 
   /**
@@ -304,5 +316,55 @@ export class LogicExplorerComponent implements OnInit {
       return rName;
     }).join(', ');
     return `${match.action.name}(${args})`;
+  }
+
+  /**
+   * Synchronizes scroll offset of Code pre backdrop with transparent textarea.
+   */
+  onScroll(event: any) {
+    const textarea = event.target;
+    const backdrop = this.backdropElement();
+    if (backdrop) {
+      backdrop.nativeElement.scrollTop = textarea.scrollTop;
+      backdrop.nativeElement.scrollLeft = textarea.scrollLeft;
+    }
+  }
+
+  /**
+   * Dynamic regex tokenizer to build syntax highlighted HTML from custom logic text.
+   */
+  tokenizeSource(src: string): string {
+    if (!src) return '';
+
+    const escapeHtml = (str: string) => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    const lines = src.split('\n');
+    const highlightedLines = lines.map(line => {
+      if (!line) return '';
+      
+      const escaped = escapeHtml(line);
+      
+      return escaped.replace(
+        /(\b(let|type|fun|action)\b)|(\?[a-zA-Z_][a-zA-Z0-9_]*)|(\&#039;[a-zA-Z_][a-zA-Z0-9_]*)|(\b_[a-zA-Z0-9_]+\b)|(\b\d+\b)|(-o|\➔|=|\*|\||:|;)/g,
+        (match, keyword, kwText, variable, typeParam, resource, num, symbol) => {
+          if (keyword) return `<span class="hl-keyword">${match}</span>`;
+          if (variable) return `<span class="hl-var">${match}</span>`;
+          if (typeParam) return `<span class="hl-type-param">${match}</span>`;
+          if (resource) return `<span class="hl-resource">${match}</span>`;
+          if (num) return `<span class="hl-number">${match}</span>`;
+          if (symbol) return `<span class="hl-symbol">${match}</span>`;
+          return match;
+        }
+      );
+    });
+
+    return highlightedLines.join('\n');
   }
 }

@@ -20,6 +20,27 @@ export const PRESET_EXAMPLES: PresetExample[] = [
     ].join('\n'),
   },
   {
+    name: 'River Crossing Puzzle',
+    description: 'A classic river crossing puzzle (human, dog, cat, mouse) with clear state declarations (at, fight, eaten) and verb-based actions (row_alone, row_with, dog_chases_cat, cat_eats_mouse).',
+    src: [
+      'type bank = left | right;',
+      'type animal = dog | cat | mouse;',
+      'type entity = human | cargo(kind: animal);',
+      'type state = at(who: entity, where: bank) | fight(attacker: animal, victim: animal, where: bank) | eaten(predator: animal, prey: animal, where: bank);',
+      'fun opposite(left) = right | fun opposite(right) = left;',
+      'action row_alone: { ?h: at(human, ?from) } -o { ?h2: at(human, opposite(?from)) };',
+      'action row_with: { ?h: at(human, ?from), ?c: at(cargo(?a), ?from) } -o { ?h2: at(human, opposite(?from)), ?c2: at(cargo(?a), opposite(?from)) };',
+      'action dog_chases_cat_left: { ?h: at(human, right), ?d: at(cargo(dog), left), ?c: at(cargo(cat), left) } -o { ?h2: at(human, right), ?f: fight(dog, cat, left) };',
+      'action dog_chases_cat_right: { ?h: at(human, left), ?d: at(cargo(dog), right), ?c: at(cargo(cat), right) } -o { ?h2: at(human, left), ?f: fight(dog, cat, right) };',
+      'action cat_eats_mouse_left: { ?h: at(human, right), ?c: at(cargo(cat), left), ?m: at(cargo(mouse), left) } -o { ?h2: at(human, right), ?e: eaten(cat, mouse, left) };',
+      'action cat_eats_mouse_right: { ?h: at(human, left), ?c: at(cargo(cat), right), ?m: at(cargo(mouse), right) } -o { ?h2: at(human, left), ?e: eaten(cat, mouse, right) };',
+      '_r1: at(human, left);',
+      '_r2: at(cargo(dog), left);',
+      '_r3: at(cargo(cat), left);',
+      '_r4: at(cargo(mouse), left);',
+    ].join('\n'),
+  },
+  {
     name: 'Peano Arithmetic',
     description: 'Classic Peano natural numbers, CBV arithmetic functions, type parameters, and stateful grow actions.',
     src: [

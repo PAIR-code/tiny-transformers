@@ -44,6 +44,14 @@ Demonstrates classic linear logic vending machine choices ("you choose" coffee o
   - `action buyTea: { ?d: dollar } -o { ?t: drink(tea) };`
 - **Tensor Matching Lolli Action**: `action matchSocks: { ?s1: sock(?c), ?s2: sock(?c) } -o { ?p: pair(?c) };`
 
+### 7. River Crossing Puzzle (`cases/07_river_crossing/river_crossing.spec.ts`)
+A classic logic puzzle where a human, dog, cat, and mouse must safely cross a river using a boat. This case study explicitly demonstrates clear separation of state (using constructors like `at`, `fight`, `eaten`) from actions (verb-based rules like `row_alone`, `row_with`, and automatic hazard reactions like `dog_chases_cat_left`).
+- **ADT**: `type bank = left | right; type animal = dog | cat | mouse; type entity = human | cargo(kind: animal); type state = at(who: entity, where: bank) | fight(...) | eaten(...);`
+- **Lolli Actions**: 
+  - `action row_alone: { ?h: at(human, ?from) } -o { ?h2: at(human, opposite(?from)) };`
+  - `action row_with: { ?h: at(human, ?from), ?c: at(cargo(?a), ?from) } -o { ?h2: at(human, opposite(?from)), ?c2: at(cargo(?a), opposite(?from)) };`
+  - `action dog_chases_cat_left: { ?h: at(human, right), ?d: at(cargo(dog), left), ?c: at(cargo(cat), left) } -o { ?f: fight(dog, cat, left) };`
+
 ---
 
 ## 🛠️ Programmatic Execution Walks & Typechecking
