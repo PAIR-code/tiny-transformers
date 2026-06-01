@@ -20,6 +20,7 @@ import {
   CodeStrUpdate,
   CodeStrUpdateKind,
 } from '../monaco-js-editor/monaco-js-editor.component';
+import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicThemeConfig } from '../monaco-editor-loader';
 
 @Component({
   selector: 'app-logic-explorer',
@@ -50,6 +51,12 @@ export class LogicExplorerComponent implements OnInit {
   readonly backdropElement = viewChild<ElementRef>('backdrop');
   readonly highlightedHtml = computed(() => this.tokenizeSource(this.rawSource()));
   readonly editorExpanded = signal<boolean>(false);
+  
+  // Theme Color Customizer Signals
+  readonly showThemeCustomizer = signal<boolean>(false);
+  readonly themeConfigJson = signal<string>(JSON.stringify(DEFAULT_THEME_CONFIG, null, 2));
+  readonly themeJsonError = signal<string | null>(null);
+  readonly currentThemeConfig = signal<LogicThemeConfig>({ ...DEFAULT_THEME_CONFIG });
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
@@ -142,6 +149,14 @@ export class LogicExplorerComponent implements OnInit {
       this.selectedActionName.set(null);
       
       this.refreshApplicableActions();
+
+      // Dynamically extract registered names to keep editor highlights synchronized perfectly!
+      const rawData = ctxt.getRawData();
+      const constructors = Object.keys(rawData.constructors);
+      const functions = Object.keys(rawData.functions);
+      const actions = Object.keys(rawData.actions);
+      const types = Object.keys(rawData.types);
+      updateLinearLogicTokens(constructors, functions, actions, types);
     } catch (e) {
       this.errorMessage.set((e as Error).message);
       this.story.set(null);
@@ -382,4 +397,59 @@ export class LogicExplorerComponent implements OnInit {
 
     return highlightedLines.join('\n');
   }
+
+  /**
+   * Toggles theme customization drawer in the UI.
+   */
+  toggleThemeCustomizer() {
+    this.showThemeCustomizer.set(!this.showThemeCustomizer());
+  }
+
+  /**
+   * Resets Monaco theme overrides back to repository defaults.
+   */
+  resetThemeToDefault() {
+    this.themeConfigJson.set(JSON.stringify(DEFAULT_THEME_CONFIG, null, 2));
+    this.currentThemeConfig.set({ ...DEFAULT_THEME_CONFIG });
+    this.themeJsonError.set(null);
+    updateLogicTheme(DEFAULT_THEME_CONFIG);
+  }
+
+  /**
+   * Live updates Monaco custom theme whenever JSON string changes.
+   */
+  onThemeJsonChange(jsonStr: string) {
+    this.themeConfigJson.set(jsonStr);
+    try {
+      const parsed = JSON.parse(jsonStr);
+      
+      // Verify all keys exist in parsed object to prevent invalid configuration crashes
+      const requiredKeys: (keyof LogicThemeConfig)[] = [
+        'keyword', 'constructor', 'function', 'action', 'type', 'variable', 'number', 'comment', 'background'
+      ];
+      for (const k of requiredKeys) {
+        if (!(k in parsed) || typeof parsed[k] !== 'string') {
+          throw new Error(`Missing or invalid theme color property: '${k}'`);
+        }
+      }
+      
+      this.currentThemeConfig.set(parsed);
+      this.themeJsonError.set(null);
+      updateLogicTheme(parsed);
+    } catch (e) {
+      this.themeJsonError.set((e as Error).message);
+    }
+  }
+
+  /**
+   * Copies theme config JSON to the user's clipboard for easy copy-back into code.
+   */
+  copyThemeToClipboard() {
+    navigator.clipboard.writeText(this.themeConfigJson()).then(() => {
+      alert('Theme JSON configuration copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy theme config:', err);
+    });
+  }
 }
+

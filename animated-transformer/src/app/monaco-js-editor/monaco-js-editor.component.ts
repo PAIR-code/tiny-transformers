@@ -64,6 +64,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
   readonly closable = input<boolean>(true);
   readonly showTitle = input<boolean>(false);
   readonly language = input<string>('javascript');
+  readonly theme = input<string>('linear-logic-theme');
 
   lastValidStr = signal<string>('');
   isDefault: Signal<boolean> = signal(true);
@@ -97,6 +98,16 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
         }
       }
     });
+
+    // React to theme input changes
+    effect(() => {
+      if (this.editor) {
+        const t = this.theme();
+        loadMonaco().then((monaco) => {
+          monaco.editor.setTheme(t);
+        });
+      }
+    });
   }
 
   ngOnInit() {
@@ -109,7 +120,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
       this.editor = monaco.editor.create(container, {
         value: this.codeStr(),
         language: this.language(),
-        theme: 'vs-dark',
+        theme: this.theme(),
         automaticLayout: true,
         minimap: { enabled: false },
         scrollBeyondLastLine: false,

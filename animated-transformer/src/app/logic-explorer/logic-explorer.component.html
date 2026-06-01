@@ -53,6 +53,14 @@
             >
               <mat-icon>{{ editorExpanded() ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
             </button>
+            <button 
+              class="btn-icon-toggle" 
+              (click)="toggleThemeCustomizer()" 
+              [title]="showThemeCustomizer() ? 'Hide Theme Customizer' : 'Theme Colors Customizer'"
+              [class.active]="showThemeCustomizer()"
+            >
+              <mat-icon>palette</mat-icon>
+            </button>
           </div>
           <button class="btn btn-compile" (click)="onCompileClick()">
             <mat-icon>play_arrow</mat-icon> Run & Compile
@@ -81,6 +89,72 @@
       <div *ngIf="!errorMessage()" class="success-alert">
         <mat-icon>check_circle_outline</mat-icon>
         <span>Context Compiled & Active</span>
+      </div>
+
+      <!-- Theme Customizer Panel -->
+      <div *ngIf="showThemeCustomizer()" class="theme-customizer-card card-glass animate-fade-in">
+        <div class="theme-card-header">
+          <div class="title-with-icon">
+            <mat-icon class="header-icon-color">palette</mat-icon>
+            <span>Theme Customizer</span>
+          </div>
+          <div class="theme-card-actions">
+            <button class="btn-theme-sm" (click)="copyThemeToClipboard()" title="Copy config JSON to clipboard">
+              <mat-icon>content_copy</mat-icon> Copy
+            </button>
+            <button class="btn-theme-sm btn-reset" (click)="resetThemeToDefault()" title="Reset colors back to default">
+              <mat-icon>restart_alt</mat-icon> Reset Default
+            </button>
+          </div>
+        </div>
+        <p class="theme-instruction">Edit the JSON configuration below to live-update editor styles instantly.</p>
+        
+        <!-- Swatches row to visualize theme colors -->
+        <div class="color-swatches-row">
+          <div class="swatch-item" [title]="'Keyword: ' + currentThemeConfig().keyword">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().keyword"></span>
+            <span class="swatch-label">Keyword</span>
+          </div>
+          <div class="swatch-item" [title]="'Constructor: ' + currentThemeConfig().constructor">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().constructor"></span>
+            <span class="swatch-label">Constr</span>
+          </div>
+          <div class="swatch-item" [title]="'Function: ' + currentThemeConfig().function">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().function"></span>
+            <span class="swatch-label">Function</span>
+          </div>
+          <div class="swatch-item" [title]="'Action: ' + currentThemeConfig().action">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().action"></span>
+            <span class="swatch-label">Action</span>
+          </div>
+          <div class="swatch-item" [title]="'Type: ' + currentThemeConfig().type">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().type"></span>
+            <span class="swatch-label">Type</span>
+          </div>
+          <div class="swatch-item" [title]="'Variable: ' + currentThemeConfig().variable">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().variable"></span>
+            <span class="swatch-label">Var</span>
+          </div>
+          <div class="swatch-item" [title]="'Background: ' + currentThemeConfig().background">
+            <span class="swatch-dot" [style.background]="currentThemeConfig().background"></span>
+            <span class="swatch-label">BG</span>
+          </div>
+        </div>
+
+        <div class="theme-textarea-wrapper">
+          <textarea
+            [ngModel]="themeConfigJson()"
+            (ngModelChange)="onThemeJsonChange($event)"
+            class="theme-json-editor"
+            rows="11"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <div *ngIf="themeJsonError()" class="theme-error-alert">
+          <mat-icon class="theme-err-icon">warning</mat-icon>
+          <span>JSON Schema Error: {{ themeJsonError() }}</span>
+        </div>
       </div>
     </section>
 
