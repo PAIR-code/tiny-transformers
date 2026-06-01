@@ -16,18 +16,26 @@ export interface LogicThemeConfig {
   number: string;
   comment: string;
   background: string;
+  lolli: string;
+  pipe: string;
+  colon: string;
+  equals: string;
 }
 
 export const DEFAULT_THEME_CONFIG: LogicThemeConfig = {
   keyword: '#569CD6',      // Soft blue
-  constructor: '#FF8C00',  // High-contrast Orange/Red
+  constructor: '#EFEFEF',  // High-contrast Orange/Red
   function: '#DCDCAA',     // Light yellow
   action: '#4EC9B0',       // Emerald/Teal
   type: '#9CDCFE',         // Sky blue
   variable: '#C586C0',     // Purple
   number: '#B5CEA8',       // Soft green
   comment: '#6A9955',      // Forest green
-  background: '#1E1E1E'    // Standard VS Code dark
+  background: '#1E1E1E',   // Standard VS Code dark
+  lolli: '#FF79C6',        // Pink/magenta
+  pipe: '#8BE9FD',         // Cyan/variant bar
+  colon: '#BD93F9',        // Lavender
+  equals: '#F1FA8C'        // Pastel yellow
 };
 
 
@@ -100,6 +108,10 @@ export function loadMonaco(): Promise<any> {
               { token: 'variable', foreground: DEFAULT_THEME_CONFIG.variable },
               { token: 'number', foreground: DEFAULT_THEME_CONFIG.number },
               { token: 'comment', foreground: DEFAULT_THEME_CONFIG.comment },
+              { token: 'operator.lolli', foreground: DEFAULT_THEME_CONFIG.lolli },
+              { token: 'operator.pipe', foreground: DEFAULT_THEME_CONFIG.pipe },
+              { token: 'operator.colon', foreground: DEFAULT_THEME_CONFIG.colon },
+              { token: 'operator.equals', foreground: DEFAULT_THEME_CONFIG.equals },
             ],
             colors: {
               'editor.background': DEFAULT_THEME_CONFIG.background
@@ -221,7 +233,11 @@ export function getLinearLogicMonarch(
         [/\b_[a-zA-Z0-9_]+\b/, 'tag'],
 
         [/\b\d+\b/, 'number'],
-        [/(-o|➔|=|\*|\||:|;)/, 'operator'],
+        [/-o|➔/, 'operator.lolli'],
+        [/\|/, 'operator.pipe'],
+        [/:/, 'operator.colon'],
+        [/=/, 'operator.equals'],
+        [/(\*|;)/, 'operator'],
       ],
 
       typeDecl: [
@@ -232,7 +248,7 @@ export function getLinearLogicMonarch(
             '@default': 'type.identifier'
           }
         }],
-        [/=/, 'operator', '@variantsDecl'],
+        [/=/, 'operator.equals', '@variantsDecl'],
         [/;/, 'operator', '@pop'],
       ],
 
@@ -241,9 +257,9 @@ export function getLinearLogicMonarch(
         [/\b([a-zA-Z_][a-zA-Z0-9_]*)(\s*\()/, ['tag', '']],
         [/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/, 'tag'],
         [/(:\s*)([a-zA-Z_][a-zA-Z0-9_]*)\b/, ['', 'type.identifier']],
-        [/\|/, 'operator'],
+        [/\|/, 'operator.pipe'],
         [/,/, 'operator'],
-        [/:/, 'operator'],
+        [/:/, 'operator.colon'],
         [/'[a-zA-Z_][a-zA-Z0-9_]*/, 'type.identifier'],
         [/;/, 'operator', '@popall'],
       ]
@@ -281,6 +297,10 @@ export function updateLogicTheme(config: LogicThemeConfig) {
         { token: 'variable', foreground: config.variable },
         { token: 'number', foreground: config.number },
         { token: 'comment', foreground: config.comment },
+        { token: 'operator.lolli', foreground: config.lolli },
+        { token: 'operator.pipe', foreground: config.pipe },
+        { token: 'operator.colon', foreground: config.colon },
+        { token: 'operator.equals', foreground: config.equals },
       ],
       colors: {
         'editor.background': config.background

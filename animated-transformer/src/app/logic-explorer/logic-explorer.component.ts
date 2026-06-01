@@ -425,7 +425,8 @@ export class LogicExplorerComponent implements OnInit {
       
       // Verify all keys exist in parsed object to prevent invalid configuration crashes
       const requiredKeys: (keyof LogicThemeConfig)[] = [
-        'keyword', 'constructor', 'function', 'action', 'type', 'variable', 'number', 'comment', 'background'
+        'keyword', 'constructor', 'function', 'action', 'type', 'variable', 'number', 'comment', 'background',
+        'lolli', 'pipe', 'colon', 'equals'
       ];
       for (const k of requiredKeys) {
         if (!(k in parsed) || typeof parsed[k] !== 'string') {
