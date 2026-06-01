@@ -26,7 +26,7 @@ import { SAEComponent } from 'src/app/sae/sae.component';
 // import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { LogicExplorerComponent } from './logic-explorer/logic-explorer.component';
 import { provideHttpClient } from '@angular/common/http';
 
 export const routes: Routes = [
@@ -34,6 +34,7 @@ export const routes: Routes = [
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
   { path: 'sae', component: SAEComponent },
+  { path: 'logic', component: LogicExplorerComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 
