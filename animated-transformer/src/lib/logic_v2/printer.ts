@@ -73,17 +73,23 @@ export function printContext(ctxt: Context): string {
   for (const typeName of Object.keys(ctxt.types).sort()) {
     const typeDef = ctxt.getRawData().types[typeName];
     const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
-    const constrs = Object.keys(disj.constructors).sort();
+    const constrs = Object.keys(disj.constructors);
+    const subUnions = disj.subUnions ? Array.from(disj.subUnions) : [];
+    const allVariants = [...constrs, ...subUnions].sort();
     const constrDecls: string[] = [];
-    for (const cName of constrs) {
-      const c = disj.constructors[cName];
-      const argOrder = c.argOrder ?? Object.keys(c.arguments).sort();
-      if (argOrder.length > 0) {
-        const args = argOrder.map(argName => {
-          const argType = c.arguments[argName];
-          return `${argName}: ${printTerm(argType, { ctxt })}`;
-        }).join(', ');
-        constrDecls.push(`${cName}(${args})`);
+    for (const cName of allVariants) {
+      if (disj.constructors[cName]) {
+        const c = disj.constructors[cName];
+        const argOrder = c.argOrder ?? Object.keys(c.arguments).sort();
+        if (argOrder.length > 0) {
+          const args = argOrder.map(argName => {
+            const argType = c.arguments[argName];
+            return `${argName}: ${printTerm(argType, { ctxt })}`;
+          }).join(', ');
+          constrDecls.push(`${cName}(${args})`);
+        } else {
+          constrDecls.push(cName);
+        }
       } else {
         constrDecls.push(cName);
       }

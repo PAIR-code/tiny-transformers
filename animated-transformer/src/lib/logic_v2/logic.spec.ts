@@ -560,4 +560,55 @@ describe('v2_logic of peano natural numbers', () => {
       expect(() => parseTerm('cons(0, nil', new Set(['cons', 'nil', '0']))).toThrow();
     });
   });
+
+  describe('set-theoretic subtyping / union types', () => {
+    it('parses nested/sub-union type definitions and matches types correctly', () => {
+      const src = [
+        'type animal = cat | monkey | elephant;',
+        'type inanimate = flower | rock | tree;',
+        'type item = animal | inanimate;',
+      ].join('\n');
+
+      const ctxt = parseContext(src);
+
+      // cat is an animal
+      expect(() => typeCheck(ctxt, parseTerm('cat', ctxt), 'animal')).not.toThrow();
+      // cat is also an item
+      expect(() => typeCheck(ctxt, parseTerm('cat', ctxt), 'item')).not.toThrow();
+      // flower is an inanimate
+      expect(() => typeCheck(ctxt, parseTerm('flower', ctxt), 'inanimate')).not.toThrow();
+      // flower is also an item
+      expect(() => typeCheck(ctxt, parseTerm('flower', ctxt), 'item')).not.toThrow();
+
+      // flower is not an animal
+      expect(() => typeCheck(ctxt, parseTerm('flower', ctxt), 'animal')).toThrow();
+    });
+
+    it('throws error if sub-unions are defined cyclically without a base case', () => {
+      const src = [
+        'type B = BConstr(toA: A);',
+        'type A = B;',
+      ].join('\n');
+
+      expect(() => parseContext(src)).toThrowError(
+        /have no base case/
+      );
+    });
+
+    it('throws error if concrete constructor term does not match the union type', () => {
+      const src = [
+        'type animal = cat | monkey | elephant;',
+        'type inanimate = flower | rock | tree;',
+        'type item = animal | inanimate;',
+        'type box = makeBox(content: animal);',
+      ].join('\n');
+
+      const ctxt = parseContext(src);
+
+      // Passing inanimate (rock) to makeBox which expects animal should fail
+      expect(() => typeCheck(ctxt, parseTerm('makeBox(rock)', ctxt), 'box')).toThrowError(
+        /Type mismatch/
+      );
+    });
+  });
 });

@@ -205,6 +205,9 @@ export class Context {
 
         // Check constructor literals clashes
         for (const c of groupConstrs) {
+          if (c.constructorName in this.data.types && Object.keys(c.arguments).length === 0) {
+            continue;
+          }
           if (c.constructorName in this.data.types || c.constructorName in this.data.constructors || c.constructorName in this.data.functions) {
             throw new Error(`Constructor literal '${c.constructorName}' already defined in the context.`);
           }
@@ -212,7 +215,12 @@ export class Context {
 
         // Build the Conjunction record types for the sum constructors
         const conjDefs: { [name: string]: ConjunctionDef } = {};
+        const subUnions: string[] = [];
         for (const c of groupConstrs) {
+          if (c.constructorName in this.data.types && Object.keys(c.arguments).length === 0) {
+            subUnions.push(c.constructorName);
+            continue;
+          }
           const termArgs: { [argName: string]: Term } = {};
           for (const [k, v] of Object.entries(c.arguments)) {
             termArgs[k] = typeof v === 'string' ? parseTerm(v, this) : v;
@@ -230,6 +238,7 @@ export class Context {
           kind: TypeKind.Disjunction,
           sumTypeName: sumTypeName,
           constructors: conjDefs,
+          subUnions: subUnions.length > 0 ? new Set(subUnions) : undefined,
         };
 
         // Build the TypeDef (with optional BindingDef wrapper if generic)
@@ -250,6 +259,9 @@ export class Context {
 
         // Register each constructor literal
         for (const c of groupConstrs) {
+          if (c.constructorName in this.data.types && Object.keys(c.arguments).length === 0) {
+            continue;
+          }
           const conjDef = conjDefs[c.constructorName];
           let constrTypeDef: TypeDef = conjDef;
           if (typeParams && typeParamOrder && typeParamOrder.length > 0 && sumTypeName === constructors[0]?.createdTypeName) {

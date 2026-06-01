@@ -87,6 +87,8 @@ export type DisjunctionDef = {
   sumTypeName: string;
   /** The sum constructors map. */
   constructors: { [constructorName: string]: ConjunctionDef };
+  /** The optional set of sub-union/member types included in this sum type. */
+  subUnions?: Set<string>;
 };
 
 /**

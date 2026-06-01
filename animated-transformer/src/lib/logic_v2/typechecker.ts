@@ -79,6 +79,23 @@ export function isSumTypeName(ctxt: Context, typeName: string): boolean {
   return false;
 }
 
+export function isSubtype(ctxt: Context, sub: string, parent: string): boolean {
+  if (sub === parent) return true;
+  const parentTypeDef = ctxt.getRawData().types[parent];
+  if (parentTypeDef) {
+    const disj = parentTypeDef.kind === TypeKind.Binding 
+      ? (parentTypeDef.boundType as DisjunctionDef) 
+      : (parentTypeDef as DisjunctionDef);
+    if (disj.kind === TypeKind.Disjunction && disj.subUnions) {
+      if (disj.subUnions.has(sub)) return true;
+      for (const u of disj.subUnions) {
+        if (isSubtype(ctxt, sub, u)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Performs a set-theoretic, semantic subtyping compatibility check:
  * returns true if the `actual` type is a subtype of (or equal to) the `expected` type.
@@ -118,7 +135,7 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
     if (actual.literalName !== expected.literalName) {
       const actualBase = getParentSumType(ctxt, actual.literalName);
       const expectedBase = getParentSumType(ctxt, expected.literalName);
-      if (actualBase === expectedBase) {
+      if (isSubtype(ctxt, actualBase, expectedBase)) {
         const actualTypeDef = ctxt.getRawData().constructors[actual.literalName] ?? ctxt.getRawData().types[actual.literalName];
         const expectedTypeDef = ctxt.getRawData().constructors[expected.literalName] ?? ctxt.getRawData().types[expected.literalName];
 
@@ -142,12 +159,23 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
           } catch (e) {}
         }
 
+        if (isActualSumType && isExpectedSumType) {
+          return true;
+        }
+
         if (isActualConstr && isExpectedConstr) {
           return false;
         }
       }
 
-      if (actualBase !== expectedBase) return false;
+      if (!isSubtype(ctxt, actualBase, expectedBase)) {
+        const actualTypeDef = ctxt.getRawData().types[actual.literalName];
+        const expectedTypeDef = ctxt.getRawData().types[expected.literalName];
+        if (actualTypeDef && expectedTypeDef && isSubtype(ctxt, actual.literalName, expected.literalName)) {
+          return true;
+        }
+        return false;
+      }
     }
 
     if (actual.literalName === expected.literalName) {
@@ -173,6 +201,7 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
 
   return false;
 }
+
 
 /**
  * Recursively substitutes logic/type variables in a term with their concrete 
@@ -233,13 +262,14 @@ export function unify(
     if (formal.literalName !== actual.literalName) {
       const formalBase = getParentSumType(ctxt, formal.literalName);
       const actualBase = getParentSumType(ctxt, actual.literalName);
-      if (formalBase === actualBase) {
+      if (formalBase === actualBase || isSubtype(ctxt, actualBase, formalBase)) {
         const formalType = ctxt.getRawData().types[formal.literalName] ?? ctxt.getRawData().constructors[formal.literalName];
         const isFormalSumType = formalType && (formalType.kind === TypeKind.Disjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Disjunction));
         const actualType = ctxt.getRawData().constructors[actual.literalName] ?? ctxt.getRawData().types[actual.literalName];
         const isActualConstr = actualType && (actualType.kind === TypeKind.Conjunction || (actualType.kind === TypeKind.Binding && (actualType as BindingDef).boundType.kind === TypeKind.Conjunction));
 
         const isFormalConstr = formalType && (formalType.kind === TypeKind.Conjunction || (formalType.kind === TypeKind.Binding && (formalType as BindingDef).boundType.kind === TypeKind.Conjunction));
+        const isActualSumType = actualType && (actualType.kind === TypeKind.Disjunction || (actualType.kind === TypeKind.Binding && (actualType as BindingDef).boundType.kind === TypeKind.Disjunction));
 
         if (isFormalSumType && isActualConstr) {
           try {
@@ -248,12 +278,16 @@ export function unify(
           } catch (e) {}
         }
 
+        if (isFormalSumType && isActualSumType) {
+          return;
+        }
+
         if (isFormalConstr && isActualConstr) {
           return;
         }
       }
 
-      if (formalBase !== actualBase) {
+      if (formalBase !== actualBase && !isSubtype(ctxt, actualBase, formalBase)) {
         if (formal.unNamedArgs.length === 0 && Object.keys(formal.namedArgs).length === 0) {
           const constrName = formal.literalName;
           if (!(constrName in subst)) {
@@ -297,19 +331,29 @@ export function validateContext(ctxt: Context): void {
       const typeDef = ctxt.getRawData().types[typeName];
       const disj = typeDef.kind === TypeKind.Binding ? (typeDef.boundType as DisjunctionDef) : (typeDef as DisjunctionDef);
       const constructors = Object.values(disj.constructors);
-      if (constructors.length === 0) {
-        continue;
+
+      let hasWellFoundedConstructor = false;
+      if (constructors.length > 0) {
+        hasWellFoundedConstructor = constructors.some(c => {
+          const argTypes = Object.values(c.arguments);
+          return argTypes.every(argType => {
+            const baseName = getBaseTypeName(argType);
+            return !ctxt.getRawData().types[baseName] || wellFounded.has(baseName);
+          });
+        });
       }
 
-      const hasWellFoundedConstructor = constructors.some(c => {
-        const argTypes = Object.values(c.arguments);
-        return argTypes.every(argType => {
-          const baseName = getBaseTypeName(argType);
-          return !ctxt.getRawData().types[baseName] || wellFounded.has(baseName);
-        });
-      });
+      let hasWellFoundedSubUnion = false;
+      if (disj.subUnions && disj.subUnions.size > 0) {
+        for (const sub of disj.subUnions) {
+          if (wellFounded.has(sub)) {
+            hasWellFoundedSubUnion = true;
+            break;
+          }
+        }
+      }
 
-      if (hasWellFoundedConstructor) {
+      if (hasWellFoundedConstructor || hasWellFoundedSubUnion) {
         wellFounded.add(typeName);
         progress = true;
       }
@@ -375,19 +419,33 @@ export function validateAddedTypes(ctxt: Context, constructors: ConjunctionData[
         continue;
       }
       const typeConstrs = newConstructorsMap.get(typeName) || [];
-      if (typeConstrs.length === 0) {
-        continue;
+      const typeDef = ctxt.getRawData().types[typeName];
+      const disj = typeDef
+        ? (typeDef.kind === TypeKind.Binding ? ((typeDef as BindingDef).boundType as DisjunctionDef) : (typeDef as DisjunctionDef))
+        : null;
+
+      let hasWellFoundedConstructor = false;
+      if (typeConstrs.length > 0) {
+        hasWellFoundedConstructor = typeConstrs.some(c => {
+          const argTypes = Object.values(c.arguments);
+          return argTypes.every(argType => {
+            const baseName = getBaseTypeName(argType);
+            return !newTypes.has(baseName) || wellFounded.has(baseName);
+          });
+        });
       }
 
-      const hasWellFoundedConstructor = typeConstrs.some(c => {
-        const argTypes = Object.values(c.arguments);
-        return argTypes.every(argType => {
-          const baseName = getBaseTypeName(argType);
-          return !newTypes.has(baseName) || wellFounded.has(baseName);
-        });
-      });
+      let hasWellFoundedSubUnion = false;
+      if (disj && disj.subUnions && disj.subUnions.size > 0) {
+        for (const sub of disj.subUnions) {
+          if (!newTypes.has(sub) || wellFounded.has(sub)) {
+            hasWellFoundedSubUnion = true;
+            break;
+          }
+        }
+      }
 
-      if (hasWellFoundedConstructor) {
+      if (hasWellFoundedConstructor || hasWellFoundedSubUnion) {
         wellFounded.add(typeName);
         progress = true;
       }

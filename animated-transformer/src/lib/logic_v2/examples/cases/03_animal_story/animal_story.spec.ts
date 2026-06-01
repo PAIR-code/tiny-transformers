@@ -80,4 +80,36 @@ describe('Example 3: Relational Linear Logic Stories Spec', () => {
     expect(ctxt3.linearResources['_r5']).toBe('ranAway(animal(cat))');
     expect(ctxt3.linearResources['_r3']).toBe('jumpedOver(animal(monkey), tree)'); // unaffected rock
   });
+
+  it('runs unboxed set-theoretic animal story successfully', () => {
+    const src = [
+      'type animal = cat | monkey | elephant;',
+      'type inanimate = flower | rock | tree;',
+      'type item = animal | inanimate;',
+      'type state = active(what: item) | jumpedOver(jumper: animal, target: item) | squished(jumper: animal, target: item) | ranAway(who: animal);',
+      'action monkeySquish: { ?j: jumpedOver(monkey, flower) } -o { ?s: squished(monkey, flower) };',
+      'action catEscape: { ?j: jumpedOver(?any, cat) } -o { ?r: ranAway(cat) };',
+      '_r1: jumpedOver(monkey, flower);',
+      '_r2: jumpedOver(elephant, cat);',
+      '_r3: jumpedOver(monkey, tree);',
+    ].join('\n');
+
+    const ctxt = parseContext(src);
+    const story = new Story(ctxt);
+
+    const applicable = getApplicableActions(ctxt);
+    expect(applicable.length).toBe(2);
+
+    const actionNames = applicable.map((m: any) => m.action.name);
+    expect(actionNames).toContain('monkeySquish');
+    expect(actionNames).toContain('catEscape');
+
+    // Apply monkeySquish
+    const monkeyMatch = applicable.find((m: any) => m.action.name === 'monkeySquish')!;
+    story.applyAction(monkeyMatch);
+    const ctxt2 = story.getCurrentContext();
+
+    expect(ctxt2.linearResources['_r1']).toBeUndefined();
+    expect(ctxt2.linearResources['_r4']).toBe('squished(monkey, flower)');
+  });
 });
