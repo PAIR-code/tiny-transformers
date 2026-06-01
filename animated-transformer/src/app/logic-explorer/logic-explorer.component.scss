@@ -311,33 +311,35 @@
 }
 
 /* Highlight Tokens */
-.hl-keyword {
-  color: #c084fc !important;
-  font-weight: 700;
-}
+::ng-deep {
+  .hl-keyword {
+    color: #c084fc !important;
+    font-weight: 700;
+  }
 
-.hl-var {
-  color: #fca5a5 !important;
-  font-weight: 700;
-}
+  .hl-var {
+    color: #fca5a5 !important;
+    font-weight: 700;
+  }
 
-.hl-type-param {
-  color: #fbbf24 !important;
-  font-weight: 600;
-}
+  .hl-type-param {
+    color: #fbbf24 !important;
+    font-weight: 600;
+  }
 
-.hl-resource {
-  color: #818cf8 !important;
-  font-weight: 700;
-}
+  .hl-resource {
+    color: #818cf8 !important;
+    font-weight: 700;
+  }
 
-.hl-number {
-  color: #f472b6 !important;
-}
+  .hl-number {
+    color: #f472b6 !important;
+  }
 
-.hl-symbol {
-  color: #38bdf8 !important;
-  font-weight: 600;
+  .hl-symbol {
+    color: #38bdf8 !important;
+    font-weight: 600;
+  }
 }
 
 .btn {
