@@ -104,6 +104,10 @@ We develop with Angular 21+ utilizing modern standalone components and strict co
   - `"strictInjectionParameters": true`: Disallows injection tokens that are missing or cannot be resolved.
   - `"strictTemplates": true`: Standardizes strict type check verification on HTML inputs, outputs, and template bindings.
   - `"strictStandalone": true`: Enforces standalone boundaries.
+- **Zoneless Change Detection**: We exclusively use Angular's zoneless change detection (`provideZonelessChangeDetection()`) everywhere (app-wide and in all test suites) in Angular 21+ style.
+  - Do **not** use `provideZoneChangeDetection()` or import `zone.js`.
+  - Components must rely on reactive primitives (like Angular Signals, the `async` pipe with RxJS observables, or explicit `ChangeDetectorRef` when necessary) for state updates.
+  - When writing unit tests, bootstrap the test environment or test bed with `provideZonelessChangeDetection()`.
 - **Icon Registry Pattern**: Register custom SVG icons using the `MatIconRegistry` in the component or service constructor:
   ```ts
   const iconRegistry = inject(MatIconRegistry);

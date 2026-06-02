@@ -4,7 +4,7 @@ you may not use this file except in compliance with the License.
 ...
 ==============================================================================*/
 
-import { Component, OnInit, signal, computed, viewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, signal, computed, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -27,6 +27,7 @@ import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicT
   templateUrl: './logic-explorer.component.html',
   styleUrls: ['./logic-explorer.component.scss'],
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -131,6 +132,17 @@ export class LogicExplorerComponent implements OnInit {
       this.compileSource(preset.src);
     }
   }
+
+  /**
+   * Handles the native change event from the preset selector dropdown.
+   */
+  onPresetChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    if (target) {
+      this.selectPreset(target.value);
+    }
+  }
+
 
   /**
    * Compiles/Parses raw source text into active Context & Story session.
@@ -439,6 +451,16 @@ export class LogicExplorerComponent implements OnInit {
       updateLogicTheme(parsed);
     } catch (e) {
       this.themeJsonError.set((e as Error).message);
+    }
+  }
+
+  /**
+   * Handles native input event for custom JSON theme modifications.
+   */
+  onThemeJsonInput(event: Event) {
+    const target = event.target as HTMLTextAreaElement;
+    if (target) {
+      this.onThemeJsonChange(target.value);
     }
   }
 

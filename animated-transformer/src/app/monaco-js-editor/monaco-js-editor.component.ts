@@ -89,8 +89,8 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
 
     // React to codeStr input changes
     effect(() => {
+      const val = this.codeStr(); // Read signal at the top to register dependency!
       if (this.editor) {
-        const val = this.codeStr();
         if (this.editor.getValue() !== val) {
           this.editor.setValue(val);
           this.lastValidStr.set(val);
@@ -101,8 +101,8 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
 
     // React to theme input changes
     effect(() => {
+      const t = this.theme(); // Read signal at the top to register dependency!
       if (this.editor) {
-        const t = this.theme();
         loadMonaco().then((monaco) => {
           monaco.editor.setTheme(t);
         });

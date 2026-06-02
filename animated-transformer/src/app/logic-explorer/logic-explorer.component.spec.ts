@@ -28,6 +28,24 @@ describe('LogicExplorerComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should change preset and raw source when a preset is selected', () => {
+    const fixture = TestBed.createComponent(LogicExplorerComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const firstPreset = component.presets[0];
+    expect(component.selectedPresetName()).toBe(firstPreset.name);
+    expect(component.rawSource()).toBe(firstPreset.src);
+
+    const secondPreset = component.presets[1];
+    component.selectPreset(secondPreset.name);
+    fixture.detectChanges();
+
+    expect(component.selectedPresetName()).toBe(secondPreset.name);
+    expect(component.rawSource()).toBe(secondPreset.src);
+  });
+
+
   describe('Syntax Highlighting Tokenizer', () => {
     it('should successfully color let, type, fun, and action keywords', () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);

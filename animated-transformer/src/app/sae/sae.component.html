@@ -1,7 +1,7 @@
 <div class="sae-main">
   <div class="title">Train a sparse auto-encoder</div>
   <div class="training-data-option" (click)="selectSample()">
-    @if (useSampleTrainingData) {
+    @if (useSampleTrainingData()) {
       <div class="radio-indicator-on"></div>
     } @else {
       <div class="radio-indicator-off"></div>
@@ -11,20 +11,20 @@
     </div>
   </div>
   <div class="training-data-option" (click)="selectUpload()">
-    @if (useUploadedTrainingData) {
+    @if (useUploadedTrainingData()) {
       <div class="radio-indicator-on"></div>
     } @else {
       <div class="radio-indicator-off"></div>
     }
     <div class="description">Or, upload training data</div>
-    @if (useUploadedTrainingData) {
+    @if (useUploadedTrainingData()) {
       <div class="uploader">
         <input type="file" (change)="uploadTrainingData($event)" />
       </div>
     }
   </div>
 
-  @if (trainingData) {
+  @if (trainingData()) {
     <div class="trainer">
       <div class="controls">
         <form class="param-form">
@@ -46,7 +46,7 @@
           </mat-form-field>
         </form>
         <button
-          [disabled]="trained"
+          [disabled]="trained()"
           mat-flat-button
           color="primary"
           (click)="train()"
@@ -55,21 +55,21 @@
         </button>
       </div>
 
-      @if (lossPoints.length > 0) {
+      @if (lossPoints().length > 0) {
         <div>
-          <app-d3-line-chart [dataPoints]="lossPoints"></app-d3-line-chart>
+          <app-d3-line-chart [dataPoints]="lossPoints()"></app-d3-line-chart>
         </div>
       }
     </div>
   }
 
-  @if (trained) {
+  @if (trained()) {
     <div class="results">
-      @if (learnedFeatureActivationFrequencies.length) {
+      @if (learnedFeatureActivationFrequencies().length) {
         <div class="frequencies">
           <div class="label">Neuron activation frequency</div>
           @for (
-            item of learnedFeatureActivationFrequencies;
+            item of learnedFeatureActivationFrequencies();
             track item;
             let i = $index
           ) {
@@ -93,11 +93,11 @@
             Inspect
           </button>
         </form>
-        @if (topActivationsForUserInputFeature) {
+        @if (topActivationsForUserInputFeature()) {
           <div class="top-activations">
             <div class="label">Top activating data</div>
             @for (
-              item of topActivationsForUserInputFeature;
+              item of topActivationsForUserInputFeature();
               track item;
               let i = $index
             ) {

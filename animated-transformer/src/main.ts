@@ -1,4 +1,3 @@
-import { provideZoneChangeDetection } from '@angular/core';
 /* Copyright 2023 Google LLC. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// import { AppModule } from './app/app.module';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';
 
-bootstrapApplication(AppComponent, {
-  ...appConfig,
-  providers: [provideZoneChangeDetection(), ...appConfig.providers],
-});
+bootstrapApplication(AppComponent, appConfig)
+  .catch((err) => console.error(err));
 
-// platformBrowserDynamic()
-//   .bootstrapModule(AppModule)
-//   .catch((err) => console.error(err));

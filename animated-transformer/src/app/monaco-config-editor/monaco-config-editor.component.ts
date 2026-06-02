@@ -89,8 +89,8 @@ export class MonacoConfigEditorComponent implements OnInit, AfterViewInit, OnDes
 
     // React to config input changes
     effect(() => {
+      const val = this.config(); // Read signal at the top to register dependency!
       if (this.editor) {
-        const val = this.config();
         if (this.editor.getValue() !== val) {
           this.editor.setValue(val);
           this.lastValidConfig.set(val);
