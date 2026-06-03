@@ -125,7 +125,7 @@ export function getPatternVariables(term: Term): Set<string> {
   function visit(t: Term) {
     if (t.kind === TermKind.Variable) {
       vars.add(t.varName);
-    } else {
+    } else if (t.kind === TermKind.Literal) {
       t.unNamedArgs.forEach(visit);
       Object.values(t.namedArgs).forEach(visit);
     }

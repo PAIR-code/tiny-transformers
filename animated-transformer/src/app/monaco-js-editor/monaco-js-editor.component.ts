@@ -92,8 +92,8 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
       const val = this.codeStr(); // Read signal at the top to register dependency!
       if (this.editor) {
         if (this.editor.getValue() !== val) {
-          this.editor.setValue(val);
           this.lastValidStr.set(val);
+          this.editor.setValue(val);
           this.changed.set(false);
         }
       }

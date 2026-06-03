@@ -58,6 +58,14 @@ export class LogicExplorerComponent implements OnInit {
   readonly themeConfigJson = signal<string>(JSON.stringify(DEFAULT_THEME_CONFIG, null, 2));
   readonly themeJsonError = signal<string | null>(null);
   readonly currentThemeConfig = signal<LogicThemeConfig>({ ...DEFAULT_THEME_CONFIG });
+
+  // Panel Resize State Signals
+  readonly leftWidth = signal<number>(320);
+  readonly rightWidth = signal<number>(360);
+
+  private activeResizer: 'left' | 'right' | null = null;
+  private startX = 0;
+  private startWidth = 0;
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
@@ -118,6 +126,11 @@ export class LogicExplorerComponent implements OnInit {
   constructor() {}
 
   ngOnInit() {
+    const savedLeft = localStorage.getItem('logic-explorer-left-width');
+    const savedRight = localStorage.getItem('logic-explorer-right-width');
+    if (savedLeft) this.leftWidth.set(parseInt(savedLeft, 10));
+    if (savedRight) this.rightWidth.set(parseInt(savedRight, 10));
+
     this.selectPreset(this.selectedPresetName());
   }
 
@@ -141,6 +154,55 @@ export class LogicExplorerComponent implements OnInit {
     if (target) {
       this.selectPreset(target.value);
     }
+  }
+
+  /**
+   * Initiates horizontal resizing of left or right explorer panels.
+   */
+  onMouseDown(event: MouseEvent, side: 'left' | 'right') {
+    event.preventDefault();
+    this.activeResizer = side;
+    this.startX = event.clientX;
+    this.startWidth = side === 'left' ? this.leftWidth() : this.rightWidth();
+
+    window.addEventListener('mousemove', this.onMouseMoveBound);
+    window.addEventListener('mouseup', this.onMouseUpBound);
+  }
+
+  private readonly onMouseMoveBound = (e: MouseEvent) => this.onMouseMove(e);
+  private readonly onMouseUpBound = () => this.onMouseUp();
+
+  private onMouseMove(event: MouseEvent) {
+    if (!this.activeResizer) return;
+
+    const deltaX = event.clientX - this.startX;
+    if (this.activeResizer === 'left') {
+      const newWidth = Math.max(220, Math.min(600, this.startWidth + deltaX));
+      this.leftWidth.set(newWidth);
+    } else {
+      const newWidth = Math.max(220, Math.min(600, this.startWidth - deltaX));
+      this.rightWidth.set(newWidth);
+    }
+  }
+
+  private onMouseUp() {
+    if (this.activeResizer) {
+      localStorage.setItem('logic-explorer-left-width', this.leftWidth().toString());
+      localStorage.setItem('logic-explorer-right-width', this.rightWidth().toString());
+      this.activeResizer = null;
+    }
+    window.removeEventListener('mousemove', this.onMouseMoveBound);
+    window.removeEventListener('mouseup', this.onMouseUpBound);
+  }
+
+  /**
+   * Resets the resizable panel sizes to default.
+   */
+  resetPanelWidths() {
+    this.leftWidth.set(320);
+    this.rightWidth.set(360);
+    localStorage.removeItem('logic-explorer-left-width');
+    localStorage.removeItem('logic-explorer-right-width');
   }
 
 

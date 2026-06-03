@@ -23,19 +23,19 @@ export interface LogicThemeConfig {
 }
 
 export const DEFAULT_THEME_CONFIG: LogicThemeConfig = {
-  keyword: '#569CD6',      // Soft blue
-  constructor: '#EFEFEF',  // High-contrast Orange/Red
-  function: '#DCDCAA',     // Light yellow
-  action: '#4EC9B0',       // Emerald/Teal
-  type: '#9CDCFE',         // Sky blue
-  variable: '#C586C0',     // Purple
-  number: '#B5CEA8',       // Soft green
-  comment: '#6A9955',      // Forest green
-  background: '#1E1E1E',   // Standard VS Code dark
-  lolli: '#FF79C6',        // Pink/magenta
-  pipe: '#8BE9FD',         // Cyan/variant bar
-  colon: '#BD93F9',        // Lavender
-  equals: '#F1FA8C'        // Pastel yellow
+  keyword: '#0000ff',      // Deep blue
+  constructor: '#111111',    // Dark grey
+  function: '#7f0055',     // Deep violet/maroon
+  action: '#006644',       // Dark emerald green
+  type: '#267f99',         // Dark teal
+  variable: '#4b5563',     // Slate gray
+  number: '#098658',       // Soft emerald green
+  comment: '#008000',      // Classic green comment
+  background: '#ffffff',   // Pure clean white
+  lolli: '#af00db',        // Violet
+  pipe: '#0451a5',         // Slate blue
+  colon: '#1e293b',        // Dark slate
+  equals: '#0451a5'        // Slate blue
 };
 
 
@@ -97,7 +97,7 @@ export function loadMonaco(): Promise<any> {
 
           // Define default custom theme
           monaco.editor.defineTheme('linear-logic-theme', {
-            base: 'vs-dark',
+            base: 'vs',
             inherit: true,
             rules: [
               { token: 'keyword', foreground: DEFAULT_THEME_CONFIG.keyword },
@@ -286,7 +286,7 @@ export function updateLogicTheme(config: LogicThemeConfig) {
   if (typeof (window as any).monaco !== 'undefined') {
     const monaco = (window as any).monaco;
     monaco.editor.defineTheme('linear-logic-theme', {
-      base: 'vs-dark',
+      base: 'vs',
       inherit: true,
       rules: [
         { token: 'keyword', foreground: config.keyword },

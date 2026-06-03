@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation, TypeChecker } from './logic';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, escaped, EscapedValue, Term, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation, TypeChecker, unify } from './logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -609,6 +609,70 @@ describe('v2_logic of peano natural numbers', () => {
       expect(() => typeCheck(ctxt, parseTerm('makeBox(rock)', ctxt), 'box')).toThrowError(
         /Type mismatch/
       );
+    });
+  });
+
+  describe('escaped TS/JS values and operations', () => {
+    class TSVal extends EscapedValue {
+      constructor(public val: number | string, public op?: string, public left?: TSVal, public right?: TSVal) {
+        super();
+      }
+
+      toString(): string {
+        if (this.op && this.left && this.right) {
+          return `${this.left.toString()}_${this.op}_${this.right.toString()}`;
+        }
+        return String(this.val);
+      }
+
+      equals(other: EscapedValue): boolean {
+        if (!(other instanceof TSVal)) return false;
+        if (this.op !== other.op) return false;
+        if (this.op) {
+          return this.left!.equals(other.left!) && this.right!.equals(other.right!);
+        }
+        return this.val === other.val;
+      }
+    }
+
+    const zero: ConjunctionData = {
+      constructorName: '0',
+      createdTypeName: 'nat',
+      arguments: {},
+    };
+    const ctxt = createContext([zero]);
+
+    it('supports escaped terms wrapping TS values and checks equality', () => {
+      const t1 = escaped(new TSVal(42));
+      const t2 = escaped(new TSVal(42));
+      const t3 = escaped(new TSVal(7));
+
+      expect(printTerm(t1)).toBe('42');
+      expect(typeCheck(ctxt, t1, t2)).toBeUndefined(); // matches since values are equal
+      expect(() => typeCheck(ctxt, t1, t3)).toThrowError(/Type mismatch/);
+    });
+
+    it('unifies escaped terms and handles variables', () => {
+      const formal = variable('x');
+      const actual = escaped(new TSVal(42));
+      const subst: { [name: string]: Term } = {};
+
+      unify(ctxt, formal, actual, subst);
+      expect(subst['x']).toEqual(actual);
+    });
+
+    it('handles composite TS operations and nested matching', () => {
+      const num1 = new TSVal(10);
+      const num2 = new TSVal(20);
+      const op = escaped(new TSVal('', 'plus', num1, num2));
+
+      expect(printTerm(op)).toBe('10_plus_20');
+
+      const opSame = escaped(new TSVal('', 'plus', num1, num2));
+      const opDiff = escaped(new TSVal('', 'plus', num1, new TSVal(99)));
+
+      expect(() => typeCheck(ctxt, op, opSame)).not.toThrow();
+      expect(() => typeCheck(ctxt, op, opDiff)).toThrow();
     });
   });
 });

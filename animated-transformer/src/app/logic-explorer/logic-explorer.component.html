@@ -19,7 +19,11 @@
   </header>
 
   <!-- Main layout grid -->
-  <main class="explorer-layout" [class.editor-expanded]="editorExpanded()">
+  <main 
+    class="explorer-layout" 
+    [class.editor-expanded]="editorExpanded()"
+    [style.grid-template-columns]="editorExpanded() ? '1fr 0px 0px 0px 0px' : (leftWidth() + 'px 4px 1fr 4px ' + rightWidth() + 'px')"
+  >
     
     <!-- LEFT PANEL: Editor and Preset Selector -->
     <section class="panel panel-editor">
@@ -58,10 +62,10 @@
             <button 
               class="btn-icon-toggle" 
               (click)="toggleThemeCustomizer()" 
-              [title]="showThemeCustomizer() ? 'Hide Theme Customizer' : 'Theme Colors Customizer'"
+              [title]="showThemeCustomizer() ? 'Hide Settings' : 'Settings & Colors'"
               [class.active]="showThemeCustomizer()"
             >
-              <mat-icon>palette</mat-icon>
+              <mat-icon>settings</mat-icon>
             </button>
           </div>
           <button class="btn btn-compile" (click)="onCompileClick()">
@@ -93,22 +97,35 @@
         <span>Context Compiled & Active</span>
       </div>
 
-      <!-- Theme Customizer Panel -->
+      <!-- Settings & Customizer Panel -->
       <div *ngIf="showThemeCustomizer()" class="theme-customizer-card card-glass animate-fade-in">
         <div class="theme-card-header">
           <div class="title-with-icon">
-            <mat-icon class="header-icon-color">palette</mat-icon>
-            <span>Theme Customizer</span>
+            <mat-icon class="header-icon-color">settings</mat-icon>
+            <span>Settings & Colors</span>
           </div>
           <div class="theme-card-actions">
             <button class="btn-theme-sm" (click)="copyThemeToClipboard()" title="Copy config JSON to clipboard">
-              <mat-icon>content_copy</mat-icon> Copy
+              <mat-icon>content_copy</mat-icon> Copy Colors
             </button>
             <button class="btn-theme-sm btn-reset" (click)="resetThemeToDefault()" title="Reset colors back to default">
-              <mat-icon>restart_alt</mat-icon> Reset Default
+              <mat-icon>restart_alt</mat-icon> Reset Colors
             </button>
           </div>
         </div>
+
+        <!-- Panel Column width reset settings section -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">Layout Settings</h4>
+          <div class="settings-group-body">
+            <span class="settings-desc">Drag layout dividers to resize or double-click them to reset.</span>
+            <button class="btn-theme-sm btn-reset" (click)="resetPanelWidths()" title="Reset panel widths to default values (320px / 360px)">
+              <mat-icon>restart_alt</mat-icon> Reset Widths
+            </button>
+          </div>
+        </div>
+
+        <h4 class="settings-group-title">Monaco Syntax Colors</h4>
         <p class="theme-instruction">Edit the JSON configuration below to live-update editor styles instantly.</p>
         
         <!-- Swatches row to visualize theme colors -->
@@ -175,6 +192,14 @@
         </div>
       </div>
     </section>
+
+    <!-- Left Splitter resizer -->
+    <div 
+      class="layout-splitter left-splitter" 
+      (mousedown)="onMouseDown($event, 'left')"
+      (dblclick)="resetPanelWidths()"
+      title="Drag to resize left panel, double-click to reset"
+    ></div>
 
     <!-- MIDDLE PANEL: Context and Timeline Stepper -->
     <section class="panel panel-context">
@@ -290,6 +315,14 @@
         </div>
       </div>
     </section>
+
+    <!-- Right Splitter resizer -->
+    <div 
+      class="layout-splitter right-splitter" 
+      (mousedown)="onMouseDown($event, 'right')"
+      (dblclick)="resetPanelWidths()"
+      title="Drag to resize right panel, double-click to reset"
+    ></div>
 
     <!-- RIGHT PANEL: Lolli Rules and Applicability -->
     <section class="panel panel-rules">

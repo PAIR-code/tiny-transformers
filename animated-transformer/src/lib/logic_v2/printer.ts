@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Term, TermKind, TypeKind, BindingDef, DisjunctionDef } from './logic_data';
+import { Term, TermKind, TypeKind, BindingDef, DisjunctionDef, Escaped } from './logic_data';
 import { getBaseType, Context } from './logic';
 
 /**
@@ -23,6 +23,9 @@ import { getBaseType, Context } from './logic';
 export function printTerm(term: Term, options?: { verbose?: boolean; ctxt?: Context }): string {
   if (term.kind === TermKind.Variable) {
     return `?${term.varName}`;
+  }
+  if (term.kind === TermKind.Escaped) {
+    return term.value.toString();
   }
 
   const hasNamed = Object.keys(term.namedArgs).length > 0;

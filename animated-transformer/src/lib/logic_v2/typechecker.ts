@@ -21,7 +21,8 @@ import {
   DisjunctionDef,
   ConjunctionDef,
   TypeDef,
-  Literal
+  Literal,
+  Escaped
 } from './logic_data';
 import { printTerm } from './printer';
 import { parseTerm, getBaseTypeName, getFreeVars, Context, allTypes, ConjunctionData } from './logic';
@@ -128,6 +129,10 @@ export function matchTypes(ctxt: Context, actual: Term | string | undefined, exp
     return isAllType(expectedType as Term) || matchTypes(ctxt, actualTerm, expectedType);
   }
 
+  if (actualTerm.kind === TermKind.Escaped && expectedTerm.kind === TermKind.Escaped) {
+    return actualTerm.value.equals(expectedTerm.value);
+  }
+
   actual = actualTerm;
   expected = expectedTerm;
 
@@ -212,6 +217,9 @@ export function substitute(term: Term, subst: { [name: string]: Term }): Term {
     if (term.varName in subst) return subst[term.varName];
     return term;
   }
+  if (term.kind === TermKind.Escaped) {
+    return term;
+  }
   if (term.kind === TermKind.Literal && term.unNamedArgs.length === 0 && Object.keys(term.namedArgs).length === 0) {
     if (term.literalName in subst) return subst[term.literalName];
   }
@@ -246,6 +254,13 @@ export function unify(
     const varName = formal.varName;
     if (!(varName in subst)) {
       subst[varName] = actual;
+    }
+    return;
+  }
+
+  if (formal.kind === TermKind.Escaped) {
+    if (actual.kind === TermKind.Escaped && formal.value.equals(actual.value)) {
+      return;
     }
     return;
   }
@@ -489,6 +504,10 @@ export class TypeChecker {
       return typeof typeName === 'string' ? typeName : printTerm(typeName, { ctxt: this.ctxt });
     }
 
+    if (t.kind === TermKind.Escaped) {
+      return t.value.toString();
+    }
+
     if (t.kind === TermKind.Literal && this.ctxt.termDefinitions && t.literalName in this.ctxt.termDefinitions) {
       return this.ctxt.termDefinitions[t.literalName].typ;
     }
@@ -630,6 +649,18 @@ export class TypeChecker {
         );
       }
       return;
+    }
+
+    if (t.kind === TermKind.Escaped) {
+      if (expected.kind === TermKind.Literal && expected.literalName === '*') {
+        return;
+      }
+      if (expected.kind === TermKind.Escaped && t.value.equals(expected.value)) {
+        return;
+      }
+      throw new Error(
+        `Type mismatch: expected '${printTerm(expected, { ctxt: this.ctxt })}', got '${printTerm(t, { ctxt: this.ctxt })}'`
+      );
     }
 
     const baseExpectedType = expected.kind === TermKind.Literal ? getBaseType(this.ctxt, expected.literalName) : '*';

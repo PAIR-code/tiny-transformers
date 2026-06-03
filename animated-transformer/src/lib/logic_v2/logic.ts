@@ -22,6 +22,8 @@ import {
   TermKind,
   Literal,
   Variable,
+  Escaped,
+  EscapedValue,
   TypeKind,
   ConjunctionDef,
   DisjunctionDef,
@@ -105,6 +107,13 @@ export function variable(varName: string): Variable {
   return {
     kind: TermKind.Variable,
     varName,
+  };
+}
+
+export function escaped(value: EscapedValue): Escaped {
+  return {
+    kind: TermKind.Escaped,
+    value,
   };
 }
 
@@ -345,6 +354,7 @@ export function emptyContext(): Context {
 export function getBaseTypeName(typeRef: Term | string): string {
   if (typeof typeRef === 'string') return typeRef;
   if (typeRef.kind === TermKind.Literal) return typeRef.literalName;
+  if (typeRef.kind === TermKind.Escaped) return typeRef.value.toString();
   return typeRef.varName;
 }
 
@@ -356,7 +366,7 @@ export function getFreeVars(term: Term): Set<string> {
   function visit(t: Term) {
     if (t.kind === TermKind.Variable) {
       vars.add(t.varName);
-    } else {
+    } else if (t.kind === TermKind.Literal) {
       t.unNamedArgs.forEach(visit);
       Object.values(t.namedArgs).forEach(visit);
     }

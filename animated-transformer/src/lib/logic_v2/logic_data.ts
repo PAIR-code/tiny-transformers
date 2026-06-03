@@ -16,7 +16,21 @@ limitations under the License.
 export enum TermKind {
   Literal = 'Literal',
   Variable = 'Variable',
+  Escaped = 'Escaped',
 }
+
+export abstract class EscapedValue {
+  abstract toString(): string;
+  abstract equals(other: EscapedValue): boolean;
+}
+
+/**
+ * Represents an escaped term wrapping a custom TypeScript abstract class value.
+ */
+export type Escaped = {
+  kind: TermKind.Escaped;
+  value: EscapedValue;
+};
 
 /**
  * Represents a literal value, supporting both positional
@@ -40,7 +54,7 @@ export type Variable = {
   varName: string;
 };
 
-export type Term = Literal | Variable;
+export type Term = Literal | Variable | Escaped;
 
 /**
  * Identifies the kind of Type/Literal definition.

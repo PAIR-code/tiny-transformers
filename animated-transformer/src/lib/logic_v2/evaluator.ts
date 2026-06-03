@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Term, TermKind, TypeKind, BindingDef, Literal } from './logic_data';
+import { Term, TermKind, TypeKind, BindingDef, Literal, Escaped } from './logic_data';
 import { matchTypes, substitute, unify, parseTerm, getFreeVars, Context } from './logic';
 import { printTerm } from './printer';
 
@@ -24,6 +24,9 @@ import { printTerm } from './printer';
  */
 export function evaluateTerm(ctxt: Context, term: Term): Term {
   if (term.kind === TermKind.Variable) {
+    return term;
+  }
+  if (term.kind === TermKind.Escaped) {
     return term;
   }
 
@@ -95,6 +98,10 @@ export function matchPattern(
      !(pattern.literalName in ctxt.getRawData().constructors) &&
      !(pattern.literalName in ctxt.getRawData().functions) &&
      !['nat', 'natList', 'tree', '*', '0', 'suc', 'nil', 'cons', 'leaf', 'node'].includes(pattern.literalName));
+
+  if (pattern.kind === TermKind.Escaped) {
+    return arg.kind === TermKind.Escaped && pattern.value.equals(arg.value);
+  }
 
   if (isPatVar) {
     const varName = pattern.kind === TermKind.Variable ? pattern.varName : (pattern as Literal).literalName;

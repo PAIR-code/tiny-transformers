@@ -92,8 +92,8 @@ export class MonacoConfigEditorComponent implements OnInit, AfterViewInit, OnDes
       const val = this.config(); // Read signal at the top to register dependency!
       if (this.editor) {
         if (this.editor.getValue() !== val) {
-          this.editor.setValue(val);
           this.lastValidConfig.set(val);
+          this.editor.setValue(val);
           this.changed.set(false);
         }
       }
@@ -110,7 +110,7 @@ export class MonacoConfigEditorComponent implements OnInit, AfterViewInit, OnDes
       this.editor = monaco.editor.create(container, {
         value: this.config(),
         language: 'json',
-        theme: 'vs-dark',
+        theme: 'vs',
         automaticLayout: true,
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
