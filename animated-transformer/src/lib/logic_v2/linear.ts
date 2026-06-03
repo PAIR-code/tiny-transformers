@@ -249,15 +249,13 @@ export class LinearStory {
 
   constructor(public ctxt: Context) {}
 
-  /**
-   * Initializes a LinearStory from variables defined in the Context.
-   */
   static fromContext(ctxt: Context): LinearStory {
     const story = new LinearStory(ctxt);
     for (const [varName, typeStr] of Object.entries(ctxt.linearResources)) {
       const typeTerm = parseTerm(typeStr, ctxt);
+      const evaluatedType = evaluateTerm(ctxt, typeTerm);
       const name = varName;
-      story.resources.push({ name, type: typeTerm });
+      story.resources.push({ name, type: evaluatedType });
 
       const match = name.match(/^_r(\d+)$/);
       if (match) {

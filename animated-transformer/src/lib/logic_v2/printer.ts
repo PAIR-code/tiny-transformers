@@ -117,7 +117,7 @@ export function printContext(ctxt: Context): string {
   if (functions) {
     for (const funcName of Object.keys(functions).sort()) {
       const func = functions[funcName];
-      if ('clauses' in func) {
+      if (func.kind === 'clause') {
         const clauseStrs = func.clauses.map((c: FunctionClauseDef) => {
           const patternsStr = c.patterns.map((p: Term) => printTerm(p, { ctxt })).join(', ');
           return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;

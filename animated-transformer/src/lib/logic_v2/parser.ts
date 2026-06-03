@@ -343,6 +343,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         throw new Error(`Literal '${decl.funcName}' already defined in the context.`);
       }
       ctxt.getRawData().functions[decl.funcName] = {
+        kind: 'clause',
         funcName: decl.funcName,
         clauses: decl.clauses,
       };

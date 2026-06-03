@@ -55,6 +55,7 @@ The project enforces high safety levels via TypeScript compiler constraints in `
 - `"noPropertyAccessFromIndexSignature": true`: Prevents using dot notation (`obj.prop`) to access fields of a type with an index signature; use bracket notation (`obj['prop']`) instead.
 - `"noImplicitReturns": true`: Ensure all code paths in a function return a value explicitly.
 - `"noFallthroughCasesInSwitch": true`: Disallow fallthrough in switch cases unless annotated.
+- **Discriminated Unions over Property Checks**: Do not use property presence checks like `if ('clauses' in func)` to differentiate union types. Define a strict `kind` property (ideally an enum) for union structures so that TypeScript refactoring is safe and explicit.
 
 ---
 
@@ -133,6 +134,7 @@ Maintain close proximity between code and unit tests by placing TypeScript spec 
 
 The project strictly enforces **pnpm** as the exclusive package manager (as defined by `pnpm-lock.yaml`). **Do not use npm, npx, or raw javascript scratch scripts.**
 
+- **NEVER use npm or npx**: All package management and script execution must be performed via `pnpm`. Under no circumstances should you run `npm` or `npx` commands.
 - **All Code must be TypeScript**: All logic, components, and support/scratch scripts must be written in **TypeScript** (`.ts`). Avoid creating raw `.js` files.
 - **Dependency Installation**: Use `pnpm install` instead of `npm install` to install dependencies.
 - **Running Scripts**: Use `pnpm <script>` or `pnpm run <script>` (e.g., `pnpm start`, `pnpm test`, `pnpm run dev`) instead of `npm run <script>`.

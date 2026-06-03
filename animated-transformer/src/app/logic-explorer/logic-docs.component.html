@@ -1,0 +1,428 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+you may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+============================================================================== -->
+<div class="docs-container">
+  <!-- Top header / Nav Bar -->
+  <header class="explorer-header">
+    <div class="header-left">
+      <mat-icon class="header-logo font-icon-align">menu_book</mat-icon>
+      <h1 class="header-title">Linear Logic Semantics & Examples</h1>
+    </div>
+    <nav class="header-nav">
+      <a routerLink="/logic" class="nav-link">
+        <mat-icon>account_tree</mat-icon> Explorer
+      </a>
+      <a routerLink="/wcolab" class="nav-link">
+        <mat-icon>code</mat-icon> Web Colab
+      </a>
+    </nav>
+  </header>
+
+  <div class="docs-layout">
+    <!-- Sidebar navigation -->
+    <aside class="docs-sidebar">
+      <h4 class="sidebar-title">Documentation Index</h4>
+      <nav class="sidebar-nav">
+        @for (sec of sections; track sec.id) {
+          <a 
+            (click)="scrollTo(sec.id)" 
+            [class.active]="activeSection() === sec.id" 
+            class="sidebar-link"
+          >
+            {{ sec.label }}
+          </a>
+        }
+      </nav>
+    </aside>
+
+    <!-- Scrollable content area -->
+    <main class="docs-content">
+      
+      <!-- Hero Header -->
+      <section class="docs-hero">
+        <h1>Relational Linear Logic Engine</h1>
+        <p>
+          Welcome to the semantics and documentation guide. This page explains the core concepts, 
+          syntax rules, and evaluation model of the linear logic engine, highlighting how term matching 
+          and function evaluation work together.
+        </p>
+      </section>
+
+      <!-- 1. What is Linear Logic? -->
+      <section id="intro" class="docs-section">
+        <div class="section-header">
+          <mat-icon>help_outline</mat-icon>
+          <h2>1. What is Linear Logic?</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            In classical logic, assertions represent truth values that are static and can be duplicated or discarded 
+            at will. In contrast, <strong>Linear Logic</strong> is a substructural logic where hypotheses represent 
+            <strong>physical resources</strong>. 
+          </p>
+          <div class="callout info">
+            <mat-icon>info</mat-icon>
+            <div class="callout-content">
+              <strong>The Resource Rule:</strong> 
+              Every resource must be consumed exactly once in a state transition. You cannot duplicate a resource 
+              unless explicitly allowed by a rule, and you cannot let a resource vanish unless it is explicitly consumed.
+            </div>
+          </div>
+          <p>
+            This makes linear logic uniquely suited for state tracking, planning puzzles (e.g. the River Crossing puzzle), 
+            and protocol channel simulations, where actions consume preconditions and produce postconditions.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. Algebraic Data Types -->
+      <section id="types" class="docs-section">
+        <div class="section-header">
+          <mat-icon>category</mat-icon>
+          <h2>2. Algebraic Data Types (ADTs)</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Types are declared using the <code>type</code> keyword. The engine supports sum-of-product types 
+            (disjunction of constructors), which can also be parameterized with generic type parameters.
+          </p>
+
+          <div class="code-example-container">
+            <div class="code-header">Basic Enum Type</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(basicEnumCode)"></pre>
+          </div>
+
+          <div class="code-example-container">
+            <div class="code-header">Generic Recursive List Type</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(listTypeCode)"></pre>
+          </div>
+
+          <div class="callout warning">
+            <mat-icon>warning</mat-icon>
+            <div class="callout-content">
+              <strong>CRITICAL Namespace Rule:</strong> 
+              All type names and constructor names are stored in a single flat registry. Therefore, 
+              <strong>a type name and constructor name must never overlap</strong>. 
+              Declaring <code>type animal = animal(kind: species)</code> causes the constructor to overwrite 
+              the type, yielding type-checking failures at runtime. Always prefix or vary the constructor: 
+              <code>type animal = makeAnimal(kind: species)</code>.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Pattern-Matching Functions -->
+      <section id="functions" class="docs-section">
+        <div class="section-header">
+          <mat-icon>functions</mat-icon>
+          <h2>3. Pattern-Matching Functions</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Functions are declared using the <code>fun</code> keyword and support pattern-matching clauses separated by 
+            the <code>|</code> pipe character. Logic variables in clause patterns are prefixed with a question mark (<code>?</code>).
+          </p>
+          
+          <div class="code-example-container">
+            <div class="code-header">Pattern-Matched Opposite Bank</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(oppositeFunCode)"></pre>
+          </div>
+
+          <p>
+            When a function is called, the evaluator attempts to match the arguments structurally against the 
+            patterns of each clause from left to right. The first clause that matches binds its variables and evaluates 
+            its body.
+          </p>
+        </div>
+      </section>
+
+      <!-- 4. State-Transition Actions -->
+      <section id="actions" class="docs-section">
+        <div class="section-header">
+          <mat-icon>bolt</mat-icon>
+          <h2>4. State-Transition Actions</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Actions represent the transitions in our linear resource multiset. They are defined using the 
+            <code>action</code> keyword. An action consumes resources on the Left-Hand Side (LHS) of the 
+            <code>-o</code> (Lolli) operator and produces resources on the Right-Hand Side (RHS).
+          </p>
+
+          <div class="code-example-container">
+            <div class="code-header">Lolli Action Syntax</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(rowAloneActionCode)"></pre>
+          </div>
+
+          <p>
+            LHS resources act as preconditions. During matching, the engine finds a subset of active linear 
+            resources in the story that matches the structural patterns on the LHS. Once applied, those resources 
+            are removed from the multiset, and the RHS resources are introduced.
+          </p>
+        </div>
+      </section>
+
+      <!-- 5. Matching & Evaluation Interaction -->
+      <section id="interaction" class="docs-section">
+        <div class="section-header">
+          <mat-icon>sync_alt</mat-icon>
+          <h2>5. How Matching & Evaluation Interact</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            A core feature of this engine is the interaction between <strong>pattern-matching unification</strong> (on the LHS) 
+            and <strong>recursive evaluation</strong> (on the RHS).
+          </p>
+
+          <h3>The Evaluation Model: Call-by-Value (CBV)</h3>
+          <p>
+            Terms in the engine are evaluated using a strict Call-By-Value reduction scheme. This means before any 
+            constructor or function body is processed, all of its arguments are recursively evaluated to normal form.
+          </p>
+
+          <h3>LHS Matching operates on Normal Forms</h3>
+          <p>
+            Crucially, <strong>all active resources inside the multiset are always kept in normal form</strong> (fully evaluated and reduced terms).
+            Unification and pattern matching on the LHS of a rule do not evaluate function calls during matching; instead, they structurally compare the resource against the pattern.
+            Because both initial resources (loaded from context) and newly produced resources (added after RHS transition) are recursively reduced to normal form first, structural patterns (like <code>suc(?x)</code>) match successfully.
+          </p>
+
+          <div class="callout info">
+            <mat-icon>info</mat-icon>
+            <div class="callout-content">
+              <strong>Example of Normal Form Matching:</strong> 
+              If the initial context defines <code>_r1: add(suc(0), suc(0));</code>, it is immediately evaluated to <code>suc(suc(0))</code>.
+              When matching rule <code>decrement: {{ '{' }} ?x: suc(?v) {{ '}' }} -o {{ '{' }} ?y: ?v {{ '}' }}</code>, structural matching succeeds because it unifies pattern <code>suc(?v)</code> against evaluated term <code>suc(suc(0))</code> (binding <code>?v</code> to <code>suc(0)</code>).
+              If the resource remained as the unevaluated term <code>add(suc(0), suc(0))</code>, structural unification would fail.
+            </div>
+          </div>
+
+          <h3>Step-by-Step Transition Lifecycle</h3>
+          <div class="eval-steps-flow">
+            <div class="eval-step">
+              <span class="step-label">Step A: LHS Resource Unification</span>
+              <span class="step-desc">
+                The engine matches LHS patterns against active resources. Active resources are *always* in normal form. 
+                Unification binds logic variables (e.g. <code>?from</code>) to their matched values.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">Step B: RHS Substitution</span>
+              <span class="step-desc">
+                The variable bindings synthesized from LHS matching are substituted into the RHS patterns.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">Step C: CBV Reduction & Function Application</span>
+              <span class="step-desc">
+                Before the new resources are added to the multiset, the substituted RHS terms are <strong>fully evaluated 
+                and reduced to normal form</strong>. Any function applications are executed.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">Step D: Multiset Transition</span>
+              <span class="step-desc">
+                The matched LHS resources are deleted, and the freshly evaluated RHS resources are added to the state.
+              </span>
+            </div>
+          </div>
+
+          <h3>A Concrete Trace: Peano Addition</h3>
+          <p>
+            Suppose the current context has resource <code>_r1: counter(suc(0))</code> (value 1), and we trigger the 
+            following action:
+          </p>
+          <div class="code-example-container">
+            <div class="code-header">LHS & RHS Flow</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(incrementActionCode)"></pre>
+          </div>
+
+          <div class="eval-steps-flow">
+            <div class="eval-step">
+              <span class="step-label">1. Match</span>
+              <span class="step-desc">
+                LHS pattern <code>counter(?c)</code> matches resource <code>counter(suc(0))</code>. 
+                Variable <code>?c</code> binds to <code>suc(0)</code>.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">2. Substitute</span>
+              <span class="step-desc">
+                Substitution into RHS yields: <code>counter(add(suc(0), suc(0)))</code>.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">3. Evaluate Arguments (CBV)</span>
+              <span class="step-desc">
+                Evaluate argument <code>add(suc(0), suc(0))</code>. Since <code>add</code> is a function, we match 
+                against its clauses:
+              </span>
+              <code>add(suc(?x), ?y) = suc(add(?x, ?y))</code>
+              <span class="step-desc">
+                Here, <code>?x</code> binds to <code>0</code> and <code>?y</code> binds to <code>suc(0)</code>. 
+                This reduces to: <code>suc(add(0, suc(0)))</code>.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">4. Evaluate Nested Clause (CBV)</span>
+              <span class="step-desc">
+                Evaluate argument of <code>suc</code>, which is <code>add(0, suc(0))</code>. Matches clause:
+              </span>
+              <code>add(0, ?y) = ?y</code>
+              <span class="step-desc">
+                This yields: <code>suc(0)</code>.
+              </span>
+            </div>
+            <div class="eval-step">
+              <span class="step-label">5. Final normal form</span>
+              <span class="step-desc">
+                Outer constructor evaluates to <code>suc(suc(0))</code>. The RHS resource becomes <code>counter(suc(suc(0)))</code>.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Worked Examples -->
+      <section id="examples" class="docs-section">
+        <div class="section-header">
+          <mat-icon>auto_stories</mat-icon>
+          <h2>6. Worked Examples Library</h2>
+        </div>
+        
+        <p class="sub-instruction">Click on any example below to expand the full source code and semantics walkthrough.</p>
+
+        <!-- Example 1: Peano Arithmetic -->
+        <div class="accordion-item card-glass">
+          <div 
+            (click)="toggleAccordion('peano')" 
+            [class.expanded]="peanoOpen()" 
+            class="accordion-trigger"
+          >
+            <h4>Example A: Peano Natural Numbers</h4>
+            <mat-icon>expand_more</mat-icon>
+          </div>
+          @if (peanoOpen()) {
+            <div class="accordion-content animate-fade-in">
+              <p>
+                This example demonstrates how Peano numbers (0 and successor) are modeled. The addition function 
+                recursively counts down its first argument and wraps the result in <code>suc</code>.
+              </p>
+              <div class="code-example-container">
+                <div class="code-header">Peano Source Code</div>
+                <pre class="code-body" [innerHTML]="getHighlightHtml(peanoCode)"></pre>
+              </div>
+              <p>
+                <strong>Evaluation Insight:</strong> In this setup, any resource of type <code>nat</code> can trigger 
+                the <code>grow</code> action. Applying it to <code>_r2: suc(0)</code> consumes the resource and 
+                adds <code>_r3: suc(suc(0))</code> (value 2).
+              </p>
+            </div>
+          }
+        </div>
+
+        <!-- Example 2: Parametric Lists -->
+        <div class="accordion-item card-glass">
+          <div 
+            (click)="toggleAccordion('list')" 
+            [class.expanded]="listOpen()" 
+            class="accordion-trigger"
+          >
+            <h4>Example B: Polymorphic / Parametric Lists</h4>
+            <mat-icon>expand_more</mat-icon>
+          </div>
+          @if (listOpen()) {
+            <div class="accordion-content animate-fade-in">
+              <p>
+                Linear actions can operate on generic collections. Here, we define a list of type parameter 
+                <code>'x</code>, write an <code>append</code> function, and create an action that concatenates 
+                two lists.
+              </p>
+              <div class="code-example-container">
+                <div class="code-header">Lists Source Code</div>
+                <pre class="code-body" [innerHTML]="getHighlightHtml(listCode)"></pre>
+              </div>
+              <p>
+                <strong>Evaluation Insight:</strong> Applying <code>concat</code> consumes both <code>_r1</code> and 
+                <code>_r2</code>. The RHS evaluates <code>append(cons(suc(0), nil), cons(0, nil))</code>, which reduces 
+                to: <code>cons(suc(0), cons(0, nil))</code>.
+              </p>
+            </div>
+          }
+        </div>
+
+        <!-- Example 3: River Crossing Puzzle -->
+        <div class="accordion-item card-glass">
+          <div 
+            (click)="toggleAccordion('river')" 
+            [class.expanded]="riverOpen()" 
+            class="accordion-trigger"
+          >
+            <h4>Example C: River Crossing Puzzle State Transition</h4>
+            <mat-icon>expand_more</mat-icon>
+          </div>
+          @if (riverOpen()) {
+            <div class="accordion-content animate-fade-in">
+              <p>
+                Classical planning problems are naturally represented in linear logic. Each resource represents the 
+                position of an entity (human, dog, cat, mouse). Verb-based actions transition the positions, consuming the 
+                previous locations and producing the opposite bank location.
+              </p>
+              <div class="code-example-container">
+                <div class="code-header">River Crossing Source Code</div>
+                <pre class="code-body" [innerHTML]="getHighlightHtml(riverCode)"></pre>
+              </div>
+              <p>
+                <strong>Evaluation Insight:</strong> When the human rows with the dog, the action matches 
+                <code>?from = left</code> and <code>?a = dog</code>. The RHS evaluates <code>opposite(left)</code> 
+                to <code>right</code>, generating <code>_r3: at(human, right)</code> and <code>_r4: at(cargo(dog), right)</code>.
+              </p>
+            </div>
+          }
+        </div>
+
+        <!-- Example 4: Session Channels Simulation -->
+        <div class="accordion-item card-glass">
+          <div 
+            (click)="toggleAccordion('session')" 
+            [class.expanded]="sessionOpen()" 
+            class="accordion-trigger"
+          >
+            <h4>Example D: Session Channels Message Routing</h4>
+            <mat-icon>expand_more</mat-icon>
+          </div>
+          @if (sessionOpen()) {
+            <div class="accordion-content animate-fade-in">
+              <p>
+                Session channels simulate stateful communication protocols. Each active channel is a resource. 
+                Sending and replying to messages is done by matching channels with active messages and returning 
+                updated message envelopes.
+              </p>
+              <div class="code-example-container">
+                <div class="code-header">Session Channel Source Code</div>
+                <pre class="code-body" [innerHTML]="getHighlightHtml(sessionCode)"></pre>
+              </div>
+              <p>
+                <strong>Evaluation Insight:</strong> This models a finite state machine. A channel transitions 
+                from `close` (active) to `ping` to `pong` and finally to `close` (closed), at which point no further actions 
+                are applicable.
+              </p>
+            </div>
+          }
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+</div>

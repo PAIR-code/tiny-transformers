@@ -168,6 +168,7 @@ export class Context {
       throw new Error(`Literal '${name}' already defined in the context.`);
     }
     this.data.functions[name] = {
+      kind: 'ts',
       funcName: name,
       fn,
       inferType,

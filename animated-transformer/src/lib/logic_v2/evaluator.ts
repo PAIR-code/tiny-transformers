@@ -44,7 +44,7 @@ export function evaluateTerm(ctxt: Context, term: Term): Term {
 
   const func = ctxt.getRawData().functions[reducedTerm.literalName];
   if (func) {
-    if ('clauses' in func) {
+    if (func.kind === 'clause') {
       for (const clause of func.clauses) {
         const subst: { [varName: string]: Term } = {};
         if (matchPatterns(ctxt, clause.patterns, reducedTerm.unNamedArgs, subst)) {
@@ -52,7 +52,7 @@ export function evaluateTerm(ctxt: Context, term: Term): Term {
           return evaluateTerm(ctxt, substitutedBody);
         }
       }
-    } else if ('fn' in func) {
+    } else if (func.kind === 'ts') {
       return func.fn(reducedTerm.unNamedArgs, reducedTerm.namedArgs);
     }
   }

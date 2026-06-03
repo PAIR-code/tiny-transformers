@@ -525,7 +525,7 @@ export class TypeChecker {
     if (!foundConstructor) {
       const func = this.ctxt.getRawData().functions[t.literalName];
       if (func) {
-        if ('fn' in func) {
+        if (func.kind === 'ts') {
           if (func.inferType) {
             try {
               const actualUnNamedTypes = t.unNamedArgs.map(arg => this.infer(arg, vars));

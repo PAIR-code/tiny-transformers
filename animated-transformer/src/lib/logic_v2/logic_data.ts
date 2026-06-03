@@ -168,6 +168,14 @@ export type FunctionClauseDef = {
   body: Term;
 };
 
+// TODO: use this and replace the string literals in functions definitions below. 
+// Also lets make AbstractFunctionDef, which also have a funcName in it as well 
+// as the kind.
+export enum FunctionDefKind {
+  PrimRec = 'primrec',
+  TS = 'ts',
+}
+
 /**
  * Represents a pattern-matching function definition.
  * 
@@ -178,6 +186,7 @@ export type FunctionClauseDef = {
  * is stored under key `'add'` in the `functions` context data registry!
  */
 export type ClauseFunctionDef = {
+  kind: 'clause';
   /** The name of the function literal (e.g., 'add'). */
   funcName: string;
   /** List of pattern-matching clauses. */
@@ -185,6 +194,7 @@ export type ClauseFunctionDef = {
 };
 
 export type TSFunctionDef = {
+  kind: 'ts';
   funcName: string;
   fn: (unNamedArgs: Term[], namedArgs: { [argName: string]: Term }) => Term;
   inferType?: (unNamedArgTypes: string[], namedArgTypes: { [name: string]: string }) => string;

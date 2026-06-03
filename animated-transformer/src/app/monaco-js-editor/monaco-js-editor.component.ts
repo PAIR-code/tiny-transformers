@@ -14,6 +14,7 @@ import {
   WritableSignal,
   input,
   output,
+  model,
   viewChild,
   effect,
   Signal,
@@ -108,7 +109,17 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
         });
       }
     });
+
+    // React to wordWrap input changes
+    effect(() => {
+      const wrap = this.wordWrap();
+      if (this.editor) {
+        this.editor.updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+      }
+    });
   }
+
+  readonly wordWrap = model<boolean>(true);
 
   ngOnInit() {
     this.lastValidStr.set(this.codeStr());
@@ -126,6 +137,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
         scrollBeyondLastLine: false,
         fontSize: 12,
         lineNumbers: 'on',
+        wordWrap: this.wordWrap() ? 'on' : 'off',
       });
 
       // Listen for value changes
@@ -140,6 +152,10 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
       console.error('Failed to initialize Monaco JS editor:', err);
       this.configError = 'Editor initialization failed.';
     });
+  }
+
+  toggleWordWrap() {
+    this.wordWrap.set(!this.wordWrap());
   }
 
   ngOnDestroy() {

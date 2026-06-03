@@ -132,4 +132,24 @@ describe('linear lolli logic', () => {
     const resultType = story3.resources[0].type;
     expect(printTerm(resultType)).toBe('suc(suc(suc(suc(0))))');
   });
+
+  it('evaluates initial resource types containing function calls to normal form for structural matching', () => {
+    const ctxtSrc = [
+      'type nat = 0 | suc(num: nat);',
+      'fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;',
+      '_r1: add(suc(0), suc(0));', // evaluates to suc(suc(0))
+    ].join('\n');
+    const ctxt = parseContext(ctxtSrc);
+    const story = LinearStory.fromContext(ctxt);
+
+    // Assert that the initial resource type is evaluated to normal form 'suc(suc(0))'
+    expect(story.resources.length).toBe(1);
+    expect(printTerm(story.resources[0].type)).toBe('suc(suc(0))');
+
+    // Structural match: decrement action requires 'suc(?v)' which matches 'suc(suc(0))'
+    const decrementAction = parseLolliAction('decrement: { ?x: suc(?v) } -o { ?y: ?v }', ctxt);
+    const matches = matchAction(ctxt, decrementAction, story.resources);
+    expect(matches.length).toBe(1);
+    expect(printTerm(matches[0].subst['v'])).toBe('suc(0)');
+  });
 });

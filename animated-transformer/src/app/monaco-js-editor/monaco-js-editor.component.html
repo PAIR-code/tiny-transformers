@@ -43,6 +43,10 @@
         <mat-icon>redo</mat-icon>
         <span>Return to last changed</span>
       </button>
+      <button mat-menu-item (click)="toggleWordWrap()">
+        <mat-icon>{{ wordWrap() ? 'wrap_text' : 'format_align_left' }}</mat-icon>
+        <span>{{ wordWrap() ? 'Disable line wrapping' : 'Enable line wrapping' }}</span>
+      </button>
     </mat-menu>
   }
 </div>

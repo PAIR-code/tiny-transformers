@@ -6,6 +6,9 @@
       <h1 class="header-title">Logic V2 Linear Lolli Explorer</h1>
     </div>
     <nav class="header-nav">
+      <a routerLink="/logic-docs" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Semantics & Examples
+      </a>
       <a routerLink="/wcolab" class="nav-link">
         <mat-icon>code</mat-icon> Web Colab
       </a>
@@ -67,6 +70,14 @@
             >
               <mat-icon>settings</mat-icon>
             </button>
+            <button 
+              class="btn-icon-toggle" 
+              (click)="toggleWordWrap()" 
+              [title]="editorWordWrap() ? 'Disable Line Wrapping' : 'Enable Line Wrapping'"
+              [class.active]="editorWordWrap()"
+            >
+              <mat-icon>{{ editorWordWrap() ? 'wrap_text' : 'format_align_left' }}</mat-icon>
+            </button>
           </div>
           <button class="btn btn-compile" (click)="onCompileClick()">
             <mat-icon>play_arrow</mat-icon> Run & Compile
@@ -79,6 +90,7 @@
             [codeStr]="rawSource()"
             [closable]="false"
             [showTitle]="false"
+            [(wordWrap)]="editorWordWrap"
             (update)="handleCodeUpdate($event)"
           ></app-monaco-js-editor>
         </div>

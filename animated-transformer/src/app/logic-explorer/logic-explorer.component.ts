@@ -52,6 +52,7 @@ export class LogicExplorerComponent implements OnInit {
   readonly backdropElement = viewChild<ElementRef>('backdrop');
   readonly highlightedHtml = computed(() => this.tokenizeSource(this.rawSource()));
   readonly editorExpanded = signal<boolean>(false);
+  readonly editorWordWrap = signal<boolean>(true);
   
   // Theme Color Customizer Signals
   readonly showThemeCustomizer = signal<boolean>(false);
@@ -276,6 +277,13 @@ export class LogicExplorerComponent implements OnInit {
   }
 
   /**
+   * Toggles Monaco editor word wrapping state.
+   */
+  toggleWordWrap() {
+    this.editorWordWrap.set(!this.editorWordWrap());
+  }
+
+  /**
    * Applies a matched logic rule transition to the story.
    */
   applyTransition(match: ActionMatch) {
@@ -456,7 +464,7 @@ export class LogicExplorerComponent implements OnInit {
       const escaped = escapeHtml(line);
       
       return escaped.replace(
-        /(\b(let|type|fun|action)\b)|(\?[a-zA-Z_][a-zA-Z0-9_]*)|(\&#039;[a-zA-Z_][a-zA-Z0-9_]*)|(\b_[a-zA-Z0-9_]+\b)|(\b\d+\b)|(-o|\➔|=|\*|\||:|;)/g,
+        /(\b(let|type|fun|action)\b)|(\?[a-zA-Z_][a-zA-Z0-9_]*)|(\&#039;[a-zA-Z_][a-zA-Z0-9_]*)|(\b_[a-zA-Z0-9_]+\b)|(\b\d+\b)|(-o|\➔|=|\*|\||:|(?<!&(?:lt|gt|amp|quot|#039));)/g,
         (match, keyword, kwText, variable, typeParam, resource, num, symbol) => {
           if (keyword) return `<span class="hl-keyword">${match}</span>`;
           if (variable) return `<span class="hl-var">${match}</span>`;
