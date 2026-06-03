@@ -525,6 +525,26 @@ export class TypeChecker {
     if (!foundConstructor) {
       const func = this.ctxt.getRawData().functions[t.literalName];
       if (func) {
+        if ('fn' in func) {
+          if (func.inferType) {
+            try {
+              const actualUnNamedTypes = t.unNamedArgs.map(arg => this.infer(arg, vars));
+              const actualNamedTypes: { [name: string]: string } = {};
+              for (const [name, arg] of Object.entries(t.namedArgs)) {
+                actualNamedTypes[name] = this.infer(arg, vars);
+              }
+              return func.inferType(actualUnNamedTypes, actualNamedTypes);
+            } catch (e) {}
+          }
+          try {
+            const evaluated = evaluateTerm(this.ctxt, t);
+            if (evaluated !== t && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== t.literalName)) {
+              return this.infer(evaluated, vars);
+            }
+          } catch (e) {}
+          return 'nat';
+        }
+
         try {
           const evaluated = evaluateTerm(this.ctxt, t);
           if (evaluated !== t && (evaluated.kind !== TermKind.Literal || evaluated.literalName !== t.literalName)) {

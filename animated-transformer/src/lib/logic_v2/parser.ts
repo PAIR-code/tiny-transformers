@@ -56,6 +56,7 @@ import {
  */
 export function parseContext(src: string, existingCtxt?: Context): Context {
   const ctxt = existingCtxt ?? emptyContext();
+  const instantiatedCustomParsers: Parser<unknown, Term>[] = [];
 
   const stream = new FilterStream(
     new MatchersStream(src, LOGIC_TOKENS),
@@ -103,8 +104,9 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     tokenOf("symbol", ["*"]).map(() => "*")
   );
 
-  const termParser: Parser<any, Term> = fn(() => {
+  const termParser: Parser<unknown, Term> = fn(() => {
     return or(
+      or(...instantiatedCustomParsers),
       seq(
         constrNameParser,
         delimited(
@@ -171,7 +173,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     );
   });
 
-  const simpleTermParser: Parser<any, Term> = fn(() => {
+  const simpleTermParser: Parser<unknown, Term> = fn(() => {
     return or(
       delimited("(", termParser, ")"),
       constrNameParser.map(name => {
@@ -190,6 +192,12 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       })
     );
   });
+
+  if (ctxt instanceof Context) {
+    for (const factory of ctxt.customParserFactories) {
+      instantiatedCustomParsers.push(factory(termParser, simpleTermParser));
+    }
+  }
 
   const typeParamsParser = opt(delimited("<", withSep(",", kind("typeParam")), ">"));
 
@@ -369,6 +377,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     new MatchersStream(src, LOGIC_TOKENS),
     (t: Token) => t.kind !== "ws"
   );
+  const instantiatedCustomParsers: Parser<unknown, Term>[] = [];
 
   const constrNameParser = or(
     kind("number"),
@@ -378,8 +387,9 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     tokenOf("symbol", ["*"]).map(() => "*")
   );
 
-  const termParser: Parser<any, Term> = fn(() => {
+  const termParser: Parser<unknown, Term> = fn(() => {
     return or(
+      or(...instantiatedCustomParsers),
       seq(
         constrNameParser,
         delimited(
@@ -446,7 +456,7 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
     );
   });
 
-  const simpleTermParser: Parser<any, Term> = fn(() => {
+  const simpleTermParser: Parser<unknown, Term> = fn(() => {
     return or(
       delimited("(", termParser, ")"),
       constrNameParser.map(name => {
@@ -465,6 +475,13 @@ export function parseTerm(src: string, constructors?: Set<string> | Context): Te
       })
     );
   });
+
+  const ctxt = constructors instanceof Context ? constructors : null;
+  if (ctxt) {
+    for (const factory of ctxt.customParserFactories) {
+      instantiatedCustomParsers.push(factory(termParser, simpleTermParser));
+    }
+  }
 
   const result = seq(termParser, eof()).parse({ stream });
   if (!result) {

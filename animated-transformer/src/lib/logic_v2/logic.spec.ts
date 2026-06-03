@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import { FreshNames } from '../names/simple_fresh_names';
-import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, escaped, EscapedValue, Term, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation, TypeChecker, unify } from './logic';
+import { seq, tokenOf } from 'mini-parse';
+import { ConjunctionData, BindingDef, DisjunctionDef, Context, createContext, extendContext, constr, variable, escaped, EscapedValue, Term, inferType, typeCheck, parseContext, printContext, parseTerm, printTerm, getBaseType, TermKind, TypeKind, evaluateTerm, solveEquation, TypeChecker, unify, matchTypes } from './logic';
 
 describe('v2_logic of peano natural numbers', () => {
   beforeEach(() => {});
@@ -673,6 +674,63 @@ describe('v2_logic of peano natural numbers', () => {
 
       expect(() => typeCheck(ctxt, op, opSame)).not.toThrow();
       expect(() => typeCheck(ctxt, op, opDiff)).toThrow();
+    });
+
+    it('supports pure TS functions and evaluates them correctly', () => {
+      const tsCtxt = Context.empty();
+      // Define a TS function "double" that doubles a Peano number (represented as numeric Escaped TS value)
+      tsCtxt.defineTSFunction('double', (unNamedArgs) => {
+        const arg = unNamedArgs[0];
+        if (arg && arg.kind === TermKind.Escaped && arg.value instanceof TSVal) {
+          return escaped(new TSVal((arg.value.val as number) * 2));
+        }
+        return arg;
+      });
+
+      const term = constr('double', [escaped(new TSVal(21))]);
+      const res = evaluateTerm(tsCtxt, term);
+      expect(printTerm(res)).toBe('42');
+    });
+
+    it('supports custom parsing of type multiplication and checks equality', () => {
+      const parserCtxt = Context.empty();
+
+      // Define MultiplicationType
+      class MultVal extends EscapedValue {
+        static override readonly parserFactory = (termParser: any, simpleTermParser: any) => {
+          return seq(
+            simpleTermParser,
+            tokenOf('symbol', ['*']),
+            termParser
+          ).map(([left, _, right]) => escaped(new MultVal(left as Term, right as Term)));
+        };
+
+        constructor(public left: Term, public right: Term) {
+          super();
+        }
+        toString() {
+          return `${printTerm(this.left)}*${printTerm(this.right)}`;
+        }
+        equals(other: EscapedValue): boolean {
+          if (!(other instanceof MultVal)) return false;
+          // Value comparison or modulo equivalence
+          return matchTypes(parserCtxt, this.left, other.left) && matchTypes(parserCtxt, this.right, other.right);
+        }
+      }
+
+      // Register the escape kind directly to Context
+      parserCtxt.registerEscapeKind(MultVal);
+
+      const parsed = parseTerm('nat * list(nat)', parserCtxt);
+      expect(parsed.kind).toBe(TermKind.Escaped);
+      expect((parsed as any).value).toBeInstanceOf(MultVal);
+      expect(printTerm(parsed)).toBe('nat*list(nat)');
+
+      const parsed2 = parseTerm('nat * list(nat)', parserCtxt);
+      expect(() => typeCheck(parserCtxt, parsed, parsed2)).not.toThrow();
+
+      const parsedDiff = parseTerm('nat * nat', parserCtxt);
+      expect(() => typeCheck(parserCtxt, parsed, parsedDiff)).toThrow();
     });
   });
 });

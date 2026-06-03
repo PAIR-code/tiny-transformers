@@ -44,12 +44,16 @@ export function evaluateTerm(ctxt: Context, term: Term): Term {
 
   const func = ctxt.getRawData().functions[reducedTerm.literalName];
   if (func) {
-    for (const clause of func.clauses) {
-      const subst: { [varName: string]: Term } = {};
-      if (matchPatterns(ctxt, clause.patterns, reducedTerm.unNamedArgs, subst)) {
-        const substitutedBody = substitute(clause.body, subst) as Term;
-        return evaluateTerm(ctxt, substitutedBody);
+    if ('clauses' in func) {
+      for (const clause of func.clauses) {
+        const subst: { [varName: string]: Term } = {};
+        if (matchPatterns(ctxt, clause.patterns, reducedTerm.unNamedArgs, subst)) {
+          const substitutedBody = substitute(clause.body, subst) as Term;
+          return evaluateTerm(ctxt, substitutedBody);
+        }
       }
+    } else if ('fn' in func) {
+      return func.fn(reducedTerm.unNamedArgs, reducedTerm.namedArgs);
     }
   }
 

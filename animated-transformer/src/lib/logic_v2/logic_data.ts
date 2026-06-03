@@ -13,15 +13,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =============================================================================*/
 
+import { Parser } from 'mini-parse';
+
 export enum TermKind {
   Literal = 'Literal',
   Variable = 'Variable',
   Escaped = 'Escaped',
 }
 
+export type CustomParserFactory = (
+  termParser: Parser<unknown, Term>,
+  simpleTermParser: Parser<unknown, Term>
+) => Parser<unknown, Term>;
+
+export type EscapedValueClass = {
+  readonly parserFactory?: CustomParserFactory;
+};
+
 export abstract class EscapedValue {
   abstract toString(): string;
   abstract equals(other: EscapedValue): boolean;
+  static readonly parserFactory?: CustomParserFactory;
 }
 
 /**
@@ -165,12 +177,20 @@ export type FunctionClauseDef = {
  * ```
  * is stored under key `'add'` in the `functions` context data registry!
  */
-export type FunctionDef = {
+export type ClauseFunctionDef = {
   /** The name of the function literal (e.g., 'add'). */
   funcName: string;
   /** List of pattern-matching clauses. */
   clauses: FunctionClauseDef[];
 };
+
+export type TSFunctionDef = {
+  funcName: string;
+  fn: (unNamedArgs: Term[], namedArgs: { [argName: string]: Term }) => Term;
+  inferType?: (unNamedArgTypes: string[], namedArgTypes: { [name: string]: string }) => string;
+};
+
+export type FunctionDef = ClauseFunctionDef | TSFunctionDef;
 
 export type ActionResource = {
   varName: string;

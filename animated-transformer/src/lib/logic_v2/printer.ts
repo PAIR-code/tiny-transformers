@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Term, TermKind, TypeKind, BindingDef, DisjunctionDef, Escaped } from './logic_data';
+import { Term, TermKind, TypeKind, BindingDef, DisjunctionDef, Escaped, FunctionClauseDef, ActionResource } from './logic_data';
 import { getBaseType, Context } from './logic';
 
 /**
@@ -117,11 +117,15 @@ export function printContext(ctxt: Context): string {
   if (functions) {
     for (const funcName of Object.keys(functions).sort()) {
       const func = functions[funcName];
-      const clauseStrs = func.clauses.map((c: any) => {
-        const patternsStr = c.patterns.map((p: any) => printTerm(p, { ctxt })).join(', ');
-        return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;
-      });
-      declarations.push(`${clauseStrs.join(' | ')};`);
+      if ('clauses' in func) {
+        const clauseStrs = func.clauses.map((c: FunctionClauseDef) => {
+          const patternsStr = c.patterns.map((p: Term) => printTerm(p, { ctxt })).join(', ');
+          return `fun ${funcName}(${patternsStr}) = ${printTerm(c.body, { ctxt })}`;
+        });
+        declarations.push(`${clauseStrs.join(' | ')};`);
+      } else {
+        declarations.push(`// TS function: ${funcName}`);
+      }
     }
   }
 
@@ -129,7 +133,7 @@ export function printContext(ctxt: Context): string {
   if (actions) {
     for (const actionName of Object.keys(actions).sort()) {
       const action = actions[actionName];
-      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
+      const printResource = (r: ActionResource) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
       const lhs = action.lhs.map(printResource).join(', ');
       const rhs = action.rhs.map(printResource).join(', ');
       declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);
@@ -164,7 +168,7 @@ export function printLinearContext(ctxt: Context): string {
   if (actions) {
     for (const actionName of Object.keys(actions).sort()) {
       const action = actions[actionName];
-      const printResource = (r: any) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
+      const printResource = (r: ActionResource) => `?${r.varName}: ${printTerm(r.typePattern, { ctxt })}`;
       const lhs = action.lhs.map(printResource).join(', ');
       const rhs = action.rhs.map(printResource).join(', ');
       declarations.push(`action ${actionName}: { ${lhs} } -o { ${rhs} };`);

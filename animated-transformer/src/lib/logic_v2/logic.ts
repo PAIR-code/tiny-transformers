@@ -16,6 +16,7 @@ limitations under the License.
 import {
   RegexMatchers,
   matchOneOf,
+  Parser,
 } from 'mini-parse';
 
 import {
@@ -24,6 +25,8 @@ import {
   Variable,
   Escaped,
   EscapedValue,
+  CustomParserFactory,
+  EscapedValueClass,
   TypeKind,
   ConjunctionDef,
   DisjunctionDef,
@@ -75,7 +78,7 @@ export const LOGIC_TOKENS = new RegexMatchers({
   var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
   ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
   number: /0|[1-9][0-9]*/,
-  symbol: matchOneOf("= | { } : , ( ) ; < > -o *"),
+  symbol: /-[o>]|[-+*/%=<>!:;*,(){}[\]|]/,
   ws: /\s+/,
 });
 
@@ -144,6 +147,33 @@ export type ConjunctionData = {
  * and pattern-matching functions are fully validated and maintained.
  */
 export class Context {
+  readonly customParserFactories: CustomParserFactory[] = [];
+
+  registerCustomParser(factory: CustomParserFactory) {
+    this.customParserFactories.push(factory);
+  }
+
+  registerEscapeKind(klass: EscapedValueClass) {
+    if (klass.parserFactory) {
+      this.registerCustomParser(klass.parserFactory);
+    }
+  }
+
+  defineTSFunction(
+    name: string,
+    fn: (unNamedArgs: Term[], namedArgs: { [argName: string]: Term }) => Term,
+    inferType?: (unNamedArgTypes: string[], namedArgTypes: { [name: string]: string }) => string
+  ): void {
+    if (name in this.data.types || name in this.data.constructors || name in this.data.functions) {
+      throw new Error(`Literal '${name}' already defined in the context.`);
+    }
+    this.data.functions[name] = {
+      funcName: name,
+      fn,
+      inferType,
+    };
+  }
+
   constructor(private readonly data: ContextData) {}
 
   static empty(): Context {
