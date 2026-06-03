@@ -86,19 +86,25 @@ export function parseLolliAction(src: string, ctxt: Context): LolliAction {
   const lhsStr = match[2].trim();
   const rhsStr = match[3].trim();
 
+  let varCounter = 0;
   const parseResources = (str: string): { varName: string; typePattern: Term }[] => {
     if (!str) return [];
     const parts = splitTopLevelCommas(str);
     return parts.map(part => {
       const resRegex = /^\s*\?([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*?)\s*$/;
       const resMatch = part.trim().match(resRegex);
-      if (!resMatch) {
-        throw new Error(`Invalid resource declaration: "${part}" in "${str}"`);
+      if (resMatch) {
+        const varName = resMatch[1];
+        const typePatternStr = resMatch[2].trim();
+        const typePattern = parseTerm(typePatternStr, ctxt);
+        return { varName, typePattern };
+      } else {
+        const typePattern = parseTerm(part.trim(), ctxt);
+        return {
+          varName: `_gen_var_${varCounter++}`,
+          typePattern,
+        };
       }
-      const varName = resMatch[1];
-      const typePatternStr = resMatch[2].trim();
-      const typePattern = parseTerm(typePatternStr, ctxt);
-      return { varName, typePattern };
     });
   };
 
@@ -113,6 +119,9 @@ export function parseLolliAction(src: string, ctxt: Context): LolliAction {
  */
 export function printLolliAction(action: LolliAction): string {
   const printResource = (r: { varName: string; typePattern: Term }) => {
+    if (r.varName.startsWith('_gen_var_')) {
+      return printTerm(r.typePattern);
+    }
     return `?${r.varName}: ${printTerm(r.typePattern)}`;
   };
   const lhs = action.lhs.map(printResource).join(', ');

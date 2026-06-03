@@ -732,5 +732,21 @@ describe('v2_logic of peano natural numbers', () => {
       const parsedDiff = parseTerm('nat * nat', parserCtxt);
       expect(() => typeCheck(parserCtxt, parsed, parsedDiff)).toThrow();
     });
+
+    describe('constructor and type namespace separation', () => {
+      it('allows constructors and types to share the same name', () => {
+        const ctxtSrc = [
+          'type species = cat | dog;',
+          'type animal = animal(kind: species);',
+        ].join('\n');
+
+        const ctxt = parseContext(ctxtSrc);
+        expect(ctxt.types['animal']).toBeDefined();
+        expect(ctxt.getRawData().constructors['animal']).toBeDefined();
+
+        const term = parseTerm('animal(cat)', ctxt);
+        expect(() => typeCheck(ctxt, term, 'animal')).not.toThrow();
+      });
+    });
   });
 });

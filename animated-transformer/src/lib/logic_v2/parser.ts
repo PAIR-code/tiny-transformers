@@ -291,14 +291,21 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     };
   });
 
-  const actionResourceParser = seq(
-    kind("var"),
-    ":",
-    termParser
-  ).map(r => ({
-    varName: r[0].substring(1),
-    typePattern: r[2],
-  }));
+  let actionVarCounter = 0;
+  const actionResourceParser = or(
+    seq(
+      kind("var"),
+      ":",
+      termParser
+    ).map(r => ({
+      varName: r[0].substring(1),
+      typePattern: r[2],
+    })),
+    termParser.map(t => ({
+      varName: `_gen_var_${actionVarCounter++}`,
+      typePattern: t,
+    }))
+  );
 
   const actionResourcesParser = delimited(
     "{",
@@ -339,7 +346,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     } else if (decl.kind === 'Term') {
       ctxt.defineTerm(decl.termName, decl.term);
     } else if (decl.kind === 'Fun') {
-      if (decl.funcName in ctxt.getRawData().types || decl.funcName in ctxt.getRawData().constructors || decl.funcName in ctxt.getRawData().functions) {
+      if (decl.funcName in ctxt.getRawData().constructors || decl.funcName in ctxt.getRawData().functions || decl.funcName in ctxt.getRawData().actions) {
         throw new Error(`Literal '${decl.funcName}' already defined in the context.`);
       }
       ctxt.getRawData().functions[decl.funcName] = {
@@ -357,7 +364,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
         ctxt.declareLinearResource(decl.varName, decl.typeName);
       }
     } else if (decl.kind === 'Action') {
-      if (decl.action.name in ctxt.getRawData().types || decl.action.name in ctxt.getRawData().constructors || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
+      if (decl.action.name in ctxt.getRawData().constructors || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
         throw new Error(`Literal '${decl.action.name}' already defined in the context.`);
       }
       ctxt.getRawData().actions[decl.action.name] = decl.action;

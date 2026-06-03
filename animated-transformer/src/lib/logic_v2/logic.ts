@@ -164,7 +164,7 @@ export class Context {
     fn: (unNamedArgs: Term[], namedArgs: { [argName: string]: Term }) => Term,
     inferType?: (unNamedArgTypes: string[], namedArgTypes: { [name: string]: string }) => string
   ): void {
-    if (name in this.data.types || name in this.data.constructors || name in this.data.functions) {
+    if (name in this.data.constructors || name in this.data.functions || name in this.data.actions) {
       throw new Error(`Literal '${name}' already defined in the context.`);
     }
     this.data.functions[name] = {
@@ -239,7 +239,7 @@ export class Context {
     try {
       for (const [sumTypeName, groupConstrs] of groups.entries()) {
         // Check sum type literal clash
-        if (sumTypeName in this.data.types || sumTypeName in this.data.constructors || sumTypeName in this.data.functions) {
+        if (sumTypeName in this.data.types) {
           throw new Error(`Type literal '${sumTypeName}' already defined in the context.`);
         }
 
@@ -248,7 +248,7 @@ export class Context {
           if (c.constructorName in this.data.types && Object.keys(c.arguments).length === 0) {
             continue;
           }
-          if (c.constructorName in this.data.types || c.constructorName in this.data.constructors || c.constructorName in this.data.functions) {
+          if (c.constructorName in this.data.constructors || c.constructorName in this.data.functions || c.constructorName in this.data.actions) {
             throw new Error(`Constructor literal '${c.constructorName}' already defined in the context.`);
           }
         }
