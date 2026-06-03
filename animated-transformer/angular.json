@@ -97,7 +97,8 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "browsers": ["chromium"]
+            "browsers": ["chromium"],
+            "headless": true
           }
         }
       }

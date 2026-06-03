@@ -84,15 +84,14 @@ A core concept of this codebase is the **Named Tensor** abstraction layer built 
 
 ## 5. Angular Standalone Architecture
 
-We develop with Angular 21+ utilizing modern standalone components and strict compiler features:
+We develop with Angular 22+ utilizing modern standalone components and strict compiler features. Agents should follow the best practices defined in [AGENTS.md](../../../AGENTS.md) and [.gemini/GEMINI.md](../../../.gemini/GEMINI.md).
 
-- **Standalone Components**: Declare `standalone: true` in component decorator configurations. Explicitly import only the required modules directly within `imports: [...]`.
+- **Standalone Components**: Components, directives, and pipes are standalone by default in Angular v20+. Do **not** declare `standalone: true` inside Angular decorators. Explicitly import only the required modules directly within `imports: [...]`.
   ```ts
   @Component({
     selector: 'app-custom-element',
     templateUrl: './custom-element.component.html',
     styleUrls: ['./custom-element.component.scss'],
-    standalone: true,
     imports: [
       CommonModule,
       MatButtonModule,
@@ -105,7 +104,7 @@ We develop with Angular 21+ utilizing modern standalone components and strict co
   - `"strictInjectionParameters": true`: Disallows injection tokens that are missing or cannot be resolved.
   - `"strictTemplates": true`: Standardizes strict type check verification on HTML inputs, outputs, and template bindings.
   - `"strictStandalone": true`: Enforces standalone boundaries.
-- **Zoneless Change Detection**: We exclusively use Angular's zoneless change detection (`provideZonelessChangeDetection()`) everywhere (app-wide and in all test suites) in Angular 21+ style.
+- **Zoneless Change Detection**: We exclusively use Angular's zoneless change detection (`provideZonelessChangeDetection()`) everywhere (app-wide and in all test suites) in Angular 22 style.
   - Do **not** use `provideZoneChangeDetection()` or import `zone.js`.
   - Components must rely on reactive primitives (like Angular Signals, the `async` pipe with RxJS observables, or explicit `ChangeDetectorRef` when necessary) for state updates.
   - When writing unit tests, bootstrap the test environment or test bed with `provideZonelessChangeDetection()`.
@@ -116,13 +115,16 @@ We develop with Angular 21+ utilizing modern standalone components and strict co
   iconRegistry.addSvgIcon("settings", sanitizer.bypassSecurityTrustResourceUrl("assets/icons/settings.svg"));
   ```
 
+
 ---
 
 ## 6. Testing & Assertion Best Practices
 
 Maintain close proximity between code and unit tests by placing TypeScript spec files (`*.spec.ts`) right next to the source code.
 
-- **Standard Testing Framework**: The project uses **Jasmine & Karma** (run via `pnpm test`) as its standard testing framework for unit and integration tests. Spec files must be written in **TypeScript** (`*.spec.ts`).
+- **Standard Testing Framework**: The project uses **Vitest** (via `@angular/build:unit-test` and `pnpm test`) for unit and integration tests. Spec files must be written in **TypeScript** (`*.spec.ts`).
+- **Running Tests Headless vs Browser**: By default, tests run in **headless chromium** (no browser window opens). If you explicitly need to open the browser window to debug or inspect rendering, run `pnpm test --headless=false`.
+- **Targeted Test Execution**: To avoid running the entire test suite (which takes time, especially for web workers and model training), always run only the relevant spec files or directory under development by using the `--include` option, e.g. `pnpm test --include=src/lib/logic_v2/**/*.spec.ts --watch=false`.
 - **Tensor Comparison**: Never compare raw tensors directly using standard expect blocks. Instead, use TensorFlow.js's built-in test utility assertions:
   - **For exact equivalence**: `tf.test_util.expectArraysEqual(actual, expected)`
   - **For approximate floating-point matches**: `tf.test_util.expectArraysClose(actual, expected)`

@@ -21,7 +21,7 @@ limitations under the License.
  *   new Worker('/assets/test_only_assets/trainer-cell.worker.js', { type: 'module' })
  */
 
-import { defaultTransformerConfig } from 'src/lib/transformer/transformer_gtensor';
+import { simpleTransfomerConfig_nLN } from 'src/lib/transformer/transformer_gtensor';
 import { asyncIterToSignal, DepKind, SignalSpace } from 'src/lib/signalspace/signalspace';
 import { TrainConfig, ModelInit, ModelInitKind, TaskGenConfig } from './common.types';
 import { trainerCellKind } from './trainer-cell.kind';
@@ -44,19 +44,19 @@ describe('tiny-transformer-example/test-and-trainer', () => {
       kind: 'basicSeqTrainer',
       // training hyper-params
       learningRate: 0.5,
-      batchSize: 64,
-      maxInputLength: 10,
-      trainForBatches: 11,
+      batchSize: 16,
+      maxInputLength: 4,
+      trainForBatches: 5,
       randomSeed: 42, // for things like dropout.
       // Reporting / eval
-      checkpointFrequencyInBatches: 10,
+      checkpointFrequencyInBatches: 4,
       metricReporting: {
         metricFrequencyInBatches: 2,
       },
     });
     const modelInit = setable<ModelInit>({
       kind: ModelInitKind.ReinitFromConfig,
-      config: defaultTransformerConfig(),
+      config: simpleTransfomerConfig_nLN,
     });
 
     // ------------------------------------------------------------------------
@@ -66,7 +66,7 @@ describe('tiny-transformer-example/test-and-trainer', () => {
       testSetSize: 5,
       initBatchId: 0,
       batchSize: trainConfig().batchSize,
-      maxBatches: 11,
+      maxBatches: 5,
       initBatchSeed: 0,
     });
 
@@ -100,9 +100,6 @@ describe('tiny-transformer-example/test-and-trainer', () => {
     // 1. reactive by turning it into a signal.
 
     const metrics = asyncIterToSignal(trainerCell.outStreams.metrics.connect(), space);
-    // Note: only do this if you are sure that you will get some value.otherwise
-    // you might get stuck waiting forever. If the metrics stream is empty, then
-    // this will reject, which if not handled will crash stuff.
     const latestMetrics = await metrics.onceSignal;
 
     // 2. In thread, with async for loop. This is safer in the sense that the
@@ -118,7 +115,7 @@ describe('tiny-transformer-example/test-and-trainer', () => {
     await taskCell.onceFinished;
     await trainerCell.onceFinished;
 
-    expect(latestMetrics().batchId).toEqual(10);
+    expect(latestMetrics().batchId).toEqual(4);
     expect(chpts.length).toEqual(2);
   }, 20000);
 });

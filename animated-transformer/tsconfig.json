@@ -2,8 +2,10 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist/out-tsc",
+    "paths": {
+      "src/*": ["./src/*"]
+    },
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "strict": true,
