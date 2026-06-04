@@ -25,6 +25,9 @@ limitations under the License.
       <a routerLink="/wcolab" class="nav-link">
         <mat-icon>code</mat-icon> Web Colab
       </a>
+      <a routerLink="/logic-advanced-docs" class="nav-link">
+        <mat-icon>psychology</mat-icon> Advanced (TS)
+      </a>
     </nav>
   </header>
 
@@ -73,7 +76,7 @@ limitations under the License.
           <div class="callout info">
             <mat-icon>info</mat-icon>
             <div class="callout-content">
-              <strong>The Resource Rule:</strong> 
+              <div class="callout-title">The Resource Rule</div>
               Every resource must be consumed exactly once in a state transition. You cannot duplicate a resource 
               unless explicitly allowed by a rule, and you cannot let a resource vanish unless it is explicitly consumed.
             </div>
@@ -110,7 +113,7 @@ limitations under the License.
           <div class="callout info">
             <mat-icon>info</mat-icon>
             <div class="callout-content">
-              <strong>Namespace & Overlapping Names:</strong> 
+              <div class="callout-title">Namespace & Overlapping Names</div>
               Type names and constructor names are stored in a single flat registry, but they 
               <strong>can safely overlap</strong>. Declaring <code>type animal = animal(kind: species)</code> 
               is fully supported and allows the constructor to share the name with its type, providing 
@@ -199,7 +202,7 @@ limitations under the License.
           <div class="callout info">
             <mat-icon>info</mat-icon>
             <div class="callout-content">
-              <strong>Example of Normal Form Matching:</strong> 
+              <div class="callout-title">Example of Normal Form Matching</div>
               If the initial context defines <code>_r1: add(suc(0), suc(0));</code>, it is immediately evaluated to <code>suc(suc(0))</code>.
               When matching rule <code>decrement: {{ '{' }} ?x: suc(?v) {{ '}' }} -o {{ '{' }} ?y: ?v {{ '}' }}</code>, structural matching succeeds because it unifies pattern <code>suc(?v)</code> against evaluated term <code>suc(suc(0))</code> (binding <code>?v</code> to <code>suc(0)</code>).
               If the resource remained as the unevaluated term <code>add(suc(0), suc(0))</code>, structural unification would fail.
@@ -420,6 +423,19 @@ limitations under the License.
           }
         </div>
 
+      </section>
+
+      <!-- 7. Next Steps -->
+      <section class="docs-section">
+        <div class="card-glass" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%); border-color: rgba(79, 70, 229, 0.2);">
+          <h3>Looking for more control?</h3>
+          <p>
+            You can extend the logic engine by wrapping arbitrary TypeScript values and executing dynamic code with custom logic functions.
+          </p>
+          <a routerLink="/logic-advanced-docs" class="nav-link" style="display: inline-flex; align-self: flex-start; color: #4f46e5; border-color: #cbd5e1; margin-top: 8px;">
+            <mat-icon>psychology</mat-icon> Explore Advanced TypeScript Semantics
+          </a>
+        </div>
       </section>
 
     </main>

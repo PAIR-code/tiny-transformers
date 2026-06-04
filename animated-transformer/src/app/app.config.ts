@@ -28,6 +28,7 @@ import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
 import { LogicExplorerComponent } from './logic-explorer/logic-explorer.component';
 import { LogicDocsComponent } from './logic-explorer/logic-docs.component';
+import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs.component';
 import { provideHttpClient } from '@angular/common/http';
 
 export const routes: Routes = [
@@ -37,6 +38,7 @@ export const routes: Routes = [
   { path: 'sae', component: SAEComponent },
   { path: 'logic', component: LogicExplorerComponent },
   { path: 'logic-docs', component: LogicDocsComponent },
+  { path: 'logic-advanced-docs', component: LogicAdvancedDocsComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 

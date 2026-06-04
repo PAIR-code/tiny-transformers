@@ -1,0 +1,174 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+you may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+============================================================================== -->
+<div class="docs-container">
+  <!-- Top header / Nav Bar -->
+  <header class="explorer-header">
+    <div class="header-left">
+      <mat-icon class="header-logo font-icon-align">psychology</mat-icon>
+      <h1 class="header-title">Linear Logic Advanced Semantics</h1>
+    </div>
+    <nav class="header-nav">
+      <a routerLink="/logic-docs" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Semantics & Examples
+      </a>
+      <a routerLink="/logic" class="nav-link">
+        <mat-icon>account_tree</mat-icon> Explorer
+      </a>
+      <a routerLink="/wcolab" class="nav-link">
+        <mat-icon>code</mat-icon> Web Colab
+      </a>
+    </nav>
+  </header>
+
+  <div class="docs-layout">
+    <!-- Sidebar navigation -->
+    <aside class="docs-sidebar">
+      <h4 class="sidebar-title">Advanced Index</h4>
+      <nav class="sidebar-nav">
+        @for (sec of sections; track sec.id) {
+          <a 
+            (click)="scrollTo(sec.id)" 
+            [class.active]="activeSection() === sec.id" 
+            class="sidebar-link"
+          >
+            {{ sec.label }}
+          </a>
+        }
+      </nav>
+    </aside>
+
+    <!-- Scrollable content area -->
+    <main class="docs-content">
+      
+      <!-- Hero Header -->
+      <section class="docs-hero" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.15);">
+        <h1>TypeScript Functions & Escaped Values</h1>
+        <p>
+          Extend the power of the logic engine beyond static Algebraic Data Types. Learn how to wrap native TypeScript objects, 
+          define custom term operators, and execute dynamic calculations directly during logical transitions.
+        </p>
+      </section>
+
+      <!-- 1. Overview -->
+      <section id="intro" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #4f46e5;">info_outline</mat-icon>
+          <h2>1. Overview</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Algebraic Data Types (ADTs) are excellent for modeling structured data, but some problems are better suited for traditional programming. 
+            For example, calculations like Peano arithmetic (using <code>suc(suc(0))</code>) can be extremely verbose and slow to reduce.
+          </p>
+          <p>
+            The logic engine provides two primary mechanisms to interface directly with TypeScript:
+          </p>
+          <ul>
+            <li><strong>Escaped Values</strong>: Wrap arbitrary TypeScript/JavaScript instances (like numbers, strings, tensors, or models) and embed them directly inside logic terms.</li>
+            <li><strong>TypeScript Functions</strong>: Register TS/JS functions in the logical context. These are executed dynamically during term evaluation, providing instant computations over terms.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 2. Escaped Values -->
+      <section id="escaped-values" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #4f46e5;">integration_instructions</mat-icon>
+          <h2>2. Escaped Values</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            An <strong>Escaped Value</strong> is a term that wraps a native TS/JS object. To define an escaped value, subclass <code>EscapedValue</code> and implement the required methods:
+          </p>
+          <ul>
+            <li><code>toString()</code>: Defines how the escaped value displays as a string inside logic expressions and explorer tools.</li>
+            <li><code>equals(other)</code>: Defines the equality criteria used by the logic engine's type-checker and unification system.</li>
+          </ul>
+
+          <div class="code-example-container">
+            <div class="code-header">TypeScript: Defining an Escaped Value Class</div>
+            <pre class="code-body" [innerHTML]="getHighlightTsHtml(escapedValueCode)"></pre>
+          </div>
+
+          <div class="code-example-container">
+            <div class="code-header">Logic / TS: Wrapping Values</div>
+            <pre class="code-body" [innerHTML]="getHighlightTsHtml(logicEscapedCode)"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. TypeScript Functions -->
+      <section id="ts-functions" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #4f46e5;">settings_ethernet</mat-icon>
+          <h2>3. TypeScript Functions</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            You can register a custom TypeScript function inside a logical <code>Context</code> using the <code>defineTSFunction</code> method. 
+            When a term representing this function name is evaluated (using Call-by-Value reduction), the logic engine intercepts the evaluation and runs your TypeScript callback.
+          </p>
+
+          <div class="code-example-container">
+            <div class="code-header">TypeScript: Defining and Registering a TS Function</div>
+            <pre class="code-body" [innerHTML]="getHighlightTsHtml(tsFunctionDefCode)"></pre>
+          </div>
+
+          <div class="code-example-container">
+            <div class="code-header">Logic Engine: Using the TS Function</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(logicTsFunctionUseCode)"></pre>
+          </div>
+
+          <div class="callout info">
+            <mat-icon>info</mat-icon>
+            <div class="callout-content">
+              <div class="callout-title">Evaluation Order</div>
+              Because the logic engine is Call-by-Value, all arguments passed to a TypeScript function are fully reduced to their normal form before the function callback is executed.
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <mat-icon>warning</mat-icon>
+            <div class="callout-content">
+              <div class="callout-title">Equivalence Assumption (Canonicalization)</div>
+              TypeScript functions are expected to take logical terms / arguments and reduce/evaluate them into a <strong>canonical form</strong> (typically containing escaped values or base terms). 
+              In this canonical form, type checking and unification rely on direct equality (i.e. the <code>equals()</code> method defined on your <code>EscapedValue</code> subclass).
+              Therefore, you must ensure that your TS function always maps equivalent logical inputs to the exact same canonical output term so that direct value equality checks succeed during type verification.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Custom Parsers & Type Operators -->
+      <section id="custom-parsing" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #4f46e5;">find_in_page</mat-icon>
+          <h2>4. Custom Parsers & Type Operators</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Advanced applications can override the default logic parser by providing a <code>parserFactory</code> static method on the <code>EscapedValue</code> subclass. 
+            This allows introducing custom operator symbols or syntax structures (e.g. type multiplication <code>*</code> or tuples).
+          </p>
+
+          <div class="code-example-container">
+            <div class="code-header">TypeScript: Custom Parser for Multiplied Types</div>
+            <pre class="code-body" [innerHTML]="getHighlightTsHtml(customParserCode)"></pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
