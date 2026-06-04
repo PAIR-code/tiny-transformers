@@ -39,17 +39,12 @@ type typeName = variant1 | variant2(...) | variant3;
   type list<'a> = nil | cons(head: 'a, tail: list<'a>);
   ```
 
-### CRITICAL RULE: Disjoint Type and Constructor Namespaces
+### Type and Constructor Namespaces
 
 In this logic engine, all type names and constructor names are stored in a single flat registry (`Context.data.literals`).
 
-- **No Name Overlapping:** A type name and a constructor name **must never be identical**.
-- **The Namespace Clash:** Declaring `type animal = animal(kind: species);` causes the constructor name `animal` to overwrite the type name `animal` in the literal registry. This results in runtime type-checking failures like:
-  `TypeError: Cannot convert undefined or null to object` in `validateAddedTypes`.
-- **Solution:** Always prefix or distinguish constructor names from their return types (e.g., use `makeAnimal` or `animalKind` as the constructor for the `animal` type):
-  ```linear-logic
-  type animal = makeAnimal(kind: species);
-  ```
+- **Overlapping Names are Supported:** A type name and a constructor name can safely be identical.
+- **Cleaner Schemas:** Declaring `type animal = animal(kind: species);` is fully supported and recommended when a type has a single primary constructor, allowing cleaner and more natural schemas.
 
 ---
 
@@ -59,7 +54,7 @@ The type system does not support implicit subtyping or inheritance.
 
 - **Lifting/Wrapping Pattern:** To include a value of a distinct type (like `animal`) inside a broader union type (like `item`), you must define an explicit wrapper constructor to "lift" the value:
   ```linear-logic
-  type animal = makeAnimal(kind: species);
+  type animal = animal(kind: species);
   type item = animalVal(who: animal) | flower | rock | tree;
   ```
 - **Compile-Time Enforcement:** By keeping `animal` as a separate type, you can strictly type action/state parameters to only accept animals at compile-time:
@@ -75,7 +70,7 @@ The type system does not support implicit subtyping or inheritance.
 Constant values or compound terms can be declared using the `let` keyword:
 
 ```linear-logic
-let myCat = makeAnimal(cat);
+let myCat = animal(cat);
 let initialStage = active(flower);
 ```
 
@@ -104,7 +99,7 @@ fun isFlower(flower) = true
 Actions represent state transitions in the linear logic story. They consume resources on the left-hand side (LHS) of the `-o` operator and produce resources on the right-hand side (RHS).
 
 ```linear-logic
-action monkeySquish: { ?j: jumpedOver(makeAnimal(monkey), flower) } -o { ?s: squished(makeAnimal(monkey), flower) };
+action monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squished(animal(monkey), flower) };
 ```
 
 - **LHS (`{ ... }`):** The linear resources required to trigger the action.

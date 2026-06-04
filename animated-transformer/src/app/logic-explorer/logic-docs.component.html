@@ -107,15 +107,14 @@ limitations under the License.
             <pre class="code-body" [innerHTML]="getHighlightHtml(listTypeCode)"></pre>
           </div>
 
-          <div class="callout warning">
-            <mat-icon>warning</mat-icon>
+          <div class="callout info">
+            <mat-icon>info</mat-icon>
             <div class="callout-content">
-              <strong>CRITICAL Namespace Rule:</strong> 
-              All type names and constructor names are stored in a single flat registry. Therefore, 
-              <strong>a type name and constructor name must never overlap</strong>. 
-              Declaring <code>type animal = animal(kind: species)</code> causes the constructor to overwrite 
-              the type, yielding type-checking failures at runtime. Always prefix or vary the constructor: 
-              <code>type animal = makeAnimal(kind: species)</code>.
+              <strong>Namespace & Overlapping Names:</strong> 
+              Type names and constructor names are stored in a single flat registry, but they 
+              <strong>can safely overlap</strong>. Declaring <code>type animal = animal(kind: species)</code> 
+              is fully supported and allows the constructor to share the name with its type, providing 
+              a cleaner and more natural syntax.
             </div>
           </div>
         </div>
