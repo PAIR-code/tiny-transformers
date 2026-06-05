@@ -135,7 +135,18 @@ describe('LogicExplorerComponent', () => {
       expect(component.simMappingError()).toBeNull();
     });
 
-    it('should run simulation and record final state and dataPoints matching custom mapping', () => {
+    const waitForSimulation = async (comp: LogicExplorerComponent) => {
+      return new Promise<void>((resolve) => {
+        const interval = setInterval(() => {
+          if (!comp.simRunning()) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 5);
+      });
+    };
+
+    it('should run simulation and record final state and dataPoints matching custom mapping', async () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);
       const component = fixture.componentInstance;
       fixture.detectChanges();
@@ -147,13 +158,15 @@ describe('LogicExplorerComponent', () => {
       component.simSteps.set(5);
 
       component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
 
       expect(component.simSummary()).toContain('Simulation finished successfully at step');
       expect(component.simDataPoints().length).toBeGreaterThan(0);
       expect(component.simFinalState().length).toBeGreaterThan(0);
     });
 
-    it('should respect changes in the source code when compiling and running simulation', () => {
+    it('should respect changes in the source code when compiling and running simulation', async () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);
       const component = fixture.componentInstance;
       fixture.detectChanges();
@@ -161,9 +174,9 @@ describe('LogicExplorerComponent', () => {
       component.selectPreset('Foxes & Rabbits Simulation');
       fixture.detectChanges();
 
-      // Edit source code to change initial populations from 100/100 to 500/500
+      // Edit source code to change initial populations from 200/100 to 500/500
       const editedSource = component.rawSource()
-        .replace('rabbits(100)', 'rabbits(500)')
+        .replace('rabbits(200)', 'rabbits(500)')
         .replace('foxes(100)', 'foxes(500)');
       component.rawSource.set(editedSource);
 
@@ -176,6 +189,8 @@ describe('LogicExplorerComponent', () => {
 
       // Run simulation
       component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
 
       // Check the initial step data points (x=0)
       const dataPoints = component.simDataPoints();
@@ -189,7 +204,7 @@ describe('LogicExplorerComponent', () => {
       expect(initialFoxes!.y).toBe(500);
     });
 
-    it('should respect edits when running simulation, then editing and compiling, and running simulation again', () => {
+    it('should respect edits when running simulation, then editing and compiling, and running simulation again', async () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);
       const component = fixture.componentInstance;
       fixture.detectChanges();
@@ -197,13 +212,15 @@ describe('LogicExplorerComponent', () => {
       component.selectPreset('Foxes & Rabbits Simulation');
       fixture.detectChanges();
 
-      // 1. Run simulation once with original code (100 rabbits, 100 foxes)
+      // 1. Run simulation once with original code (200 rabbits, 100 foxes)
       component.simSteps.set(1);
       component.runSimulation();
-      expect(component.simDataPoints().find(dp => dp.x === 0 && dp.name === 'Rabbits')!.y).toBe(100);
+      await waitForSimulation(component);
+      fixture.detectChanges();
+      expect(component.simDataPoints().find(dp => dp.x === 0 && dp.name === 'Rabbits')!.y).toBe(200);
 
       // 2. Edit source code (e.g. to 300 rabbits)
-      const editedSource = component.rawSource().replace('rabbits(100)', 'rabbits(300)');
+      const editedSource = component.rawSource().replace('rabbits(200)', 'rabbits(300)');
       component.rawSource.set(editedSource);
 
       // 3. Compile
@@ -212,6 +229,8 @@ describe('LogicExplorerComponent', () => {
 
       // 4. Run simulation again
       component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
 
       // Check if it has 300 rabbits in the new simulation run
       const dataPoints = component.simDataPoints();
@@ -219,7 +238,7 @@ describe('LogicExplorerComponent', () => {
       expect(initialRabbits!.y).toBe(300);
     });
 
-    it('should fail to respect edits in simulation if compile is NOT triggered', () => {
+    it('should respect edits in simulation due to auto-compile even if compile is NOT manually triggered', async () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);
       const component = fixture.componentInstance;
       fixture.detectChanges();
@@ -227,18 +246,20 @@ describe('LogicExplorerComponent', () => {
       component.selectPreset('Foxes & Rabbits Simulation');
       fixture.detectChanges();
 
-      // Edit source code without compiling
-      const editedSource = component.rawSource().replace('rabbits(100)', 'rabbits(400)');
+      // Edit source code without compiling manually
+      const editedSource = component.rawSource().replace('rabbits(200)', 'rabbits(400)');
       component.rawSource.set(editedSource);
 
       // Run simulation directly
       component.simSteps.set(1);
       component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
 
-      // Verify that the count is updated to 400 (new value)
+      // Verify that the count is updated to 400 (new value) due to auto-compile
       const dataPoints = component.simDataPoints();
       const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
-      expect(initialRabbits!.y).toBe(400); // Expecting new value because simulation should auto-compile
+      expect(initialRabbits!.y).toBe(400);
     });
   });
 });

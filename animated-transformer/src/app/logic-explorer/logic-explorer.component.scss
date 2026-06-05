@@ -363,6 +363,15 @@ limitations under the License.
   transition: all 0.15s ease;
 }
 
+.btn-spinner {
+  display: inline-block;
+  margin-right: 2px;
+
+  ::ng-deep circle {
+    stroke: currentColor !important;
+  }
+}
+
 .btn-sm {
   padding: 5px 10px;
   font-size: 11px;

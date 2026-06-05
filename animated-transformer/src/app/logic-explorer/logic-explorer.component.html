@@ -407,7 +407,13 @@
                   (click)="runSimulation()" 
                   [disabled]="simRunning() || !currentContext()"
                 >
-                  <mat-icon>play_circle</mat-icon> Run Simulation
+                  <mat-spinner 
+                    *ngIf="simRunning()" 
+                    diameter="18" 
+                    class="btn-spinner"
+                  ></mat-spinner>
+                  <mat-icon *ngIf="!simRunning()">play_circle</mat-icon>
+                  {{ simRunning() ? 'Simulating...' : 'Run Simulation' }}
                 </button>
               </div>
             </div>

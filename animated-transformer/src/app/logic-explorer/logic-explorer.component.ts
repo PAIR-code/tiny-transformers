@@ -23,6 +23,8 @@ import {
 import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicThemeConfig } from '../monaco-editor-loader';
 import { D3LineChartComponent, NamedChartPoint, CurveKind, ScalingKind, defaultChartConfig } from '../d3-line-chart/d3-line-chart.component';
 
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
 export interface SimMappingRule {
   name: string;
   literal: string;
@@ -42,6 +44,7 @@ export interface SimMappingRule {
     FormsModule,
     MatIconModule,
     MatButtonModule,
+    MatProgressSpinnerModule,
     RouterModule,
     MonacoJavaScriptEditorComponent,
     D3LineChartComponent,
@@ -747,103 +750,120 @@ export class LogicExplorerComponent implements OnInit {
 
     // Initial point
     recordPoint(0, ctxt);
+    this.simDataPoints.set([...dataPoints]);
 
     let currentStep = 0;
-    while (currentStep < steps) {
-      // 1. Get applicable actions
-      const matches = getApplicableActions(ctxt);
-      if (matches.length === 0) {
-        break;
+    const batchSize = Math.max(1, Math.ceil(steps / 100));
+
+    const runBatch = () => {
+      if (!this.simRunning()) {
+        return;
       }
 
-      // 2. Evaluate scores
-      const scoredMatches = matches.map(match => {
-        let scoreVal = 1.0;
-        if (match.action.score) {
-          try {
-            // Substitute and evaluate score term
-            const substituted = substitute(match.action.score, match.subst) as Term;
-            const evaluated = evaluateTerm(ctxt, substituted);
-            if (evaluated.kind === TermKind.Literal) {
-              scoreVal = parseFloat(evaluated.literalName);
+      let stepsInThisBatch = 0;
+      let matches = getApplicableActions(ctxt);
+
+      while (currentStep < steps && stepsInThisBatch < batchSize && matches.length > 0) {
+        // 2. Evaluate scores
+        const scoredMatches = matches.map(match => {
+          let scoreVal = 1.0;
+          if (match.action.score) {
+            try {
+              // Substitute and evaluate score term
+              const substituted = substitute(match.action.score, match.subst) as Term;
+              const evaluated = evaluateTerm(ctxt, substituted);
+              if (evaluated.kind === TermKind.Literal) {
+                scoreVal = parseFloat(evaluated.literalName);
+              }
+            } catch (e) {
+              console.error('Failed to evaluate score:', e);
             }
-          } catch (e) {
-            console.error('Failed to evaluate score:', e);
+          }
+          if (isNaN(scoreVal) || scoreVal < 0) {
+            scoreVal = 0;
+          }
+          return { match, score: scoreVal };
+        });
+
+        // 3. Convert scores to probabilities
+        let probabilities: number[] = [];
+        if (mode === 'softmax') {
+          const scores = scoredMatches.map(sm => sm.score);
+          const maxScore = Math.max(...scores);
+          const expScores = scores.map(s => Math.exp((s - maxScore) / temp));
+          const sumExp = expScores.reduce((a, b) => a + b, 0);
+          probabilities = sumExp === 0 ? expScores.map(() => 1 / expScores.length) : expScores.map(es => es / sumExp);
+        } else {
+          // proportional mode
+          const sumScores = scoredMatches.reduce((acc, sm) => acc + sm.score, 0);
+          if (sumScores === 0) {
+            probabilities = scoredMatches.map(() => 1 / scoredMatches.length);
+          } else {
+            probabilities = scoredMatches.map(sm => sm.score / sumScores);
           }
         }
-        if (isNaN(scoreVal) || scoreVal < 0) {
-          scoreVal = 0;
-        }
-        return { match, score: scoreVal };
-      });
 
-      // 3. Convert scores to probabilities
-      let probabilities: number[] = [];
-      if (mode === 'softmax') {
-        const scores = scoredMatches.map(sm => sm.score);
-        const maxScore = Math.max(...scores);
-        const expScores = scores.map(s => Math.exp((s - maxScore) / temp));
-        const sumExp = expScores.reduce((a, b) => a + b, 0);
-        probabilities = sumExp === 0 ? expScores.map(() => 1 / expScores.length) : expScores.map(es => es / sumExp);
+        // 4. Sample action based on probabilities
+        const rand = Math.random();
+        let cumulative = 0;
+        let selectedIdx = 0;
+        for (let i = 0; i < probabilities.length; i++) {
+          cumulative += probabilities[i];
+          if (rand < cumulative) {
+            selectedIdx = i;
+            break;
+          }
+        }
+
+        const chosenMatch = scoredMatches[selectedIdx].match;
+
+        // 5. Apply chosen action
+        const storyState = LinearStory.fromContext(ctxt);
+        const nextStoryState = storyState.applyAction(chosenMatch);
+
+        // Reconstruct context with next active resources
+        ctxt = new Context({
+          types: { ...ctxt.getRawData().types },
+          constructors: { ...ctxt.getRawData().constructors },
+          functions: { ...ctxt.getRawData().functions },
+          actions: { ...ctxt.getRawData().actions },
+          linearResources: {},
+          variables: {},
+        });
+
+        for (const res of nextStoryState.resources) {
+          ctxt.declareLinearResource(res.name, res.type);
+        }
+
+        currentStep++;
+        recordPoint(currentStep, ctxt);
+        stepsInThisBatch++;
+
+        matches = getApplicableActions(ctxt);
+      }
+
+      // Update the chart data points signal with the accumulated points so far
+      this.simDataPoints.set([...dataPoints]);
+
+      if (currentStep < steps && matches.length > 0) {
+        requestAnimationFrame(runBatch);
       } else {
-        // proportional mode
-        const sumScores = scoredMatches.reduce((acc, sm) => acc + sm.score, 0);
-        if (sumScores === 0) {
-          probabilities = scoredMatches.map(() => 1 / scoredMatches.length);
-        } else {
-          probabilities = scoredMatches.map(sm => sm.score / sumScores);
-        }
+        this.simRunning.set(false);
+
+        // Save final linear resources
+        const finalResources = Object.entries(ctxt.linearResources).map(([name, typeStr]) => ({
+          name,
+          typeStr,
+        }));
+        this.simFinalState.set(finalResources);
+
+        this.simSummary.set(
+          `Simulation finished successfully at step ${currentStep}.`
+        );
       }
+    };
 
-      // 4. Sample action based on probabilities
-      const rand = Math.random();
-      let cumulative = 0;
-      let selectedIdx = 0;
-      for (let i = 0; i < probabilities.length; i++) {
-        cumulative += probabilities[i];
-        if (rand < cumulative) {
-          selectedIdx = i;
-          break;
-        }
-      }
-
-      const chosenMatch = scoredMatches[selectedIdx].match;
-
-      // 5. Apply chosen action
-      const storyState = LinearStory.fromContext(ctxt);
-      const nextStoryState = storyState.applyAction(chosenMatch);
-
-      // Reconstruct context with next active resources
-      ctxt = new Context({
-        types: { ...ctxt.getRawData().types },
-        constructors: { ...ctxt.getRawData().constructors },
-        functions: { ...ctxt.getRawData().functions },
-        actions: { ...ctxt.getRawData().actions },
-        linearResources: {},
-        variables: {},
-      });
-
-      for (const res of nextStoryState.resources) {
-        ctxt.declareLinearResource(res.name, res.type);
-      }
-
-      currentStep++;
-      recordPoint(currentStep, ctxt);
-    }
-
-    this.simDataPoints.set(dataPoints);
-    this.simRunning.set(false);
-
-    // Save final linear resources
-    const finalResources = Object.entries(ctxt.linearResources).map(([name, typeStr]) => ({
-      name,
-      typeStr,
-    }));
-    this.simFinalState.set(finalResources);
-
-    this.simSummary.set(
-      `Simulation finished successfully at step ${currentStep}.`
-    );
+    // Schedule first batch async
+    setTimeout(runBatch, 0);
   }
 }
-
