@@ -67,6 +67,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
   readonly language = input<string>('javascript');
   readonly theme = input<string>('linear-logic-theme');
   readonly showFooter = input<boolean>(true);
+  readonly showMenu = input<boolean>(true);
 
   lastValidStr = signal<string>('');
   isDefault: Signal<boolean> = signal(true);

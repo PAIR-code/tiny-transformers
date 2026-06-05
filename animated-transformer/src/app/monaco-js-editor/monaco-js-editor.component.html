@@ -17,7 +17,7 @@
   <div class="code">
     <div #editorContainer class="monaco-editor-container"></div>
   </div>
-  @if (!showTitle()) {
+  @if (!showTitle() && showMenu()) {
     <button
       class="small-icon-button"
       mat-icon-button

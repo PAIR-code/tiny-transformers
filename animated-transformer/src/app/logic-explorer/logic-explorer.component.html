@@ -39,19 +39,36 @@
       </div>
       
       <div class="presets-control">
-        <label for="preset-select">Preset Case Studies</label>
-        <select 
-          id="preset-select" 
-          [value]="selectedPresetName()" 
-          (change)="onPresetChange($event)"
-          class="styled-select"
+        <label>Selected Program</label>
+        <button 
+          [matMenuTriggerFor]="presetsMenu" 
+          class="presets-trigger-btn"
         >
-          @for (p of presets; track p.name) {
-            <option [value]="p.name">
-              {{ p.name }}
-            </option>
+          <mat-icon class="preset-btn-icon">snippet_folder</mat-icon>
+          <span class="selected-preset-name">{{ selectedPresetName() }}</span>
+          <mat-icon class="arrow-icon">arrow_drop_down</mat-icon>
+        </button>
+        
+        <mat-menu #presetsMenu="matMenu" class="presets-menu-panel">
+          <div class="presets-menu-header">Built-in Presets</div>
+          @for (p of builtInPresets; track p.name) {
+            <button mat-menu-item (click)="selectPreset(p.name)" [class.active-preset]="p.name === selectedPresetName()">
+              <mat-icon>description</mat-icon>
+              <span>{{ p.name }}</span>
+            </button>
           }
-        </select>
+          
+          @if (customPresets().length > 0) {
+            <div class="presets-menu-divider"></div>
+            <div class="presets-menu-header">My Saved Programs</div>
+            @for (p of customPresets(); track p.name) {
+              <button mat-menu-item (click)="selectPreset(p.name)" [class.active-preset]="p.name === selectedPresetName()">
+                <mat-icon>cloud</mat-icon>
+                <span>{{ p.name }}</span>
+              </button>
+            }
+          }
+        </mat-menu>
       </div>
 
       <div class="editor-wrapper">
@@ -75,6 +92,44 @@
             </button>
             <button 
               class="btn-icon-toggle" 
+              [matMenuTriggerFor]="editorActionMenu"
+              title="Editor Options"
+            >
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #editorActionMenu="matMenu">
+              <button mat-menu-item (click)="monacoEditor()?.resetConfig()" [disabled]="monacoEditor()?.isDefault()">
+                <mat-icon>settings_backup_restore</mat-icon>
+                <span>Reset to default</span>
+              </button>
+              <button mat-menu-item (click)="monacoEditor()?.undoChanges()" [disabled]="!editorChanged()">
+                <mat-icon>restore</mat-icon>
+                <span>Restore last saved</span>
+              </button>
+              <button
+                mat-menu-item
+                (click)="monacoEditor()?.redoChanges()"
+                [disabled]="editorChanged() || !monacoEditor()?.tmpConfigString"
+              >
+                <mat-icon>redo</mat-icon>
+                <span>Return to last changed</span>
+              </button>
+              <div class="menu-divider" style="margin: 4px 0; border-top: 1px solid #e2e8f0;"></div>
+              <button mat-menu-item (click)="saveProgram(true)">
+                <mat-icon>save_as</mat-icon>
+                <span>Save As...</span>
+              </button>
+              <button mat-menu-item (click)="downloadCurrentProgram()">
+                <mat-icon>download</mat-icon>
+                <span>Download Program (.txt)</span>
+              </button>
+              <button *ngIf="isCustomPreset()" mat-menu-item (click)="deleteCurrentCustomPreset()" style="color: #ef4444;">
+                <mat-icon style="color: #ef4444;">delete_outline</mat-icon>
+                <span>Delete Program</span>
+              </button>
+            </mat-menu>
+            <button 
+              class="btn-icon-toggle" 
               (click)="toggleWordWrap()" 
               [title]="editorWordWrap() ? 'Disable Line Wrapping' : 'Enable Line Wrapping'"
               [class.active]="editorWordWrap()"
@@ -89,7 +144,7 @@
               (click)="onEditorSaveClick()"
               style="margin-right: 8px;"
             >
-              <mat-icon>save</mat-icon> Save Changes
+              <mat-icon>save</mat-icon> {{ isCustomPreset() ? 'Save Changes' : 'Save as Custom' }}
             </button>
             <button class="btn btn-compile" (click)="onCompileClick()">
               <mat-icon>play_arrow</mat-icon> Run & Compile
@@ -104,6 +159,7 @@
             [closable]="false"
             [showTitle]="false"
             [showFooter]="false"
+            [showMenu]="false"
             [(wordWrap)]="editorWordWrap"
             [(changed)]="editorChanged"
             (update)="handleCodeUpdate($event)"

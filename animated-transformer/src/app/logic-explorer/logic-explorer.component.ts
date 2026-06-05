@@ -24,6 +24,7 @@ import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicT
 import { D3LineChartComponent, NamedChartPoint, CurveKind, ScalingKind, defaultChartConfig } from '../d3-line-chart/d3-line-chart.component';
 
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatMenuModule } from '@angular/material/menu';
 
 export interface SimMappingRule {
   name: string;
@@ -44,6 +45,7 @@ export interface SimMappingRule {
     FormsModule,
     MatIconModule,
     MatButtonModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     RouterModule,
     MonacoJavaScriptEditorComponent,
@@ -51,8 +53,18 @@ export interface SimMappingRule {
   ],
 })
 export class LogicExplorerComponent implements OnInit {
-  // Presets list
-  readonly presets = PRESET_EXAMPLES;
+  readonly builtInPresets = PRESET_EXAMPLES;
+  readonly customPresets = signal<PresetExample[]>([]);
+  readonly presets = this.builtInPresets;
+
+  readonly presetsList = computed(() => {
+    return [...this.builtInPresets, ...this.customPresets()];
+  });
+
+  readonly isCustomPreset = computed(() => {
+    const currentName = this.selectedPresetName();
+    return this.customPresets().some(p => p.name === currentName);
+  });
   
   // State Signals
   readonly selectedPresetName = signal<string>(PRESET_EXAMPLES[0].name);
@@ -192,6 +204,8 @@ export class LogicExplorerComponent implements OnInit {
 
   ngOnInit() {
     this.isInitialLoad = true;
+    this.loadCustomPresets();
+
     const savedLeft = localStorage.getItem('logic-explorer-left-width');
     const savedRight = localStorage.getItem('logic-explorer-right-width');
     if (savedLeft) this.leftWidth.set(parseInt(savedLeft, 10));
@@ -202,7 +216,7 @@ export class LogicExplorerComponent implements OnInit {
     const presetParam = params.get('preset');
     let initialPreset = this.selectedPresetName();
     if (presetParam) {
-      const hasPreset = this.presets.some(p => p.name === presetParam);
+      const hasPreset = this.presetsList().some(p => p.name === presetParam);
       if (hasPreset) {
         initialPreset = presetParam;
       }
@@ -229,7 +243,7 @@ export class LogicExplorerComponent implements OnInit {
    * Loads a preset example case study.
    */
   selectPreset(name: string) {
-    const preset = this.presets.find(p => p.name === name);
+    const preset = this.presetsList().find(p => p.name === name);
     if (preset) {
       this.selectedPresetName.set(name);
       this.rawSource.set(preset.src);
@@ -285,14 +299,154 @@ export class LogicExplorerComponent implements OnInit {
     }
   }
 
-  /**
-   * Handles the native change event from the preset selector dropdown.
-   */
-  onPresetChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    if (target) {
-      this.selectPreset(target.value);
+  loadCustomPresets() {
+    try {
+      const stored = localStorage.getItem('logic-explorer-custom-presets');
+      if (stored) {
+        const parsed = JSON.parse(stored) as PresetExample[];
+        if (Array.isArray(parsed)) {
+          this.customPresets.set(parsed);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load custom presets', e);
     }
+  }
+
+  saveCustomPresetsToStorage(presets: PresetExample[]) {
+    try {
+      localStorage.setItem('logic-explorer-custom-presets', JSON.stringify(presets));
+      this.customPresets.set(presets);
+    } catch (e) {
+      console.error('Failed to save custom presets', e);
+    }
+  }
+
+  private parseMappingJsonSafe(): SimMappingRule[] {
+    try {
+      const mappingStr = this.simMappingJson().trim();
+      if (mappingStr) {
+        const parsed = JSON.parse(mappingStr);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  }
+
+  saveProgram(saveAs = false) {
+    const isCustom = this.isCustomPreset();
+    const currentName = this.selectedPresetName();
+    
+    // Get latest code text directly from Monaco
+    const currentSrc = this.monacoEditor() ? this.monacoEditor()!.editor.getValue() : this.rawSource();
+
+    // Find current config if available to copy it over
+    const preset = this.presetsList().find(p => p.name === currentName);
+    const simConfig = preset?.defaultSimulationConfig || {
+      defaultSteps: this.simSteps() ?? 200,
+      resourcePlotMapping: this.parseMappingJsonSafe()
+    };
+
+    if (!isCustom || saveAs) {
+      // Prompt user for a name
+      const defaultName = isCustom ? `${currentName} Copy` : `${currentName} (edited)`;
+      const newName = prompt('Enter a name for this program:', defaultName);
+      if (!newName) return; // cancelled
+
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        alert('Name cannot be empty.');
+        return;
+      }
+
+      // Check if name already exists
+      const exists = this.presetsList().some(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+      if (exists) {
+        const confirmOverwrite = confirm(`A program named "${trimmedName}" already exists. Overwrite it?`);
+        if (!confirmOverwrite) return;
+      }
+
+      // Create new custom preset
+      const newPreset: PresetExample = {
+        name: trimmedName,
+        description: `Custom program based on ${currentName}`,
+        src: currentSrc,
+        defaultSimulationConfig: {
+          defaultSteps: this.simSteps() ?? 200,
+          resourcePlotMapping: this.parseMappingJsonSafe()
+        }
+      };
+
+      // Filter out overwrite target if it was custom
+      let updated = this.customPresets().filter(p => p.name.toLowerCase() !== trimmedName.toLowerCase());
+      updated.push(newPreset);
+
+      this.saveCustomPresetsToStorage(updated);
+      
+      // Select the new preset
+      this.selectPreset(trimmedName);
+      // Mark as unchanged since we just saved
+      this.editorChanged.set(false);
+      this.monacoEditor()?.changed.set(false);
+      this.monacoEditor()?.lastValidStr.set(currentSrc);
+    } else {
+      // Overwrite existing custom preset
+      const updated = this.customPresets().map(p => {
+        if (p.name === currentName) {
+          return {
+            ...p,
+            src: currentSrc,
+            defaultSimulationConfig: {
+              defaultSteps: this.simSteps() ?? 200,
+              resourcePlotMapping: this.parseMappingJsonSafe()
+            }
+          };
+        }
+        return p;
+      });
+
+      this.saveCustomPresetsToStorage(updated);
+      
+      // Mark as unchanged since we just saved
+      this.editorChanged.set(false);
+      this.monacoEditor()?.changed.set(false);
+      this.monacoEditor()?.lastValidStr.set(currentSrc);
+    }
+  }
+
+  deleteCurrentCustomPreset() {
+    const isCustom = this.isCustomPreset();
+    if (!isCustom) return;
+
+    const currentName = this.selectedPresetName();
+    const confirmDelete = confirm(`Are you sure you want to delete the custom program "${currentName}"?`);
+    if (!confirmDelete) return;
+
+    const updated = this.customPresets().filter(p => p.name !== currentName);
+    this.saveCustomPresetsToStorage(updated);
+
+    // Fall back to first built-in preset
+    const fallbackName = this.builtInPresets[0].name;
+    this.selectPreset(fallbackName);
+  }
+
+  downloadCurrentProgram() {
+    const currentName = this.selectedPresetName();
+    const source = this.rawSource();
+    
+    const blob = new Blob([source], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentName.replace(/[^a-z0-9_-]/gi, '_').toLowerCase()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   /**
@@ -397,7 +551,7 @@ export class LogicExplorerComponent implements OnInit {
    * Triggers parse compilation of user edited source text.
    */
   onEditorSaveClick() {
-    this.monacoEditor()?.tryEmitConfig();
+    this.saveProgram(false);
   }
 
   onCompileClick() {

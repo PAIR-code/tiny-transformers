@@ -231,20 +231,113 @@ limitations under the License.
   letter-spacing: 0.05em;
 }
 
-.styled-select {
-  border: 1px solid #cbd5e1;
+.presets-trigger-btn {
   background: #ffffff;
   color: #0f172a;
-  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
+  padding: 8px 12px;
   font-size: 13px;
-  outline: none;
+  font-weight: 500;
+  height: 38px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  .preset-btn-icon {
+    color: #4f46e5;
+    margin-right: 8px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .selected-preset-name {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    margin-right: 8px;
+  }
+
+  .arrow-icon {
+    color: #64748b;
+    margin-left: auto;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
-.styled-select:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+/* Material Menu Styling */
+::ng-deep {
+  .presets-menu-panel.mat-mdc-menu-panel {
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+    background: #ffffff !important;
+    min-width: 260px !important;
+    padding: 4px 0 !important;
+
+    .presets-menu-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 16px 4px 16px;
+    }
+
+    .presets-menu-divider {
+      height: 1px;
+      background: #e2e8f0;
+      margin: 6px 0;
+    }
+
+    .mat-mdc-menu-item {
+      font-size: 13px !important;
+      color: #334155 !important;
+      min-height: 36px !important;
+      height: 36px !important;
+
+      mat-icon {
+        color: #64748b !important;
+        font-size: 16px !important;
+        width: 16px !important;
+        height: 16px !important;
+        margin-right: 10px !important;
+      }
+
+      &.active-preset {
+        background: #f0fdf4 !important; /* light green for active */
+        color: #15803d !important;
+        font-weight: 600 !important;
+
+        mat-icon {
+          color: #16a34a !important;
+        }
+      }
+
+      &:hover:not(.active-preset) {
+        background: #f8fafc !important;
+      }
+    }
+  }
 }
 
 .editor-wrapper {
