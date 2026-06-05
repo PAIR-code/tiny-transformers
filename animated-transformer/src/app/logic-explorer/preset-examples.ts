@@ -2,6 +2,15 @@ export interface PresetExample {
   name: string;
   description: string;
   src: string;
+  // This is the mapping to the simulator for what is displayed in the plot,
+  // e.g. populations for foxes and rabbits. .
+  defaultMapping?: Array<{
+    name: string;
+    literal: string;
+    argIndex?: number;
+    argName?: string;
+    matchValue?: string;
+  }>;
 }
 
 export const PRESET_EXAMPLES: PresetExample[] = [
@@ -18,6 +27,11 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r2: jumpedOver(animal(elephant), animal(cat));',
       '_r3: jumpedOver(animal(monkey), tree);',
     ].join('\n'),
+    defaultMapping: [
+      { name: 'Jumped Over', literal: 'jumpedOver' },
+      { name: 'Squished', literal: 'squished' },
+      { name: 'Ran Away', literal: 'ranAway' },
+    ],
   },
   {
     name: 'River Crossing Puzzle',
@@ -39,6 +53,11 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r3: at(cargo(cat), left);',
       '_r4: at(cargo(mouse), left);',
     ].join('\n'),
+    defaultMapping: [
+      { name: 'At Bank State', literal: 'at' },
+      { name: 'Fight State', literal: 'fight' },
+      { name: 'Eaten State', literal: 'eaten' },
+    ],
   },
   {
     name: 'Peano Arithmetic',
@@ -56,6 +75,9 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r3: suc(suc(0));',
       '?y: *;',
     ].join('\n'),
+    defaultMapping: [
+      { name: 'Number Occurrences', literal: 'suc' },
+    ],
   },
   {
     name: 'Parametric Lists',
@@ -96,6 +118,10 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       'action terminate: { ?c: chan(?id, pong, active) } -o { ?c2: chan(?id, close, closed) };',
       '_r1: chan(suc(0), close, active);',
     ].join('\n'),
+    defaultMapping: [
+      { name: 'Active Channels', literal: 'chan', argIndex: 2, matchValue: 'active' },
+      { name: 'Closed Channels', literal: 'chan', argIndex: 2, matchValue: 'closed' },
+    ],
   },
   {
     name: 'Classic Linear Logic Choices',
@@ -114,5 +140,29 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r4: sock(red);',
       '_r5: sock(blue);',
     ].join('\n'),
+    defaultMapping: [
+      { name: 'Dollars', literal: 'dollar' },
+      { name: 'Coffee', literal: 'drink', argIndex: 0, matchValue: 'coffee' },
+      { name: 'Tea', literal: 'drink', argIndex: 0, matchValue: 'tea' },
+      { name: 'Red Socks', literal: 'sock', argIndex: 0, matchValue: 'red' },
+      { name: 'Blue Socks', literal: 'sock', argIndex: 0, matchValue: 'blue' },
+    ],
+  },
+  {
+    name: 'Foxes & Rabbits Simulation',
+    description: 'Lotka-Volterra population dynamics using probabilistic logic transitions with scores and default math functions.',
+    src: [
+      'type species = rabbits(count: nat) | foxes(count: nat);',
+      'action rabbits_reproduce [mul_num(0.08, ?r)]: { ?res: rabbits(?r) } -o { ?new: rabbits(add_num(?r, 1)) };',
+      'action foxes_eat_rabbits [mul_num(0.002, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(?f), ?newR: rabbits(sub_num(?r, 1)) };',
+      'action foxes_reproduce [mul_num(0.001, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(add_num(?f, 1)), ?newR: rabbits(?r) };',
+      'action foxes_starve [mul_num(0.001, ?f)]: { ?resF: foxes(?f) } -o { ?newF: foxes(sub_num(?f, 1)) };',
+      '_r1: rabbits(100);',
+      '_r2: foxes(100);',
+    ].join('\n'),
+    defaultMapping: [
+      { name: 'Rabbits', literal: 'rabbits', argIndex: 0 },
+      { name: 'Foxes', literal: 'foxes', argIndex: 0 },
+    ],
   }
 ];

@@ -209,6 +209,7 @@ export type ActionResource = {
 
 export type LolliAction = {
   name: string;
+  score?: Term;
   lhs: ActionResource[];
   rhs: ActionResource[];
 };

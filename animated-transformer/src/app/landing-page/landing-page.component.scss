@@ -1,0 +1,295 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+.landing-container {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #f8fafc 0%, #f1f5f9 100%);
+  color: #1e293b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rem 2rem 2rem 2rem;
+  box-sizing: border-box;
+  font-family: 'Outfit', 'Inter', 'Roboto', sans-serif;
+}
+
+.landing-header {
+  text-align: center;
+  max-width: 800px;
+  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .logo-container {
+    background: #ffffff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    
+    .pair-logo {
+      height: 24px;
+    }
+  }
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.025em;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    font-size: 1.25rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  width: 100%;
+  margin-bottom: 4rem;
+}
+
+.card {
+  position: relative;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+
+  .card-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .card-content {
+    position: relative;
+    z-index: 2;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .card-icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    transition: transform 0.4s ease;
+
+    .card-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem 0;
+    color: #0f172a;
+    transition: color 0.3s ease;
+  }
+
+  p {
+    font-size: 0.95rem;
+    color: #475569;
+    line-height: 1.5;
+    margin: 0 0 2rem 0;
+    flex-grow: 1;
+  }
+
+  .card-actions {
+    display: flex;
+    align-items: center;
+    
+    .explore-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #64748b;
+      transition: all 0.3s ease;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        transition: transform 0.3s ease;
+      }
+    }
+  }
+
+  // Hover Effects
+  &:hover {
+    transform: translateY(-8px);
+    border-color: #cbd5e1;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+
+    .card-glow {
+      opacity: 0.08;
+    }
+
+    .card-icon-container {
+      transform: scale(1.1) rotate(2deg);
+    }
+
+    .card-actions .explore-btn {
+      color: #0f172a;
+
+      mat-icon {
+        transform: translateX(4px);
+      }
+    }
+  }
+
+  // Card themes
+  &.card-colab {
+    .card-icon-container {
+      background: rgba(99, 102, 241, 0.1);
+      color: #4f46e5;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #4f46e5, transparent 70%);
+    }
+    &:hover h3 {
+      color: #4f46e5;
+    }
+  }
+
+  &.card-activations {
+    .card-icon-container {
+      background: rgba(236, 72, 153, 0.1);
+      color: #db2777;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #db2777, transparent 70%);
+    }
+    &:hover h3 {
+      color: #db2777;
+    }
+  }
+
+  &.card-sae {
+    .card-icon-container {
+      background: rgba(20, 184, 166, 0.1);
+      color: #0d9488;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #0d9488, transparent 70%);
+    }
+    &:hover h3 {
+      color: #0d9488;
+    }
+  }
+
+  &.card-logic {
+    .card-icon-container {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #d97706, transparent 70%);
+    }
+    &:hover h3 {
+      color: #d97706;
+    }
+  }
+
+  &.card-logic-docs {
+    .card-icon-container {
+      background: rgba(59, 130, 246, 0.1);
+      color: #2563eb;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #2563eb, transparent 70%);
+    }
+    &:hover h3 {
+      color: #2563eb;
+    }
+  }
+
+  &.card-advanced-docs {
+    .card-icon-container {
+      background: rgba(168, 85, 247, 0.1);
+      color: #9333ea;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #9333ea, transparent 70%);
+    }
+    &:hover h3 {
+      color: #9333ea;
+    }
+  }
+}
+
+.landing-footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+  border-top: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 1200px;
+  padding-top: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .landing-container {
+    padding: 2rem 1rem 1rem 1rem;
+  }
+  .landing-header h1 {
+    font-size: 2.25rem;
+  }
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

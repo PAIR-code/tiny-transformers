@@ -77,7 +77,7 @@ export const LOGIC_TOKENS = new RegexMatchers({
   typeParam: /'[a-zA-Z_][a-zA-Z0-9_]*/,
   var: /\?[a-zA-Z_][a-zA-Z0-9_]*/,
   ident: /[a-zA-Z_][a-zA-Z0-9_]*/,
-  number: /0|[1-9][0-9]*/,
+  number: /\d+(?:\.\d+)?/,
   symbol: /-[o>]|[-+*/%=<>!:;*,(){}[\]|]/,
   ws: /\s+/,
 });
@@ -445,6 +445,36 @@ export function extendContext(
  */
 export function createContext(constructors: ConjunctionData[]): Context {
   return extendContext(emptyContext(), constructors);
+}
+
+export function registerDefaultTSFunctions(ctxt: Context) {
+  const getNumVal = (t?: Term): number => {
+    if (t && t.kind === TermKind.Literal) {
+      return parseFloat(t.literalName);
+    }
+    return 0;
+  };
+
+  ctxt.defineTSFunction('add_num', (unNamedArgs) => {
+    const a = getNumVal(unNamedArgs[0]);
+    const b = getNumVal(unNamedArgs[1]);
+    return { kind: TermKind.Literal, literalName: String(a + b), unNamedArgs: [], namedArgs: {} };
+  }, () => 'nat');
+  ctxt.defineTSFunction('sub_num', (unNamedArgs) => {
+    const a = getNumVal(unNamedArgs[0]);
+    const b = getNumVal(unNamedArgs[1]);
+    return { kind: TermKind.Literal, literalName: String(Math.max(0, a - b)), unNamedArgs: [], namedArgs: {} };
+  }, () => 'nat');
+  ctxt.defineTSFunction('mul_num', (unNamedArgs) => {
+    const a = getNumVal(unNamedArgs[0]);
+    const b = getNumVal(unNamedArgs[1]);
+    return { kind: TermKind.Literal, literalName: String(a * b), unNamedArgs: [], namedArgs: {} };
+  }, () => 'nat');
+  ctxt.defineTSFunction('div_num', (unNamedArgs) => {
+    const a = getNumVal(unNamedArgs[0]);
+    const b = getNumVal(unNamedArgs[1]);
+    return { kind: TermKind.Literal, literalName: String(b === 0 ? 0 : a / b), unNamedArgs: [], namedArgs: {} };
+  }, () => 'nat');
 }
 
 

@@ -33,6 +33,7 @@ export type LinearResource = {
 
 export type LolliAction = {
   name: string;
+  score?: Term;
   lhs: { varName: string; typePattern: Term }[];
   rhs: { varName: string; typePattern: Term }[];
 };
@@ -76,15 +77,18 @@ export function splitTopLevelCommas(str: string): string[] {
  * Example: `grow: {?x: nat} -o { ?y: suc(?x) }`
  */
 export function parseLolliAction(src: string, ctxt: Context): LolliAction {
-  const actionRegex = /^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*\{\s*(.*?)\s*\}\s*-o\s*\{\s*(.*?)\s*\}\s*$/;
+  const actionRegex = /^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\[(.*?)\])?\s*:\s*\{\s*(.*?)\s*\}\s*-o\s*\{\s*(.*?)\s*\}\s*$/;
   const match = src.trim().match(actionRegex);
   if (!match) {
     throw new Error(`Invalid Lolli action syntax: "${src}"`);
   }
 
   const name = match[1];
-  const lhsStr = match[2].trim();
-  const rhsStr = match[3].trim();
+  const scoreStr = match[2];
+  const lhsStr = match[3].trim();
+  const rhsStr = match[4].trim();
+
+  const score = scoreStr ? parseTerm(scoreStr, ctxt) : undefined;
 
   let varCounter = 0;
   const parseResources = (str: string): { varName: string; typePattern: Term }[] => {
@@ -111,7 +115,7 @@ export function parseLolliAction(src: string, ctxt: Context): LolliAction {
   const lhs = parseResources(lhsStr);
   const rhs = parseResources(rhsStr);
 
-  return { name, lhs, rhs };
+  return { name, score, lhs, rhs };
 }
 
 /**
@@ -126,7 +130,8 @@ export function printLolliAction(action: LolliAction): string {
   };
   const lhs = action.lhs.map(printResource).join(', ');
   const rhs = action.rhs.map(printResource).join(', ');
-  return `${action.name}: { ${lhs} } -o { ${rhs} }`;
+  const scorePart = action.score ? ` [${printTerm(action.score)}]` : '';
+  return `${action.name}${scorePart}: { ${lhs} } -o { ${rhs} }`;
 }
 
 export function getPatternVariables(term: Term): Set<string> {

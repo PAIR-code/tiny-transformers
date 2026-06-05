@@ -56,6 +56,24 @@ describe('linear lolli logic', () => {
     expect(printed).toBe('grow: { ?x: nat } -o { ?y: suc(?x) }');
   });
 
+  it('parses and prints Lolli Actions with scores correctly', () => {
+    const ctxtSrc = [
+      'type nat = 0 | suc(num: nat);',
+    ].join('\n');
+    const ctxt = parseContext(ctxtSrc);
+
+    const actionStr = 'grow[1.5]: { ?x: nat } -o { ?y: suc(?x) }';
+    const action = parseLolliAction(actionStr, ctxt);
+
+    expect(action.name).toBe('grow');
+    expect(action.score).toBeDefined();
+    expect(printTerm(action.score!)).toBe('1.5');
+    expect(action.lhs.length).toBe(1);
+
+    const printed = printLolliAction(action);
+    expect(printed).toBe('grow [1.5]: { ?x: nat } -o { ?y: suc(?x) }');
+  });
+
   it('matches general type resource pattern', () => {
     const ctxtSrc = [
       'type nat = 0 | suc(num: nat);',

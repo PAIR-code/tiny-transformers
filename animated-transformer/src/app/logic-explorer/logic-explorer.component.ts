@@ -11,8 +11,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 
-import { parseContext, printTerm, Term, Context } from '../../lib/logic_v2/logic';
-import { getApplicableActions, printLolliAction, ActionMatch, LolliAction, LinearResource } from '../../lib/logic_v2/linear';
+import { parseContext, parseTerm, printTerm, Term, Context, registerDefaultTSFunctions, substitute, evaluateTerm, TermKind } from '../../lib/logic_v2/logic';
+import { getApplicableActions, printLolliAction, ActionMatch, LolliAction, LinearResource, LinearStory } from '../../lib/logic_v2/linear';
 import { Story, StoryStep } from '../../lib/logic_v2/story';
 import { PRESET_EXAMPLES, PresetExample } from './preset-examples';
 import {
@@ -21,6 +21,15 @@ import {
   CodeStrUpdateKind,
 } from '../monaco-js-editor/monaco-js-editor.component';
 import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicThemeConfig } from '../monaco-editor-loader';
+import { D3LineChartComponent, NamedChartPoint, CurveKind, ScalingKind, defaultChartConfig } from '../d3-line-chart/d3-line-chart.component';
+
+export interface SimMappingRule {
+  name: string;
+  literal: string;
+  argIndex?: number;
+  argName?: string;
+  matchValue?: string;
+}
 
 @Component({
   selector: 'app-logic-explorer',
@@ -35,6 +44,7 @@ import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicT
     MatButtonModule,
     RouterModule,
     MonacoJavaScriptEditorComponent,
+    D3LineChartComponent,
   ],
 })
 export class LogicExplorerComponent implements OnInit {
@@ -67,10 +77,34 @@ export class LogicExplorerComponent implements OnInit {
   private activeResizer: 'left' | 'right' | null = null;
   private startX = 0;
   private startWidth = 0;
+  private compiledSource = '';
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
   readonly selectedActionName = signal<string | null>(null);   // Rule picked to inspect details
+
+  // Probabilistic Simulator Signals
+  readonly activeMiddleMode = signal<'explorer' | 'simulator'>('explorer');
+  readonly simSteps = signal<number>(200);
+  readonly simMode = signal<'proportional' | 'softmax'>('proportional');
+  readonly simTemp = signal<number>(1.0);
+  readonly simDataPoints = signal<NamedChartPoint[]>([]);
+  readonly simRunning = signal<boolean>(false);
+  readonly simSummary = signal<string | null>(null);
+  readonly simMappingJson = signal<string>('');
+  readonly simMappingError = signal<string | null>(null);
+  readonly simFinalState = signal<{ name: string; typeStr: string }[]>([]);
+
+  readonly simChartConfig = computed(() => {
+    const config = defaultChartConfig();
+    config.xLabel = 'Simulation Step';
+    config.yLabel = 'Population Size';
+    config.width = 500;
+    config.height = 250;
+    config.legendX = 350;
+    config.legendY = 10;
+    return config;
+  });
 
   // Applicable matches cache
   readonly applicableActions = signal<ActionMatch[]>([]);
@@ -144,6 +178,41 @@ export class LogicExplorerComponent implements OnInit {
       this.selectedPresetName.set(name);
       this.rawSource.set(preset.src);
       this.compileSource(preset.src);
+
+      const mapping = preset.defaultMapping || [];
+      const mappingStr = JSON.stringify(mapping, null, 2);
+      this.simMappingJson.set(mappingStr);
+      this.simMappingError.set(null);
+      this.simFinalState.set([]);
+    }
+  }
+
+  onMappingJsonInput(event: Event) {
+    const target = event.target as HTMLTextAreaElement;
+    if (target) {
+      this.onMappingJsonChange(target.value);
+    }
+  }
+
+  onMappingJsonChange(jsonStr: string) {
+    this.simMappingJson.set(jsonStr);
+    try {
+      if (!jsonStr.trim()) {
+        this.simMappingError.set(null);
+        return;
+      }
+      const parsed = JSON.parse(jsonStr);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Mapping must be a JSON array of rules.');
+      }
+      for (const rule of parsed) {
+        if (!rule.name || !rule.literal) {
+          throw new Error('Each mapping rule must have "name" and "literal" fields.');
+        }
+      }
+      this.simMappingError.set(null);
+    } catch (e) {
+      this.simMappingError.set((e as Error).message);
     }
   }
 
@@ -213,11 +282,13 @@ export class LogicExplorerComponent implements OnInit {
   compileSource(src: string) {
     try {
       const ctxt = parseContext(src);
+      registerDefaultTSFunctions(ctxt);
       const newStory = new Story(ctxt);
       
       this.story.set(newStory);
       this.currentContext.set(newStory.getCurrentContext());
       this.errorMessage.set(null);
+      this.compiledSource = src;
       
       // Reset selections
       this.selectedResourceName.set(null);
@@ -543,6 +614,236 @@ export class LogicExplorerComponent implements OnInit {
     }).catch(err => {
       console.error('Failed to copy theme config:', err);
     });
+  }
+
+  parseNumber(event: Event): number {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    return isNaN(val) ? 200 : val;
+  }
+
+  parseFloatInput(event: Event): number {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    return isNaN(val) ? 1.0 : val;
+  }
+
+  onSimModeChange(event: Event) {
+    this.simMode.set((event.target as HTMLSelectElement).value as any);
+  }
+
+  runSimulation() {
+    if (this.rawSource() !== this.compiledSource) {
+      this.compileSource(this.rawSource());
+    }
+
+    const startContext = this.currentContext();
+    if (!startContext || this.errorMessage()) return;
+
+    this.simRunning.set(true);
+    this.simSummary.set(null);
+    this.simFinalState.set([]);
+
+    // Deep copy/clone starting state
+    let ctxt = new Context({
+      types: { ...startContext.getRawData().types },
+      constructors: { ...startContext.getRawData().constructors },
+      functions: { ...startContext.getRawData().functions },
+      actions: { ...startContext.getRawData().actions },
+      linearResources: { ...startContext.getRawData().linearResources },
+      variables: { ...startContext.getRawData().variables },
+    });
+
+    const dataPoints: NamedChartPoint[] = [];
+
+    const steps = this.simSteps();
+    const mode = this.simMode();
+    const temp = this.simTemp();
+
+    // Parse Mapping Rules
+    let mappingRules: SimMappingRule[] = [];
+    try {
+      const mappingStr = this.simMappingJson().trim();
+      if (mappingStr) {
+        mappingRules = JSON.parse(mappingStr);
+        if (!Array.isArray(mappingRules)) {
+          throw new Error('Mapping must be a JSON array.');
+        }
+      }
+    } catch (e) {
+      this.simSummary.set(`Simulator Mapping Error: ${(e as Error).message}`);
+      this.simRunning.set(false);
+      return;
+    }
+
+    if (mappingRules.length === 0) {
+      // Fallback: build rules for all unique literal names in the current context
+      const literals = new Set<string>();
+      for (const [_, typeStr] of Object.entries(ctxt.linearResources)) {
+        try {
+          const term = parseTerm(typeStr, ctxt);
+          if (term.kind === TermKind.Literal) {
+            literals.add(term.literalName);
+          }
+        } catch (e) {}
+      }
+      mappingRules = Array.from(literals).map(lit => ({
+        name: lit,
+        literal: lit
+      }));
+    }
+
+    // Helper to record data point
+    const recordPoint = (stepIdx: number, context: Context) => {
+      const stepSums = new Map<string, number>();
+      for (const rule of mappingRules) {
+        stepSums.set(rule.name, 0);
+      }
+
+      for (const [_, typeStr] of Object.entries(context.linearResources)) {
+        try {
+          const term = parseTerm(typeStr, context);
+          if (term.kind === TermKind.Literal) {
+            for (const rule of mappingRules) {
+              if (term.literalName === rule.literal) {
+                if (rule.matchValue !== undefined) {
+                  let argTerm: Term | undefined;
+                  if (rule.argIndex !== undefined) {
+                    argTerm = term.unNamedArgs[rule.argIndex];
+                  } else if (rule.argName !== undefined) {
+                    argTerm = term.namedArgs[rule.argName];
+                  }
+                  if (argTerm && argTerm.kind === TermKind.Literal && argTerm.literalName === rule.matchValue) {
+                    stepSums.set(rule.name, (stepSums.get(rule.name) || 0) + 1);
+                  }
+                } else if (rule.argIndex !== undefined || rule.argName !== undefined) {
+                  let argTerm: Term | undefined;
+                  if (rule.argIndex !== undefined) {
+                    argTerm = term.unNamedArgs[rule.argIndex];
+                  } else if (rule.argName !== undefined) {
+                    argTerm = term.namedArgs[rule.argName];
+                  }
+                  if (argTerm && argTerm.kind === TermKind.Literal) {
+                    const val = parseFloat(argTerm.literalName);
+                    if (!isNaN(val)) {
+                      stepSums.set(rule.name, (stepSums.get(rule.name) || 0) + val);
+                    }
+                  }
+                } else {
+                  stepSums.set(rule.name, (stepSums.get(rule.name) || 0) + 1);
+                }
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      for (const rule of mappingRules) {
+        dataPoints.push({
+          x: stepIdx,
+          y: stepSums.get(rule.name) || 0,
+          name: rule.name
+        });
+      }
+    };
+
+    // Initial point
+    recordPoint(0, ctxt);
+
+    let currentStep = 0;
+    while (currentStep < steps) {
+      // 1. Get applicable actions
+      const matches = getApplicableActions(ctxt);
+      if (matches.length === 0) {
+        break;
+      }
+
+      // 2. Evaluate scores
+      const scoredMatches = matches.map(match => {
+        let scoreVal = 1.0;
+        if (match.action.score) {
+          try {
+            // Substitute and evaluate score term
+            const substituted = substitute(match.action.score, match.subst) as Term;
+            const evaluated = evaluateTerm(ctxt, substituted);
+            if (evaluated.kind === TermKind.Literal) {
+              scoreVal = parseFloat(evaluated.literalName);
+            }
+          } catch (e) {
+            console.error('Failed to evaluate score:', e);
+          }
+        }
+        if (isNaN(scoreVal) || scoreVal < 0) {
+          scoreVal = 0;
+        }
+        return { match, score: scoreVal };
+      });
+
+      // 3. Convert scores to probabilities
+      let probabilities: number[] = [];
+      if (mode === 'softmax') {
+        const scores = scoredMatches.map(sm => sm.score);
+        const maxScore = Math.max(...scores);
+        const expScores = scores.map(s => Math.exp((s - maxScore) / temp));
+        const sumExp = expScores.reduce((a, b) => a + b, 0);
+        probabilities = sumExp === 0 ? expScores.map(() => 1 / expScores.length) : expScores.map(es => es / sumExp);
+      } else {
+        // proportional mode
+        const sumScores = scoredMatches.reduce((acc, sm) => acc + sm.score, 0);
+        if (sumScores === 0) {
+          probabilities = scoredMatches.map(() => 1 / scoredMatches.length);
+        } else {
+          probabilities = scoredMatches.map(sm => sm.score / sumScores);
+        }
+      }
+
+      // 4. Sample action based on probabilities
+      const rand = Math.random();
+      let cumulative = 0;
+      let selectedIdx = 0;
+      for (let i = 0; i < probabilities.length; i++) {
+        cumulative += probabilities[i];
+        if (rand < cumulative) {
+          selectedIdx = i;
+          break;
+        }
+      }
+
+      const chosenMatch = scoredMatches[selectedIdx].match;
+
+      // 5. Apply chosen action
+      const storyState = LinearStory.fromContext(ctxt);
+      const nextStoryState = storyState.applyAction(chosenMatch);
+
+      // Reconstruct context with next active resources
+      ctxt = new Context({
+        types: { ...ctxt.getRawData().types },
+        constructors: { ...ctxt.getRawData().constructors },
+        functions: { ...ctxt.getRawData().functions },
+        actions: { ...ctxt.getRawData().actions },
+        linearResources: {},
+        variables: {},
+      });
+
+      for (const res of nextStoryState.resources) {
+        ctxt.declareLinearResource(res.name, res.type);
+      }
+
+      currentStep++;
+      recordPoint(currentStep, ctxt);
+    }
+
+    this.simDataPoints.set(dataPoints);
+    this.simRunning.set(false);
+
+    // Save final linear resources
+    const finalResources = Object.entries(ctxt.linearResources).map(([name, typeStr]) => ({
+      name,
+      typeStr,
+    }));
+    this.simFinalState.set(finalResources);
+
+    this.simSummary.set(
+      `Simulation finished successfully at step ${currentStep}.`
+    );
   }
 }
 

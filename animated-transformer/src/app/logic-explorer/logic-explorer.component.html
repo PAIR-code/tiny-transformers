@@ -216,119 +216,250 @@
       title="Drag to resize left panel, double-click to reset"
     ></div>
 
-    <!-- MIDDLE PANEL: Context and Timeline Stepper -->
+    <!-- MIDDLE PANEL: Context and Timeline Stepper or Simulator -->
     <section class="panel panel-context">
-      <div class="panel-header">
-        <mat-icon>layers</mat-icon>
-        <h2>Active Story State</h2>
-      </div>
-
-      <!-- Current Linear Resources -->
-      <div class="context-card">
-        <h3>Active Linear Resources</h3>
-        <p class="sub-instruction">Click a resource below to highlight rules that consume or match it.</p>
-        
-        <div *ngIf="activeLinearResources().length === 0" class="empty-state">
-          No active linear resources. Define resource statements like <code>_r1: dollar;</code> or apply actions!
-        </div>
-
-        <div class="resources-grid">
-          <div 
-            *ngFor="let res of activeLinearResources()" 
-            (click)="toggleResourceSelection(res.name)"
-            [class.selected]="selectedResourceName() === res.name"
-            class="resource-chip"
+      <!-- Toggle header -->
+      <div class="mode-toggle-header">
+        <div class="mode-tabs">
+          <button 
+            [class.active]="activeMiddleMode() === 'explorer'" 
+            (click)="activeMiddleMode.set('explorer')"
+            class="tab-btn"
           >
-            <div class="chip-left">
-              <span class="chip-id">{{ res.name }}</span>
-              <span class="chip-type">{{ res.typeStr }}</span>
-            </div>
-            <mat-icon class="chip-icon">
-              {{ selectedResourceName() === res.name ? 'gps_fixed' : 'touch_app' }}
-            </mat-icon>
-          </div>
+            <mat-icon>layers</mat-icon> Rule Application Explorer
+          </button>
+          <button 
+            [class.active]="activeMiddleMode() === 'simulator'" 
+            (click)="activeMiddleMode.set('simulator')"
+            class="tab-btn"
+          >
+            <mat-icon>insights</mat-icon> Simulator
+          </button>
         </div>
       </div>
 
-      <!-- Timeline Story Tracker -->
-      <div class="timeline-card">
-        <div class="timeline-header">
-          <h3>Story Timeline / History</h3>
-          <div class="timeline-actions">
-            <button 
-              class="btn btn-sm btn-secondary" 
-              [disabled]="storySteps().length === 0" 
-              (click)="undoLastStep()"
-              title="Undo last applied action"
+      <!-- Explorer Mode content -->
+      @if (activeMiddleMode() === 'explorer') {
+        <!-- Current Linear Resources -->
+        <div class="context-card">
+          <h3>Active Linear Resources</h3>
+          <p class="sub-instruction">Click a resource below to highlight rules that consume or match it.</p>
+          
+          <div *ngIf="activeLinearResources().length === 0" class="empty-state">
+            No active linear resources. Define resource statements like <code>_r1: dollar;</code> or apply actions!
+          </div>
+
+          <div class="resources-grid">
+            <div 
+              *ngFor="let res of activeLinearResources()" 
+              (click)="toggleResourceSelection(res.name)"
+              [class.selected]="selectedResourceName() === res.name"
+              class="resource-chip"
             >
-              <mat-icon>undo</mat-icon> Undo Step
-            </button>
-            <button 
-              class="btn btn-sm btn-danger" 
-              [disabled]="storySteps().length === 0" 
-              (click)="resetStory()"
-              title="Reset story back to start"
-            >
-              <mat-icon>restart_alt</mat-icon> Reset Story
-            </button>
+              <div class="chip-left">
+                <span class="chip-id">{{ res.name }}</span>
+                <span class="chip-type">{{ res.typeStr }}</span>
+              </div>
+              <mat-icon class="chip-icon">
+                {{ selectedResourceName() === res.name ? 'gps_fixed' : 'touch_app' }}
+              </mat-icon>
+            </div>
           </div>
         </div>
 
-        <div *ngIf="storySteps().length === 0" class="empty-timeline">
-          <mat-icon>timeline</mat-icon>
-          <p>No transitions applied yet. Apply rules on the right panel to start the story timeline.</p>
-        </div>
-
-        <div class="steps-list">
-          <!-- Step 0: Initial state -->
-          <div class="step-node step-initial">
-            <div class="step-marker">0</div>
-            <div class="step-content">
-              <span class="step-title">Initial Context Loaded</span>
+        <!-- Timeline Story Tracker -->
+        <div class="timeline-card">
+          <div class="timeline-header">
+            <h3>Story Timeline / History</h3>
+            <div class="timeline-actions">
+              <button 
+                class="btn btn-sm btn-secondary" 
+                [disabled]="storySteps().length === 0" 
+                (click)="undoLastStep()"
+                title="Undo last applied action"
+              >
+                <mat-icon>undo</mat-icon> Undo Step
+              </button>
+              <button 
+                class="btn btn-sm btn-danger" 
+                [disabled]="storySteps().length === 0" 
+                (click)="resetStory()"
+                title="Reset story back to start"
+              >
+                <mat-icon>restart_alt</mat-icon> Reset Story
+              </button>
             </div>
           </div>
 
-          <!-- Chronological applied steps -->
-          <div *ngFor="let step of storySteps(); let i = index" class="step-node">
-            <div class="step-marker">{{ i + 1 }}</div>
-            <div class="step-content">
-              <div class="step-meta">
-                <span class="step-action-name">Applied: <code>{{ formatApplicationCall(step.actionMatch) }}</code></span>
-                <span class="step-time">Step {{ i + 1 }}</span>
+          <div *ngIf="storySteps().length === 0" class="empty-timeline">
+            <mat-icon>timeline</mat-icon>
+            <p>No transitions applied yet. Apply rules on the right panel to start the story timeline.</p>
+          </div>
+
+          <div class="steps-list">
+            <!-- Step 0: Initial state -->
+            <div class="step-node step-initial">
+              <div class="step-marker">0</div>
+              <div class="step-content">
+                <span class="step-title">Initial Context Loaded</span>
+              </div>
+            </div>
+
+            <!-- Chronological applied steps -->
+            <div *ngFor="let step of storySteps(); let i = index" class="step-node">
+              <div class="step-marker">{{ i + 1 }}</div>
+              <div class="step-content">
+                <div class="step-meta">
+                  <span class="step-action-name">Applied: <code>{{ formatApplicationCall(step.actionMatch) }}</code></span>
+                  <span class="step-time">Step {{ i + 1 }}</span>
+                </div>
+                
+                <!-- Resource Diff Container -->
+                <div class="step-diff">
+                  <!-- Consumed Resources -->
+                  <div *ngIf="getStepDiff(step).consumed.length > 0" class="diff-section consumed">
+                    <span class="diff-label">Consumed:</span>
+                    <div class="diff-items">
+                      <span 
+                        *ngFor="let item of getStepDiff(step).consumed" 
+                        class="diff-badge badge-consumed"
+                      >
+                        {{ item.name }} : <span class="type-strike">{{ item.typeStr }}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Produced Resources -->
+                  <div *ngIf="getStepDiff(step).produced.length > 0" class="diff-section produced">
+                    <span class="diff-label">Produced:</span>
+                    <div class="diff-items">
+                      <span 
+                        *ngFor="let item of getStepDiff(step).produced" 
+                        class="diff-badge badge-produced"
+                      >
+                        + {{ item.name }} : <strong>{{ item.typeStr }}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Simulator Mode content -->
+      @if (activeMiddleMode() === 'simulator') {
+        <!-- Probabilistic Simulator Card -->
+        <div class="timeline-card simulator-card">
+          <div class="timeline-header">
+            <div class="title-with-icon">
+              <mat-icon class="header-icon-color">insights</mat-icon>
+              <h3>Probabilistic Population Simulator</h3>
+            </div>
+          </div>
+
+          <div class="sim-controls">
+            <div class="control-row">
+              <div class="control-item">
+                <label for="sim-steps">Steps</label>
+                <input 
+                  id="sim-steps" 
+                  type="number" 
+                  [value]="simSteps()" 
+                  (input)="simSteps.set(parseNumber($event))" 
+                  class="styled-input" 
+                  min="10" 
+                  max="1000"
+                />
               </div>
               
-              <!-- Resource Diff Container -->
-              <div class="step-diff">
-                <!-- Consumed Resources -->
-                <div *ngIf="getStepDiff(step).consumed.length > 0" class="diff-section consumed">
-                  <span class="diff-label">Consumed:</span>
-                  <div class="diff-items">
-                    <span 
-                      *ngFor="let item of getStepDiff(step).consumed" 
-                      class="diff-badge badge-consumed"
-                    >
-                      {{ item.name }} : <span class="type-strike">{{ item.typeStr }}</span>
-                    </span>
-                  </div>
-                </div>
+              <div class="control-item">
+                <label for="sim-mode">Probability Mode</label>
+                <select 
+                  id="sim-mode" 
+                  [value]="simMode()" 
+                  (change)="onSimModeChange($event)"
+                  class="styled-select"
+                >
+                  <option value="proportional">Proportional Rates</option>
+                  <option value="softmax">Softmax Temperature</option>
+                </select>
+              </div>
 
-                <!-- Produced Resources -->
-                <div *ngIf="getStepDiff(step).produced.length > 0" class="diff-section produced">
-                  <span class="diff-label">Produced:</span>
-                  <div class="diff-items">
-                    <span 
-                      *ngFor="let item of getStepDiff(step).produced" 
-                      class="diff-badge badge-produced"
-                    >
-                      + {{ item.name }} : <strong>{{ item.typeStr }}</strong>
-                    </span>
-                  </div>
-                </div>
+              <div class="control-item" *ngIf="simMode() === 'softmax'">
+                <label for="sim-temp">Temperature</label>
+                <input 
+                  id="sim-temp" 
+                  type="number" 
+                  step="0.1" 
+                  [value]="simTemp()" 
+                  (input)="simTemp.set(parseFloatInput($event))" 
+                  class="styled-input" 
+                  min="0.1" 
+                  max="10"
+                />
+              </div>
+
+              <div class="control-item btn-item">
+                <button 
+                  class="btn btn-primary" 
+                  (click)="runSimulation()" 
+                  [disabled]="simRunning() || !currentContext()"
+                >
+                  <mat-icon>play_circle</mat-icon> Run Simulation
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Mapping Config -->
+            <div class="sim-mapping-control">
+              <label for="sim-mapping">Graph Mapping Configuration (JSON Array)</label>
+              <span class="control-desc">Specify how linear resources map to lines on the simulation graph.</span>
+              <textarea
+                id="sim-mapping"
+                [value]="simMappingJson()"
+                (input)="onMappingJsonInput($event)"
+                class="styled-textarea theme-json-editor"
+                rows="6"
+                spellcheck="false"
+                placeholder='[{"name": "Line Name", "literal": "resourceName", "argIndex": 0}]'
+              ></textarea>
+              <div *ngIf="simMappingError()" class="theme-error-alert mapping-error-alert">
+                <mat-icon class="theme-err-icon">warning</mat-icon>
+                <span>JSON Error: {{ simMappingError() }}</span>
               </div>
             </div>
           </div>
+
+          <div *ngIf="simSummary()" class="sim-summary">
+            <mat-icon>info</mat-icon> <span>{{ simSummary() }}</span>
+          </div>
+
+          <div class="sim-chart-container" *ngIf="simDataPoints().length > 0">
+            <app-d3-line-chart 
+              [dataPoints]="simDataPoints()" 
+              [inChartConfig]="simChartConfig()"
+            ></app-d3-line-chart>
+          </div>
+
+          <!-- Final State of Simulation -->
+          <div *ngIf="simFinalState().length > 0" class="sim-final-state">
+            <h4>Final Simulation State (Linear Resources)</h4>
+            <div class="resources-grid">
+              <div *ngFor="let res of simFinalState()" class="resource-chip static-chip">
+                <span class="chip-id">{{ res.name }}</span>
+                <span class="chip-type">{{ res.typeStr }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="simDataPoints().length === 0" class="empty-timeline">
+            <mat-icon>show_chart</mat-icon>
+            <p>Run the simulator to generate and plot the population trajectory over time.</p>
+          </div>
         </div>
-      </div>
+      }
     </section>
 
     <!-- Right Splitter resizer -->

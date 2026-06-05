@@ -23,7 +23,7 @@ import { provideRouter, Routes, withComponentInputBinding } from '@angular/route
 import { ActivationVisComponent } from './activation-vis/activation-vis.component';
 // import { AnimatedTransformerComponent } from './animated-transformer/animated-transformer.component';
 import { SAEComponent } from 'src/app/sae/sae.component';
-// import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
+import { LandingPageComponent } from 'src/app/landing-page/landing-page.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { WebColabComponent } from 'src/app/web-colab/web-colab.component';
 import { LogicExplorerComponent } from './logic-explorer/logic-explorer.component';
@@ -32,7 +32,7 @@ import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs
 import { provideHttpClient } from '@angular/common/http';
 
 export const routes: Routes = [
-  { path: '', component: WebColabComponent, pathMatch: 'full' },
+  { path: '', component: LandingPageComponent, pathMatch: 'full' },
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
   { path: 'sae', component: SAEComponent },

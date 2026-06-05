@@ -316,6 +316,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
   const actionDecl = seq(
     "action",
     ident,
+    opt(delimited("[", termParser, "]")),
     ":",
     actionResourcesParser,
     "-o",
@@ -323,11 +324,12 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     opt(";")
   ).map(r => {
     const name = r[1];
-    const lhs = r[3];
-    const rhs = r[5];
+    const score = r[2] ?? undefined;
+    const lhs = r[4];
+    const rhs = r[6];
     return {
       kind: 'Action' as const,
-      action: { name, lhs, rhs },
+      action: { name, score, lhs, rhs },
     };
   });
 

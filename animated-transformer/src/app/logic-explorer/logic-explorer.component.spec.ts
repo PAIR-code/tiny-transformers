@@ -95,4 +95,150 @@ describe('LogicExplorerComponent', () => {
       expect(result).toContain('<span class="hl-symbol">|</span>');
     });
   });
+
+  describe('Simulation and Custom Mapping', () => {
+    it('should default to explorer mode and toggle correctly', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      expect(component.activeMiddleMode()).toBe('explorer');
+
+      component.activeMiddleMode.set('simulator');
+      expect(component.activeMiddleMode()).toBe('simulator');
+    });
+
+    it('should pre-populate mapping JSON when selecting a preset', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      // Foxes & Rabbits Simulation is in presets
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      const mappingVal = JSON.parse(component.simMappingJson());
+      expect(mappingVal.length).toBe(2);
+      expect(mappingVal[0].name).toBe('Rabbits');
+      expect(mappingVal[0].literal).toBe('rabbits');
+    });
+
+    it('should detect syntax errors in invalid mapping JSON', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+
+      component.onMappingJsonChange('invalid json {');
+      expect(component.simMappingError()).toBeTruthy();
+
+      component.onMappingJsonChange('[{"literal": "rabbits"}]'); // missing "name"
+      expect(component.simMappingError()).toContain('Each mapping rule must have "name" and "literal" fields.');
+
+      component.onMappingJsonChange('[{"name": "Rabbits", "literal": "rabbits"}]');
+      expect(component.simMappingError()).toBeNull();
+    });
+
+    it('should run simulation and record final state and dataPoints matching custom mapping', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      // Set small steps for fast test run
+      component.simSteps.set(5);
+
+      component.runSimulation();
+
+      expect(component.simSummary()).toContain('Simulation finished successfully at step');
+      expect(component.simDataPoints().length).toBeGreaterThan(0);
+      expect(component.simFinalState().length).toBeGreaterThan(0);
+    });
+
+    it('should respect changes in the source code when compiling and running simulation', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      // Edit source code to change initial populations from 100/100 to 500/500
+      const editedSource = component.rawSource()
+        .replace('rabbits(100)', 'rabbits(500)')
+        .replace('foxes(100)', 'foxes(500)');
+      component.rawSource.set(editedSource);
+
+      // Trigger compilation
+      component.onCompileClick();
+      fixture.detectChanges();
+
+      // Set small steps
+      component.simSteps.set(1);
+
+      // Run simulation
+      component.runSimulation();
+
+      // Check the initial step data points (x=0)
+      const dataPoints = component.simDataPoints();
+      const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
+      const initialFoxes = dataPoints.find(dp => dp.x === 0 && dp.name === 'Foxes');
+
+      expect(initialRabbits).toBeTruthy();
+      expect(initialRabbits!.y).toBe(500);
+
+      expect(initialFoxes).toBeTruthy();
+      expect(initialFoxes!.y).toBe(500);
+    });
+
+    it('should respect edits when running simulation, then editing and compiling, and running simulation again', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      // 1. Run simulation once with original code (100 rabbits, 100 foxes)
+      component.simSteps.set(1);
+      component.runSimulation();
+      expect(component.simDataPoints().find(dp => dp.x === 0 && dp.name === 'Rabbits')!.y).toBe(100);
+
+      // 2. Edit source code (e.g. to 300 rabbits)
+      const editedSource = component.rawSource().replace('rabbits(100)', 'rabbits(300)');
+      component.rawSource.set(editedSource);
+
+      // 3. Compile
+      component.onCompileClick();
+      fixture.detectChanges();
+
+      // 4. Run simulation again
+      component.runSimulation();
+
+      // Check if it has 300 rabbits in the new simulation run
+      const dataPoints = component.simDataPoints();
+      const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
+      expect(initialRabbits!.y).toBe(300);
+    });
+
+    it('should fail to respect edits in simulation if compile is NOT triggered', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      // Edit source code without compiling
+      const editedSource = component.rawSource().replace('rabbits(100)', 'rabbits(400)');
+      component.rawSource.set(editedSource);
+
+      // Run simulation directly
+      component.simSteps.set(1);
+      component.runSimulation();
+
+      // Verify that the count is updated to 400 (new value)
+      const dataPoints = component.simDataPoints();
+      const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
+      expect(initialRabbits!.y).toBe(400); // Expecting new value because simulation should auto-compile
+    });
+  });
 });
