@@ -94,8 +94,10 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
       if (this.editor) {
         if (this.editor.getValue() !== val) {
           this.lastValidStr.set(val);
-          this.editor.setValue(val);
-          this.changed.set(false);
+          if (!this.editor.hasTextFocus()) {
+            this.editor.setValue(val);
+            this.changed.set(false);
+          }
         }
       }
     });

@@ -154,8 +154,8 @@ export const PRESET_EXAMPLES: PresetExample[] = [
     src: [
       'type species = rabbits(count: nat) | foxes(count: nat);',
       'action rabbits_reproduce [mul_num(0.08, ?r)]: { ?res: rabbits(?r) } -o { ?new: rabbits(add_num(?r, 1)) };',
-      'action foxes_eat_rabbits [mul_num(0.002, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(?f), ?newR: rabbits(sub_num(?r, 1)) };',
-      'action foxes_reproduce [mul_num(0.001, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(add_num(?f, 1)), ?newR: rabbits(sub_num(?r, 1)) };',
+      'action foxes_eat_rabbits [mul_num(0.00002, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(?f), ?newR: rabbits(sub_num(?r, 1)) };',
+      'action foxes_reproduce [mul_num(0.0001, mul_num(?f, ?r))]: { ?resF: foxes(?f), ?resR: rabbits(?r) } -o { ?newF: foxes(add_num(?f, 1)), ?newR: rabbits(sub_num(?r, 1)) };',
       'action foxes_die [mul_num(0.05, ?f)]: { ?resF: foxes(?f) } -o { ?newF: foxes(sub_num(?f, 1)) };',
       '_r1: rabbits(200);',
       '_r2: foxes(100);',

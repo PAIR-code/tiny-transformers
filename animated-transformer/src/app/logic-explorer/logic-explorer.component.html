@@ -405,7 +405,7 @@
                 <button 
                   class="btn btn-primary" 
                   (click)="runSimulation()" 
-                  [disabled]="simRunning() || !currentContext()"
+                  [disabled]="simRunning() || !currentContext() || simSteps() === null || simSteps()! <= 0"
                 >
                   <mat-spinner 
                     *ngIf="simRunning()" 

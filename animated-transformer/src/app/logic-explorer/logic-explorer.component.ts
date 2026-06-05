@@ -4,12 +4,12 @@ you may not use this file except in compliance with the License.
 ...
 ==============================================================================*/
 
-import { Component, OnInit, signal, computed, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, computed, viewChild, ElementRef, ChangeDetectionStrategy, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 
 import { parseContext, parseTerm, printTerm, Term, Context, registerDefaultTSFunctions, substitute, evaluateTerm, TermKind } from '../../lib/logic_v2/logic';
 import { getApplicableActions, printLolliAction, ActionMatch, LolliAction, LinearResource, LinearStory } from '../../lib/logic_v2/linear';
@@ -81,6 +81,8 @@ export class LogicExplorerComponent implements OnInit {
   private startX = 0;
   private startWidth = 0;
   private compiledSource = '';
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
@@ -88,7 +90,7 @@ export class LogicExplorerComponent implements OnInit {
 
   // Probabilistic Simulator Signals
   readonly activeMiddleMode = signal<'explorer' | 'simulator'>('explorer');
-  readonly simSteps = signal<number>(200);
+  readonly simSteps = signal<number | null>(200);
   readonly simMode = signal<'proportional' | 'softmax'>('proportional');
   readonly simTemp = signal<number>(1.0);
   readonly simDataPoints = signal<NamedChartPoint[]>([]);
@@ -161,7 +163,28 @@ export class LogicExplorerComponent implements OnInit {
     return s ? s.steps : [];
   });
 
-  constructor() {}
+  constructor() {
+    effect(() => {
+      const preset = this.selectedPresetName();
+      const mode = this.activeMiddleMode();
+      const steps = this.simSteps();
+
+      this.updateQueryParams({
+        preset,
+        mode,
+        steps,
+      });
+    });
+  }
+
+  private updateQueryParams(params: Record<string, any>) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: params,
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
 
   ngOnInit() {
     const savedLeft = localStorage.getItem('logic-explorer-left-width');
@@ -169,7 +192,31 @@ export class LogicExplorerComponent implements OnInit {
     if (savedLeft) this.leftWidth.set(parseInt(savedLeft, 10));
     if (savedRight) this.rightWidth.set(parseInt(savedRight, 10));
 
-    this.selectPreset(this.selectedPresetName());
+    // Read initial query params synchronously
+    const params = this.route.snapshot.queryParamMap;
+    const presetParam = params.get('preset');
+    let initialPreset = this.selectedPresetName();
+    if (presetParam) {
+      const hasPreset = this.presets.some(p => p.name === presetParam);
+      if (hasPreset) {
+        initialPreset = presetParam;
+      }
+    }
+
+    const modeParam = params.get('mode');
+    if (modeParam === 'explorer' || modeParam === 'simulator') {
+      this.activeMiddleMode.set(modeParam);
+    }
+
+    const stepsParam = params.get('steps');
+    if (stepsParam) {
+      const val = parseInt(stepsParam, 10);
+      if (!isNaN(val)) {
+        this.simSteps.set(val);
+      }
+    }
+
+    this.selectPreset(initialPreset);
   }
 
   /**
@@ -619,9 +666,11 @@ export class LogicExplorerComponent implements OnInit {
     });
   }
 
-  parseNumber(event: Event): number {
-    const val = parseInt((event.target as HTMLInputElement).value, 10);
-    return isNaN(val) ? 200 : val;
+  parseNumber(event: Event): number | null {
+    const rawVal = (event.target as HTMLInputElement).value;
+    if (rawVal.trim() === '') return null;
+    const val = parseInt(rawVal, 10);
+    return isNaN(val) ? null : val;
   }
 
   parseFloatInput(event: Event): number {
@@ -658,6 +707,10 @@ export class LogicExplorerComponent implements OnInit {
     const dataPoints: NamedChartPoint[] = [];
 
     const steps = this.simSteps();
+    if (steps === null || steps <= 0) {
+      this.simRunning.set(false);
+      return;
+    }
     const mode = this.simMode();
     const temp = this.simTemp();
 
