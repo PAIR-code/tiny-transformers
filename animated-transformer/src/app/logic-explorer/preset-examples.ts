@@ -1,16 +1,21 @@
+export interface SimPlotMappingRule {
+  name: string;
+  literal: string;
+  argIndex?: number;
+  argName?: string;
+  matchValue?: string;
+}
+
+export interface PresetSimulationConfig {
+  defaultSteps: number;
+  resourcePlotMapping: SimPlotMappingRule[];
+}
+
 export interface PresetExample {
   name: string;
   description: string;
   src: string;
-  // This is the mapping to the simulator for what is displayed in the plot,
-  // e.g. populations for foxes and rabbits. .
-  defaultMapping?: Array<{
-    name: string;
-    literal: string;
-    argIndex?: number;
-    argName?: string;
-    matchValue?: string;
-  }>;
+  defaultSimulationConfig?: PresetSimulationConfig;
 }
 
 export const PRESET_EXAMPLES: PresetExample[] = [
@@ -27,11 +32,14 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r2: jumpedOver(animal(elephant), animal(cat));',
       '_r3: jumpedOver(animal(monkey), tree);',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'Jumped Over', literal: 'jumpedOver' },
-      { name: 'Squished', literal: 'squished' },
-      { name: 'Ran Away', literal: 'ranAway' },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 10,
+      resourcePlotMapping: [
+        { name: 'Jumped Over', literal: 'jumpedOver' },
+        { name: 'Squished', literal: 'squished' },
+        { name: 'Ran Away', literal: 'ranAway' },
+      ],
+    },
   },
   {
     name: 'River Crossing Puzzle',
@@ -53,11 +61,14 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r3: at(cargo(cat), left);',
       '_r4: at(cargo(mouse), left);',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'At Bank State', literal: 'at' },
-      { name: 'Fight State', literal: 'fight' },
-      { name: 'Eaten State', literal: 'eaten' },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 15,
+      resourcePlotMapping: [
+        { name: 'At Bank State', literal: 'at' },
+        { name: 'Fight State', literal: 'fight' },
+        { name: 'Eaten State', literal: 'eaten' },
+      ],
+    },
   },
   {
     name: 'Peano Arithmetic',
@@ -75,9 +86,12 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r3: suc(suc(0));',
       '?y: *;',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'Number Occurrences', literal: 'suc' },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 8,
+      resourcePlotMapping: [
+        { name: 'Number Occurrences', literal: 'suc' },
+      ],
+    },
   },
   {
     name: 'Parametric Lists',
@@ -118,10 +132,13 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       'action terminate: { ?c: chan(?id, pong, active) } -o { ?c2: chan(?id, close, closed) };',
       '_r1: chan(suc(0), close, active);',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'Active Channels', literal: 'chan', argIndex: 2, matchValue: 'active' },
-      { name: 'Closed Channels', literal: 'chan', argIndex: 2, matchValue: 'closed' },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 5,
+      resourcePlotMapping: [
+        { name: 'Active Channels', literal: 'chan', argIndex: 2, matchValue: 'active' },
+        { name: 'Closed Channels', literal: 'chan', argIndex: 2, matchValue: 'closed' },
+      ],
+    },
   },
   {
     name: 'Classic Linear Logic Choices',
@@ -140,13 +157,16 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r4: sock(red);',
       '_r5: sock(blue);',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'Dollars', literal: 'dollar' },
-      { name: 'Coffee', literal: 'drink', argIndex: 0, matchValue: 'coffee' },
-      { name: 'Tea', literal: 'drink', argIndex: 0, matchValue: 'tea' },
-      { name: 'Red Socks', literal: 'sock', argIndex: 0, matchValue: 'red' },
-      { name: 'Blue Socks', literal: 'sock', argIndex: 0, matchValue: 'blue' },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 10,
+      resourcePlotMapping: [
+        { name: 'Dollars', literal: 'dollar' },
+        { name: 'Coffee', literal: 'drink', argIndex: 0, matchValue: 'coffee' },
+        { name: 'Tea', literal: 'drink', argIndex: 0, matchValue: 'tea' },
+        { name: 'Red Socks', literal: 'sock', argIndex: 0, matchValue: 'red' },
+        { name: 'Blue Socks', literal: 'sock', argIndex: 0, matchValue: 'blue' },
+      ],
+    },
   },
   {
     name: 'Foxes & Rabbits Simulation',
@@ -160,9 +180,12 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       '_r1: rabbits(200);',
       '_r2: foxes(100);',
     ].join('\n'),
-    defaultMapping: [
-      { name: 'Rabbits', literal: 'rabbits', argIndex: 0 },
-      { name: 'Foxes', literal: 'foxes', argIndex: 0 },
-    ],
+    defaultSimulationConfig: {
+      defaultSteps: 20000,
+      resourcePlotMapping: [
+        { name: 'Rabbits', literal: 'rabbits', argIndex: 0 },
+        { name: 'Foxes', literal: 'foxes', argIndex: 0 },
+      ],
+    },
   }
 ];

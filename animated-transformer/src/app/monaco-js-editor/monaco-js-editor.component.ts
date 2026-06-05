@@ -66,6 +66,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
   readonly showTitle = input<boolean>(false);
   readonly language = input<string>('javascript');
   readonly theme = input<string>('linear-logic-theme');
+  readonly showFooter = input<boolean>(true);
 
   lastValidStr = signal<string>('');
   isDefault: Signal<boolean> = signal(true);
@@ -78,7 +79,7 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
 
   editor: any;
   configError?: string;
-  changed: WritableSignal<boolean> = signal(false);
+  readonly changed = model<boolean>(false);
 
   constructor() {
     this.isDefault = computed(() => {

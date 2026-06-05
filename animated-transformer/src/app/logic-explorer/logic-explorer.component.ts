@@ -66,6 +66,8 @@ export class LogicExplorerComponent implements OnInit {
   readonly highlightedHtml = computed(() => this.tokenizeSource(this.rawSource()));
   readonly editorExpanded = signal<boolean>(false);
   readonly editorWordWrap = signal<boolean>(true);
+  readonly editorChanged = signal<boolean>(false);
+  readonly monacoEditor = viewChild(MonacoJavaScriptEditorComponent);
   
   // Theme Color Customizer Signals
   readonly showThemeCustomizer = signal<boolean>(false);
@@ -83,6 +85,7 @@ export class LogicExplorerComponent implements OnInit {
   private compiledSource = '';
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private isInitialLoad = false;
   
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
@@ -188,6 +191,7 @@ export class LogicExplorerComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.isInitialLoad = true;
     const savedLeft = localStorage.getItem('logic-explorer-left-width');
     const savedRight = localStorage.getItem('logic-explorer-right-width');
     if (savedLeft) this.leftWidth.set(parseInt(savedLeft, 10));
@@ -218,6 +222,7 @@ export class LogicExplorerComponent implements OnInit {
     }
 
     this.selectPreset(initialPreset);
+    this.isInitialLoad = false;
   }
 
   /**
@@ -230,7 +235,20 @@ export class LogicExplorerComponent implements OnInit {
       this.rawSource.set(preset.src);
       this.compileSource(preset.src);
 
-      const mapping = preset.defaultMapping || [];
+      const simConfig = preset.defaultSimulationConfig;
+      const mapping = simConfig ? simConfig.resourcePlotMapping : [];
+      const defaultSteps = simConfig ? simConfig.defaultSteps : 200;
+
+      // Reset steps if user actively selected preset, otherwise respect URL steps
+      if (this.isInitialLoad) {
+        const params = this.route.snapshot.queryParamMap;
+        if (!params.has('steps')) {
+          this.simSteps.set(defaultSteps);
+        }
+      } else {
+        this.simSteps.set(defaultSteps);
+      }
+
       const mappingStr = JSON.stringify(mapping, null, 2);
       this.simMappingJson.set(mappingStr);
       this.simMappingError.set(null);
@@ -378,6 +396,10 @@ export class LogicExplorerComponent implements OnInit {
   /**
    * Triggers parse compilation of user edited source text.
    */
+  onEditorSaveClick() {
+    this.monacoEditor()?.tryEmitConfig();
+  }
+
   onCompileClick() {
     this.compileSource(this.rawSource());
   }

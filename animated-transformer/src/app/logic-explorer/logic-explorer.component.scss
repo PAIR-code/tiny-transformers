@@ -209,14 +209,18 @@ limitations under the License.
 .panel-editor {
   padding: 20px;
   gap: 16px;
-  overflow-y: auto;
   background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .presets-control {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .presets-control label {
@@ -228,15 +232,14 @@ limitations under the License.
 }
 
 .styled-select {
-  background: #ffffff;
-  color: #1e293b;
   border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 13px;
   outline: none;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
 
 .styled-select:focus {
@@ -248,11 +251,11 @@ limitations under the License.
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  min-height: 350px;
   background: #ffffff;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   overflow: hidden;
+  min-height: 0; /* allows element to shrink and fill flex space properly */
 }
 
 .editor-header {
@@ -265,6 +268,7 @@ limitations under the License.
   font-size: 12px;
   color: #64748b;
   font-family: monospace;
+  flex-shrink: 0;
 }
 
 .editor-header-left {
@@ -272,6 +276,12 @@ limitations under the License.
   align-items: center;
   gap: 8px;
 }
+
+.editor-header-right {
+  display: flex;
+  align-items: center;
+}
+
 
 .btn-icon-toggle {
   background: transparent;
@@ -304,13 +314,19 @@ limitations under the License.
 
 .editor-container-monaco {
   flex-grow: 1;
-  min-height: 300px;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  min-height: 0;
 
   ::ng-deep {
     .monaco-editor-container {
-      height: 360px !important;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100% !important;
       border: none;
     }
   }
@@ -424,6 +440,19 @@ limitations under the License.
 
 .btn-compile:hover {
   background: #059669;
+}
+
+.btn-save {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+
+  &:hover {
+    background: #d97706;
+  }
 }
 
 .btn-compile mat-icon, .btn mat-icon {

@@ -51,20 +51,22 @@
   }
 </div>
 
-<div class="footer onHover">
-  @if (changed()) {
-    <button color="accent" mat-raised-button (click)="tryEmitConfig()">
-      save
-    </button>
-  }
-  @if (closable() && !changed()) {
-    <button color="primary" mat-raised-button (click)="justClose()">
-      close
-    </button>
-  }
-  @if (changed() && closable()) {
-    <button color="primary" mat-raised-button (click)="tryEmitConfigAndClose()">
-      save & close
-    </button>
-  }
-</div>
+@if (showFooter()) {
+  <div class="footer onHover">
+    @if (changed()) {
+      <button color="accent" mat-raised-button (click)="tryEmitConfig()">
+        save
+      </button>
+    }
+    @if (closable() && !changed()) {
+      <button color="primary" mat-raised-button (click)="justClose()">
+        close
+      </button>
+    }
+    @if (changed() && closable()) {
+      <button color="primary" mat-raised-button (click)="tryEmitConfigAndClose()">
+        save & close
+      </button>
+    }
+  </div>
+}

@@ -82,9 +82,19 @@
               <mat-icon>{{ editorWordWrap() ? 'wrap_text' : 'format_align_left' }}</mat-icon>
             </button>
           </div>
-          <button class="btn btn-compile" (click)="onCompileClick()">
-            <mat-icon>play_arrow</mat-icon> Run & Compile
-          </button>
+          <div class="editor-header-right">
+            <button 
+              *ngIf="editorChanged()" 
+              class="btn btn-save animate-fade-in" 
+              (click)="onEditorSaveClick()"
+              style="margin-right: 8px;"
+            >
+              <mat-icon>save</mat-icon> Save Changes
+            </button>
+            <button class="btn btn-compile" (click)="onCompileClick()">
+              <mat-icon>play_arrow</mat-icon> Run & Compile
+            </button>
+          </div>
         </div>
         <div class="editor-container-monaco">
           <app-monaco-js-editor
@@ -93,7 +103,9 @@
             [codeStr]="rawSource()"
             [closable]="false"
             [showTitle]="false"
+            [showFooter]="false"
             [(wordWrap)]="editorWordWrap"
+            [(changed)]="editorChanged"
             (update)="handleCodeUpdate($event)"
           ></app-monaco-js-editor>
         </div>
