@@ -1432,3 +1432,115 @@ h3 {
     border-color: #e2e8f0;
   }
 }
+
+/* Resource Highlighting */
+.resource-chip.highlighted {
+  border-color: #f59e0b !important;
+  background: #fffbeb !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2), 0 1px 3px rgba(245, 158, 11, 0.1);
+  
+  .chip-id {
+    color: #d97706 !important;
+  }
+  
+  .chip-icon {
+    color: #f59e0b !important;
+  }
+}
+
+/* Rules Explorer Card side-by-side Layout */
+.rules-explorer-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin-bottom: 20px;
+}
+
+.rules-library, .rules-inspector {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 400px;
+}
+
+.rules-library h3, .rules-inspector h3 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rules-library .actions-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.rules-inspector .applications-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.rules-inspector .empty-inspector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  padding: 20px;
+  box-sizing: border-box;
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    margin-bottom: 8px;
+    color: #94a3b8;
+  }
+
+  p {
+    margin: 0;
+    max-width: 220px;
+    line-height: 1.4;
+  }
+}
+
+.rules-inspector .application-item {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #ffffff;
+  
+  &:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+  }
+
+  &.highlighted-app {
+    border-color: #f59e0b !important;
+    background: #fffbeb !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+  }
+}
+
+/* Adjust resizer handle styling for 2-column */
+.panel-rules, .right-splitter {
+  display: none !important;
+}

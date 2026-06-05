@@ -87,6 +87,7 @@ export class LogicExplorerComponent implements OnInit {
   // UI Filters & Selection State Signals
   readonly selectedResourceName = signal<string | null>(null); // Resource picked to find matching rules
   readonly selectedActionName = signal<string | null>(null);   // Rule picked to inspect details
+  readonly selectedApplication = signal<ActionMatch | null>(null); // Specific rule application clicked/hovered
 
   // Probabilistic Simulator Signals
   readonly activeMiddleMode = signal<'explorer' | 'simulator'>('explorer');
@@ -418,6 +419,7 @@ export class LogicExplorerComponent implements OnInit {
     
     // Keep current selections, but refresh matches
     this.refreshApplicableActions();
+    this.selectedApplication.set(null);
   }
 
   /**
@@ -432,6 +434,7 @@ export class LogicExplorerComponent implements OnInit {
     // Re-evaluate current active context & applicability
     this.currentContext.set(activeStory.getCurrentContext());
     this.refreshApplicableActions();
+    this.selectedApplication.set(null);
   }
 
   /**
@@ -447,6 +450,7 @@ export class LogicExplorerComponent implements OnInit {
     
     this.selectedResourceName.set(null);
     this.selectedActionName.set(null);
+    this.selectedApplication.set(null);
   }
 
   /**
@@ -455,10 +459,12 @@ export class LogicExplorerComponent implements OnInit {
   toggleResourceSelection(resName: string) {
     if (this.selectedResourceName() === resName) {
       this.selectedResourceName.set(null);
+      this.selectedApplication.set(null);
     } else {
       this.selectedResourceName.set(resName);
       // Clear action select so view is focused on resource matches
       this.selectedActionName.set(null);
+      this.selectedApplication.set(null);
     }
   }
 
@@ -468,11 +474,47 @@ export class LogicExplorerComponent implements OnInit {
   selectAction(actName: string) {
     if (this.selectedActionName() === actName) {
       this.selectedActionName.set(null);
+      this.selectedApplication.set(null);
     } else {
       this.selectedActionName.set(actName);
       // Clear resource filter
       this.selectedResourceName.set(null);
+      this.selectedApplication.set(null);
     }
+  }
+
+  /**
+   * Selects/Picks a specific rule application match.
+   */
+  selectApplication(app: ActionMatch | null) {
+    if (this.selectedApplication() === app) {
+      this.selectedApplication.set(null);
+    } else {
+      this.selectedApplication.set(app);
+    }
+  }
+
+  /**
+   * Returns true if a resource is consumed/matched by the selected rule/application.
+   */
+  isResourceHighlighted(resName: string): boolean {
+    const app = this.selectedApplication();
+    if (app) {
+      return Array.from(app.matchedResources.values()).includes(resName);
+    }
+
+    const actName = this.selectedActionName();
+    if (actName) {
+      const apps = this.selectedActionApplications();
+      return apps.some(a => Array.from(a.matchedResources.values()).includes(resName));
+    }
+
+    const resNameSelected = this.selectedResourceName();
+    if (resNameSelected) {
+      return resNameSelected === resName;
+    }
+
+    return false;
   }
 
   /**

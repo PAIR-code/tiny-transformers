@@ -28,7 +28,7 @@
   <main 
     class="explorer-layout" 
     [class.editor-expanded]="editorExpanded()"
-    [style.grid-template-columns]="editorExpanded() ? '1fr 0px 0px 0px 0px' : (leftWidth() + 'px 4px 1fr 4px ' + rightWidth() + 'px')"
+    [style.grid-template-columns]="editorExpanded() ? '1fr 0px 0px' : (leftWidth() + 'px 4px 1fr')"
   >
     
     <!-- LEFT PANEL: Editor and Preset Selector -->
@@ -134,7 +134,7 @@
           <h4 class="settings-group-title">Layout Settings</h4>
           <div class="settings-group-body">
             <span class="settings-desc">Drag layout dividers to resize or double-click them to reset.</span>
-            <button class="btn-theme-sm btn-reset" (click)="resetPanelWidths()" title="Reset panel widths to default values (320px / 360px)">
+            <button class="btn-theme-sm btn-reset" (click)="resetPanelWidths()" title="Reset panel widths to default values (320px)">
               <mat-icon>restart_alt</mat-icon> Reset Widths
             </button>
           </div>
@@ -213,10 +213,10 @@
       class="layout-splitter left-splitter" 
       (mousedown)="onMouseDown($event, 'left')"
       (dblclick)="resetPanelWidths()"
-      title="Drag to resize left panel, double-click to reset"
+      title="Drag to resize editor panel, double-click to reset"
     ></div>
 
-    <!-- MIDDLE PANEL: Context and Timeline Stepper or Simulator -->
+    <!-- MAIN RIGHT CONTENT PANEL: Context and Timeline Stepper or Simulator -->
     <section class="panel panel-context">
       <!-- Toggle header -->
       <div class="mode-toggle-header">
@@ -254,6 +254,7 @@
               *ngFor="let res of activeLinearResources()" 
               (click)="toggleResourceSelection(res.name)"
               [class.selected]="selectedResourceName() === res.name"
+              [class.highlighted]="isResourceHighlighted(res.name)"
               class="resource-chip"
             >
               <div class="chip-left">
@@ -263,6 +264,140 @@
               <mat-icon class="chip-icon">
                 {{ selectedResourceName() === res.name ? 'gps_fixed' : 'touch_app' }}
               </mat-icon>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rules & Transitions Explorer -->
+        <div class="rules-explorer-card">
+          <div class="rules-library">
+            <h3>Rule Library</h3>
+            <p class="sub-instruction">Glow indicates rule is applicable. Click to inspect.</p>
+            
+            <div *ngIf="declaredActions().length === 0" class="empty-state">
+              No rules declared in the context.
+            </div>
+
+            <div class="actions-list">
+              <div 
+                *ngFor="let act of declaredActions()"
+                (click)="selectAction(act.name)"
+                [class.selected]="selectedActionName() === act.name"
+                [class.applicable]="actionApplicabilityMap().get(act.name)"
+                class="action-row"
+              >
+                <div class="action-info">
+                  <span class="action-name">{{ act.name }}</span>
+                  <div class="action-signature-display">
+                    <span class="fn-name-sig">{{ act.name }}</span><span class="sig-char">(</span>
+                    <span *ngFor="let p of act.lhs; let isLast = last" class="sig-param">
+                      <span class="sig-var">?{{ p.varName }}</span><span class="sig-char">:</span>
+                      <span class="sig-type">{{ getTermString(p.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
+                    </span>
+                    <span class="sig-char">)</span>
+                    <span class="sig-char"> ➔ </span>
+                    <span class="sig-char">{{ '{' }}</span>
+                    <span *ngFor="let r of act.rhs; let isLast = last" class="sig-param">
+                      <span class="sig-var">?{{ r.varName }}</span><span class="sig-char">:</span>
+                      <span class="sig-type">{{ getTermString(r.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
+                    </span>
+                    <span class="sig-char">{{ '}' }}</span>
+                  </div>
+                </div>
+                <div class="action-status">
+                  <span 
+                    *ngIf="actionApplicabilityMap().get(act.name)" 
+                    class="status-badge glow-pulse"
+                  >
+                    Applicable
+                  </span>
+                  <mat-icon>{{ selectedActionName() === act.name ? 'expand_less' : 'chevron_right' }}</mat-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rules-inspector">
+            <!-- Case 1: Selected Resource Filters -->
+            <div *ngIf="selectedResourceName()" class="inspector-view">
+              <div class="inspector-title-bar">
+                <span class="badge badge-info">Filter: {{ selectedResourceName() }}</span>
+                <h3>Matching Transitions</h3>
+              </div>
+
+              <div *ngIf="resourceMatchingApplications().length === 0" class="empty-inspector">
+                No transitions match or consume <strong>{{ selectedResourceName() }}</strong>.
+              </div>
+
+              <div class="applications-list">
+                <div 
+                  *ngFor="let app of resourceMatchingApplications()" 
+                  class="application-item card-glass"
+                  [class.highlighted-app]="selectedApplication() === app"
+                  (click)="selectApplication(app)"
+                >
+                  <div class="app-header">
+                    <span class="app-action-name">Call: <code>{{ formatApplicationCall(app) }}</code></span>
+                    <button class="btn btn-primary btn-xs" (click)="applyTransition(app); $event.stopPropagation()">
+                      Apply Match
+                    </button>
+                  </div>
+                  <div class="app-bindings">
+                    <strong>Bindings:</strong>
+                    <code>{{ formatMatchedResources(app.matchedResources) }}</code>
+                  </div>
+                  <div class="app-outputs">
+                    <strong>RHS Output:</strong>
+                    <div *ngFor="let out of formatRhsOutputs(app)" class="out-preview">
+                      {{ out }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Case 2: Selected Rule Matches -->
+            <div *ngIf="selectedActionName()" class="inspector-view">
+              <div class="inspector-title-bar">
+                <span class="badge badge-accent">Rule: {{ selectedActionName() }}</span>
+                <h3>Possible Transitions</h3>
+              </div>
+
+              <div *ngIf="selectedActionApplications().length === 0" class="empty-inspector">
+                Rule is not currently applicable in this state.
+              </div>
+
+              <div class="applications-list">
+                <div 
+                  *ngFor="let app of selectedActionApplications(); let idx = index" 
+                  class="application-item card-glass"
+                  [class.highlighted-app]="selectedApplication() === app"
+                  (click)="selectApplication(app)"
+                >
+                  <div class="app-header">
+                    <span class="app-index">Call: <code>{{ formatApplicationCall(app) }}</code></span>
+                    <button class="btn btn-primary btn-xs" (click)="applyTransition(app); $event.stopPropagation()">
+                      Apply Transition
+                    </button>
+                  </div>
+                  <div class="app-bindings">
+                    <strong>Bindings:</strong>
+                    <code>{{ formatMatchedResources(app.matchedResources) }}</code>
+                  </div>
+                  <div class="app-outputs">
+                    <strong>RHS Output:</strong>
+                    <div *ngFor="let out of formatRhsOutputs(app)" class="out-preview">
+                      {{ out }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Case 3: No selection placeholder -->
+            <div *ngIf="!selectedResourceName() && !selectedActionName()" class="empty-inspector placeholder-view">
+              <mat-icon>info_outline</mat-icon>
+              <p>Select an active resource above or click an applicable rule to inspect transition options.</p>
             </div>
           </div>
         </div>
@@ -293,7 +428,7 @@
 
           <div *ngIf="storySteps().length === 0" class="empty-timeline">
             <mat-icon>timeline</mat-icon>
-            <p>No transitions applied yet. Apply rules on the right panel to start the story timeline.</p>
+            <p>No transitions applied yet. Apply rules above to start the story timeline.</p>
           </div>
 
           <div class="steps-list">
@@ -466,152 +601,6 @@
           </div>
         </div>
       }
-    </section>
-
-    <!-- Right Splitter resizer -->
-    <div 
-      class="layout-splitter right-splitter" 
-      (mousedown)="onMouseDown($event, 'right')"
-      (dblclick)="resetPanelWidths()"
-      title="Drag to resize right panel, double-click to reset"
-    ></div>
-
-    <!-- RIGHT PANEL: Lolli Rules and Applicability -->
-    <section class="panel panel-rules">
-      <div class="panel-header">
-        <mat-icon>bolt</mat-icon>
-        <h2>Linear Lolli Rules</h2>
-      </div>
-
-      <!-- All Rules List -->
-      <div class="rules-card">
-        <h3>Rule Library</h3>
-        <p class="sub-instruction">Glow indicates a rule is applicable. Click to inspect and apply.</p>
-        
-        <div *ngIf="declaredActions().length === 0" class="empty-state">
-          No linear lolli rules declared in the context.
-        </div>
-
-        <div class="actions-list">
-          <div 
-            *ngFor="let act of declaredActions()"
-            (click)="selectAction(act.name)"
-            [class.selected]="selectedActionName() === act.name"
-            [class.applicable]="actionApplicabilityMap().get(act.name)"
-            class="action-row"
-          >
-            <div class="action-info">
-              <span class="action-name">{{ act.name }}</span>
-              <div class="action-signature-display">
-                <span class="fn-name-sig">{{ act.name }}</span><span class="sig-char">(</span>
-                <span *ngFor="let p of act.lhs; let isLast = last" class="sig-param">
-                  <span class="sig-var">?{{ p.varName }}</span><span class="sig-char">:</span>
-                  <span class="sig-type">{{ getTermString(p.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
-                </span>
-                <span class="sig-char">)</span>
-                <span class="sig-char"> ➔ </span>
-                <span class="sig-char">{{ '{' }}</span>
-                <span *ngFor="let r of act.rhs; let isLast = last" class="sig-param">
-                  <span class="sig-var">?{{ r.varName }}</span><span class="sig-char">:</span>
-                  <span class="sig-type">{{ getTermString(r.typePattern) }}</span><span *ngIf="!isLast" class="sig-char">, </span>
-                </span>
-                <span class="sig-char">{{ '}' }}</span>
-              </div>
-            </div>
-            <div class="action-status">
-              <span 
-                *ngIf="actionApplicabilityMap().get(act.name)" 
-                class="status-badge glow-pulse"
-              >
-                Applicable
-              </span>
-              <mat-icon>{{ selectedActionName() === act.name ? 'expand_less' : 'chevron_right' }}</mat-icon>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Matches Inspector / Applications Details -->
-      <div class="inspector-card">
-        
-        <!-- Case 1: Selected Resource Filters -->
-        <div *ngIf="selectedResourceName()" class="inspector-view">
-          <div class="inspector-title-bar">
-            <span class="badge badge-info">Filter: {{ selectedResourceName() }}</span>
-            <h3>Matching Rules</h3>
-          </div>
-
-          <div *ngIf="resourceMatchingApplications().length === 0" class="empty-inspector">
-            No rules match or consume <strong>{{ selectedResourceName() }}</strong> in the current context.
-          </div>
-
-          <div class="applications-list">
-            <div 
-              *ngFor="let app of resourceMatchingApplications()" 
-              class="application-item card-glass"
-            >
-              <div class="app-header">
-                <span class="app-action-name">Call: <code>{{ formatApplicationCall(app) }}</code></span>
-                <button class="btn btn-primary btn-xs" (click)="applyTransition(app)">
-                  Apply Match
-                </button>
-              </div>
-              <div class="app-bindings">
-                <strong>Parameter Bindings:</strong>
-                <code>{{ formatMatchedResources(app.matchedResources) }}</code>
-              </div>
-              <div class="app-outputs">
-                <strong>RHS Output:</strong>
-                <div *ngFor="let out of formatRhsOutputs(app)" class="out-preview">
-                  {{ out }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Case 2: Selected Rule Matches -->
-        <div *ngIf="selectedActionName()" class="inspector-view">
-          <div class="inspector-title-bar">
-            <span class="badge badge-accent">Rule: {{ selectedActionName() }}</span>
-            <h3>Possible Applications</h3>
-          </div>
-
-          <div *ngIf="selectedActionApplications().length === 0" class="empty-inspector">
-            Rule is not currently applicable in this state. Active resource context doesn't satisfy the rule requirements.
-          </div>
-
-          <div class="applications-list">
-            <div 
-              *ngFor="let app of selectedActionApplications(); let idx = index" 
-              class="application-item card-glass"
-            >
-              <div class="app-header">
-                <span class="app-index">Call: <code>{{ formatApplicationCall(app) }}</code></span>
-                <button class="btn btn-primary btn-xs" (click)="applyTransition(app)">
-                  Apply Transition
-                </button>
-              </div>
-              <div class="app-bindings">
-                <strong>Bindings:</strong>
-                <code>{{ formatMatchedResources(app.matchedResources) }}</code>
-              </div>
-              <div class="app-outputs">
-                <strong>RHS Output:</strong>
-                <div *ngFor="let out of formatRhsOutputs(app)" class="out-preview">
-                  {{ out }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Case 3: No selection placeholder -->
-        <div *ngIf="!selectedResourceName() && !selectedActionName()" class="empty-inspector placeholder-view">
-          <mat-icon>info_outline</mat-icon>
-          <p>Select an active resource card or click an applicable rule to inspect specific transition configurations and apply them.</p>
-        </div>
-      </div>
     </section>
 
   </main>
