@@ -50,6 +50,17 @@ export type CodeStrUpdate =
       close: true;
     };
 
+export interface EditorPosition {
+  line?: number;
+  column?: number;
+}
+
+export interface EditorError {
+  message: string;
+  start?: EditorPosition;
+  end?: EditorPosition;
+}
+
 @Component({
   selector: 'app-monaco-js-editor',
   templateUrl: './monaco-js-editor.component.html',
@@ -151,6 +162,13 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
         if (this.changed() !== changedNow) {
           this.changed.set(changedNow);
         }
+        // Clear editor markers on user typing
+        loadMonaco().then((monaco) => {
+          const model = this.editor.getModel();
+          if (model) {
+            monaco.editor.setModelMarkers(model, 'logic-explorer', []);
+          }
+        });
       });
     }).catch(err => {
       console.error('Failed to initialize Monaco JS editor:', err);
@@ -236,5 +254,50 @@ export class MonacoJavaScriptEditorComponent implements OnInit, AfterViewInit, O
       close: true,
     };
     this.update.emit(configUpdate);
+  }
+
+  setEditorError(error: EditorError | null) {
+    if (!this.editor) return;
+    
+    loadMonaco().then((monaco) => {
+      const model = this.editor.getModel();
+      if (!model) return;
+      
+      if (!error) {
+        monaco.editor.setModelMarkers(model, 'logic-explorer', []);
+        return;
+      }
+      
+      const lineCount = model.getLineCount();
+      
+      let startLine = error.start?.line ?? 1;
+      let startColumn = error.start?.column ?? 1;
+      if (startLine > lineCount) {
+        startLine = 1;
+        startColumn = 1;
+      }
+      
+      let endLine = error.end?.line ?? startLine;
+      let endColumn = error.end?.column;
+      if (endLine > lineCount) {
+        endLine = startLine;
+      }
+      
+      if (endColumn === undefined) {
+        const maxCol = model.getLineMaxColumn(endLine);
+        endColumn = Math.min(startColumn + 5, maxCol);
+      }
+      
+      const marker: any = {
+        severity: monaco.MarkerSeverity.Error,
+        message: error.message,
+        startLineNumber: startLine,
+        startColumn: startColumn,
+        endLineNumber: endLine,
+        endColumn: endColumn,
+      };
+      
+      monaco.editor.setModelMarkers(model, 'logic-explorer', [marker]);
+    });
   }
 }

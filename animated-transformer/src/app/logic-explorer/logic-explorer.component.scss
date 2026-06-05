@@ -231,7 +231,7 @@ limitations under the License.
   letter-spacing: 0.05em;
 }
 
-.presets-trigger-btn {
+.menu-trigger-btn {
   background: #ffffff;
   color: #0f172a;
   border: 1px solid #cbd5e1;
@@ -263,7 +263,7 @@ limitations under the License.
     justify-content: center;
   }
 
-  .selected-preset-name {
+  span {
     flex-grow: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -286,12 +286,13 @@ limitations under the License.
 
 /* Material Menu Styling */
 ::ng-deep {
-  .presets-menu-panel.mat-mdc-menu-panel {
+  .presets-menu-panel.mat-mdc-menu-panel,
+  .sim-mode-menu-panel.mat-mdc-menu-panel {
     border-radius: 8px !important;
     border: 1px solid #cbd5e1 !important;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
     background: #ffffff !important;
-    min-width: 260px !important;
+    min-width: 200px !important;
     padding: 4px 0 !important;
 
     .presets-menu-header {
@@ -323,7 +324,7 @@ limitations under the License.
         margin-right: 10px !important;
       }
 
-      &.active-preset {
+      &.active-preset, &.active-mode {
         background: #f0fdf4 !important; /* light green for active */
         color: #15803d !important;
         font-weight: 600 !important;
@@ -333,10 +334,14 @@ limitations under the License.
         }
       }
 
-      &:hover:not(.active-preset) {
+      &:hover:not(.active-preset):not(.active-mode) {
         background: #f8fafc !important;
       }
     }
+  }
+
+  .presets-menu-panel.mat-mdc-menu-panel {
+    min-width: 260px !important;
   }
 }
 
@@ -1372,6 +1377,16 @@ h3 {
 .btn-item {
   flex: 0;
   min-width: max-content;
+
+  .btn {
+    height: 38px;
+    box-sizing: border-box;
+  }
+}
+
+.steps-item, .temp-item {
+  flex: 0 0 90px;
+  min-width: 90px;
 }
 
 .styled-input {
@@ -1384,6 +1399,7 @@ h3 {
   outline: none;
   transition: all 0.15s ease;
   width: 100%;
+  height: 38px;
   box-sizing: border-box;
 
   &:focus {

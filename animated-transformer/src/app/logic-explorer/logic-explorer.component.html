@@ -42,7 +42,7 @@
         <label>Selected Program</label>
         <button 
           [matMenuTriggerFor]="presetsMenu" 
-          class="presets-trigger-btn"
+          class="menu-trigger-btn"
         >
           <mat-icon class="preset-btn-icon">snippet_folder</mat-icon>
           <span class="selected-preset-name">{{ selectedPresetName() }}</span>
@@ -564,7 +564,7 @@
 
           <div class="sim-controls">
             <div class="control-row">
-              <div class="control-item">
+              <div class="control-item steps-item">
                 <label for="sim-steps">Steps</label>
                 <input 
                   id="sim-steps" 
@@ -578,19 +578,27 @@
               </div>
               
               <div class="control-item">
-                <label for="sim-mode">Probability Mode</label>
-                <select 
-                  id="sim-mode" 
-                  [value]="simMode()" 
-                  (change)="onSimModeChange($event)"
-                  class="styled-select"
+                <label>Probability Mode</label>
+                <button 
+                  [matMenuTriggerFor]="simModeMenu" 
+                  class="menu-trigger-btn"
                 >
-                  <option value="proportional">Proportional Rates</option>
-                  <option value="softmax">Softmax Temperature</option>
-                </select>
+                  <span>{{ simMode() === 'softmax' ? 'Softmax Temperature' : 'Proportional Rates' }}</span>
+                  <mat-icon class="arrow-icon">arrow_drop_down</mat-icon>
+                </button>
+                <mat-menu #simModeMenu="matMenu" class="sim-mode-menu-panel">
+                  <button mat-menu-item (click)="simMode.set('proportional')" [class.active-mode]="simMode() === 'proportional'">
+                    <mat-icon>trending_up</mat-icon>
+                    <span>Proportional Rates</span>
+                  </button>
+                  <button mat-menu-item (click)="simMode.set('softmax')" [class.active-mode]="simMode() === 'softmax'">
+                    <mat-icon>thermostat</mat-icon>
+                    <span>Softmax Temperature</span>
+                  </button>
+                </mat-menu>
               </div>
 
-              <div class="control-item" *ngIf="simMode() === 'softmax'">
+              <div class="control-item temp-item" *ngIf="simMode() === 'softmax'">
                 <label for="sim-temp">Temperature</label>
                 <input 
                   id="sim-temp" 

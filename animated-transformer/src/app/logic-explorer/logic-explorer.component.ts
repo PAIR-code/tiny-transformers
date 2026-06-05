@@ -19,6 +19,7 @@ import {
   MonacoJavaScriptEditorComponent,
   CodeStrUpdate,
   CodeStrUpdateKind,
+  EditorError,
 } from '../monaco-js-editor/monaco-js-editor.component';
 import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicThemeConfig } from '../monaco-editor-loader';
 import { D3LineChartComponent, NamedChartPoint, CurveKind, ScalingKind, defaultChartConfig } from '../d3-line-chart/d3-line-chart.component';
@@ -337,12 +338,55 @@ export class LogicExplorerComponent implements OnInit {
     return [];
   }
 
+  private parseErrorString(errorMessage: string): EditorError {
+    let line = 1;
+    let column = 1;
+    
+    const lineColRegex = /(?:line|at)\s+(\d+)(?:,?\s+col(?:umn)?\s+(\d+))?/i;
+    const colonRegex = /(\d+):(\d+)/;
+    
+    let match = errorMessage.match(lineColRegex);
+    if (match) {
+      line = parseInt(match[1], 10);
+      if (match[2]) column = parseInt(match[2], 10);
+    } else {
+      match = errorMessage.match(colonRegex);
+      if (match) {
+        line = parseInt(match[1], 10);
+        column = parseInt(match[2], 10);
+      }
+    }
+    
+    return {
+      message: errorMessage,
+      start: {
+        line,
+        column
+      }
+    };
+  }
+
   saveProgram(saveAs = false) {
     const isCustom = this.isCustomPreset();
     const currentName = this.selectedPresetName();
     
     // Get latest code text directly from Monaco
-    const currentSrc = this.monacoEditor() ? this.monacoEditor()!.editor.getValue() : this.rawSource();
+    const currentSrc = this.monacoEditor()?.editor ? this.monacoEditor()!.editor.getValue() : this.rawSource();
+
+    // Compile check to validate before saving
+    try {
+      const ctxt = parseContext(currentSrc);
+      registerDefaultTSFunctions(ctxt);
+      this.errorMessage.set(null);
+      this.monacoEditor()?.setEditorError(null);
+    } catch (e) {
+      const errMsg = (e as Error).message;
+      this.errorMessage.set(errMsg);
+      const parsedError = this.parseErrorString(errMsg);
+      this.monacoEditor()?.setEditorError(parsedError);
+      alert(`Cannot save program: compilation failed.\nError: ${errMsg}`);
+      return;
+    }
 
     // Find current config if available to copy it over
     const preset = this.presetsList().find(p => p.name === currentName);
@@ -519,6 +563,9 @@ export class LogicExplorerComponent implements OnInit {
       
       this.refreshApplicableActions();
 
+      // Clear any errors in the Monaco editor
+      this.monacoEditor()?.setEditorError(null);
+
       // Dynamically extract registered names to keep editor highlights synchronized perfectly!
       const rawData = ctxt.getRawData();
       const constructors = Object.keys(rawData.constructors);
@@ -527,10 +574,15 @@ export class LogicExplorerComponent implements OnInit {
       const types = Object.keys(rawData.types);
       updateLinearLogicTokens(constructors, functions, actions, types);
     } catch (e) {
-      this.errorMessage.set((e as Error).message);
+      const errMsg = (e as Error).message;
+      this.errorMessage.set(errMsg);
       this.story.set(null);
       this.currentContext.set(null);
       this.applicableActions.set([]);
+      
+      // Draw red squiggly lines in Monaco editor!
+      const parsedError = this.parseErrorString(errMsg);
+      this.monacoEditor()?.setEditorError(parsedError);
     }
   }
 
@@ -555,7 +607,8 @@ export class LogicExplorerComponent implements OnInit {
   }
 
   onCompileClick() {
-    this.compileSource(this.rawSource());
+    const currentSrc = this.monacoEditor()?.editor ? this.monacoEditor()!.editor.getValue() : this.rawSource();
+    this.compileSource(currentSrc);
   }
 
   /**
@@ -896,13 +949,12 @@ export class LogicExplorerComponent implements OnInit {
     return isNaN(val) ? 1.0 : val;
   }
 
-  onSimModeChange(event: Event) {
-    this.simMode.set((event.target as HTMLSelectElement).value as any);
-  }
+
 
   runSimulation() {
-    if (this.rawSource() !== this.compiledSource) {
-      this.compileSource(this.rawSource());
+    const currentSrc = this.monacoEditor()?.editor ? this.monacoEditor()!.editor.getValue() : this.rawSource();
+    if (currentSrc !== this.compiledSource) {
+      this.compileSource(currentSrc);
     }
 
     const startContext = this.currentContext();
