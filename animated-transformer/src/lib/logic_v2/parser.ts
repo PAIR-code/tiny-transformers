@@ -30,6 +30,9 @@ import {
   tokenOf,
   withSep,
   withSepPlus,
+  tokenKind,
+  req,
+  ParseError
 } from 'mini-parse';
 
 import {
@@ -49,6 +52,10 @@ import {
   ConjunctionData,
 } from './logic';
 
+function delimitedReq<I, T>(open: string, parser: Parser<I, T>, close: string, errMsg: string): Parser<I, T> {
+  return seq(open, parser, req(close, errMsg)).map(r => r[1]);
+}
+
 /**
  * Parses a raw source string containing logic definitions into a fully-typed `Context`.
  * Supports type declarations (`type ...`), constant declarations (`let ...`), 
@@ -63,13 +70,15 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     (t: Token) => t.kind !== "ws"
   );
 
-  const ident = kind("ident");
-  const constrName = or(kind("ident"), kind("number"));
+  const identToken = tokenKind("ident");
+  const ident = identToken.map(t => t.text);
+  const constrNameToken = or(tokenKind("ident"), tokenKind("number"));
+  const constrName = constrNameToken.map(t => t.text);
   const typeNameParser = or(kind("ident"), kind("number"));
 
   const recordField = seq(kind("ident"), ":", fn(() => termParser)).map(r => ({ name: r[0], type: r[2] }));
-  const recordArgs = delimited("{", withSep(",", recordField), "}");
-  const parenArgs = delimited("(", withSep(",", recordField), ")");
+  const recordArgs = delimitedReq("{", withSep(",", recordField), "}", "Expected closing '}'");
+  const parenArgs = delimitedReq("(", withSep(",", recordField), ")", "Expected closing ')'");
 
   const constructorDecl = or(
     seq(constrName, parenArgs).map(r => {
@@ -109,7 +118,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       or(...instantiatedCustomParsers),
       seq(
         constrNameParser,
-        delimited(
+        delimitedReq(
           "{",
           withSep(
             ",",
@@ -127,7 +136,8 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
               })
             )
           ),
-          "}"
+          "}",
+          "Expected closing '}'"
         )
       ).map(r => {
         const constructorName = r[0];
@@ -145,7 +155,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       }),
       seq(
         constrNameParser,
-        delimited("<", withSep(",", termParser), ">")
+        delimitedReq("<", withSep(",", termParser), ">", "Expected closing '>'")
       ).map(r => {
         const constructorName = r[0];
         const args = r[1];
@@ -158,7 +168,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       }),
       seq(
         constrNameParser,
-        delimited("(", withSep(",", termParser), ")")
+        delimitedReq("(", withSep(",", termParser), ")", "Expected closing ')'")
       ).map(r => {
         const constructorName = r[0];
         const args = r[1];
@@ -175,7 +185,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
 
   const simpleTermParser: Parser<unknown, Term> = fn(() => {
     return or(
-      delimited("(", termParser, ")"),
+      delimitedReq("(", termParser, ")", "Expected closing ')'"),
       constrNameParser.map(name => {
         return {
           kind: TermKind.Literal as const,
@@ -199,17 +209,18 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     }
   }
 
-  const typeParamsParser = opt(delimited("<", withSep(",", kind("typeParam")), ">"));
+  const typeParamsParser = opt(delimitedReq("<", withSep(",", kind("typeParam")), ">", "Expected closing '>'"));
 
   const letTypeDecl = seq(
     "type",
-    ident,
-    typeParamsParser,
-    "=",
-    withSepPlus("|", constructorDecl),
+    req(identToken, "Expected type name"),
+    opt(typeParamsParser),
+    req("=", "Expected '=' in type declaration"),
+    req(withSepPlus("|", constructorDecl), "Expected constructors in type declaration"),
     opt(";")
   ).map(r => {
-    const typeName = r[1];
+    const typeToken = r[1];
+    const typeName = typeToken.text;
     const typeParamsList = r[2];
     const constructorsList = r[4];
 
@@ -229,35 +240,56 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       typeParams,
       typeParamOrder,
       constructors,
+      span: typeToken.span,
     };
   });
 
   const letTermDecl = seq(
     "let",
-    constrName,
-    "=",
-    termParser,
+    req(constrNameToken, "Expected constant name"),
+    req("=", "Expected '=' in let declaration"),
+    req(termParser, "Expected term in let declaration"),
     opt(";")
-  ).map(r => ({
-    kind: 'Term' as const,
-    termName: r[1],
-    term: r[3],
-  }));
+  ).map(r => {
+    const termToken = r[1];
+    return {
+      kind: 'Term' as const,
+      termName: termToken.text,
+      term: r[3],
+      span: termToken.span,
+    };
+  });
 
   const patternArg = seq(termParser, opt(seq(":", termParser))).map(r => r[0]);
-  const patternArgsParser = delimited("(", withSep(",", patternArg), ")");
-  const funClauseParser = seq(
-    opt("fun"),
-    ident,
-    patternArgsParser,
-    "=",
-    termParser
-  ).map(r => {
-    const funcName = r[1];
-    const patterns = r[2];
-    const body = r[4];
-    return { funcName, clause: { patterns, body } };
-  });
+  const patternArgsParser = delimitedReq("(", withSep(",", patternArg), ")", "Expected closing ')'");
+
+  const funClauseParser = or(
+    seq(
+      "fun",
+      req(identToken, "Expected function name"),
+      req(patternArgsParser, "Expected function pattern arguments"),
+      req("=", "Expected '=' in function clause"),
+      req(termParser, "Expected function body term")
+    ).map(r => {
+      const nameToken = r[1];
+      const funcName = nameToken.text;
+      const patterns = r[2];
+      const body = r[4];
+      return { funcName, clause: { patterns, body }, span: nameToken.span };
+    }),
+    seq(
+      identToken,
+      patternArgsParser,
+      "=",
+      termParser
+    ).map(r => {
+      const nameToken = r[0];
+      const funcName = nameToken.text;
+      const patterns = r[1];
+      const body = r[3];
+      return { funcName, clause: { patterns, body }, span: nameToken.span };
+    })
+  );
 
   const letFunDecl = seq(
     funClauseParser,
@@ -271,16 +303,18 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       kind: 'Fun' as const,
       funcName: first.funcName,
       clauses,
+      span: first.span,
     };
   });
 
   const resourceDecl = seq(
-    or(ident, kind("var")),
+    or(tokenKind("ident"), tokenKind("var")),
     ":",
-    termParser,
+    req(termParser, "Expected valid term in resource declaration"),
     opt(";")
   ).map(r => {
-    const rawName = r[0];
+    const nameToken = r[0];
+    const rawName = nameToken.text;
     const isTypeVar = rawName.startsWith('?');
     const varName = isTypeVar ? rawName.substring(1) : rawName;
     return {
@@ -288,6 +322,7 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
       varName,
       isTypeVar,
       typeName: r[2],
+      span: nameToken.span,
     };
   });
 
@@ -307,69 +342,78 @@ export function parseContext(src: string, existingCtxt?: Context): Context {
     }))
   );
 
-  const actionResourcesParser = delimited(
-    "{",
-    withSep(",", actionResourceParser),
-    "}"
-  );
+  const actionResourcesParser = delimitedReq("{", withSep(",", actionResourceParser), "}", "Expected closing '}'");
 
   const actionDecl = seq(
     "action",
-    ident,
-    opt(delimited("[", termParser, "]")),
-    ":",
-    actionResourcesParser,
-    "-o",
-    actionResourcesParser,
+    req(identToken, "Expected action name"),
+    opt(delimitedReq("[", termParser, "]", "Expected closing ']'")),
+    req(":", "Expected ':' after action name"),
+    req(actionResourcesParser, "Expected LHS action resources"),
+    req("-o", "Expected '-o' connector"),
+    req(actionResourcesParser, "Expected RHS action resources"),
     opt(";")
   ).map(r => {
-    const name = r[1];
+    const actionToken = r[1];
+    const name = actionToken.text;
     const score = r[2] ?? undefined;
     const lhs = r[4];
     const rhs = r[6];
     return {
       kind: 'Action' as const,
       action: { name, score, lhs, rhs },
+      span: actionToken.span,
     };
   });
 
   const declParser = or(letTypeDecl, letTermDecl, letFunDecl, resourceDecl, actionDecl);
 
-  const contextParser = seq(repeat(declParser), eof()).map(r => r[0]);
+  const contextParser = seq(repeat(declParser), req(eof(), "Unexpected token or declaration syntax error")).map(r => r[0]);
 
   const parsedDecls = contextParser.parse({ stream });
   if (!parsedDecls) {
-    throw new Error("Failed to parse Context declarations");
+    const lastPos = stream.checkpoint();
+    throw new ParseError("Failed to parse Context declarations", [lastPos, lastPos]);
   }
 
   for (const decl of parsedDecls.value) {
-    if (decl.kind === 'Type') {
-      ctxt.extend(decl.constructors, decl.typeParams, decl.typeParamOrder);
-    } else if (decl.kind === 'Term') {
-      ctxt.defineTerm(decl.termName, decl.term);
-    } else if (decl.kind === 'Fun') {
-      if (decl.funcName in ctxt.getRawData().constructors || decl.funcName in ctxt.getRawData().functions || decl.funcName in ctxt.getRawData().actions) {
-        throw new Error(`Literal '${decl.funcName}' already defined in the context.`);
-      }
-      ctxt.getRawData().functions[decl.funcName] = {
-        kind: 'clause',
-        funcName: decl.funcName,
-        clauses: decl.clauses,
-      };
-    } else if (decl.kind === 'Var') {
-      if (decl.isTypeVar) {
-        ctxt.declareVariable(decl.varName, decl.typeName);
-      } else {
-        if (!decl.varName.startsWith('_')) {
-          throw new Error(`Linear resource name '${decl.varName}' must start with '_'`);
+    try {
+      if (decl.kind === 'Type') {
+        ctxt.extend(decl.constructors, decl.typeParams, decl.typeParamOrder);
+      } else if (decl.kind === 'Term') {
+        if (decl.termName in ctxt.getRawData().constructors || decl.termName in ctxt.getRawData().functions || decl.termName in ctxt.getRawData().actions || decl.termName in ctxt.termDefinitions) {
+          throw new ParseError(`Literal '${decl.termName}' already defined in the context.`, decl.span);
         }
-        ctxt.declareLinearResource(decl.varName, decl.typeName);
+        ctxt.defineTerm(decl.termName, decl.term);
+      } else if (decl.kind === 'Fun') {
+        if (decl.funcName in ctxt.getRawData().constructors || decl.funcName in ctxt.getRawData().functions || decl.funcName in ctxt.getRawData().actions) {
+          throw new ParseError(`Literal '${decl.funcName}' already defined in the context.`, decl.span);
+        }
+        ctxt.getRawData().functions[decl.funcName] = {
+          kind: 'clause',
+          funcName: decl.funcName,
+          clauses: decl.clauses,
+        };
+      } else if (decl.kind === 'Var') {
+        if (decl.isTypeVar) {
+          ctxt.declareVariable(decl.varName, decl.typeName);
+        } else {
+          if (!decl.varName.startsWith('_')) {
+            throw new ParseError(`Linear resource name '${decl.varName}' must start with '_'`, decl.span);
+          }
+          ctxt.declareLinearResource(decl.varName, decl.typeName);
+        }
+      } else if (decl.kind === 'Action') {
+        if (decl.action.name in ctxt.getRawData().constructors || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
+          throw new ParseError(`Literal '${decl.action.name}' already defined in the context.`, decl.span);
+        }
+        ctxt.getRawData().actions[decl.action.name] = decl.action;
       }
-    } else if (decl.kind === 'Action') {
-      if (decl.action.name in ctxt.getRawData().constructors || decl.action.name in ctxt.getRawData().functions || decl.action.name in ctxt.getRawData().actions) {
-        throw new Error(`Literal '${decl.action.name}' already defined in the context.`);
+    } catch (e: any) {
+      if (e instanceof ParseError) {
+        throw e;
       }
-      ctxt.getRawData().actions[decl.action.name] = decl.action;
+      throw new ParseError(e.message, decl.span);
     }
   }
 

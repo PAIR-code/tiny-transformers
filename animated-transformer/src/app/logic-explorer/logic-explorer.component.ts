@@ -20,6 +20,7 @@ import {
   CodeStrUpdate,
   CodeStrUpdateKind,
   EditorError,
+  EditorPosition,
 } from '../monaco-js-editor/monaco-js-editor.component';
 import { updateLinearLogicTokens, updateLogicTheme, DEFAULT_THEME_CONFIG, LogicThemeConfig } from '../monaco-editor-loader';
 import { D3LineChartComponent, NamedChartPoint, CurveKind, ScalingKind, defaultChartConfig } from '../d3-line-chart/d3-line-chart.component';
@@ -338,7 +339,38 @@ export class LogicExplorerComponent implements OnInit {
     return [];
   }
 
-  private parseErrorString(errorMessage: string): EditorError {
+  private getLineColFromIndex(src: string, index: number, skipWhitespace = false): EditorPosition {
+    let realIndex = index;
+    if (skipWhitespace) {
+      while (realIndex < src.length && /\s/.test(src[realIndex])) {
+        realIndex++;
+      }
+    }
+    let line = 1;
+    let column = 1;
+    for (let i = 0; i < realIndex && i < src.length; i++) {
+      if (src[i] === '\n') {
+        line++;
+        column = 1;
+      } else {
+        column++;
+      }
+    }
+    return { line, column };
+  }
+
+  private parseErrorString(errorMessage: string, errorObj?: any, src?: string): EditorError {
+    if (errorObj && 'span' in errorObj && Array.isArray(errorObj.span) && src) {
+      const span = errorObj.span as readonly [number, number];
+      const start = this.getLineColFromIndex(src, span[0], true);
+      const end = this.getLineColFromIndex(src, span[1], false);
+      return {
+        message: errorMessage,
+        start,
+        end
+      };
+    }
+
     let line = 1;
     let column = 1;
     
@@ -382,7 +414,7 @@ export class LogicExplorerComponent implements OnInit {
     } catch (e) {
       const errMsg = (e as Error).message;
       this.errorMessage.set(errMsg);
-      const parsedError = this.parseErrorString(errMsg);
+      const parsedError = this.parseErrorString(errMsg, e, currentSrc);
       this.monacoEditor()?.setEditorError(parsedError);
       alert(`Cannot save program: compilation failed.\nError: ${errMsg}`);
       return;
@@ -581,7 +613,7 @@ export class LogicExplorerComponent implements OnInit {
       this.applicableActions.set([]);
       
       // Draw red squiggly lines in Monaco editor!
-      const parsedError = this.parseErrorString(errMsg);
+      const parsedError = this.parseErrorString(errMsg, e, src);
       this.monacoEditor()?.setEditorError(parsedError);
     }
   }

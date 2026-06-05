@@ -10,6 +10,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from '../app.config';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { vi } from 'vitest';
 
 describe('LogicExplorerComponent', () => {
   beforeEach(async () => {
@@ -260,6 +261,71 @@ describe('LogicExplorerComponent', () => {
       const dataPoints = component.simDataPoints();
       const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
       expect(initialRabbits!.y).toBe(400);
+    });
+  });
+
+  describe('Logic Syntax and Semantic Error Position TDD Suite', () => {
+    let component: LogicExplorerComponent;
+    let fixture: import('@angular/core/testing').ComponentFixture<LogicExplorerComponent>;
+    let setEditorErrorSpy: {
+      mockClear: () => void;
+      mock: {
+        calls: Array<[import('../monaco-js-editor/monaco-js-editor.component').EditorError | null]>;
+      };
+    };
+
+    const ANIMALS_SRC = [
+      'type species = cat | monkey | elephant;',
+      'type item = animal(kind: species) | flower | rock | tree;',
+      'type state = active(what: item) | jumpedOver(jumper: animal, target: item) | squished(jumper: item, target: item) | ranAway(who: animal);',
+      'action monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squished(animal(monkey), flower) };',
+      'action catEscape: { ?j: jumpedOver(?any, animal(cat)) } -o { ?r: ranAway(animal(cat)) };',
+      '_r1: jumpedOver(animal(monkey), flower);',
+      '_r2: jumpedOver(animal(elephant), animal(cat));',
+      '_r3: jumpedOver(animal(monkey), tree);',
+    ];
+
+    const PEANO_SRC = [
+      'type nat = 0 | suc(num: nat);',
+      'let 1 = suc(0);',
+      'let 2 = suc(suc(0));',
+      'let 3 = suc(suc(suc(0)));',
+      'fun add(suc(?x), ?y) = suc(add(?x, ?y)) | fun add(0, ?y) = ?y;',
+      'action grow: { ?x: nat } -o { ?y: suc(?x) };',
+      'action doubleGrow: { ?x: nat } -o { ?y: suc(?x), ?z: suc(?x) };',
+      '_r1: 0;',
+      '_r2: suc(0);',
+      '_r3: suc(suc(0));',
+      '?y: *;',
+    ];
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(LogicExplorerComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      const editor = component.monacoEditor();
+      if (editor) {
+        setEditorErrorSpy = vi.spyOn(editor, 'setEditorError') as any;
+      }
+    });
+
+    const verifyErrorPosition = (source: string, expectedLine: number, expectedCol: number) => {
+      setEditorErrorSpy.mockClear();
+      component.compileSource(source);
+      fixture.detectChanges();
+
+      expect(setEditorErrorSpy).toHaveBeenCalled();
+      const parsedError = setEditorErrorSpy.mock.calls[0][0];
+      expect(parsedError).toBeTruthy();
+      expect(parsedError?.start).toBeTruthy();
+      expect(parsedError?.start?.line).toBe(expectedLine);
+      expect(parsedError?.start?.column).toBe(expectedCol);
+    };
+
+    it('TDD: should detect keyword typo at line 4, column 1', () => {
+      const lines = [...ANIMALS_SRC];
+      lines[3] = 'act monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squished(animal(monkey), flower) };';
+      verifyErrorPosition(lines.join('\n'), 4, 1);
     });
   });
 });
