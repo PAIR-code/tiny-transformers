@@ -109,6 +109,9 @@ export class LogicExplorerComponent implements OnInit {
   // Probabilistic Simulator Signals
   readonly activeMiddleMode = signal<'explorer' | 'simulator'>('explorer');
   readonly simSteps = signal<number | null>(200);
+  readonly simStoreStory = signal<boolean>(false);
+  readonly simStoryLimit = signal<number | null>(100);
+  readonly simStorySteps = signal<StoryStep[]>([]);
   readonly simMode = signal<'proportional' | 'softmax'>('proportional');
   readonly simTemp = signal<number>(1.0);
   readonly simDataPoints = signal<NamedChartPoint[]>([]);
@@ -186,11 +189,15 @@ export class LogicExplorerComponent implements OnInit {
       const preset = this.selectedPresetName();
       const mode = this.activeMiddleMode();
       const steps = this.simSteps();
+      const storeStory = this.simStoreStory();
+      const storyLimit = this.simStoryLimit();
 
       this.updateQueryParams({
         preset,
         mode,
         steps,
+        storeStory,
+        storyLimit,
       });
     });
   }
@@ -237,6 +244,19 @@ export class LogicExplorerComponent implements OnInit {
       }
     }
 
+    const storeStoryParam = params.get('storeStory');
+    if (storeStoryParam !== null) {
+      this.simStoreStory.set(storeStoryParam === 'true');
+    }
+
+    const storyLimitParam = params.get('storyLimit');
+    if (storyLimitParam) {
+      const val = parseInt(storyLimitParam, 10);
+      if (!isNaN(val)) {
+        this.simStoryLimit.set(val);
+      }
+    }
+
     this.selectPreset(initialPreset);
     this.isInitialLoad = false;
   }
@@ -269,6 +289,7 @@ export class LogicExplorerComponent implements OnInit {
       this.simMappingJson.set(mappingStr);
       this.simMappingError.set(null);
       this.simFinalState.set([]);
+      this.simStorySteps.set([]);
     }
   }
 
@@ -995,6 +1016,7 @@ export class LogicExplorerComponent implements OnInit {
     this.simRunning.set(true);
     this.simSummary.set(null);
     this.simFinalState.set([]);
+    this.simStorySteps.set([]);
 
     // Deep copy/clone starting state
     let ctxt = new Context({
@@ -1007,6 +1029,7 @@ export class LogicExplorerComponent implements OnInit {
     });
 
     const dataPoints: NamedChartPoint[] = [];
+    const storyStepsAccumulator: StoryStep[] = [];
 
     const steps = this.simSteps();
     if (steps === null || steps <= 0) {
@@ -1015,6 +1038,8 @@ export class LogicExplorerComponent implements OnInit {
     }
     const mode = this.simMode();
     const temp = this.simTemp();
+    const storeSteps = this.simStoreStory();
+    const limit = this.simStoryLimit() ?? 100;
 
     // Parse Mapping Rules
     let mappingRules: SimMappingRule[] = [];
@@ -1171,6 +1196,7 @@ export class LogicExplorerComponent implements OnInit {
         }
 
         const chosenMatch = scoredMatches[selectedIdx].match;
+        const contextBefore = ctxt;
 
         // 5. Apply chosen action
         const storyState = LinearStory.fromContext(ctxt);
@@ -1190,6 +1216,14 @@ export class LogicExplorerComponent implements OnInit {
           ctxt.declareLinearResource(res.name, res.type);
         }
 
+        if (storeSteps && storyStepsAccumulator.length < limit) {
+          storyStepsAccumulator.push({
+            contextBefore,
+            actionMatch: chosenMatch,
+            contextAfter: ctxt,
+          });
+        }
+
         currentStep++;
         recordPoint(currentStep, ctxt);
         stepsInThisBatch++;
@@ -1199,6 +1233,9 @@ export class LogicExplorerComponent implements OnInit {
 
       // Update the chart data points signal with the accumulated points so far
       this.simDataPoints.set([...dataPoints]);
+      if (storeSteps) {
+        this.simStorySteps.set([...storyStepsAccumulator]);
+      }
 
       if (currentStep < steps && matches.length > 0) {
         requestAnimationFrame(runBatch);

@@ -262,6 +262,46 @@ describe('LogicExplorerComponent', () => {
       const initialRabbits = dataPoints.find(dp => dp.x === 0 && dp.name === 'Rabbits');
       expect(initialRabbits!.y).toBe(400);
     });
+
+    it('should toggle storing story steps and respect limit in simulation', async () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      // Enable story recording with limit of 2 steps
+      component.simStoreStory.set(true);
+      component.simStoryLimit.set(2);
+      component.simSteps.set(5);
+
+      component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
+
+      // Check that steps were stored, and capped at 2
+      expect(component.simStorySteps().length).toBe(2);
+      expect(component.simStorySteps()[0].actionMatch).toBeTruthy();
+    });
+
+    it('should not record steps when simStoreStory is disabled', async () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+
+      component.simStoreStory.set(false);
+      component.simSteps.set(5);
+
+      component.runSimulation();
+      await waitForSimulation(component);
+      fixture.detectChanges();
+
+      expect(component.simStorySteps().length).toBe(0);
+    });
   });
 
   describe('Logic Syntax and Semantic Error Position TDD Suite', () => {

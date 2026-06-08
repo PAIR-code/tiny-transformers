@@ -612,10 +612,34 @@ limitations under the License.
 
 /* Middle Panel: State/Timeline */
 .panel-context {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.panel-content-scroll {
+  flex-grow: 1;
   overflow-y: auto;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  background: #f8fafc;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.18);
+    }
+  }
 }
 
 .context-card, .timeline-card {
@@ -1445,23 +1469,20 @@ h3 {
 .mode-toggle-header {
   border-bottom: solid 1px #e2e8f0;
   background: #ffffff;
-  padding: 8px 16px;
+  padding: 0 20px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  height: 48px;
 }
 
 .mode-tabs {
   display: flex;
-  gap: 8px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 8px;
-  width: 100%;
+  gap: 24px;
+  height: 100%;
 }
 
 .tab-btn {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1471,10 +1492,12 @@ h3 {
   color: #64748b;
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 6px;
+  height: 100%;
+  padding: 0 4px;
   cursor: pointer;
   transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
 
   mat-icon {
     font-size: 18px;
@@ -1484,14 +1507,100 @@ h3 {
 
   &:hover {
     color: #0f172a;
-    background: rgba(0, 0, 0, 0.02);
+    background: transparent;
   }
 
   &.active {
-    background: #ffffff;
+    background: transparent;
     color: #4f46e5;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-bottom-color: #4f46e5;
+    box-shadow: none;
   }
+}
+
+/* Custom Checkbox and Limit Styles for Simulator Controls */
+.secondary-row {
+  margin-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+}
+
+.real-checkbox {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox {
+  height: 18px;
+  width: 18px;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  position: relative;
+  display: inline-block;
+
+  &::after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+}
+
+.checkbox-label:hover .real-checkbox ~ .custom-checkbox {
+  border-color: #94a3b8;
+}
+
+.real-checkbox:checked ~ .custom-checkbox {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+
+  &::after {
+    display: block;
+  }
+}
+
+.real-checkbox:focus-visible ~ .custom-checkbox {
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+}
+
+.limit-item {
+  flex: 0 0 90px !important;
+  min-width: 90px !important;
+  margin-left: auto;
 }
 
 /* Mapping configuration control */

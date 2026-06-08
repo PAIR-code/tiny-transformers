@@ -51,6 +51,5 @@ Thumbs.db
 # Test-only assets
 /src/assets/test_only_assets/
 
-
-
-
+# Agentic files
+__screenshots__
