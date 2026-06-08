@@ -28,7 +28,8 @@ import {
   getAlignedDigits,
   isVertex,
   computeVertexCandidates,
-  computeContinuousStep
+  computeContinuousStep,
+  truncateToTreeRange
 } from './berkovich';
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
@@ -162,5 +163,20 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     expect(res2.proposedRho).toBeCloseTo(0.8);
     expect(res2.crossesInteger).toBe(true);
     expect(res2.snappedRho).toBe(1.0);
+  });
+
+  it('should truncate rational values to the tree range [-2, 2] correctly', () => {
+    const p = 3n;
+    // 5/3 (base 3) = 2 * 3^-1 + 1 * 3^0 (inside [-2, 2], should remain 5/3)
+    const val1 = parseToRational('5/3');
+    expect(truncateToTreeRange(val1, p, -2, 2)).toEqual(val1);
+
+    // 20/27 (base 3) = 2 * 3^-1 + 2 * 3^-3 (outside [-2, 2], so the 3^-3 term is removed, leaving 2 * 3^-1 = 2/3)
+    const val2 = parseToRational('20/27');
+    expect(truncateToTreeRange(val2, p, -2, 2)).toEqual({ num: 2n, den: 3n });
+
+    // 26/27 (base 3) = 2 * 3^-1 + 2 * 3^-2 + 2 * 3^-3 (outside [-2, 2], so the 3^-3 term is removed, leaving 2/3 + 2/9 = 8/9)
+    const val3 = parseToRational('26/27');
+    expect(truncateToTreeRange(val3, p, -2, 2)).toEqual({ num: 8n, den: 9n });
   });
 });

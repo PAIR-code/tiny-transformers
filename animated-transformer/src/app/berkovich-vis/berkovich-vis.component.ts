@@ -41,7 +41,8 @@ import {
   isVertex,
   computeVertexCandidates,
   computeContinuousStep,
-  VertexCandidate
+  VertexCandidate,
+  truncateToTreeRange
 } from 'src/lib/berkovich/berkovich';
 
 // ============================================================================
@@ -107,16 +108,20 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   
   // Parse targets and starting conditions
   readonly targetRational = computed(() => {
+    const p = BigInt(this.prime());
     try {
-      return parseToRational(this.targetInput());
+      const raw = parseToRational(this.targetInput());
+      return truncateToTreeRange(raw, p, -2, 2);
     } catch {
       return { num: 0n, den: 1n };
     }
   });
 
   readonly initCenterRational = computed(() => {
+    const p = BigInt(this.prime());
     try {
-      return parseToRational(this.centerInput());
+      const raw = parseToRational(this.centerInput());
+      return truncateToTreeRange(raw, p, -2, 2);
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -618,6 +623,28 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     if (this.animationInterval) {
       clearInterval(this.animationInterval);
       this.animationInterval = null;
+    }
+  }
+
+  onTargetBlur(): void {
+    const p = BigInt(this.prime());
+    try {
+      const r = parseToRational(this.targetInput());
+      const truncated = truncateToTreeRange(r, p, -2, 2);
+      this.targetInput.set(formatRational(truncated));
+    } catch {
+      this.targetInput.set('0');
+    }
+  }
+
+  onCenterBlur(): void {
+    const p = BigInt(this.prime());
+    try {
+      const r = parseToRational(this.centerInput());
+      const truncated = truncateToTreeRange(r, p, -2, 2);
+      this.centerInput.set(formatRational(truncated));
+    } catch {
+      this.centerInput.set('0');
     }
   }
 

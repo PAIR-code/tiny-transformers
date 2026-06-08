@@ -164,7 +164,7 @@
           <div class="input-row">
             <mat-form-field appearance="outline" class="flex-field">
               <mat-label>Target Value (y)</mat-label>
-              <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" #targetField />
+              <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
               <mat-hint>Supports fractions (e.g. 5/3) or decimals</mat-hint>
             </mat-form-field>
           </div>
@@ -172,7 +172,7 @@
           <div class="input-row">
             <mat-form-field appearance="outline" class="flex-field">
               <mat-label>Init Center (c)</mat-label>
-              <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" #centerField />
+              <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
               <mat-hint>Initial starting center parameter value</mat-hint>
             </mat-form-field>
           </div>

@@ -277,3 +277,23 @@ export function computeContinuousStep(
     gRho
   };
 }
+
+export function truncateToTreeRange(
+  r: Rational,
+  p: bigint,
+  minPower: number,
+  maxPower: number
+): Rational {
+  const aligned = getAlignedDigits(r, p, minPower, maxPower);
+  let sum = { num: 0n, den: 1n };
+  for (const entry of aligned) {
+    let term: Rational;
+    if (entry.power >= 0) {
+      term = simplify({ num: BigInt(entry.digit) * (p ** BigInt(entry.power)), den: 1n });
+    } else {
+      term = simplify({ num: BigInt(entry.digit), den: p ** BigInt(-entry.power) });
+    }
+    sum = add(sum, term);
+  }
+  return sum;
+}
