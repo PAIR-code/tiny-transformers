@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "build-test-workers": "esbuild src/lib/distr-signals/example.worker.ts --bundle --outfile=src/assets/test_only_assets/example.worker.js --format=esm && esbuild src/weblab-examples/tiny-transformer-example/task-cell.worker.ts --bundle --outfile=src/assets/test_only_assets/task-cell.worker.js --format=esm && esbuild src/weblab-examples/tiny-transformer-example/trainer-cell.worker.ts --bundle --outfile=src/assets/test_only_assets/trainer-cell.worker.js --format=esm",
     "pretest": "pnpm build-test-workers",
-    "test": "ng test --watch"
+    "test": "ng test --watch",
+    "clean-screenshots": "find src -type d -name '__screenshots__' -exec rm -rf {} +"
   },
   "node": ">=22.7.0",
   "private": true,

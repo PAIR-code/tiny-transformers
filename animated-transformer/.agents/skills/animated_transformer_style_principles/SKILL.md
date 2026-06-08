@@ -129,6 +129,7 @@ Maintain close proximity between code and unit tests by placing TypeScript spec 
   - **For exact equivalence**: `tf.test_util.expectArraysEqual(actual, expected)`
   - **For approximate floating-point matches**: `tf.test_util.expectArraysClose(actual, expected)`
 - **Async Tests**: Always mark spec callbacks that invoke asynchronous operations (like `data()` or `dataSync()`) as `async` and correctly `await` resolutions.
+- **Failure Screenshots & Temporary Files**: Browser failure screenshots or temporary test assets are ignored globally under `__screenshots__`. Clean them up proactively after fixing tests by running `pnpm clean-screenshots` or before finalizing tasks.
 
 ---
 
