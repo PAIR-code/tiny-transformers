@@ -17,7 +17,7 @@ import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core
 import { provideMarkdown } from 'ngx-markdown';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
-import { provideRouter, Routes, withComponentInputBinding } from '@angular/router';
+import { provideRouter, Routes, withComponentInputBinding, withHashLocation } from '@angular/router';
 
 // import { RouterLink, RouterModule, RouterOutlet } from '@angular/router';
 import { ActivationVisComponent } from './activation-vis/activation-vis.component';
@@ -53,7 +53,7 @@ export const routes: Routes = [
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
-    provideRouter(routes, withComponentInputBinding()),
+    provideRouter(routes, withComponentInputBinding(), withHashLocation()),
     provideAnimationsAsync(),
     provideMarkdown(),
     provideHttpClient(),

@@ -54,7 +54,7 @@ export function loadMonaco(): Promise<any> {
       return;
     }
 
-    const cdn = '/assets/monaco';
+    const cdn = 'assets/monaco';
 
     // Inject Monaco CSS stylesheet link to head to ensure line heights, selection overlays,
     // and token highlighting are correctly styled and offset alignments are pixel-perfect.

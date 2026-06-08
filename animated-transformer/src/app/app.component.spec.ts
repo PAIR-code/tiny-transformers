@@ -16,7 +16,7 @@ limitations under the License.
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { RouterTestingModule } from '@angular/router/testing';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.config';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideZonelessChangeDetection } from '@angular/core';
@@ -26,7 +26,7 @@ describe('AppComponent', () => {
     await TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
-        provideRouter(routes, withComponentInputBinding()),
+        provideRouter(routes, withComponentInputBinding(), withHashLocation()),
       ],
       imports: [NoopAnimationsModule, AppComponent],
       declarations: [],

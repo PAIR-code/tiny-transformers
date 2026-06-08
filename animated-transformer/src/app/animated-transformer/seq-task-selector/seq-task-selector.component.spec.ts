@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeqTaskSelectorComponent } from './seq-task-selector.component';
 
 import { TinyModelsService } from 'src/app/tiny-models.service';
-import { provideRouter, RouterModule, withComponentInputBinding } from '@angular/router';
+import { provideRouter, RouterModule, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from 'src/app/app.config';
 import { provideZonelessChangeDetection } from '@angular/core';
 
@@ -31,7 +31,7 @@ describe('SeqTaskSelectorComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         TinyModelsService,
-        provideRouter(routes, withComponentInputBinding()),
+        provideRouter(routes, withComponentInputBinding(), withHashLocation()),
       ],
       imports: [SeqTaskSelectorComponent],
       declarations: [],
