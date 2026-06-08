@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, OnInit, signal, computed, effect, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, OnDestroy, ChangeDetectionStrategy, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -479,8 +479,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       this.prime();
       this.initCenterRational();
       this.initLogRadius();
-      this.reset();
-    }, { allowSignalWrites: true });
+      untracked(() => {
+        this.reset();
+      });
+    });
   }
 
   ngOnInit(): void {
