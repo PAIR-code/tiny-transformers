@@ -295,45 +295,20 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     return edgeIds;
   });
 
-  // Current parameter coordinate on the tree
-  readonly currentStateCoord = computed(() => {
-    const rho = this.currentLogRadius();
+  // Helper to convert logRadius to Y coordinate in SVG space
+  rhoToY(rho: number): number {
+    const levelsCount = this.rhoMax - this.rhoMin;
+    const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
+    return this.paddingY + (this.rhoMax - rho) * stepY;
+  }
+
+  // Helper to determine if a node is the closest integer vertex to the parameter state
+  isCurrentParameterVertex(node: VisualNode): boolean {
     const c = this.currentCenter();
-    const p = BigInt(this.prime());
-    
-    const visuals = this.treeVisuals();
-    
-    const kUpper = Math.ceil(rho);
-    const kLower = Math.floor(rho);
-    
-    const parentNode = visuals.nodes.find(n => 
-      n.logRadius === kUpper && 
-      getValuation(subtract(c, n.center), p) >= -kUpper
-    );
-    
-    const childNode = visuals.nodes.find(n => 
-      n.logRadius === kLower && 
-      getValuation(subtract(c, n.center), p) >= -kLower
-    );
-    
-    if (kUpper === kLower) {
-      if (parentNode) {
-        return { x: parentNode.x, y: parentNode.y, exists: true };
-      }
-      return { x: this.svgWidth / 2, y: this.paddingY, exists: false };
-    }
-    
-    if (parentNode && childNode) {
-      const t = kUpper - rho;
-      return {
-        x: parentNode.x + t * (childNode.x - parentNode.x),
-        y: parentNode.y + t * (childNode.y - parentNode.y),
-        exists: true
-      };
-    }
-    
-    return { x: this.svgWidth / 2, y: this.paddingY, exists: false };
-  });
+    const rho = this.currentLogRadius();
+    const k = Math.round(rho);
+    return formatRational(node.center) === formatRational(c) && node.logRadius === k;
+  }
 
   // Aligned digit row comparisons
   readonly digitRows = computed(() => {

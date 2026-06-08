@@ -271,33 +271,48 @@ text.node-text-label.inactive-stub {
   to { transform: rotate(360deg); }
 }
 
-/* Pulsating pointer of the current parameter state */
-.current-state-pointer {
-  .parameter-dot {
-    fill: #8b5cf6; /* parameter purple */
-    stroke: #ffffff;
+/* Glowing fixed-position halo around active parameter vertex */
+.parameter-halo {
+  fill: none;
+  stroke: #8b5cf6; /* purple parameter accent */
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
+  animation: halo-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes halo-pulse {
+  0% {
     stroke-width: 1.5;
-    filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.6));
+    opacity: 0.6;
   }
-  .pulse-glow {
-    transform-origin: center;
-    animation: pulse 1.8s ease-in-out infinite;
+  50% {
+    stroke-width: 3.5;
+    opacity: 1.0;
+  }
+  100% {
+    stroke-width: 1.5;
+    opacity: 0.6;
   }
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.3;
-  }
-  100% {
-    transform: scale(0.6);
-    opacity: 0.8;
-  }
+/* Continuous Log-Radius level line indicator */
+.rho-level-line {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+  transition: y1 0.2s ease, y2 0.2s ease;
+}
+
+.rho-level-text {
+  fill: #8b5cf6;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+  dominant-baseline: central;
+  opacity: 0.8;
+  transition: y 0.2s ease;
 }
 
 /* Control Panel Section */

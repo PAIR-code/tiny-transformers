@@ -83,6 +83,15 @@
                   [class.inactive-stub]="!node.isActive"
                   class="tree-node"
                 />
+                <!-- Glowing fixed-position halo around current parameter vertex -->
+                @if (isCurrentParameterVertex(node)) {
+                  <circle
+                    [attr.cx]="node.x"
+                    [attr.cy]="node.y"
+                    r="12"
+                    class="parameter-halo"
+                  />
+                }
                 <!-- Label for nodes at the top (root) and bottom (leaves) -->
                 @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
                   <text
@@ -96,7 +105,7 @@
                 }
               </g>
             }
-
+ 
             <!-- Target Indicator Flag -->
             @for (node of treeVisuals().nodes; track node.id) {
               @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
@@ -108,25 +117,21 @@
               }
             }
 
-            <!-- Current Parameter State Node (Pulse + Circle) -->
-            @if (currentStateCoord().exists) {
-              <g class="current-state-pointer">
-                <!-- Pulsing Glow background -->
-                <circle
-                  [attr.cx]="currentStateCoord().x"
-                  [attr.cy]="currentStateCoord().y"
-                  r="22"
-                  fill="url(#glowGrad)"
-                  class="pulse-glow"
-                />
-                <circle
-                  [attr.cx]="currentStateCoord().x"
-                  [attr.cy]="currentStateCoord().y"
-                  r="7"
-                  class="parameter-dot"
-                />
-              </g>
-            }
+            <!-- Continuous Log-Radius (Rho) Level Line Indicator -->
+            <line
+              x1="30"
+              [attr.y1]="rhoToY(currentLogRadius())"
+              x2="720"
+              [attr.y2]="rhoToY(currentLogRadius())"
+              class="rho-level-line"
+            />
+            <text
+              x="725"
+              [attr.y]="rhoToY(currentLogRadius()) + 4"
+              class="rho-level-text"
+            >
+              ρ = {{ currentLogRadius() | number:'1.2-2' }}
+            </text>
           </svg>
         </mat-card-content>
       </mat-card>
