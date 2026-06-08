@@ -141,62 +141,67 @@
     <aside class="control-panel">
       <!-- 1. Configuration Card -->
       <mat-card class="config-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>settings</mat-icon>
-            Configuration
+        <mat-card-header (click)="toggleConfigCollapse()" class="clickable-header">
+          <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
+            <div style="display: inline-flex; align-items: center; gap: 10px;">
+              <mat-icon>settings</mat-icon>
+              <span>Configuration</span>
+            </div>
+            <mat-icon class="collapse-chevron">{{ isConfigCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>
           </mat-card-title>
         </mat-card-header>
 
         <mat-card-content class="config-content">
-          <div class="input-row">
-            <!-- Prime selection -->
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Prime Field (p)</mat-label>
-              <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
-                <mat-option [value]="2">p = 2 (Binary)</mat-option>
-                <mat-option [value]="3">p = 3 (Ternary)</mat-option>
-                <mat-option [value]="5">p = 5 (Quinary)</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <div class="input-row">
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Target Value (y)</mat-label>
-              <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
-              <mat-hint>Supports fractions (e.g. 5/3) or decimals</mat-hint>
-            </mat-form-field>
-          </div>
-
-          <div class="input-row">
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Init Center (c)</mat-label>
-              <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
-              <mat-hint>Initial starting center parameter value</mat-hint>
-            </mat-form-field>
-          </div>
-
-          <!-- Log-radius and LR sliders -->
-          <div class="slider-group">
-            <div class="slider-label">
-              <span>Init Log-Radius (&rho;):</span>
-              <span class="value-badge">{{ initLogRadius().toFixed(1) }}</span>
+          @if (!isConfigCollapsed()) {
+            <div class="input-row">
+              <!-- Prime selection -->
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>Prime Field (p)</mat-label>
+                <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+                  <mat-option [value]="2">p = 2 (Binary)</mat-option>
+                  <mat-option [value]="3">p = 3 (Ternary)</mat-option>
+                  <mat-option [value]="5">p = 5 (Quinary)</mat-option>
+                </mat-select>
+              </mat-form-field>
             </div>
-            <mat-slider min="-2" max="2" step="0.5" showTickMarksDiscrete>
-              <input matSliderThumb [value]="initLogRadius()" (valueChange)="initLogRadius.set($event)" />
-            </mat-slider>
-          </div>
 
-          <div class="slider-group">
-            <div class="slider-label">
-              <span>Learning Rate (&eta;):</span>
-              <span class="value-badge">{{ learningRate().toFixed(2) }}</span>
+            <div class="input-row">
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>Target Value (y)</mat-label>
+                <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
+                <mat-hint>Supports fractions (e.g. 5/3) or decimals</mat-hint>
+              </mat-form-field>
             </div>
-            <mat-slider min="0.05" max="0.5" step="0.05">
-              <input matSliderThumb [value]="learningRate()" (valueChange)="learningRate.set($event)" />
-            </mat-slider>
-          </div>
+
+            <div class="input-row">
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>Init Center (c)</mat-label>
+                <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
+                <mat-hint>Initial starting center parameter value</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <!-- Log-radius and LR sliders -->
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>Init Log-Radius (&rho;):</span>
+                <span class="value-badge">{{ initLogRadius().toFixed(1) }}</span>
+              </div>
+              <mat-slider min="-2" max="2" step="0.5" showTickMarksDiscrete>
+                <input matSliderThumb [value]="initLogRadius()" (valueChange)="initLogRadius.set($event)" />
+              </mat-slider>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>Learning Rate (&eta;):</span>
+                <span class="value-badge">{{ learningRate().toFixed(2) }}</span>
+              </div>
+              <mat-slider min="0.05" max="0.5" step="0.05">
+                <input matSliderThumb [value]="learningRate()" (valueChange)="learningRate.set($event)" />
+              </mat-slider>
+            </div>
+          }
 
           <!-- Playback controls -->
           <div class="controls-row">

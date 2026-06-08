@@ -127,6 +127,20 @@ mat-card {
       font-size: 12px;
       margin-top: 4px;
     }
+
+    &.clickable-header {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+      
+      &:hover {
+        background-color: #f1f5f9;
+      }
+      
+      .collapse-chevron {
+        color: #64748b;
+      }
+    }
   }
 
   mat-card-content {

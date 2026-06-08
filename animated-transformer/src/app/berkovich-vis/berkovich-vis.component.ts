@@ -105,6 +105,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   // Animation state
   private animationInterval: any = null;
   readonly isPlaying = signal<boolean>(false);
+  readonly isConfigCollapsed = signal<boolean>(false);
   
   // Parse targets and starting conditions
   readonly targetRational = computed(() => {
@@ -609,6 +610,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     } else {
       this.startAnimation();
     }
+  }
+
+  toggleConfigCollapse(): void {
+    this.isConfigCollapsed.update(c => !c);
   }
 
   private startAnimation(): void {
