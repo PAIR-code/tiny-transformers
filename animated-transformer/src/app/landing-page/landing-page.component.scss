@@ -256,6 +256,19 @@ limitations under the License.
     }
   }
 
+  &.card-sim-docs {
+    .card-icon-container {
+      background: rgba(13, 148, 136, 0.1);
+      color: #0d9488;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #0d9488, transparent 70%);
+    }
+    &:hover h3 {
+      color: #0d9488;
+    }
+  }
+
   &.card-advanced-docs {
     .card-icon-container {
       background: rgba(168, 85, 247, 0.1);

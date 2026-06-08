@@ -798,6 +798,7 @@ h3 {
 }
 
 .step-marker {
+  box-sizing: border-box;
   width: 20px;
   height: 20px;
   border-radius: 50%;

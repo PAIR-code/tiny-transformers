@@ -34,6 +34,9 @@ export interface SimMappingRule {
   argIndex?: number;
   argName?: string;
   matchValue?: string;
+  argIndex2?: number;
+  argName2?: string;
+  matchValue2?: string;
 }
 
 @Component({
@@ -112,6 +115,7 @@ export class LogicExplorerComponent implements OnInit {
   readonly simStoreStory = signal<boolean>(false);
   readonly simStoryLimit = signal<number | null>(100);
   readonly simStorySteps = signal<StoryStep[]>([]);
+  readonly showSimSettings = signal<boolean>(false);
   readonly simMode = signal<'proportional' | 'softmax'>('proportional');
   readonly simTemp = signal<number>(1.0);
   readonly simDataPoints = signal<NamedChartPoint[]>([]);
@@ -274,6 +278,7 @@ export class LogicExplorerComponent implements OnInit {
       const simConfig = preset.defaultSimulationConfig;
       const mapping = simConfig ? simConfig.resourcePlotMapping : [];
       const defaultSteps = simConfig ? simConfig.defaultSteps : 200;
+      const defaultRecordStory = simConfig ? (simConfig.recordStorySteps !== false) : true;
 
       // Reset steps if user actively selected preset, otherwise respect URL steps
       if (this.isInitialLoad) {
@@ -281,8 +286,12 @@ export class LogicExplorerComponent implements OnInit {
         if (!params.has('steps')) {
           this.simSteps.set(defaultSteps);
         }
+        if (!params.has('storeStory')) {
+          this.simStoreStory.set(defaultRecordStory);
+        }
       } else {
         this.simSteps.set(defaultSteps);
+        this.simStoreStory.set(defaultRecordStory);
       }
 
       const mappingStr = JSON.stringify(mapping, null, 2);
@@ -1095,7 +1104,21 @@ export class LogicExplorerComponent implements OnInit {
                     argTerm = term.namedArgs[rule.argName];
                   }
                   if (argTerm && argTerm.kind === TermKind.Literal && argTerm.literalName === rule.matchValue) {
-                    stepSums.set(rule.name, (stepSums.get(rule.name) || 0) + 1);
+                    let matchesSecond = true;
+                    if (rule.matchValue2 !== undefined) {
+                      let argTerm2: Term | undefined;
+                      if (rule.argIndex2 !== undefined) {
+                        argTerm2 = term.unNamedArgs[rule.argIndex2];
+                      } else if (rule.argName2 !== undefined) {
+                        argTerm2 = term.namedArgs[rule.argName2];
+                      }
+                      if (!argTerm2 || argTerm2.kind !== TermKind.Literal || argTerm2.literalName !== rule.matchValue2) {
+                        matchesSecond = false;
+                      }
+                    }
+                    if (matchesSecond) {
+                      stepSums.set(rule.name, (stepSums.get(rule.name) || 0) + 1);
+                    }
                   }
                 } else if (rule.argIndex !== undefined || rule.argName !== undefined) {
                   let argTerm: Term | undefined;

@@ -1,14 +1,13 @@
 ---
-name: relational-linear-logic-syntax
+name: linear-logic-stories
 description: >
-  Guidelines, grammar, and rules for writing schemas, terms, functions, and actions
-  in the relational linear logic language used in logic_v2. Contains constraints such
-  as the disjoint namespace requirement between type names and constructor names.
+  Guidelines, grammar, syntax, and configuration rules for writing linear logic stories
+  and simulator configurations, including action scores, probability modes, and plotting mappings.
 ---
 
-# Relational Linear Logic Syntax & Design Principles
+# Linear Logic Stories & Simulation Design Principles
 
-This document defines the grammar, syntax, semantics, and coding rules for the relational linear logic engine implemented in `src/lib/logic_v2`.
+This document defines the grammar, syntax, semantics, and configuration rules for the relational linear logic engine and population simulator implemented in `src/lib/logic_v2`.
 
 ## 1. Language Overview
 
@@ -105,3 +104,52 @@ action monkeySquish: { ?j: jumpedOver(animal(monkey), flower) } -o { ?s: squishe
 - **LHS (`{ ... }`):** The linear resources required to trigger the action.
 - **RHS (`{ ... }`):** The linear resources created after the transition.
 - **Variables:** Logic variables (e.g., `?j`, `?s`) bind to specific resource names or term components during evaluation.
+
+---
+
+## 7. Action Scores & Rates
+
+To support probabilistic simulation (e.g. Lotka-Volterra population dynamics), actions can be annotated with an optional **score expression** in square brackets (`[...]`) after the action name but before the colon:
+
+```linear-logic
+action rabbits_reproduce [mul_num(0.08, ?r)]: { ?res: rabbits(?r) } -o { ?new: rabbits(add_num(?r, 1)) };
+```
+
+- **Dynamic Evaluation:** During matching, variables bound in the LHS (like `?r`) are substituted into the score expression.
+- **Math Functions:** Builtin numeric functions (e.g., `mul_num`, `add_num`, `sub_num`) evaluate the term to a final float value.
+- **No Score:** If an action has no score expression, it defaults to a constant rate of `1.0`.
+
+---
+
+## 8. Simulator Configurations
+
+The explorer supports saving default simulator configurations under the `defaultSimulationConfig` property of a preset or in JSON configs.
+
+### Config Schema
+
+- **`defaultSteps`**: (number) The default number of simulation steps to run (e.g., `20000` for population models).
+- **`recordStorySteps`**: (boolean) Set to `false` for long runs (like Foxes & Rabbits) to avoid heavy memory allocation, and `true` for short-running diagnostic traces.
+- **`resourcePlotMapping`**: (Array) Defines how linear resources count towards plotted chart lines.
+  - **`name`**: The label shown on the chart legend.
+  - **`literal`**: The resource literal name to match (e.g., `'at'`, `'chan'`).
+  - **`argIndex`**: (Optional) 0-indexed argument offset inside the literal to inspect.
+  - **`argName`**: (Optional) Named argument key to inspect.
+  - **`matchValue`**: (Optional) Literal value of the argument to match. If provided, only resources whose argument matches this value are counted.
+  - **`argIndex2`**: (Optional) 0-indexed offset for a secondary argument filter check.
+  - **`argName2`**: (Optional) Secondary named argument key to check.
+  - **`matchValue2`**: (Optional) Secondary literal value to check.
+
+#### Example Config
+
+```json
+{
+  "defaultSteps": 15,
+  "recordStorySteps": true,
+  "resourcePlotMapping": [
+    { "name": "Human Left", "literal": "at", "argIndex": 0, "matchValue": "human", "argIndex2": 1, "matchValue2": "left" },
+    { "name": "Human Right", "literal": "at", "argIndex": 0, "matchValue": "human", "argIndex2": 1, "matchValue2": "right" },
+    { "name": "Fight State", "literal": "fight" },
+    { "name": "Eaten State", "literal": "eaten" }
+  ]
+}
+```

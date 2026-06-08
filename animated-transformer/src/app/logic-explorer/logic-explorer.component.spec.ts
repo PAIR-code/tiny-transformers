@@ -122,6 +122,22 @@ describe('LogicExplorerComponent', () => {
       expect(mappingVal[0].literal).toBe('rabbits');
     });
 
+    it('should set recordStorySteps defaults depending on selected preset', () => {
+      const fixture = TestBed.createComponent(LogicExplorerComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      // 1. Foxes & Rabbits has it off by default
+      component.selectPreset('Foxes & Rabbits Simulation');
+      fixture.detectChanges();
+      expect(component.simStoreStory()).toBe(false);
+
+      // 2. Animals Story Mapping has it on by default
+      component.selectPreset('Animals Story Mapping');
+      fixture.detectChanges();
+      expect(component.simStoreStory()).toBe(true);
+    });
+
     it('should detect syntax errors in invalid mapping JSON', () => {
       const fixture = TestBed.createComponent(LogicExplorerComponent);
       const component = fixture.componentInstance;

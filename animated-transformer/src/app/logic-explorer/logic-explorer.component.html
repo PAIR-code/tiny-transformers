@@ -7,10 +7,13 @@
     </div>
     <nav class="header-nav">
       <a routerLink="/logic-docs" class="nav-link">
-        <mat-icon>menu_book</mat-icon> Semantics & Examples
+        <mat-icon>menu_book</mat-icon> Story Semantics
+      </a>
+      <a routerLink="/logic-sim-docs" class="nav-link">
+        <mat-icon>insights</mat-icon> Simulation & Generation
       </a>
       <a routerLink="/logic-advanced-docs" class="nav-link">
-        <mat-icon>psychology</mat-icon> Advanced Semantics
+        <mat-icon>psychology</mat-icon> Advanced TypeScript
       </a>
       <a routerLink="/wcolab" class="nav-link">
         <mat-icon>code</mat-icon> Web Colab
@@ -560,123 +563,192 @@
                 </div>
 
                 <div class="sim-controls">
-                  <div class="control-row">
-                    <div class="control-item steps-item">
-                      <label for="sim-steps">Steps</label>
-                      <input 
-                        id="sim-steps" 
-                        type="number" 
-                        [value]="simSteps()" 
-                        (input)="simSteps.set(parseNumber($event))" 
-                        class="styled-input" 
-                        min="10" 
-                        max="1000"
-                      />
-                    </div>
-                    
-                    <div class="control-item">
-                      <label>Probability Mode</label>
-                      <button 
-                        [matMenuTriggerFor]="simModeMenu" 
-                        class="menu-trigger-btn"
-                      >
-                        <span>{{ simMode() === 'softmax' ? 'Softmax Temperature' : 'Proportional Rates' }}</span>
-                        <mat-icon class="arrow-icon">arrow_drop_down</mat-icon>
-                      </button>
-                      <mat-menu #simModeMenu="matMenu" class="sim-mode-menu-panel">
-                        <button mat-menu-item (click)="simMode.set('proportional')" [class.active-mode]="simMode() === 'proportional'">
-                          <mat-icon>trending_up</mat-icon>
-                          <span>Proportional Rates</span>
-                        </button>
-                        <button mat-menu-item (click)="simMode.set('softmax')" [class.active-mode]="simMode() === 'softmax'">
-                          <mat-icon>thermostat</mat-icon>
-                          <span>Softmax Temperature</span>
-                        </button>
-                      </mat-menu>
-                    </div>
+                <div class="control-row">
+              <div class="control-item steps-item">
+                <label for="sim-steps">Steps</label>
+                <input 
+                  id="sim-steps" 
+                  type="number" 
+                  [value]="simSteps()" 
+                  (input)="simSteps.set(parseNumber($event))" 
+                  class="styled-input" 
+                  min="10" 
+                  max="1000"
+                />
+              </div>
 
-                    <div class="control-item temp-item" *ngIf="simMode() === 'softmax'">
-                      <label for="sim-temp">Temperature</label>
-                      <input 
-                        id="sim-temp" 
-                        type="number" 
-                        step="0.1" 
-                        [value]="simTemp()" 
-                        (input)="simTemp.set(parseFloatInput($event))" 
-                        class="styled-input" 
-                        min="0.1" 
-                        max="10"
-                      />
-                    </div>
+              <!-- Settings Toggle button -->
+              <div class="control-item settings-toggle-item" style="flex: 0 0 auto; min-width: auto;">
+                <button 
+                  class="btn btn-secondary btn-icon-toggle" 
+                  [class.active]="showSimSettings()"
+                  (click)="showSimSettings.set(!showSimSettings())"
+                  title="Toggle Advanced Simulation Settings"
+                  style="height: 38px; width: 38px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                >
+                  <mat-icon>settings</mat-icon>
+                </button>
+              </div>
 
-                    <div class="control-item btn-item">
-                      <button 
-                        class="btn btn-primary" 
-                        (click)="runSimulation()" 
-                        [disabled]="simRunning() || !currentContext() || simSteps() === null || simSteps()! <= 0"
-                      >
-                        <mat-spinner 
-                          *ngIf="simRunning()" 
-                          diameter="18" 
-                          class="btn-spinner"
-                        ></mat-spinner>
-                        <mat-icon *ngIf="!simRunning()">play_circle</mat-icon>
-                        {{ simRunning() ? 'Simulating...' : 'Run Simulation' }}
-                      </button>
-                    </div>
-                  </div>
+              <div class="control-item btn-item">
+                <button 
+                  class="btn btn-primary" 
+                  (click)="runSimulation()" 
+                  [disabled]="simRunning() || !currentContext() || simSteps() === null || simSteps()! <= 0"
+                >
+                  <mat-spinner 
+                    *ngIf="simRunning()" 
+                    diameter="18" 
+                    class="btn-spinner"
+                  ></mat-spinner>
+                  <mat-icon *ngIf="!simRunning()">play_circle</mat-icon>
+                  {{ simRunning() ? 'Simulating...' : 'Run Simulation' }}
+                </button>
+              </div>
+            </div>
 
-                  <!-- Story Storage Options -->
-                  <div class="control-row secondary-row">
-                    <div class="checkbox-container">
-                      <label class="checkbox-label">
-                        <input 
-                          type="checkbox" 
-                          [checked]="simStoreStory()" 
-                          (change)="simStoreStory.set($any($event.target).checked)"
-                          class="real-checkbox"
-                        />
-                        <span class="custom-checkbox"></span>
-                        <span class="label-text">Record Story Steps</span>
-                      </label>
-                    </div>
-                    
-                    <div class="control-item limit-item" *ngIf="simStoreStory()">
-                      <label for="sim-story-limit">Limit</label>
-                      <input 
-                        id="sim-story-limit" 
-                        type="number" 
-                        [value]="simStoryLimit()" 
-                        (input)="simStoryLimit.set(parseNumber($event))" 
-                        class="styled-input" 
-                        min="5" 
-                        max="1000"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Custom Mapping Config -->
-                  <div class="sim-mapping-control">
-                    <label for="sim-mapping">Graph Mapping Configuration (JSON Array)</label>
-                    <span class="control-desc">Specify how linear resources map to lines on the simulation graph.</span>
-                    <textarea
-                      id="sim-mapping"
-                      [value]="simMappingJson()"
-                      (input)="onMappingJsonInput($event)"
-                      class="styled-textarea theme-json-editor"
-                      rows="6"
-                      spellcheck="false"
-                      placeholder='[{"name": "Line Name", "literal": "resourceName", "argIndex": 0}]'
-                    ></textarea>
-                    <div *ngIf="simMappingError()" class="theme-error-alert mapping-error-alert">
-                      <mat-icon class="theme-err-icon">warning</mat-icon>
-                      <span>JSON Error: {{ simMappingError() }}</span>
-                    </div>
-                  </div>
+            <!-- Collapsible settings panel -->
+            <div class="sim-settings-panel" *ngIf="showSimSettings()" style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px; display: flex; flex-direction: column; gap: 12px;">
+              <div class="control-row" style="align-items: flex-end;">
+                <div class="control-item">
+                  <label>Probability Mode</label>
+                  <button 
+                    [matMenuTriggerFor]="simModeMenu" 
+                    class="menu-trigger-btn"
+                  >
+                    <span>{{ simMode() === 'softmax' ? 'Softmax Temperature' : 'Proportional Rates' }}</span>
+                    <mat-icon class="arrow-icon">arrow_drop_down</mat-icon>
+                  </button>
+                  <mat-menu #simModeMenu="matMenu" class="sim-mode-menu-panel">
+                    <button mat-menu-item (click)="simMode.set('proportional')" [class.active-mode]="simMode() === 'proportional'">
+                      <mat-icon>trending_up</mat-icon>
+                      <span>Proportional Rates</span>
+                    </button>
+                    <button mat-menu-item (click)="simMode.set('softmax')" [class.active-mode]="simMode() === 'softmax'">
+                      <mat-icon>thermostat</mat-icon>
+                      <span>Softmax Temperature</span>
+                    </button>
+                  </mat-menu>
                 </div>
+
+                <div class="control-item temp-item" *ngIf="simMode() === 'softmax'">
+                  <label for="sim-temp">Temperature</label>
+                  <input 
+                    id="sim-temp" 
+                    type="number" 
+                    step="0.1" 
+                    [value]="simTemp()" 
+                    (input)="simTemp.set(parseFloatInput($event))" 
+                    class="styled-input" 
+                    min="0.1" 
+                    max="10"
+                  />
+                </div>
+              </div>
+
+              <!-- Story Storage Options -->
+              <div class="control-row secondary-row" style="margin-top: 0; border-top: none; padding-top: 0; align-items: center;">
+                <div class="checkbox-container">
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      [checked]="simStoreStory()" 
+                      (change)="simStoreStory.set($any($event.target).checked)"
+                      class="real-checkbox"
+                    />
+                    <span class="custom-checkbox"></span>
+                    <span class="label-text">Record Story Steps</span>
+                  </label>
+                </div>
+                
+                <div class="control-item limit-item" *ngIf="simStoreStory()" style="margin-left: auto;">
+                  <label for="sim-story-limit">Limit</label>
+                  <input 
+                    id="sim-story-limit" 
+                    type="number" 
+                    [value]="simStoryLimit()" 
+                    (input)="simStoryLimit.set(parseNumber($event))" 
+                    class="styled-input" 
+                    min="5" 
+                    max="1000"
+                  />
+                </div>
+              </div>
+
+              <!-- Custom Mapping Config -->
+              <div class="sim-mapping-control">
+                <label for="sim-mapping">Graph Mapping Configuration (JSON Array)</label>
+                <span class="control-desc">Specify how linear resources map to lines on the simulation graph.</span>
+                <textarea
+                  id="sim-mapping"
+                  [value]="simMappingJson()"
+                  (input)="onMappingJsonInput($event)"
+                  class="styled-textarea theme-json-editor"
+                  rows="6"
+                  spellcheck="false"
+                  placeholder='[{"name": "Line Name", "literal": "resourceName", "argIndex": 0}]'
+                ></textarea>
+                <div *ngIf="simMappingError()" class="theme-error-alert mapping-error-alert">
+                  <mat-icon class="theme-err-icon">warning</mat-icon>
+                  <span>JSON Error: {{ simMappingError() }}</span>
+                </div>
+              </div>
+            </div>        </div>
 
                 <div *ngIf="simSummary()" class="sim-summary">
                   <mat-icon>info</mat-icon> <span>{{ simSummary() }}</span>
+                </div>
+
+                <!-- Simulated Story Timeline -->
+                <div class="simulated-story-timeline-container" *ngIf="simStoreStory() && simStorySteps().length > 0" style="margin-top: 14px; margin-bottom: 14px;">
+                  <div class="timeline-header" style="margin-bottom: 8px;">
+                    <div class="title-with-icon">
+                      <mat-icon class="header-icon-color">history</mat-icon>
+                      <h3>Simulated Story Timeline</h3>
+                    </div>
+                    <span class="badge badge-info">{{ simStorySteps().length }} steps stored</span>
+                  </div>
+
+                  <div class="steps-list" style="max-height: 250px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; background: #f8fafc;">
+                    <div *ngFor="let step of simStorySteps(); let i = index" class="step-node">
+                      <div class="step-marker">{{ i + 1 }}</div>
+                      <div class="step-content">
+                        <div class="step-meta">
+                          <span class="step-action-name">Applied: <code>{{ formatApplicationCall(step.actionMatch) }}</code></span>
+                          <span class="step-time">Step {{ i + 1 }}</span>
+                        </div>
+                        
+                        <!-- Resource Diff Container -->
+                        <div class="step-diff">
+                          <!-- Consumed Resources -->
+                          <div *ngIf="getStepDiff(step).consumed.length > 0" class="diff-section consumed">
+                            <span class="diff-label">Consumed:</span>
+                            <div class="diff-items">
+                              <span 
+                                *ngFor="let item of getStepDiff(step).consumed" 
+                                class="diff-badge badge-consumed"
+                              >
+                                {{ item.name }} : <span class="type-strike">{{ item.typeStr }}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- Produced Resources -->
+                          <div *ngIf="getStepDiff(step).produced.length > 0" class="diff-section produced">
+                            <span class="diff-label">Produced:</span>
+                            <div class="diff-items">
+                              <span 
+                                *ngFor="let item of getStepDiff(step).produced" 
+                                class="diff-badge badge-produced"
+                              >
+                                + {{ item.name }} : <strong>{{ item.typeStr }}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="sim-chart-container" *ngIf="simDataPoints().length > 0">
@@ -700,58 +772,6 @@
                 <div *ngIf="simDataPoints().length === 0" class="empty-timeline">
                   <mat-icon>show_chart</mat-icon>
                   <p>Run the simulator to generate and plot the population trajectory over time.</p>
-                </div>
-              </div>
-
-              <!-- Simulated Story Timeline -->
-              <div class="timeline-card simulated-story-timeline" *ngIf="simStoreStory() && simStorySteps().length > 0" style="margin-top: 20px;">
-                <div class="timeline-header">
-                  <div class="title-with-icon">
-                    <mat-icon class="header-icon-color">history</mat-icon>
-                    <h3>Simulated Story Timeline</h3>
-                  </div>
-                  <span class="badge badge-info">{{ simStorySteps().length }} steps stored</span>
-                </div>
-
-                <div class="steps-list">
-                  <div *ngFor="let step of simStorySteps(); let i = index" class="step-node">
-                    <div class="step-marker">{{ i + 1 }}</div>
-                    <div class="step-content">
-                      <div class="step-meta">
-                        <span class="step-action-name">Applied: <code>{{ formatApplicationCall(step.actionMatch) }}</code></span>
-                        <span class="step-time">Step {{ i + 1 }}</span>
-                      </div>
-                      
-                      <!-- Resource Diff Container -->
-                      <div class="step-diff">
-                        <!-- Consumed Resources -->
-                        <div *ngIf="getStepDiff(step).consumed.length > 0" class="diff-section consumed">
-                          <span class="diff-label">Consumed:</span>
-                          <div class="diff-items">
-                            <span 
-                              *ngFor="let item of getStepDiff(step).consumed" 
-                              class="diff-badge badge-consumed"
-                            >
-                              {{ item.name }} : <span class="type-strike">{{ item.typeStr }}</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        <!-- Produced Resources -->
-                        <div *ngIf="getStepDiff(step).produced.length > 0" class="diff-section produced">
-                          <span class="diff-label">Produced:</span>
-                          <div class="diff-items">
-                            <span 
-                              *ngFor="let item of getStepDiff(step).produced" 
-                              class="diff-badge badge-produced"
-                            >
-                              + {{ item.name }} : <strong>{{ item.typeStr }}</strong>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             }

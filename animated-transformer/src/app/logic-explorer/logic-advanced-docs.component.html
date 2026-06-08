@@ -16,17 +16,20 @@ limitations under the License.
   <header class="explorer-header">
     <div class="header-left">
       <mat-icon class="header-logo font-icon-align">psychology</mat-icon>
-      <h1 class="header-title">Linear Logic Advanced Semantics</h1>
+      <h1 class="header-title">Advanced: Semantic Extensions in TypeScript</h1>
     </div>
     <nav class="header-nav">
-      <a routerLink="/logic-docs" class="nav-link">
-        <mat-icon>menu_book</mat-icon> Semantics & Examples
+      <a routerLink="/logic-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Story Semantics
+      </a>
+      <a routerLink="/logic-sim-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>insights</mat-icon> Simulation & Generation
+      </a>
+      <a routerLink="/logic-advanced-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>psychology</mat-icon> Advanced TypeScript
       </a>
       <a routerLink="/logic" class="nav-link">
         <mat-icon>account_tree</mat-icon> Explorer
-      </a>
-      <a routerLink="/wcolab" class="nav-link">
-        <mat-icon>code</mat-icon> Web Colab
       </a>
     </nav>
   </header>
@@ -147,6 +150,19 @@ limitations under the License.
               Therefore, you must ensure that your TS function always maps equivalent logical inputs to the exact same canonical output term so that direct value equality checks succeed during type verification.
             </div>
           </div>
+
+          <h3>Built-in Numerical Operations</h3>
+          <p>
+            By default, every context registers a set of numerical helper functions via <code>registerDefaultTSFunctions()</code>. 
+            These operations parse logic literal arguments as floats, perform calculations, and return a numeric literal term. 
+            They are particularly useful for computing score weights inside simulator action rules:
+          </p>
+          <ul style="font-size: 13.5px; line-height: 1.6; color: #334155; margin-left: 20px;">
+            <li><code>add_num(?a, ?b)</code>: Returns a literal representing <code>?a + ?b</code>.</li>
+            <li><code>sub_num(?a, ?b)</code>: Returns a literal representing <code>max(0, ?a - ?b)</code> (ensuring non-negative outputs).</li>
+            <li><code>mul_num(?a, ?b)</code>: Returns a literal representing <code>?a * ?b</code>.</li>
+            <li><code>div_num(?a, ?b)</code>: Returns a literal representing <code>?a / ?b</code> (returns <code>0.0</code> if division by zero occurs).</li>
+          </ul>
         </div>
       </section>
 

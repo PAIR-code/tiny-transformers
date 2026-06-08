@@ -42,6 +42,6 @@ describe('LandingPageComponent', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     const cards = compiled.querySelectorAll('.card');
-    expect(cards.length).toBe(6);
+    expect(cards.length).toBe(7);
   });
 });

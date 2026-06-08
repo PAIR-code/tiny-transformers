@@ -1,0 +1,267 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+you may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+============================================================================== -->
+<div class="docs-container">
+  <!-- Top header / Nav Bar -->
+  <header class="explorer-header">
+    <div class="header-left">
+      <mat-icon class="header-logo font-icon-align">insights</mat-icon>
+      <h1 class="header-title">Simulation & Generation Semantics</h1>
+    </div>
+    <nav class="header-nav">
+      <a routerLink="/logic-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Story Semantics
+      </a>
+      <a routerLink="/logic-sim-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>insights</mat-icon> Simulation & Generation
+      </a>
+      <a routerLink="/logic-advanced-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>psychology</mat-icon> Advanced TypeScript
+      </a>
+      <a routerLink="/logic" class="nav-link">
+        <mat-icon>account_tree</mat-icon> Explorer
+      </a>
+    </nav>
+  </header>
+
+  <div class="docs-layout">
+    <!-- Sidebar navigation -->
+    <aside class="docs-sidebar">
+      <h4 class="sidebar-title">Simulation Index</h4>
+      <nav class="sidebar-nav">
+        @for (sec of sections; track sec.id) {
+          <a 
+            (click)="scrollTo(sec.id)" 
+            [class.active]="activeSection() === sec.id" 
+            class="sidebar-link"
+          >
+            {{ sec.label }}
+          </a>
+        }
+      </nav>
+    </aside>
+
+    <!-- Scrollable content area -->
+    <main class="docs-content">
+      
+      <!-- Hero Header -->
+      <section class="docs-hero" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.15);">
+        <h1>Stochastic Generation & Story Simulation</h1>
+        <p>
+          Learn how to generate rich story distributions using the simulator. Run hundreds of logical state transitions 
+          stochastically, weight your actions with custom scores, and model complex population dynamics.
+        </p>
+      </section>
+
+      <!-- 1. Simulation Overview -->
+      <section id="intro" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">insights</mat-icon>
+          <h2>1. Simulation Overview</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            While the manual state explorer is great for inspection and debugging step-by-step, modeling stochastic processes, 
+            emergent agent behaviors, or gameplay stories requires running many steps automatically.
+          </p>
+          <p>
+            The logic engine includes a <strong>probabilistic simulator</strong> that iteratively:
+          </p>
+          <ul>
+            <li>Finds all currently applicable actions and their resource matches.</li>
+            <li>Evaluates a numerical score for each possible action-match.</li>
+            <li>Converts the scores into a probability distribution.</li>
+            <li>Randomly samples an action based on those probabilities and applies the transition.</li>
+          </ul>
+          <p>
+            By looping through this lifecycle, we can simulate single trajectories or run Monte Carlo rollouts to 
+            observe the probability distribution of entire story paths.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. Action Scores & Syntax -->
+      <section id="scores" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">bolt</mat-icon>
+          <h2>2. Action Scores & Syntax</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Actions are given weights/rates by annotating them with a <strong>score expression</strong> enclosed in square brackets 
+            immediately following the action's identifier:
+          </p>
+          <code style="display: inline-block; padding: 6px 12px; font-size: 13px; margin: 8px 0; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 4px;">
+            action action_name [score_expression]: &#123; LHS &#125; -o &#123; RHS &#125;;
+          </code>
+          <p>
+            If no score is provided, the engine defaults to a score of <code>1.0</code>.
+          </p>
+          <p>
+            <strong>Evaluation Lifecycle of Scores:</strong>
+          </p>
+          <ol>
+            <li>When the simulator identifies a match, it binds resources to logic variables (e.g., <code>?x</code>).</li>
+            <li>The variables inside the action's score expression are substituted with their bound values.</li>
+            <li>The substituted term is fully evaluated (using Call-by-Value reduction) to a numeric literal.</li>
+            <li>The resulting floating-point value is used as the raw score for that match. If the score evaluates to a negative number or is not a valid number, it defaults to <code>0.0</code>.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 3. Probability Modes -->
+      <section id="probability-modes" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">settings_input_component</mat-icon>
+          <h2>3. Probability Modes</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Once all applicable matches are scored, the simulator normalizes these scores into probabilities using one of two modes:
+          </p>
+
+          <div class="callout info" style="background: #f0fdfa; border-left-color: #0d9488; color: #115e59;">
+            <mat-icon style="color: #0d9488;">swap_calls</mat-icon>
+            <div class="callout-content">
+              <div class="callout-title">Proportional Mode</div>
+              <p>
+                The probability of selecting a match is directly proportional to its score divided by the sum of all scores:
+              </p>
+              <code>P(i) = score_i / Σ(score_j)</code>
+              <p style="margin-top: 6px;">
+                If the sum of all scores is zero, it defaults to a uniform distribution (every match has equal probability).
+              </p>
+            </div>
+          </div>
+
+          <div class="callout info" style="background: #f0fdfa; border-left-color: #0d9488; color: #115e59;">
+            <mat-icon style="color: #0d9488;">equalizer</mat-icon>
+            <div class="callout-content">
+              <div class="callout-title">Softmax Mode</div>
+              <p>
+                Scores are mapped to probabilities using the Softmax function under a temperature parameter <code>T</code>:
+              </p>
+              <code>P(i) = exp((score_i - max_score) / T) / Σ(exp((score_j - max_score) / T))</code>
+              <p style="margin-top: 6px;">
+                <strong>Temperature Control (T):</strong> 
+                A high temperature (e.g., <code>T > 2.0</code>) flattens the distribution, leading to more uniform/stochastic choice selection. 
+                A low temperature (e.g., <code>T = 0.1</code>) polarizes the probabilities, making the simulator almost always pick the action with the highest score.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Example: Fixed Probabilities -->
+      <section id="example-fixed" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">looks_one</mat-icon>
+          <h2>4. Example: Fixed Probabilities</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            When scores are constants, they define static branching ratios. This is useful for modeling simple rolls 
+            or fixed player choice biases.
+          </p>
+          <div class="code-example-container">
+            <div class="code-header">Fixed Probabilities Program</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(fixedProbCode)"></pre>
+          </div>
+          <p>
+            <strong>Probability calculation trace:</strong>
+          </p>
+          <ul>
+            <li>Both <code>buyCoffee</code> and <code>buyTea</code> are applicable by matching the active resource <code>_r1: dollar</code>.</li>
+            <li>The score for <code>buyCoffee</code> is <code>1.5</code>. The score for <code>buyTea</code> is <code>0.5</code>.</li>
+            <li>Sum of scores = <code>2.0</code>.</li>
+            <li>
+              Under <strong>proportional mode</strong>:
+              <ul>
+                <li><code>P(buyCoffee) = 1.5 / 2.0 = 75%</code></li>
+                <li><code>P(buyTea) = 0.5 / 2.0 = 25%</code></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 5. Example: TS-Computed Probabilities -->
+      <section id="example-ts" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">looks_two</mat-icon>
+          <h2>5. Example: TS-Computed Probabilities</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            For complex logic—like calculating distances in a grid, querying state, or using neural network weights—you 
+            can delegate scoring to native TypeScript.
+          </p>
+          
+          <div class="code-example-container">
+            <div class="code-header">1. Logic: Using a TS Custom Function in Action Score</div>
+            <pre class="code-body" [innerHTML]="getHighlightHtml(tsComputedLogicCode)"></pre>
+          </div>
+
+          <div class="code-example-container">
+            <div class="code-header">2. TypeScript: Registering the custom function</div>
+            <pre class="code-body" [innerHTML]="getHighlightTsHtml(tsComputedRegistrationCode)"></pre>
+          </div>
+
+          <p>
+            <strong>How it works:</strong>
+            When <code>moveCell</code> matches a resource like <code>cell(2, 3)</code>, the logic variable <code>?r</code> binds to <code>2</code> 
+            and <code>?c</code> binds to <code>3</code>. The simulator evaluates the term <code>calculate_distance_score(2, 3)</code>. 
+            Because this function name was registered in the context via <code>defineTSFunction</code>, the engine executes the TypeScript 
+            callback, computes the Euclidean distance to coordinates <code>(5, 5)</code>, and returns the resulting value as the transition's score.
+          </p>
+        </div>
+      </section>
+
+      <!-- 6. Story Distributions & Plotting -->
+      <section id="distributions" class="docs-section">
+        <div class="section-header">
+          <mat-icon style="color: #0d9488;">show_chart</mat-icon>
+          <h2>6. Story Distributions & Plotting</h2>
+        </div>
+        <div class="card-glass">
+          <p>
+            Running a simulation registers a timeline trace of resource counts. The simulator's <strong>Plot Mapping Configuration</strong> 
+            tells the interface how to parse resources and map them onto a time-series line chart.
+          </p>
+          <p>
+            A plot mapping rule is defined as a JSON configuration:
+          </p>
+          <code style="display: block; padding: 12px; font-size: 13.5px; margin: 12px 0; background: #fafafa; border: 1px solid #cbd5e1; border-radius: 6px; white-space: pre-wrap;">
+&#91;
+  &#123;
+    "name": "Rabbits Population",
+    "literal": "rabbits",
+    "argIndex": 0
+  &#125;
+&#93;
+          </code>
+          <p>
+            This rule scans the multiset at each step, looks for all resources whose constructor is <code>rabbits</code>, 
+            extracts their 0-indexed argument (which holds the count), parses it as a float, and sums it to plot the 
+            total rabbit population line.
+          </p>
+          <p>
+            This allows visualizing complex dynamics, such as predator-prey oscillations (Foxes & Rabbits preset example), 
+            directly in the browser.
+          </p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>

@@ -16,17 +16,20 @@ limitations under the License.
   <header class="explorer-header">
     <div class="header-left">
       <mat-icon class="header-logo font-icon-align">menu_book</mat-icon>
-      <h1 class="header-title">Linear Logic Semantics & Examples</h1>
+      <h1 class="header-title">Introduction to Linear Logic Story Semantics</h1>
     </div>
     <nav class="header-nav">
+      <a routerLink="/logic-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Story Semantics
+      </a>
+      <a routerLink="/logic-sim-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>insights</mat-icon> Simulation & Generation
+      </a>
+      <a routerLink="/logic-advanced-docs" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        <mat-icon>psychology</mat-icon> Advanced TypeScript
+      </a>
       <a routerLink="/logic" class="nav-link">
         <mat-icon>account_tree</mat-icon> Explorer
-      </a>
-      <a routerLink="/wcolab" class="nav-link">
-        <mat-icon>code</mat-icon> Web Colab
-      </a>
-      <a routerLink="/logic-advanced-docs" class="nav-link">
-        <mat-icon>psychology</mat-icon> Advanced (TS)
       </a>
     </nav>
   </header>
@@ -53,7 +56,7 @@ limitations under the License.
       
       <!-- Hero Header -->
       <section class="docs-hero">
-        <h1>Relational Linear Logic Engine</h1>
+        <h1>Linear Logic Story Engine</h1>
         <p>
           Welcome to the semantics and documentation guide. This page explains the core concepts, 
           syntax rules, and evaluation model of the linear logic engine, highlighting how term matching 
@@ -427,13 +430,13 @@ limitations under the License.
 
       <!-- 7. Next Steps -->
       <section class="docs-section">
-        <div class="card-glass" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%); border-color: rgba(79, 70, 229, 0.2);">
-          <h3>Looking for more control?</h3>
+        <div class="card-glass" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%); border-color: rgba(13, 148, 136, 0.2);">
+          <h3>Looking for stochastic simulations?</h3>
           <p>
-            You can extend the logic engine by wrapping arbitrary TypeScript values and executing dynamic code with custom logic functions.
+            You can run automated stories and simulate complex population distributions using the probabilistic simulator.
           </p>
-          <a routerLink="/logic-advanced-docs" class="nav-link" style="display: inline-flex; align-self: flex-start; color: #4f46e5; border-color: #cbd5e1; margin-top: 8px;">
-            <mat-icon>psychology</mat-icon> Explore Advanced TypeScript Semantics
+          <a routerLink="/logic-sim-docs" class="nav-link" style="display: inline-flex; align-self: flex-start; color: #0d9488; border-color: #cbd5e1; margin-top: 8px;">
+            <mat-icon>insights</mat-icon> Explore Simulation & Generation Semantics
           </a>
         </div>
       </section>

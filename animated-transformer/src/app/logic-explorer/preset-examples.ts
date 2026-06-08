@@ -4,11 +4,15 @@ export interface SimPlotMappingRule {
   argIndex?: number;
   argName?: string;
   matchValue?: string;
+  argIndex2?: number;
+  argName2?: string;
+  matchValue2?: string;
 }
 
 export interface PresetSimulationConfig {
   defaultSteps: number;
   resourcePlotMapping: SimPlotMappingRule[];
+  recordStorySteps?: boolean;
 }
 
 export interface PresetExample {
@@ -39,6 +43,7 @@ export const PRESET_EXAMPLES: PresetExample[] = [
         { name: 'Squished', literal: 'squished' },
         { name: 'Ran Away', literal: 'ranAway' },
       ],
+      recordStorySteps: true,
     },
   },
   {
@@ -64,10 +69,12 @@ export const PRESET_EXAMPLES: PresetExample[] = [
     defaultSimulationConfig: {
       defaultSteps: 15,
       resourcePlotMapping: [
-        { name: 'At Bank State', literal: 'at' },
+        { name: 'Human Left', literal: 'at', argIndex: 0, matchValue: 'human', argIndex2: 1, matchValue2: 'left' },
+        { name: 'Human Right', literal: 'at', argIndex: 0, matchValue: 'human', argIndex2: 1, matchValue2: 'right' },
         { name: 'Fight State', literal: 'fight' },
         { name: 'Eaten State', literal: 'eaten' },
       ],
+      recordStorySteps: true,
     },
   },
   {
@@ -91,6 +98,7 @@ export const PRESET_EXAMPLES: PresetExample[] = [
       resourcePlotMapping: [
         { name: 'Number Occurrences', literal: 'suc' },
       ],
+      recordStorySteps: true,
     },
   },
   {
@@ -138,6 +146,7 @@ export const PRESET_EXAMPLES: PresetExample[] = [
         { name: 'Active Channels', literal: 'chan', argIndex: 2, matchValue: 'active' },
         { name: 'Closed Channels', literal: 'chan', argIndex: 2, matchValue: 'closed' },
       ],
+      recordStorySteps: true,
     },
   },
   {
@@ -166,6 +175,7 @@ export const PRESET_EXAMPLES: PresetExample[] = [
         { name: 'Red Socks', literal: 'sock', argIndex: 0, matchValue: 'red' },
         { name: 'Blue Socks', literal: 'sock', argIndex: 0, matchValue: 'blue' },
       ],
+      recordStorySteps: true,
     },
   },
   {
@@ -186,6 +196,7 @@ export const PRESET_EXAMPLES: PresetExample[] = [
         { name: 'Rabbits', literal: 'rabbits', argIndex: 0 },
         { name: 'Foxes', literal: 'foxes', argIndex: 0 },
       ],
+      recordStorySteps: false,
     },
   }
 ];
