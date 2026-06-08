@@ -24,25 +24,57 @@ limitations under the License.
     </p>
   </header>
 
-  <main class="cards-grid">
-    @for (card of cards; track card.route) {
-      <div class="card" [class]="card.colorClass" [routerLink]="card.route">
-        <div class="card-glow"></div>
-        <div class="card-content">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+  <main class="landing-main">
+    <section class="section-group">
+      <h2 class="section-title">Core Tools & Documentation</h2>
+      <div class="cards-grid">
+        @for (card of activeCards; track card.route) {
+          <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+            <div class="card-glow"></div>
+            <div class="card-content">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+              </div>
+              <h3>{{ card.title }}</h3>
+              <p>{{ card.description }}</p>
+              <div class="card-actions">
+                <span class="explore-btn">
+                  Explore
+                  <mat-icon>arrow_forward</mat-icon>
+                </span>
+              </div>
+            </div>
           </div>
-          <h3>{{ card.title }}</h3>
-          <p>{{ card.description }}</p>
-          <div class="card-actions">
-            <span class="explore-btn">
-              Explore
-              <mat-icon>arrow_forward</mat-icon>
-            </span>
-          </div>
-        </div>
+        }
       </div>
-    }
+    </section>
+
+    <section class="section-group in-progress-section">
+      <h2 class="section-title">In Development</h2>
+      <div class="cards-grid">
+        @for (card of inProgressCards; track card.route) {
+          <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+            <div class="card-glow"></div>
+            <div class="card-content">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+              </div>
+              <h3>
+                {{ card.title }}
+                <span class="badge badge-in-progress">In Progress</span>
+              </h3>
+              <p>{{ card.description }}</p>
+              <div class="card-actions">
+                <span class="explore-btn">
+                  Try Beta
+                  <mat-icon>arrow_forward</mat-icon>
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
   </main>
 
   <footer class="landing-footer">

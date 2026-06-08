@@ -40,28 +40,7 @@ interface SubpageCard {
   ],
 })
 export class LandingPageComponent {
-  readonly cards: SubpageCard[] = [
-    {
-      title: 'Web Colab Notebook',
-      description: 'An interactive playground for training and evaluating transformer models in real-time.',
-      route: '/wcolab',
-      icon: 'code',
-      colorClass: 'card-colab',
-    },
-    {
-      title: 'Activation Explorer',
-      description: 'Visualize internal weights, activation sequences, and attention distributions.',
-      route: '/activations',
-      icon: 'visibility',
-      colorClass: 'card-activations',
-    },
-    {
-      title: 'Sparse Autoencoders',
-      description: 'Extract and analyze interpretable features from internal representations.',
-      route: '/sae',
-      icon: 'blur_on',
-      colorClass: 'card-sae',
-    },
+  readonly activeCards: SubpageCard[] = [
     {
       title: 'Logic Explorer',
       description: 'Simulate and investigate relational linear logic rules and structural state transformations.',
@@ -91,4 +70,33 @@ export class LandingPageComponent {
       colorClass: 'card-advanced-docs',
     },
   ];
+
+  readonly inProgressCards: SubpageCard[] = [
+    {
+      title: 'Activation Explorer',
+      description: 'Visualize internal weights, activation sequences, and attention distributions. (Incomplete / Work-in-Progress)',
+      route: '/activations',
+      icon: 'visibility',
+      colorClass: 'card-activations',
+    },
+    {
+      title: 'Sparse Autoencoders',
+      description: 'Extract and analyze interpretable features from internal representations. (Incomplete / Work-in-Progress)',
+      route: '/sae',
+      icon: 'blur_on',
+      colorClass: 'card-sae',
+    },
+    {
+      title: 'Web Colab Notebook',
+      description: 'An interactive playground for training and evaluating transformer models in real-time. (Incomplete / Work-in-Progress)',
+      route: '/wcolab',
+      icon: 'code',
+      colorClass: 'card-colab',
+    },
+  ];
+
+  // Keep for compatibility / testing
+  get cards(): SubpageCard[] {
+    return [...this.inProgressCards, ...this.activeCards];
+  }
 }

@@ -75,7 +75,6 @@ limitations under the License.
   gap: 2rem;
   max-width: 1200px;
   width: 100%;
-  margin-bottom: 4rem;
 }
 
 .card {
@@ -281,6 +280,59 @@ limitations under the License.
       color: #9333ea;
     }
   }
+}
+
+.landing-main {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 3.5rem;
+  margin-bottom: 4rem;
+}
+
+.section-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #475569;
+  margin: 0;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.in-progress-section {
+  .section-title {
+    color: #64748b;
+    border-bottom-style: dashed;
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 0.75rem;
+  vertical-align: middle;
+}
+
+.badge-in-progress {
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
 }
 
 .landing-footer {
