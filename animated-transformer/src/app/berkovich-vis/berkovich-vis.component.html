@@ -1,0 +1,440 @@
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <header class="explorer-header">
+    <div class="header-content">
+      <button mat-icon-button routerLink="/" class="back-btn" aria-label="Go back to landing page">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1>Berkovich Non-Archimedean ML Explorer</h1>
+        <p class="subtitle">
+          Visualizing continuous gradient descent and branch selection on p-adic Berkovich trees (<span class="math">A<sup>1</sup>(Q<sub>p</sub>)</span>)
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Interactive Tree & Disk Visualizer -->
+    <section class="visualizer-card-container">
+      <mat-card class="visualizer-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>account_tree</mat-icon>
+            Local Berkovich Subtree &beta;(&Gamma;<sub>p</sub>)
+          </mat-card-title>
+          <mat-card-subtitle>
+            Visualizing the branching structure. The green path goes to target <span class="math">y</span>, purple goes to parameter center <span class="math">c</span>. The glowing node represents the current state.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content class="svg-container">
+          <svg [attr.width]="svgWidth" [attr.height]="svgHeight" class="tree-svg">
+            <defs>
+              <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
+                <stop offset="30%" stop-color="#8b5cf6" stop-opacity="0.8" />
+                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+
+            <!-- Draw Edges -->
+            @for (edge of treeVisuals().edges; track edge.id) {
+              <g class="tree-edge-group">
+                <line
+                  [attr.x1]="edge.x1"
+                  [attr.y1]="edge.y1"
+                  [attr.x2]="edge.x2"
+                  [attr.y2]="edge.y2"
+                  [class.target-path]="targetPathEdges().has(edge.id)"
+                  [class.parameter-path]="parameterPathEdges().has(edge.id)"
+                  [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
+                  [class.inactive-stub]="!edge.isActive"
+                  class="tree-edge"
+                />
+                <!-- Branch Digit Labels -->
+                <circle
+                  [attr.cx]="(edge.x1 + edge.x2) / 2"
+                  [attr.cy]="(edge.y1 + edge.y2) / 2"
+                  r="9"
+                  [class.inactive-stub]="!edge.isActive"
+                  class="digit-bg"
+                />
+                <text
+                  [attr.x]="(edge.x1 + edge.x2) / 2"
+                  [attr.y]="(edge.y1 + edge.y2) / 2 + 4"
+                  [class.inactive-stub]="!edge.isActive"
+                  class="digit-label"
+                >
+                  {{ edge.digitLabel }}
+                </text>
+              </g>
+            }
+ 
+            <!-- Draw Nodes -->
+            @for (node of treeVisuals().nodes; track node.id) {
+              <g class="tree-node-group">
+                <circle
+                  [attr.cx]="node.x"
+                  [attr.cy]="node.y"
+                  [attr.r]="node.logRadius === rhoMin ? 4 : 5"
+                  [class.leaf-node]="node.logRadius === rhoMin"
+                  [class.vertex-node]="node.logRadius > rhoMin"
+                  [class.inactive-stub]="!node.isActive"
+                  class="tree-node"
+                />
+                <!-- Label for nodes at the top (root) and bottom (leaves) -->
+                @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
+                  <text
+                    [attr.x]="node.x"
+                    [attr.y]="node.logRadius === rhoMax ? node.y - 12 : node.y + 16"
+                    [class.inactive-stub]="!node.isActive"
+                    class="node-text-label"
+                  >
+                    {{ formatRationalValue(node.center) }}
+                  </text>
+                }
+              </g>
+            }
+
+            <!-- Target Indicator Flag -->
+            @for (node of treeVisuals().nodes; track node.id) {
+              @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
+                <!-- Draw Target Marker -->
+                <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
+                  <circle r="12" class="target-outer" />
+                  <circle r="4" class="target-inner" />
+                </g>
+              }
+            }
+
+            <!-- Current Parameter State Node (Pulse + Circle) -->
+            @if (currentStateCoord().exists) {
+              <g class="current-state-pointer">
+                <!-- Pulsing Glow background -->
+                <circle
+                  [attr.cx]="currentStateCoord().x"
+                  [attr.cy]="currentStateCoord().y"
+                  r="22"
+                  fill="url(#glowGrad)"
+                  class="pulse-glow"
+                />
+                <circle
+                  [attr.cx]="currentStateCoord().x"
+                  [attr.cy]="currentStateCoord().y"
+                  r="7"
+                  class="parameter-dot"
+                />
+              </g>
+            }
+          </svg>
+        </mat-card-content>
+      </mat-card>
+    </section>
+
+    <!-- Right Column: Configurations & Calculus Details -->
+    <aside class="control-panel">
+      <!-- 1. Configuration Card -->
+      <mat-card class="config-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>settings</mat-icon>
+            Configuration
+          </mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="config-content">
+          <div class="input-row">
+            <!-- Prime selection -->
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>Prime Field (p)</mat-label>
+              <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+                <mat-option [value]="2">p = 2 (Binary)</mat-option>
+                <mat-option [value]="3">p = 3 (Ternary)</mat-option>
+                <mat-option [value]="5">p = 5 (Quinary)</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="input-row">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>Target Value (y)</mat-label>
+              <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" #targetField />
+              <mat-hint>Supports fractions (e.g. 5/3) or decimals</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="input-row">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>Init Center (c)</mat-label>
+              <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" #centerField />
+              <mat-hint>Initial starting center parameter value</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <!-- Log-radius and LR sliders -->
+          <div class="slider-group">
+            <div class="slider-label">
+              <span>Init Log-Radius (&rho;):</span>
+              <span class="value-badge">{{ initLogRadius().toFixed(1) }}</span>
+            </div>
+            <mat-slider min="-2" max="2" step="0.5" showTickMarksDiscrete>
+              <input matSliderThumb [value]="initLogRadius()" (valueChange)="initLogRadius.set($event)" />
+            </mat-slider>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-label">
+              <span>Learning Rate (&eta;):</span>
+              <span class="value-badge">{{ learningRate().toFixed(2) }}</span>
+            </div>
+            <mat-slider min="0.05" max="0.5" step="0.05">
+              <input matSliderThumb [value]="learningRate()" (valueChange)="learningRate.set($event)" />
+            </mat-slider>
+          </div>
+
+          <!-- Playback controls -->
+          <div class="controls-row">
+            <button mat-flat-button color="primary" (click)="togglePlay()">
+              <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+              {{ isPlaying() ? 'Pause' : 'Animate' }}
+            </button>
+            <button mat-stroked-button (click)="step()" [disabled]="isPlaying()">
+              <mat-icon>skip_next</mat-icon>
+              Step
+            </button>
+            <button mat-stroked-button (click)="reset()">
+              <mat-icon>replay</mat-icon>
+              Reset
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- 2. Current State Details -->
+      <mat-card class="state-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>info</mat-icon>
+            State Details
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="state-content">
+          <div class="state-metric">
+            <span class="metric-name">Optimization Step</span>
+            <span class="metric-value">{{ stepCount() }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Current Point Type</span>
+            <span class="metric-value badge-type" [class.type-ii]="currentPointType().includes('II')" [class.type-iii]="currentPointType().includes('III')">
+              {{ currentPointType() }}
+            </span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Log-Radius (&rho;)</span>
+            <span class="metric-value highlight-rho">{{ currentLogRadius().toFixed(4) }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Radius (p<sup>&rho;</sup>)</span>
+            <span class="metric-value">{{ (prime() ** currentLogRadius()).toFixed(4) }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Center (c)</span>
+            <span class="metric-value">{{ formatRationalValue(currentCenter()) }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Target Distance (d)</span>
+            <span class="metric-value">
+              @if (currentDistanceValuation() === 30) {
+                0 (Exact Match)
+              } @else {
+                p<sup>{{ -currentDistanceValuation() }}</sup> (d = {{ -currentDistanceValuation() }})
+              }
+            </span>
+          </div>
+          <div class="state-metric">
+            <span class="metric-name">Path-Metric Loss</span>
+            <span class="metric-value highlight-loss">{{ currentLoss().toFixed(4) }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </aside>
+  </div>
+
+  <!-- Digit expansion and Gradient Details Grid -->
+  <div class="dashboard-grid bottom-grid">
+    <!-- Digit Expansion Card -->
+    <mat-card class="detail-card digit-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>binary</mat-icon>
+          p-adic Digit Sequence Comparison
+        </mat-card-title>
+        <mat-card-subtitle>
+          Comparing digits from <span class="math">p<sup>-3</sup></span> to <span class="math">p<sup>3</sup></span>. Highlighted columns are resolved by the current disk size (<span class="math">k &lt; -&rho;</span>).
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="digit-grid-container">
+        <div class="digit-grid">
+          <!-- Power Labels -->
+          <div class="digit-row header-row">
+            <div class="row-label">Power of p:</div>
+            @for (col of digitRows(); track col.power) {
+              <div class="digit-cell power-cell" [class.resolved]="col.isResolved">
+                {{ col.powerLabel }}
+              </div>
+            }
+          </div>
+
+          <!-- Target digits -->
+          <div class="digit-row target-row">
+            <div class="row-label">Target (y):</div>
+            @for (col of digitRows(); track col.power) {
+              <div class="digit-cell val-cell" [class.resolved]="col.isResolved">
+                {{ col.targetDigit }}
+              </div>
+            }
+          </div>
+
+          <!-- Parameter center digits -->
+          <div class="digit-row center-row">
+            <div class="row-label">Center (c):</div>
+            @for (col of digitRows(); track col.power) {
+              <div
+                class="digit-cell val-cell center-val"
+                [class.resolved]="col.isResolved"
+                [class.matching]="col.isMatching"
+                [class.mismatch]="!col.isMatching && col.isResolved"
+              >
+                {{ col.centerDigit }}
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="digit-legend">
+          <div class="legend-item"><span class="legend-box resolved-box"></span> Resolved (k &lt; -&rho;)</div>
+          <div class="legend-item"><span class="legend-box match-box"></span> Matching digit</div>
+          <div class="legend-item"><span class="legend-box mismatch-box"></span> Mismatch (unresolved or boundary error)</div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Gradient and Calculus Card -->
+    <mat-card class="detail-card calculus-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>calculate</mat-icon>
+          Gradient &amp; Calculus Breakdown
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="calculus-content">
+        <div class="math-block">
+          <p class="formula">
+            Loss = L<sub>path</sub> = |&rho; - d| + d
+          </p>
+          <p class="explanation-text">
+            {{ gradientBreakdown().explanation }}
+          </p>
+        </div>
+
+        @if (gradientBreakdown().isVertex) {
+          <div class="branch-selector-panel">
+            <h4>Discrete Branch Selection at Vertex:</h4>
+            <table class="candidates-table">
+              <thead>
+                <tr>
+                  <th>Branch Direction</th>
+                  <th>Candidate Center</th>
+                  <th>New Log-Radius</th>
+                  <th>Loss L<sub>path</sub></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (cand of gradientBreakdown().candidates; track cand.branch) {
+                  <tr [class.selected-candidate]="gradientBreakdown().bestBranch === cand.branch">
+                    <td>
+                      <strong>{{ cand.branch }}</strong>
+                      @if (gradientBreakdown().bestBranch === cand.branch) {
+                        <span class="sel-badge">(STEER DIRECTION)</span>
+                      }
+                    </td>
+                    <td>c = {{ cand.centerStr }}</td>
+                    <td>&rho; = {{ cand.logRadius }}</td>
+                    <td class="loss-col">
+                      {{ cand.lossVal.toFixed(4) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="continuous-descent-panel">
+            <h4>Continuous Derivative Step:</h4>
+            <div class="calc-formula">
+              <div class="formula-term">
+                <span class="term-lbl">dL / d&rho;</span>
+                <span class="term-val">{{ gradientBreakdown().gRho! > 0 ? '+1.0' : '-1.0' }}</span>
+              </div>
+              <div class="formula-operator">&times;</div>
+              <div class="formula-term">
+                <span class="term-lbl">Learning Rate &eta;</span>
+                <span class="term-val">{{ learningRate() }}</span>
+              </div>
+              <div class="formula-operator">&rarr;</div>
+              <div class="formula-term">
+                <span class="term-lbl">Proposed &Delta;&rho;</span>
+                <span class="term-val">{{ (-learningRate() * gradientBreakdown().gRho!).toFixed(4) }}</span>
+              </div>
+            </div>
+            @if (gradientBreakdown().crossesInteger) {
+              <div class="alert-snap">
+                <mat-icon>vertical_align_bottom</mat-icon>
+                <span>Snapping to Type II vertex boundary at <strong>&rho; = {{ gradientBreakdown().snappedRho }}</strong>.</span>
+              </div>
+            }
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Bottom section: Step History -->
+  <mat-card class="history-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>history</mat-icon>
+        Optimization Step History
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content class="history-content">
+      <div class="history-table-container">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Center (c)</th>
+              <th>Log-Radius (&rho;)</th>
+              <th>Loss</th>
+              <th>Update Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of history(); track h.step) {
+              <tr>
+                <td>{{ h.step }}</td>
+                <td>{{ formatRationalValue(h.center) }}</td>
+                <td>{{ h.logRadius.toFixed(4) }}</td>
+                <td>{{ h.loss.toFixed(4) }}</td>
+                <td>
+                  <span class="step-type-badge">{{ h.type }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

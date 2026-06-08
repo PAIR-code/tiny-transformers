@@ -69,6 +69,13 @@ export class LandingPageComponent {
       icon: 'psychology',
       colorClass: 'card-advanced-docs',
     },
+    {
+      title: 'Berkovich ML Explorer',
+      description: 'Explore the continuous optimization landscapes of non-Archimedean p-adic models in Berkovich spaces.',
+      route: '/berkovich',
+      icon: 'blur_linear',
+      colorClass: 'card-berkovich',
+    },
   ];
 
   readonly inProgressCards: SubpageCard[] = [

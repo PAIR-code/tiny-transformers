@@ -31,6 +31,7 @@ import { LogicDocsComponent } from './logic-explorer/logic-docs.component';
 import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs.component';
 import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component';
 import { provideHttpClient } from '@angular/common/http';
+import { BerkovichVisComponent } from './berkovich-vis/berkovich-vis.component';
 
 export const routes: Routes = [
   { path: '', component: LandingPageComponent, pathMatch: 'full' },
@@ -41,6 +42,7 @@ export const routes: Routes = [
   { path: 'logic-docs', component: LogicDocsComponent },
   { path: 'logic-sim-docs', component: LogicSimDocsComponent },
   { path: 'logic-advanced-docs', component: LogicAdvancedDocsComponent },
+  { path: 'berkovich', component: BerkovichVisComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
 

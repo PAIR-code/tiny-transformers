@@ -280,6 +280,19 @@ limitations under the License.
       color: #9333ea;
     }
   }
+
+  &.card-berkovich {
+    .card-icon-container {
+      background: rgba(139, 92, 246, 0.1);
+      color: #8b5cf6;
+    }
+    .card-glow {
+      background: radial-gradient(circle at 50% 50%, #8b5cf6, transparent 70%);
+    }
+    &:hover h3 {
+      color: #8b5cf6;
+    }
+  }
 }
 
 .landing-main {
