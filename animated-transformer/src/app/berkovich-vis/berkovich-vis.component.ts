@@ -93,6 +93,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
   readonly centerInput = signal<string>('0');
+  readonly centerDigitsInput = signal<string>('0 0 0 0 0');
   readonly logRadiusInput = signal<string>('2.0');
   readonly learningRateInput = signal<string>('0.20');
 
@@ -513,6 +514,15 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         this.reset();
       });
     });
+
+    // Keep digit sequence string in sync with starting center and prime
+    effect(() => {
+      const c = this.initCenterRational();
+      const p = BigInt(this.prime());
+      untracked(() => {
+        this.centerDigitsInput.set(this.formatCenterDigits(c, p));
+      });
+    });
   }
 
   ngOnInit(): void {
@@ -714,6 +724,45 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       const r = parseToRational(this.centerInput());
       const truncated = truncateToTreeRange(r, p, -2, 2);
       this.centerInput.set(formatRational(truncated));
+    } catch {
+      this.centerInput.set('0');
+    }
+  }
+
+  formatCenterDigits(c: Rational, p: bigint): string {
+    const aligned = getAlignedDigits(c, p, -2, 2);
+    const reversed = [...aligned].reverse();
+    return reversed.map(d => d.digit).join(' ');
+  }
+
+  onCenterDigitsBlur(): void {
+    const p = BigInt(this.prime());
+    try {
+      const tokens = this.centerDigitsInput().trim().split(/[\s,]+/);
+      const digits = tokens.map(t => {
+        const d = parseInt(t, 10);
+        return isNaN(d) ? 0 : Math.max(0, Math.min(Number(p) - 1, d));
+      });
+      while (digits.length < 5) {
+        digits.unshift(0);
+      }
+      const finalDigits = digits.slice(-5);
+      
+      const powers = [2, 1, 0, -1, -2];
+      let sum: Rational = { num: 0n, den: 1n };
+      for (let i = 0; i < 5; i++) {
+        const k = powers[i];
+        const a = BigInt(finalDigits[i]);
+        let term: Rational;
+        if (k >= 0) {
+          term = { num: a * (p ** BigInt(k)), den: 1n };
+        } else {
+          term = { num: a, den: p ** BigInt(-k) };
+        }
+        sum = simplify(add(sum, term));
+      }
+      
+      this.centerInput.set(formatRational(sum));
     } catch {
       this.centerInput.set('0');
     }

@@ -210,4 +210,22 @@ describe('BerkovichVisComponent', () => {
     expect(component.currentLogRadius()).toBe(1.8);
     expect(component.history().length).toBe(1);
   });
+
+  it('should synchronize centerInput and centerDigitsInput bidirectionally', () => {
+    component.prime.set(3);
+    component.centerInput.set('0');
+    fixture.detectChanges();
+    expect(component.centerDigitsInput()).toBe('0 0 0 0 0');
+
+    component.centerInput.set('5/3');
+    component.onCenterBlur();
+    fixture.detectChanges();
+    expect(component.centerDigitsInput()).toBe('0 0 1 2 0');
+
+    component.centerDigitsInput.set('0 1 0 0 0');
+    component.onCenterDigitsBlur();
+    fixture.detectChanges();
+    expect(component.centerInput()).toBe('3');
+    expect(component.centerDigitsInput()).toBe('0 1 0 0 0');
+  });
 });

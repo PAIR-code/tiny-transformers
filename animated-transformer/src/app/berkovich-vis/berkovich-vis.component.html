@@ -208,7 +208,7 @@
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Target Value (y)</mat-label>
                 <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
-                <mat-hint>Supports fractions or decimals</mat-hint>
+                <mat-hint>fractions or decimals</mat-hint>
               </mat-form-field>
             </div>
 
@@ -217,7 +217,15 @@
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Init Center (c)</mat-label>
                 <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
-                <mat-hint>Initial starting center</mat-hint>
+                <mat-hint>fractions/decimals</mat-hint>
+                </mat-form-field>
+                
+                <!-- Center Digits (p^2 ... p^-2) -->
+                <mat-form-field appearance="outline" class="half-field">
+                  <mat-label>Center Digits (p^2 ... p^-2)</mat-label>
+                  <input matInput [value]="centerDigitsInput()" (change)="centerDigitsInput.set(digitsField.value)"
+                    (blur)="onCenterDigitsBlur()" #digitsField />
+                  <mat-hint>base-p digits</mat-hint>
               </mat-form-field>
             </div>
 
