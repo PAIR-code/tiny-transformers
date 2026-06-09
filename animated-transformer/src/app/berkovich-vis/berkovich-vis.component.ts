@@ -254,22 +254,20 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       rho: number;
       isActive: boolean;
       children: LayoutNode[];
-      width: number;
+      ancestors: string[];
+      x?: number;
     }
     
-    const nodeSpacing = 40; // minimum base spacing for leaf/stub nodes
-    
-    // Pass 1: Build topology and calculate subtree widths bottom-up
-    const buildNode = (c: Rational, rho: number, parentId?: string): LayoutNode => {
+    // Pass 1: Build visual tree topology recursively while tracking ancestor lists
+    const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
       const nodeActive =
         getValuation(subtract(y, c), p) >= -rho + 1 || getValuation(subtract(c_curr, c), p) >= -rho + 1;
       
       const children: LayoutNode[] = [];
-      let width = nodeSpacing;
+      const nextAncestors = [...ancestors, nodeId];
       
       if (rho > this.rhoMin && nodeActive) {
-        let childrenWidthSum = 0;
         for (let g = 0; g < pNum; g++) {
           const childRho = rho - 1;
           let shift: Rational;
@@ -280,11 +278,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
             shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
           }
           const childCenter = add(c, shift);
-          const childNode = buildNode(childCenter, childRho, nodeId);
-          children.push(childNode);
-          childrenWidthSum += childNode.width;
+          children.push(buildNode(childCenter, childRho, nextAncestors));
         }
-        width = childrenWidthSum;
       }
       
       return {
@@ -293,27 +288,162 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         rho,
         isActive: nodeActive,
         children,
-        width
+        ancestors
       };
     };
     
     const rootCenter = simplify({ num: 0n, den: 1n });
-    const rootNode = buildNode(rootCenter, this.rhoMax, undefined);
-    const totalRootWidth = rootNode.width;
+    const rootNode = buildNode(rootCenter, this.rhoMax, []);
     
-    // Pass 2: Position nodes and edges top-down
+    // Pass 2: Collect all bottom-most leaves (only at rhoMin)
+    const bottomLeaves: LayoutNode[] = [];
+    const collectBottomLeaves = (node: LayoutNode) => {
+      if (node.rho === this.rhoMin) {
+        bottomLeaves.push(node);
+      } else {
+        for (const child of node.children) {
+          collectBottomLeaves(child);
+        }
+      }
+    };
+    collectBottomLeaves(rootNode);
+    
+    // Find the split vertex level between parameter path (c) and target path (y)
+    const splitVal = -getValuation(subtract(c_curr, y), p);
+    const splitLevel = Math.ceil(splitVal);
+    
+    let paramChildId = "";
+    let targetChildId = "";
+    if (splitLevel <= this.rhoMax && splitLevel - 1 >= this.rhoMin) {
+      const splitChildRho = splitLevel - 1;
+      const paramPrefix = this.getPrefixCenter(c_curr, splitChildRho, p);
+      const targetPrefix = this.getPrefixCenter(y, splitChildRho, p);
+      paramChildId = `${formatRational(paramPrefix)}_${splitChildRho}`;
+      targetChildId = `${formatRational(targetPrefix)}_${splitChildRho}`;
+    }
+    
+    const isOnParameterBranch = (node: LayoutNode): boolean => {
+      if (!paramChildId) return false;
+      return node.id === paramChildId || node.ancestors.includes(paramChildId);
+    };
+    
+    const isOnTargetBranch = (node: LayoutNode): boolean => {
+      if (!targetChildId) return false;
+      return node.id === targetChildId || node.ancestors.includes(targetChildId);
+    };
+    
+    // Pass 3: Space bottom-most leaves. Sibling leaves inside a branch are placed next to each other
+    // with a base gap. If they belong to different branches crossing the split vertex,
+    // we insert a larger extra gap to visual separate target and parameter branches.
+    const baseGap = 40;
+    const extraGap = 80;
+    const N = bottomLeaves.length;
+    if (N === 1) {
+      bottomLeaves[0].x = 0;
+    } else {
+      bottomLeaves[0].x = 0;
+      for (let i = 1; i < N; i++) {
+        const leafA = bottomLeaves[i - 1];
+        const leafB = bottomLeaves[i];
+        
+        const isA_Param = isOnParameterBranch(leafA);
+        const isB_Param = isOnParameterBranch(leafB);
+        const isA_Target = isOnTargetBranch(leafA);
+        const isB_Target = isOnTargetBranch(leafB);
+        
+        const crossesBoundary = (isA_Param !== isB_Param) || (isA_Target !== isB_Target);
+        const gap = crossesBoundary ? extraGap : baseGap;
+        leafB.x = leafA.x! + gap;
+      }
+    }
+    
+    // Pass 4: Compute X coordinates for parent nodes bottom-up (average of children)
+    // Inactive stub placeholder nodes (which have no visual children) are interpolated
+    // between their nearest active siblings at parent level.
+    const computeX = (node: LayoutNode): number => {
+      if (node.x !== undefined) {
+        return node.x;
+      }
+      if (node.rho === this.rhoMin) {
+        return node.x || 0;
+      }
+      
+      // First, recursively compute coordinates for all active child branches
+      const activeIndices: number[] = [];
+      for (let g = 0; g < node.children.length; g++) {
+        const child = node.children[g];
+        if (child.children.length > 0 || child.rho === this.rhoMin) {
+          computeX(child);
+          activeIndices.push(g);
+        }
+      }
+      
+      // Second, interpolate coordinates for inactive sibling stubs
+      if (activeIndices.length > 0) {
+        for (let g = 0; g < node.children.length; g++) {
+          const child = node.children[g];
+          if (child.x !== undefined) continue;
+          
+          let g_left = -1;
+          for (const idx of activeIndices) {
+            if (idx < g) g_left = idx;
+          }
+          let g_right = -1;
+          for (const idx of activeIndices) {
+            if (idx > g) {
+              g_right = idx;
+              break;
+            }
+          }
+          
+          if (g_left !== -1 && g_right !== -1) {
+            const childLeft = node.children[g_left];
+            const childRight = node.children[g_right];
+            const t = (g - g_left) / (g_right - g_left);
+            child.x = childLeft.x! + t * (childRight.x! - childLeft.x!);
+          } else if (g_left !== -1) {
+            const childLeft = node.children[g_left];
+            child.x = childLeft.x! + (g - g_left) * baseGap;
+          } else if (g_right !== -1) {
+            const childRight = node.children[g_right];
+            child.x = childRight.x! - (g_right - g) * baseGap;
+          }
+        }
+      }
+      
+      // Parent sits at the average X coordinate of its children
+      let sum = 0;
+      for (const child of node.children) {
+        sum += child.x!;
+      }
+      node.x = sum / node.children.length;
+      return node.x;
+    };
+    computeX(rootNode);
+    
+    // Pass 5: Center the root node horizontally and shift the rest of the tree in unison
+    const idealRootX = this.svgWidth / 2;
+    const shift = idealRootX - rootNode.x!;
+    const applyShift = (node: LayoutNode) => {
+      node.x = node.x! + shift;
+      for (const child of node.children) {
+        applyShift(child);
+      }
+    };
+    applyShift(rootNode);
+    
+    // Pass 6: Build final VisualNode and VisualEdge layout representations top-down
     const nodes: VisualNode[] = [];
     const edges: VisualEdge[] = [];
     
     const positionNode = (
       node: LayoutNode,
-      leftX: number,
       parentId?: string,
       parentX?: number,
       parentY?: number,
       digitLabel?: string
     ) => {
-      const xCoord = leftX + node.width / 2;
+      const xCoord = node.x!;
       const yCoord = this.paddingY + (this.rhoMax - node.rho) * stepY;
       
       // Look up parent previous position for slide-out starting coordinates
@@ -353,28 +483,13 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         });
       }
       
-      if (node.children.length > 0) {
-        const leftMostX = leftX + node.children[0].width / 2;
-        const rightMostX = leftX + node.width - node.children[node.children.length - 1].width / 2;
-        
-        for (let g = 0; g < node.children.length; g++) {
-          const child = node.children[g];
-          let childX: number;
-          if (g === 0) {
-            childX = leftMostX;
-          } else if (g === node.children.length - 1) {
-            childX = rightMostX;
-          } else {
-            childX = leftMostX + g * (rightMostX - leftMostX) / (node.children.length - 1);
-          }
-          const childLeftX = childX - child.width / 2;
-          positionNode(child, childLeftX, node.id, xCoord, yCoord, g.toString());
-        }
+      for (let g = 0; g < node.children.length; g++) {
+        const child = node.children[g];
+        positionNode(child, node.id, xCoord, yCoord, g.toString());
       }
     };
     
-    const startLeftX = (this.svgWidth - totalRootWidth) / 2;
-    positionNode(rootNode, startLeftX);
+    positionNode(rootNode);
     
     return { nodes, edges };
   });
