@@ -47,7 +47,7 @@
 
             <!-- Draw Edges -->
             @for (edge of treeVisuals().edges; track edge.id) {
-              <g class="tree-edge-group">
+              <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
                 <line
                   [attr.x1]="edge.x1"
                   [attr.y1]="edge.y1"
@@ -57,6 +57,7 @@
                   [class.parameter-path]="parameterPathEdges().has(edge.id)"
                   [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
                   [class.inactive-stub]="!edge.isActive"
+                  [class.candidate-branch]="junctionCandidates().edges.has(edge.id)"
                   class="tree-edge"
                 />
                 <!-- Branch Digit Labels -->
@@ -88,6 +89,7 @@
                   [class.leaf-node]="node.logRadius === rhoMin"
                   [class.vertex-node]="node.logRadius > rhoMin"
                   [class.inactive-stub]="!node.isActive"
+                  [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
                   class="tree-node"
                 />
                 <!-- Label for nodes at the top (root) and bottom (leaves) -->

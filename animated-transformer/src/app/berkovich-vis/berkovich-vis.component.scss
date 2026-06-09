@@ -233,8 +233,8 @@ mat-card {
 /* Collapsed stubs (faded/dotted) styles */
 line.inactive-stub {
   stroke-dasharray: 2 3;
-  stroke: #94a3b8 !important;
-  stroke-width: 1.5 !important;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
 }
 
 circle.digit-bg.inactive-stub {
@@ -247,9 +247,9 @@ text.digit-label.inactive-stub {
 }
 
 circle.tree-node.inactive-stub {
-  fill: #94a3b8 !important;
-  stroke: #ffffff !important;
-  r: 4px !important;
+  fill: #94a3b8;
+  stroke: #ffffff;
+  r: 4px;
 }
 
 text.node-text-label.inactive-stub {
@@ -261,6 +261,70 @@ text.node-text-label.inactive-stub {
   font-size: 10px;
   font-family: monospace;
   text-anchor: middle;
+}
+
+/* Candidate evaluation styles for junction points */
+@keyframes branchPulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 4.5px;
+    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.8));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+}
+
+@keyframes nodePulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 3px;
+    fill: #cffafe;
+    filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.7));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+}
+
+.tree-edge.candidate-branch {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: branchPulse 1.5s ease-in-out infinite !important;
+}
+
+.tree-node.candidate-node {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: nodePulse 1.5s ease-in-out infinite !important;
+}
+
+.candidate-edge-group {
+  .digit-bg {
+    stroke: #06b6d4 !important;
+    stroke-width: 1.5px !important;
+    fill: #ecfeff !important;
+  }
+  .digit-label {
+    fill: #0891b2 !important;
+    font-weight: bold !important;
+  }
 }
 
 /* Target marker flag */

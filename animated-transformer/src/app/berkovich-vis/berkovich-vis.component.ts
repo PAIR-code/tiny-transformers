@@ -141,6 +141,42 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     }
   });
 
+  readonly isEvaluatingJunction = computed(() => {
+    const rho = this.currentLogRadius();
+    return Math.abs(rho - Math.round(rho)) < 1e-7;
+  });
+
+  readonly junctionCandidates = computed(() => {
+    if (!this.isEvaluatingJunction()) {
+      return { nodes: new Set<string>(), edges: new Set<string>() };
+    }
+    
+    const c = this.currentCenter();
+    const rho = Math.round(this.currentLogRadius());
+    const targetNodeId = `${formatRational(c)}_${rho}`;
+    
+    const candidateEdges = new Set<string>();
+    const candidateNodes = new Set<string>();
+    
+    for (const edge of this.treeVisuals().edges) {
+      if (edge.id.startsWith(targetNodeId + '_to_')) {
+        candidateEdges.add(edge.id);
+      }
+    }
+    
+    for (const node of this.treeVisuals().nodes) {
+      if (node.id !== targetNodeId) {
+        const childEdgeId = `${targetNodeId}_to_${node.id}`;
+        const parentEdgeId = `${node.id}_to_${targetNodeId}`;
+        if (candidateEdges.has(childEdgeId) || candidateEdges.has(parentEdgeId)) {
+          candidateNodes.add(node.id);
+        }
+      }
+    }
+    
+    return { nodes: candidateNodes, edges: candidateEdges };
+  });
+
   // Calculate current distance and loss
   readonly currentDistanceValuation = computed(() => {
     const p = BigInt(this.prime());
