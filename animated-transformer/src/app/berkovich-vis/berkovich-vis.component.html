@@ -167,7 +167,7 @@
           @if (!isConfigCollapsed()) {
             <div class="input-row">
               <!-- Prime selection -->
-              <mat-form-field appearance="outline" class="flex-field">
+              <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Prime Field (p)</mat-label>
                 <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
                   <mat-option [value]="2">p = 2 (Binary)</mat-option>
@@ -175,60 +175,63 @@
                   <mat-option [value]="5">p = 5 (Quinary)</mat-option>
                 </mat-select>
               </mat-form-field>
-            </div>
 
-            <div class="input-row">
-              <mat-form-field appearance="outline" class="flex-field">
+              <!-- Target Value (y) -->
+              <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Target Value (y)</mat-label>
                 <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
-                <mat-hint>Supports fractions (e.g. 5/3) or decimals</mat-hint>
+                <mat-hint>Supports fractions or decimals</mat-hint>
               </mat-form-field>
             </div>
 
             <div class="input-row">
-              <mat-form-field appearance="outline" class="flex-field">
+              <!-- Init Center (c) -->
+              <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Init Center (c)</mat-label>
                 <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
-                <mat-hint>Initial starting center parameter value</mat-hint>
+                <mat-hint>Initial starting center</mat-hint>
               </mat-form-field>
             </div>
 
-            <!-- Log-radius and LR sliders -->
-            <div class="slider-group">
-              <div class="slider-label">
-                <span>Init Log-Radius (&rho;):</span>
-                <span class="value-badge">{{ initLogRadius().toFixed(1) }}</span>
-              </div>
-              <mat-slider min="-2" max="2" step="0.5" showTickMarksDiscrete>
-                <input matSliderThumb [value]="initLogRadius()" (valueChange)="initLogRadius.set($event)" />
-              </mat-slider>
-            </div>
+            <div class="input-row">
+              <!-- Init Log-Radius (rho) -->
+              <mat-form-field appearance="outline" class="half-field">
+                <mat-label>Init Log-Radius (&rho;)</mat-label>
+                <input matInput type="number" step="0.5" min="-2" max="2" [value]="logRadiusInput()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
+                <mat-hint>Range [-2.0, 2.0]</mat-hint>
+              </mat-form-field>
 
-            <div class="slider-group">
-              <div class="slider-label">
-                <span>Learning Rate (&eta;):</span>
-                <span class="value-badge">{{ learningRate().toFixed(2) }}</span>
-              </div>
-              <mat-slider min="0.05" max="0.5" step="0.05">
-                <input matSliderThumb [value]="learningRate()" (valueChange)="learningRate.set($event)" />
-              </mat-slider>
+              <!-- Learning Rate (eta) -->
+              <mat-form-field appearance="outline" class="half-field">
+                <mat-label>Learning Rate (&eta;)</mat-label>
+                <input matInput type="number" step="0.05" min="0.01" max="1.0" [value]="learningRateInput()" (change)="learningRateInput.set(lrField.value)" (blur)="onLearningRateBlur()" #lrField />
+                <mat-hint>Gradient step scale</mat-hint>
+              </mat-form-field>
             </div>
           }
 
-          <!-- Playback controls -->
-          <div class="controls-row">
-            <button mat-flat-button color="primary" (click)="togglePlay()">
-              <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
-              {{ isPlaying() ? 'Pause' : 'Animate' }}
-            </button>
-            <button mat-stroked-button (click)="step()" [disabled]="isPlaying()">
-              <mat-icon>skip_next</mat-icon>
-              Step
-            </button>
-            <button mat-stroked-button (click)="reset()">
-              <mat-icon>replay</mat-icon>
-              Reset
-            </button>
+          <!-- Playback controls in 2x2 grid -->
+          <div class="controls-grid">
+            <div class="controls-row">
+              <button mat-flat-button color="primary" (click)="togglePlay()">
+                <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+                {{ isPlaying() ? 'Pause' : 'Animate' }}
+              </button>
+              <button mat-stroked-button (click)="step()" [disabled]="isPlaying()">
+                <mat-icon>skip_next</mat-icon>
+                Step
+              </button>
+            </div>
+            <div class="controls-row">
+              <button mat-stroked-button (click)="undo()" [disabled]="stepCount() === 0">
+                <mat-icon>undo</mat-icon>
+                Undo
+              </button>
+              <button mat-stroked-button (click)="reset()">
+                <mat-icon>replay</mat-icon>
+                Reset
+              </button>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>

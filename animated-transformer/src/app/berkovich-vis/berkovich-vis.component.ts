@@ -93,8 +93,18 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
   readonly centerInput = signal<string>('0');
-  readonly initLogRadius = signal<number>(2.0);
-  readonly learningRate = signal<number>(0.2);
+  readonly logRadiusInput = signal<string>('2.0');
+  readonly learningRateInput = signal<string>('0.20');
+
+  readonly initLogRadius = computed(() => {
+    const v = parseFloat(this.logRadiusInput());
+    return isNaN(v) ? 2.0 : v;
+  });
+
+  readonly learningRate = computed(() => {
+    const v = parseFloat(this.learningRateInput());
+    return isNaN(v) ? 0.20 : v;
+  });
   
   // Simulation run state
   readonly currentCenter = signal<Rational>({ num: 0n, den: 1n });
@@ -612,6 +622,23 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     }
   }
 
+  undo(): void {
+    if (this.isPlaying()) {
+      this.stopAnimation();
+    }
+    const currentHist = this.history();
+    if (currentHist.length <= 1) {
+      return;
+    }
+    const newHist = currentHist.slice(0, -1);
+    const prevStep = newHist[newHist.length - 1];
+    
+    this.currentCenter.set(prevStep.center);
+    this.currentLogRadius.set(prevStep.logRadius);
+    this.stepCount.set(prevStep.step);
+    this.history.set(newHist);
+  }
+
   toggleConfigCollapse(): void {
     this.isConfigCollapsed.update(c => !c);
   }
@@ -651,6 +678,26 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     } catch {
       this.centerInput.set('0');
     }
+  }
+
+  onLogRadiusBlur(): void {
+    let v = parseFloat(this.logRadiusInput());
+    if (isNaN(v)) {
+      v = 2.0;
+    } else {
+      v = Math.max(-2, Math.min(2, v));
+    }
+    this.logRadiusInput.set(v.toFixed(1));
+  }
+
+  onLearningRateBlur(): void {
+    let v = parseFloat(this.learningRateInput());
+    if (isNaN(v)) {
+      v = 0.2;
+    } else {
+      v = Math.max(0.01, Math.min(1.0, v));
+    }
+    this.learningRateInput.set(v.toFixed(2));
   }
 
   // Format helper for history center values

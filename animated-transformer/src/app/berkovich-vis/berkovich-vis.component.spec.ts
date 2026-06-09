@@ -111,8 +111,8 @@ describe('BerkovichVisComponent', () => {
     component.prime.set(3);
     component.targetInput.set('5/3');
     component.centerInput.set('0');
-    component.initLogRadius.set(2.0);
-    component.learningRate.set(0.5);
+    component.logRadiusInput.set('2.0');
+    component.learningRateInput.set('0.5');
 
     fixture.detectChanges();
   });
@@ -168,5 +168,46 @@ describe('BerkovichVisComponent', () => {
     expect(component.stepCount()).toBe(3);
     expect(component.currentLogRadius()).toBe(0.0);
     expect(formatRational(component.currentCenter())).toBe('2/3');
+  });
+
+  it('should support undoing the last step and restoring previous state', () => {
+    // Initialize starting state
+    component.currentLogRadius.set(1.8);
+    component.stepCount.set(0);
+    component.history.set([{
+      step: 0,
+      center: parseToRational('0'),
+      logRadius: 1.8,
+      loss: 2.0,
+      type: 'Initialization'
+    }]);
+
+    // Step 1: rho -> 1.3
+    component.step();
+    expect(component.stepCount()).toBe(1);
+    expect(component.currentLogRadius()).toBe(1.3);
+
+    // Step 2: rho -> 1.0 (snapped)
+    component.step();
+    expect(component.stepCount()).toBe(2);
+    expect(component.currentLogRadius()).toBe(1.0);
+
+    // Undo Step 2 -> restores Step 1 (rho = 1.3)
+    component.undo();
+    expect(component.stepCount()).toBe(1);
+    expect(component.currentLogRadius()).toBe(1.3);
+    expect(component.history().length).toBe(2);
+
+    // Undo Step 1 -> restores Step 0 (rho = 1.8)
+    component.undo();
+    expect(component.stepCount()).toBe(0);
+    expect(component.currentLogRadius()).toBe(1.8);
+    expect(component.history().length).toBe(1);
+
+    // Undo at initialization level should be a no-op
+    component.undo();
+    expect(component.stepCount()).toBe(0);
+    expect(component.currentLogRadius()).toBe(1.8);
+    expect(component.history().length).toBe(1);
   });
 });
