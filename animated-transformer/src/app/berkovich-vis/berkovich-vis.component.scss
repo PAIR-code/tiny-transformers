@@ -167,11 +167,8 @@ mat-card {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
   overflow: auto;
-  padding: 8px !important;
+  padding: 0 !important;
 }
 
 .tree-svg {

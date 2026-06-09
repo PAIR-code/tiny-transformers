@@ -121,7 +121,7 @@
               [attr.y]="rhoToY(currentLogRadius()) + 4"
               class="rho-level-text"
             >
-              ρ = {{ currentLogRadius() | number:'1.2-2' }}
+              ρ = {{ currentLogRadius().toFixed(2) }}
             </text>
 
             <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
@@ -197,14 +197,14 @@
               <!-- Init Log-Radius (rho) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Init Log-Radius (&rho;)</mat-label>
-                <input matInput type="number" step="0.5" min="-2" max="2" [value]="logRadiusInput()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
+                <input matInput [value]="logRadiusInput()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
                 <mat-hint>Range [-2.0, 2.0]</mat-hint>
               </mat-form-field>
 
               <!-- Learning Rate (eta) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Learning Rate (&eta;)</mat-label>
-                <input matInput type="number" step="0.05" min="0.01" max="1.0" [value]="learningRateInput()" (change)="learningRateInput.set(lrField.value)" (blur)="onLearningRateBlur()" #lrField />
+                <input matInput [value]="learningRateInput()" (change)="learningRateInput.set(lrField.value)" (blur)="onLearningRateBlur()" #lrField />
                 <mat-hint>Gradient step scale</mat-hint>
               </mat-form-field>
             </div>

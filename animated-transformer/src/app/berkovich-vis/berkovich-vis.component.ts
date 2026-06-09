@@ -596,8 +596,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       type: stepType
     }]);
     
-    // Stop playing if loss is very close to 0 or radius is locked onto target
-    if (lossVal < 1e-7 || (nextLogRadius < -4.0 && Math.abs(rationalToNumber(nextCenter) - rationalToNumber(y)) < 1e-7)) {
+    // Stop playing if we reach the leaf resolution limit of the tree
+    if (nextLogRadius <= this.rhoMin) {
       this.stopAnimation();
     }
   }
