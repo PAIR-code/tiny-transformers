@@ -179,26 +179,32 @@ mat-card {
 /* Tree SVG elements styling */
 .tree-node-group {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+  animation: mountSlideFade 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .digit-label-group {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+  animation: mountSlideFade 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-edge-group {
-  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .parameter-overlay {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes mountSlideFade {
+  from {
+    opacity: 0;
+    transform: translate(var(--start-x), var(--start-y));
+  }
 }
 
 .tree-edge {
@@ -256,8 +262,7 @@ mat-card {
   r: 3.5px;
 }
 
-/* Collapsed stubs (faded/dotted) styles */
-line.inactive-stub {
+.tree-edge.inactive-stub {
   stroke-dasharray: 2 3;
   stroke: #94a3b8;
   stroke-width: 1.5;
@@ -399,6 +404,10 @@ text.node-text-label.inactive-stub {
 }
 
 /* Continuous Log-Radius level line indicator */
+.rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .rho-level-line {
   fill: none;
   stroke: #8b5cf6;
@@ -937,7 +946,8 @@ text.node-text-label.inactive-stub {
   .tree-node-group,
   .digit-label-group,
   .parameter-overlay,
-  .tree-edge {
+  .tree-edge,
+  .rho-level-group {
     transition: none !important;
   }
 }

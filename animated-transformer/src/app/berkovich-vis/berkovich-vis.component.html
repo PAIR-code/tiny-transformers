@@ -59,7 +59,12 @@
                   class="tree-edge"
                 />
                 <!-- Branch Digit Labels -->
-                <g class="digit-label-group" [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'">
+                <g
+                  class="digit-label-group"
+                  [style.--start-x.px]="edge.startX ?? (edge.x1 + edge.x2) / 2"
+                  [style.--start-y.px]="edge.startY ?? (edge.y1 + edge.y2) / 2"
+                  [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+                >
                   <circle
                     cx="0"
                     cy="0"
@@ -81,7 +86,12 @@
  
             <!-- Draw Nodes -->
             @for (node of treeVisuals().nodes; track node.id) {
-              <g class="tree-node-group" [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'">
+              <g
+                class="tree-node-group"
+                [style.--start-x.px]="node.startX ?? node.x"
+                [style.--start-y.px]="node.startY ?? node.y"
+                [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
+              >
                 <circle
                   cx="0"
                   cy="0"
@@ -117,61 +127,52 @@
               }
             }
 
-            <!-- Continuous Log-Radius (Rho) Level Line Indicator -->
-            <line
-              x1="30"
-              [attr.y1]="rhoToY(currentLogRadius())"
-              x2="720"
-              [attr.y2]="rhoToY(currentLogRadius())"
-              class="rho-level-line"
-            />
-            <line
-              x1="30"
-              [attr.y1]="rhoToY(currentLogRadius())"
-              x2="720"
-              [attr.y2]="rhoToY(currentLogRadius())"
-              class="rho-drag-handle"
-              (pointerdown)="onPointerDown($event)"
-            />
-            <!-- Drag-able Label outline background box -->
-            <rect
-              x="722"
-              [attr.y]="rhoToY(currentLogRadius()) - 9"
-              width="73"
-              height="18"
-              rx="3"
-              ry="3"
-              class="rho-label-bg"
-              (pointerdown)="onPointerDown($event)"
-            />
-            <text
-              x="726"
-              [attr.y]="rhoToY(currentLogRadius()) + 1"
-              class="rho-level-text"
-            >
-              ρ = {{ currentLogRadius().toFixed(2) }}
-            </text>
-
+            <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
+            <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
+              <line
+                x1="30"
+                y1="0"
+                x2="720"
+                y2="0"
+                class="rho-level-line"
+              />
+              <line
+                x1="30"
+                y1="0"
+                x2="720"
+                y2="0"
+                class="rho-drag-handle"
+                (pointerdown)="onPointerDown($event)"
+              />
+              <!-- Drag-able Label outline background box -->
+              <rect
+                x="722"
+                y="-9"
+                width="73"
+                height="18"
+                rx="3"
+                ry="3"
+                class="rho-label-bg"
+                (pointerdown)="onPointerDown($event)"
+              />
+              <text
+                x="726"
+                y="1"
+                class="rho-level-text"
+              >
+                ρ = {{ currentLogRadius().toFixed(2) }}
+              </text>
+            </g>
+ 
             <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
-            @for (node of treeVisuals().nodes; track node.id) {
-              @if (isCurrentParameterVertex(node)) {
-                <g class="parameter-overlay" [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'">
-                  <circle
-                    cx="0"
-                    cy="0"
-                    r="12"
-                    class="parameter-halo"
-                  />
-                  <text
-                    x="16"
-                    y="0"
-                    class="parameter-node-label"
-                  >
-                    c = {{ formatRationalValue(currentCenter()) }}
-                  </text>
-                </g>
-              }
-            }
+            <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
+              <circle
+                cx="0"
+                cy="0"
+                r="12"
+                class="parameter-halo"
+              />
+            </g>
           </svg>
         </mat-card-content>
       </mat-card>
@@ -203,12 +204,22 @@
                   <mat-option [value]="5">p = 5 (Quinary)</mat-option>
                 </mat-select>
               </mat-form-field>
+            </div>
 
+            <div class="input-row">
               <!-- Target Value (y) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Target Value (y)</mat-label>
                 <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
                 <mat-hint>fractions or decimals</mat-hint>
+              </mat-form-field>
+
+              <!-- Target Digits (p^2 ... p^-2) -->
+              <mat-form-field appearance="outline" class="half-field">
+                <mat-label>Target Digits (p^2 ... p^-2)</mat-label>
+                <input matInput [value]="targetDigitsInput()" (change)="targetDigitsInput.set(targetDigitsField.value)"
+                  (blur)="onTargetDigitsBlur()" #targetDigitsField />
+                <mat-hint>base-p digits</mat-hint>
               </mat-form-field>
             </div>
 
@@ -216,14 +227,14 @@
               <!-- Init Center (c) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Init Center (c)</mat-label>
-                <input matInput [value]="centerInput()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
+                <input matInput [value]="displayCenter()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
                 <mat-hint>fractions/decimals</mat-hint>
                 </mat-form-field>
                 
                 <!-- Center Digits (p^2 ... p^-2) -->
                 <mat-form-field appearance="outline" class="half-field">
                   <mat-label>Center Digits (p^2 ... p^-2)</mat-label>
-                  <input matInput [value]="centerDigitsInput()" (change)="centerDigitsInput.set(digitsField.value)"
+                  <input matInput [value]="displayCenterDigits()" (change)="centerDigitsInput.set(digitsField.value)"
                     (blur)="onCenterDigitsBlur()" #digitsField />
                   <mat-hint>base-p digits</mat-hint>
               </mat-form-field>
@@ -233,7 +244,7 @@
               <!-- Init Log-Radius (rho) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Init Log-Radius (&rho;)</mat-label>
-                <input matInput [value]="logRadiusInput()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
+                <input matInput [value]="displayLogRadius()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
                 <mat-hint>Range [-2.0, 2.0]</mat-hint>
               </mat-form-field>
 

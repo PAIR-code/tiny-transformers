@@ -57,6 +57,8 @@ interface VisualNode {
   logRadius: number;
   label: string;
   isActive: boolean;
+  startX?: number;
+  startY?: number;
 }
 
 interface VisualEdge {
@@ -67,6 +69,8 @@ interface VisualEdge {
   y2: number;
   digitLabel: string;
   isActive: boolean;
+  startX?: number;
+  startY?: number;
 }
 
 @Component({
@@ -92,6 +96,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   // Configurable parameters
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
+  readonly targetDigitsInput = signal<string>('0 0 1 2');
   readonly centerInput = signal<string>('0');
   readonly centerDigitsInput = signal<string>('0 0 0 0 0');
   readonly logRadiusInput = signal<string>('2.0');
@@ -107,6 +112,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     return isNaN(v) ? 0.20 : v;
   });
   
+  // Track previous node positions for slide-out animations
+  private lastPositions = new Map<string, { x: number, y: number }>();
+  
   // Simulation run state
   readonly currentCenter = signal<Rational>({ num: 0n, den: 1n });
   readonly currentLogRadius = signal<number>(2.0);
@@ -121,12 +129,35 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly isConfigCollapsed = signal<boolean>(false);
   readonly isDraggingRho = signal<boolean>(false);
   
+  // Real-time displaying values for parameters inputs
+  readonly displayCenter = computed(() => {
+    if (this.stepCount() > 0) {
+      return formatRational(this.currentCenter());
+    }
+    return this.centerInput();
+  });
+
+  readonly displayCenterDigits = computed(() => {
+    const p = BigInt(this.prime());
+    if (this.stepCount() > 0) {
+      return this.formatCenterDigits(this.currentCenter(), p);
+    }
+    return this.centerDigitsInput();
+  });
+
+  readonly displayLogRadius = computed(() => {
+    if (this.stepCount() > 0 || this.isDraggingRho()) {
+      return this.currentLogRadius().toFixed(2);
+    }
+    return this.logRadiusInput();
+  });
+  
   // Parse targets and starting conditions
   readonly targetRational = computed(() => {
     const p = BigInt(this.prime());
     try {
       const raw = parseToRational(this.targetInput());
-      return truncateToTreeRange(raw, p, -2, 2);
+      return truncateToTreeRange(raw, p, -1, 2);
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -136,7 +167,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const raw = parseToRational(this.centerInput());
-      return truncateToTreeRange(raw, p, -2, 2);
+      return truncateToTreeRange(raw, p, -1, 2);
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -229,9 +260,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const nodeSpacing = 40; // minimum base spacing for leaf/stub nodes
     
     // Pass 1: Build topology and calculate subtree widths bottom-up
-    const buildNode = (c: Rational, rho: number): LayoutNode => {
+    const buildNode = (c: Rational, rho: number, parentId?: string): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
-      const nodeActive = getValuation(subtract(y, c), p) >= -rho || getValuation(subtract(c_curr, c), p) >= -rho;
+      const nodeActive =
+        getValuation(subtract(y, c), p) >= -rho + 1 || getValuation(subtract(c_curr, c), p) >= -rho + 1;
       
       const children: LayoutNode[] = [];
       let width = nodeSpacing;
@@ -241,13 +273,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         for (let g = 0; g < pNum; g++) {
           const childRho = rho - 1;
           let shift: Rational;
-          if (rho >= 0) {
-            shift = simplify({ num: BigInt(g), den: p ** BigInt(rho) });
+          const power = -rho + 1;
+          if (power <= 0) {
+            shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
           } else {
-            shift = simplify({ num: BigInt(g) * (p ** BigInt(-rho)), den: 1n });
+            shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
           }
           const childCenter = add(c, shift);
-          const childNode = buildNode(childCenter, childRho);
+          const childNode = buildNode(childCenter, childRho, nodeId);
           children.push(childNode);
           childrenWidthSum += childNode.width;
         }
@@ -264,7 +297,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       };
     };
     
-    const rootNode = buildNode({ num: 0n, den: 1n }, this.rhoMax);
+    const rootCenter = simplify({ num: 0n, den: 1n });
+    const rootNode = buildNode(rootCenter, this.rhoMax, undefined);
+    const totalRootWidth = rootNode.width;
     
     // Pass 2: Position nodes and edges top-down
     const nodes: VisualNode[] = [];
@@ -281,6 +316,17 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       const xCoord = leftX + node.width / 2;
       const yCoord = this.paddingY + (this.rhoMax - node.rho) * stepY;
       
+      // Look up parent previous position for slide-out starting coordinates
+      let startX: number | undefined;
+      let startY: number | undefined;
+      if (parentId) {
+        const prevParent = this.lastPositions.get(parentId);
+        if (prevParent) {
+          startX = prevParent.x;
+          startY = prevParent.y;
+        }
+      }
+      
       nodes.push({
         id: node.id,
         x: xCoord,
@@ -288,7 +334,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         center: node.center,
         logRadius: node.rho,
         label: `${formatRational(node.center)} (p^${node.rho})`,
-        isActive: node.isActive
+        isActive: node.isActive,
+        startX,
+        startY
       });
       
       if (parentId !== undefined && parentX !== undefined && parentY !== undefined && digitLabel !== undefined) {
@@ -299,7 +347,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
           x2: xCoord,
           y2: yCoord,
           digitLabel,
-          isActive: node.isActive
+          isActive: node.isActive,
+          startX,
+          startY
         });
       }
       
@@ -323,10 +373,42 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       }
     };
     
-    const startLeftX = (this.svgWidth - rootNode.width) / 2;
+    const startLeftX = (this.svgWidth - totalRootWidth) / 2;
     positionNode(rootNode, startLeftX);
     
     return { nodes, edges };
+  });
+
+  readonly currentParameterCoord = computed(() => {
+    const c_curr = this.currentCenter();
+    const rho = this.currentLogRadius();
+    const p = BigInt(this.prime());
+    const yCoord = this.rhoToY(rho);
+    const nodes = this.treeVisuals().nodes;
+    
+    const k_parent = Math.ceil(rho);
+    const k_child = Math.floor(rho);
+    
+    const parentNode = nodes.find(n => 
+      n.logRadius === k_parent && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius + 1
+    );
+    const childNode = nodes.find(n => 
+      n.logRadius === k_child && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius + 1
+    );
+    
+    let xCoord: number;
+    if (parentNode && childNode && k_parent !== k_child) {
+      const t = (k_parent - rho) / (k_parent - k_child);
+      xCoord = parentNode.x + t * (childNode.x - parentNode.x);
+    } else if (parentNode) {
+      xCoord = parentNode.x;
+    } else if (childNode) {
+      xCoord = childNode.x;
+    } else {
+      xCoord = this.svgWidth / 2;
+    }
+    
+    return { x: xCoord, y: yCoord };
   });
 
   // Paths along the tree towards target y and current center c
@@ -336,9 +418,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const visuals = this.treeVisuals();
     const edgeIds = new Set<string>();
     
-    const pathNodes = visuals.nodes.filter(n => 
-      getValuation(subtract(y, n.center), p) >= -n.logRadius
-    );
+    const pathNodes = visuals.nodes.filter(n => {
+      const prefix = this.getPrefixCenter(y, n.logRadius, p);
+      return formatRational(n.center) === formatRational(prefix);
+    });
     
     for (const edge of visuals.edges) {
       const fromNode = visuals.nodes.find(n => n.x === edge.x1 && n.y === edge.y1);
@@ -361,9 +444,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const visuals = this.treeVisuals();
     const edgeIds = new Set<string>();
     
-    const pathNodes = visuals.nodes.filter(n => 
-      getValuation(subtract(c, n.center), p) >= -n.logRadius
-    );
+    const pathNodes = visuals.nodes.filter(n => {
+      const prefix = this.getPrefixCenter(c, n.logRadius, p);
+      return formatRational(n.center) === formatRational(prefix);
+    });
     
     for (const edge of visuals.edges) {
       const fromNode = visuals.nodes.find(n => n.x === edge.x1 && n.y === edge.y1);
@@ -439,7 +523,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       });
     }
     
-    return columns;
+    return columns.reverse();
   });
 
   // Dynamic gradient and calculus updates
@@ -537,6 +621,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     // Re-initialize state when config parameters change
     effect(() => {
       this.prime();
+      this.targetRational();
       this.initCenterRational();
       this.initLogRadius();
       untracked(() => {
@@ -550,6 +635,27 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       const p = BigInt(this.prime());
       untracked(() => {
         this.centerDigitsInput.set(this.formatCenterDigits(c, p));
+      });
+    });
+
+    // Keep target digit sequence string in sync with target rational and prime
+    effect(() => {
+      const y = this.targetRational();
+      const p = BigInt(this.prime());
+      untracked(() => {
+        this.targetDigitsInput.set(this.formatCenterDigits(y, p));
+      });
+    });
+
+    // Track previous node positions for slide-out animations
+    effect(() => {
+      const visuals = this.treeVisuals();
+      const nextMap = new Map<string, { x: number, y: number }>();
+      for (const node of visuals.nodes) {
+        nextMap.set(node.id, { x: node.x, y: node.y });
+      }
+      untracked(() => {
+        this.lastPositions = nextMap;
       });
     });
   }
@@ -608,10 +714,11 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       // Children candidates
       for (let g = 0; g < Number(p); g++) {
         let shift: Rational;
-        if (k >= 0) {
-          shift = simplify({ num: BigInt(g), den: p ** BigInt(k) });
+        const power = -k + 1;
+        if (power <= 0) {
+          shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
         } else {
-          shift = simplify({ num: BigInt(g) * (p ** BigInt(-k)), den: 1n });
+          shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
         }
         const childCenter = add(c, shift);
         const childDiff = subtract(childCenter, y);
@@ -627,13 +734,21 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         });
       }
       
-      // Find candidate that minimizes loss
+      // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
       let minLoss = Infinity;
+      let maxValuation = -Infinity;
       let bestCand = candidates[0];
       for (const cand of candidates) {
+        const valShift = getValuation(subtract(y, cand.center), p);
         if (cand.lossVal < minLoss) {
           minLoss = cand.lossVal;
+          maxValuation = valShift;
           bestCand = cand;
+        } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
+          if (valShift > maxValuation) {
+            maxValuation = valShift;
+            bestCand = cand;
+          }
         }
       }
       
@@ -681,9 +796,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   }
 
   isNodeOnTargetPath(node: VisualNode): boolean {
-    const p = BigInt(this.prime());
     const y = this.targetRational();
-    return getValuation(subtract(y, node.center), p) >= -node.logRadius;
+    return node.logRadius === this.rhoMin && formatRational(node.center) === formatRational(y);
   }
 
   isNodeOnParameterPath(node: VisualNode): boolean {
@@ -740,10 +854,45 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const r = parseToRational(this.targetInput());
-      const truncated = truncateToTreeRange(r, p, -2, 2);
+      const truncated = truncateToTreeRange(r, p, -1, 2);
       this.targetInput.set(formatRational(truncated));
     } catch {
       this.targetInput.set('0');
+    }
+  }
+
+  onTargetDigitsBlur(): void {
+    const p = BigInt(this.prime());
+    try {
+      const tokens = this.targetDigitsInput().trim().split(/[\s,]+/);
+      const digits = tokens.map(t => {
+        const d = parseInt(t, 10);
+        return isNaN(d) ? 0 : Math.max(0, Math.min(Number(p) - 1, d));
+      });
+      while (digits.length < 4) {
+        digits.unshift(0);
+      }
+      const finalDigits = digits.slice(-4);
+      
+      const powers = [2, 1, 0, -1];
+      let sum: Rational = { num: 0n, den: 1n };
+      for (let i = 0; i < 4; i++) {
+        const k = powers[i];
+        const a = BigInt(finalDigits[i]);
+        let term: Rational;
+        if (k >= 0) {
+          term = { num: a * (p ** BigInt(k)), den: 1n };
+        } else {
+          term = { num: a, den: p ** BigInt(-k) };
+        }
+        sum = simplify(add(sum, term));
+      }
+      
+      this.targetInput.set(formatRational(sum));
+      this.targetDigitsInput.set(finalDigits.join(' '));
+    } catch {
+      this.targetInput.set('0');
+      this.targetDigitsInput.set('0 0 0 0');
     }
   }
 
@@ -751,15 +900,34 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const r = parseToRational(this.centerInput());
-      const truncated = truncateToTreeRange(r, p, -2, 2);
+      const truncated = truncateToTreeRange(r, p, -1, 2);
       this.centerInput.set(formatRational(truncated));
     } catch {
       this.centerInput.set('0');
     }
   }
 
+  getPrefixCenter(x: Rational, rho: number, p: bigint): Rational {
+    const aligned = getAlignedDigits(x, p, -1, 2);
+    let sum: Rational = { num: 0n, den: 1n };
+    for (const item of aligned) {
+      if (item.power < -rho + 1) {
+        const k = item.power;
+        const a = BigInt(item.digit);
+        let term: Rational;
+        if (k >= 0) {
+          term = { num: a * (p ** BigInt(k)), den: 1n };
+        } else {
+          term = { num: a, den: p ** BigInt(-k) };
+        }
+        sum = simplify(add(sum, term));
+      }
+    }
+    return sum;
+  }
+
   formatCenterDigits(c: Rational, p: bigint): string {
-    const aligned = getAlignedDigits(c, p, -2, 2);
+    const aligned = getAlignedDigits(c, p, -1, 2);
     const reversed = [...aligned].reverse();
     return reversed.map(d => d.digit).join(' ');
   }
@@ -772,14 +940,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         const d = parseInt(t, 10);
         return isNaN(d) ? 0 : Math.max(0, Math.min(Number(p) - 1, d));
       });
-      while (digits.length < 5) {
+      while (digits.length < 4) {
         digits.unshift(0);
       }
-      const finalDigits = digits.slice(-5);
+      const finalDigits = digits.slice(-4);
       
-      const powers = [2, 1, 0, -1, -2];
+      const powers = [2, 1, 0, -1];
       let sum: Rational = { num: 0n, den: 1n };
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 4; i++) {
         const k = powers[i];
         const a = BigInt(finalDigits[i]);
         let term: Rational;
@@ -841,6 +1009,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       rho = Math.max(this.rhoMin, Math.min(this.rhoMax, rho));
       
       this.currentLogRadius.set(rho);
+      if (this.stepCount() === 0) {
+        this.logRadiusInput.set(rho.toFixed(2));
+      }
     }
   }
 

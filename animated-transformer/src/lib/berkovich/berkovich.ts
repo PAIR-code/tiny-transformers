@@ -236,10 +236,11 @@ export function computeVertexCandidates(
   // Children candidates
   for (let g = 0; g < Number(p); g++) {
     let shift: Rational;
-    if (k >= 0) {
-      shift = simplify({ num: BigInt(g), den: p ** BigInt(k) });
+    const power = -k + 1;
+    if (power <= 0) {
+      shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
     } else {
-      shift = simplify({ num: BigInt(g) * (p ** BigInt(-k)), den: 1n });
+      shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
     }
     const childCenter = add(c, shift);
     const childDiff = subtract(childCenter, y);
