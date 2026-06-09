@@ -329,6 +329,17 @@ text.node-text-label.inactive-stub {
   transition: y 0.2s ease;
 }
 
+/* Parameter center label next to the active node */
+.parameter-node-label {
+  fill: #8b5cf6; /* purple parameter accent */
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  text-anchor: start;
+  dominant-baseline: central;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8));
+}
+
 /* Control Panel Section */
 .control-panel {
   display: flex;

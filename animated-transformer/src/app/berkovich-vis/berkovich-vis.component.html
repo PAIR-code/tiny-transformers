@@ -83,15 +83,6 @@
                   [class.inactive-stub]="!node.isActive"
                   class="tree-node"
                 />
-                <!-- Glowing fixed-position halo around current parameter vertex -->
-                @if (isCurrentParameterVertex(node)) {
-                  <circle
-                    [attr.cx]="node.x"
-                    [attr.cy]="node.y"
-                    r="12"
-                    class="parameter-halo"
-                  />
-                }
                 <!-- Label for nodes at the top (root) and bottom (leaves) -->
                 @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
                   <text
@@ -132,6 +123,27 @@
             >
               ρ = {{ currentLogRadius() | number:'1.2-2' }}
             </text>
+
+            <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
+            @for (node of treeVisuals().nodes; track node.id) {
+              @if (isCurrentParameterVertex(node)) {
+                <g class="parameter-overlay">
+                  <circle
+                    [attr.cx]="node.x"
+                    [attr.cy]="node.y"
+                    r="12"
+                    class="parameter-halo"
+                  />
+                  <text
+                    [attr.x]="node.x + 16"
+                    [attr.y]="node.y"
+                    class="parameter-node-label"
+                  >
+                    c = {{ formatRationalValue(currentCenter()) }}
+                  </text>
+                </g>
+              }
+            }
           </svg>
         </mat-card-content>
       </mat-card>
