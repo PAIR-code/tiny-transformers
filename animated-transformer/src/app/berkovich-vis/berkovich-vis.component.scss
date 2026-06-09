@@ -177,11 +177,35 @@ mat-card {
 }
 
 /* Tree SVG elements styling */
+.tree-node-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+}
+
+.digit-label-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+}
+
+.tree-edge-group {
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+}
+
+.parameter-overlay {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .tree-edge {
   fill: none;
   stroke: #cbd5e1;
   stroke-width: 1.5;
-  transition: stroke 0.3s, stroke-width 0.3s;
+  transition: stroke 0.3s, stroke-width 0.3s, d 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-edge.target-path {
@@ -203,6 +227,7 @@ mat-card {
   fill: #ffffff;
   stroke: #e2e8f0;
   stroke-width: 1;
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .digit-label {
@@ -211,11 +236,12 @@ mat-card {
   fill: #475569;
   text-anchor: middle;
   dominant-baseline: central;
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-node {
   stroke-width: 1;
-  transition: fill 0.3s, r 0.3s;
+  transition: fill 0.3s, r 0.3s, cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-node.vertex-node {
@@ -261,6 +287,7 @@ text.node-text-label.inactive-stub {
   font-size: 10px;
   font-family: monospace;
   text-anchor: middle;
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Candidate evaluation styles for junction points */
@@ -353,6 +380,7 @@ text.node-text-label.inactive-stub {
   stroke-width: 2.5;
   filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
   animation: halo-pulse 1.8s infinite ease-in-out;
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1), r 0.3s;
 }
 
 @keyframes halo-pulse {
@@ -420,6 +448,7 @@ text.node-text-label.inactive-stub {
   text-anchor: start;
   dominant-baseline: central;
   filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8));
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Control Panel Section */
@@ -900,5 +929,15 @@ text.node-text-label.inactive-stub {
       color: #334155;
       font-family: sans-serif;
     }
+  }
+}
+
+/* Disable transitions during active pointer dragging to maintain zero-latency snappiness */
+.dragging-active {
+  .tree-node-group,
+  .digit-label-group,
+  .parameter-overlay,
+  .tree-edge {
+    transition: none !important;
   }
 }

@@ -32,6 +32,7 @@
           <svg
             [attr.width]="svgWidth"
             [attr.height]="svgHeight"
+            [class.dragging-active]="isDraggingRho()"
             class="tree-svg"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
@@ -48,11 +49,8 @@
             <!-- Draw Edges -->
             @for (edge of treeVisuals().edges; track edge.id) {
               <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
-                <line
-                  [attr.x1]="edge.x1"
-                  [attr.y1]="edge.y1"
-                  [attr.x2]="edge.x2"
-                  [attr.y2]="edge.y2"
+                <path
+                  [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
                   [class.target-path]="targetPathEdges().has(edge.id)"
                   [class.parameter-path]="parameterPathEdges().has(edge.id)"
                   [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
@@ -61,30 +59,32 @@
                   class="tree-edge"
                 />
                 <!-- Branch Digit Labels -->
-                <circle
-                  [attr.cx]="(edge.x1 + edge.x2) / 2"
-                  [attr.cy]="(edge.y1 + edge.y2) / 2"
-                  r="9"
-                  [class.inactive-stub]="!edge.isActive"
-                  class="digit-bg"
-                />
-                <text
-                  [attr.x]="(edge.x1 + edge.x2) / 2"
-                  [attr.y]="(edge.y1 + edge.y2) / 2"
-                  [class.inactive-stub]="!edge.isActive"
-                  class="digit-label"
-                >
-                  {{ edge.digitLabel }}
-                </text>
+                <g class="digit-label-group" [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'">
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r="9"
+                    [class.inactive-stub]="!edge.isActive"
+                    class="digit-bg"
+                  />
+                  <text
+                    x="0"
+                    y="0"
+                    [class.inactive-stub]="!edge.isActive"
+                    class="digit-label"
+                  >
+                    {{ edge.digitLabel }}
+                  </text>
+                </g>
               </g>
             }
  
             <!-- Draw Nodes -->
             @for (node of treeVisuals().nodes; track node.id) {
-              <g class="tree-node-group">
+              <g class="tree-node-group" [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'">
                 <circle
-                  [attr.cx]="node.x"
-                  [attr.cy]="node.y"
+                  cx="0"
+                  cy="0"
                   [attr.r]="node.logRadius === rhoMin ? 4 : 5"
                   [class.leaf-node]="node.logRadius === rhoMin"
                   [class.vertex-node]="node.logRadius > rhoMin"
@@ -95,8 +95,8 @@
                 <!-- Label for nodes at the top (root) and bottom (leaves) -->
                 @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
                   <text
-                    [attr.x]="node.x"
-                    [attr.y]="node.logRadius === rhoMax ? node.y - 12 : node.y + 16"
+                    x="0"
+                    [attr.y]="node.logRadius === rhoMax ? -12 : 16"
                     [class.inactive-stub]="!node.isActive"
                     class="node-text-label"
                   >
@@ -155,16 +155,16 @@
             <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
             @for (node of treeVisuals().nodes; track node.id) {
               @if (isCurrentParameterVertex(node)) {
-                <g class="parameter-overlay">
+                <g class="parameter-overlay" [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'">
                   <circle
-                    [attr.cx]="node.x"
-                    [attr.cy]="node.y"
+                    cx="0"
+                    cy="0"
                     r="12"
                     class="parameter-halo"
                   />
                   <text
-                    [attr.x]="node.x + 16"
-                    [attr.y]="node.y"
+                    x="16"
+                    y="0"
                     class="parameter-node-label"
                   >
                     c = {{ formatRationalValue(currentCenter()) }}
