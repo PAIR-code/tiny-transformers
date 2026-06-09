@@ -221,7 +221,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly currentLoss = computed(() => {
     const rho = this.currentLogRadius();
     const val = this.currentDistanceValuation();
-    const d = -val;
+    const d = -val + 1;
     return Math.abs(rho - d) + d;
   });
 
@@ -651,7 +651,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     
     const diff = subtract(c, y);
     const val = getValuation(diff, p);
-    const d = -val;
+    const d = -val + 1;
     const loss = Math.abs(rho - d) + d;
     
     const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
@@ -680,7 +680,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         const childCenter = add(c, shift);
         const childDiff = subtract(childCenter, y);
         const childVal = getValuation(childDiff, p);
-        const childD = -childVal;
+        const childD = -childVal + 1;
         const childLoss = Math.abs((k - 1) - childD) + childD;
         
         candidates.push({
@@ -806,7 +806,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     
     const diff = subtract(c, y);
     const val = getValuation(diff, p);
-    const d = -val;
+    const d = -val + 1;
     
     let nextCenter = c;
     let nextLogRadius = rho;
@@ -838,7 +838,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         const childCenter = add(c, shift);
         const childDiff = subtract(childCenter, y);
         const childVal = getValuation(childDiff, p);
-        const childD = -childVal;
+        const childD = -childVal + 1;
         const childLoss = Math.abs((k - 1) - childD) + childD;
         
         candidates.push({
@@ -868,7 +868,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       }
       
       nextCenter = bestCand.center;
-      nextLogRadius = bestCand.logRadius;
+      nextLogRadius = bestCand.branch === 'parent' ? k + eta : k - eta;
       stepType = bestCand.branch === 'parent' ? 'Vertex (Move to Parent)' : `Vertex (Move to Child ${bestCand.branch})`;
     } else {
       const gRho = rho >= d ? 1 : -1;
@@ -908,6 +908,53 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     if (nextLogRadius <= this.rhoMin) {
       this.stopAnimation();
     }
+  }
+
+  randomizeCenterAndTarget(): void {
+    this.stopAnimation();
+    const p = BigInt(this.prime());
+    const pNum = Number(p);
+    
+    const getRandomSeq = (): number[] => {
+      const seq: number[] = [];
+      for (let i = 0; i < 4; i++) {
+        seq.push(Math.floor(Math.random() * pNum));
+      }
+      return seq;
+    };
+    
+    let cSeq = getRandomSeq();
+    let ySeq = getRandomSeq();
+    while (cSeq.join(' ') === ySeq.join(' ')) {
+      ySeq = getRandomSeq();
+    }
+    
+    const parseDigits = (digits: number[]): Rational => {
+      const powers = [2, 1, 0, -1];
+      let sum: Rational = { num: 0n, den: 1n };
+      for (let i = 0; i < 4; i++) {
+        const k = powers[i];
+        const a = BigInt(digits[i]);
+        let term: Rational;
+        if (k >= 0) {
+          term = { num: a * (p ** BigInt(k)), den: 1n };
+        } else {
+          term = { num: a, den: p ** BigInt(-k) };
+        }
+        sum = simplify(add(sum, term));
+      }
+      return sum;
+    };
+    
+    const cRational = parseDigits(cSeq);
+    const yRational = parseDigits(ySeq);
+    
+    this.centerInput.set(formatRational(cRational));
+    this.centerDigitsInput.set(cSeq.join(' '));
+    this.targetInput.set(formatRational(yRational));
+    this.targetDigitsInput.set(ySeq.join(' '));
+    
+    this.reset();
   }
 
   isNodeOnTargetPath(node: VisualNode): boolean {

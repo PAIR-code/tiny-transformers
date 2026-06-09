@@ -243,7 +243,7 @@
             <div class="input-row">
               <!-- Init Log-Radius (rho) -->
               <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Init Log-Radius (&rho;)</mat-label>
+                <mat-label>Log-Radius (&rho;)</mat-label>
                 <input matInput [value]="displayLogRadius()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
                 <mat-hint>Range [-2.0, 2.0]</mat-hint>
               </mat-form-field>
@@ -257,7 +257,7 @@
             </div>
           }
 
-          <!-- Playback controls in 2x2 grid -->
+          <!-- Playback controls in grid -->
           <div class="controls-grid">
             <div class="controls-row">
               <button mat-flat-button color="primary" (click)="togglePlay()">
@@ -277,6 +277,12 @@
               <button mat-stroked-button (click)="reset()">
                 <mat-icon>replay</mat-icon>
                 Reset
+              </button>
+            </div>
+            <div class="controls-row">
+              <button mat-stroked-button (click)="randomizeCenterAndTarget()">
+                <mat-icon>casino</mat-icon>
+                Randomize Inputs
               </button>
             </div>
           </div>

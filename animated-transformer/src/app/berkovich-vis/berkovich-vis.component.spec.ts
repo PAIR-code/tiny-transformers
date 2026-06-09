@@ -125,26 +125,26 @@ describe('BerkovichVisComponent', () => {
   });
 
   it('should perform continuous gradient steps and snapping', () => {
-    // Set starting log-radius to 1.8 (on a Type III edge)
-    component.currentLogRadius.set(1.8);
+    // Set starting log-radius to 2.8 (on a Type III edge)
+    component.currentLogRadius.set(2.8);
     component.stepCount.set(0);
 
     // Target is y = 5/3.
-    // Distance from c=0 is valuation of 5/3, which is 3^-1, so absolute value 3, log-distance d = 1.
-    // At step 0, rho = 1.8. Since rho = 1.8 >= d = 1.0, dL/drho = +1.
-    // LR = 0.5. Proposed update is rho = 1.8 - 0.5 * 1 = 1.3.
-    // Since 1.3 does not cross an integer (floor is still 1), we update to 1.3.
+    // Distance from c=0 is valuation of 5/3, which is 3^-1, so absolute value 3, log-distance d_math = 1. d_branch = 2.0.
+    // At step 0, rho = 2.8. Since rho = 2.8 >= d = 2.0, dL/drho = +1.
+    // Proposed update is rho = 2.8 - 0.5 * 1 = 2.3.
+    // Since 2.3 does not cross an integer (floor is still 2), we update to 2.3.
     component.step();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(1.3);
+    expect(component.currentLogRadius()).toBe(2.3);
     expect(formatRational(component.currentCenter())).toBe('0');
 
-    // Next step: rho = 1.3 >= d = 1.0, dL/drho = +1.
-    // Proposed update is rho = 1.3 - 0.5 * 1 = 0.8.
-    // Since this crosses 1.0 (an integer boundary), it snaps to 1.0.
+    // Next step: rho = 2.3 >= d = 2.0, dL/drho = +1.
+    // Proposed update is rho = 2.3 - 0.5 * 1 = 1.8.
+    // Since this crosses 2.0 (an integer boundary), it snaps to 2.0.
     component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBe(1.0);
+    expect(component.currentLogRadius()).toBe(2.0);
     expect(formatRational(component.currentCenter())).toBe('0');
   });
 
@@ -156,52 +156,52 @@ describe('BerkovichVisComponent', () => {
     
     // Target is y = 5/3 (sequence '0 0 1 2').
     // Since rho = 1.0 (vertex), we do branch transition.
-    // It should choose Child 1: center = 5/3 (sequence '0 0 1 2'), rho = 0.0.
+    // It should choose Child 1: center = 5/3 (sequence '0 0 1 2'), rho = 0.5.
     component.step();
     
     expect(component.stepCount()).toBe(3);
-    expect(component.currentLogRadius()).toBe(0.0);
+    expect(component.currentLogRadius()).toBe(0.5);
     expect(formatRational(component.currentCenter())).toBe('5/3');
   });
 
   it('should support undoing the last step and restoring previous state', () => {
     // Initialize starting state
-    component.currentLogRadius.set(1.8);
+    component.currentLogRadius.set(2.8);
     component.stepCount.set(0);
     component.history.set([{
       step: 0,
       center: parseToRational('0'),
-      logRadius: 1.8,
+      logRadius: 2.8,
       loss: 2.0,
       type: 'Initialization'
     }]);
 
-    // Step 1: rho -> 1.3
+    // Step 1: rho -> 2.3
     component.step();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(1.3);
+    expect(component.currentLogRadius()).toBe(2.3);
 
-    // Step 2: rho -> 1.0 (snapped)
+    // Step 2: rho -> 2.0 (snapped)
     component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBe(1.0);
+    expect(component.currentLogRadius()).toBe(2.0);
 
-    // Undo Step 2 -> restores Step 1 (rho = 1.3)
+    // Undo Step 2 -> restores Step 1 (rho = 2.3)
     component.undo();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(1.3);
+    expect(component.currentLogRadius()).toBe(2.3);
     expect(component.history().length).toBe(2);
 
-    // Undo Step 1 -> restores Step 0 (rho = 1.8)
+    // Undo Step 1 -> restores Step 0 (rho = 2.8)
     component.undo();
     expect(component.stepCount()).toBe(0);
-    expect(component.currentLogRadius()).toBe(1.8);
+    expect(component.currentLogRadius()).toBe(2.8);
     expect(component.history().length).toBe(1);
 
     // Undo at initialization level should be a no-op
     component.undo();
     expect(component.stepCount()).toBe(0);
-    expect(component.currentLogRadius()).toBe(1.8);
+    expect(component.currentLogRadius()).toBe(2.8);
     expect(component.history().length).toBe(1);
   });
 
@@ -389,6 +389,7 @@ describe('BerkovichVisComponent', () => {
     component.targetInput.set('5/3');
     component.centerInput.set('0');
     component.logRadiusInput.set('2.0');
+    component.learningRateInput.set('1.0');
     fixture.detectChanges();
 
     component.reset();
@@ -453,30 +454,57 @@ describe('BerkovichVisComponent', () => {
 
   it('should decrease rho when above the branching level and increase rho when below the branching level', () => {
     component.prime.set(3);
-    component.targetInput.set('5/3'); // sequence 0 0 1 2, d = 1.0
+    component.targetInput.set('5/3'); // sequence 0 0 1 2, d_branch = 2.0
     component.centerInput.set('0'); // sequence 0 0 0 0
     component.learningRateInput.set('0.10');
     
-    // Case 1: rho = 1.21 (above branching level d = 1.0)
+    // Case 1: rho = 2.21 (above branching level d_branch = 2.0)
     component.currentCenter.set(parseToRational('0'));
-    component.currentLogRadius.set(1.21);
+    component.currentLogRadius.set(2.21);
     component.stepCount.set(0);
     fixture.detectChanges();
     
     component.step();
     fixture.detectChanges();
-    expect(component.currentLogRadius()).toBeCloseTo(1.11);
+    expect(component.currentLogRadius()).toBeCloseTo(2.11);
     expect(formatRational(component.currentCenter())).toBe('0');
     
-    // Case 2: rho = 0.8 (below branching level d = 1.0 on wrong branch)
+    // Case 2: rho = 1.80 (below branching level d_branch = 2.0 on wrong branch)
     component.currentCenter.set(parseToRational('0'));
-    component.currentLogRadius.set(0.8);
+    component.currentLogRadius.set(1.80);
     component.stepCount.set(0);
     fixture.detectChanges();
     
     component.step();
     fixture.detectChanges();
-    expect(component.currentLogRadius()).toBeCloseTo(0.9);
+    expect(component.currentLogRadius()).toBeCloseTo(1.90);
     expect(formatRational(component.currentCenter())).toBe('0');
+  });
+
+  it('should randomize center and target inputs correctly', () => {
+    component.prime.set(3);
+    component.randomizeCenterAndTarget();
+    fixture.detectChanges();
+    
+    const c = component.centerInput();
+    const y = component.targetInput();
+    expect(c).not.toBe(y);
+    
+    const cDigits = component.centerDigitsInput().split(' ').map(Number);
+    const yDigits = component.targetDigitsInput().split(' ').map(Number);
+    expect(cDigits.length).toBe(4);
+    expect(yDigits.length).toBe(4);
+    
+    for (const d of cDigits) {
+      expect(d).toBeGreaterThanOrEqual(0);
+      expect(d).toBeLessThan(3);
+    }
+    for (const d of yDigits) {
+      expect(d).toBeGreaterThanOrEqual(0);
+      expect(d).toBeLessThan(3);
+    }
+    
+    expect(component.stepCount()).toBe(0);
+    expect(component.currentLogRadius()).toBe(2.0);
   });
 });
