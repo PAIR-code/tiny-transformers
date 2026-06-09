@@ -214,40 +214,30 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const pNum = Number(p);
     const y = this.targetRational();
     const c_curr = this.currentCenter();
-    const nodes: VisualNode[] = [];
-    const edges: VisualEdge[] = [];
-    
     const levelsCount = this.rhoMax - this.rhoMin;
     const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
     
-    const build = (c: Rational, rho: number, parentX: number, parentY: number) => {
-      const yCoord = this.paddingY + (this.rhoMax - rho) * stepY;
-      const xCoord = parentX;
-      
+    interface LayoutNode {
+      id: string;
+      center: Rational;
+      rho: number;
+      isActive: boolean;
+      children: LayoutNode[];
+      width: number;
+    }
+    
+    const nodeSpacing = 40; // minimum base spacing for leaf/stub nodes
+    
+    // Pass 1: Build topology and calculate subtree widths bottom-up
+    const buildNode = (c: Rational, rho: number): LayoutNode => {
+      const nodeId = `${formatRational(c)}_${rho}`;
       const nodeActive = getValuation(subtract(y, c), p) >= -rho || getValuation(subtract(c_curr, c), p) >= -rho;
       
-      const nodeId = `${formatRational(c)}_${rho}`;
-      nodes.push({
-        id: nodeId,
-        x: xCoord,
-        y: yCoord,
-        center: c,
-        logRadius: rho,
-        label: `${formatRational(c)} (p^${rho})`,
-        isActive: nodeActive
-      });
+      const children: LayoutNode[] = [];
+      let width = nodeSpacing;
       
-      if (rho > this.rhoMin) {
-        const level = this.rhoMax - rho;
-        let splitWidth = 100;
-        if (pNum === 2) {
-          splitWidth = 160 / (1.3 ** level);
-        } else if (pNum === 3) {
-          splitWidth = 120 / (1.4 ** level);
-        } else {
-          splitWidth = 90 / (1.5 ** level);
-        }
-        
+      if (rho > this.rhoMin && nodeActive) {
+        let childrenWidthSum = 0;
         for (let g = 0; g < pNum; g++) {
           const childRho = rho - 1;
           let shift: Rational;
@@ -257,45 +247,84 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
             shift = simplify({ num: BigInt(g) * (p ** BigInt(-rho)), den: 1n });
           }
           const childCenter = add(c, shift);
-          
-          const isChildActive = getValuation(subtract(y, childCenter), p) >= -childRho || 
-                               getValuation(subtract(c_curr, childCenter), p) >= -childRho;
-          
-          const offset = (g - (pNum - 1) / 2) * splitWidth;
-          const childX = xCoord + offset;
-          const childY = this.paddingY + (this.rhoMax - childRho) * stepY;
-          
-          const childId = `${formatRational(childCenter)}_${childRho}`;
-          edges.push({
-            id: `${nodeId}_to_${childId}`,
-            x1: xCoord,
-            y1: yCoord,
-            x2: childX,
-            y2: childY,
-            digitLabel: g.toString(),
-            isActive: isChildActive
-          });
-          
-          if (isChildActive) {
-            build(childCenter, childRho, childX, childY);
+          const childNode = buildNode(childCenter, childRho);
+          children.push(childNode);
+          childrenWidthSum += childNode.width;
+        }
+        width = childrenWidthSum;
+      }
+      
+      return {
+        id: nodeId,
+        center: c,
+        rho,
+        isActive: nodeActive,
+        children,
+        width
+      };
+    };
+    
+    const rootNode = buildNode({ num: 0n, den: 1n }, this.rhoMax);
+    
+    // Pass 2: Position nodes and edges top-down
+    const nodes: VisualNode[] = [];
+    const edges: VisualEdge[] = [];
+    
+    const positionNode = (
+      node: LayoutNode,
+      leftX: number,
+      parentId?: string,
+      parentX?: number,
+      parentY?: number,
+      digitLabel?: string
+    ) => {
+      const xCoord = leftX + node.width / 2;
+      const yCoord = this.paddingY + (this.rhoMax - node.rho) * stepY;
+      
+      nodes.push({
+        id: node.id,
+        x: xCoord,
+        y: yCoord,
+        center: node.center,
+        logRadius: node.rho,
+        label: `${formatRational(node.center)} (p^${node.rho})`,
+        isActive: node.isActive
+      });
+      
+      if (parentId !== undefined && parentX !== undefined && parentY !== undefined && digitLabel !== undefined) {
+        edges.push({
+          id: `${parentId}_to_${node.id}`,
+          x1: parentX,
+          y1: parentY,
+          x2: xCoord,
+          y2: yCoord,
+          digitLabel,
+          isActive: node.isActive
+        });
+      }
+      
+      if (node.children.length > 0) {
+        const leftMostX = leftX + node.children[0].width / 2;
+        const rightMostX = leftX + node.width - node.children[node.children.length - 1].width / 2;
+        
+        for (let g = 0; g < node.children.length; g++) {
+          const child = node.children[g];
+          let childX: number;
+          if (g === 0) {
+            childX = leftMostX;
+          } else if (g === node.children.length - 1) {
+            childX = rightMostX;
           } else {
-            // Draw child node as a leaf stub
-            const childNodeId = `${formatRational(childCenter)}_${childRho}`;
-            nodes.push({
-              id: childNodeId,
-              x: childX,
-              y: childY,
-              center: childCenter,
-              logRadius: childRho,
-              label: `${formatRational(childCenter)} (p^${childRho})`,
-              isActive: false
-            });
+            childX = leftMostX + g * (rightMostX - leftMostX) / (node.children.length - 1);
           }
+          const childLeftX = childX - child.width / 2;
+          positionNode(child, childLeftX, node.id, xCoord, yCoord, g.toString());
         }
       }
     };
     
-    build({ num: 0n, den: 1n }, this.rhoMax, this.svgWidth / 2, this.paddingY);
+    const startLeftX = (this.svgWidth - rootNode.width) / 2;
+    positionNode(rootNode, startLeftX);
     
     return { nodes, edges };
   });
