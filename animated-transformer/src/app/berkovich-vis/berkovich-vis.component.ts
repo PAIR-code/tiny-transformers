@@ -114,8 +114,11 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   
   // Animation state
   private animationInterval: any = null;
+  private dragStartY = 0;
+  private dragStartRho = 2.0;
   readonly isPlaying = signal<boolean>(false);
   readonly isConfigCollapsed = signal<boolean>(false);
+  readonly isDraggingRho = signal<boolean>(false);
   
   // Parse targets and starting conditions
   readonly targetRational = computed(() => {
@@ -698,6 +701,51 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       v = Math.max(0.01, Math.min(1.0, v));
     }
     this.learningRateInput.set(v.toFixed(2));
+  }
+
+  onPointerDown(event: PointerEvent): void {
+    event.preventDefault();
+    (event.target as Element).setPointerCapture(event.pointerId);
+    this.isDraggingRho.set(true);
+    
+    this.dragStartY = event.clientY;
+    this.dragStartRho = this.currentLogRadius();
+    
+    if (this.isPlaying()) {
+      this.stopAnimation();
+    }
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    if (this.isDraggingRho()) {
+      const deltaY = event.clientY - this.dragStartY;
+      const levelsCount = this.rhoMax - this.rhoMin;
+      const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
+      const deltaRho = -deltaY / stepY;
+      
+      let rho = this.dragStartRho + deltaRho;
+      rho = Math.max(this.rhoMin, Math.min(this.rhoMax, rho));
+      
+      this.currentLogRadius.set(rho);
+    }
+  }
+
+  onPointerUp(event: PointerEvent): void {
+    if (this.isDraggingRho()) {
+      this.isDraggingRho.set(false);
+      try {
+        (event.target as Element).releasePointerCapture(event.pointerId);
+      } catch {}
+      
+      const lossVal = this.currentLoss();
+      this.history.update(h => [...h, {
+        step: this.stepCount(),
+        center: this.currentCenter(),
+        logRadius: this.currentLogRadius(),
+        loss: lossVal,
+        type: `Manual adjust log-radius to ρ=${this.currentLogRadius().toFixed(2)}`
+      }]);
+    }
   }
 
   // Format helper for history center values

@@ -313,7 +313,28 @@ text.node-text-label.inactive-stub {
   stroke-width: 1.5;
   stroke-dasharray: 4 4;
   opacity: 0.5;
-  transition: y1 0.2s ease, y2 0.2s ease;
+}
+
+.rho-drag-handle {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  cursor: ns-resize;
+}
+
+.rho-label-bg {
+  fill: #ffffff;
+  stroke: #8b5cf6;
+  stroke-width: 1px;
+  stroke-dasharray: 3 2;
+  opacity: 0.5;
+  cursor: ns-resize;
+  transition: opacity 0.2s, stroke-width 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+    stroke-width: 1.5px;
+  }
 }
 
 .rho-level-text {
@@ -322,8 +343,8 @@ text.node-text-label.inactive-stub {
   font-weight: bold;
   font-family: monospace;
   dominant-baseline: central;
-  opacity: 0.8;
-  transition: y 0.2s ease;
+  opacity: 0.9;
+  pointer-events: none; /* click events pass through to rect */
 }
 
 /* Parameter center label next to the active node */

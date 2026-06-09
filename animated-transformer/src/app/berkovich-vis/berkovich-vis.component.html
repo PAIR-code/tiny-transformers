@@ -29,7 +29,14 @@
         </mat-card-header>
 
         <mat-card-content class="svg-container">
-          <svg [attr.width]="svgWidth" [attr.height]="svgHeight" class="tree-svg">
+          <svg
+            [attr.width]="svgWidth"
+            [attr.height]="svgHeight"
+            class="tree-svg"
+            (pointermove)="onPointerMove($event)"
+            (pointerup)="onPointerUp($event)"
+            (pointerleave)="onPointerUp($event)"
+          >
             <defs>
               <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
@@ -116,9 +123,28 @@
               [attr.y2]="rhoToY(currentLogRadius())"
               class="rho-level-line"
             />
+            <line
+              x1="30"
+              [attr.y1]="rhoToY(currentLogRadius())"
+              x2="720"
+              [attr.y2]="rhoToY(currentLogRadius())"
+              class="rho-drag-handle"
+              (pointerdown)="onPointerDown($event)"
+            />
+            <!-- Drag-able Label outline background box -->
+            <rect
+              x="722"
+              [attr.y]="rhoToY(currentLogRadius()) - 9"
+              width="73"
+              height="18"
+              rx="3"
+              ry="3"
+              class="rho-label-bg"
+              (pointerdown)="onPointerDown($event)"
+            />
             <text
-              x="725"
-              [attr.y]="rhoToY(currentLogRadius()) + 4"
+              x="726"
+              [attr.y]="rhoToY(currentLogRadius()) + 1"
               class="rho-level-text"
             >
               ρ = {{ currentLogRadius().toFixed(2) }}
