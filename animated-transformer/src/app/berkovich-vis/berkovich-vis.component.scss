@@ -215,7 +215,8 @@ mat-card {
 }
 
 .tree-edge.target-path {
-  stroke: #10b981; /* bright green for target */
+  stroke: #eab308;
+    /* yellow for target path */
   stroke-width: 3.5;
 }
 
@@ -225,7 +226,8 @@ mat-card {
 }
 
 .tree-edge.overlap-path {
-  stroke: #f59e0b; /* amber for overlap */
+  stroke: #10b981;
+    /* bright green for correct path */
   stroke-width: 5;
 }
 
@@ -363,13 +365,13 @@ text.node-text-label.inactive-stub {
 .target-marker {
   .target-outer {
     fill: none;
-    stroke: #10b981;
+    stroke: #eab308;
     stroke-width: 1.5;
     stroke-dasharray: 2 1;
     animation: spin 8s linear infinite;
   }
   .target-inner {
-    fill: #10b981;
+    fill: #eab308;
   }
 }
 
@@ -482,7 +484,7 @@ text.node-text-label.inactive-stub {
 
   .half-field {
     flex: 1;
-    max-width: 160px;
+    max-width: 140px;
   }
 
   .flex-field {

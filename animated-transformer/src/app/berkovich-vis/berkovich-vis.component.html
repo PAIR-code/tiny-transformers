@@ -21,10 +21,12 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon>account_tree</mat-icon>
-            Local Berkovich Subtree &beta;(&Gamma;<sub>p</sub>)
+            Local Berkovich Subtree
           </mat-card-title>
           <mat-card-subtitle>
-            Visualizing the branching structure. The green path goes to target <span class="math">y</span>, purple goes to parameter center <span class="math">c</span>. The glowing node represents the current state.
+            Visualizing the branching structure. The <strong>green</strong> path is the correct shared path from the root. The
+            <strong>yellow</strong> path goes to target <span class="math">y</span> (yellow circle). The <strong>purple</strong>
+            path goes to parameter center <span class="math">c</span>. The glowing purple halo represents the current state.
           </mat-card-subtitle>
         </mat-card-header>
 
@@ -196,7 +198,7 @@
           @if (!isConfigCollapsed()) {
             <div class="input-row">
               <!-- Prime selection -->
-              <mat-form-field appearance="outline" class="half-field">
+              <mat-form-field appearance="outline">
                 <mat-label>Prime Field (p)</mat-label>
                 <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
                   <mat-option [value]="2">p = 2 (Binary)</mat-option>
@@ -210,8 +212,9 @@
               <!-- Target Value (y) -->
               <mat-form-field appearance="outline" class="half-field">
                 <mat-label>Target Value (y)</mat-label>
-                <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()" #targetField />
-                <mat-hint>fractions or decimals</mat-hint>
+                <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()"
+                  #targetField />
+                <mat-hint>fractions/decimals</mat-hint>
               </mat-form-field>
 
               <!-- Target Digits (p^2 ... p^-2) -->
