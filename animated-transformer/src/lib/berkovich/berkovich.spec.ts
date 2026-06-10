@@ -213,50 +213,62 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
   it('should compute gradient details at a vertex correctly', () => {
     const p = 3n;
     const c = parseToRational('0');
-    const y = parseToRational('5/3'); // d = -val + 1 = -(-1) + 1 = 2
+    const y = parseToRational('5/3'); // d = -val = -(-1) = 1
     const eta = 0.2;
     const details = computeGradientDetails(c, 2.0, y, p, eta);
 
     expect(details.isVertex).toBe(true);
     expect(details.rho).toBe(2.0);
-    expect(details.d).toBe(2);
-    // Loss = |2.0 - 2| + 2 = 2
+    expect(details.d).toBe(1);
+    // Loss = |2.0 - 1| + 1 = 2
     expect(details.loss).toBe(2);
-    expect(details.bestBranch).toBe('2');
-    expect(details.nextCenter).toEqual(parseToRational('2/3'));
+    expect(details.bestBranch).toBe('0');
+    expect(details.nextCenter).toEqual(parseToRational('0'));
     expect(details.nextLogRadius).toBeCloseTo(1.8);
-    expect(details.stepType).toBe('Vertex (Move to Child 2)');
+    expect(details.stepType).toBe('Vertex (Move to Child 0)');
   });
 
   it('should compute gradient details on an edge correctly', () => {
     const p = 3n;
     const c = parseToRational('2/3');
-    const y = parseToRational('5/3'); // d = -val + 1 = -0 + 1 = 1
+    const y = parseToRational('5/3'); // d = -val = -0 = 0
     const eta = 0.2;
 
     // 1. Continuous step without snapping
-    const details1 = computeGradientDetails(c, 1.8, y, p, eta);
+    const details1 = computeGradientDetails(c, 0.8, y, p, eta);
     expect(details1.isVertex).toBe(false);
-    expect(details1.rho).toBe(1.8);
-    expect(details1.d).toBe(1);
+    expect(details1.rho).toBe(0.8);
+    expect(details1.d).toBeCloseTo(0);
     expect(details1.gRho).toBe(1); // rho >= d, so gradient of loss w.r.t rho is +1
-    expect(details1.proposedRho).toBeCloseTo(1.6);
+    expect(details1.proposedRho).toBeCloseTo(0.6);
     expect(details1.crossesInteger).toBe(false);
     expect(details1.nextCenter).toEqual(c);
-    expect(details1.nextLogRadius).toBeCloseTo(1.6);
+    expect(details1.nextLogRadius).toBeCloseTo(0.6);
     expect(details1.stepType).toBe('Edge (Continuous descent dL/dρ=+1)');
 
     // 2. Continuous step with snapping to integer boundary
-    const details2 = computeGradientDetails(c, 1.1, y, p, eta);
+    const details2 = computeGradientDetails(c, 0.1, y, p, eta);
     expect(details2.isVertex).toBe(false);
-    expect(details2.rho).toBe(1.1);
-    expect(details2.d).toBe(1);
+    expect(details2.rho).toBe(0.1);
+    expect(details2.d).toBeCloseTo(0);
     expect(details2.gRho).toBe(1);
-    expect(details2.proposedRho).toBeCloseTo(0.9);
+    expect(details2.proposedRho).toBeCloseTo(-0.1);
     expect(details2.crossesInteger).toBe(true);
     expect(details2.nextCenter).toEqual(c);
-    expect(details2.nextLogRadius).toBe(1.0);
-    expect(details2.stepType).toBe('Edge (Continuous snap to ρ=1)');
+    expect(details2.nextLogRadius).toBe(0.0);
+    expect(details2.stepType).toBe('Edge (Continuous snap to ρ=0)');
+  });
+
+  it('should clamp nextLogRadius to the represented range [-2, 2]', () => {
+    const p = 3n;
+    const c = parseToRational('0');
+    const y = parseToRational('1/27'); // d = -(-3) = 3
+    const eta = 0.2;
+    
+    // At vertex rho = 2.0, since d = 3, parent branch is chosen (nextLogRadius would be 2.2, clamped to 2.0)
+    const details = computeGradientDetails(c, 2.0, y, p, eta);
+    expect(details.bestBranch).toBe('parent');
+    expect(details.nextLogRadius).toBe(2.0);
   });
 });
 

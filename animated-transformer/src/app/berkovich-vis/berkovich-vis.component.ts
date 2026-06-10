@@ -157,7 +157,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const raw = parseToRational(this.targetInput());
-      return truncateToTreeRange(raw, p, -1, 2);
+      return truncateToTreeRange(raw, p, -2, 1);
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -167,7 +167,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const raw = parseToRational(this.centerInput());
-      return truncateToTreeRange(raw, p, -1, 2);
+      return truncateToTreeRange(raw, p, -2, 1);
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -185,7 +185,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     
     const c = this.currentCenter();
     const rho = Math.round(this.currentLogRadius());
-    const targetNodeId = `${formatRational(c)}_${rho}`;
+    const p = BigInt(this.prime());
+    const prefix = this.getPrefixCenter(c, rho, p);
+    const targetNodeId = `${formatRational(prefix)}_${rho}`;
     
     const candidateEdges = new Set<string>();
     const candidateNodes = new Set<string>();
@@ -221,7 +223,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly currentLoss = computed(() => {
     const rho = this.currentLogRadius();
     const val = this.currentDistanceValuation();
-    const d = -val + 1;
+    const d = -val;
     return Math.abs(rho - d) + d;
   });
 
@@ -262,7 +264,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
       const nodeActive =
-        getValuation(subtract(y, c), p) >= -rho + 1 || getValuation(subtract(c_curr, c), p) >= -rho + 1;
+        getValuation(subtract(y, c), p) >= -rho || getValuation(subtract(c_curr, c), p) >= -rho;
       
       const children: LayoutNode[] = [];
       const nextAncestors = [...ancestors, nodeId];
@@ -271,7 +273,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         for (let g = 0; g < pNum; g++) {
           const childRho = rho - 1;
           let shift: Rational;
-          const power = -rho + 1;
+          const power = -rho;
           if (power <= 0) {
             shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
           } else {
@@ -505,10 +507,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const k_child = Math.floor(rho);
     
     const parentNode = nodes.find(n => 
-      n.logRadius === k_parent && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius + 1
+      n.logRadius === k_parent && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
     );
     const childNode = nodes.find(n => 
-      n.logRadius === k_child && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius + 1
+      n.logRadius === k_child && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
     );
     
     let xCoord: number;
@@ -835,7 +837,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const r = parseToRational(this.targetInput());
-      const truncated = truncateToTreeRange(r, p, -1, 2);
+      const truncated = truncateToTreeRange(r, p, -2, 1);
       this.targetInput.set(formatRational(truncated));
     } catch {
       this.targetInput.set('0');
@@ -858,7 +860,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     try {
       const r = parseToRational(this.centerInput());
-      const truncated = truncateToTreeRange(r, p, -1, 2);
+      const truncated = truncateToTreeRange(r, p, -2, 1);
       this.centerInput.set(formatRational(truncated));
     } catch {
       this.centerInput.set('0');
@@ -866,10 +868,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   }
 
   getPrefixCenter(x: Rational, rho: number, p: bigint): Rational {
-    const aligned = getAlignedDigits(x, p, -1, 2);
+    const aligned = getAlignedDigits(x, p, -2, 1);
     let sum: Rational = { num: 0n, den: 1n };
     for (const item of aligned) {
-      if (item.power < -rho + 1) {
+      if (item.power < -rho) {
         const k = item.power;
         const a = BigInt(item.digit);
         let term: Rational;

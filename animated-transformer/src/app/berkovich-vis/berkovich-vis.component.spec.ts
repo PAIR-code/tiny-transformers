@@ -126,83 +126,83 @@ describe('BerkovichVisComponent', () => {
   });
 
   it('should perform continuous gradient steps and snapping', () => {
-    // Set starting log-radius to 2.8 (on a Type III edge)
-    component.currentLogRadius.set(2.8);
+    // Set starting log-radius to 1.8 (on a Type III edge)
+    component.currentLogRadius.set(1.8);
     component.stepCount.set(0);
 
     // Target is y = 5/3.
-    // Distance from c=0 is valuation of 5/3, which is 3^-1, so absolute value 3, log-distance d_math = 1. d_branch = 2.0.
-    // At step 0, rho = 2.8. Since rho = 2.8 >= d = 2.0, dL/drho = +1.
-    // Proposed update is rho = 2.8 - 0.5 * 1 = 2.3.
-    // Since 2.3 does not cross an integer (floor is still 2), we update to 2.3.
+    // Distance from c=0 is d = 1.0 (since valuation of 5/3 is -1, d = -val = 1).
+    // At step 0, rho = 1.8. Since rho = 1.8 >= d = 1.0, dL/drho = +1.
+    // Proposed update is rho = 1.8 - 0.5 * 1 = 1.3.
+    // Since 1.3 does not cross an integer (remains in [1, 2]), we update to 1.3.
     component.step();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(2.3);
+    expect(component.currentLogRadius()).toBeCloseTo(1.3);
     expect(formatRational(component.currentCenter())).toBe('0');
 
-    // Next step: rho = 2.3 >= d = 2.0, dL/drho = +1.
-    // Proposed update is rho = 2.3 - 0.5 * 1 = 1.8.
-    // Since this crosses 2.0 (an integer boundary), it snaps to 2.0.
+    // Next step: rho = 1.3 >= d = 1.0, dL/drho = +1.
+    // Proposed update is rho = 1.3 - 0.5 * 1 = 0.8.
+    // Since this crosses 1.0 (an integer boundary), it snaps to 1.0.
     component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBe(2.0);
+    expect(component.currentLogRadius()).toBeCloseTo(1.0);
     expect(formatRational(component.currentCenter())).toBe('0');
   });
 
   it('should perform vertex transitions at integer boundaries', () => {
     // Set state exactly at vertex rho = 1.0
-    component.currentCenter.set(parseToRational('2/3'));
+    component.currentCenter.set(parseToRational('0'));
     component.currentLogRadius.set(1.0);
-    component.stepCount.set(2);
+    component.stepCount.set(0);
     
-    // Target is y = 5/3 (sequence '0 0 1 2').
+    // Target is y = 5/3.
     // Since rho = 1.0 (vertex), we do branch transition.
-    // It should choose Child 1: center = 5/3 (sequence '0 0 1 2'), rho = 0.5.
+    // It should choose Child 2 (center = 2/3), nextLogRadius = 1.0 - 0.5 = 0.5.
     component.step();
     
-    expect(component.stepCount()).toBe(3);
-    expect(component.currentLogRadius()).toBe(0.5);
-    expect(formatRational(component.currentCenter())).toBe('5/3');
+    expect(component.stepCount()).toBe(1);
+    expect(component.currentLogRadius()).toBeCloseTo(0.5);
+    expect(formatRational(component.currentCenter())).toBe('2/3');
   });
 
   it('should support undoing the last step and restoring previous state', () => {
     // Initialize starting state
-    component.currentLogRadius.set(2.8);
+    component.currentLogRadius.set(1.8);
     component.stepCount.set(0);
     component.history.set([{
       step: 0,
       center: parseToRational('0'),
-      logRadius: 2.8,
+      logRadius: 1.8,
       loss: 2.0,
       type: 'Initialization'
     }]);
 
-    // Step 1: rho -> 2.3
+    // Step 1: rho -> 1.3
     component.step();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(2.3);
+    expect(component.currentLogRadius()).toBeCloseTo(1.3);
 
-    // Step 2: rho -> 2.0 (snapped)
+    // Step 2: rho -> 1.0 (snapped)
     component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBe(2.0);
+    expect(component.currentLogRadius()).toBeCloseTo(1.0);
 
-    // Undo Step 2 -> restores Step 1 (rho = 2.3)
+    // Undo Step 2 -> restores Step 1 (rho = 1.3)
     component.undo();
     expect(component.stepCount()).toBe(1);
-    expect(component.currentLogRadius()).toBe(2.3);
+    expect(component.currentLogRadius()).toBeCloseTo(1.3);
     expect(component.history().length).toBe(2);
 
-    // Undo Step 1 -> restores Step 0 (rho = 2.8)
+    // Undo Step 1 -> restores Step 0 (rho = 1.8)
     component.undo();
     expect(component.stepCount()).toBe(0);
-    expect(component.currentLogRadius()).toBe(2.8);
+    expect(component.currentLogRadius()).toBeCloseTo(1.8);
     expect(component.history().length).toBe(1);
 
     // Undo at initialization level should be a no-op
     component.undo();
     expect(component.stepCount()).toBe(0);
-    expect(component.currentLogRadius()).toBe(2.8);
+    expect(component.currentLogRadius()).toBe(1.8);
     expect(component.history().length).toBe(1);
   });
 
@@ -224,20 +224,20 @@ describe('BerkovichVisComponent', () => {
     expect(component.centerDigitsInput()).toBe('10.00');
   });
 
-  it('should not show children under inactive node 1/3 at level 1 when c=0 and y=5/3', () => {
+  it('should not show children under inactive node 1/9 at level 1 when c=0 and y=5/3', () => {
     component.prime.set(3);
     component.targetInput.set('5/3');
     component.centerInput.set('0');
     fixture.detectChanges();
 
     const visuals = component.treeVisuals();
-    const node13 = visuals.nodes.find(n => formatRational(n.center) === '1/3' && n.logRadius === 1);
+    const node19 = visuals.nodes.find(n => formatRational(n.center) === '1/9' && n.logRadius === 1);
     
-    expect(node13).toBeTruthy();
-    expect(node13!.isActive).toBe(false);
+    expect(node19).toBeTruthy();
+    expect(node19!.isActive).toBe(false);
 
-    const childOf13 = visuals.nodes.find(n => n.id.startsWith('1/3_0') || n.id.startsWith('4/3_0') || n.id.startsWith('7/3_0'));
-    expect(childOf13).toBeUndefined();
+    const childOf19 = visuals.nodes.find(n => n.id.startsWith('1/9_0') || n.id.startsWith('4/9_0') || n.id.startsWith('7/9_0'));
+    expect(childOf19).toBeUndefined();
   });
 
   it('should only expand the exact active paths to c and y at negative levels', () => {
@@ -248,19 +248,15 @@ describe('BerkovichVisComponent', () => {
 
     const visuals = component.treeVisuals();
     
-    // Node '3_-1' (center 3, level -1, sequence '0 1 0 0') is not on the path to y (5/3, sequence '0 0 1 2') or c (0, sequence '0 0 0 0'). It should exist but be inactive.
-    const node3 = visuals.nodes.find(n => formatRational(n.center) === '3' && n.logRadius === -1);
+    // Node '3_-2' (center 3, level -2) is not on the active paths, it should exist but be inactive.
+    const node3 = visuals.nodes.find(n => formatRational(n.center) === '3' && n.logRadius === -2);
     expect(node3).toBeTruthy();
     expect(node3!.isActive).toBe(false);
 
-    // Node '6_-1' (center 6, level -1, sequence '0 2 0 0') is also not on the active paths, it should exist but be inactive.
-    const node6 = visuals.nodes.find(n => formatRational(n.center) === '6' && n.logRadius === -1);
+    // Node '6_-2' (center 6, level -2) is also not on the active paths, it should exist but be inactive.
+    const node6 = visuals.nodes.find(n => formatRational(n.center) === '6' && n.logRadius === -2);
     expect(node6).toBeTruthy();
     expect(node6!.isActive).toBe(false);
-
-    // Grandchildren of these nodes (e.g. '3_-2', '12_-2') should not exist in the visuals list
-    const childOf3 = visuals.nodes.find(n => n.id.startsWith('3_-2') || n.id.startsWith('12_-2') || n.id.startsWith('21_-2'));
-    expect(childOf3).toBeUndefined();
   });
 
   it('should format digitRows from high to low powers (p^3 down to p^-3)', () => {
@@ -360,25 +356,25 @@ describe('BerkovichVisComponent', () => {
 
     const visuals = component.treeVisuals();
     
-    // Find the edge 0_2 (c=0, sequence '0 0 0 0') -> 2/3_1 (c=2/3, sequence '0 0 0 2') (shared)
+    // Find the edge 0_1 (c=0, level 1) -> 2/3_0 (c=2/3, level 0) (shared)
     const sharedEdge = visuals.edges.find(e => 
-      e.id.includes('0_2') && e.id.includes('2/3_1')
+      e.id.includes('0_1') && e.id.includes('2/3_0')
     );
     expect(sharedEdge).toBeTruthy();
     expect(component.targetPathEdges().has(sharedEdge!.id)).toBe(true);
     expect(component.parameterPathEdges().has(sharedEdge!.id)).toBe(true);
 
-    // Find the target-only edge 2/3_1 (c=2/3, sequence '0 0 0 2') -> 8/3_0 (c=8/3, sequence '0 0 2 2')
+    // Find the target-only edge 2/3_0 (c=2/3, level 0) -> 8/3_-1 (c=8/3, level -1)
     const targetOnlyEdge = visuals.edges.find(e => 
-      e.id.includes('2/3_1') && e.id.includes('8/3_0')
+      e.id.includes('2/3_0') && e.id.includes('8/3_-1')
     );
     expect(targetOnlyEdge).toBeTruthy();
     expect(component.targetPathEdges().has(targetOnlyEdge!.id)).toBe(true);
     expect(component.parameterPathEdges().has(targetOnlyEdge!.id)).toBe(false);
 
-    // Find the parameter-only edge 2/3_1 (c=2/3, sequence '0 0 0 2') -> 5/3_0 (c=5/3, sequence '0 0 1 2')
+    // Find the parameter-only edge 2/3_0 (c=2/3, level 0) -> 5/3_-1 (c=5/3, level -1)
     const paramOnlyEdge = visuals.edges.find(e => 
-      e.id.includes('2/3_1') && e.id.includes('5/3_0')
+      e.id.includes('2/3_0') && e.id.includes('5/3_-1')
     );
     expect(paramOnlyEdge).toBeTruthy();
     expect(component.targetPathEdges().has(paramOnlyEdge!.id)).toBe(false);
@@ -389,7 +385,7 @@ describe('BerkovichVisComponent', () => {
     component.prime.set(3);
     component.targetInput.set('5/3');
     component.centerInput.set('0');
-    component.logRadiusInput.set('2.0');
+    component.logRadiusInput.set('1.0');
     component.learningRateInput.set('1.0');
     fixture.detectChanges();
 
@@ -397,27 +393,27 @@ describe('BerkovichVisComponent', () => {
     fixture.detectChanges();
 
     expect(component.currentCenter()).toEqual({ num: 0n, den: 1n });
-    expect(component.currentLogRadius()).toBe(2.0);
+    expect(component.currentLogRadius()).toBe(1.0);
 
-    // Step 1: from level 2.0 to 1.0 (resolves power -1, target digit 2, moving center sequence from '0 0 0 0' to '0 0 0 2')
+    // Step 1: from level 1.0 to 0.0 (resolves power -1, target digit 2, center becomes 2/3)
     component.step();
     fixture.detectChanges();
 
     expect(component.currentCenter()).toEqual({ num: 2n, den: 3n });
-    expect(component.currentLogRadius()).toBe(1.0);
+    expect(component.currentLogRadius()).toBe(0.0);
 
-    // Step 2: from level 1.0 to 0.0 (resolves power 0, target digit 1, moving center sequence from '0 0 0 2' to '0 0 1 2')
+    // Step 2: from level 0.0 to -1.0 (resolves power 0, target digit 1, center becomes 5/3)
     component.step();
     fixture.detectChanges();
 
     expect(component.currentCenter()).toEqual({ num: 5n, den: 3n });
-    expect(component.currentLogRadius()).toBe(0.0);
+    expect(component.currentLogRadius()).toBe(-1.0);
   });
 
   it('should resolve right-most digits at the top levels and left-most digits at the bottom levels', () => {
     component.prime.set(3);
     
-    component.currentLogRadius.set(2.0);
+    component.currentLogRadius.set(1.0);
     fixture.detectChanges();
     
     let rows = component.digitRows();
@@ -425,11 +421,7 @@ describe('BerkovichVisComponent', () => {
     expect(rows.find(r => r.power === 1)!.isResolved).toBe(false);
     expect(rows.find(r => r.power === 0)!.isResolved).toBe(false);
     expect(rows.find(r => r.power === -1)!.isResolved).toBe(false);
-    
-    component.currentLogRadius.set(1.0);
-    fixture.detectChanges();
-    rows = component.digitRows();
-    expect(rows.find(r => r.power === -1)!.isResolved).toBe(false);
+    expect(rows.find(r => r.power === -2)!.isResolved).toBe(true);
     
     component.currentLogRadius.set(0.0);
     fixture.detectChanges();
@@ -455,31 +447,30 @@ describe('BerkovichVisComponent', () => {
 
   it('should decrease rho when above the branching level and increase rho when below the branching level', () => {
     component.prime.set(3);
-    component.targetInput.set('5/3'); // sequence 0 0 1 2, d_branch = 2.0
-    component.centerInput.set('0'); // sequence 0 0 0 0
+    component.targetInput.set('5/3'); // sequence 01.20, d_branch = 1.0
+    component.centerInput.set('2/3'); // sequence 00.20
     component.learningRateInput.set('0.10');
-    
-    // Case 1: rho = 2.21 (above branching level d_branch = 2.0)
-    component.currentCenter.set(parseToRational('0'));
-    component.currentLogRadius.set(2.21);
-    component.stepCount.set(0);
     fixture.detectChanges();
+    
+    // Case 1: rho = 1.21 (above branching level d_branch = 1.0)
+    component.currentCenter.set(parseToRational('2/3'));
+    component.currentLogRadius.set(1.21);
+    component.stepCount.set(0);
     
     component.step();
     fixture.detectChanges();
-    expect(component.currentLogRadius()).toBeCloseTo(2.11);
-    expect(formatRational(component.currentCenter())).toBe('0');
+    expect(component.currentLogRadius()).toBeCloseTo(1.11);
+    expect(formatRational(component.currentCenter())).toBe('2/3');
     
-    // Case 2: rho = 1.80 (below branching level d_branch = 2.0 on wrong branch)
-    component.currentCenter.set(parseToRational('0'));
-    component.currentLogRadius.set(1.80);
+    // Case 2: rho = 0.80 (below branching level d_branch = 1.0 on wrong branch)
+    component.currentCenter.set(parseToRational('1/3'));
+    component.currentLogRadius.set(0.80);
     component.stepCount.set(0);
-    fixture.detectChanges();
     
     component.step();
     fixture.detectChanges();
-    expect(component.currentLogRadius()).toBeCloseTo(1.90);
-    expect(formatRational(component.currentCenter())).toBe('0');
+    expect(component.currentLogRadius()).toBeCloseTo(0.90);
+    expect(formatRational(component.currentCenter())).toBe('1/3');
   });
 
   it('should randomize center and target inputs correctly', () => {
@@ -509,5 +500,54 @@ describe('BerkovichVisComponent', () => {
     
     expect(component.stepCount()).toBe(0);
     expect(component.currentLogRadius()).toBe(2.0);
+  });
+
+  it('should identify junction candidates correctly at integer log-radii', () => {
+    component.prime.set(3);
+    component.targetInput.set('5/3');
+    component.centerInput.set('1/3');
+    fixture.detectChanges(); // Triggers config reset, sets currentLogRadius to 2.0
+
+    // Now set specific evaluation state
+    component.currentLogRadius.set(1.0);
+    component.currentCenter.set(parseToRational('1/3'));
+    fixture.detectChanges();
+
+    expect(component.isEvaluatingJunction()).toBe(true);
+
+    const candidates = component.junctionCandidates();
+    // At c = 1/3, prefix center at rho = 1.0 is 0. So targetNodeId is '0_1'.
+    // Sibling children are 0_0, 1/3_0, 2/3_0.
+    expect(candidates.nodes.has('0_0')).toBe(true);
+    expect(candidates.nodes.has('1/3_0')).toBe(true);
+    expect(candidates.nodes.has('2/3_0')).toBe(true);
+
+    expect(candidates.edges.has('0_1_to_0_0')).toBe(true);
+    expect(candidates.edges.has('0_1_to_1/3_0')).toBe(true);
+    expect(candidates.edges.has('0_1_to_2/3_0')).toBe(true);
+  });
+
+  it('should place the parameter circle correctly at fractional log-radii', () => {
+    component.prime.set(3);
+    component.targetInput.set('5/3');
+    component.centerInput.set('1/3');
+    fixture.detectChanges(); // Triggers config reset
+
+    // Now set specific evaluation state
+    component.currentLogRadius.set(1.5);
+    component.currentCenter.set(parseToRational('1/3'));
+    fixture.detectChanges();
+
+    const coord = component.currentParameterCoord();
+    const visuals = component.treeVisuals();
+    
+    const parentNode = visuals.nodes.find(n => n.id === '0_2');
+    const childNode = visuals.nodes.find(n => n.id === '0_1');
+
+    expect(parentNode).toBeTruthy();
+    expect(childNode).toBeTruthy();
+    
+    expect(coord.x).toBeCloseTo((parentNode!.x + childNode!.x) / 2);
+    expect(coord.y).toBeCloseTo((parentNode!.y + childNode!.y) / 2);
   });
 });

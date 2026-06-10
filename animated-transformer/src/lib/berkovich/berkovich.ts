@@ -14,6 +14,13 @@ limitations under the License.
 ==============================================================================*/
 
 // ============================================================================
+// MATHEMATICAL BACKGROUND REFERENCE
+// Before modifying or reasoning about the mathematics in this file, please refer
+// to the LaTeX reference file for the mathematical definitions and notation:
+// /Users/ldixon/code/tiny-transformers/animated-transformer/src/lib/berkovich/berkovich.tex
+// ============================================================================
+
+// ============================================================================
 // P-ADIC ARITHMETIC INTERFACE & HELPERS
 // ============================================================================
 
@@ -368,9 +375,12 @@ export function computeGradientDetails(
   p: bigint,
   eta: number
 ): GradientDetails {
+  const rhoMin = -2;
+  const rhoMax = 2;
+
   const diff = subtract(c, y);
   const val = getValuation(diff, p);
-  const d = -val + 1;
+  const d = -val;
   const loss = Math.abs(rho - d) + d;
   
   const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
@@ -401,7 +411,7 @@ export function computeGradientDetails(
     // Children candidates
     for (let g = 0; g < Number(p); g++) {
       let shift: Rational;
-      const power = -k + 1;
+      const power = -k;
       if (power <= 0) {
         shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
       } else {
@@ -410,7 +420,7 @@ export function computeGradientDetails(
       const childCenter = add(c, shift);
       const childDiff = subtract(childCenter, y);
       const childVal = getValuation(childDiff, p);
-      const childD = -childVal + 1;
+      const childD = -childVal;
       const childLoss = Math.abs((k - 1) - childD) + childD;
       
       candidates.push({
@@ -443,7 +453,8 @@ export function computeGradientDetails(
     }
     
     const nextCenter = bestCand.center;
-    const nextLogRadius = bestCand.branch === 'parent' ? k + eta : k - eta;
+    const nextLogRadiusUnclamped = bestCand.branch === 'parent' ? k + eta : k - eta;
+    const nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadiusUnclamped));
     const stepType = bestCand.branch === 'parent' ? 'Vertex (Move to Parent)' : `Vertex (Move to Child ${bestCand.branch})`;
     
     const explanation = `At Type II vertex (ρ = ${k}), the tangent space has ${Number(p) + 1} branches (parent and ${Number(p)} children). We evaluate the path-metric loss for each branch and choose the one with the smallest loss: ${bestCand.branchLabel}.`;
@@ -478,6 +489,7 @@ export function computeGradientDetails(
       nextLogRadius = proposedRho;
       stepType = `Edge (Continuous descent dL/dρ=${gRho > 0 ? '+1' : '-1'})`;
     }
+    nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadius));
     
     const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
     const explanation = `On Type III edge (ρ = ${rho.toFixed(4)}), the gradient of the loss with respect to ρ is dL/dρ = sgn(ρ - d) = ${gRho > 0 ? '+1' : '-1'} (since ρ ${rho >= d ? '≥' : '<'} d). Under gradient descent, the proposed update is ρ_new = ρ - η * (dL/dρ) = ${proposedRho.toFixed(4)}.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to ρ = ${snappedRho} to land exactly on a Type II vertex.` : ''}`;
