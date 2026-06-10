@@ -1,0 +1,38 @@
+<mat-card class="history-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>history</mat-icon>
+      Optimization Step History
+    </mat-card-title>
+  </mat-card-header>
+  <mat-card-content class="history-content">
+    <div class="history-table-container">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</th>
+            <th>Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</th>
+            <th>Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</th>
+            <th>Update Mechanism</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (h of history(); track h.step) {
+            <tr>
+              <td>{{ h.step }}</td>
+              <td>
+                <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(h.center) + '$'"></markdown>
+              </td>
+              <td>{{ h.logRadius.toFixed(4) }}</td>
+              <td>{{ h.loss.toFixed(4) }}</td>
+              <td>
+                <span class="step-type-badge">{{ h.type }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </mat-card-content>
+</mat-card>

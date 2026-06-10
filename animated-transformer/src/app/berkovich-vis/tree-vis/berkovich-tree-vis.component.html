@@ -1,0 +1,161 @@
+<mat-card class="visualizer-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>account_tree</mat-icon>
+      Local Berkovich Subtree
+    </mat-card-title>
+    <mat-card-subtitle>
+      Visualizing the branching structure. The <strong>green</strong> path is the correct shared path from the root. The
+      <strong>yellow</strong> path goes to target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> (yellow circle). The <strong>purple</strong>
+      path goes to parameter center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>. The glowing purple halo represents the current state.
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content class="svg-container">
+    <svg
+      [attr.width]="svgWidth()"
+      [attr.height]="svgHeight"
+      [class.dragging-active]="isDraggingRho()"
+      class="tree-svg"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointerleave)="onPointerUp($event)"
+    >
+      <defs>
+        <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
+          <stop offset="30%" stop-color="#8b5cf6" stop-opacity="0.8" />
+          <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+
+      <!-- Draw Edges -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
+          <path
+            [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
+            [class.target-path]="targetPathEdges().has(edge.id)"
+            [class.parameter-path]="parameterPathEdges().has(edge.id)"
+            [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
+            [class.inactive-stub]="!edge.isActive"
+            [class.candidate-branch]="junctionCandidates().edges.has(edge.id)"
+            class="tree-edge"
+          />
+          <!-- Branch Digit Labels -->
+          <g
+            class="digit-label-group"
+            [style.--start-x.px]="edge.startX ?? (edge.x1 + edge.x2) / 2"
+            [style.--start-y.px]="edge.startY ?? (edge.y1 + edge.y2) / 2"
+            [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+          >
+            <circle
+              cx="0"
+              cy="0"
+              r="9"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-bg"
+            />
+            <text
+              x="0"
+              y="0"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-label"
+            >
+              {{ edge.digitLabel }}
+            </text>
+          </g>
+        </g>
+      }
+
+      <!-- Draw Nodes -->
+      @for (node of treeVisuals().nodes; track node.id) {
+        <g
+          class="tree-node-group"
+          [style.--start-x.px]="node.startX ?? node.x"
+          [style.--start-y.px]="node.startY ?? node.y"
+          [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
+        >
+          <circle
+            cx="0"
+            cy="0"
+            [attr.r]="node.logRadius === rhoMin ? 4 : 5"
+            [class.leaf-node]="node.logRadius === rhoMin"
+            [class.vertex-node]="node.logRadius > rhoMin"
+            [class.inactive-stub]="!node.isActive"
+            [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
+            class="tree-node"
+          />
+          <!-- Label for nodes at the top (root) and bottom (leaves) -->
+          @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
+            <text
+              x="0"
+              [attr.y]="node.logRadius === rhoMax ? -12 : 16"
+              [class.inactive-stub]="!node.isActive"
+              class="node-text-label"
+            >
+              {{ formatRationalValue(node.center) }}
+            </text>
+          }
+        </g>
+      }
+
+      <!-- Target Indicator Flag -->
+      @for (node of treeVisuals().nodes; track node.id) {
+        @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
+          <!-- Draw Target Marker -->
+          <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
+            <circle r="12" class="target-outer" />
+            <circle r="4" class="target-inner" />
+          </g>
+        }
+      }
+
+      <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
+      <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
+        <line
+          x1="20"
+          y1="0"
+          [attr.x2]="svgWidth() - 80"
+          y2="0"
+          class="rho-level-line"
+        />
+        <line
+          x1="20"
+          y1="0"
+          [attr.x2]="svgWidth() - 80"
+          y2="0"
+          class="rho-drag-handle"
+          (pointerdown)="onPointerDown($event)"
+        />
+        <!-- Drag-able Label outline background box -->
+        <rect
+          [attr.x]="svgWidth() - 78"
+          y="-9"
+          width="73"
+          height="18"
+          rx="3"
+          ry="3"
+          class="rho-label-bg"
+          (pointerdown)="onPointerDown($event)"
+        />
+        <text
+          [attr.x]="svgWidth() - 74"
+          y="1"
+          class="rho-level-text"
+        >
+          ρ = {{ currentLogRadius().toFixed(2) }}
+        </text>
+      </g>
+
+      <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
+      <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
+        <circle
+          cx="0"
+          cy="0"
+          r="12"
+          class="parameter-halo"
+        />
+      </g>
+    </svg>
+  </mat-card-content>
+</mat-card>

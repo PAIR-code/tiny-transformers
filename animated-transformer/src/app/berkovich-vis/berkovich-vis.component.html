@@ -17,513 +17,79 @@
   <div class="dashboard-grid">
     <!-- Left Column: Interactive Tree & Disk Visualizer -->
     <section class="visualizer-card-container">
-      <mat-card class="visualizer-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>account_tree</mat-icon>
-            Local Berkovich Subtree
-          </mat-card-title>
-          <mat-card-subtitle>
-            Visualizing the branching structure. The <strong>green</strong> path is the correct shared path from the root. The
-            <strong>yellow</strong> path goes to target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> (yellow circle). The <strong>purple</strong>
-            path goes to parameter center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>. The glowing purple halo represents the current state.
-          </mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content class="svg-container">
-          <svg
-            [attr.width]="svgWidth()"
-            [attr.height]="svgHeight"
-            [class.dragging-active]="isDraggingRho()"
-            class="tree-svg"
-            (pointermove)="onPointerMove($event)"
-            (pointerup)="onPointerUp($event)"
-            (pointerleave)="onPointerUp($event)"
-          >
-            <defs>
-              <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
-                <stop offset="30%" stop-color="#8b5cf6" stop-opacity="0.8" />
-                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
-              </radialGradient>
-            </defs>
-
-            <!-- Draw Edges -->
-            @for (edge of treeVisuals().edges; track edge.id) {
-              <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
-                <path
-                  [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
-                  [class.target-path]="targetPathEdges().has(edge.id)"
-                  [class.parameter-path]="parameterPathEdges().has(edge.id)"
-                  [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
-                  [class.inactive-stub]="!edge.isActive"
-                  [class.candidate-branch]="junctionCandidates().edges.has(edge.id)"
-                  class="tree-edge"
-                />
-                <!-- Branch Digit Labels -->
-                <g
-                  class="digit-label-group"
-                  [style.--start-x.px]="edge.startX ?? (edge.x1 + edge.x2) / 2"
-                  [style.--start-y.px]="edge.startY ?? (edge.y1 + edge.y2) / 2"
-                  [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
-                >
-                  <circle
-                    cx="0"
-                    cy="0"
-                    r="9"
-                    [class.inactive-stub]="!edge.isActive"
-                    class="digit-bg"
-                  />
-                  <text
-                    x="0"
-                    y="0"
-                    [class.inactive-stub]="!edge.isActive"
-                    class="digit-label"
-                  >
-                    {{ edge.digitLabel }}
-                  </text>
-                </g>
-              </g>
-            }
- 
-            <!-- Draw Nodes -->
-            @for (node of treeVisuals().nodes; track node.id) {
-              <g
-                class="tree-node-group"
-                [style.--start-x.px]="node.startX ?? node.x"
-                [style.--start-y.px]="node.startY ?? node.y"
-                [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
-              >
-                <circle
-                  cx="0"
-                  cy="0"
-                  [attr.r]="node.logRadius === rhoMin ? 4 : 5"
-                  [class.leaf-node]="node.logRadius === rhoMin"
-                  [class.vertex-node]="node.logRadius > rhoMin"
-                  [class.inactive-stub]="!node.isActive"
-                  [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
-                  class="tree-node"
-                />
-                <!-- Label for nodes at the top (root) and bottom (leaves) -->
-                @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
-                  <text
-                    x="0"
-                    [attr.y]="node.logRadius === rhoMax ? -12 : 16"
-                    [class.inactive-stub]="!node.isActive"
-                    class="node-text-label"
-                  >
-                    {{ formatRationalValue(node.center) }}
-                  </text>
-                }
-              </g>
-            }
- 
-            <!-- Target Indicator Flag -->
-            @for (node of treeVisuals().nodes; track node.id) {
-              @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
-                <!-- Draw Target Marker -->
-                <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
-                  <circle r="12" class="target-outer" />
-                  <circle r="4" class="target-inner" />
-                </g>
-              }
-            }
-
-            <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
-            <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
-              <line
-                x1="20"
-                y1="0"
-                [attr.x2]="svgWidth() - 80"
-                y2="0"
-                class="rho-level-line"
-              />
-              <line
-                x1="20"
-                y1="0"
-                [attr.x2]="svgWidth() - 80"
-                y2="0"
-                class="rho-drag-handle"
-                (pointerdown)="onPointerDown($event)"
-              />
-              <!-- Drag-able Label outline background box -->
-              <rect
-                [attr.x]="svgWidth() - 78"
-                y="-9"
-                width="73"
-                height="18"
-                rx="3"
-                ry="3"
-                class="rho-label-bg"
-                (pointerdown)="onPointerDown($event)"
-              />
-              <text
-                [attr.x]="svgWidth() - 74"
-                y="1"
-                class="rho-level-text"
-              >
-                ρ = {{ currentLogRadius().toFixed(2) }}
-              </text>
-            </g>
- 
-            <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
-            <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
-              <circle
-                cx="0"
-                cy="0"
-                r="12"
-                class="parameter-halo"
-              />
-            </g>
-          </svg>
-        </mat-card-content>
-      </mat-card>
+      <app-berkovich-tree-vis
+        [prime]="prime()"
+        [targetRational]="targetRational()"
+        [currentCenter]="currentCenter()"
+        [currentLogRadius]="currentLogRadius()"
+        [isDraggingRho]="isDraggingRho()"
+        (logRadiusChange)="onLogRadiusChange($event)"
+        (draggingChange)="onDraggingChange($event)"
+        (manualLogRadiusAdjust)="onManualLogRadiusAdjust($event)"
+      />
     </section>
 
     <!-- Right Column: Configurations & Calculus Details -->
     <aside class="control-panel">
       <!-- 1. Configuration Card -->
-      <mat-card class="config-card">
-        <mat-card-header (click)="toggleConfigCollapse()" class="clickable-header">
-          <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
-            <div style="display: inline-flex; align-items: center; gap: 10px;">
-              <mat-icon>settings</mat-icon>
-              <span>Configuration</span>
-            </div>
-            <mat-icon class="collapse-chevron">{{ isConfigCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>
-          </mat-card-title>
-        </mat-card-header>
-
-        <mat-card-content class="config-content">
-          @if (!isConfigCollapsed()) {
-            <div class="input-row">
-              <!-- Prime selection -->
-              <mat-form-field appearance="outline">
-                <mat-label>Prime Field (p)</mat-label>
-                <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
-                  <mat-option [value]="2">p = 2 (Binary)</mat-option>
-                  <mat-option [value]="3">p = 3 (Ternary)</mat-option>
-                  <mat-option [value]="5">p = 5 (Quinary)</mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <div class="input-row">
-              <!-- Target Value (y) -->
-              <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Target Value (y)</mat-label>
-                <input matInput [value]="targetInput()" (change)="targetInput.set(targetField.value)" (blur)="onTargetBlur()"
-                  #targetField />
-                <mat-hint>fractions/decimals</mat-hint>
-              </mat-form-field>
-
-              <!-- Target Digits (p^2 ... p^-2) -->
-              <mat-form-field appearance="outline" class="half-field">
-                <mat-label>y Digits (p^2 ... p^-2)</mat-label>
-                <input matInput [value]="targetDigitsInput()" (change)="targetDigitsInput.set(targetDigitsField.value)"
-                  (blur)="onTargetDigitsBlur()" #targetDigitsField />
-                <mat-hint>base-p digits</mat-hint>
-              </mat-form-field>
-            </div>
-
-            <div class="input-row">
-              <!-- Init Center (c) -->
-              <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Center (c)</mat-label>
-                <input matInput [value]="displayCenter()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
-                <mat-hint>fractions/decimals</mat-hint>
-                </mat-form-field>
-                
-                <!-- Center Digits (p^2 ... p^-2) -->
-                <mat-form-field appearance="outline" class="half-field">
-                  <mat-label>c Digits (p^2 ... p^-2)</mat-label>
-                  <input matInput [value]="displayCenterDigits()" (change)="centerDigitsInput.set(digitsField.value)"
-                    (blur)="onCenterDigitsBlur()" #digitsField />
-                  <mat-hint>base-p digits</mat-hint>
-              </mat-form-field>
-            </div>
-
-            <div class="input-row">
-              <!-- Init Log-Radius (rho) -->
-              <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Log-Radius (&rho;)</mat-label>
-                <input matInput [value]="displayLogRadius()" (change)="logRadiusInput.set(radiusField.value)" (blur)="onLogRadiusBlur()" #radiusField />
-                <mat-hint>Range [-2.0, 2.0]</mat-hint>
-              </mat-form-field>
-
-              <!-- Learning Rate (eta) -->
-              <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Learning Rate (&eta;)</mat-label>
-                <input matInput [value]="learningRateInput()" (change)="learningRateInput.set(lrField.value)" (blur)="onLearningRateBlur()" #lrField />
-                <mat-hint>Gradient step scale</mat-hint>
-              </mat-form-field>
-            </div>
-          }
-
-          <!-- Playback controls in grid -->
-          <div class="controls-grid">
-            <div class="controls-row">
-              <button mat-flat-button color="primary" (click)="togglePlay()">
-                <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
-                {{ isPlaying() ? 'Pause' : 'Animate' }}
-              </button>
-              <button mat-stroked-button (click)="step()" [disabled]="isPlaying()">
-                <mat-icon>skip_next</mat-icon>
-                Step
-              </button>
-            </div>
-            <div class="controls-row">
-              <button mat-stroked-button (click)="undo()" [disabled]="stepCount() === 0">
-                <mat-icon>undo</mat-icon>
-                Undo
-              </button>
-              <button mat-stroked-button (click)="reset()">
-                <mat-icon>replay</mat-icon>
-                Reset
-              </button>
-            </div>
-            <div class="controls-row">
-              <button mat-stroked-button (click)="randomizeCenterAndTarget()">
-                <mat-icon>casino</mat-icon>
-                Randomize Inputs
-              </button>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <app-berkovich-config
+        [prime]="prime()"
+        [targetInput]="targetInput()"
+        [targetDigitsInput]="targetDigitsInput()"
+        [displayCenter]="displayCenter()"
+        [displayCenterDigits]="displayCenterDigits()"
+        [displayLogRadius]="displayLogRadius()"
+        [learningRateInput]="learningRateInput()"
+        [isPlaying]="isPlaying()"
+        [stepCount]="stepCount()"
+        (primeChange)="onPrimeChange($event)"
+        (targetInputChange)="targetInput.set($event)"
+        (targetDigitsInputChange)="targetDigitsInput.set($event)"
+        (centerInputChange)="centerInput.set($event)"
+        (centerDigitsInputChange)="centerDigitsInput.set($event)"
+        (logRadiusInputChange)="logRadiusInput.set($event)"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (targetBlur)="onTargetBlur()"
+        (targetDigitsBlur)="onTargetDigitsBlur()"
+        (centerBlur)="onCenterBlur()"
+        (centerDigitsBlur)="onCenterDigitsBlur()"
+        (logRadiusBlur)="onLogRadiusBlur()"
+        (learningRateBlur)="onLearningRateBlur()"
+        (togglePlay)="togglePlay()"
+        (step)="step()"
+        (undo)="undo()"
+        (reset)="reset()"
+        (randomizeCenterAndTarget)="randomizeCenterAndTarget()"
+      />
 
       <!-- 2. Current State Details -->
-      <mat-card class="state-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>info</mat-icon>
-            State Details
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content class="state-content">
-          <div class="state-metric">
-            <span class="metric-name">Optimization Step</span>
-            <span class="metric-value">{{ stepCount() }}</span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Current Point Type</span>
-            <span class="metric-value badge-type" [class.type-ii]="currentPointType().includes('II')" [class.type-iii]="currentPointType().includes('III')">
-              {{ currentPointType() }}
-            </span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</span>
-            <span class="metric-value highlight-rho">{{ currentLogRadius().toFixed(4) }}</span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Radius (<markdown [inline]="true" [katex]="true" [data]="'$p^\\rho$'"></markdown>)</span>
-            <span class="metric-value">{{ (prime() ** currentLogRadius()).toFixed(4) }}</span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</span>
-            <span class="metric-value">
-              <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(currentCenter()) + '$'"></markdown>
-            </span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Target Distance (<markdown [inline]="true" [katex]="true" [data]="'$d$'"></markdown>)</span>
-            <span class="metric-value">
-              @if (currentDistanceValuation() === 30) {
-                <markdown [inline]="true" [katex]="true" [data]="'$0$ (Exact Match)'"></markdown>
-              } @else {
-                <markdown [inline]="true" [katex]="true" [data]="'$p^{' + (-currentDistanceValuation()) + '} \\quad (d = ' + (-currentDistanceValuation()) + ')$'"></markdown>
-              }
-            </span>
-          </div>
-          <div class="state-metric">
-            <span class="metric-name">Path-Metric Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</span>
-            <span class="metric-value highlight-loss">{{ currentLoss().toFixed(4) }}</span>
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <app-berkovich-state
+        [prime]="prime()"
+        [currentCenter]="currentCenter()"
+        [currentLogRadius]="currentLogRadius()"
+        [currentDistanceValuation]="currentDistanceValuation()"
+        [currentLoss]="currentLoss()"
+        [stepCount]="stepCount()"
+      />
     </aside>
   </div>
 
   <!-- Digit expansion and Gradient Details Grid -->
   <div class="dashboard-grid bottom-grid">
     <!-- Digit Expansion Card -->
-    <mat-card class="detail-card digit-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon>binary</mat-icon>
-          <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison
-        </mat-card-title>
-        <mat-card-subtitle>
-          Comparing digits from <markdown [inline]="true" [katex]="true" [data]="'$p^2$'"></markdown> to <markdown [inline]="true" [katex]="true" [data]="'$p^{-2}$'"></markdown>. Highlighted columns are resolved by the current disk size (<markdown [inline]="true" [katex]="true" [data]="'$k < -\\rho$'"></markdown>).
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content class="digit-grid-container">
-        <div class="digit-grid">
-          <!-- Power Labels -->
-          <div class="digit-row header-row">
-            <div class="row-label">Power of p:</div>
-            @for (col of digitRows(); track col.power) {
-              <div class="digit-cell power-cell" [class.resolved]="col.isResolved">
-                {{ col.powerLabel }}
-              </div>
-            }
-          </div>
-
-          <!-- Target digits -->
-          <div class="digit-row target-row">
-            <div class="row-label">Target (y):</div>
-            @for (col of digitRows(); track col.power) {
-              <div class="digit-cell val-cell" [class.resolved]="col.isResolved">
-                {{ col.targetDigit }}
-              </div>
-            }
-          </div>
-
-          <!-- Parameter center digits -->
-          <div class="digit-row center-row">
-            <div class="row-label">Center (c):</div>
-            @for (col of digitRows(); track col.power) {
-              <div
-                class="digit-cell val-cell center-val"
-                [class.resolved]="col.isResolved"
-                [class.matching]="col.isMatching"
-                [class.mismatch]="!col.isMatching && col.isResolved"
-              >
-                {{ col.centerDigit }}
-              </div>
-            }
-          </div>
-        </div>
-
-        <div class="digit-legend">
-          <div class="legend-item"><span class="legend-box resolved-box"></span> Resolved (k &lt; -&rho;)</div>
-          <div class="legend-item"><span class="legend-box match-box"></span> Matching digit</div>
-          <div class="legend-item"><span class="legend-box mismatch-box"></span> Mismatch (unresolved or boundary error)</div>
-        </div>
-      </mat-card-content>
-    </mat-card>
+    <app-berkovich-digits
+      [digitRows]="digitRows()"
+    />
 
     <!-- Gradient and Calculus Card -->
-    <mat-card class="detail-card calculus-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon>calculate</mat-icon>
-          Gradient &amp; Calculus Breakdown
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="calculus-content">
-        <div class="math-block">
-          <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$d = \\log_p |c - y|_p = -\\nu_p(c - y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
-          <div class="explanation-text calculus-intro" style="margin-bottom: 15px;">
-            <p style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-secondary);">
-              Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(c - y)$'"></markdown> represents the <strong>Target Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown>).
-            </p>
-            <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
-              The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> differ.
-            </p>
-          </div>
-          <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>
-        </div>
-
-        @if (gradientBreakdown().isVertex) {
-          <div class="branch-selector-panel">
-            <h4>Discrete Branch Selection at Vertex:</h4>
-            <table class="candidates-table">
-              <thead>
-                <tr>
-                  <th>Branch Direction</th>
-                  <th>Candidate Center</th>
-                  <th>New Log-Radius</th>
-                  <th>Loss <markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (cand of gradientBreakdown().candidates; track cand.branch) {
-                  <tr [class.selected-candidate]="gradientBreakdown().bestBranch === cand.branch">
-                    <td>
-                      <strong>{{ cand.branchLabel }}</strong>
-                      @if (gradientBreakdown().bestBranch === cand.branch) {
-                        <span class="sel-badge">(STEER DIRECTION)</span>
-                      }
-                    </td>
-                    <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + formatRationalLatex(cand.center) + '$'"></markdown></td>
-                    <td><markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + cand.logRadius + '$'"></markdown></td>
-                    <td class="loss-col">
-                      {{ cand.lossVal.toFixed(4) }}
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        } @else {
-          <div class="continuous-descent-panel">
-            <h4>Continuous Derivative Step:</h4>
-            <div class="calc-formula">
-              <div class="formula-term">
-                <span class="term-lbl"><markdown [inline]="true" [katex]="true" [data]="'$\\frac{dL}{d\\rho}$'"></markdown></span>
-                <span class="term-val">{{ gradientBreakdown().gRho! > 0 ? '+1.0' : '-1.0' }}</span>
-              </div>
-              <div class="formula-operator">&times;</div>
-              <div class="formula-term">
-                <span class="term-lbl">Learning Rate <markdown [inline]="true" [katex]="true" [data]="'$\\eta$'"></markdown></span>
-                <span class="term-val">{{ learningRate() }}</span>
-              </div>
-              <div class="formula-operator">&rarr;</div>
-              <div class="formula-term">
-                <span class="term-lbl">Proposed <markdown [inline]="true" [katex]="true" [data]="'$\\Delta\\rho$'"></markdown></span>
-                <span class="term-val">{{ (-learningRate() * gradientBreakdown().gRho!).toFixed(4) }}</span>
-              </div>
-            </div>
-            @if (gradientBreakdown().crossesInteger) {
-              <div class="alert-snap">
-                <mat-icon>vertical_align_bottom</mat-icon>
-                <span>Snapping to Type II vertex boundary at <markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + gradientBreakdown().snappedRho + '$'"></markdown>.</span>
-              </div>
-            }
-          </div>
-        }
-      </mat-card-content>
-    </mat-card>
+    <app-berkovich-calculus
+      [gradientBreakdown]="gradientBreakdown()"
+      [learningRate]="learningRate()"
+    />
   </div>
 
   <!-- Bottom section: Step History -->
-  <mat-card class="history-card">
-    <mat-card-header>
-      <mat-card-title>
-        <mat-icon>history</mat-icon>
-        Optimization Step History
-      </mat-card-title>
-    </mat-card-header>
-    <mat-card-content class="history-content">
-      <div class="history-table-container">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</th>
-              <th>Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</th>
-              <th>Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</th>
-              <th>Update Mechanism</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (h of history(); track h.step) {
-              <tr>
-                <td>{{ h.step }}</td>
-                <td>
-                  <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(h.center) + '$'"></markdown>
-                </td>
-                <td>{{ h.logRadius.toFixed(4) }}</td>
-                <td>{{ h.loss.toFixed(4) }}</td>
-                <td>
-                  <span class="step-type-badge">{{ h.type }}</span>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </mat-card-content>
-  </mat-card>
+  <app-berkovich-history
+    [history]="history()"
+  />
 </div>

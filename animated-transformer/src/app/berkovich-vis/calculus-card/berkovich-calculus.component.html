@@ -1,0 +1,81 @@
+<mat-card class="detail-card calculus-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>calculate</mat-icon>
+      Gradient &amp; Calculus Breakdown
+    </mat-card-title>
+  </mat-card-header>
+  <mat-card-content class="calculus-content">
+    <div class="math-block">
+      <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$d = \\log_p |c - y|_p = -\\nu_p(c - y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
+      <div class="explanation-text calculus-intro" style="margin-bottom: 15px;">
+        <p style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-secondary);">
+          Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(c - y)$'"></markdown> represents the <strong>Target Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown>).
+        </p>
+        <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
+          The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> differ.
+        </p>
+      </div>
+      <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>
+    </div>
+
+    @if (gradientBreakdown().isVertex) {
+      <div class="branch-selector-panel">
+        <h4>Discrete Branch Selection at Vertex:</h4>
+        <table class="candidates-table">
+          <thead>
+            <tr>
+              <th>Branch Direction</th>
+              <th>Candidate Center</th>
+              <th>New Log-Radius</th>
+              <th>Loss <markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (cand of gradientBreakdown().candidates; track cand.branch) {
+              <tr [class.selected-candidate]="gradientBreakdown().bestBranch === cand.branch">
+                <td>
+                  <strong>{{ cand.branchLabel }}</strong>
+                  @if (gradientBreakdown().bestBranch === cand.branch) {
+                    <span class="sel-badge">(STEER DIRECTION)</span>
+                  }
+                </td>
+                <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + formatRationalLatex(cand.center) + '$'"></markdown></td>
+                <td><markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + cand.logRadius + '$'"></markdown></td>
+                <td class="loss-col">
+                  {{ cand.lossVal.toFixed(4) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="continuous-descent-panel">
+        <h4>Continuous Derivative Step:</h4>
+        <div class="calc-formula">
+          <div class="formula-term">
+            <span class="term-lbl"><markdown [inline]="true" [katex]="true" [data]="'$\\frac{dL}{d\\rho}$'"></markdown></span>
+            <span class="term-val">{{ gradientBreakdown().gRho! > 0 ? '+1.0' : '-1.0' }}</span>
+          </div>
+          <div class="formula-operator">&times;</div>
+          <div class="formula-term">
+            <span class="term-lbl">Learning Rate <markdown [inline]="true" [katex]="true" [data]="'$\\eta$'"></markdown></span>
+            <span class="term-val">{{ learningRate() }}</span>
+          </div>
+          <div class="formula-operator">&rarr;</div>
+          <div class="formula-term">
+            <span class="term-lbl">Proposed <markdown [inline]="true" [katex]="true" [data]="'$\\Delta\\rho$'"></markdown></span>
+            <span class="term-val">{{ (-learningRate() * gradientBreakdown().gRho!).toFixed(4) }}</span>
+          </div>
+        </div>
+        @if (gradientBreakdown().crossesInteger) {
+          <div class="alert-snap">
+            <mat-icon>vertical_align_bottom</mat-icon>
+            <span>Snapping to Type II vertex boundary at <markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + gradientBreakdown().snappedRho + '$'"></markdown>.</span>
+          </div>
+        }
+      </div>
+    }
+  </mat-card-content>
+</mat-card>
