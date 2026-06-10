@@ -129,7 +129,8 @@ Maintain close proximity between code and unit tests by placing TypeScript spec 
   - **For exact equivalence**: `tf.test_util.expectArraysEqual(actual, expected)`
   - **For approximate floating-point matches**: `tf.test_util.expectArraysClose(actual, expected)`
 - **Async Tests**: Always mark spec callbacks that invoke asynchronous operations (like `data()` or `dataSync()`) as `async` and correctly `await` resolutions.
-- **Failure Screenshots & Temporary Files**: Browser failure screenshots or temporary test assets are ignored globally under `__screenshots__`. Clean them up proactively after fixing tests by running `pnpm clean-screenshots` or before finalizing tasks.
+- **Failure Screenshots & Temporary Files**: Visual testing baselines are stored in `__screenshots__` directories next to the `.spec.ts` files, while runtime test attachments and failure screenshots are saved in the `.vitest-attachments` directory in the project root. Both are ignored by git (via `.gitignore`). Clean them up proactively when needed.
+- **Inspecting UI state via test screenshots**: Instead of launching a browser subagent to check visual state or rendering (which is slow and resource-heavy), run the test suite and then view the generated PNG files inside the `.vitest-attachments` folder (for test run outputs/failures) or the `__screenshots__` directories (for baseline views) using the `view_file` tool.
 
 ---
 

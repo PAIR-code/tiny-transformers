@@ -98,7 +98,8 @@
           "options": {
             "tsConfig": "tsconfig.spec.json",
             "browsers": ["chromium"],
-            "headless": true
+            "headless": true,
+            "browserViewport": "1280x768"
           }
         }
       }
