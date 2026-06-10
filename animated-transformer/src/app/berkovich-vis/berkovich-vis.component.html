@@ -8,7 +8,7 @@
       <div>
         <h1>Berkovich Non-Archimedean ML Explorer</h1>
         <p class="subtitle">
-          Visualizing continuous gradient descent and branch selection on p-adic Berkovich trees (<span class="math">A<sup>1</sup>(Q<sub>p</sub>)</span>)
+          Visualizing continuous gradient descent and branch selection on <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Berkovich trees (<markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{A}^1(\\mathbb{Q}_p)$'"></markdown>)
         </p>
       </div>
     </div>
@@ -25,8 +25,8 @@
           </mat-card-title>
           <mat-card-subtitle>
             Visualizing the branching structure. The <strong>green</strong> path is the correct shared path from the root. The
-            <strong>yellow</strong> path goes to target <span class="math">y</span> (yellow circle). The <strong>purple</strong>
-            path goes to parameter center <span class="math">c</span>. The glowing purple halo represents the current state.
+            <strong>yellow</strong> path goes to target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> (yellow circle). The <strong>purple</strong>
+            path goes to parameter center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>. The glowing purple halo represents the current state.
           </mat-card-subtitle>
         </mat-card-header>
 
@@ -312,29 +312,31 @@
             </span>
           </div>
           <div class="state-metric">
-            <span class="metric-name">Log-Radius (&rho;)</span>
+            <span class="metric-name">Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</span>
             <span class="metric-value highlight-rho">{{ currentLogRadius().toFixed(4) }}</span>
           </div>
           <div class="state-metric">
-            <span class="metric-name">Radius (p<sup>&rho;</sup>)</span>
+            <span class="metric-name">Radius (<markdown [inline]="true" [katex]="true" [data]="'$p^\\rho$'"></markdown>)</span>
             <span class="metric-value">{{ (prime() ** currentLogRadius()).toFixed(4) }}</span>
           </div>
           <div class="state-metric">
-            <span class="metric-name">Center (c)</span>
-            <span class="metric-value">{{ formatRationalValue(currentCenter()) }}</span>
+            <span class="metric-name">Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</span>
+            <span class="metric-value">
+              <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(currentCenter()) + '$'"></markdown>
+            </span>
           </div>
           <div class="state-metric">
-            <span class="metric-name">Target Distance (d)</span>
+            <span class="metric-name">Target Distance (<markdown [inline]="true" [katex]="true" [data]="'$d$'"></markdown>)</span>
             <span class="metric-value">
               @if (currentDistanceValuation() === 30) {
-                0 (Exact Match)
+                <markdown [inline]="true" [katex]="true" [data]="'$0$ (Exact Match)'"></markdown>
               } @else {
-                p<sup>{{ -currentDistanceValuation() }}</sup> (d = {{ -currentDistanceValuation() }})
+                <markdown [inline]="true" [katex]="true" [data]="'$p^{' + (-currentDistanceValuation()) + '} \\quad (d = ' + (-currentDistanceValuation()) + ')$'"></markdown>
               }
             </span>
           </div>
           <div class="state-metric">
-            <span class="metric-name">Path-Metric Loss</span>
+            <span class="metric-name">Path-Metric Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</span>
             <span class="metric-value highlight-loss">{{ currentLoss().toFixed(4) }}</span>
           </div>
         </mat-card-content>
@@ -349,10 +351,10 @@
       <mat-card-header>
         <mat-card-title>
           <mat-icon>binary</mat-icon>
-          p-adic Digit Sequence Comparison
+          <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison
         </mat-card-title>
         <mat-card-subtitle>
-          Comparing digits from <span class="math">p<sup>2</sup></span> to <span class="math">p<sup>-2</sup></span>. Highlighted columns are resolved by the current disk size (<span class="math">k &lt; -&rho;</span>).
+          Comparing digits from <markdown [inline]="true" [katex]="true" [data]="'$p^2$'"></markdown> to <markdown [inline]="true" [katex]="true" [data]="'$p^{-2}$'"></markdown>. Highlighted columns are resolved by the current disk size (<markdown [inline]="true" [katex]="true" [data]="'$k < -\\rho$'"></markdown>).
         </mat-card-subtitle>
       </mat-card-header>
       <mat-card-content class="digit-grid-container">
@@ -411,7 +413,15 @@
       </mat-card-header>
       <mat-card-content class="calculus-content">
         <div class="math-block">
-          <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
+          <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$d = \\log_p |c - y|_p = -\\nu_p(c - y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
+          <div class="explanation-text calculus-intro" style="margin-bottom: 15px;">
+            <p style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-secondary);">
+              Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(c - y)$'"></markdown> represents the <strong>Target Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown>).
+            </p>
+            <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
+              The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> differ.
+            </p>
+          </div>
           <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>
         </div>
 
@@ -436,7 +446,7 @@
                         <span class="sel-badge">(STEER DIRECTION)</span>
                       }
                     </td>
-                    <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + cand.centerStr + '$'"></markdown></td>
+                    <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + formatRationalLatex(cand.center) + '$'"></markdown></td>
                     <td><markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + cand.logRadius + '$'"></markdown></td>
                     <td class="loss-col">
                       {{ cand.lossVal.toFixed(4) }}
@@ -491,9 +501,9 @@
           <thead>
             <tr>
               <th>Step</th>
-              <th>Center (c)</th>
-              <th>Log-Radius (&rho;)</th>
-              <th>Loss</th>
+              <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</th>
+              <th>Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</th>
+              <th>Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</th>
               <th>Update Mechanism</th>
             </tr>
           </thead>
@@ -501,7 +511,9 @@
             @for (h of history(); track h.step) {
               <tr>
                 <td>{{ h.step }}</td>
-                <td>{{ formatRationalValue(h.center) }}</td>
+                <td>
+                  <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(h.center) + '$'"></markdown>
+                </td>
                 <td>{{ h.logRadius.toFixed(4) }}</td>
                 <td>{{ h.loss.toFixed(4) }}</td>
                 <td>

@@ -1050,6 +1050,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     return formatRational(r);
   }
 
+  formatRationalLatex(r: Rational): string {
+    const simplified = simplify(r);
+    if (simplified.den === 1n) {
+      return simplified.num.toString();
+    }
+    return `\\frac{${simplified.num}}{${simplified.den}}`;
+  }
+
   renderMath(formula: string, displayMode = false): string {
     try {
       return katex.renderToString(formula, { displayMode, throwOnError: false });
