@@ -116,23 +116,23 @@
       <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
       <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
         <line
-          x1="20"
+          [attr.x1]="rhoLineRange().x1"
           y1="0"
-          [attr.x2]="svgWidth() - 80"
+          [attr.x2]="rhoLineRange().x2"
           y2="0"
           class="rho-level-line"
         />
         <line
-          x1="20"
+          [attr.x1]="rhoLineRange().x1"
           y1="0"
-          [attr.x2]="svgWidth() - 80"
+          [attr.x2]="rhoLineRange().x2"
           y2="0"
           class="rho-drag-handle"
           (pointerdown)="onPointerDown($event)"
         />
         <!-- Drag-able Label outline background box -->
         <rect
-          [attr.x]="svgWidth() - 78"
+          [attr.x]="rhoLabelX()"
           y="-9"
           width="73"
           height="18"
@@ -142,7 +142,7 @@
           (pointerdown)="onPointerDown($event)"
         />
         <text
-          [attr.x]="svgWidth() - 74"
+          [attr.x]="rhoLabelX() + 4"
           y="1"
           class="rho-level-text"
         >

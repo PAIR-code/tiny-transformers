@@ -422,6 +422,66 @@ export class BerkovichTreeVisComponent {
 
   readonly svgWidth = computed(() => this.treeVisuals().width);
 
+  readonly rhoLineRange = computed(() => {
+    const c_curr = this.currentCenter();
+    const rho = this.currentLogRadius();
+    const p = BigInt(this.prime());
+    const visuals = this.treeVisuals();
+    
+    const nodesInDisk = visuals.nodes.filter(n => {
+      if (n.logRadius > rho) return false;
+      return getValuation(subtract(n.center, c_curr), p) >= -rho;
+    });
+    
+    if (nodesInDisk.length === 0) {
+      const x = this.currentParameterCoord().x;
+      return { x1: x - 15, x2: x + 15 };
+    }
+    
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const node of nodesInDisk) {
+      if (node.x < minX) minX = node.x;
+      if (node.x > maxX) maxX = node.x;
+    }
+    
+    if (minX === maxX) {
+      return { x1: minX - 15, x2: minX + 15 };
+    }
+    
+    return { x1: minX, x2: maxX };
+  });
+
+  readonly rhoLabelX = computed(() => {
+    const range = this.rhoLineRange();
+    const paramX = this.currentParameterCoord().x;
+    const visuals = this.treeVisuals();
+    
+    const targetNode = visuals.nodes.find(n => 
+      n.logRadius === this.rhoMin && formatRational(n.center) === formatRational(this.targetRational())
+    );
+    
+    const targetX = targetNode ? targetNode.x : this.svgWidth() / 2;
+    const targetOnLeft = targetX < paramX - 0.1;
+    const side = targetOnLeft ? 'right' : 'left';
+    
+    const labelWidth = 73;
+    const margin = 5;
+    
+    let x: number;
+    if (side === 'right') {
+      x = range.x2 + margin;
+    } else {
+      x = range.x1 - margin - labelWidth;
+    }
+    
+    const minAllowed = 5;
+    const maxAllowed = this.svgWidth() - labelWidth - 5;
+    
+    return Math.max(minAllowed, Math.min(maxAllowed, x));
+  });
+
+
   readonly isEvaluatingJunction = computed(() => {
     const rho = this.currentLogRadius();
     return Math.abs(rho - Math.round(rho)) < 1e-7;

@@ -285,5 +285,72 @@ describe('BerkovichTreeVisComponent', () => {
     expect(component.targetPathEdges().has(paramOnlyEdge!.id)).toBe(false);
     expect(component.parameterPathEdges().has(paramOnlyEdge!.id)).toBe(true);
   });
+
+  it('should calculate correct rhoLineRange and position label on the opposite side of the target', () => {
+    // Case 1: Parameter at c = 0, Target at 5/3, p = 3, rho = 2.0 (covers everything)
+    setInputs(3, '5/3', '0', 2.0);
+    const rangeRoot = component.rhoLineRange();
+    const visualsRoot = component.treeVisuals();
+    
+    // Since rho = 2.0, all leaves should be in the disk, so range should span from the leftmost leaf to the rightmost leaf
+    const leaves = visualsRoot.nodes.filter(n => n.logRadius === component.rhoMin);
+    const leafXCoords = leaves.map(l => l.x);
+    const expectedMinX = Math.min(...leafXCoords);
+    const expectedMaxX = Math.max(...leafXCoords);
+    expect(rangeRoot.x1).toBeCloseTo(expectedMinX);
+    expect(rangeRoot.x2).toBeCloseTo(expectedMaxX);
+
+    // Case 2: rho = -2.0 (covers only the current parameter leaf, which is 0_-2)
+    setInputs(3, '5/3', '0', -2.0);
+    const rangeLeaf = component.rhoLineRange();
+    const visualsLeaf = component.treeVisuals();
+    const paramLeaf = visualsLeaf.nodes.find(n => formatRational(n.center) === '0' && n.logRadius === -2);
+    expect(paramLeaf).toBeTruthy();
+    expect(rangeLeaf.x1).toBeCloseTo(paramLeaf!.x - 15);
+    expect(rangeLeaf.x2).toBeCloseTo(paramLeaf!.x + 15);
+
+    // Case 3: Label position when target is to the right of parameter.
+    // Target is 5/3 (x is on the right), parameter is 0 (x is on the left).
+    const targetNode = visualsLeaf.nodes.find(n => formatRational(n.center) === '5/3' && n.logRadius === -2);
+    const paramNode = visualsLeaf.nodes.find(n => formatRational(n.center) === '0' && n.logRadius === -2);
+    expect(targetNode).toBeTruthy();
+    expect(paramNode).toBeTruthy();
+    expect(targetNode!.x).toBeGreaterThan(paramNode!.x); // Target is to the right
+    
+    const labelX_left = component.rhoLabelX();
+    // Since target is on the right, label should be on the left side of the line: x1 - 5 - 73 = x1 - 78
+    const expectedLeftLabelX = Math.max(5, rangeLeaf.x1 - 5 - 73);
+    expect(labelX_left).toBeCloseTo(expectedLeftLabelX);
+
+    // Case 4: Label position when target is to the left of parameter.
+    // Set parameter to 8/3 (to the right of target 5/3)
+    setInputs(3, '5/3', '8/3', -2.0);
+    const rangeLeafRight = component.rhoLineRange();
+    const visualsRight = component.treeVisuals();
+    const targetNodeLeft = visualsRight.nodes.find(n => formatRational(n.center) === '5/3' && n.logRadius === -2);
+    const paramNodeRight = visualsRight.nodes.find(n => formatRational(n.center) === '8/3' && n.logRadius === -2);
+    expect(targetNodeLeft).toBeTruthy();
+    expect(paramNodeRight).toBeTruthy();
+    expect(targetNodeLeft!.x).toBeLessThan(paramNodeRight!.x); // Target is to the left
+    
+    const labelX_right = component.rhoLabelX();
+    // Since target is on the left, label should be on the right side of the line: x2 + 5
+    const expectedRightLabelX = Math.min(component.svgWidth() - 73 - 5, rangeLeafRight.x2 + 5);
+    expect(labelX_right).toBeCloseTo(expectedRightLabelX);
+
+    // Case 5: Verify that the line range covers inactive/collapsed subtree stubs.
+    // Set inputs to: c_curr = 0, target = 5/3, p = 3, rho = 1.0.
+    // Sibling stub 1/3_0 is collapsed, but is within the disk D(0, 3).
+    setInputs(3, '5/3', '0', 1.0);
+    const rangeStub = component.rhoLineRange();
+    const visualsStub = component.treeVisuals();
+    const inactiveStub = visualsStub.nodes.find(n => formatRational(n.center) === '1/3' && n.logRadius === 0);
+    
+    expect(inactiveStub).toBeTruthy();
+    expect(inactiveStub!.isActive).toBe(false); // Make sure it is indeed collapsed
+    // Verify that the line range includes the X coordinate of the inactive stub
+    expect(rangeStub.x1).toBeLessThanOrEqual(inactiveStub!.x);
+    expect(rangeStub.x2).toBeGreaterThanOrEqual(inactiveStub!.x);
+  });
 });
 
