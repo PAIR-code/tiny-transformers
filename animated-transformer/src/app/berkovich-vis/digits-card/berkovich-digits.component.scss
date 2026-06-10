@@ -20,7 +20,43 @@ limitations under the License.
 .detail-card {
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  transition: min-height 0.2s ease, height 0.2s ease;
+  
+  &:not(.collapsed) {
+    min-height: 280px;
+  }
+}
+
+.clickable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+  padding: 12px 16px;
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    
+    mat-icon {
+      color: #0f766e;
+    }
+  }
+  
+  &:hover {
+    background-color: #f1f5f9;
+  }
+  
+  .collapse-chevron {
+    color: #64748b;
+  }
+}
+
+.detail-card:not(.collapsed) .clickable-header {
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .digit-grid-container {

@@ -1,0 +1,89 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=============================================================================*/
+
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideMarkdown } from 'ngx-markdown';
+import katex from 'katex';
+// @ts-ignore
+import renderMathInElement from 'katex/dist/contrib/auto-render.js';
+import { BerkovichDigitsComponent } from './berkovich-digits.component';
+
+declare module 'vitest' {
+  interface Assertion<T = any> {
+    toMatchScreenshot(): Promise<void>;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).katex = katex;
+  (window as any).renderMathInElement = renderMathInElement;
+}
+
+describe('BerkovichDigitsComponent', () => {
+  let component: BerkovichDigitsComponent;
+  let fixture: ComponentFixture<BerkovichDigitsComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [BerkovichDigitsComponent],
+      providers: [provideZonelessChangeDetection(), provideMarkdown()]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(BerkovichDigitsComponent);
+    component = fixture.componentInstance;
+  });
+
+  const mockDigitRows = [
+    { power: 2, powerLabel: 'p^2', targetDigit: 0, centerDigit: 0, isResolved: false, isMatching: true },
+    { power: 1, powerLabel: 'p', targetDigit: 0, centerDigit: 0, isResolved: false, isMatching: true },
+    { power: 0, powerLabel: '1', targetDigit: 1, centerDigit: 0, isResolved: false, isMatching: false },
+    { power: -1, powerLabel: '1/p', targetDigit: 2, centerDigit: 0, isResolved: true, isMatching: false },
+    { power: -2, powerLabel: 'p^-2', targetDigit: 0, centerDigit: 0, isResolved: true, isMatching: true }
+  ];
+
+  it('should render collapsed by default', async () => {
+    fixture.componentRef.setInput('digitRows', mockDigitRows);
+    fixture.detectChanges();
+
+    expect(component.isCollapsed()).toBe(true);
+    await expect(fixture.nativeElement).toMatchScreenshot();
+  });
+
+  it('should toggle collapse state on header click', async () => {
+    fixture.componentRef.setInput('digitRows', mockDigitRows);
+    fixture.detectChanges();
+
+    const header = fixture.nativeElement.querySelector('.clickable-header') as HTMLElement;
+    header.click();
+    fixture.detectChanges();
+
+    expect(component.isCollapsed()).toBe(false);
+
+    header.click();
+    fixture.detectChanges();
+
+    expect(component.isCollapsed()).toBe(true);
+  });
+
+  it('should render correct digit sequence comparison grid when expanded', async () => {
+    fixture.componentRef.setInput('digitRows', mockDigitRows);
+    component.isCollapsed.set(false);
+    fixture.detectChanges();
+
+    await expect(fixture.nativeElement).toMatchScreenshot();
+  });
+});

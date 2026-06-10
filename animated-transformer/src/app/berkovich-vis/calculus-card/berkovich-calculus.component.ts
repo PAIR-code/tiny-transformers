@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =============================================================================*/
 
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,6 +35,13 @@ import { Rational, simplify } from '../../../lib/berkovich/berkovich';
 export class BerkovichCalculusComponent {
   readonly gradientBreakdown = input.required<any>();
   readonly learningRate = input.required<number>();
+
+  // Local collapse state
+  readonly isCollapsed = signal<boolean>(true);
+
+  toggleCollapse(): void {
+    this.isCollapsed.update(c => !c);
+  }
 
   formatRationalLatex(r: Rational): string {
     const simplified = simplify(r);

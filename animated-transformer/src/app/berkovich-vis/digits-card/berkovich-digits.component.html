@@ -1,14 +1,20 @@
-<mat-card class="detail-card digit-card">
-  <mat-card-header>
-    <mat-card-title>
-      <mat-icon>binary</mat-icon>
-      <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison
+<mat-card class="detail-card digit-card" [class.collapsed]="isCollapsed()">
+  <mat-card-header (click)="toggleCollapse()" class="clickable-header">
+    <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
+      <div style="display: inline-flex; align-items: center; gap: 10px;">
+        <mat-icon>binary</mat-icon>
+        <span><markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison</span>
+      </div>
+      <mat-icon class="collapse-chevron">{{ isCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>
     </mat-card-title>
-    <mat-card-subtitle>
-      Comparing digits from <markdown [inline]="true" [katex]="true" [data]="'$p^2$'"></markdown> to <markdown [inline]="true" [katex]="true" [data]="'$p^{-2}$'"></markdown>. Highlighted columns are resolved by the current disk size (<markdown [inline]="true" [katex]="true" [data]="'$k < -\\rho$'"></markdown>).
-    </mat-card-subtitle>
+    @if (!isCollapsed()) {
+      <mat-card-subtitle>
+        Comparing digits from <markdown [inline]="true" [katex]="true" [data]="'$p^2$'"></markdown> to <markdown [inline]="true" [katex]="true" [data]="'$p^{-2}$'"></markdown>. Highlighted columns are resolved by the current disk size (<markdown [inline]="true" [katex]="true" [data]="'$k < -\\rho$'"></markdown>).
+      </mat-card-subtitle>
+    }
   </mat-card-header>
-  <mat-card-content class="digit-grid-container">
+  @if (!isCollapsed()) {
+    <mat-card-content class="digit-grid-container">
     <div class="digit-grid">
       <!-- Power Labels -->
       <div class="digit-row header-row">
@@ -52,4 +58,5 @@
       <div class="legend-item"><span class="legend-box mismatch-box"></span> Mismatch (unresolved or boundary error)</div>
     </div>
   </mat-card-content>
+  }
 </mat-card>

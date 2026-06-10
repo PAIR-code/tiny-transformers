@@ -20,7 +20,43 @@ limitations under the License.
 .detail-card {
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  transition: min-height 0.2s ease, height 0.2s ease;
+  
+  &:not(.collapsed) {
+    min-height: 280px;
+  }
+}
+
+.clickable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+  padding: 12px 16px;
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    
+    mat-icon {
+      color: #0f766e;
+    }
+  }
+  
+  &:hover {
+    background-color: #f1f5f9;
+  }
+  
+  .collapse-chevron {
+    color: #64748b;
+  }
+}
+
+.detail-card:not(.collapsed) .clickable-header {
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .calculus-content {
@@ -43,7 +79,7 @@ limitations under the License.
     border-radius: 8px;
     border: 1px solid #e2e8f0;
     
-    markdown:first-child {
+    > markdown:first-child {
       display: block;
       color: #0f766e;
       text-align: center;
@@ -59,9 +95,25 @@ limitations under the License.
       line-height: 1.5;
       margin-top: 12px;
       
+      p {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        color: #334155;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+      
       ::v-deep p {
         margin: 0;
+        font-size: 13px;
+        color: #334155;
       }
+    }
+
+    .calculus-intro {
+      margin-bottom: 15px;
     }
   }
 

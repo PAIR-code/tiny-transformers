@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =============================================================================*/
 
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -42,4 +42,11 @@ export interface DigitRowColumn {
 })
 export class BerkovichDigitsComponent {
   readonly digitRows = input.required<DigitRowColumn[]>();
+
+  // Local collapse state
+  readonly isCollapsed = signal<boolean>(true);
+
+  toggleCollapse(): void {
+    this.isCollapsed.update(c => !c);
+  }
 }
