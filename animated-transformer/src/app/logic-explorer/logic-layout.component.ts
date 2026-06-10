@@ -55,7 +55,7 @@ export class LogicLayoutComponent {
     while (route.firstChild) {
       route = route.firstChild;
     }
-    const data = route.snapshot.data;
+    const data = route.snapshot?.data ?? {};
     this.headerTitle.set(data['title'] ?? 'Logic V2 Linear Lolli Explorer');
     this.headerIcon.set(data['icon'] ?? 'account_tree');
 

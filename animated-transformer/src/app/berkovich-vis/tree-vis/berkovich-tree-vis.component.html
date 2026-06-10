@@ -115,6 +115,24 @@
 
       <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
       <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
+        <!-- Dotted vertical guide lines down to leaf level -->
+        @if (currentLogRadius() > rhoMin) {
+          <line
+            [attr.x1]="rhoLineRange().x1"
+            y1="0"
+            [attr.x2]="rhoLineRange().x1"
+            [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+            class="rho-guide-line"
+          />
+          <line
+            [attr.x1]="rhoLineRange().x2"
+            y1="0"
+            [attr.x2]="rhoLineRange().x2"
+            [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+            class="rho-guide-line"
+          />
+        }
+
         <line
           [attr.x1]="rhoLineRange().x1"
           y1="0"
@@ -122,6 +140,22 @@
           y2="0"
           class="rho-level-line"
         />
+        <!-- Left and right end cap ticks -->
+        <line
+          [attr.x1]="rhoLineRange().x1"
+          y1="-4"
+          [attr.x2]="rhoLineRange().x1"
+          y2="4"
+          class="rho-level-cap"
+        />
+        <line
+          [attr.x1]="rhoLineRange().x2"
+          y1="-4"
+          [attr.x2]="rhoLineRange().x2"
+          y2="4"
+          class="rho-level-cap"
+        />
+
         <line
           [attr.x1]="rhoLineRange().x1"
           y1="0"

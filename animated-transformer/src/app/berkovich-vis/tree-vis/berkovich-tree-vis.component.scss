@@ -295,6 +295,21 @@ text.node-text-label.inactive-stub {
   opacity: 0.5;
 }
 
+.rho-level-cap {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.rho-guide-line {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
+  opacity: 0.3;
+}
+
 .rho-drag-handle {
   fill: none;
   stroke: transparent;

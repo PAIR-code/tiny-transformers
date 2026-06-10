@@ -318,7 +318,7 @@ describe('BerkovichTreeVisComponent', () => {
     expect(targetNode!.x).toBeGreaterThan(paramNode!.x); // Target is to the right
     
     const labelX_left = component.rhoLabelX();
-    // Since target is on the right, label should be on the left side of the line: x1 - 5 - 73 = x1 - 78
+    // Since target is on the right, label should be on the left side of the line: x1 - 5 - 73 = x1 - 78, clamped to >= 5
     const expectedLeftLabelX = Math.max(5, rangeLeaf.x1 - 5 - 73);
     expect(labelX_left).toBeCloseTo(expectedLeftLabelX);
 
@@ -334,7 +334,7 @@ describe('BerkovichTreeVisComponent', () => {
     expect(targetNodeLeft!.x).toBeLessThan(paramNodeRight!.x); // Target is to the left
     
     const labelX_right = component.rhoLabelX();
-    // Since target is on the left, label should be on the right side of the line: x2 + 5
+    // Since target is on the left, label should be on the right side of the line: x2 + 5, clamped to <= svgWidth - 73 - 5
     const expectedRightLabelX = Math.min(component.svgWidth() - 73 - 5, rangeLeafRight.x2 + 5);
     expect(labelX_right).toBeCloseTo(expectedRightLabelX);
 

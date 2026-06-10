@@ -308,10 +308,10 @@ export class BerkovichTreeVisComponent {
       }
 
       const treeSpan = maxX - minX;
-      const computedWidth = Math.max(300, Math.round(treeSpan + 130));
+      const computedWidth = Math.max(350, Math.round(treeSpan + 190));
 
       // Pass 5: Shift all nodes based on minX and the left margin boundary
-      const shift = 40 - minX;
+      const shift = 95 - minX;
       const applyShift = (node: LayoutNode) => {
         node.x = node.x! + shift;
         for (const child of node.children) {
