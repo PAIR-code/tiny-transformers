@@ -6,23 +6,17 @@
       <h1 class="header-title">Logic V2 Linear Lolli Explorer</h1>
     </div>
     <nav class="header-nav">
-      <a routerLink="/logic-docs" class="nav-link">
+      <a routerLink="/logic-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
         <mat-icon>menu_book</mat-icon> Story Semantics
       </a>
-      <a routerLink="/logic-sim-docs" class="nav-link">
+      <a routerLink="/logic-sim-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
         <mat-icon>insights</mat-icon> Simulation & Generation
       </a>
-      <a routerLink="/logic-advanced-docs" class="nav-link">
+      <a routerLink="/logic-advanced-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
         <mat-icon>psychology</mat-icon> Advanced TypeScript
       </a>
-      <a routerLink="/wcolab" class="nav-link">
-        <mat-icon>code</mat-icon> Web Colab
-      </a>
-      <a routerLink="/activations" class="nav-link">
-        <mat-icon>grid_on</mat-icon> Activations
-      </a>
-      <a routerLink="/sae" class="nav-link">
-        <mat-icon>psychology</mat-icon> SAE Trainer
+      <a routerLink="/logic" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
+        <mat-icon>account_tree</mat-icon> Explorer
       </a>
     </nav>
   </header>

@@ -96,6 +96,13 @@ limitations under the License.
   border-color: #cbd5e1;
 }
 
+.nav-link.active {
+  color: #0f766e;
+  background: #f0fdfa;
+  border-color: #0d9488;
+  font-weight: 600;
+}
+
 /* Layout */
 .explorer-layout {
   display: grid;

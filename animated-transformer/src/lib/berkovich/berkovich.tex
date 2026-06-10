@@ -1,0 +1,110 @@
+\section{Background}
+\label{sec:background}
+
+\begin{itemize}
+    \item A \textit{$p$-adic number} $x \in \Qp$ can be written as a formal sum $x = \sum_{n \ge n_0} a_n p^n$ where $a_n \in \{0,\dotsc, p-1\}$. The \textit{$p$-adic valuation} $\nu_p(x)$ is the exponent of the highest power of $p$ dividing $x$. The \textit{absolute value} is defined as $|x|_p = p^{-\nu_p(x)}$. See \citep{gouvea2020padic} for an overview:
+    \begin{equation}
+    1.25 = 1p^{-2} + 0p^{-1} + 1p^0 = 1.01_2 \implies \nu_p(1.25) = -2 \implies |1.25|_2 = 2^{-(-2)} = 4.
+    \end{equation}
+    \item The \textit{$p$-adic distance} $d_p(a,b) = |b - a|_p$ makes $\Qp$ \textit{ultrametric} / \textit{non-Archimedean}; for all $x,y,z$,
+    \begin{equation}
+    \label{eq:ultrametric}
+    |x - z|_p \le \max(|x - y|_p, |y - z|_p).
+    \end{equation}
+    \item $\Qp$ is an unordered field (i.e., one cannot define $\le$ such that $a \le b \implies a + c \le b + c$) and are a non-trivial \textit{completion} of the rational numbers $\Q$ per the above ultrametric. The real numbers $\R$ are the completion per the Euclidean absolute value.
+    \item $\Qp^n$ is \textit{totally disconnected} (\Cref{fig:q3}); there are no continuous paths $[0, 1] \to \Q^n_p$. Magnitudes are discretely valued and do not match Euclidean distance: $|32|_2 = 0.0625$ but $|32.1|_2 = 2$.
+\end{itemize}
+
+\label{sec:related_work}
+
+Maps $f: \Qp^m \to \Qp^n$ are well-studied in pure mathematics ($p$-adic analysis). However, optimization is about traversing some parameter space to minimize a loss $\mathcal{L}: \mathbb{Q}_p^n \to \mathbb{R}$. Since \textit{minimization} requires an ordering, $\mathbb{Q}_p$ cannot be the codomain. Defining the derivative from a disconnected space to an Archimedean space is problematic, and natural loss functions (e.g., $|f(x) - y|_p$) are locally constant almost everywhere, yielding zero gradients.
+
+The first proposals to use $p$-adic parameters were in classical neural networks \citep{albeverio1999padic, khrennikov2000learning}, made by mathematicians working in $p$-adic dynamical systems. They bypassed continuous training entirely in favor of fixed-point attractors or Hebbian-like discrete updates. Recent work has revived $p$-adics for regression, via combinatorial searches \citep{martins2025learning}, digitwise noise models \citep{mihara2026padicpolynomial}, and stochastic random walks \citep{zubarev2025adic}. Exact solution of the $L_1$ variant is NP-hard \citep{baker2026nphardness}, and gradient descent fails because the loss landscape is locally constant almost everywhere \citep{baker2025linear}. We address these issues by developing a continuous relaxation for optimization in \Cref{sec:regression} and address the classification challenges in \Cref{sec:classification}. Theoretical expressiveness has also been studied: \citet{biderman2019neural} established a universal approximation theorem for networks on groups including the $p$-adics, while \citet{martins2025learning} characterized some problem classes solvable by $p$-adic versus $\mathbb{R}$ linear classifiers.
+
+Continuous optimization for hierarchical structures has been explored by embedding data in Euclidean \citep{chierchia2019ultrametric, perret2021component} or hyperbolic spaces \citep{chami2020trees, zeng2025hyperbolic}. Similarly, \citet{zuniga2024deep} targets real-valued functions on $p$-adic domains using standard backpropagation. While these enable continuous optimization, they cannot be fully faithful to the original geometry (even $N$ ultrametric points requires $\mathbb{R}^{N+1}$ dimensional space; \citealp{lemin1985isometric}). Recent $p$-adic-specific models avoid vanishing gradients via fixed digit prefixes \citep{nguessan2025vpunns} or $p$-adic characters \citep{mihara2026padic}, but rely on real-valued surrogates or NP-hard polynomial feasibility. Our work uniquely achieves a continuous representation space, (canonical) compatibility with the original non-Archimedean metric, and scalable gradient-based optimization.
+
+\section{The Berkovich Affine Line}
+\label{sec:berkovich}
+\citet{berkovich1990spectral} proposed to expand the underlying set of field elements by adding points corresponding to multiplicative seminorms, yielding what are now called Berkovich spaces (see e.g., \citealp{poineau2020berkovich} for a modern treatment):
+
+\begin{definition}
+    A \textbf{multiplicative seminorm} over a ring $A$ is a function $|-|: A \to \mathbb{R}_{\ge 0}$ such that $|0_A| = 0$, $|1_A| = 1$, $| f + g | \le |f| + |g|$, and $|fg| = |f||g|$.
+\end{definition}
+
+\begin{definition}
+The \textbf{Berkovich affine line} over the $p$-adics $\Ap$ (formally $\mathbb{A}^1_{\mathbb{Q}_p}$) is the set of all multiplicative seminorms $\xi$ on the ring of single-variable polynomials $\Qp[\theta]$ that extend the standard $p$-adic absolute value $|\cdot|_p$ on $\Qp$. Its topology is defined to be the weakest one where the evaluation map $\xi \mapsto |P|_\xi$ is continuous for every polynomial $P \in \mathbb{Q}_p[\theta]$,
+\end{definition}
+
+The canonical embedding $\Qp \hookrightarrow \Ap$ maps $p$-adic valued $\theta$ to the seminorm $\xi_\theta: f \mapsto |f(\theta)|_p$.
+However, $\Ap$ contains other seminorms as well. It is the non-Archimedean continuum of these seminorms interpolating between $p$-adic numbers, combined with an appropriate distance metric, that will allow continuous optimization. In fact, the analytic functions (such as linear maps, polynomials, Möbius transforms, and power series like the $p$-adic logarithm and exponential on their domains of convergence) used in machine learning extend to $f: \mathbb{A}_p \to \mathbb{A}_p$ in a unique way. To see this for polynomials $f$, observe that if $x \mapsto |x|_\xi$ is a multiplicative seminorm on a polynomial ring, so is $x \mapsto |f(x)|_\xi$; see \Cref{prop:unified_analytification} for a formal statement and proof.
+
+\textbf{The $\Qp$-tree ($\Gamma_p$).} It can be shown that $\Ap$ is also a profinite limit of metric trees \citep{baker2010potential}, which are also valuative trees \citep{favre2004valuative}. Notably, this means points are \textit{uniquely} path-connected. Since optimal parameters lie in $\mathbb{Q}_p$, it suffices to work in what we call the \textit{$\Qp$-tree}, which we denote $\Gamma_p$. Its points are those representable by tuples $(c, \rho)$, where $c \in \Qp$ is the center and $\rho \in \mathbb{R}$ is the log-radius. These correspond to closed rational disks $\bar{D}(c, p^\rho)$. Due to the ultrametric property, any point $c' \in \bar{D}(c, p^\rho)$ is a valid center, and \textbf{two representative tuples $(c, \rho)$, $(c', \rho')$ are identical iff $\rho = \rho'$ and their centers $c$, $c'$ are within distance $p^\rho$}.\footnote{Since $\Qp$ is not algebraically closed, the full Berkovich line $\Ap$ contains points whose centers are not representable by any point in $\Qp$ \citep[\S I.6]{poineau2020berkovich}; however, the unique path property of $\Ap$ ensures descent paths are within $\Gamma_p$.} This equivalence relation is what expresses $\Ap$'s tree structure.
+
+The optimized radius $\rho$ can be interpreted as propagating uncertainty or defining a region of equivalent fit. Since the original optimization problem is defined over $\Qp$, one can always extract a classical $p$-adic solution by taking the center $c$ of the resulting disk if absolutely required, effectively projecting the Berkovich point back to the base field.
+
+\textbf{Equivalence.} To evaluate a polynomial $P(x)$ on a Berkovich point represented by $(c, \rho)$, one can use the unique Taylor expansion at $c$: $P(x) = \sum a_i(x - c)^i$. The value of the polynomial at this point is determined by the maximum of the norms of its terms: $|P|_{(c, \rho)} = \max_i (|a_i|_p p^{i \rho})$. This property, where the supremum on a disk is determined by the terms of maximal valuation, is a consequence of the strong triangle inequality. Points on this tree classify into three types based on the log-radius; see \Cref{fig:berkovich} for a visualization.
+\begin{itemize}
+    \item \textbf{Type I (Leaves, $\rho \to -\infty$)}: Correspond to the classical $p$-adic points.
+    \item \textbf{Type II (Vertices, $\rho \in \mathbb{Z}$)}: Points where the tree branches. 
+    \item \textbf{Type III (Edges, $\rho \notin \mathbb{Z}$)}: Points on the segments between vertices.
+\end{itemize}
+
+
+\textbf{Distances.} The $p$-adic distance extends to $\Ap$ as the radius of the lowest common ancestor (LCA) of $x = (c_x, \rho_x)$ and $y = (c_y, \rho_y)$, which is given by the Hsia kernel $\delta(x, y) := \max(p^{\rho_x}, p^{\rho_y}, |c_x - c_y|_p)$ \citep{baker2010potential}. On Type I points ($\rho_x, \rho_y \to -\infty$), this is identical to the $p$-adic distance.
+
+\section{Berkovich Gradient Descent}
+\label{sec:gradient_descent}
+
+Our continuous optimization thus becomes finding an intrinsic descent direction in the tangent set $T_\xi\Gamma$ at the current Berkovich point $\xi$. On edges (Type III points), the tangent set is essentially one-dimensional, and the algorithm follows the continuous gradient flow. At Type II vertices, the tangent space expands to the projective line over the finite field $\mathbb{P}^1(\mathbb{F}_p)$, and the algorithm must select an optimal branch. We can now describe a \textit{geodesic descent} step to optimize a parametric model $\hat{\mathbf{y}} = f(\mathbf{x}; \boldsymbol{\theta})$ with $\mathbf{x} \in \Qp^\numdims$, $\boldsymbol{\theta} \in \Qp^\numparams$, and $\hat{\mathbf{y}} \in \Qp^\numout$. First, we will give expressions in full generality, then we will specialize them to linear models and the standard regression and classification losses.
+
+\subsection{Forward Propagation}
+
+Since our models are defined by analytic functions, by \Cref{prop:unified_analytification}, we can work with $f$'s unique extension to $\Ap$: $f^{an}: \Qp^\numdims \times \Ap^\numparams \to \Ap^\numout$, which for polynomials is the same mathematical expression. The Berkovich output center evaluates identically to the standard function: $\mathbf{c}_{\hat{\mathbf{y}}} = f(\mathbf{x}, \mathbf{c}_{\boldsymbol{\theta}})$. The multidimensional output log-radius $\boldsymbol{\rho}_{\hat{\mathbf{y}}} \in \mathbb{R}^\ell$ is governed by a vector-valued ultrametric scale pushforward $\boldsymbol{\rho}_{\hat{\mathbf{y}}} = \Phi(\mathbf{x}, \mathbf{c}_{\boldsymbol{\theta}}, \boldsymbol{\rho}_{\boldsymbol{\theta}})$.
+
+While formally the bound of the polynomial expansion of the function around $\mathbf{c}_{\boldsymbol{\theta}}$, $\Phi$ has a tractable algebraic mechanism: by the strong triangle inequality, the norm of the expansion is bounded by the term(s) with the largest $p$-adic norm. For a given output coordinate $m$:
+\begin{equation}
+    \Phi_m = \max_{|I| \ge 1} \left( \log_p |a_I(\mathbf{x}, \mathbf{c}_{\boldsymbol{\theta}})|_p + \sum_{j=1}^k I_j \rho_{\boldsymbol{\theta}, j} \right),
+\end{equation}
+where $I^* = (I^*_1, \dotsc, I^*_k)$ is a multi-index that achieves this maximum (resolving ties via convention). Consequently, the local Jacobian $\frac{\partial \Phi_m}{\partial \rho_j}$ evaluates to the integer $I^*_j$: the specific exponent of parameter $j$ in that active term. We define this integer as the \textbf{active degree}; full details are in \Cref{sec:analytic_expansion}.
+
+
+\subsection{Backward Propagation}
+
+\textbf{Branch Traversal (Type III Edges).} When the $j$-th parameter is on a branch ($\rho_{\boldsymbol{\theta}, j} \notin \mathbb{Z}$), the space is locally isomorphic to $\mathbb{R}$ parameterized by the real coordinate $\rho_{\boldsymbol{\theta}, j}$. Since there is only one continuous degree of freedom, the derivative with respect to this branch coordinate is:
+\begin{equation}
+\label{eq:continuous_gradient_flow}
+    \frac{d L}{d \rho_{\boldsymbol{\theta}, j}} = \left\langle \nabla_{\boldsymbol{\rho}_{\hat{\mathbf{y}}}} L(\hat{\mathbf{y}}(\mathbf{x}), \mathbf{y}), \frac{\partial \Phi(\mathbf{x}, \mathbf{c}_{\boldsymbol{\theta}}, \boldsymbol{\rho}_{\boldsymbol{\theta}})}{\partial \rho_{\boldsymbol{\theta}, j}} \right\rangle
+\end{equation}
+where $\hat{\mathbf{y}}(\mathbf{x})$ is the predicted Berkovich point for a single input datum $\mathbf{x}$, and $\Phi(\mathbf{x}, \mathbf{c}_{\boldsymbol{\theta}}, \boldsymbol{\rho}_{\boldsymbol{\theta}})$ are the output log-radii. Because $\frac{\partial \Phi}{\partial \rho_{\boldsymbol{\theta}, j}}$ is an integer vector, the gradient magnitude is scaled exactly by the polynomial degrees currently dictating the local topology. The parameter log-radii are updated via standard gradient descent: $\rho_{\boldsymbol{\theta}, j} \leftarrow \rho_{\boldsymbol{\theta}, j} - \eta \frac{d \mathcal{L}}{d \rho_{\boldsymbol{\theta}, j}}$, where $\mathcal{L}$ is the empirical loss over the batch.
+
+We state and prove the local convergence of this gradient descent within regions of constant active degrees (in tropical geometry, these would be \textit{tropical cells}) in \Cref{sec:convergence_analysis}, applying it to the specific loss functions defined in \Cref{sec:regression,sec:classification}.
+
+\textbf{Branch Transitions (Type II Vertices).} When the log-radius $\rho_{\boldsymbol{\theta}, j} \in \mathbb{Z}$, the tangent space is the projective line over the residue field $\mathbb{P}^1(\mathbb{F}_p)$ \citep{baker2010potential}. Finding the steepest descent direction over this tangent space corresponds to finding the candidate point that minimizes the loss. We can unify the choice between moving up to the parent or down into one of the $p$ child disks as:
+\begin{equation}
+\label{eq:exact_branch_unified}
+    \gamma^* = \operatorname{argmin}_{\gamma \in \mathbb{F}_p \cup \{\infty\}}\; \mathcal{L}\bigl(D_\gamma\bigr)
+\end{equation}
+where the candidate Berkovich point $D_\gamma$ is defined by:
+\begin{equation}
+D_\gamma = \begin{cases} 
+\bigl(c_{\boldsymbol{\theta}, j} + \gamma \, p^{-\rho_{\boldsymbol{\theta}, j}},\, \rho_{\boldsymbol{\theta}, j} - 1\bigr) & \text{if } \gamma \in \mathbb{F}_p \quad \text{(moving down to child } \gamma\text{)} \\
+\bigl(c_{\boldsymbol{\theta}, j},\, \rho_{\boldsymbol{\theta}, j} + 1\bigr) & \text{if } \gamma = \infty \quad \text{(moving up to parent)}
+\end{cases}
+\end{equation}
+
+This aggregate rule is simply the definition of the derivative and taking the steepest descent direction in the Berkovich tree metric. It is not an ad-hoc heuristic but the geometrically principled definition of the gradient at these points. Because the candidate disks are intrinsic to $\Ap$'s geometry, this computation is representative-invariant (\Cref{thm:exact_invariance}).
+
+\subsection{Numerical Implementation}
+\label{sec:numerical_integration}
+
+\textbf{Forward Pass Computation.} Evaluating the pushforward does not require full symbolic expansion. Operations in the log-radius domain become operations over the max-plus tropical semiring \citep{maclagan2015introduction}. Composing local sensitivity rules yields the integer Jacobian $\frac{\partial \Phi}{\partial \rho_j}$ dynamically with $\mathcal{O}(V)$ complexity, identical to forward-mode Euclidean AD (see \Cref{sec:ultrametric_ad}).
+
+\textbf{Vertex Transitions.} To maintain $\mathcal{O}(n k)$ per-step complexity, we approximate branch selection via a local finite-field projection of the residuals. Furthermore, we implement \textbf{vertex interception}, \textbf{coordinate queueing}, and \textbf{fallback offsetting} to handle simultaneous collisions at vertices. We use the \textbf{truncated representative} $c_0 := c \bmod p^{-\rho}$ at Type II vertices to make the rule deterministic. 
+
+For active branch selection with different trade-offs, we consider variants: \textbf{exact per-coordinate} selection (evaluating all $p$ children), a \textbf{multi-parameter heuristic} (solving coupled linear systems over $\mathbb{F}_p$), and the theoretical ideal \textbf{exact joint rule} (evaluating all $p^s$ combinations). We prove their invariance properties in \Cref{sec:appendix_proof_invariance}. Full details for all mechanisms are in \Cref{app:implementation_details}.
+
+\subsection{Optimizers}
+
+\textbf{Learning Rate.} Branch selections determine direction, not step size: the center displacement $p^{\rho_{\boldsymbol{\theta}, j}}$ is fixed by the tree geometry. We set $\eta = \frac{1}{\beta p}$, ensuring that the subgradient convergence neighborhood remains within the inter-vertex spacing of $1$ (\Cref{thm:convergence_cell}). For classification, the factor of $\beta$ in the cross-entropy gradient cancels with the $1/\beta$ in the learning rate, making $\beta$ a pure prediction-time hyperparameter. Movement up the tree (increasing $\rho$) is handled by continuous traversal.
+
+\textbf{Adaptive Methods.} We extend momentum and Adam to the tree geometry. For \textbf{$\Ap$-Momentum}, we maintain moving averages for both continuous gradients and discrete branch vote scores, resetting the vote accumulator upon depth transitions. For \textbf{$\Ap$-Adam}, we use a hybrid approach: standard momentum for continuous $\rho$ updates to preserve the geometric step size $\eta = 1/p$, and full Adam for discrete branch voting scores. Both are reset upon depth transitions. See \Cref{app:implementation_details} for equations.
