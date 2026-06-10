@@ -77,6 +77,9 @@ importers:
       json5:
         specifier: ^2.2.3
         version: 2.2.3
+      katex:
+        specifier: ^0.17.0
+        version: 0.17.0
       mini-parse:
         specifier: ^0.6.9
         version: 0.6.9
@@ -3630,6 +3633,10 @@ packages:
 
   katex@0.16.22:
     resolution: {integrity: sha512-XCHRdUw4lf3SKBaJe4EvgqIuWwkPSo9XoeO8GjQW94Bp7TWv9hNhzZjZ+OH9yf1UmLygb7DIT5GSFQiyt16zYg==}
+    hasBin: true
+
+  katex@0.17.0:
+    resolution: {integrity: sha512-Vdw0ATsQ9V+LuegM/BTwQqV/6cTl5lbGcIrU+BCgLxyf6bo38ybOr372tuSIxir3CN720flu1meYR6XzNMwQnw==}
     hasBin: true
 
   khroma@2.1.0:
@@ -7414,8 +7421,7 @@ snapshots:
 
   commander@7.2.0: {}
 
-  commander@8.3.0:
-    optional: true
+  commander@8.3.0: {}
 
   concat-map@0.0.1: {}
 
@@ -8666,6 +8672,10 @@ snapshots:
     dependencies:
       commander: 8.3.0
     optional: true
+
+  katex@0.17.0:
+    dependencies:
+      commander: 8.3.0
 
   khroma@2.1.0:
     optional: true

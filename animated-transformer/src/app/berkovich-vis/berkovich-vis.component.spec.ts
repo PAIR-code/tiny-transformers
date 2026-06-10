@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideMarkdown } from 'ngx-markdown';
 import { BerkovichVisComponent } from './berkovich-vis.component';
 import { 
   parseToRational, 
@@ -102,7 +103,7 @@ describe('BerkovichVisComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BerkovichVisComponent],
-      providers: [provideZonelessChangeDetection(), provideRouter([])]
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideMarkdown()]
     }).compileComponents();
 
     fixture = TestBed.createComponent(BerkovichVisComponent);
@@ -259,21 +260,19 @@ describe('BerkovichVisComponent', () => {
     expect(node6!.isActive).toBe(false);
   });
 
-  it('should format digitRows from high to low powers (p^3 down to p^-3)', () => {
+  it('should format digitRows from high to low powers (p^2 down to p^-2)', () => {
     component.prime.set(3);
     component.targetInput.set('5/3');
     component.centerInput.set('0');
     fixture.detectChanges();
 
     const rows = component.digitRows();
-    expect(rows.length).toBe(7);
-    expect(rows[0].power).toBe(3);   // p^3
-    expect(rows[1].power).toBe(2);   // p^2
-    expect(rows[2].power).toBe(1);   // p^1
-    expect(rows[3].power).toBe(0);   // p^0
-    expect(rows[4].power).toBe(-1);  // p^-1
-    expect(rows[5].power).toBe(-2);  // p^-2
-    expect(rows[6].power).toBe(-3);  // p^-3
+    expect(rows.length).toBe(5);
+    expect(rows[0].power).toBe(2);   // p^2
+    expect(rows[1].power).toBe(1);   // p^1
+    expect(rows[2].power).toBe(0);   // p^0
+    expect(rows[3].power).toBe(-1);  // p^-1
+    expect(rows[4].power).toBe(-2);  // p^-2
   });
 
   it('should place the parameter circle at the root node when c=1/3 and rho=2', () => {
@@ -550,4 +549,114 @@ describe('BerkovichVisComponent', () => {
     expect(coord.x).toBeCloseTo((parentNode!.x + childNode!.x) / 2);
     expect(coord.y).toBeCloseTo((parentNode!.y + childNode!.y) / 2);
   });
+
+  it('should preserve layout coordinates for 5 non-overlapping baseline cases', () => {
+    const cases = [
+      {
+        p: 3, y: '5/3', c: '0',
+        expected: [
+          { id: '0_2', x: 400 }, { id: '0_1', x: 360 }, { id: '0_0', x: 300 },
+          { id: '0_-1', x: 260 }, { id: '0_-2', x: 220 }, { id: '3_-2', x: 260 },
+          { id: '6_-2', x: 300 }, { id: '1_-1', x: 300 }, { id: '2_-1', x: 340 },
+          { id: '1/3_0', x: 360 }, { id: '2/3_0', x: 420 }, { id: '2/3_-1', x: 380 },
+          { id: '5/3_-1', x: 420 }, { id: '5/3_-2', x: 380 }, { id: '14/3_-2', x: 420 },
+          { id: '23/3_-2', x: 460 }, { id: '8/3_-1', x: 460 }, { id: '1/9_1', x: 400 },
+          { id: '2/9_1', x: 440 }
+        ]
+      },
+      {
+        p: 3, y: '1/3', c: '2/3',
+        expected: [
+          { id: '0_2', x: 400 }, { id: '0_1', x: 360 }, { id: '0_0', x: 280 },
+          { id: '1/3_0', x: 320 }, { id: '1/3_-1', x: 280 }, { id: '1/3_-2', x: 240 },
+          { id: '10/3_-2', x: 280 }, { id: '19/3_-2', x: 320 }, { id: '4/3_-1', x: 320 },
+          { id: '7/3_-1', x: 360 }, { id: '2/3_0', x: 480 }, { id: '2/3_-1', x: 440 },
+          { id: '2/3_-2', x: 400 }, { id: '11/3_-2', x: 440 }, { id: '20/3_-2', x: 480 },
+          { id: '5/3_-1', x: 480 }, { id: '8/3_-1', x: 520 }, { id: '1/9_1', x: 400 },
+          { id: '2/9_1', x: 440 }
+        ]
+      },
+      {
+        p: 3, y: '4/3', c: '0',
+        expected: [
+          { id: '0_2', x: 400 }, { id: '0_1', x: 360 }, { id: '0_0', x: 266.67 },
+          { id: '0_-1', x: 226.67 }, { id: '0_-2', x: 186.67 }, { id: '3_-2', x: 226.67 },
+          { id: '6_-2', x: 266.67 }, { id: '1_-1', x: 266.67 }, { id: '2_-1', x: 306.67 },
+          { id: '1/3_0', x: 386.67 }, { id: '1/3_-1', x: 346.67 }, { id: '4/3_-1', x: 386.67 },
+          { id: '4/3_-2', x: 346.67 }, { id: '13/3_-2', x: 386.67 }, { id: '22/3_-2', x: 426.67 },
+          { id: '7/3_-1', x: 426.67 }, { id: '2/3_0', x: 426.67 }, { id: '1/9_1', x: 400 },
+          { id: '2/9_1', x: 440 }
+        ]
+      },
+      {
+        p: 3, y: '7/3', c: '1',
+        expected: [
+          { id: '0_2', x: 400 }, { id: '0_1', x: 360 }, { id: '0_0', x: 266.67 },
+          { id: '0_-1', x: 226.67 }, { id: '1_-1', x: 266.67 }, { id: '1_-2', x: 226.67 },
+          { id: '4_-2', x: 266.67 }, { id: '7_-2', x: 306.67 }, { id: '2_-1', x: 306.67 },
+          { id: '1/3_0', x: 386.67 }, { id: '1/3_-1', x: 346.67 }, { id: '4/3_-1', x: 386.67 },
+          { id: '7/3_-1', x: 426.67 }, { id: '7/3_-2', x: 386.67 }, { id: '16/3_-2', x: 426.67 },
+          { id: '25/3_-2', x: 466.67 }, { id: '2/3_0', x: 426.67 }, { id: '1/9_1', x: 400 },
+          { id: '2/9_1', x: 440 }
+        ]
+      },
+      {
+        p: 3, y: '8/3', c: '2/3',
+        expected: [
+          { id: '0_2', x: 400 }, { id: '0_1', x: 360 }, { id: '0_0', x: 320 },
+          { id: '1/3_0', x: 360 }, { id: '2/3_0', x: 400 }, { id: '2/3_-1', x: 320 },
+          { id: '2/3_-2', x: 280 }, { id: '11/3_-2', x: 320 }, { id: '20/3_-2', x: 360 },
+          { id: '5/3_-1', x: 400 }, { id: '8/3_-1', x: 480 }, { id: '8/3_-2', x: 440 },
+          { id: '17/3_-2', x: 480 }, { id: '26/3_-2', x: 520 }, { id: '1/9_1', x: 400 },
+          { id: '2/9_1', x: 440 }
+        ]
+      }
+    ];
+
+    for (const cs of cases) {
+      component.prime.set(cs.p);
+      component.targetInput.set(cs.y);
+      component.centerInput.set(cs.c);
+      fixture.detectChanges();
+
+      const visuals = component.treeVisuals();
+      for (const expNode of cs.expected) {
+        const actNode = visuals.nodes.find(n => n.id === expNode.id);
+        expect(actNode).toBeTruthy();
+        expect(actNode!.x).toBeCloseTo(expNode.x, 1);
+      }
+    }
+  });
+
+  it('should resolve overlaps for y=52/9, c=7, p=3', () => {
+    component.prime.set(3);
+    component.targetInput.set('52/9');
+    component.centerInput.set('7');
+    fixture.detectChanges();
+
+    const visuals = component.treeVisuals();
+    
+    const hasOverlap = (nodes: { x: number; logRadius: number }[]) => {
+      const byLevel = new Map<number, number[]>();
+      for (const node of nodes) {
+        if (!byLevel.has(node.logRadius)) {
+          byLevel.set(node.logRadius, []);
+        }
+        byLevel.get(node.logRadius)!.push(node.x);
+      }
+      for (const [level, xCoords] of byLevel.entries()) {
+        xCoords.sort((a, b) => a - b);
+        for (let i = 1; i < xCoords.length; i++) {
+          if (xCoords[i] - xCoords[i - 1] < 39.9) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    expect(hasOverlap(visuals.nodes)).toBe(false);
+  });
 });
+
+

@@ -216,7 +216,7 @@
 
               <!-- Target Digits (p^2 ... p^-2) -->
               <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Target Digits (p^2 ... p^-2)</mat-label>
+                <mat-label>y Digits (p^2 ... p^-2)</mat-label>
                 <input matInput [value]="targetDigitsInput()" (change)="targetDigitsInput.set(targetDigitsField.value)"
                   (blur)="onTargetDigitsBlur()" #targetDigitsField />
                 <mat-hint>base-p digits</mat-hint>
@@ -226,14 +226,14 @@
             <div class="input-row">
               <!-- Init Center (c) -->
               <mat-form-field appearance="outline" class="half-field">
-                <mat-label>Init Center (c)</mat-label>
+                <mat-label>Center (c)</mat-label>
                 <input matInput [value]="displayCenter()" (change)="centerInput.set(centerField.value)" (blur)="onCenterBlur()" #centerField />
                 <mat-hint>fractions/decimals</mat-hint>
                 </mat-form-field>
                 
                 <!-- Center Digits (p^2 ... p^-2) -->
                 <mat-form-field appearance="outline" class="half-field">
-                  <mat-label>Center Digits (p^2 ... p^-2)</mat-label>
+                  <mat-label>c Digits (p^2 ... p^-2)</mat-label>
                   <input matInput [value]="displayCenterDigits()" (change)="centerDigitsInput.set(digitsField.value)"
                     (blur)="onCenterDigitsBlur()" #digitsField />
                   <mat-hint>base-p digits</mat-hint>
@@ -349,7 +349,7 @@
           p-adic Digit Sequence Comparison
         </mat-card-title>
         <mat-card-subtitle>
-          Comparing digits from <span class="math">p<sup>-3</sup></span> to <span class="math">p<sup>3</sup></span>. Highlighted columns are resolved by the current disk size (<span class="math">k &lt; -&rho;</span>).
+          Comparing digits from <span class="math">p<sup>2</sup></span> to <span class="math">p<sup>-2</sup></span>. Highlighted columns are resolved by the current disk size (<span class="math">k &lt; -&rho;</span>).
         </mat-card-subtitle>
       </mat-card-header>
       <mat-card-content class="digit-grid-container">
@@ -408,12 +408,8 @@
       </mat-card-header>
       <mat-card-content class="calculus-content">
         <div class="math-block">
-          <p class="formula">
-            Loss = L<sub>path</sub> = |&rho; - d| + d
-          </p>
-          <p class="explanation-text">
-            {{ gradientBreakdown().explanation }}
-          </p>
+          <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
+          <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>
         </div>
 
         @if (gradientBreakdown().isVertex) {
@@ -425,7 +421,7 @@
                   <th>Branch Direction</th>
                   <th>Candidate Center</th>
                   <th>New Log-Radius</th>
-                  <th>Loss L<sub>path</sub></th>
+                  <th>Loss <markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown></th>
                 </tr>
               </thead>
               <tbody>
@@ -437,8 +433,8 @@
                         <span class="sel-badge">(STEER DIRECTION)</span>
                       }
                     </td>
-                    <td>c = {{ cand.centerStr }}</td>
-                    <td>&rho; = {{ cand.logRadius }}</td>
+                    <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + cand.centerStr + '$'"></markdown></td>
+                    <td><markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + cand.logRadius + '$'"></markdown></td>
                     <td class="loss-col">
                       {{ cand.lossVal.toFixed(4) }}
                     </td>
@@ -452,24 +448,24 @@
             <h4>Continuous Derivative Step:</h4>
             <div class="calc-formula">
               <div class="formula-term">
-                <span class="term-lbl">dL / d&rho;</span>
+                <span class="term-lbl"><markdown [inline]="true" [katex]="true" [data]="'$\\frac{dL}{d\\rho}$'"></markdown></span>
                 <span class="term-val">{{ gradientBreakdown().gRho! > 0 ? '+1.0' : '-1.0' }}</span>
               </div>
               <div class="formula-operator">&times;</div>
               <div class="formula-term">
-                <span class="term-lbl">Learning Rate &eta;</span>
+                <span class="term-lbl">Learning Rate <markdown [inline]="true" [katex]="true" [data]="'$\\eta$'"></markdown></span>
                 <span class="term-val">{{ learningRate() }}</span>
               </div>
               <div class="formula-operator">&rarr;</div>
               <div class="formula-term">
-                <span class="term-lbl">Proposed &Delta;&rho;</span>
+                <span class="term-lbl">Proposed <markdown [inline]="true" [katex]="true" [data]="'$\\Delta\\rho$'"></markdown></span>
                 <span class="term-val">{{ (-learningRate() * gradientBreakdown().gRho!).toFixed(4) }}</span>
               </div>
             </div>
             @if (gradientBreakdown().crossesInteger) {
               <div class="alert-snap">
                 <mat-icon>vertical_align_bottom</mat-icon>
-                <span>Snapping to Type II vertex boundary at <strong>&rho; = {{ gradientBreakdown().snappedRho }}</strong>.</span>
+                <span>Snapping to Type II vertex boundary at <markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + gradientBreakdown().snappedRho + '$'"></markdown>.</span>
               </div>
             }
           </div>

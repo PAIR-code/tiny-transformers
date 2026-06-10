@@ -25,6 +25,15 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { RouterModule } from '@angular/router';
+import { MarkdownModule } from 'ngx-markdown';
+import katex from 'katex';
+// @ts-ignore
+import renderMathInElement from 'katex/dist/contrib/auto-render.js';
+
+if (typeof window !== 'undefined') {
+  (window as any).katex = katex;
+  (window as any).renderMathInElement = renderMathInElement;
+}
 
 import {
   Rational,
@@ -88,7 +97,8 @@ interface VisualEdge {
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
-    RouterModule
+    RouterModule,
+    MarkdownModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -338,27 +348,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     // with a base gap. If they belong to different branches crossing the split vertex,
     // we insert a larger extra gap to visual separate target and parameter branches.
     const baseGap = 40;
-    const extraGap = 80;
-    const N = bottomLeaves.length;
-    if (N === 1) {
-      bottomLeaves[0].x = 0;
-    } else {
-      bottomLeaves[0].x = 0;
-      for (let i = 1; i < N; i++) {
-        const leafA = bottomLeaves[i - 1];
-        const leafB = bottomLeaves[i];
-        
-        const isA_Param = isOnParameterBranch(leafA);
-        const isB_Param = isOnParameterBranch(leafB);
-        const isA_Target = isOnTargetBranch(leafA);
-        const isB_Target = isOnTargetBranch(leafB);
-        
-        const crossesBoundary = (isA_Param !== isB_Param) || (isA_Target !== isB_Target);
-        const gap = crossesBoundary ? extraGap : baseGap;
-        leafB.x = leafA.x! + gap;
-      }
-    }
     
+    const clearX = (node: LayoutNode) => {
+      node.x = undefined;
+      for (const child of node.children) {
+        clearX(child);
+      }
+    };
+
     // Pass 4: Compute X coordinates for parent nodes bottom-up (average of children)
     // Inactive stub placeholder nodes (which have no visual children) are interpolated
     // between their nearest active siblings at parent level.
@@ -421,18 +418,77 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       node.x = sum / node.children.length;
       return node.x;
     };
-    computeX(rootNode);
-    
-    // Pass 5: Center the root node horizontally and shift the rest of the tree in unison
-    const idealRootX = this.svgWidth / 2;
-    const shift = idealRootX - rootNode.x!;
-    const applyShift = (node: LayoutNode) => {
-      node.x = node.x! + shift;
-      for (const child of node.children) {
-        applyShift(child);
+
+    const calculateLayoutAttempt = (gap: number) => {
+      clearX(rootNode);
+
+      const N = bottomLeaves.length;
+      if (N === 1) {
+        bottomLeaves[0].x = 0;
+      } else if (N > 1) {
+        bottomLeaves[0].x = 0;
+        for (let i = 1; i < N; i++) {
+          const leafA = bottomLeaves[i - 1];
+          const leafB = bottomLeaves[i];
+          
+          const isA_Param = isOnParameterBranch(leafA);
+          const isB_Param = isOnParameterBranch(leafB);
+          const isA_Target = isOnTargetBranch(leafA);
+          const isB_Target = isOnTargetBranch(leafB);
+          
+          const crossesBoundary = (isA_Param !== isB_Param) || (isA_Target !== isB_Target);
+          const currentGap = crossesBoundary ? gap : baseGap;
+          leafB.x = leafA.x! + currentGap;
+        }
       }
+
+      computeX(rootNode);
+
+      // Pass 5: Center the root node horizontally and shift the rest of the tree in unison
+      const idealRootX = this.svgWidth / 2;
+      const shift = idealRootX - rootNode.x!;
+      const applyShift = (node: LayoutNode) => {
+        node.x = node.x! + shift;
+        for (const child of node.children) {
+          applyShift(child);
+        }
+      };
+      applyShift(rootNode);
     };
-    applyShift(rootNode);
+
+    const hasOverlap = (): boolean => {
+      const byLevel = new Map<number, number[]>();
+      const collectCoords = (node: LayoutNode) => {
+        if (!byLevel.has(node.rho)) {
+          byLevel.set(node.rho, []);
+        }
+        byLevel.get(node.rho)!.push(node.x!);
+        for (const child of node.children) {
+          collectCoords(child);
+        }
+      };
+      collectCoords(rootNode);
+
+      for (const [level, xCoords] of byLevel.entries()) {
+        xCoords.sort((a, b) => a - b);
+        for (let i = 1; i < xCoords.length; i++) {
+          if (xCoords[i] - xCoords[i - 1] < 39.9) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    let extraGap = 80;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      calculateLayoutAttempt(extraGap);
+      if (hasOverlap()) {
+        extraGap += 40;
+      } else {
+        break;
+      }
+    }
     
     // Pass 6: Build final VisualNode and VisualEdge layout representations top-down
     const nodes: VisualNode[] = [];
@@ -603,8 +659,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const c = this.currentCenter();
     const rho = this.currentLogRadius();
     
-    const minP = -3;
-    const maxP = 3;
+    const minP = -2;
+    const maxP = 2;
     const columns: {
       power: number;
       powerLabel: string;
@@ -969,5 +1025,26 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   // Format helper for history center values
   formatRationalValue(r: Rational): string {
     return formatRational(r);
+  }
+
+  renderMath(formula: string, displayMode = false): string {
+    try {
+      return katex.renderToString(formula, { displayMode, throwOnError: false });
+    } catch (e) {
+      return formula;
+    }
+  }
+
+  renderExplanation(text: string): string {
+    if (!text) return '';
+    let html = text.replace(/\$([^\$]+)\$/g, (_, math) => {
+      try {
+        return katex.renderToString(math, { displayMode: false, throwOnError: false });
+      } catch {
+        return math;
+      }
+    });
+    html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+    return html;
   }
 }

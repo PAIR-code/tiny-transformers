@@ -482,7 +482,7 @@ text.node-text-label.inactive-stub {
 
   .half-field {
     flex: 1;
-    max-width: calc(50% - 8px);
+    max-width: 160px;
   }
 
   .flex-field {
@@ -752,26 +752,38 @@ text.node-text-label.inactive-stub {
   flex-direction: column;
   gap: 16px;
   
+  markdown {
+      display: inline-block;
+  
+      p {
+        margin: 0;
+      }
+    }
   .math-block {
     background-color: #f8fafc;
     padding: 12px;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
     
-    .formula {
-      font-family: 'Cambria Math', 'Times New Roman', serif;
-      font-size: 18px;
-      color: #0f766e; /* Teal math formula */
+    markdown:first-child {
+        display: block;
+        color: #0f766e;
       text-align: center;
-      margin: 4px 0 12px 0;
-      font-weight: bold;
+      ::v-deep .katex-display {
+          margin: 0.5em 0;
+        }
     }
     
     .explanation-text {
+      display: block;
       font-size: 13px;
       color: #334155;
       line-height: 1.5;
-      margin: 0;
+      margin-top: 12px;
+      
+      ::v-deep p {
+        margin: 0;
+      }
     }
   }
 
