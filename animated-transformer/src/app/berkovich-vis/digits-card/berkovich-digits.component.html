@@ -2,7 +2,7 @@
   <mat-card-header (click)="toggleCollapse()" class="clickable-header">
     <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
       <div style="display: inline-flex; align-items: center; gap: 10px;">
-        <mat-icon>binary</mat-icon>
+        <mat-icon>numbers</mat-icon>
         <span><markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison</span>
       </div>
       <mat-icon class="collapse-chevron">{{ isCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>

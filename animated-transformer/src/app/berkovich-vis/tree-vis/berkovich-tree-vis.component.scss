@@ -20,6 +20,24 @@ limitations under the License.
 /* Visualizer Card & SVG */
 .visualizer-card {
   height: 100%;
+
+  mat-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    
+    mat-icon {
+      color: #0f766e;
+    }
+  }
 }
 
 .svg-container {
