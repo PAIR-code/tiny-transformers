@@ -442,7 +442,7 @@ export class BerkovichTreeVisComponent {
     const candidateNodes = new Set<string>();
     
     for (const edge of this.treeVisuals().edges) {
-      if (edge.id.startsWith(targetNodeId + '_to_')) {
+      if (edge.id.startsWith(targetNodeId + '_to_') || edge.id.endsWith('_to_' + targetNodeId)) {
         candidateEdges.add(edge.id);
       }
     }

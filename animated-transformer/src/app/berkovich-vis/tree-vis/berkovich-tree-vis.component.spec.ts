@@ -124,13 +124,16 @@ describe('BerkovichTreeVisComponent', () => {
     const candidates = component.junctionCandidates();
     // At c = 1/3, prefix center at rho = 1.0 is 0. So targetNodeId is '0_1'.
     // Sibling children are 0_0, 1/3_0, 2/3_0.
+    // Parent node is 0_2.
     expect(candidates.nodes.has('0_0')).toBe(true);
     expect(candidates.nodes.has('1/3_0')).toBe(true);
     expect(candidates.nodes.has('2/3_0')).toBe(true);
+    expect(candidates.nodes.has('0_2')).toBe(true);
 
     expect(candidates.edges.has('0_1_to_0_0')).toBe(true);
     expect(candidates.edges.has('0_1_to_1/3_0')).toBe(true);
     expect(candidates.edges.has('0_1_to_2/3_0')).toBe(true);
+    expect(candidates.edges.has('0_2_to_0_1')).toBe(true);
   });
 
   it('should place the parameter circle correctly at fractional log-radii', () => {
