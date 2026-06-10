@@ -428,28 +428,29 @@ export class BerkovichTreeVisComponent {
     const p = BigInt(this.prime());
     const visuals = this.treeVisuals();
     
-    const nodesInDisk = visuals.nodes.filter(n => {
-      if (n.logRadius > rho) return false;
-      return getValuation(subtract(n.center, c_curr), p) >= -rho;
-    });
-    
-    if (nodesInDisk.length === 0) {
-      const x = this.currentParameterCoord().x;
-      return { x1: x - 15, x2: x + 15 };
+    if (rho <= this.rhoMin) {
+      return this.getRangeForIntegerRho(c_curr, this.rhoMin, p, visuals);
+    }
+    if (rho >= this.rhoMax) {
+      return this.getRangeForIntegerRho(c_curr, this.rhoMax, p, visuals);
     }
     
-    let minX = Infinity;
-    let maxX = -Infinity;
-    for (const node of nodesInDisk) {
-      if (node.x < minX) minX = node.x;
-      if (node.x > maxX) maxX = node.x;
+    const k_child = Math.floor(rho);
+    const k_parent = Math.ceil(rho);
+    
+    const rangeChild = this.getRangeForIntegerRho(c_curr, k_child, p, visuals);
+    const rangeParent = this.getRangeForIntegerRho(c_curr, k_parent, p, visuals);
+    
+    if (k_child === k_parent) {
+      return rangeChild;
     }
     
-    if (minX === maxX) {
-      return { x1: minX - 15, x2: minX + 15 };
-    }
+    const t = (rho - k_child) / (k_parent - k_child);
     
-    return { x1: minX, x2: maxX };
+    return {
+      x1: rangeChild.x1 + t * (rangeParent.x1 - rangeChild.x1),
+      x2: rangeChild.x2 + t * (rangeParent.x2 - rangeChild.x2)
+    };
   });
 
   readonly rhoLabelX = computed(() => {
@@ -622,6 +623,43 @@ export class BerkovichTreeVisComponent {
     const levelsCount = this.rhoMax - this.rhoMin;
     const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
     return this.paddingY + (this.rhoMax - rho) * stepY;
+  }
+
+  getParameterXAtLevel(c_curr: Rational, k: number, p: bigint, nodes: VisualNode[]): number {
+    const node = nodes.find(n => 
+      n.logRadius === k && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+    );
+    return node ? node.x : this.svgWidth() / 2;
+  }
+
+  getRangeForIntegerRho(
+    c_curr: Rational,
+    k: number,
+    p: bigint,
+    visuals: { nodes: VisualNode[]; edges: VisualEdge[] }
+  ): { x1: number; x2: number } {
+    const nodesInDisk = visuals.nodes.filter(n => {
+      if (n.logRadius > k) return false;
+      return getValuation(subtract(n.center, c_curr), p) >= -k;
+    });
+    
+    if (nodesInDisk.length === 0) {
+      const x = this.getParameterXAtLevel(c_curr, k, p, visuals.nodes);
+      return { x1: x - 15, x2: x + 15 };
+    }
+    
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const node of nodesInDisk) {
+      if (node.x < minX) minX = node.x;
+      if (node.x > maxX) maxX = node.x;
+    }
+    
+    if (minX === maxX) {
+      return { x1: minX - 15, x2: minX + 15 };
+    }
+    
+    return { x1: minX, x2: maxX };
   }
 
   getPrefixCenter(x: Rational, rho: number, p: bigint): Rational {

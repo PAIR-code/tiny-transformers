@@ -351,6 +351,20 @@ describe('BerkovichTreeVisComponent', () => {
     // Verify that the line range includes the X coordinate of the inactive stub
     expect(rangeStub.x1).toBeLessThanOrEqual(inactiveStub!.x);
     expect(rangeStub.x2).toBeGreaterThanOrEqual(inactiveStub!.x);
+
+    // Case 6: Verify continuous line range interpolation at fractional log-radii.
+    // Set inputs to: c_curr = 0, target = 5/3, p = 3, rho = 0.5.
+    setInputs(3, '5/3', '0', 0.0);
+    const rangeAt0 = component.rhoLineRange();
+    
+    setInputs(3, '5/3', '0', 1.0);
+    const rangeAt1 = component.rhoLineRange();
+    
+    setInputs(3, '5/3', '0', 0.5);
+    const rangeAtHalf = component.rhoLineRange();
+    
+    expect(rangeAtHalf.x1).toBeCloseTo((rangeAt0.x1 + rangeAt1.x1) / 2);
+    expect(rangeAtHalf.x2).toBeCloseTo((rangeAt0.x2 + rangeAt1.x2) / 2);
   });
 });
 
