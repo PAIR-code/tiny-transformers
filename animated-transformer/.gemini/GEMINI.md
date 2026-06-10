@@ -51,3 +51,12 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Package Management & Command Execution
+
+- The project strictly enforces **pnpm** as the exclusive package manager.
+- **NEVER** use `npm` or `npx` commands.
+- Use `pnpm install` instead of `npm install` to install dependencies.
+- Use `pnpm <script>` or `pnpm run <script>` (e.g., `pnpm start`, `pnpm test`, `pnpm run dev`) instead of `npm run <script>`.
+- To add/remove packages, use `pnpm add` or `pnpm remove`.
+- For one-off command executions, use `pnpm dlx` instead of `npx`.

@@ -39,11 +39,11 @@ import {
   getPadicDigits,
   getAlignedDigits,
   isVertex,
-  computeVertexCandidates,
-  computeContinuousStep,
-  VertexCandidate,
-  truncateToTreeRange
-} from 'src/lib/berkovich/berkovich';
+  truncateToTreeRange,
+  formatDigitSequence,
+  parseDigitSequence,
+  computeGradientDetails
+} from '../../lib/berkovich/berkovich';
 
 // ============================================================================
 // VISUAL DATA STRUCTURES
@@ -96,15 +96,15 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   // Configurable parameters
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
-  readonly targetDigitsInput = signal<string>('0 0 1 2');
+  readonly targetDigitsInput = signal<string>('01.20');
   readonly centerInput = signal<string>('0');
-  readonly centerDigitsInput = signal<string>('0 0 0 0 0');
-  readonly logRadiusInput = signal<string>('2.0');
+  readonly centerDigitsInput = signal<string>('00.00');
+  readonly logRadiusInput = signal<string>('0.0');
   readonly learningRateInput = signal<string>('0.20');
 
   readonly initLogRadius = computed(() => {
     const v = parseFloat(this.logRadiusInput());
-    return isNaN(v) ? 2.0 : v;
+    return isNaN(v) ? 0.0 : v;
   });
 
   readonly learningRate = computed(() => {
@@ -117,14 +117,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   
   // Simulation run state
   readonly currentCenter = signal<Rational>({ num: 0n, den: 1n });
-  readonly currentLogRadius = signal<number>(2.0);
+  readonly currentLogRadius = signal<number>(0.0);
   readonly stepCount = signal<number>(0);
   readonly history = signal<{ step: number; center: Rational; logRadius: number; loss: number; type: string }[]>([]);
   
   // Animation state
   private animationInterval: any = null;
   private dragStartY = 0;
-  private dragStartRho = 2.0;
+  private dragStartRho = 0.0;
   readonly isPlaying = signal<boolean>(false);
   readonly isConfigCollapsed = signal<boolean>(false);
   readonly isDraggingRho = signal<boolean>(false);
@@ -140,7 +140,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly displayCenterDigits = computed(() => {
     const p = BigInt(this.prime());
     if (this.stepCount() > 0) {
-      return this.formatCenterDigits(this.currentCenter(), p);
+      return formatDigitSequence(this.currentCenter(), p);
     }
     return this.centerDigitsInput();
   });
@@ -649,87 +649,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const y = this.targetRational();
     const eta = this.learningRate();
     
-    const diff = subtract(c, y);
-    const val = getValuation(diff, p);
-    const d = -val + 1;
-    const loss = Math.abs(rho - d) + d;
-    
-    const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
-    
-    if (isVertex) {
-      const k = Math.round(rho);
-      const candidates: { branch: string; centerStr: string; logRadius: number; distVal: number; lossVal: number }[] = [];
-      
-      // Parent candidate (gamma = infinity)
-      candidates.push({
-        branch: 'Parent (∞)',
-        centerStr: formatRational(c),
-        logRadius: k + 1,
-        distVal: d,
-        lossVal: Math.abs((k + 1) - d) + d
-      });
-      
-      // Child candidates (gamma in F_p)
-      for (let g = 0; g < Number(p); g++) {
-        let shift: Rational;
-        if (k >= 0) {
-          shift = simplify({ num: BigInt(g), den: p ** BigInt(k) });
-        } else {
-          shift = simplify({ num: BigInt(g) * (p ** BigInt(-k)), den: 1n });
-        }
-        const childCenter = add(c, shift);
-        const childDiff = subtract(childCenter, y);
-        const childVal = getValuation(childDiff, p);
-        const childD = -childVal + 1;
-        const childLoss = Math.abs((k - 1) - childD) + childD;
-        
-        candidates.push({
-          branch: `Child ${g}`,
-          centerStr: formatRational(childCenter),
-          logRadius: k - 1,
-          distVal: childD,
-          lossVal: childLoss
-        });
-      }
-      
-      let minLoss = Infinity;
-      let bestBranch = '';
-      for (const cand of candidates) {
-        if (cand.lossVal < minLoss) {
-          minLoss = cand.lossVal;
-          bestBranch = cand.branch;
-        }
-      }
-      
-      return {
-        isVertex: true,
-        rho,
-        d,
-        loss,
-        candidates,
-        bestBranch,
-        explanation: `At Type II vertex (ρ = ${k}), the tangent space has ${Number(p) + 1} branches (parent and ${Number(p)} children). We evaluate the path-metric loss for each branch and choose the one with the smallest loss: ${bestBranch}.`
-      };
-    } else {
-      const gRho = rho >= d ? 1 : -1;
-      const proposedRho = rho - eta * gRho;
-      const kUpper = Math.ceil(rho);
-      const kLower = Math.floor(rho);
-      const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
-      const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
-      
-      return {
-        isVertex: false,
-        rho,
-        d,
-        loss,
-        gRho,
-        proposedRho,
-        crossesInteger,
-        snappedRho,
-        explanation: `On Type III edge (ρ = ${rho.toFixed(4)}), the gradient of the loss with respect to ρ is dL/dρ = sgn(ρ - d) = ${gRho > 0 ? '+1' : '-1'} (since ρ ${rho >= d ? '≥' : '<'} d). Under gradient descent, the proposed update is ρ_new = ρ - η * (dL/dρ) = ${proposedRho.toFixed(4)}.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to ρ = ${snappedRho} to land exactly on a Type II vertex.` : ''}`
-      };
-    }
+    return computeGradientDetails(c, rho, y, p, eta);
   });
 
   constructor() {
@@ -749,7 +669,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       const c = this.initCenterRational();
       const p = BigInt(this.prime());
       untracked(() => {
-        this.centerDigitsInput.set(this.formatCenterDigits(c, p));
+        this.centerDigitsInput.set(formatDigitSequence(c, p));
       });
     });
 
@@ -758,7 +678,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       const y = this.targetRational();
       const p = BigInt(this.prime());
       untracked(() => {
-        this.targetDigitsInput.set(this.formatCenterDigits(y, p));
+        this.targetDigitsInput.set(formatDigitSequence(y, p));
       });
     });
 
@@ -804,108 +724,24 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const y = this.targetRational();
     const eta = this.learningRate();
     
-    const diff = subtract(c, y);
-    const val = getValuation(diff, p);
-    const d = -val + 1;
-    
-    let nextCenter = c;
-    let nextLogRadius = rho;
-    let stepType = '';
-    
-    const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
-    
-    if (isVertex) {
-      const k = Math.round(rho);
-      const candidates: { branch: string; center: Rational; logRadius: number; lossVal: number }[] = [];
-      
-      // Parent candidate
-      candidates.push({
-        branch: 'parent',
-        center: c,
-        logRadius: k + 1,
-        lossVal: Math.abs((k + 1) - d) + d
-      });
-      
-      // Children candidates
-      for (let g = 0; g < Number(p); g++) {
-        let shift: Rational;
-        const power = -k + 1;
-        if (power <= 0) {
-          shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-        } else {
-          shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-        }
-        const childCenter = add(c, shift);
-        const childDiff = subtract(childCenter, y);
-        const childVal = getValuation(childDiff, p);
-        const childD = -childVal + 1;
-        const childLoss = Math.abs((k - 1) - childD) + childD;
-        
-        candidates.push({
-          branch: g.toString(),
-          center: childCenter,
-          logRadius: k - 1,
-          lossVal: childLoss
-        });
-      }
-      
-      // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
-      let minLoss = Infinity;
-      let maxValuation = -Infinity;
-      let bestCand = candidates[0];
-      for (const cand of candidates) {
-        const valShift = getValuation(subtract(y, cand.center), p);
-        if (cand.lossVal < minLoss) {
-          minLoss = cand.lossVal;
-          maxValuation = valShift;
-          bestCand = cand;
-        } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
-          if (valShift > maxValuation) {
-            maxValuation = valShift;
-            bestCand = cand;
-          }
-        }
-      }
-      
-      nextCenter = bestCand.center;
-      nextLogRadius = bestCand.branch === 'parent' ? k + eta : k - eta;
-      stepType = bestCand.branch === 'parent' ? 'Vertex (Move to Parent)' : `Vertex (Move to Child ${bestCand.branch})`;
-    } else {
-      const gRho = rho >= d ? 1 : -1;
-      const proposedRho = rho - eta * gRho;
-      
-      // Snapping check
-      const kUpper = Math.ceil(rho);
-      const kLower = Math.floor(rho);
-      const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
-      
-      if (crossesInteger) {
-        nextLogRadius = gRho > 0 ? kLower : kUpper;
-        stepType = `Edge (Continuous snap to ρ=${nextLogRadius})`;
-      } else {
-        nextLogRadius = proposedRho;
-        stepType = `Edge (Continuous descent dL/dρ=${gRho > 0 ? '+1' : '-1'})`;
-      }
-      nextCenter = c;
-    }
+    const details = computeGradientDetails(c, rho, y, p, eta);
     
     // Update state signals
-    this.currentCenter.set(nextCenter);
-    this.currentLogRadius.set(nextLogRadius);
+    this.currentCenter.set(details.nextCenter);
+    this.currentLogRadius.set(details.nextLogRadius);
     this.stepCount.update(s => s + 1);
     
     // Add to history
-    const lossVal = this.currentLoss();
     this.history.update(h => [...h, {
       step: this.stepCount(),
-      center: nextCenter,
-      logRadius: nextLogRadius,
-      loss: lossVal,
-      type: stepType
+      center: details.nextCenter,
+      logRadius: details.nextLogRadius,
+      loss: details.loss,
+      type: details.stepType
     }]);
     
     // Stop playing if we reach the leaf resolution limit of the tree
-    if (nextLogRadius <= this.rhoMin) {
+    if (details.nextLogRadius <= this.rhoMin) {
       this.stopAnimation();
     }
   }
@@ -915,44 +751,27 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const p = BigInt(this.prime());
     const pNum = Number(p);
     
-    const getRandomSeq = (): number[] => {
-      const seq: number[] = [];
-      for (let i = 0; i < 4; i++) {
-        seq.push(Math.floor(Math.random() * pNum));
-      }
-      return seq;
+    const getRandomSeqString = (): string => {
+      const d1 = Math.floor(Math.random() * pNum);
+      const d0 = Math.floor(Math.random() * pNum);
+      const dm1 = Math.floor(Math.random() * pNum);
+      const dm2 = Math.floor(Math.random() * pNum);
+      return `${d1}${d0}.${dm1}${dm2}`;
     };
     
-    let cSeq = getRandomSeq();
-    let ySeq = getRandomSeq();
-    while (cSeq.join(' ') === ySeq.join(' ')) {
-      ySeq = getRandomSeq();
+    let cSeq = getRandomSeqString();
+    let ySeq = getRandomSeqString();
+    while (cSeq === ySeq) {
+      ySeq = getRandomSeqString();
     }
     
-    const parseDigits = (digits: number[]): Rational => {
-      const powers = [2, 1, 0, -1];
-      let sum: Rational = { num: 0n, den: 1n };
-      for (let i = 0; i < 4; i++) {
-        const k = powers[i];
-        const a = BigInt(digits[i]);
-        let term: Rational;
-        if (k >= 0) {
-          term = { num: a * (p ** BigInt(k)), den: 1n };
-        } else {
-          term = { num: a, den: p ** BigInt(-k) };
-        }
-        sum = simplify(add(sum, term));
-      }
-      return sum;
-    };
-    
-    const cRational = parseDigits(cSeq);
-    const yRational = parseDigits(ySeq);
+    const cRational = parseDigitSequence(cSeq, p);
+    const yRational = parseDigitSequence(ySeq, p);
     
     this.centerInput.set(formatRational(cRational));
-    this.centerDigitsInput.set(cSeq.join(' '));
+    this.centerDigitsInput.set(cSeq);
     this.targetInput.set(formatRational(yRational));
-    this.targetDigitsInput.set(ySeq.join(' '));
+    this.targetDigitsInput.set(ySeq);
     
     this.reset();
   }
@@ -1026,35 +845,12 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   onTargetDigitsBlur(): void {
     const p = BigInt(this.prime());
     try {
-      const tokens = this.targetDigitsInput().trim().split(/[\s,]+/);
-      const digits = tokens.map(t => {
-        const d = parseInt(t, 10);
-        return isNaN(d) ? 0 : Math.max(0, Math.min(Number(p) - 1, d));
-      });
-      while (digits.length < 4) {
-        digits.unshift(0);
-      }
-      const finalDigits = digits.slice(-4);
-      
-      const powers = [2, 1, 0, -1];
-      let sum: Rational = { num: 0n, den: 1n };
-      for (let i = 0; i < 4; i++) {
-        const k = powers[i];
-        const a = BigInt(finalDigits[i]);
-        let term: Rational;
-        if (k >= 0) {
-          term = { num: a * (p ** BigInt(k)), den: 1n };
-        } else {
-          term = { num: a, den: p ** BigInt(-k) };
-        }
-        sum = simplify(add(sum, term));
-      }
-      
-      this.targetInput.set(formatRational(sum));
-      this.targetDigitsInput.set(finalDigits.join(' '));
+      const parsed = parseDigitSequence(this.targetDigitsInput(), p);
+      this.targetInput.set(formatRational(parsed));
+      this.targetDigitsInput.set(formatDigitSequence(parsed, p));
     } catch {
       this.targetInput.set('0');
-      this.targetDigitsInput.set('0 0 0 0');
+      this.targetDigitsInput.set('00.00');
     }
   }
 
@@ -1088,49 +884,22 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     return sum;
   }
 
-  formatCenterDigits(c: Rational, p: bigint): string {
-    const aligned = getAlignedDigits(c, p, -1, 2);
-    const reversed = [...aligned].reverse();
-    return reversed.map(d => d.digit).join(' ');
-  }
-
   onCenterDigitsBlur(): void {
     const p = BigInt(this.prime());
     try {
-      const tokens = this.centerDigitsInput().trim().split(/[\s,]+/);
-      const digits = tokens.map(t => {
-        const d = parseInt(t, 10);
-        return isNaN(d) ? 0 : Math.max(0, Math.min(Number(p) - 1, d));
-      });
-      while (digits.length < 4) {
-        digits.unshift(0);
-      }
-      const finalDigits = digits.slice(-4);
-      
-      const powers = [2, 1, 0, -1];
-      let sum: Rational = { num: 0n, den: 1n };
-      for (let i = 0; i < 4; i++) {
-        const k = powers[i];
-        const a = BigInt(finalDigits[i]);
-        let term: Rational;
-        if (k >= 0) {
-          term = { num: a * (p ** BigInt(k)), den: 1n };
-        } else {
-          term = { num: a, den: p ** BigInt(-k) };
-        }
-        sum = simplify(add(sum, term));
-      }
-      
-      this.centerInput.set(formatRational(sum));
+      const parsed = parseDigitSequence(this.centerDigitsInput(), p);
+      this.centerInput.set(formatRational(parsed));
+      this.centerDigitsInput.set(formatDigitSequence(parsed, p));
     } catch {
       this.centerInput.set('0');
+      this.centerDigitsInput.set('00.00');
     }
   }
 
   onLogRadiusBlur(): void {
     let v = parseFloat(this.logRadiusInput());
     if (isNaN(v)) {
-      v = 2.0;
+      v = 0.0;
     } else {
       v = Math.max(-2, Math.min(2, v));
     }

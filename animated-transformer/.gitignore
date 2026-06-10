@@ -50,6 +50,7 @@ Thumbs.db
 
 # Test-only assets
 /src/assets/test_only_assets/
+.vitest-attachments
 
 # Agentic files
 __screenshots__

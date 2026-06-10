@@ -33,18 +33,43 @@ import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component
 import { provideHttpClient } from '@angular/common/http';
 import { BerkovichVisComponent } from './berkovich-vis/berkovich-vis.component';
 
+import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
+
 export const routes: Routes = [
   { path: '', component: LandingPageComponent, pathMatch: 'full' },
   { path: 'wcolab', component: WebColabComponent, pathMatch: 'full' },
   { path: 'activations', component: ActivationVisComponent },
   { path: 'sae', component: SAEComponent },
-  { path: 'logic', component: LogicExplorerComponent },
-  { path: 'logic-docs', component: LogicDocsComponent },
-  { path: 'logic-sim-docs', component: LogicSimDocsComponent },
-  { path: 'logic-advanced-docs', component: LogicAdvancedDocsComponent },
+  {
+    path: '',
+    component: LogicLayoutComponent,
+    children: [
+      {
+        path: 'logic',
+        component: LogicExplorerComponent,
+        data: { title: 'Logic V2 Linear Lolli Explorer', icon: 'account_tree', theme: 'explorer' }
+      },
+      {
+        path: 'logic-docs',
+        component: LogicDocsComponent,
+        data: { title: 'Introduction to Linear Logic Story Semantics', icon: 'menu_book', theme: 'docs' }
+      },
+      {
+        path: 'logic-sim-docs',
+        component: LogicSimDocsComponent,
+        data: { title: 'Simulation & Generation Semantics', icon: 'insights', theme: 'docs' }
+      },
+      {
+        path: 'logic-advanced-docs',
+        component: LogicAdvancedDocsComponent,
+        data: { title: 'Advanced: Semantic Extensions in TypeScript', icon: 'psychology', theme: 'docs' }
+      },
+    ]
+  },
   { path: 'berkovich', component: BerkovichVisComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
+
 
 // @NgModule({
 //   imports: [RouterModule.forRoot(routes, { useHash: true }), RouterLink, RouterOutlet],

@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
@@ -24,7 +25,7 @@ import {
   getAlignedDigits,
   subtract,
   formatRational
-} from 'src/lib/berkovich/berkovich';
+} from '../../lib/berkovich/berkovich';
 
 describe('P-adic Arithmetic Helpers', () => {
   it('should parse integer and rational inputs correctly', () => {
@@ -209,18 +210,18 @@ describe('BerkovichVisComponent', () => {
     component.prime.set(3);
     component.centerInput.set('0');
     fixture.detectChanges();
-    expect(component.centerDigitsInput()).toBe('0 0 0 0');
+    expect(component.centerDigitsInput()).toBe('00.00');
 
     component.centerInput.set('5/3');
     component.onCenterBlur();
     fixture.detectChanges();
-    expect(component.centerDigitsInput()).toBe('0 0 1 2');
+    expect(component.centerDigitsInput()).toBe('01.20');
 
-    component.centerDigitsInput.set('0 1 0 0');
+    component.centerDigitsInput.set('10.00');
     component.onCenterDigitsBlur();
     fixture.detectChanges();
     expect(component.centerInput()).toBe('3');
-    expect(component.centerDigitsInput()).toBe('0 1 0 0');
+    expect(component.centerDigitsInput()).toBe('10.00');
   });
 
   it('should not show children under inactive node 1/3 at level 1 when c=0 and y=5/3', () => {
@@ -325,7 +326,7 @@ describe('BerkovichVisComponent', () => {
     fixture.detectChanges();
 
     expect(component.displayCenter()).toBe('0');
-    expect(component.displayCenterDigits()).toBe('0 0 0 0');
+    expect(component.displayCenterDigits()).toBe('00.00');
     expect(component.displayLogRadius()).toBe('2.0');
 
     component.currentCenter.set({ num: 1n, den: 3n });
@@ -334,7 +335,7 @@ describe('BerkovichVisComponent', () => {
     fixture.detectChanges();
 
     expect(component.displayCenter()).toBe('1/3');
-    expect(component.displayCenterDigits()).toBe('0 0 0 1');
+    expect(component.displayCenterDigits()).toBe('00.10');
     expect(component.displayLogRadius()).toBe('1.00');
   });
 
@@ -343,9 +344,9 @@ describe('BerkovichVisComponent', () => {
     component.targetInput.set('5/3');
     component.onTargetBlur();
     fixture.detectChanges();
-    expect(component.targetDigitsInput()).toBe('0 0 1 2');
+    expect(component.targetDigitsInput()).toBe('01.20');
 
-    component.targetDigitsInput.set('0 0 1 1');
+    component.targetDigitsInput.set('01.10');
     component.onTargetDigitsBlur();
     fixture.detectChanges();
     expect(component.targetInput()).toBe('4/3');
@@ -490,8 +491,10 @@ describe('BerkovichVisComponent', () => {
     const y = component.targetInput();
     expect(c).not.toBe(y);
     
-    const cDigits = component.centerDigitsInput().split(' ').map(Number);
-    const yDigits = component.targetDigitsInput().split(' ').map(Number);
+    const cSeq = component.centerDigitsInput().replace('.', '');
+    const ySeq = component.targetDigitsInput().replace('.', '');
+    const cDigits = Array.from(cSeq).map(Number);
+    const yDigits = Array.from(ySeq).map(Number);
     expect(cDigits.length).toBe(4);
     expect(yDigits.length).toBe(4);
     

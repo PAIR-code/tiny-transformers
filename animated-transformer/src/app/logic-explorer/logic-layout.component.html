@@ -1,0 +1,27 @@
+<div class="layout-container">
+  <!-- Top header / Nav Bar -->
+  <header class="explorer-header">
+    <div class="header-left">
+      <mat-icon class="header-logo" [class]="logoColorClass()">{{ headerIcon() }}</mat-icon>
+      <h1 class="header-title">{{ headerTitle() }}</h1>
+    </div>
+    <nav class="header-nav">
+      <a routerLink="/logic-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
+        <mat-icon>menu_book</mat-icon> Story Semantics
+      </a>
+      <a routerLink="/logic-sim-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
+        <mat-icon>insights</mat-icon> Simulation & Generation
+      </a>
+      <a routerLink="/logic-advanced-docs" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
+        <mat-icon>psychology</mat-icon> Advanced TypeScript
+      </a>
+      <a routerLink="/logic" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }" class="nav-link">
+        <mat-icon>account_tree</mat-icon> Explorer
+      </a>
+    </nav>
+  </header>
+
+  <div class="content-container">
+    <router-outlet></router-outlet>
+  </div>
+</div>

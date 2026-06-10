@@ -432,7 +432,7 @@
                 @for (cand of gradientBreakdown().candidates; track cand.branch) {
                   <tr [class.selected-candidate]="gradientBreakdown().bestBranch === cand.branch">
                     <td>
-                      <strong>{{ cand.branch }}</strong>
+                      <strong>{{ cand.branchLabel }}</strong>
                       @if (gradientBreakdown().bestBranch === cand.branch) {
                         <span class="sel-badge">(STEER DIRECTION)</span>
                       }

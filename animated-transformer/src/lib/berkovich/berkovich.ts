@@ -298,3 +298,204 @@ export function truncateToTreeRange(
   }
   return sum;
 }
+
+// ============================================================================
+// NEW GRADIENT & DIGIT SEQUENCE CONVERSION INTERFACES & FUNCTIONS
+// ============================================================================
+
+export interface GradientDetails {
+  isVertex: boolean;
+  rho: number;
+  d: number;
+  loss: number;
+  nextCenter: Rational;
+  nextLogRadius: number;
+  stepType: string;
+  explanation: string;
+  candidates?: {
+    branch: string;
+    branchLabel: string;
+    center: Rational;
+    centerStr: string;
+    logRadius: number;
+    distVal: number;
+    lossVal: number;
+  }[];
+  bestBranch?: string;
+  bestBranchLabel?: string;
+  gRho?: number;
+  proposedRho?: number;
+  crossesInteger?: boolean;
+  snappedRho?: number;
+}
+
+export function formatDigitSequence(r: Rational, p: bigint): string {
+  const aligned = getAlignedDigits(r, p, -2, 1);
+  const d_minus2 = aligned.find(item => item.power === -2)?.digit ?? 0;
+  const d_minus1 = aligned.find(item => item.power === -1)?.digit ?? 0;
+  const d_0 = aligned.find(item => item.power === 0)?.digit ?? 0;
+  const d_1 = aligned.find(item => item.power === 1)?.digit ?? 0;
+  return `${d_1}${d_0}.${d_minus1}${d_minus2}`;
+}
+
+export function parseDigitSequence(seq: string, p: bigint): Rational {
+  const match = seq.trim().match(/^([0-9])([0-9])\.([0-9])([0-9])$/);
+  if (!match) {
+    throw new Error(`Invalid digit sequence format: ${seq}`);
+  }
+  const d1 = Number(match[1]);
+  const d0 = Number(match[2]);
+  const d_minus1 = Number(match[3]);
+  const d_minus2 = Number(match[4]);
+  
+  const pNum = Number(p);
+  if (d1 >= pNum || d0 >= pNum || d_minus1 >= pNum || d_minus2 >= pNum) {
+    throw new Error(`Digits in sequence ${seq} exceed base ${p}`);
+  }
+  
+  const term1 = simplify({ num: BigInt(d1) * p, den: 1n });
+  const term2 = simplify({ num: BigInt(d0), den: 1n });
+  const term3 = simplify({ num: BigInt(d_minus1), den: p });
+  const term4 = simplify({ num: BigInt(d_minus2), den: p ** 2n });
+  
+  return simplify(add(add(add(term1, term2), term3), term4));
+}
+
+export function computeGradientDetails(
+  c: Rational,
+  rho: number,
+  y: Rational,
+  p: bigint,
+  eta: number
+): GradientDetails {
+  const diff = subtract(c, y);
+  const val = getValuation(diff, p);
+  const d = -val + 1;
+  const loss = Math.abs(rho - d) + d;
+  
+  const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
+  
+  if (isVertex) {
+    const k = Math.round(rho);
+    const candidates: {
+      branch: string;
+      branchLabel: string;
+      center: Rational;
+      centerStr: string;
+      logRadius: number;
+      distVal: number;
+      lossVal: number;
+    }[] = [];
+    
+    // Parent candidate
+    candidates.push({
+      branch: 'parent',
+      branchLabel: 'Parent (∞)',
+      center: c,
+      centerStr: formatRational(c),
+      logRadius: k + 1,
+      distVal: d,
+      lossVal: Math.abs((k + 1) - d) + d
+    });
+    
+    // Children candidates
+    for (let g = 0; g < Number(p); g++) {
+      let shift: Rational;
+      const power = -k + 1;
+      if (power <= 0) {
+        shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+      } else {
+        shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
+      }
+      const childCenter = add(c, shift);
+      const childDiff = subtract(childCenter, y);
+      const childVal = getValuation(childDiff, p);
+      const childD = -childVal + 1;
+      const childLoss = Math.abs((k - 1) - childD) + childD;
+      
+      candidates.push({
+        branch: g.toString(),
+        branchLabel: `Child ${g}`,
+        center: childCenter,
+        centerStr: formatRational(childCenter),
+        logRadius: k - 1,
+        distVal: childD,
+        lossVal: childLoss
+      });
+    }
+    
+    // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
+    let minLoss = Infinity;
+    let maxValuation = -Infinity;
+    let bestCand = candidates[0];
+    for (const cand of candidates) {
+      const valShift = getValuation(subtract(y, cand.center), p);
+      if (cand.lossVal < minLoss) {
+        minLoss = cand.lossVal;
+        maxValuation = valShift;
+        bestCand = cand;
+      } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
+        if (valShift > maxValuation) {
+          maxValuation = valShift;
+          bestCand = cand;
+        }
+      }
+    }
+    
+    const nextCenter = bestCand.center;
+    const nextLogRadius = bestCand.branch === 'parent' ? k + eta : k - eta;
+    const stepType = bestCand.branch === 'parent' ? 'Vertex (Move to Parent)' : `Vertex (Move to Child ${bestCand.branch})`;
+    
+    const explanation = `At Type II vertex (ρ = ${k}), the tangent space has ${Number(p) + 1} branches (parent and ${Number(p)} children). We evaluate the path-metric loss for each branch and choose the one with the smallest loss: ${bestCand.branchLabel}.`;
+    
+    return {
+      isVertex: true,
+      rho,
+      d,
+      loss,
+      nextCenter,
+      nextLogRadius,
+      stepType,
+      explanation,
+      candidates,
+      bestBranch: bestCand.branch,
+      bestBranchLabel: bestCand.branchLabel
+    };
+  } else {
+    const gRho = rho >= d ? 1 : -1;
+    const proposedRho = rho - eta * gRho;
+    
+    const kUpper = Math.ceil(rho);
+    const kLower = Math.floor(rho);
+    const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
+    
+    let nextLogRadius: number;
+    let stepType: string;
+    if (crossesInteger) {
+      nextLogRadius = gRho > 0 ? kLower : kUpper;
+      stepType = `Edge (Continuous snap to ρ=${nextLogRadius})`;
+    } else {
+      nextLogRadius = proposedRho;
+      stepType = `Edge (Continuous descent dL/dρ=${gRho > 0 ? '+1' : '-1'})`;
+    }
+    
+    const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
+    const explanation = `On Type III edge (ρ = ${rho.toFixed(4)}), the gradient of the loss with respect to ρ is dL/dρ = sgn(ρ - d) = ${gRho > 0 ? '+1' : '-1'} (since ρ ${rho >= d ? '≥' : '<'} d). Under gradient descent, the proposed update is ρ_new = ρ - η * (dL/dρ) = ${proposedRho.toFixed(4)}.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to ρ = ${snappedRho} to land exactly on a Type II vertex.` : ''}`;
+    
+    return {
+      isVertex: false,
+      rho,
+      d,
+      loss,
+      nextCenter: c,
+      nextLogRadius,
+      stepType,
+      explanation,
+      gRho,
+      proposedRho,
+      crossesInteger,
+      snappedRho
+    };
+  }
+}
+

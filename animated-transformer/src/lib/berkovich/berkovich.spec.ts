@@ -29,7 +29,10 @@ import {
   isVertex,
   computeVertexCandidates,
   computeContinuousStep,
-  truncateToTreeRange
+  truncateToTreeRange,
+  formatDigitSequence,
+  parseDigitSequence,
+  computeGradientDetails
 } from './berkovich';
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
@@ -180,3 +183,80 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     expect(truncateToTreeRange(val3, p, -2, 2)).toEqual({ num: 8n, den: 9n });
   });
 });
+
+describe('Berkovich Math Library - Digit Sequence Conversion', () => {
+  it('should format rational to digit sequence with decimal point and no spaces', () => {
+    const p = 3n;
+    // 5/3 = 0 * 3^1 + 1 * 3^0 + 2 * 3^-1 + 0 * 3^-2 -> '01.20'
+    expect(formatDigitSequence(parseToRational('5/3'), p)).toBe('01.20');
+    // 0 = '00.00'
+    expect(formatDigitSequence(parseToRational('0'), p)).toBe('00.00');
+    // 4 = 1 * 3^1 + 1 * 3^0 -> '11.00'
+    expect(formatDigitSequence(parseToRational('4'), p)).toBe('11.00');
+    // 2/9 = 2 * 3^-2 -> '00.02'
+    expect(formatDigitSequence(parseToRational('2/9'), p)).toBe('00.02');
+    // 8/9 = 2 * 3^-1 + 2 * 3^-2 -> '00.22'
+    expect(formatDigitSequence(parseToRational('8/9'), p)).toBe('00.22');
+  });
+
+  it('should parse digit sequence with decimal point and no spaces to rational', () => {
+    const p = 3n;
+    expect(parseDigitSequence('01.20', p)).toEqual(parseToRational('5/3'));
+    expect(parseDigitSequence('00.00', p)).toEqual(parseToRational('0'));
+    expect(parseDigitSequence('11.00', p)).toEqual(parseToRational('4'));
+    expect(parseDigitSequence('00.02', p)).toEqual(parseToRational('2/9'));
+    expect(parseDigitSequence('00.22', p)).toEqual(parseToRational('8/9'));
+  });
+});
+
+describe('Berkovich Math Library - Shared Gradient Steps', () => {
+  it('should compute gradient details at a vertex correctly', () => {
+    const p = 3n;
+    const c = parseToRational('0');
+    const y = parseToRational('5/3'); // d = -val + 1 = -(-1) + 1 = 2
+    const eta = 0.2;
+    const details = computeGradientDetails(c, 2.0, y, p, eta);
+
+    expect(details.isVertex).toBe(true);
+    expect(details.rho).toBe(2.0);
+    expect(details.d).toBe(2);
+    // Loss = |2.0 - 2| + 2 = 2
+    expect(details.loss).toBe(2);
+    expect(details.bestBranch).toBe('2');
+    expect(details.nextCenter).toEqual(parseToRational('2/3'));
+    expect(details.nextLogRadius).toBeCloseTo(1.8);
+    expect(details.stepType).toBe('Vertex (Move to Child 2)');
+  });
+
+  it('should compute gradient details on an edge correctly', () => {
+    const p = 3n;
+    const c = parseToRational('2/3');
+    const y = parseToRational('5/3'); // d = -val + 1 = -0 + 1 = 1
+    const eta = 0.2;
+
+    // 1. Continuous step without snapping
+    const details1 = computeGradientDetails(c, 1.8, y, p, eta);
+    expect(details1.isVertex).toBe(false);
+    expect(details1.rho).toBe(1.8);
+    expect(details1.d).toBe(1);
+    expect(details1.gRho).toBe(1); // rho >= d, so gradient of loss w.r.t rho is +1
+    expect(details1.proposedRho).toBeCloseTo(1.6);
+    expect(details1.crossesInteger).toBe(false);
+    expect(details1.nextCenter).toEqual(c);
+    expect(details1.nextLogRadius).toBeCloseTo(1.6);
+    expect(details1.stepType).toBe('Edge (Continuous descent dL/dρ=+1)');
+
+    // 2. Continuous step with snapping to integer boundary
+    const details2 = computeGradientDetails(c, 1.1, y, p, eta);
+    expect(details2.isVertex).toBe(false);
+    expect(details2.rho).toBe(1.1);
+    expect(details2.d).toBe(1);
+    expect(details2.gRho).toBe(1);
+    expect(details2.proposedRho).toBeCloseTo(0.9);
+    expect(details2.crossesInteger).toBe(true);
+    expect(details2.nextCenter).toEqual(c);
+    expect(details2.nextLogRadius).toBe(1.0);
+    expect(details2.stepType).toBe('Edge (Continuous snap to ρ=1)');
+  });
+});
+
