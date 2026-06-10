@@ -136,7 +136,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   private dragStartY = 0;
   private dragStartRho = 0.0;
   readonly isPlaying = signal<boolean>(false);
-  readonly isConfigCollapsed = signal<boolean>(false);
+  readonly isConfigCollapsed = signal<boolean>(true);
   readonly isDraggingRho = signal<boolean>(false);
   
   // Real-time displaying values for parameters inputs
@@ -245,7 +245,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   });
 
   // SVG dimensions
-  readonly svgWidth = 800;
+  readonly svgWidth = computed(() => this.treeVisuals().width);
   readonly svgHeight = 460;
   readonly paddingY = 40;
   readonly rhoMax = 2;
@@ -419,7 +419,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       return node.x;
     };
 
-    const calculateLayoutAttempt = (gap: number) => {
+    const calculateLayoutAttempt = (gap: number): number => {
       clearX(rootNode);
 
       const N = bottomLeaves.length;
@@ -444,9 +444,29 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
 
       computeX(rootNode);
 
-      // Pass 5: Center the root node horizontally and shift the rest of the tree in unison
-      const idealRootX = this.svgWidth / 2;
-      const shift = idealRootX - rootNode.x!;
+      let minX = Infinity;
+      let maxX = -Infinity;
+      const findBounds = (n: LayoutNode) => {
+        if (n.x !== undefined) {
+          if (n.x < minX) minX = n.x;
+          if (n.x > maxX) maxX = n.x;
+        }
+        for (const child of n.children) {
+          findBounds(child);
+        }
+      };
+      findBounds(rootNode);
+
+      if (minX === Infinity) {
+        minX = 0;
+        maxX = 0;
+      }
+
+      const treeSpan = maxX - minX;
+      const computedWidth = Math.max(300, Math.round(treeSpan + 130));
+
+      // Pass 5: Shift all nodes based on minX and the left margin boundary
+      const shift = 40 - minX;
       const applyShift = (node: LayoutNode) => {
         node.x = node.x! + shift;
         for (const child of node.children) {
@@ -454,6 +474,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
         }
       };
       applyShift(rootNode);
+
+      return computedWidth;
     };
 
     const hasOverlap = (): boolean => {
@@ -481,8 +503,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     };
 
     let extraGap = 80;
+    let finalWidth = 400;
     for (let attempt = 0; attempt < 10; attempt++) {
-      calculateLayoutAttempt(extraGap);
+      finalWidth = calculateLayoutAttempt(extraGap);
       if (hasOverlap()) {
         extraGap += 40;
       } else {
@@ -549,7 +572,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     
     positionNode(rootNode);
     
-    return { nodes, edges };
+    return { nodes, edges, width: finalWidth };
   });
 
   readonly currentParameterCoord = computed(() => {
@@ -578,7 +601,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     } else if (childNode) {
       xCoord = childNode.x;
     } else {
-      xCoord = this.svgWidth / 2;
+      xCoord = this.svgWidth() / 2;
     }
     
     return { x: xCoord, y: yCoord };

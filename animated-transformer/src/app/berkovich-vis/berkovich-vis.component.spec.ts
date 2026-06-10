@@ -620,10 +620,12 @@ describe('BerkovichVisComponent', () => {
       fixture.detectChanges();
 
       const visuals = component.treeVisuals();
+      const rootNode = visuals.nodes.find(n => n.id === '0_2');
+      expect(rootNode).toBeTruthy();
       for (const expNode of cs.expected) {
         const actNode = visuals.nodes.find(n => n.id === expNode.id);
         expect(actNode).toBeTruthy();
-        expect(actNode!.x).toBeCloseTo(expNode.x, 1);
+        expect(actNode!.x - rootNode!.x).toBeCloseTo(expNode.x - 400, 1);
       }
     }
   });
