@@ -366,5 +366,27 @@ describe('BerkovichTreeVisComponent', () => {
     expect(rangeAtHalf.x1).toBeCloseTo((rangeAt0.x1 + rangeAt1.x1) / 2);
     expect(rangeAtHalf.x2).toBeCloseTo((rangeAt0.x2 + rangeAt1.x2) / 2);
   });
+
+  it('should position active nodes at standard level heights and inactive stub nodes at 70% level height', () => {
+    setInputs(3, '5/3', '0', 2.0);
+    const visuals = component.treeVisuals();
+    const stepY = (component.svgHeight - 2 * component.paddingY) / (component.rhoMax - component.rhoMin);
+
+    // Find active nodes (e.g. root node 0_2 at y = paddingY = 40)
+    const rootNode = visuals.nodes.find(n => n.id === '0_2');
+    expect(rootNode).toBeTruthy();
+    expect(rootNode!.y).toBeCloseTo(40);
+
+    // Find active child at level 1: 0_1
+    const node0_1 = visuals.nodes.find(n => n.id === '0_1');
+    expect(node0_1).toBeTruthy();
+    expect(node0_1!.y).toBeCloseTo(40 + stepY);
+
+    // Find inactive child at level 1
+    const inactiveNode = visuals.nodes.find(n => !n.isActive && n.logRadius === 1);
+    expect(inactiveNode).toBeTruthy();
+    // Its parent is active at level 2 (y=40), so its y should be parentY + 0.7 * stepY
+    expect(inactiveNode!.y).toBeCloseTo(40 + 0.7 * stepY);
+  });
 });
 

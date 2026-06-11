@@ -90,6 +90,8 @@ export class BerkovichTreeVisComponent {
   readonly paddingY = 40;
   readonly rhoMax = 2;
   readonly rhoMin = -2;
+  readonly activePathStepY = 95;
+  readonly stubPathStepY = 66.5;
 
   // Track previous node positions for slide-out animations
   private lastPositions = new Map<string, { x: number, y: number }>();
@@ -102,8 +104,7 @@ export class BerkovichTreeVisComponent {
     const pNum = Number(p);
     const y = this.targetRational();
     const c_curr = this.currentCenter();
-    const levelsCount = this.rhoMax - this.rhoMin;
-    const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
+    const stepY = this.activePathStepY;
     
     interface LayoutNode {
       id: string;
@@ -370,7 +371,10 @@ export class BerkovichTreeVisComponent {
       digitLabel?: string
     ) => {
       const xCoord = node.x!;
-      const yCoord = this.paddingY + (this.rhoMax - node.rho) * stepY;
+      let yCoord = this.paddingY + (this.rhoMax - node.rho) * stepY;
+      if (!node.isActive && parentY !== undefined) {
+        yCoord = parentY + this.stubPathStepY;
+      }
       
       // Look up parent previous position for slide-out starting coordinates
       let startX: number | undefined;
@@ -620,9 +624,7 @@ export class BerkovichTreeVisComponent {
   }
 
   rhoToY(rho: number): number {
-    const levelsCount = this.rhoMax - this.rhoMin;
-    const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
-    return this.paddingY + (this.rhoMax - rho) * stepY;
+    return this.paddingY + (this.rhoMax - rho) * this.activePathStepY;
   }
 
   getParameterXAtLevel(c_curr: Rational, k: number, p: bigint, nodes: VisualNode[]): number {
@@ -702,9 +704,7 @@ export class BerkovichTreeVisComponent {
   onPointerMove(event: PointerEvent): void {
     if (this.isDraggingRho()) {
       const deltaY = event.clientY - this.dragStartY;
-      const levelsCount = this.rhoMax - this.rhoMin;
-      const stepY = (this.svgHeight - 2 * this.paddingY) / levelsCount;
-      const deltaRho = -deltaY / stepY;
+      const deltaRho = -deltaY / this.activePathStepY;
       
       let rho = this.dragStartRho + deltaRho;
       rho = Math.max(this.rhoMin, Math.min(this.rhoMax, rho));
