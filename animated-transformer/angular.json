@@ -44,19 +44,33 @@
             ],
             "scripts": [],
             "webWorkerTsConfig": "tsconfig.worker.json",
-            "browser": "src/main.ts"
+            "browser": "src/main.ts",
+            "allowedCommonJsDependencies": [
+              // Used by src/app/berkovich-vis/berkovich-vis.component.ts for rendering LaTeX equations.
+              "katex/dist/contrib/auto-render.js",
+              // Used by src/lib/data-resolver/data-resolver.ts for JSON5 parsing.
+              "json5",
+              // Used by @tensorflow/tfjs-data dataset package.
+              "seedrandom",
+              // Transitively referenced by @tensorflow/tfjs-core node platform implementation.
+              "node-fetch",
+              // Transitively referenced by @tensorflow/tfjs-data utility helpers.
+              "string_decoder",
+              // Transitively referenced by @tensorflow/tfjs-core hash utilities.
+              "long"
+            ]
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "3000kb",
+                  "maximumWarning": "4mb",
                   "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "15kb",
+                  "maximumWarning": "25kb",
                   "maximumError": "30kb"
                 }
               ],

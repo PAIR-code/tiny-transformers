@@ -1,4 +1,7 @@
 {
   "jupyter.jupyterServerType": "local",
-  "typescript.tsdk": "./node_modules/typescript/lib"
+  "typescript.tsdk": "./node_modules/typescript/lib",
+  "files.associations": {
+    "*.json": "jsonc"
+  }
 }
