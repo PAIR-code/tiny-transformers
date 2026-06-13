@@ -59,6 +59,7 @@
     "@types/wicg-file-system-access": "^2023.10.5",
     "@types/yargs": "^17.0.24",
     "@vitest/browser-playwright": "^4.1.7",
+    "baseline-browser-mapping": "^2.10.37",
     "concurrently": "^9.1.2",
     "esbuild": "0.24.2",
     "jsdom": "^29.1.1",
