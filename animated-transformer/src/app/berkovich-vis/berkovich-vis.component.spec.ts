@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideMarkdown } from 'ngx-markdown';
+import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
 import { BerkovichVisComponent } from './berkovich-vis.component';
 import { 
   parseToRational, 
@@ -103,7 +103,19 @@ describe('BerkovichVisComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BerkovichVisComponent],
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideMarkdown()]
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        provideMarkdown(),
+        {
+          provide: KATEX_OPTIONS,
+          useValue: {
+            // Cast is needed because 'nonStandard' is missing from ngx-markdown's MarkedKatexOptions typings.
+            // We need 'nonStandard: true' to support inline math without surrounding spaces (e.g. '($\rho$)').
+            nonStandard: true
+          } as MarkedKatexOptions & { nonStandard?: boolean }
+        }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(BerkovichVisComponent);

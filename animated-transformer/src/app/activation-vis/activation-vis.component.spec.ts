@@ -19,7 +19,7 @@ import { ActivationVisComponent } from './activation-vis.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideMarkdown } from 'ngx-markdown';
+import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
 
 describe('ActivationVisComponent', () => {
   let component: ActivationVisComponent;
@@ -29,7 +29,15 @@ describe('ActivationVisComponent', () => {
     await TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
-        provideMarkdown()
+        provideMarkdown(),
+        {
+          provide: KATEX_OPTIONS,
+          useValue: {
+            // Cast is needed because 'nonStandard' is missing from ngx-markdown's MarkedKatexOptions typings.
+            // We need 'nonStandard: true' to support inline math without surrounding spaces (e.g. '($\rho$)').
+            nonStandard: true
+          } as MarkedKatexOptions & { nonStandard?: boolean }
+        }
       ],
       imports: [NoopAnimationsModule, ActivationVisComponent, CornerActivationComponent],
     }).compileComponents();

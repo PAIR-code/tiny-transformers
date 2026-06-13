@@ -78,8 +78,14 @@ importers:
         specifier: ^2.2.3
         version: 2.2.3
       katex:
-        specifier: ^0.17.0
-        version: 0.17.0
+        specifier: ^0.16.22
+        version: 0.16.22
+      marked:
+        specifier: ^18.0.5
+        version: 18.0.5
+      marked-katex-extension:
+        specifier: ^5.1.10
+        version: 5.1.10(katex@0.16.22)(marked@18.0.5)
       mini-parse:
         specifier: ^0.6.9
         version: 0.6.9
@@ -90,8 +96,8 @@ importers:
         specifier: ^1.11.0
         version: 1.11.5
       ngx-markdown:
-        specifier: ^20.1.0
-        version: 20.1.0(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(@angular/platform-browser@22.0.0(@angular/animations@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(marked@16.3.0)(rxjs@7.5.7)(zone.js@0.15.1)
+        specifier: ^22.0.0
+        version: 22.0.0(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(@angular/platform-browser@22.0.0(@angular/animations@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(clipboard@2.0.11)(emoji-toolkit@9.0.1)(katex@0.16.22)(marked-katex-extension@5.1.10(katex@0.16.22)(marked@18.0.5))(marked@18.0.5)(mermaid@11.12.0)(prismjs@1.30.0)(rxjs@7.5.7)(zone.js@0.15.1)
       rxjs:
         specifier: ~7.5.0
         version: 7.5.7
@@ -3639,10 +3645,6 @@ packages:
     resolution: {integrity: sha512-XCHRdUw4lf3SKBaJe4EvgqIuWwkPSo9XoeO8GjQW94Bp7TWv9hNhzZjZ+OH9yf1UmLygb7DIT5GSFQiyt16zYg==}
     hasBin: true
 
-  katex@0.17.0:
-    resolution: {integrity: sha512-Vdw0ATsQ9V+LuegM/BTwQqV/6cTl5lbGcIrU+BCgLxyf6bo38ybOr372tuSIxir3CN720flu1meYR6XzNMwQnw==}
-    hasBin: true
-
   khroma@2.1.0:
     resolution: {integrity: sha512-Ls993zuzfayK269Svk9hzpeGUKob/sIgZzyHYdjQoAdQetRKpOLj+k/QQQ/6Qi0Yz65mlROrfd+Ev+1+7dz9Kw==}
 
@@ -3734,6 +3736,12 @@ packages:
     resolution: {integrity: sha512-uCbIa8jWWmQZt4dSnEStkVC6gdakiinAm4PiGsywIkguF0eWMdcjDz0ECYhUolFU3pFLOev9VNPCEygydXnddg==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
+  marked-katex-extension@5.1.10:
+    resolution: {integrity: sha512-TuqrzguLeXXm6iBaf16leL3+dVmMj8KrBdunMVVzxMS/bwcjtQ0YG0sNytl1j7uUo8yClsXJqBbVjH1yOPurwQ==}
+    peerDependencies:
+      katex: '>=0.16 <0.18'
+      marked: '>=4 <19'
+
   marked@14.0.0:
     resolution: {integrity: sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==}
     engines: {node: '>= 18'}
@@ -3741,6 +3749,11 @@ packages:
 
   marked@16.3.0:
     resolution: {integrity: sha512-K3UxuKu6l6bmA5FUwYho8CfJBlsUWAooKtdGgMcERSpF7gcBUrCGsLH7wDaaNOzwq18JzSUDyoEb/YsrqMac3w==}
+    engines: {node: '>= 20'}
+    hasBin: true
+
+  marked@18.0.5:
+    resolution: {integrity: sha512-S6GcvALHg6K4ohtu4E7x0a1AqhAjp6cV8KhLSyN9qVapnzJkusVBxZRcIU9AeYsbe6P1hKDusSbEOzGyyuce6w==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -3915,15 +3928,34 @@ packages:
     resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
     engines: {node: '>= 0.6'}
 
-  ngx-markdown@20.1.0:
-    resolution: {integrity: sha512-BLn6CTMO27cU0zeaJYoC1g5c1hAkrpE5oqVSQFGW0J5gq+gEuvTt4vrtNLc8Z+HYXtuuWmuhUWiXL/bYoiDJ+A==}
+  ngx-markdown@22.0.0:
+    resolution: {integrity: sha512-ES4uWsxtJuiFK8PPG4I9hIlQOTj0+HWm6BqEjgMb+FOzmZJopAuba4uAGSZyBEqFnwlqv+hYKhS8ddzTqveedw==}
     peerDependencies:
-      '@angular/common': ^20.0.0
-      '@angular/core': ^20.0.0
-      '@angular/platform-browser': ^20.0.0
-      marked: ^15.0.0 || ^16.0.0
+      '@angular/common': ^22.0.0
+      '@angular/core': ^22.0.0
+      '@angular/platform-browser': ^22.0.0
+      clipboard: ^2.0.11
+      emoji-toolkit: '>= 8.0.0 < 11.0.0'
+      katex: ^0.16.0
+      marked: ^17.0.0 || ^18.0.0
+      marked-katex-extension: ^5.0.0
+      mermaid: '>= 10.6.0 < 12.0.0'
+      prismjs: ^1.30.0
       rxjs: ^6.5.3 || ^7.4.0
-      zone.js: ~0.15.0
+      zone.js: ~0.15.0 || ~0.16.0
+    peerDependenciesMeta:
+      clipboard:
+        optional: true
+      emoji-toolkit:
+        optional: true
+      katex:
+        optional: true
+      marked-katex-extension:
+        optional: true
+      mermaid:
+        optional: true
+      prismjs:
+        optional: true
 
   node-addon-api@6.1.0:
     resolution: {integrity: sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA==}
@@ -4604,9 +4636,6 @@ packages:
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
-
-  tinyexec@1.0.1:
-    resolution: {integrity: sha512-5uC6DDlmeqiOwCPmK9jMSdOuZTh8bU39Ys6yidB+UTt5hfZUPGAypSgFRiEp+jbi9qH40BLDvy85jIU88wKSqw==}
 
   tinyexec@1.1.2:
     resolution: {integrity: sha512-dAqSqE/RabpBKI8+h26GfLq6Vb3JVXs30XYQjdMjaj/c2tS8IYYMbIzP599KtRj7c57/wYApb3QjgRgXmrCukA==}
@@ -5527,7 +5556,7 @@ snapshots:
   '@antfu/install-pkg@1.1.0':
     dependencies:
       package-manager-detector: 1.3.0
-      tinyexec: 1.0.1
+      tinyexec: 1.1.2
     optional: true
 
   '@antfu/utils@9.2.1':
@@ -8675,11 +8704,6 @@ snapshots:
   katex@0.16.22:
     dependencies:
       commander: 8.3.0
-    optional: true
-
-  katex@0.17.0:
-    dependencies:
-      commander: 8.3.0
 
   khroma@2.1.0:
     optional: true
@@ -8831,9 +8855,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  marked-katex-extension@5.1.10(katex@0.16.22)(marked@18.0.5):
+    dependencies:
+      katex: 0.16.22
+      marked: 18.0.5
+
   marked@14.0.0: {}
 
-  marked@16.3.0: {}
+  marked@16.3.0:
+    optional: true
+
+  marked@18.0.5: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -9016,12 +9048,12 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  ngx-markdown@20.1.0(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(@angular/platform-browser@22.0.0(@angular/animations@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(marked@16.3.0)(rxjs@7.5.7)(zone.js@0.15.1):
+  ngx-markdown@22.0.0(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(@angular/platform-browser@22.0.0(@angular/animations@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(clipboard@2.0.11)(emoji-toolkit@9.0.1)(katex@0.16.22)(marked-katex-extension@5.1.10(katex@0.16.22)(marked@18.0.5))(marked@18.0.5)(mermaid@11.12.0)(prismjs@1.30.0)(rxjs@7.5.7)(zone.js@0.15.1):
     dependencies:
       '@angular/common': 22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7)
       '@angular/core': 22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)
       '@angular/platform-browser': 22.0.0(@angular/animations@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1)))(@angular/common@22.0.0(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))(rxjs@7.5.7))(@angular/core@22.0.0(@angular/compiler@22.0.0)(rxjs@7.5.7)(zone.js@0.15.1))
-      marked: 16.3.0
+      marked: 18.0.5
       rxjs: 7.5.7
       tslib: 2.8.1
       zone.js: 0.15.1
@@ -9029,10 +9061,9 @@ snapshots:
       clipboard: 2.0.11
       emoji-toolkit: 9.0.1
       katex: 0.16.22
+      marked-katex-extension: 5.1.10(katex@0.16.22)(marked@18.0.5)
       mermaid: 11.12.0
       prismjs: 1.30.0
-    transitivePeerDependencies:
-      - supports-color
 
   node-addon-api@6.1.0:
     optional: true
@@ -9845,9 +9876,6 @@ snapshots:
     optional: true
 
   tinybench@2.9.0: {}
-
-  tinyexec@1.0.1:
-    optional: true
 
   tinyexec@1.1.2: {}
 

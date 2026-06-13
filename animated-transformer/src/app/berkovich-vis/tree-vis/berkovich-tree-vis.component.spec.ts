@@ -16,7 +16,7 @@ limitations under the License.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideMarkdown } from 'ngx-markdown';
+import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
 import katex from 'katex';
 import { BerkovichTreeVisComponent } from './berkovich-tree-vis.component';
 import { parseToRational, formatRational } from '../../../lib/berkovich/berkovich';
@@ -32,7 +32,18 @@ describe('BerkovichTreeVisComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BerkovichTreeVisComponent],
-      providers: [provideZonelessChangeDetection(), provideMarkdown()]
+      providers: [
+        provideZonelessChangeDetection(),
+        provideMarkdown(),
+        {
+          provide: KATEX_OPTIONS,
+          useValue: {
+            // Cast is needed because 'nonStandard' is missing from ngx-markdown's MarkedKatexOptions typings.
+            // We need 'nonStandard: true' to support inline math without surrounding spaces (e.g. '($\rho$)').
+            nonStandard: true
+          } as MarkedKatexOptions & { nonStandard?: boolean }
+        }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(BerkovichTreeVisComponent);

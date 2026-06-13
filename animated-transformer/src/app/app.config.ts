@@ -14,7 +14,7 @@ limitations under the License.
 ==============================================================================*/
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 
-import { provideMarkdown } from 'ngx-markdown';
+import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { provideRouter, Routes, withComponentInputBinding, withHashLocation } from '@angular/router';
@@ -83,6 +83,14 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding(), withHashLocation()),
     provideAnimationsAsync(),
     provideMarkdown(),
+    {
+      provide: KATEX_OPTIONS,
+      useValue: {
+        // Cast is needed because 'nonStandard' is missing from ngx-markdown's MarkedKatexOptions typings.
+        // We need 'nonStandard: true' to support inline math without surrounding spaces (e.g. '($\rho$)').
+        nonStandard: true
+      } as MarkedKatexOptions & { nonStandard?: boolean }
+    },
     provideHttpClient(),
   ],
 };
