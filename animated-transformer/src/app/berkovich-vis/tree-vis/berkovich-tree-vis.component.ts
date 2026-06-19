@@ -17,7 +17,7 @@ import { Component, input, output, computed, signal, effect, untracked, ChangeDe
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownComponent } from 'ngx-markdown';
 import katex from 'katex';
 // @ts-ignore
 import renderMathInElement from 'katex/dist/contrib/auto-render.js';
@@ -68,7 +68,7 @@ export interface VisualEdge {
     CommonModule,
     MatCardModule,
     MatIconModule,
-    MarkdownModule
+    MarkdownComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

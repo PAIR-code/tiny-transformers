@@ -47,7 +47,7 @@ import { AutoCompletedTextInputComponent } from '../auto-completed-text-input/au
 import { ActivationManagerComponent } from './activation-manager/activation-manager.component';
 import { NanValidatorDirective } from '../form-validators/nan-validator.directive';
 import { BoundedFloatValidatorDirective } from '../form-validators/bounded-float-validator.directive';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownComponent } from 'ngx-markdown';
 
 interface DatasetExample {
   input: number[];
@@ -77,7 +77,7 @@ interface DatasetExample {
     // ActivationManagerDirective,
     // NanValidatorDirective,
     // BoundedFloatValidatorDirective,
-    MarkdownModule,
+    MarkdownComponent,
   ],
   templateUrl: './activation-vis.component.html',
   styleUrls: ['./activation-vis.component.scss'],

@@ -17,7 +17,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ModelTaskTrainerComponent } from './model-task-trainer.component';
 import { provideRouter } from '@angular/router';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('ModelTaskTrainerComponent', () => {
@@ -29,7 +28,6 @@ describe('ModelTaskTrainerComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
-        provideNoopAnimations(),
       ],
       imports: [ModelTaskTrainerComponent],
       declarations: [],

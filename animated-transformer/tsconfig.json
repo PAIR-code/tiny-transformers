@@ -23,6 +23,14 @@
     "useDefineForClassFields": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "types": [
+      // Required so the editor language service can resolve Vitest test globals 
+      // (e.g. describe, it, expect) in spec files.
+      "vitest/globals",
+      // Typings for the File System Access API (FileSystemDirectoryHandle) used 
+      // by BrowserDirDataResolver in src/lib/data-resolver/data-resolver.ts.
+      "wicg-file-system-access"
+    ],
     "lib": [
       "ESNext",
       "dom"

@@ -2,7 +2,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { PlaceholderComponent } from './placeholder.component';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SecDefKind, SecDefOfPlaceholder, SecDefOfSecList } from 'src/lib/weblab/section';
@@ -41,7 +40,7 @@ describe('PlaceholderComponent', () => {
     const section = [...experiment.sectionMap.values()][0];
 
     await TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideNoopAnimations()],
+      providers: [provideZonelessChangeDetection()],
       imports: [PlaceholderComponent],
     }).compileComponents();
 

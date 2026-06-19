@@ -16,7 +16,6 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivationVisComponent } from './activation-vis.component';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { CornerActivationComponent } from './corner-activation/corner-activation.component';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
@@ -39,7 +38,7 @@ describe('ActivationVisComponent', () => {
           } as MarkedKatexOptions & { nonStandard?: boolean }
         }
       ],
-      imports: [NoopAnimationsModule, ActivationVisComponent, CornerActivationComponent],
+      imports: [ActivationVisComponent, CornerActivationComponent],
     }).compileComponents();
   });
 

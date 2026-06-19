@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SectionComponent } from './section.component';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
-import { MarkdownModule } from 'ngx-markdown';
+import { provideMarkdown } from 'ngx-markdown';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { makeToyExperiment } from 'src/weblab-examples/toy-experiment';
 import { provideHttpClient } from '@angular/common/http';
@@ -33,8 +33,12 @@ describe('SectionComponent', () => {
     const exp = await makeToyExperiment(env, 'toy experiment id');
 
     await TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideHttpClient()],
-      imports: [MarkdownModule.forRoot(), SectionComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideMarkdown()
+      ],
+      imports: [SectionComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SectionComponent);

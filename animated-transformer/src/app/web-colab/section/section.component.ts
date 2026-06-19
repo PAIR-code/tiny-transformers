@@ -23,7 +23,7 @@ import {
   WritableSignal,
 } from '@angular/core';
 import { Experiment } from '../../../lib/weblab/experiment';
-import { MarkdownModule, MarkdownService } from 'ngx-markdown';
+import { MarkdownComponent, MarkdownService } from 'ngx-markdown';
 import {
   MonacoConfigEditorComponent,
   ConfigUpdate,
@@ -69,7 +69,7 @@ export enum DisplayKind {
 @Component({
   selector: 'app-section',
   imports: [
-    MarkdownModule,
+    MarkdownComponent,
     MatButtonModule,
     MatMenuModule,
     MatIconModule,
