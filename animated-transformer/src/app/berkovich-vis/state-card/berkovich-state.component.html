@@ -33,11 +33,7 @@
     <div class="state-metric">
       <span class="metric-name">Target Distance (<markdown [inline]="true" [katex]="true" [data]="'$d$'"></markdown>)</span>
       <span class="metric-value">
-        @if (currentDistanceValuation() === 30) {
-          <markdown [inline]="true" [katex]="true" [data]="'$0$ (Exact Match)'"></markdown>
-        } @else {
-          <markdown [inline]="true" [katex]="true" [data]="'$p^{' + (-currentDistanceValuation()) + '} \\quad (d = ' + (-currentDistanceValuation()) + ')$'"></markdown>
-        }
+        <markdown [inline]="true" [katex]="true" [data]="formattedDistance()"></markdown>
       </span>
     </div>
     <div class="state-metric">

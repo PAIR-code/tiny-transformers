@@ -32,7 +32,9 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails
+  computeGradientDetails,
+  computePathLoss,
+  extValuationGe
 } from './berkovich';
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
@@ -81,13 +83,13 @@ describe('Berkovich Math Library - P-adic Valuation', () => {
   it('should calculate p-adic valuations correctly', () => {
     const p = 3n;
     // v_3(9) = 2
-    expect(getValuation(parseToRational('9'), p)).toBe(2);
+    expect(getValuation(parseToRational('9'), p)).toEqual({ type: 'finite', value: 2 });
     // v_3(5/3) = v_3(5) - v_3(3) = 0 - 1 = -1
-    expect(getValuation(parseToRational('5/3'), p)).toBe(-1);
+    expect(getValuation(parseToRational('5/3'), p)).toEqual({ type: 'finite', value: -1 });
     // v_3(10) = 0
-    expect(getValuation(parseToRational('10'), p)).toBe(0);
-    // v_3(0) = 30 (infinity representation)
-    expect(getValuation(parseToRational('0'), p)).toBe(30);
+    expect(getValuation(parseToRational('10'), p)).toEqual({ type: 'finite', value: 0 });
+    // v_3(0) = infinity
+    expect(getValuation(parseToRational('0'), p)).toEqual({ type: 'pos-infinity' });
   });
 });
 
@@ -140,29 +142,29 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     const parent = candidates.find(cand => cand.branch === 'parent');
     expect(parent).toBeDefined();
     expect(parent?.logRadius).toBe(3);
-    // Loss = 2 * max(3, -2, 1) - 3 - (-2) = 6 - 3 + 2 = 5
-    expect(parent?.lossVal).toBe(5);
+    // Loss = |3 - 1| + 1 = 3
+    expect(parent?.lossVal).toBe(3);
     
     // Child 0 candidate
     const child0 = candidates.find(cand => cand.branch === '0');
     expect(child0).toBeDefined();
     expect(child0?.logRadius).toBe(1);
     // child0 center = 0 + 0 = 0. dist = val(0 - 5/3) = val(-5/3) = -1, d_child0 = 1.
-    // Loss = 2 * max(1, -2, 1) - 1 - (-2) = 2 - 1 + 2 = 3
-    expect(child0?.lossVal).toBe(3);
+    // Loss = |1 - 1| + 1 = 1
+    expect(child0?.lossVal).toBe(1);
   });
 
   it('should compute continuous steps and snapping boundaries correctly', () => {
     // 1. No snap: rho = 1.8, target d = 1.0, eta = 0.5.
     // proposed rho = 1.8 - 0.5 * 1 = 1.3. Same floor 1, so no crossesInteger.
-    const res1 = computeContinuousStep(1.8, 1.0, 0.5);
+    const res1 = computeContinuousStep(1.8, { type: 'finite', value: 1.0 }, 0.5);
     expect(res1.proposedRho).toBeCloseTo(1.3);
     expect(res1.crossesInteger).toBe(false);
     
     // 2. Snapping: rho = 1.3, target d = 1.0, eta = 0.5.
     // proposed rho = 1.3 - 0.5 * 1 = 0.8. Floor changes from 1 to 0, crossesInteger = true.
     // snapped to kLower = 1.0
-    const res2 = computeContinuousStep(1.3, 1.0, 0.5);
+    const res2 = computeContinuousStep(1.3, { type: 'finite', value: 1.0 }, 0.5);
     expect(res2.proposedRho).toBeCloseTo(0.8);
     expect(res2.crossesInteger).toBe(true);
     expect(res2.snappedRho).toBe(1.0);
@@ -219,9 +221,9 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
 
     expect(details.isVertex).toBe(true);
     expect(details.rho).toBe(2.0);
-    expect(details.d).toBe(1);
-    // Loss = 2 * max(2.0, -2, 1) - 2.0 - (-2) = 4 - 2 + 2 = 4
-    expect(details.loss).toBe(4);
+    expect(details.d).toEqual({ type: 'finite', value: 1 });
+    // Loss = |2.0 - 1| + 1 = 2
+    expect(details.loss).toBe(2);
     expect(details.bestBranch).toBe('0');
     expect(details.nextCenter).toEqual(parseToRational('0'));
     expect(details.nextLogRadius).toBeCloseTo(1.8);
@@ -238,7 +240,7 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     const details1 = computeGradientDetails(c, 0.8, y, -2, p, eta);
     expect(details1.isVertex).toBe(false);
     expect(details1.rho).toBe(0.8);
-    expect(details1.d).toBeCloseTo(0);
+    expect(details1.d).toEqual({ type: 'finite', value: 0 });
     expect(details1.gRho).toBe(1); // rho >= d, so gradient of loss w.r.t rho is +1
     expect(details1.proposedRho).toBeCloseTo(0.6);
     expect(details1.crossesInteger).toBe(false);
@@ -250,7 +252,7 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     const details2 = computeGradientDetails(c, 0.1, y, -2, p, eta);
     expect(details2.isVertex).toBe(false);
     expect(details2.rho).toBe(0.1);
-    expect(details2.d).toBeCloseTo(0);
+    expect(details2.d).toEqual({ type: 'finite', value: 0 });
     expect(details2.gRho).toBe(1);
     expect(details2.proposedRho).toBeCloseTo(-0.1);
     expect(details2.crossesInteger).toBe(true);
@@ -270,5 +272,129 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     expect(details.bestBranch).toBe('parent');
     expect(details.nextLogRadius).toBe(2.0);
   });
+});
+
+describe('Berkovich Math Library - Path Loss Helper', () => {
+  it('should compute path metric loss correctly', () => {
+    expect(computePathLoss(0, { type: 'finite', value: 1 })).toBe(2);
+    expect(computePathLoss(2, { type: 'finite', value: 1 })).toBe(2);
+    expect(computePathLoss(-1, { type: 'finite', value: 1 })).toBe(3); // |-1 - 1| + 1 = 2 + 1 = 3
+    expect(computePathLoss(0, { type: 'neg-infinity' })).toBe(0);
+    expect(computePathLoss(2, { type: 'neg-infinity' })).toBe(2);
+  });
+});
+
+describe('Berkovich Tree Candidate Matching', () => {
+  // Replicate the tree-building logic from BerkovichTreeVisComponent
+  // to verify that every gradient candidate has a matching tree node.
+  const rhoMin = -2;
+  const rhoMax = 2;
+
+  interface TreeNode {
+    id: string;
+    center: Rational;
+    rho: number;
+    isActive: boolean;
+    children: TreeNode[];
+  }
+
+  function buildTree(
+    c_curr: Rational, y: Rational, p: bigint
+  ): TreeNode[] {
+    const pNum = Number(p);
+    const allNodes: TreeNode[] = [];
+
+    const buildNode = (c: Rational, rho: number): TreeNode => {
+      const nodeId = `${formatRational(c)}_${rho}`;
+      const val_y = getValuation(subtract(y, c), p);
+      const val_c = getValuation(subtract(c_curr, c), p);
+      const nodeActive =
+        extValuationGe(val_y, -rho) || extValuationGe(val_c, -rho);
+
+      const children: TreeNode[] = [];
+
+      if (rho > rhoMin && nodeActive) {
+        for (let g = 0; g < pNum; g++) {
+          const childRho = rho - 1;
+          let shift: Rational;
+          const power = -rho;
+          if (power <= 0) {
+            shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+          } else {
+            shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
+          }
+          const childCenter = add(c, shift);
+          children.push(buildNode(childCenter, childRho));
+        }
+      }
+
+      const node: TreeNode = { id: nodeId, center: c, rho, isActive: nodeActive, children };
+      allNodes.push(node);
+      return node;
+    };
+
+    const rootCenter = simplify({ num: 0n, den: 1n });
+    buildNode(rootCenter, rhoMax);
+    return allNodes;
+  }
+
+  // For each test case, build the tree and check that every candidate from
+  // computeGradientDetails matches a node in the tree by (center, logRadius).
+  const cases = [
+    { label: 'default c=0 rho=0', p: 3, target: '5/3', center: '0', rho: 0 },
+    { label: 'c=1/3 rho=0', p: 3, target: '5/3', center: '1/3', rho: 0 },
+    { label: 'c=2/3 rho=0', p: 3, target: '5/3', center: '2/3', rho: 0 },
+    { label: 'c=0 rho=1', p: 3, target: '5/3', center: '0', rho: 1 },
+    { label: 'c=0 rho=-1', p: 3, target: '5/3', center: '0', rho: -1 },
+    { label: 'p=2 c=0 rho=0', p: 2, target: '3/4', center: '0', rho: 0 },
+    { label: 'p=2 c=1/2 rho=0', p: 2, target: '3/4', center: '1/2', rho: 0 },
+    { label: 'c=7 rho=1 p=3', p: 3, target: '52/9', center: '7', rho: 1 },
+    { label: 'c=5/9 rho=-1', p: 3, target: '5/3', center: '5/9', rho: -1 },
+    { label: 'c=14/9 rho=-1', p: 3, target: '5/3', center: '14/9', rho: -1 },
+  ];
+
+  for (const tc of cases) {
+    it(`candidate nodes should exist in tree for: ${tc.label}`, () => {
+      const p = BigInt(tc.p);
+      const c = parseToRational(tc.center);
+      const y = parseToRational(tc.target);
+      const eta = 0.2;
+
+      const nodes = buildTree(c, y, p);
+      const details = computeGradientDetails(c, tc.rho, y, tc.rho, p, eta);
+
+      if (!details.candidates || details.candidates.length === 0) return;
+
+      for (const cand of details.candidates) {
+        // Skip parent if it's above rhoMax (not in tree)
+        if (cand.logRadius > rhoMax) continue;
+        // Skip children below rhoMin (not in tree)
+        if (cand.logRadius < rhoMin) continue;
+
+        // 1. Try exact match by center and logRadius (child candidates).
+        const exactMatch = nodes.find(
+          n => n.rho === cand.logRadius && formatRational(n.center) === formatRational(cand.center)
+        );
+
+        // 2. If no exact match, find containing node (parent candidate case:
+        //    the candidate center is the current parameter, but the tree node
+        //    at the parent level has a different center that contains it).
+        const containingMatch = exactMatch ? null : nodes.find(n => {
+          if (n.rho !== cand.logRadius) return false;
+          return extValuationGe(getValuation(subtract(cand.center, n.center), p), -n.rho);
+        });
+
+        if (!exactMatch && !containingMatch) {
+          const nodesAtLevel = nodes.filter(n => n.rho === cand.logRadius)
+            .map(n => formatRational(n.center));
+          expect.fail(
+            `No tree node (exact or containing) for candidate branch '${cand.branch}' ` +
+            `(center=${formatRational(cand.center)}, logRadius=${cand.logRadius}). ` +
+            `Tree nodes at this level: [${nodesAtLevel.join(', ')}]`
+          );
+        }
+      }
+    });
+  }
 });
 

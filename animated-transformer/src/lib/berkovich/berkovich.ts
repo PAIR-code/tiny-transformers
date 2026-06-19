@@ -86,8 +86,38 @@ export function formatRational(r: Rational): string {
   return `${simplified.num}/${simplified.den}`;
 }
 
-export function getValuation(r: Rational, p: bigint): number {
-  if (r.num === 0n) return 30; // represents infinity in practice for local visualization
+export type ExtendedNumber =
+  | { type: 'finite'; value: number }
+  | { type: 'pos-infinity' }
+  | { type: 'neg-infinity' };
+
+export function extNegate(x: ExtendedNumber): ExtendedNumber {
+  if (x.type === 'pos-infinity') return { type: 'neg-infinity' };
+  if (x.type === 'neg-infinity') return { type: 'pos-infinity' };
+  const val = -x.value;
+  return { type: 'finite', value: val === 0 ? 0 : val };
+}
+
+export function extCompare(x: ExtendedNumber, y: ExtendedNumber): number {
+  if (x.type === y.type) {
+    if (x.type === 'finite') {
+      return x.value - (y as { value: number }).value;
+    }
+    return 0;
+  }
+  if (x.type === 'neg-infinity' || y.type === 'pos-infinity') return -1;
+  if (x.type === 'pos-infinity' || y.type === 'neg-infinity') return 1;
+  return 0;
+}
+
+export function extValuationGe(val: ExtendedNumber, limit: number): boolean {
+  if (val.type === 'pos-infinity') return true;
+  if (val.type === 'neg-infinity') return false;
+  return val.value >= limit;
+}
+
+export function getValuation(r: Rational, p: bigint): ExtendedNumber {
+  if (r.num === 0n) return { type: 'pos-infinity' };
   let numVal = 0;
   let num = abs(r.num);
   while (num % p === 0n) {
@@ -100,7 +130,13 @@ export function getValuation(r: Rational, p: bigint): number {
     denVal++;
     den /= p;
   }
-  return numVal - denVal;
+  return { type: 'finite', value: numVal - denVal };
+}
+
+export function computePathLoss(rho: number, d: ExtendedNumber): number {
+  if (d.type === 'neg-infinity') return rho;
+  if (d.type === 'pos-infinity') return Infinity;
+  return Math.abs(rho - d.value) + d.value;
 }
 
 export function parseToRational(input: string): Rational {
@@ -130,7 +166,11 @@ export function getPadicDigits(r: Rational, p: bigint, count: number): { startPo
   if (rSim.num === 0n) {
     return { startPower: 0, digits: Array(count).fill(0) };
   }
-  const v = getValuation(rSim, p);
+  const valResult = getValuation(rSim, p);
+  if (valResult.type !== 'finite') {
+    return { startPower: 0, digits: Array(count).fill(0) };
+  }
+  const v = valResult.value;
   
   let r0: Rational;
   if (v >= 0) {
@@ -155,10 +195,9 @@ export function getPadicDigits(r: Rational, p: bigint, count: number): { startPo
     const digit = (nMod * dInv) % Number(p);
     digits.push(digit);
     
-    curr = simplify({
-      num: curr.num - BigInt(digit) * curr.den,
-      den: curr.den * p
-    });
+    // next term: (curr - digit)/p
+    const diff = subtract(curr, simplify({ num: BigInt(digit), den: 1n }));
+    curr = simplify({ num: diff.num, den: diff.den * p });
   }
   
   return { startPower: v, digits };
@@ -182,16 +221,21 @@ export function getAlignedDigits(
     
     const val = getValuation(rShift, p);
     let digit = 0;
-    if (val > 0) {
-      digit = 0;
-    } else if (val < 0) {
-      const startV = val;
-      const count = -startV + 1;
-      const { startPower, digits } = getPadicDigits(rShift, p, count);
-      digit = digits[-startPower] || 0;
+    if (val.type === 'finite') {
+      const v = val.value;
+      if (v > 0) {
+        digit = 0;
+      } else if (v < 0) {
+        const startV = v;
+        const count = -startV + 1;
+        const { startPower, digits } = getPadicDigits(rShift, p, count);
+        digit = digits[-startPower] || 0;
+      } else {
+        const { digits } = getPadicDigits(rShift, p, 1);
+        digit = digits[0] || 0;
+      }
     } else {
-      const { digits } = getPadicDigits(rShift, p, 1);
-      digit = digits[0] || 0;
+      digit = 0;
     }
     
     result.push({ power: k, digit });
@@ -231,14 +275,14 @@ export function computeVertexCandidates(
 ): VertexCandidate[] {
   const k = Math.round(rho);
   const candidates: VertexCandidate[] = [];
-  const d = -getValuation(subtract(c, y), p);
+  const d = extNegate(getValuation(subtract(c, y), p));
   
   // Parent candidate
   candidates.push({
     branch: 'parent',
     center: c,
     logRadius: k + 1,
-    lossVal: 2 * Math.max(k + 1, y_rho, d) - (k + 1) - y_rho
+    lossVal: computePathLoss(k + 1, d)
   });
   
   // Children candidates
@@ -253,8 +297,8 @@ export function computeVertexCandidates(
     const childCenter = add(c, shift);
     const childDiff = subtract(childCenter, y);
     const childVal = getValuation(childDiff, p);
-    const childD = -childVal;
-    const childLoss = 2 * Math.max(k - 1, y_rho, childD) - (k - 1) - y_rho;
+    const childD = extNegate(childVal);
+    const childLoss = computePathLoss(k - 1, childD);
     
     candidates.push({
       branch: g.toString(),
@@ -268,10 +312,14 @@ export function computeVertexCandidates(
 
 export function computeContinuousStep(
   rho: number,
-  d: number,
+  d: ExtendedNumber,
   eta: number
 ): ContinuousStepResult {
-  const gRho = rho >= d ? 1 : -1;
+  const isRhoGreaterOrEqual =
+    d.type === 'neg-infinity' ? true :
+    d.type === 'pos-infinity' ? false :
+    rho >= d.value;
+  const gRho = isRhoGreaterOrEqual ? 1 : -1;
   const proposedRho = rho - eta * gRho;
   
   const kUpper = Math.ceil(rho);
@@ -314,7 +362,7 @@ export function truncateToTreeRange(
 export interface GradientDetails {
   isVertex: boolean;
   rho: number;
-  d: number;
+  d: ExtendedNumber;
   loss: number;
   nextCenter: Rational;
   nextLogRadius: number;
@@ -326,7 +374,7 @@ export interface GradientDetails {
     center: Rational;
     centerStr: string;
     logRadius: number;
-    distVal: number;
+    distVal: ExtendedNumber;
     lossVal: number;
   }[];
   bestBranch?: string;
@@ -382,9 +430,9 @@ export function computeGradientDetails(
 
   const diff = subtract(c, y);
   const val = getValuation(diff, p);
-  const d = -val;
-  const lcaRho = Math.max(rho, y_rho, d);
-  const loss = 2 * lcaRho - rho - y_rho;
+  // If they match exactly, log-radius distance d is -infinity.
+  const d = extNegate(val);
+  const loss = val.type === 'pos-infinity' && rho <= y_rho ? 0 : computePathLoss(rho, d);
   
   if (loss < 1e-7) {
     return {
@@ -410,7 +458,7 @@ export function computeGradientDetails(
       center: Rational;
       centerStr: string;
       logRadius: number;
-      distVal: number;
+      distVal: ExtendedNumber;
       lossVal: number;
     }[] = [];
     
@@ -422,7 +470,7 @@ export function computeGradientDetails(
       centerStr: formatRational(c),
       logRadius: k + 1,
       distVal: d,
-      lossVal: 2 * Math.max(k + 1, y_rho, d) - (k + 1) - y_rho
+      lossVal: computePathLoss(k + 1, d)
     });
     
     // Children candidates
@@ -437,8 +485,8 @@ export function computeGradientDetails(
       const childCenter = add(c, shift);
       const childDiff = subtract(childCenter, y);
       const childVal = getValuation(childDiff, p);
-      const childD = -childVal;
-      const childLoss = 2 * Math.max(k - 1, y_rho, childD) - (k - 1) - y_rho;
+      const childD = extNegate(childVal);
+      const childLoss = computePathLoss(k - 1, childD);
       
       candidates.push({
         branch: g.toString(),
@@ -453,7 +501,7 @@ export function computeGradientDetails(
     
     // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
     let minLoss = Infinity;
-    let maxValuation = -Infinity;
+    let maxValuation: ExtendedNumber = { type: 'neg-infinity' };
     let bestCand = candidates[0];
     for (const cand of candidates) {
       const valShift = getValuation(subtract(y, cand.center), p);
@@ -462,7 +510,7 @@ export function computeGradientDetails(
         maxValuation = valShift;
         bestCand = cand;
       } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
-        if (valShift > maxValuation) {
+        if (extCompare(valShift, maxValuation) > 0) {
           maxValuation = valShift;
           bestCand = cand;
         }
@@ -490,7 +538,8 @@ export function computeGradientDetails(
       bestBranchLabel: bestCand.branchLabel
     };
   } else {
-    const max_d_yrho = Math.max(d, y_rho);
+    const maxDVal = d.type === 'neg-infinity' ? -Infinity : d.type === 'pos-infinity' ? Infinity : d.value;
+    const max_d_yrho = Math.max(maxDVal, y_rho);
     const gRho = rho >= max_d_yrho ? 1 : -1;
     const proposedRho = rho - eta * gRho;
     

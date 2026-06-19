@@ -39,7 +39,11 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails
+  computeGradientDetails,
+  GradientDetails,
+  computePathLoss,
+  ExtendedNumber,
+  extNegate
 } from '../../lib/berkovich/berkovich';
 
 import { BerkovichTreeVisComponent } from './tree-vis/berkovich-tree-vis.component';
@@ -156,8 +160,9 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly currentLoss = computed(() => {
     const rho = this.currentLogRadius();
     const val = this.currentDistanceValuation();
-    const d = -val;
-    return 2 * Math.max(rho, -2, d) - rho - (-2);
+    // If they match exactly, log-radius distance d is -infinity.
+    const d = extNegate(val);
+    return computePathLoss(rho, d);
   });
 
   // Aligned digit row comparisons

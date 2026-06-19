@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MarkdownComponent } from 'ngx-markdown';
-import { Rational, simplify } from '../../../lib/berkovich/berkovich';
+import { Rational, simplify, ExtendedNumber } from '../../../lib/berkovich/berkovich';
 
 @Component({
   selector: 'app-berkovich-disk-state',
@@ -37,9 +37,20 @@ export class BerkovichDiskStateComponent {
   readonly prime = input.required<number>();
   readonly currentCenter = input.required<Rational>();
   readonly currentLogRadius = input.required<number>();
-  readonly currentDistanceValuation = input.required<number>();
+  readonly currentDistanceValuation = input.required<ExtendedNumber>();
   readonly currentLoss = input.required<number>();
   readonly stepCount = input.required<number>();
+  
+  readonly formattedDistance = computed(() => {
+    const val = this.currentDistanceValuation();
+    if (val.type === 'pos-infinity') {
+      return '$0$ (Exact Match)';
+    }
+    if (val.type === 'neg-infinity') {
+      return '$\\infty$';
+    }
+    return `$p^{${-val.value}} \\quad (d = ${-val.value})$`;
+  });
 
   // Derived state
   readonly currentPointType = computed(() => {

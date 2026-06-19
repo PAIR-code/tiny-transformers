@@ -33,7 +33,9 @@ import {
   subtract,
   formatRational,
   getValuation,
-  getAlignedDigits
+  getAlignedDigits,
+  ExtendedNumber,
+  extValuationGe
 } from '../../../lib/berkovich/berkovich';
 
 export interface VisualNode {
@@ -128,7 +130,8 @@ export class BerkovichDiskTreeVisComponent {
     const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
       const nodeActive =
-        getValuation(subtract(y, c), p) >= -rho || getValuation(subtract(c_curr, c), p) >= -rho;
+        extValuationGe(getValuation(subtract(y, c), p), -rho) ||
+        extValuationGe(getValuation(subtract(c_curr, c), p), -rho);
       
       const children: LayoutNode[] = [];
       const nextAncestors = [...ancestors, nodeId];
@@ -175,7 +178,8 @@ export class BerkovichDiskTreeVisComponent {
     collectBottomLeaves(rootNode);
     
     // Find the split vertex level between parameter path (c) and target path (y)
-    const splitVal = -getValuation(subtract(c_curr, y), p);
+    const valResult = getValuation(subtract(c_curr, y), p);
+    const splitVal = valResult.type === 'finite' ? -valResult.value : -Infinity;
     const splitLevel = Math.ceil(splitVal);
     
     let paramChildId = "";
@@ -507,10 +511,10 @@ export class BerkovichDiskTreeVisComponent {
     const k_child = Math.floor(y_rho);
     
     const parentNode = nodes.find(n => 
-      n.logRadius === k_parent && getValuation(subtract(y, n.center), p) >= -n.logRadius
+      n.logRadius === k_parent && extValuationGe(getValuation(subtract(y, n.center), p), -n.logRadius)
     );
     const childNode = nodes.find(n => 
-      n.logRadius === k_child && getValuation(subtract(y, n.center), p) >= -n.logRadius
+      n.logRadius === k_child && extValuationGe(getValuation(subtract(y, n.center), p), -n.logRadius)
     );
     
     let xCoord: number;
@@ -661,10 +665,10 @@ export class BerkovichDiskTreeVisComponent {
     const k_child = Math.floor(rho);
     
     const parentNode = nodes.find(n => 
-      n.logRadius === k_parent && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k_parent && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     const childNode = nodes.find(n => 
-      n.logRadius === k_child && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k_child && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     
     let xCoord: number;
@@ -702,7 +706,7 @@ export class BerkovichDiskTreeVisComponent {
 
   getParameterXAtLevel(c_curr: Rational, k: number, p: bigint, nodes: VisualNode[]): number {
     const node = nodes.find(n => 
-      n.logRadius === k && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     return node ? node.x : this.svgWidth() / 2;
   }
@@ -715,7 +719,7 @@ export class BerkovichDiskTreeVisComponent {
   ): { x1: number; x2: number } {
     const nodesInDisk = visuals.nodes.filter(n => {
       if (n.logRadius > k) return false;
-      return getValuation(subtract(n.center, c_curr), p) >= -k;
+      return extValuationGe(getValuation(subtract(n.center, c_curr), p), -k);
     });
     
     if (nodesInDisk.length === 0) {

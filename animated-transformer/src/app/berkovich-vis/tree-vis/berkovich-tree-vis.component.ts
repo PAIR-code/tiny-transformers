@@ -35,7 +35,9 @@ import {
   getValuation,
   getAlignedDigits,
   GradientDetails,
-  formatDigitSequence
+  formatDigitSequence,
+  ExtendedNumber,
+  extValuationGe
 } from '../../../lib/berkovich/berkovich';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 
@@ -86,7 +88,7 @@ export class BerkovichTreeVisComponent {
   readonly currentLogRadius = input.required<number>();
   readonly isDraggingRho = input.required<boolean>();
   readonly gradientBreakdown = input<GradientDetails>();
-  readonly currentDistanceValuation = input<number>();
+  readonly currentDistanceValuation = input<ExtendedNumber>();
   readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
@@ -133,7 +135,8 @@ export class BerkovichTreeVisComponent {
     const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
       const nodeActive =
-        getValuation(subtract(y, c), p) >= -rho || getValuation(subtract(c_curr, c), p) >= -rho;
+        extValuationGe(getValuation(subtract(y, c), p), -rho) ||
+        extValuationGe(getValuation(subtract(c_curr, c), p), -rho);
       
       const children: LayoutNode[] = [];
       const nextAncestors = [...ancestors, nodeId];
@@ -158,15 +161,16 @@ export class BerkovichTreeVisComponent {
         center: c,
         rho,
         isActive: nodeActive,
-        children,
-        ancestors
+        ancestors,
+        children
       };
     };
     
     const rootCenter = simplify({ num: 0n, den: 1n });
     const rootNode = buildNode(rootCenter, this.rhoMax, []);
     
-    // Pass 2: Collect all bottom-most leaves (only at rhoMin)
+    // Pass 2: Layout coordinates recursively
+    const treeWidth = Math.pow(pNum, this.rhoMax - this.rhoMin);
     const bottomLeaves: LayoutNode[] = [];
     const collectBottomLeaves = (node: LayoutNode) => {
       if (node.rho === this.rhoMin) {
@@ -180,7 +184,8 @@ export class BerkovichTreeVisComponent {
     collectBottomLeaves(rootNode);
     
     // Find the split vertex level between parameter path (c) and target path (y)
-    const splitVal = -getValuation(subtract(c_curr, y), p);
+    const valResult = getValuation(subtract(c_curr, y), p);
+    const splitVal = valResult.type === 'finite' ? -valResult.value : -Infinity;
     const splitLevel = Math.ceil(splitVal);
     
     let paramChildId = "";
@@ -605,8 +610,8 @@ export class BerkovichTreeVisComponent {
 
   readonly lcaCoord = computed(() => {
     const val = this.currentDistanceValuation();
-    if (val === undefined || isNaN(val)) return null;
-    const k = -val;
+    if (val === undefined || val.type !== 'finite') return null;
+    const k = -val.value;
     
     // LCA radius cannot exceed rhoMax or go below rhoMin
     if (k > this.rhoMax || k < this.rhoMin) return null;
@@ -620,6 +625,12 @@ export class BerkovichTreeVisComponent {
       n.logRadius === k && formatRational(n.center) === formatRational(prefix)
     );
     return node ? { x: node.x, y: this.rhoToY(k) } : null;
+  });
+
+  readonly lcaDistanceVal = computed(() => {
+    const val = this.currentDistanceValuation();
+    if (val === undefined || val.type !== 'finite') return 0;
+    return -val.value;
   });
 
   readonly distanceExplainerText = `
@@ -649,10 +660,10 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     const k_child = Math.floor(rho);
     
     const parentNode = nodes.find(n => 
-      n.logRadius === k_parent && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k_parent && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     const childNode = nodes.find(n => 
-      n.logRadius === k_child && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k_child && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     
     let xCoord: number;
@@ -706,7 +717,7 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
 
   getParameterXAtLevel(c_curr: Rational, k: number, p: bigint, nodes: VisualNode[]): number {
     const node = nodes.find(n => 
-      n.logRadius === k && getValuation(subtract(c_curr, n.center), p) >= -n.logRadius
+      n.logRadius === k && extValuationGe(getValuation(subtract(c_curr, n.center), p), -n.logRadius)
     );
     return node ? node.x : this.svgWidth() / 2;
   }
@@ -719,7 +730,7 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
   ): { x1: number; x2: number } {
     const nodesInDisk = visuals.nodes.filter(n => {
       if (n.logRadius > k) return false;
-      return getValuation(subtract(n.center, c_curr), p) >= -k;
+      return extValuationGe(getValuation(subtract(n.center, c_curr), p), -k);
     });
     
     if (nodesInDisk.length === 0) {
@@ -773,14 +784,27 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     const p = BigInt(this.prime());
     const visuals = this.treeVisuals();
     
-    const node = visuals.nodes.find(n => 
+    // 1. Try exact match by center and logRadius.
+    const exactNode = visuals.nodes.find(n => 
       n.logRadius === cand.logRadius && formatRational(n.center) === formatRational(cand.center)
     );
-    
-    if (node) {
-      return { x: node.x, y: node.y };
+    if (exactNode) {
+      return { x: exactNode.x, y: exactNode.y };
     }
     
+    // 2. Fallback: find the tree node at this level whose disk contains the candidate center.
+    //    This handles the "parent" candidate, whose center is the current parameter center c,
+    //    not the tree node's center. The containing node's visual position (including stub offsets)
+    //    is the correct placement for the loss label.
+    const containingNode = visuals.nodes.find(n => {
+      if (n.logRadius !== cand.logRadius) return false;
+      return extValuationGe(getValuation(subtract(cand.center, n.center), p), -n.logRadius);
+    });
+    if (containingNode) {
+      return { x: containingNode.x, y: containingNode.y };
+    }
+    
+    // 3. Last resort: use computed x and standard level y.
     const x = this.getParameterXAtLevel(cand.center, cand.logRadius, p, visuals.nodes);
     const y = this.rhoToY(cand.logRadius);
     return { x, y };

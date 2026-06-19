@@ -39,7 +39,9 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails
+  computeGradientDetails,
+  ExtendedNumber,
+  extNegate
 } from '../../lib/berkovich/berkovich';
 
 import { BerkovichDiskTreeVisComponent } from './tree-vis/berkovich-disk-tree-vis.component';
@@ -162,8 +164,9 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     const rho = this.currentLogRadius();
     const y_rho = this.targetLogRadius();
     const val = this.currentDistanceValuation();
-    const d = -val;
-    return 2 * Math.max(rho, y_rho, d) - rho - y_rho;
+    const d = extNegate(val);
+    const dVal = d.type === 'neg-infinity' ? -Infinity : d.type === 'pos-infinity' ? Infinity : d.value;
+    return 2 * Math.max(rho, y_rho, dVal) - rho - y_rho;
   });
 
   // Aligned digit row comparisons

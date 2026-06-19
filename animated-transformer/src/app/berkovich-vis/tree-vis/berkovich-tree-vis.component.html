@@ -32,7 +32,7 @@
 
     @if (lcaCoord() !== null) {
       <div class="lca-distance-explainer-anchor" [style.top.px]="lcaCoord()!.y">
-        <span class="lca-distance-text">d = {{ -currentDistanceValuation()! }}</span>
+        <span class="lca-distance-text">d = {{ lcaDistanceVal() }}</span>
         <app-berkovich-explainer 
           title="Branching Distance (d)" 
           [content]="distanceExplainerText"
