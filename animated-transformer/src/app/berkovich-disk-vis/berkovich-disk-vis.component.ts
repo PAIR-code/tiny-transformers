@@ -42,37 +42,38 @@ import {
   computeGradientDetails
 } from '../../lib/berkovich/berkovich';
 
-import { BerkovichTreeVisComponent } from './tree-vis/berkovich-tree-vis.component';
-import { BerkovichConfigComponent } from './config-card/berkovich-config.component';
-import { BerkovichStateComponent } from './state-card/berkovich-state.component';
-import { BerkovichDigitsComponent } from './digits-card/berkovich-digits.component';
-import { BerkovichCalculusComponent } from './calculus-card/berkovich-calculus.component';
-import { BerkovichHistoryComponent } from './history-card/berkovich-history.component';
+import { BerkovichDiskTreeVisComponent } from './tree-vis/berkovich-disk-tree-vis.component';
+import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-config.component';
+import { BerkovichDiskStateComponent } from './state-card/berkovich-disk-state.component';
+import { BerkovichDiskDigitsComponent } from './digits-card/berkovich-disk-digits.component';
+import { BerkovichDiskCalculusComponent } from './calculus-card/berkovich-disk-calculus.component';
+import { BerkovichDiskHistoryComponent } from './history-card/berkovich-disk-history.component';
 
 @Component({
-  selector: 'app-berkovich-vis',
-  templateUrl: './berkovich-vis.component.html',
-  styleUrls: ['./berkovich-vis.component.scss'],
+  selector: 'app-berkovich-disk-vis',
+  templateUrl: './berkovich-disk-vis.component.html',
+  styleUrls: ['./berkovich-disk-vis.component.scss'],
   imports: [
     CommonModule,
     MatIconModule,
     MatButtonModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichTreeVisComponent,
-    BerkovichConfigComponent,
-    BerkovichStateComponent,
-    BerkovichDigitsComponent,
-    BerkovichCalculusComponent,
-    BerkovichHistoryComponent
+    BerkovichDiskTreeVisComponent,
+    BerkovichDiskConfigComponent,
+    BerkovichDiskStateComponent,
+    BerkovichDiskDigitsComponent,
+    BerkovichDiskCalculusComponent,
+    BerkovichDiskHistoryComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BerkovichVisComponent implements OnInit, OnDestroy {
+export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
   // Configurable parameters
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
   readonly targetDigitsInput = signal<string>('01.20');
+  readonly targetLogRadiusInput = signal<string>('-2.0');
   readonly centerInput = signal<string>('0');
   readonly centerDigitsInput = signal<string>('00.00');
   readonly logRadiusInput = signal<string>('0.0');
@@ -81,6 +82,11 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly initLogRadius = computed(() => {
     const v = parseFloat(this.logRadiusInput());
     return isNaN(v) ? 0.0 : v;
+  });
+
+  readonly targetLogRadius = computed(() => {
+    const v = parseFloat(this.targetLogRadiusInput());
+    return isNaN(v) ? -2.0 : v;
   });
 
   readonly learningRate = computed(() => {
@@ -154,9 +160,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
 
   readonly currentLoss = computed(() => {
     const rho = this.currentLogRadius();
+    const y_rho = this.targetLogRadius();
     const val = this.currentDistanceValuation();
     const d = -val;
-    return 2 * Math.max(rho, -2, d) - rho - (-2);
+    return 2 * Math.max(rho, y_rho, d) - rho - y_rho;
   });
 
   // Aligned digit row comparisons
@@ -212,9 +219,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const c = this.currentCenter();
     const rho = this.currentLogRadius();
     const y = this.targetRational();
+    const y_rho = this.targetLogRadius();
     const eta = this.learningRate();
 
-    return computeGradientDetails(c, rho, y, -2, p, eta);
+    return computeGradientDetails(c, rho, y, y_rho, p, eta);
   });
 
   constructor() {
@@ -222,6 +230,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     effect(() => {
       this.prime();
       this.targetRational();
+      this.targetLogRadius();
       this.initCenterRational();
       this.initLogRadius();
       untracked(() => {
@@ -275,9 +284,10 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const c = this.currentCenter();
     const rho = this.currentLogRadius();
     const y = this.targetRational();
+    const y_rho = this.targetLogRadius();
     const eta = this.learningRate();
 
-    const details = computeGradientDetails(c, rho, y, -2, p, eta);
+    const details = computeGradientDetails(c, rho, y, y_rho, p, eta);
 
     // Update state signals
     this.currentCenter.set(details.nextCenter);
@@ -394,6 +404,16 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       this.targetInput.set('0');
       this.targetDigitsInput.set('00.00');
     }
+  }
+
+  onTargetLogRadiusBlur(): void {
+    let v = parseFloat(this.targetLogRadiusInput());
+    if (isNaN(v)) {
+      v = -2.0;
+    } else {
+      v = Math.max(-2, Math.min(2, v));
+    }
+    this.targetLogRadiusInput.set(v.toFixed(1));
   }
 
   onCenterBlur(): void {

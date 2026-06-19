@@ -31,6 +31,8 @@ import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs
 import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component';
 import { provideHttpClient } from '@angular/common/http';
 import { BerkovichVisComponent } from './berkovich-vis/berkovich-vis.component';
+import { BerkovichDiskVisComponent } from './berkovich-disk-vis/berkovich-disk-vis.component';
+// import { BerkovichAdditionVisComponent } from './berkovich-addition-vis/berkovich-addition-vis.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -66,15 +68,10 @@ export const routes: Routes = [
     ]
   },
   { path: 'berkovich', component: BerkovichVisComponent },
+  { path: 'berkovich-disk', component: BerkovichDiskVisComponent },
+  // { path: 'berkovich-addition', component: BerkovichAdditionVisComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
 ];
-
-
-// @NgModule({
-//   imports: [RouterModule.forRoot(routes, { useHash: true }), RouterLink, RouterOutlet],
-//   exports: [RouterModule],
-// })
-// export class AppRoutingModule {}
 
 export const appConfig: ApplicationConfig = {
   providers: [

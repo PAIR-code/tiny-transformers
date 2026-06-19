@@ -1,0 +1,48 @@
+<mat-card class="state-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>info</mat-icon>
+      State Details
+    </mat-card-title>
+  </mat-card-header>
+  <mat-card-content class="state-content">
+    <div class="state-metric">
+      <span class="metric-name">Optimization Step</span>
+      <span class="metric-value">{{ stepCount() }}</span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Current Point Type</span>
+      <span class="metric-value badge-type" [class.type-ii]="currentPointType().includes('II')" [class.type-iii]="currentPointType().includes('III')">
+        {{ currentPointType() }}
+      </span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</span>
+      <span class="metric-value highlight-rho">{{ currentLogRadius().toFixed(4) }}</span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Radius (<markdown [inline]="true" [katex]="true" [data]="'$p^\\rho$'"></markdown>)</span>
+      <span class="metric-value">{{ radius().toFixed(4) }}</span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</span>
+      <span class="metric-value">
+        <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(currentCenter()) + '$'"></markdown>
+      </span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Target Distance (<markdown [inline]="true" [katex]="true" [data]="'$d$'"></markdown>)</span>
+      <span class="metric-value">
+        @if (currentDistanceValuation() === 30) {
+          <markdown [inline]="true" [katex]="true" [data]="'$0$ (Exact Match)'"></markdown>
+        } @else {
+          <markdown [inline]="true" [katex]="true" [data]="'$p^{' + (-currentDistanceValuation()) + '} \\quad (d = ' + (-currentDistanceValuation()) + ')$'"></markdown>
+        }
+      </span>
+    </div>
+    <div class="state-metric">
+      <span class="metric-name">Path-Metric Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</span>
+      <span class="metric-value highlight-loss">{{ currentLoss().toFixed(4) }}</span>
+    </div>
+  </mat-card-content>
+</mat-card>

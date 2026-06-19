@@ -1,0 +1,116 @@
+<mat-card class="config-card">
+  <mat-card-header (click)="toggleConfigCollapse()" class="clickable-header">
+    <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
+      <div style="display: inline-flex; align-items: center; gap: 10px;">
+        <mat-icon>settings</mat-icon>
+        <span>Configuration</span>
+      </div>
+      <mat-icon class="collapse-chevron">{{ isConfigCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>
+    </mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content class="config-content">
+    @if (!isConfigCollapsed()) {
+      <div class="input-row">
+        <!-- Prime selection -->
+        <mat-form-field appearance="outline">
+          <mat-label>Prime Field (p)</mat-label>
+          <mat-select [value]="prime()" (selectionChange)="primeChange.emit($event.value)">
+            <mat-option [value]="2">p = 2 (Binary)</mat-option>
+            <mat-option [value]="3">p = 3 (Ternary)</mat-option>
+            <mat-option [value]="5">p = 5 (Quinary)</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="input-row">
+        <!-- Target Value (y) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Target Value (y)</mat-label>
+          <input matInput [value]="targetInput()" (change)="targetInputChange.emit(targetField.value)" (blur)="targetBlur.emit()"
+            #targetField />
+          <mat-hint>fractions/decimals</mat-hint>
+        </mat-form-field>
+
+        <!-- Target Digits (p^2 ... p^-2) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>y Digits</mat-label>
+          <input matInput [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(targetDigitsField.value)"
+            (blur)="targetDigitsBlur.emit()" #targetDigitsField />
+          <mat-hint>base-p digits</mat-hint>
+        </mat-form-field>
+
+        <!-- Target Log-Radius (y_rho) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Target Log-Radius (y_&rho;)</mat-label>
+          <input matInput [value]="targetLogRadiusInput()" (change)="targetLogRadiusInputChange.emit(targetRhoField.value)"
+            (blur)="targetLogRadiusBlur.emit()" #targetRhoField />
+          <mat-hint>Range [-2.0, 2.0]</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="input-row">
+        <!-- Init Center (c) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Center (c)</mat-label>
+          <input matInput [value]="displayCenter()" (change)="centerInputChange.emit(centerField.value)" (blur)="centerBlur.emit()" #centerField />
+          <mat-hint>fractions/decimals</mat-hint>
+        </mat-form-field>
+        
+        <!-- Center Digits (p^2 ... p^-2) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>c Digits</mat-label>
+          <input matInput [value]="displayCenterDigits()" (change)="centerDigitsInputChange.emit(digitsField.value)"
+            (blur)="centerDigitsBlur.emit()" #digitsField />
+          <mat-hint>base-p digits</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="input-row">
+        <!-- Init Log-Radius (rho) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Center Log-Radius (c_&rho;)</mat-label>
+          <input matInput [value]="displayLogRadius()" (change)="logRadiusInputChange.emit(radiusField.value)" (blur)="logRadiusBlur.emit()" #radiusField />
+          <mat-hint>Range [-2.0, 2.0]</mat-hint>
+        </mat-form-field>
+
+        <!-- Learning Rate (eta) -->
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Learning Rate (&eta;)</mat-label>
+          <input matInput [value]="learningRateInput()" (change)="learningRateInputChange.emit(lrField.value)" (blur)="learningRateBlur.emit()" #lrField />
+          <mat-hint>Gradient step scale</mat-hint>
+        </mat-form-field>
+      </div>
+    }
+
+    <!-- Playback controls in grid -->
+    <div class="controls-grid">
+      <div class="controls-row">
+        <button mat-flat-button color="primary" (click)="togglePlay.emit()">
+          <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+          {{ isPlaying() ? 'Pause' : 'Animate' }}
+        </button>
+        <button mat-stroked-button (click)="step.emit()" [disabled]="isPlaying()">
+          <mat-icon>skip_next</mat-icon>
+          Step
+        </button>
+      </div>
+      <div class="controls-row">
+        <button mat-stroked-button (click)="undo.emit()" [disabled]="stepCount() === 0">
+          <mat-icon>undo</mat-icon>
+          Undo
+        </button>
+        <button mat-stroked-button (click)="reset.emit()">
+          <mat-icon>replay</mat-icon>
+          Reset
+        </button>
+      </div>
+      <div class="controls-row">
+        <button mat-stroked-button (click)="randomizeCenterAndTarget.emit()">
+          <mat-icon>casino</mat-icon>
+          Randomize Inputs
+        </button>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

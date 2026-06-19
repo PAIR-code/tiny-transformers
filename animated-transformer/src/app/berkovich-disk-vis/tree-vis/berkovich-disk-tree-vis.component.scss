@@ -1,0 +1,364 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=============================================================================*/
+
+:host {
+  display: block;
+}
+
+/* Visualizer Card & SVG */
+.visualizer-card {
+  height: 100%;
+
+  mat-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    
+    mat-icon {
+      color: #0f766e;
+    }
+  }
+}
+
+.svg-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+  padding: 0 !important;
+}
+
+.tree-svg {
+  background-color: #ffffff;
+  display: block;
+}
+
+/* Tree SVG elements styling */
+.tree-node-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: mountSlideFade 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.digit-label-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: mountSlideFade 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-edge-group {
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.parameter-overlay {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mountSlideFade {
+  from {
+    opacity: 0;
+    transform: translate(var(--start-x), var(--start-y));
+  }
+}
+
+.tree-edge {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+  transition: stroke 0.3s, stroke-width 0.3s, d 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-edge.target-path {
+  stroke: #eab308;
+    /* yellow for target path */
+  stroke-width: 3.5;
+}
+
+.tree-edge.parameter-path {
+  stroke: #8b5cf6; /* purple for parameter */
+  stroke-width: 3.5;
+}
+
+.tree-edge.overlap-path {
+  stroke: #10b981;
+    /* bright green for correct path */
+  stroke-width: 5;
+}
+
+.digit-bg {
+  fill: #ffffff;
+  stroke: #e2e8f0;
+  stroke-width: 1;
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.digit-label {
+  font-size: 9px;
+  font-weight: 700;
+  fill: #475569;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-node {
+  stroke-width: 1;
+  transition: fill 0.3s, r 0.3s, cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-node.vertex-node {
+  fill: #64748b;
+  stroke: #ffffff;
+  r: 4.5px;
+}
+
+.tree-node.leaf-node {
+  fill: #cbd5e1;
+  stroke: #e2e8f0;
+  r: 3.5px;
+}
+
+.tree-edge.inactive-stub {
+  stroke-dasharray: 2 3;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+
+circle.digit-bg.inactive-stub {
+  stroke: #cbd5e1;
+  fill: #ffffff;
+}
+
+text.digit-label.inactive-stub {
+  fill: #475569;
+}
+
+circle.tree-node.inactive-stub {
+  display: none;
+}
+
+text.node-text-label.inactive-stub {
+  fill: #94a3b8;
+}
+
+.node-text-label {
+  fill: #94a3b8;
+  font-size: 10px;
+  font-family: monospace;
+  text-anchor: middle;
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Candidate evaluation styles for junction points */
+@keyframes branchPulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 4.5px;
+    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.8));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+}
+
+@keyframes nodePulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 3px;
+    fill: #cffafe;
+    filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.7));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+}
+
+.tree-edge.candidate-branch {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: branchPulse 1.5s ease-in-out infinite !important;
+}
+
+.tree-node.candidate-node {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: nodePulse 1.5s ease-in-out infinite !important;
+}
+
+.candidate-edge-group {
+  .digit-bg {
+    stroke: #06b6d4 !important;
+    stroke-width: 1.5px !important;
+    fill: #ecfeff !important;
+  }
+  .digit-label {
+    fill: #0891b2 !important;
+    font-weight: bold !important;
+  }
+}
+
+/* Target marker flag */
+.target-marker {
+  .target-outer {
+    fill: none;
+    stroke: #eab308;
+    stroke-width: 1.5;
+    stroke-dasharray: 2 1;
+    animation: spin 8s linear infinite;
+  }
+  .target-inner {
+    fill: #eab308;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Glowing fixed-position halo around active parameter vertex */
+.parameter-halo {
+  fill: none;
+  stroke: #8b5cf6; /* purple parameter accent */
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
+  animation: halo-pulse 1.8s infinite ease-in-out;
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1), r 0.3s;
+}
+
+@keyframes halo-pulse {
+  0% {
+    stroke-width: 1.5;
+    opacity: 0.6;
+  }
+  50% {
+    stroke-width: 3.5;
+    opacity: 1.0;
+  }
+  100% {
+    stroke-width: 1.5;
+    opacity: 0.6;
+  }
+}
+
+/* Continuous Log-Radius level line indicator */
+.rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rho-level-line {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 4;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+.rho-level-cap {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.rho-guide-line {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
+  opacity: 0.3;
+}
+
+.rho-drag-handle {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  cursor: ns-resize;
+}
+
+.rho-label-bg {
+  fill: #ffffff;
+  stroke: #8b5cf6;
+  stroke-width: 1px;
+  stroke-dasharray: 3 2;
+  opacity: 0.5;
+  cursor: ns-resize;
+  transition: opacity 0.2s, stroke-width 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+    stroke-width: 1.5px;
+  }
+}
+
+.rho-level-text {
+  fill: #8b5cf6;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+  dominant-baseline: central;
+  opacity: 0.9;
+  pointer-events: none; /* click events pass through to rect */
+}
+
+/* Parameter center label next to the active node */
+.parameter-node-label {
+  fill: #8b5cf6; /* purple parameter accent */
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  text-anchor: start;
+  dominant-baseline: central;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8));
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable transitions during active pointer dragging to maintain zero-latency snappiness */
+.dragging-active {
+  .tree-node-group,
+  .digit-label-group,
+  .parameter-overlay,
+  .tree-edge,
+  .rho-level-group {
+    transition: none !important;
+  }
+}

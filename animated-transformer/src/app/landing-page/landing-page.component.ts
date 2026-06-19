@@ -76,6 +76,13 @@ export class LandingPageComponent {
       icon: 'blur_linear',
       colorClass: 'card-berkovich',
     },
+    {
+      title: 'Berkovich Target Disk Explorer',
+      description: 'Explore optimization landscapes learning both center and log-radius targets.',
+      route: '/berkovich-disk',
+      icon: 'adjust',
+      colorClass: 'card-berkovich',
+    },
   ];
 
   readonly inProgressCards: SubpageCard[] = [

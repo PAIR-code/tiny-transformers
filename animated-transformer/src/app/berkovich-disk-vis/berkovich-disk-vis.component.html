@@ -1,0 +1,98 @@
+<div class="berkovich-disk-explorer">
+  <!-- Header Banner -->
+  <header class="explorer-header">
+    <div class="header-content">
+      <button mat-icon-button routerLink="/" class="back-btn" aria-label="Go back to landing page">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1>BerkovichDisk Non-Archimedean ML Explorer</h1>
+        <p class="subtitle">
+          Visualizing continuous gradient descent and branch selection on <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic BerkovichDisk trees (<markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{A}^1(\\mathbb{Q}_p)$'"></markdown>)
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Interactive Tree & Disk Visualizer -->
+    <section class="visualizer-card-container">
+      <app-berkovich-disk-tree-vis
+        [prime]="prime()"
+        [targetRational]="targetRational()"
+        [currentCenter]="currentCenter()"
+        [currentLogRadius]="currentLogRadius()"
+        [isDraggingRho]="isDraggingRho()"
+        (logRadiusChange)="onLogRadiusChange($event)"
+        (draggingChange)="onDraggingChange($event)"
+        (manualLogRadiusAdjust)="onManualLogRadiusAdjust($event)"
+      />
+    </section>
+
+    <!-- Right Column: Configurations & Calculus Details -->
+    <aside class="control-panel">
+      <!-- 1. Configuration Card -->
+      <app-berkovich-disk-config
+        [prime]="prime()"
+        [targetInput]="targetInput()"
+        [targetDigitsInput]="targetDigitsInput()"
+        [targetLogRadiusInput]="targetLogRadiusInput()"
+        [displayCenter]="displayCenter()"
+        [displayCenterDigits]="displayCenterDigits()"
+        [displayLogRadius]="displayLogRadius()"
+        [learningRateInput]="learningRateInput()"
+        [isPlaying]="isPlaying()"
+        [stepCount]="stepCount()"
+        (primeChange)="onPrimeChange($event)"
+        (targetInputChange)="targetInput.set($event)"
+        (targetDigitsInputChange)="targetDigitsInput.set($event)"
+        (targetLogRadiusInputChange)="targetLogRadiusInput.set($event)"
+        (centerInputChange)="centerInput.set($event)"
+        (centerDigitsInputChange)="centerDigitsInput.set($event)"
+        (logRadiusInputChange)="logRadiusInput.set($event)"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (targetBlur)="onTargetBlur()"
+        (targetDigitsBlur)="onTargetDigitsBlur()"
+        (targetLogRadiusBlur)="onTargetLogRadiusBlur()"
+        (centerBlur)="onCenterBlur()"
+        (centerDigitsBlur)="onCenterDigitsBlur()"
+        (logRadiusBlur)="onLogRadiusBlur()"
+        (learningRateBlur)="onLearningRateBlur()"
+        (togglePlay)="togglePlay()"
+        (step)="step()"
+        (undo)="undo()"
+        (reset)="reset()"
+        (randomizeCenterAndTarget)="randomizeCenterAndTarget()"
+      />
+
+      <!-- 2. Current State Details -->
+      <app-berkovich-disk-state
+        [prime]="prime()"
+        [currentCenter]="currentCenter()"
+        [currentLogRadius]="currentLogRadius()"
+        [currentDistanceValuation]="currentDistanceValuation()"
+        [currentLoss]="currentLoss()"
+        [stepCount]="stepCount()"
+      />
+    </aside>
+  </div>
+
+  <!-- Digit expansion and Gradient Details Grid -->
+  <div class="dashboard-grid bottom-grid">
+    <!-- Digit Expansion Card -->
+    <app-berkovich-disk-digits
+      [digitRows]="digitRows()"
+    />
+
+    <!-- Gradient and Calculus Card -->
+    <app-berkovich-disk-calculus
+      [gradientBreakdown]="gradientBreakdown()"
+      [learningRate]="learningRate()"
+    />
+  </div>
+
+  <!-- Bottom section: Step History -->
+  <app-berkovich-disk-history
+    [history]="history()"
+  />
+</div>

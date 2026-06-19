@@ -226,6 +226,7 @@ export function computeVertexCandidates(
   c: Rational,
   rho: number,
   y: Rational,
+  y_rho: number,
   p: bigint
 ): VertexCandidate[] {
   const k = Math.round(rho);
@@ -237,7 +238,7 @@ export function computeVertexCandidates(
     branch: 'parent',
     center: c,
     logRadius: k + 1,
-    lossVal: Math.abs((k + 1) - d) + d
+    lossVal: 2 * Math.max(k + 1, y_rho, d) - (k + 1) - y_rho
   });
   
   // Children candidates
@@ -253,7 +254,7 @@ export function computeVertexCandidates(
     const childDiff = subtract(childCenter, y);
     const childVal = getValuation(childDiff, p);
     const childD = -childVal;
-    const childLoss = Math.abs((k - 1) - childD) + childD;
+    const childLoss = 2 * Math.max(k - 1, y_rho, childD) - (k - 1) - y_rho;
     
     candidates.push({
       branch: g.toString(),
@@ -372,6 +373,7 @@ export function computeGradientDetails(
   c: Rational,
   rho: number,
   y: Rational,
+  y_rho: number,
   p: bigint,
   eta: number
 ): GradientDetails {
@@ -381,7 +383,8 @@ export function computeGradientDetails(
   const diff = subtract(c, y);
   const val = getValuation(diff, p);
   const d = -val;
-  const loss = Math.abs(rho - d) + d;
+  const lcaRho = Math.max(rho, y_rho, d);
+  const loss = 2 * lcaRho - rho - y_rho;
   
   const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
   
@@ -405,7 +408,7 @@ export function computeGradientDetails(
       centerStr: formatRational(c),
       logRadius: k + 1,
       distVal: d,
-      lossVal: Math.abs((k + 1) - d) + d
+      lossVal: 2 * Math.max(k + 1, y_rho, d) - (k + 1) - y_rho
     });
     
     // Children candidates
@@ -421,7 +424,7 @@ export function computeGradientDetails(
       const childDiff = subtract(childCenter, y);
       const childVal = getValuation(childDiff, p);
       const childD = -childVal;
-      const childLoss = Math.abs((k - 1) - childD) + childD;
+      const childLoss = 2 * Math.max(k - 1, y_rho, childD) - (k - 1) - y_rho;
       
       candidates.push({
         branch: g.toString(),
@@ -473,7 +476,8 @@ export function computeGradientDetails(
       bestBranchLabel: bestCand.branchLabel
     };
   } else {
-    const gRho = rho >= d ? 1 : -1;
+    const max_d_yrho = Math.max(d, y_rho);
+    const gRho = rho >= max_d_yrho ? 1 : -1;
     const proposedRho = rho - eta * gRho;
     
     const kUpper = Math.ceil(rho);
@@ -492,7 +496,7 @@ export function computeGradientDetails(
     nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadius));
     
     const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
-    const explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient of the loss with respect to $\\rho$ is $\\frac{dL}{d\\rho} = \\text{sgn}(\\rho - d) = ${gRho > 0 ? '+1.0' : '-1.0'}$ (since $\\rho ${rho >= d ? '\\ge' : '<'} d$). Under gradient descent, the proposed update is $\\rho_{\\text{new}} = \\rho - \\eta \\cdot \\frac{dL}{d\\rho} = ${proposedRho.toFixed(4)}$.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to $\\rho = ${snappedRho}$ to land exactly on a Type II vertex.` : ''}`;
+    const explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient of the loss with respect to $\\rho$ is $\\frac{dL}{d\\rho} = \\text{sgn}(\\rho - \\max(d, \\rho_y)) = ${gRho > 0 ? '+1.0' : '-1.0'}$ (since $\\rho ${rho >= max_d_yrho ? '\\ge' : '<'} \\max(d, \\rho_y)$). Under gradient descent, the proposed update is $\\rho_{\\text{new}} = \\rho - \\eta \\cdot \\frac{dL}{d\\rho} = ${proposedRho.toFixed(4)}$.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to $\\rho = ${snappedRho}$ to land exactly on a Type II vertex.` : ''}`;
     
     return {
       isVertex: false,

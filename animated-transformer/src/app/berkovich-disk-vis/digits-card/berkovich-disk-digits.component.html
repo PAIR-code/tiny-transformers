@@ -1,0 +1,62 @@
+<mat-card class="detail-card digit-card" [class.collapsed]="isCollapsed()">
+  <mat-card-header (click)="toggleCollapse()" class="clickable-header">
+    <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0;">
+      <div style="display: inline-flex; align-items: center; gap: 10px;">
+        <mat-icon>numbers</mat-icon>
+        <span><markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Digit Sequence Comparison</span>
+      </div>
+      <mat-icon class="collapse-chevron">{{ isCollapsed() ? 'expand_more' : 'expand_less' }}</mat-icon>
+    </mat-card-title>
+    @if (!isCollapsed()) {
+      <mat-card-subtitle>
+        Comparing digits from <markdown [inline]="true" [katex]="true" [data]="'$p^2$'"></markdown> to <markdown [inline]="true" [katex]="true" [data]="'$p^{-2}$'"></markdown>. Highlighted columns are resolved by the current disk size (<markdown [inline]="true" [katex]="true" [data]="'$k < -\\rho$'"></markdown>).
+      </mat-card-subtitle>
+    }
+  </mat-card-header>
+  @if (!isCollapsed()) {
+    <mat-card-content class="digit-grid-container">
+    <div class="digit-grid">
+      <!-- Power Labels -->
+      <div class="digit-row header-row">
+        <div class="row-label">Power of p:</div>
+        @for (col of digitRows(); track col.power) {
+          <div class="digit-cell power-cell" [class.resolved]="col.isResolved">
+            {{ col.powerLabel }}
+          </div>
+        }
+      </div>
+
+      <!-- Target digits -->
+      <div class="digit-row target-row">
+        <div class="row-label">Target (y):</div>
+        @for (col of digitRows(); track col.power) {
+          <div class="digit-cell val-cell" [class.resolved]="col.isResolved">
+            {{ col.targetDigit }}
+          </div>
+        }
+      </div>
+
+      <!-- Parameter center digits -->
+      <div class="digit-row center-row">
+        <div class="row-label">Center (c):</div>
+        @for (col of digitRows(); track col.power) {
+          <div
+            class="digit-cell val-cell center-val"
+            [class.resolved]="col.isResolved"
+            [class.matching]="col.isMatching"
+            [class.mismatch]="!col.isMatching && col.isResolved"
+          >
+            {{ col.centerDigit }}
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="digit-legend">
+      <div class="legend-item"><span class="legend-box resolved-box"></span> Resolved (k &lt; -&rho;)</div>
+      <div class="legend-item"><span class="legend-box match-box"></span> Matching digit</div>
+      <div class="legend-item"><span class="legend-box mismatch-box"></span> Mismatch (unresolved or boundary error)</div>
+    </div>
+  </mat-card-content>
+  }
+</mat-card>

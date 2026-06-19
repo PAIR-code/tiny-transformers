@@ -131,7 +131,7 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     const p = 3n;
     const c = parseToRational('0');
     const y = parseToRational('5/3'); // d = 1
-    const candidates = computeVertexCandidates(c, 2.0, y, p);
+    const candidates = computeVertexCandidates(c, 2.0, y, -2, p);
     
     // Total candidate branches: parent (+1 children) = 1 + 3 = 4 candidates
     expect(candidates.length).toBe(4);
@@ -140,16 +140,16 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     const parent = candidates.find(cand => cand.branch === 'parent');
     expect(parent).toBeDefined();
     expect(parent?.logRadius).toBe(3);
-    // Loss = |3 - 1| + 1 = 3
-    expect(parent?.lossVal).toBe(3);
+    // Loss = 2 * max(3, -2, 1) - 3 - (-2) = 6 - 3 + 2 = 5
+    expect(parent?.lossVal).toBe(5);
     
     // Child 0 candidate
     const child0 = candidates.find(cand => cand.branch === '0');
     expect(child0).toBeDefined();
     expect(child0?.logRadius).toBe(1);
     // child0 center = 0 + 0 = 0. dist = val(0 - 5/3) = val(-5/3) = -1, d_child0 = 1.
-    // Loss = |1 - 1| + 1 = 1
-    expect(child0?.lossVal).toBe(1);
+    // Loss = 2 * max(1, -2, 1) - 1 - (-2) = 2 - 1 + 2 = 3
+    expect(child0?.lossVal).toBe(3);
   });
 
   it('should compute continuous steps and snapping boundaries correctly', () => {
@@ -215,13 +215,13 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     const c = parseToRational('0');
     const y = parseToRational('5/3'); // d = -val = -(-1) = 1
     const eta = 0.2;
-    const details = computeGradientDetails(c, 2.0, y, p, eta);
+    const details = computeGradientDetails(c, 2.0, y, -2, p, eta);
 
     expect(details.isVertex).toBe(true);
     expect(details.rho).toBe(2.0);
     expect(details.d).toBe(1);
-    // Loss = |2.0 - 1| + 1 = 2
-    expect(details.loss).toBe(2);
+    // Loss = 2 * max(2.0, -2, 1) - 2.0 - (-2) = 4 - 2 + 2 = 4
+    expect(details.loss).toBe(4);
     expect(details.bestBranch).toBe('0');
     expect(details.nextCenter).toEqual(parseToRational('0'));
     expect(details.nextLogRadius).toBeCloseTo(1.8);
@@ -235,7 +235,7 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     const eta = 0.2;
 
     // 1. Continuous step without snapping
-    const details1 = computeGradientDetails(c, 0.8, y, p, eta);
+    const details1 = computeGradientDetails(c, 0.8, y, -2, p, eta);
     expect(details1.isVertex).toBe(false);
     expect(details1.rho).toBe(0.8);
     expect(details1.d).toBeCloseTo(0);
@@ -247,7 +247,7 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     expect(details1.stepType).toBe('Edge (Continuous descent dL/dρ=+1)');
 
     // 2. Continuous step with snapping to integer boundary
-    const details2 = computeGradientDetails(c, 0.1, y, p, eta);
+    const details2 = computeGradientDetails(c, 0.1, y, -2, p, eta);
     expect(details2.isVertex).toBe(false);
     expect(details2.rho).toBe(0.1);
     expect(details2.d).toBeCloseTo(0);
@@ -266,7 +266,7 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     const eta = 0.2;
     
     // At vertex rho = 2.0, since d = 3, parent branch is chosen (nextLogRadius would be 2.2, clamped to 2.0)
-    const details = computeGradientDetails(c, 2.0, y, p, eta);
+    const details = computeGradientDetails(c, 2.0, y, -2, p, eta);
     expect(details.bestBranch).toBe('parent');
     expect(details.nextLogRadius).toBe(2.0);
   });

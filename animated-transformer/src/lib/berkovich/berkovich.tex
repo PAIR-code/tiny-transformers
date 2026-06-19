@@ -108,3 +108,209 @@ For active branch selection with different trade-offs, we consider variants: \te
 \textbf{Learning Rate.} Branch selections determine direction, not step size: the center displacement $p^{\rho_{\boldsymbol{\theta}, j}}$ is fixed by the tree geometry. We set $\eta = \frac{1}{\beta p}$, ensuring that the subgradient convergence neighborhood remains within the inter-vertex spacing of $1$ (\Cref{thm:convergence_cell}). For classification, the factor of $\beta$ in the cross-entropy gradient cancels with the $1/\beta$ in the learning rate, making $\beta$ a pure prediction-time hyperparameter. Movement up the tree (increasing $\rho$) is handled by continuous traversal.
 
 \textbf{Adaptive Methods.} We extend momentum and Adam to the tree geometry. For \textbf{$\Ap$-Momentum}, we maintain moving averages for both continuous gradients and discrete branch vote scores, resetting the vote accumulator upon depth transitions. For \textbf{$\Ap$-Adam}, we use a hybrid approach: standard momentum for continuous $\rho$ updates to preserve the geometric step size $\eta = 1/p$, and full Adam for discrete branch voting scores. Both are reset upon depth transitions. See \Cref{app:implementation_details} for equations.
+
+
+\section{\texorpdfstring{$p$}{p}-adic Regression}
+\label{sec:regression}
+
+We consider $L_1$ and $L_\infty$ objectives for $p$-adic regression, as $L_2$ is unsuitable due to the locally constant nature of the norm and the finite radius of convergence of the $p$-adic exponential. In the literature, researchers generally align with either the $L_1$ objective (minimizing sum of distances), analyzed by \citet{baker2025linear, zubarev2025adic} and proven NP-hard by \citet{baker2026nphardness}, or the $L_\infty$ objective (minimizing maximum distance), utilized by \citet{martins2025learning}.
+
+\subsection{\texorpdfstring{$L_1$}{L1} Regression Implementation}
+\label{sec:l1_implementation}
+
+Rather than evaluating the raw discrete $p$-adic distance $\frac{1}{n} \sum_{i=1}^n |\hat{\mathbf{c}}_i - \mathbf{y}_i|_p$, which yields zero gradients almost everywhere, we optimize a continuous relaxation by replacing the discrete prediction $\hat{\mathbf{c}}_i$ with the continuous Berkovich disk $D(\hat{\mathbf{c}}_i, p^{\rho_{\hat{\mathbf{y}}_i}})$. 
+
+Let $d_i = \log_p(|\hat{\mathbf{c}}_i - \mathbf{y}_i|_p)$. We define the path-metric loss:
+\begin{equation}
+    \mathcal{L}_{\text{path}} = \frac{1}{n} \sum_{i=1}^n \left( |\boldsymbol{\rho}_{\hat{\mathbf{y}}_i} - d_i| + d_i \right)
+\end{equation}
+This loss corresponds to the path length on the tree $\Gamma_p$ and is a tight upper bound on the true $p$-adic distance (\Cref{lemma:path_metric_bound}).
+
+\textbf{Branch Traversal.} The gradient with respect to $\boldsymbol{\rho}_{\hat{\mathbf{y}}_i}$ is $+1$ if $\boldsymbol{\rho}_{\hat{\mathbf{y}}_i} \ge d_i$ and $-1$ otherwise. The total gradient is $\frac{d \mathcal{L}}{d \rho_{\boldsymbol{\theta}, j}} = \frac{1}{n} \sum_{i=1}^n D_{i,j} \cdot \operatorname{sgn}(\boldsymbol{\rho}_{\hat{\mathbf{y}}_i} - d_i)$. This forces the disk to shrink when the target is captured and expand otherwise.
+
+\textbf{Branch Transitions.} At integer boundaries ($\rho_{\boldsymbol{\theta}, j} \in \mathbb{Z}$), we use the finite field projection to select the optimal branch, updating the center as $\mathbf{c}_{\boldsymbol{\theta}, j} \leftarrow \mathbf{c}_{\boldsymbol{\theta}, j} + \alpha^* p^{-\rho_{\boldsymbol{\theta}, j}}$.
+
+\subsection{\texorpdfstring{$L_\infty$}{Lâ} Regression Implementation}
+
+The $L_\infty$ variant minimizes the maximum path error: $\mathcal{L}_{path,\infty} = \max_{i}(2\max(\boldsymbol{\rho}_{\hat{\mathbf{y}}_i}, d_i) - \boldsymbol{\rho}_{\hat{\mathbf{y}}_i})$. The gradient is restricted to the maximizing sample(s).
+
+\subsection{Experiments and Results}
+\label{sec:regression_experiments}
+
+We evaluate on a 3D linear regression task ($p=3$, 512 samples) with targets corrupted by noise at depth $5$. Parameters are initialized in a "constrained trap" (incorrect branch at depth $4.5$) to test robustness against local minima.
+
+Results (\Cref{fig:regression_results} and \Cref{tab:baseline_comparison}) show that all Berkovich methods successfully escape the trap. Under $L_\infty$ loss, $\Ap$-Adam is the fastest (174 evaluations), while under $L_1$ loss, SGD is faster (166 evaluations). In baseline comparisons, our exact branch methods are substantially faster than Martins' Beam Search, while Greedy and Random Walk fail to escape the trap.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{threeparttable}
+\caption{Baseline comparison on constrained trap regression (mean $\pm$ std over 5 seeds). Evaluations required to reach different loss thresholds. All Berkovich methods use $\Ap$-Adam and $L_1$ loss.}
+\label{tab:baseline_comparison}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Method} & \textbf{No. of Evals.\ to $\le$-4.0} & \textbf{No. of Evals.\ to $\le$-5.0} & \textbf{Final Loss} \\
+\midrule
+Greedy (Mihara) & â & â & -0.66 $\pm$ 0.02 \\
+Random Walk (Zubarev) & â & â & -0.66 $\pm$ 0.02 \\
+Beam Search (Martins)\tnote{a} & 432 $\pm$ 0 & 567 $\pm$ 0 & \textbf{-5.65 $\pm$ 0.02} \\
+\midrule
+\addlinespace[2pt]
+Coord. Queueing & 428\tnote{*} & 509\tnote{*} & -4.93 $\pm$ 1.33 \\
+Exact Branch & \textbf{112 $\pm$ 16} & \textbf{172 $\pm$ 46} & \textbf{-5.51 $\pm$ 0.02} \\
+Heuristic Joint & 425 $\pm$ 90 & 625 $\pm$ 296 & -5.49 $\pm$ 0.04 \\
+Exact Joint & 113 $\pm$ 15 & 174 $\pm$ 44 & -5.50 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item[a] Beam search achieves the lowest loss but scales exponentially with the number of parameters.
+\item[*] For Coordinate Queueing, some seeds did not reach the threshold within the allowed epochs; the mean is computed over the converging seeds.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+
+
+
+\begin{figure}[t]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/joint_loss.pdf}
+        \caption{Joint Loss Trajectory}
+        \label{fig:joint_loss}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/l1_radius.pdf}
+        \caption{$L_1$ Radius Trajectory}
+        \label{fig:l1_radius}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/linf_radius.pdf}
+        \caption{$L_\infty$ Radius Trajectory}
+        \label{fig:linf_radius}
+    \end{subfigure}
+    \caption{Results for $L_1$ and $L_\infty$ regression. (a) Joint loss trajectory showing both norms. (b) and (c) show the log-radius trajectories for $L_1$ and $L_\infty$ respectively, where $c_i$ denotes the $i$-th component of the learned parameter vector.}
+    \label{fig:regression_results}
+\end{figure}
+
+
+\section{\texorpdfstring{$p$}{p}-adic Classification}
+\label{sec:classification}
+
+In this section, we describe the formulation of multi-class classification in Berkovich spaces. This approach directly addresses \textbf{Open Problem 6.1 (Linear multi-class $p$-adic classifiers)} and \textbf{Open Problem 6.2 (Gradient-based optimization)} identified by \citet{martins2025learning}. Martins noted that the nearest-centroid formulation leads to frequent multi-class ties due to the discrete valuation group of $\mathbb{Q}_p$, and that continuous optimization is hindered by zero derivatives. We resolve both issues by introducing the affinoid softmax, which enables continuous optimization on the Berkovich tree and eliminates exact ties. Furthermore, by using multiple constraints per class (affinoid domains), we address the expressivity limits regarding count thresholding problems mentioned by Martins.
+
+\subsection{Intersections of $p$-adic Disks}
+We define each class $k \in \{1, \dots, C\}$ by the intersection of $M$ independent constraints. Just as polyhedra are defined by the intersection of multiple half-spaces in Euclidean space, we can think of these regions as 'poly-disks' formed by the intersection of multiple $p$-adic disks; in rigid geometry, such regions are formally known as \textit{affinoid domains}. For a sample $x$ and class $k$, let $\hat{c}_{k,m}$ and $\rho_{k,m}$ be the predicted center and log-radius for the $m$-th constraint, where $m \in \{1, \dots, M\}$.
+
+In contrast to real-valued networks where separating points within a polyhedron requires multiple layers, a single $p$-adic linear layer is sufficiently expressive to represent affinoid domains formed by the intersection of multiple half-spaces. By stacking the constraints into a weight matrix $\mathbf{W}_k$ and bias vector $\mathbf{B}_k$, the condition that $\mathbf{x}$ satisfies all $M$ constraints simultaneously is equivalent to the single inequality $\|\mathbf{W}_k \mathbf{x} + \mathbf{B}_k\|_\infty \le 1$. The supremum norm natively implements the logical "AND" intersection of these constraints.
+
+Instead of a rigid binary set-membership, we compute the continuous path loss for each constraint as defined in \Cref{sec:l1_implementation}: $M_{k,m} = 2 \max(\rho_{k,m}, d_{k,m}) - \rho_{k,m}$, where $d_{k,m}$ is the log-distance between the target and the predicted center for that constraint.
+
+
+\subsection{Logits, Softmax, and Loss}
+To combine the $M$ constraints into a single score for class $k$, we take the maximum error across constraints, consistent with the supremum norm. In the log domain, this corresponds to taking the maximum of $M_{k,m}$. To convert this into a logit where larger values indicate better fit (higher probability), we negate the result. Let $D_k$ be the score for class $k$, from which we compute the probabilities $\pi_k$ via Softmax. The base model is trained to minimize the standard Cross-Entropy loss $\mathcal{L}_{CE}$:
+\begin{equation}
+    D_k = \min_{m} (-M_{k,m}), \quad \pi_k = \frac{\exp(\beta D_k)}{\sum_{j=1}^C \exp(\beta D_j)}, \quad \mathcal{L}_{CE} = -\frac{1}{n} \sum_{i=1}^n \sum_{k=1}^C Y_{i,k} \log(\pi_{i,k})
+\end{equation}
+where $\beta > 0$ is a temperature parameter controlling the sharpness of the decision boundary. While the $1/\beta$ in the learning rate cancels the $\beta$ factor in the cross-entropy gradient, $\beta$ still influences training by scaling the relative weight of the regularization term ($\lambda_{\text{eff}} = \lambda / \beta$).
+
+To prevent unbounded domain shrinkage, we zero out the cross-entropy gradient for negative classes when the sample is already outside the predicted domain.
+
+\textbf{Regularized Objective.}
+Unregularized cross-entropy alone leads to frequent ties due to the discrete value group of $\mathbb{Q}_p$ (see \Cref{sec:classification_experiments}). To break these ties and enforce a margin, we augment the loss with an intrinsic regularization penalty on the radii.
+\begin{equation}
+\label{eq:regularized_loss}
+    \mathcal{L}_{total} = \mathcal{L}_{CE} + \lambda \sum_{k=1}^C \sum_{m=1}^M p^{\rho_{k,m}}
+\end{equation}
+where $p^{\rho_{k,m}}$ is the radius of the $m$-th constraint for class $k$. Since $p^\rho$ is a strictly monotonic, convex function of $\rho$, this penalty creates a continuous ``separation pressure''. The continuous radius $\rho$ acts as a learned sub-integer bias that breaks the discrete metric ties in the logits, allowing for a smooth optimization landscape. This penalty is the non-Archimedean analogue of SVM margin maximization: penalizing $p^\rho$ keeps affinoid domains localized and disjoint, preventing the degenerate overlaps that cause exact ties. The below is proven in \Cref{sec:appendix_logit_separation}.
+
+\begin{theorem}[Logit Margin Separation via Regularization]
+\label{thm:logit_separation}
+Let $\mathcal{X}$ be a $p$-adically separable training dataset (see Definition in Appendix). Let the model be trained to minimize the regularized objective $\mathcal{L}_{total} = \mathcal{L}_{CE} + \lambda \sum_{k,m} p^{\rho_{k,m}}$, where $\lambda > 0$. As $\mathcal{L}_{total}$ approaches its global infimum, the continuous log-radius $\rho$ acts as a learned sub-integer bias that allows the model to continuously adjust the decision boundary. This guarantees a strictly positive margin between the logit of the correct class and the logits of incorrect classes, resolving the exact ties prevalent in unregularized discrete models.
+\end{theorem}
+
+
+\subsection{Experiments}
+\label{sec:classification_experiments}
+
+We evaluate the multi-dimensional affinoid classifier on a synthetic multi-class classification task designed to test the resolution of ties, a core challenge identified in prior work.
+
+\textbf{Experimental Setup: Multi-Constraint Classification.}
+We generate a dataset with 3 classes in a 3-dimensional $p$-adic space ($p=3$). To rigorously test the model, we harden the task by reducing class separation to 1/3 (valuation 1). This creates a high frequency of overlapping domains and ties, directly reproducing the failure mode described by \citet{martins2025learning}.
+
+\textbf{Effect of Regularization.}
+In this hardened setting, unregularized training ($\lambda = 0$) fails completely, as the domains expand freely and overlap, confirming the necessity of the regularized objective (\Cref{eq:regularized_loss}).
+
+\textbf{Results.}
+We test on a synthetic 3-class task in 3D ($p=3$), with class separation hardened to valuation 1. Without continuous regularization ($\lambda = 0$), all methods fail with $\approx 29\%$ accuracy and 100\% ties, reproducing the failure mode of discrete models. Applying regularization ($\lambda=0.1$) resolves these ties and yields 100\% accuracy, directly demonstrating the essentialness of continuous optimization on the Berkovich tree. Our affinoid softmax also proves more robust than discrete depth comparison, while a Euclidean baseline fails completely.
+
+
+The trajectory of the training is shown in Figure \ref{fig:affinoid_convergence_combined}, and the summary of accuracy and tie frequency vs. $\lambda$ are shown in Figures \ref{fig:accuracy_vs_lambda} and \ref{fig:tie_freq_vs_lambda}.
+
+\begin{figure}[t]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/affinoid_convergence_combined.pdf}
+        \caption{Affinoid Convergence}
+        \label{fig:affinoid_convergence_combined}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/accuracy_vs_lambda.pdf}
+        \caption{Accuracy vs. $\lambda$}
+        \label{fig:accuracy_vs_lambda}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/tie_freq_vs_lambda.pdf}
+        \caption{Tie Frequency vs. $\lambda$}
+        \label{fig:tie_freq_vs_lambda}
+    \end{subfigure}
+    \caption{Results for affinoid classification with $\Ap$-Adam. (a) Loss (solid) and accuracy (dashed) during training at $\lambda=0.1$. (b,c) Test accuracy and tie frequency vs.\ regularization strength $\lambda$. \textit{Ours}: affinoid softmax prediction rule on $p$-adic parameters trained via Berkovich GD. \textit{Martins'}: Martins' argmax-over-depth rule \citep{martins2025learning} applied to the \emph{same} trained parameters. \textit{Euclidean}: standard Adam-trained linear softmax classifier on the raw integer features.}
+    \label{fig:classification_results_final}
+\end{figure}
+
+\textbf{Experimental Setup: Quillian Benchmark.}
+We evaluate Berkovich GD on the 1,680-proposition Quillian Semantic Network from \citet{martins2025learning}, using Martins' hand-designed $\mathbb{Q}_2$ entity embeddings. Each of 28 properties is an independent binary classification task with an 80/20 train/test split. All results report mean $\pm$ std over 5 random seeds. The dataset is highly imbalanced, with only 8.04\% of the labels being positive, making F1 score a more informative metric than accuracy. We compare our method against Martins' beam search and a Euclidean linear baseline (Table~\ref{tab:quillian_results}).
+
+\textbf{Results.}
+Table~\ref{tab:quillian_results} shows the full comparison. All methods use an equivalent linear architecture with a sigmoid/BCE classification head; they differ in the parameter space geometry and optimization method. Martins' beam search achieves perfect accuracy via exhaustive combinatorial search at $\mathcal{O}(BDp^k)$ cost. Our $p$-adic methods, trained via Berkovich GD at polynomial $\mathcal{O}(kD)$ cost, achieve competitive performance. When using vanilla SGD, our methods substantially outperform the Euclidean baseline (0.19 F1). However, when both are optimized with Adam, the Euclidean baseline catches up to 0.48 F1, while the $p$-adic methods remain stable, demonstrating their robustness to the choice of optimizer. The efficiency advantage of gradient-based optimization over combinatorial search is validated by the regression scaling experiments in \Cref{sec:regression_experiments}.
+
+\begin{table}[h]
+\centering
+\small
+\begin{threeparttable}
+\caption{Test-set performance on the Quillian dataset (mean $\pm$ std over 5 seeds).
+All methods use an equivalent linear model with sigmoid/BCE classification head;
+rows differ in the parameter space geometry.}
+\label{tab:quillian_results}
+\begin{tabular}{l c c c c c}
+\toprule
+\textbf{Model} & \textbf{Complexity} & \multicolumn{2}{c}{\textbf{SGD}} & \multicolumn{2}{c}{\textbf{Adam}} \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6}
+& & \textbf{Accuracy} & \textbf{F1} & \textbf{Accuracy} & \textbf{F1} \\
+\midrule
+Martins (2025), Beam Search\tnote{a} & $\mathcal{O}(BDp^k)$ & 100\% & 1.00 & 100\% & 1.00 \\
+\midrule
+\addlinespace[2pt]
+$p$-adic linear ($M\!=\!1$) & $\mathcal{O}(kD)$ & \textbf{93.2$\pm$1.8\%} & 0.45$\pm$0.08 & \textbf{93.2$\pm$2.2\%} & 0.46$\pm$0.07 \\
+$p$-adic affinoid ($M\!=\!3$) & $\mathcal{O}(kD)$ & 92.7$\pm$1.8\% & \textbf{0.51$\pm$0.13} & 92.4$\pm$1.2\% & \textbf{0.51$\pm$0.05} \\
+Euclidean linear & $\mathcal{O}(kD)$ & 90.1$\pm$1.7\% & 0.19$\pm$0.08 & \textbf{93.2$\pm$1.1\%} & 0.48$\pm$0.05 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item[a] Beam search achieves perfect accuracy via exhaustive combinatorial search at exponential cost.
+\end{tablenotes}
+\end{threeparttable}
+\vspace{-10pt}
+\end{table}
