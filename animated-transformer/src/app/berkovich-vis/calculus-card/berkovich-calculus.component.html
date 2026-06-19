@@ -70,13 +70,16 @@
       }
 
       <div class="math-block">
-        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, |c - y|_p) = p^{\\max(\\rho, d)}$$\n\n$$d = \\log_p |c - y|_p = -\\nu_p(c - y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho = |\\rho - d| + d$$'"></markdown>
+        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, p^{\\rho_y}, |c - y|_p) = p^{\\max(\\rho, \\rho_y, d)}$$\n\n$$d = \\log_p |c - y|_p = -\\nu_p(c - y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho - \\rho_y = |\\rho - d| + d - \\rho_y$$'"></markdown>
         <div class="explanation-text calculus-intro">
           <p>
             Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(c - y)$'"></markdown> represents the <strong>Target Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown>).
           </p>
           <p>
-            The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> differ.
+            The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y$'"></markdown> differ.
+          </p>
+          <p>
+            <strong>Note on Simulator Offset:</strong> Since our simulator tree is truncated at target leaf depth <markdown [inline]="true" [katex]="true" [data]="'$\\rho_y = -2$'"></markdown>, the formula calculates true tree path distance as <markdown [inline]="true" [katex]="true" [data]="'$\\text{Loss} = |\\rho - d| + d + 2$'"></markdown>.
           </p>
         </div>
         <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>
