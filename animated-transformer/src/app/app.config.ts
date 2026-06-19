@@ -15,7 +15,6 @@ limitations under the License.
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { provideRouter, Routes, withComponentInputBinding, withHashLocation } from '@angular/router';
 
@@ -81,7 +80,6 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding(), withHashLocation()),
-    provideAnimationsAsync(),
     provideMarkdown(),
     {
       provide: KATEX_OPTIONS,
@@ -98,7 +96,7 @@ export const appConfig: ApplicationConfig = {
 // export const testConfig: ApplicationConfig = {
 //   providers: [
 //     provideRouter(routes, withComponentInputBinding()),
-//     provideNoopAnimations(),
+//     provideAnimationsAsync('noop'),
 //     provideMarkdown(),
 //   ],
 // };

@@ -17,7 +17,7 @@ import { Component, input, signal, ChangeDetectionStrategy } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownComponent } from 'ngx-markdown';
 import { Rational, simplify } from '../../../lib/berkovich/berkovich';
 
 @Component({
@@ -28,7 +28,7 @@ import { Rational, simplify } from '../../../lib/berkovich/berkovich';
     CommonModule,
     MatCardModule,
     MatIconModule,
-    MarkdownModule
+    MarkdownComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

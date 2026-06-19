@@ -37,7 +37,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MonacoConfigEditorComponent } from 'src/app/monaco-config-editor/monaco-config-editor.component';
 import { TensorImageComponent } from 'src/app/tensor-image/tensor-image.component';
 import { MatInputModule } from '@angular/material/input';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 describe('CornerActivationComponent', () => {
   let component: CornerActivationComponent;
@@ -45,7 +44,7 @@ describe('CornerActivationComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideNoopAnimations()],
+      providers: [provideZonelessChangeDetection()],
       imports: [
         CommonModule,
         FormsModule,

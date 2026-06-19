@@ -17,7 +17,6 @@ import { LogicAdvancedDocsComponent } from './logic-advanced-docs.component';
 import { provideRouter } from '@angular/router';
 import { routes } from '../app.config';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('LogicAdvancedDocsComponent', () => {
   beforeEach(async () => {
@@ -26,7 +25,7 @@ describe('LogicAdvancedDocsComponent', () => {
         provideZonelessChangeDetection(),
         provideRouter(routes),
       ],
-      imports: [NoopAnimationsModule, LogicAdvancedDocsComponent],
+      imports: [LogicAdvancedDocsComponent],
     }).compileComponents();
   });
 

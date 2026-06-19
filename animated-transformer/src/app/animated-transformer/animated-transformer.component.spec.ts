@@ -2,7 +2,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AnimatedTransformerComponent } from './animated-transformer.component';
 import { TinyModelsService } from '../tiny-models.service';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { provideZonelessChangeDetection } from '@angular/core';
 
@@ -15,7 +14,6 @@ describe('AnimatedTransformerComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         TinyModelsService,
-        provideNoopAnimations(),
         provideRouter([]),
       ],
       imports: [AnimatedTransformerComponent],

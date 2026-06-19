@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownComponent } from 'ngx-markdown';
 import katex from 'katex';
 // @ts-ignore
 import renderMathInElement from 'katex/dist/contrib/auto-render.js';
@@ -58,7 +58,7 @@ import { BerkovichHistoryComponent } from './history-card/berkovich-history.comp
     MatIconModule,
     MatButtonModule,
     RouterModule,
-    MarkdownModule,
+    MarkdownComponent,
     BerkovichTreeVisComponent,
     BerkovichConfigComponent,
     BerkovichStateComponent,

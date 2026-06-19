@@ -9,7 +9,6 @@ import { LogicExplorerComponent } from './logic-explorer.component';
 import { provideRouter } from '@angular/router';
 import { routes } from '../app.config';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { vi } from 'vitest';
 
 describe('LogicExplorerComponent', () => {
@@ -19,7 +18,7 @@ describe('LogicExplorerComponent', () => {
         provideZonelessChangeDetection(),
         provideRouter(routes),
       ],
-      imports: [NoopAnimationsModule, LogicExplorerComponent],
+      imports: [LogicExplorerComponent],
     }).compileComponents();
   });
 

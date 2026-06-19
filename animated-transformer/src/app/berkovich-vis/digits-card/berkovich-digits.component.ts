@@ -17,7 +17,7 @@ import { Component, input, signal, ChangeDetectionStrategy } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownComponent } from 'ngx-markdown';
 
 export interface DigitRowColumn {
   power: number;
@@ -36,7 +36,7 @@ export interface DigitRowColumn {
     CommonModule,
     MatCardModule,
     MatIconModule,
-    MarkdownModule
+    MarkdownComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

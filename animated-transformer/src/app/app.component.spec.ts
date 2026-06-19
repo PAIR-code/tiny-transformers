@@ -18,7 +18,6 @@ import { AppComponent } from './app.component';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.config';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('AppComponent', () => {
@@ -28,7 +27,7 @@ describe('AppComponent', () => {
         provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding(), withHashLocation()),
       ],
-      imports: [NoopAnimationsModule, AppComponent],
+      imports: [AppComponent],
       declarations: [],
     }).compileComponents();
   });
