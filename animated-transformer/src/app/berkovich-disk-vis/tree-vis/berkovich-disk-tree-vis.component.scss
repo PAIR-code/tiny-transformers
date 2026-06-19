@@ -340,6 +340,19 @@ text.node-text-label.inactive-stub {
   pointer-events: none; /* click events pass through to rect */
 }
 
+.rho-gradient-arrow {
+  font-size: 14px;
+  font-weight: bold;
+  dominant-baseline: central;
+  pointer-events: none;
+  &.gradient-down {
+    fill: #10b981; /* green for going down/shrinking */
+  }
+  &.gradient-up {
+    fill: #ef4444; /* red for going up/expanding */
+  }
+}
+
 /* Target Disk Level Line Indicator */
 .target-rho-level-group {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -358,6 +371,122 @@ text.node-text-label.inactive-stub {
   stroke: #eab308;
   stroke-width: 2;
   opacity: 0.8;
+}
+
+@keyframes lossBgIntroNormal {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #fee2e2;
+    stroke: #fca5a5;
+  }
+}
+
+@keyframes lossBgIntroBest {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #d1fae5;
+    stroke: #10b981;
+  }
+}
+
+@keyframes lossTextIntroNormal {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #b91c1c;
+  }
+}
+
+@keyframes lossTextIntroBest {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #047857;
+  }
+}
+
+.candidate-loss-group {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  pointer-events: none;
+
+  &.best-candidate-group {
+    // Best candidate fades out slightly later so non-optimal vanish first
+    transition: opacity 0.35s ease-out 0.15s;
+  }
+
+  // Non-optimal candidates being faded out during the animation 'fadeout' phase
+  &.fading-out {
+    opacity: 0;
+    transition: opacity 0.4s ease-out;
+  }
+
+  &.visible {
+    opacity: 1;
+    transition: opacity 0.15s ease-in;
+
+    // When fading out, override to hide while keeping fills intact
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.4s ease-out;
+    }
+
+    .candidate-loss-bg {
+      animation: lossBgIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate-bg {
+        animation: lossBgIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+
+    .candidate-loss-label {
+      animation: lossTextIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate {
+        animation: lossTextIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+  }
+}
+
+.candidate-loss-bg {
+  // Explicit default fill/stroke prevents "going black" when the group
+  // transitions to opacity:0 (the animation 'forwards' fill mode keeps
+  // the final keyframe colors, but only while the animation is active).
+  fill: #f1f5f9;
+  stroke: #cbd5e1;
+  stroke-width: 1px;
+  opacity: 0.95;
+}
+
+.candidate-loss-label {
+  fill: #64748b;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: monospace;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 /* Parameter center label next to the active node */

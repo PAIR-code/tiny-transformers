@@ -34,6 +34,8 @@ import {
   formatRational,
   getValuation,
   getAlignedDigits,
+  GradientDetails,
+  formatDigitSequence,
   ExtendedNumber,
   extValuationGe
 } from '../../../lib/berkovich/berkovich';
@@ -84,6 +86,10 @@ export class BerkovichDiskTreeVisComponent {
   readonly centerDigitsInput = input.required<string>();
   readonly currentLogRadius = input.required<number>();
   readonly isDraggingRho = input.required<boolean>();
+  readonly gradientBreakdown = input<GradientDetails>();
+  readonly currentDistanceValuation = input<ExtendedNumber>();
+  readonly showGradientAnnotations = input<boolean>(true);
+  readonly animationPhase = input<'idle' | 'fadeout'>('idle');
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -654,6 +660,13 @@ export class BerkovichDiskTreeVisComponent {
     return edgeIds;
   });
 
+  // Local state signals for transitioning candidate losses
+  readonly cachedCandidates = signal<any[]>([]);
+  readonly cachedBestBranch = signal<string>('');
+  readonly showCandidates = signal<boolean>(false);
+  // When true, non-optimal candidate loss labels fade out while the best stays visible.
+  readonly fadingOutNonOptimal = signal<boolean>(false);
+
   readonly currentParameterCoord = computed(() => {
     const c_curr = this.currentCenter();
     const rho = this.currentLogRadius();
@@ -696,6 +709,28 @@ export class BerkovichDiskTreeVisComponent {
       }
       untracked(() => {
         this.lastPositions = nextMap;
+      });
+    });
+
+    // Handle candidate losses visibility and cache
+    effect(() => {
+      const breakdown = this.gradientBreakdown();
+      const showAnnotations = this.showGradientAnnotations();
+      const phase = this.animationPhase();
+      
+      untracked(() => {
+        if (phase === 'fadeout') {
+          // Phase 1: keep candidates visible but start fading non-optimal ones out
+          this.fadingOutNonOptimal.set(true);
+        } else if (showAnnotations && breakdown?.isVertex && breakdown?.candidates) {
+          this.cachedCandidates.set(breakdown.candidates);
+          this.cachedBestBranch.set(breakdown.bestBranch ?? '');
+          this.showCandidates.set(true);
+          this.fadingOutNonOptimal.set(false);
+        } else {
+          this.showCandidates.set(false);
+          this.fadingOutNonOptimal.set(false);
+        }
       });
     });
   }
@@ -767,6 +802,40 @@ export class BerkovichDiskTreeVisComponent {
   isNodeOnTargetPath(node: VisualNode): boolean {
     const y = this.targetRational();
     return node.logRadius === this.rhoMin && formatRational(node.center) === formatRational(y);
+  }
+
+  getCandidateCoords(cand: any): { x: number, y: number } {
+    const p = BigInt(this.prime());
+    const visuals = this.treeVisuals();
+    
+    // 1. Try exact match by center and logRadius.
+    const exactNode = visuals.nodes.find(n => 
+      n.logRadius === cand.logRadius && formatRational(n.center) === formatRational(cand.center)
+    );
+    if (exactNode) {
+      return { x: exactNode.x, y: exactNode.y };
+    }
+    
+    // 2. Fallback: find the tree node at this level whose disk contains the candidate center.
+    //    This handles the "parent" candidate, whose center is the current parameter center c,
+    //    not the tree node's center. The containing node's visual position (including stub offsets)
+    //    is the correct placement for the loss label.
+    const containingNode = visuals.nodes.find(n => {
+      if (n.logRadius !== cand.logRadius) return false;
+      return extValuationGe(getValuation(subtract(cand.center, n.center), p), -n.logRadius);
+    });
+    if (containingNode) {
+      return { x: containingNode.x, y: containingNode.y };
+    }
+    
+    // 3. Last resort: use computed x and standard level y.
+    const x = this.getParameterXAtLevel(cand.center, cand.logRadius, p, visuals.nodes);
+    const y = this.rhoToY(cand.logRadius);
+    return { x, y };
+  }
+
+  formatCenterDigitString(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
   }
 
   onPointerDown(event: PointerEvent): void {

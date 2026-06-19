@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MarkdownComponent } from 'ngx-markdown';
-import { Rational, simplify } from '../../../lib/berkovich/berkovich';
+import { Rational, formatDigitSequence } from '../../../lib/berkovich/berkovich';
 
 @Component({
   selector: 'app-berkovich-calculus',
@@ -43,11 +43,9 @@ export class BerkovichCalculusComponent {
     this.isCollapsed.update(c => !c);
   }
 
-  formatRationalLatex(r: Rational): string {
-    const simplified = simplify(r);
-    if (simplified.den === 1n) {
-      return simplified.num.toString();
-    }
-    return `\\frac{${simplified.num}}{${simplified.den}}`;
+  readonly prime = input.required<number>();
+
+  formatDigitSequence(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
   }
 }

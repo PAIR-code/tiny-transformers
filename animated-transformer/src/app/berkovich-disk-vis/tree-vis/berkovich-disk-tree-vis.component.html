@@ -126,6 +126,22 @@
         <circle r="4" class="target-inner" />
       </g>
 
+      <!-- Candidate Losses at Nodes -->
+      @for (cand of cachedCandidates(); track cand.branch) {
+        <g 
+          [attr.transform]="'translate(' + getCandidateCoords(cand).x + ',' + getCandidateCoords(cand).y + ')'"
+          class="candidate-loss-group"
+          [class.visible]="showCandidates()"
+          [class.best-candidate-group]="cand.branch === cachedBestBranch()"
+          [class.fading-out]="fadingOutNonOptimal() && cand.branch !== cachedBestBranch()"
+        >
+          <rect x="-23" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === cachedBestBranch()" />
+          <text x="0" y="0" class="candidate-loss-label" [class.best-candidate]="cand.branch === cachedBestBranch()">
+            L={{ cand.lossVal.toFixed(2) }}
+          </text>
+        </g>
+      }
+
       <!-- Target Disk Level Line Indicator Group -->
       <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()) + 'px)'">
         <line
@@ -220,6 +236,18 @@
         >
           x_&rho; = {{ currentLogRadius().toFixed(2) }}
         </text>
+        <!-- Up/Down Arrow for Gradient -->
+        @if (showGradientAnnotations() && gradientBreakdown()?.gRho !== undefined) {
+          <text
+            [attr.x]="rhoLabelX() + 82"
+            y="2"
+            class="rho-gradient-arrow"
+            [class.gradient-up]="gradientBreakdown()!.gRho! > 0"
+            [class.gradient-down]="gradientBreakdown()!.gRho! < 0"
+          >
+            {{ gradientBreakdown()!.gRho! > 0 ? '↓' : '↑' }}
+          </text>
+        }
       </g>
 
       <!-- Parameter Vertex Overlay Layer (Halo + Label) -->

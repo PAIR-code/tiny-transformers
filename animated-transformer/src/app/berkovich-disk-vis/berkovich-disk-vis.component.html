@@ -26,6 +26,10 @@
         [centerDigitsInput]="displayCenterDigits()"
         [currentLogRadius]="currentLogRadius()"
         [isDraggingRho]="isDraggingRho()"
+        [gradientBreakdown]="gradientBreakdown()"
+        [currentDistanceValuation]="currentDistanceValuation()"
+        [showGradientAnnotations]="showGradientAnnotations()"
+        [animationPhase]="animationPhase()"
         (logRadiusChange)="onLogRadiusChange($event)"
         (targetLogRadiusChange)="onTargetLogRadiusChange($event)"
         (draggingChange)="onDraggingChange($event)"
@@ -51,6 +55,7 @@
         [learningRateInput]="learningRateInput()"
         [isPlaying]="isPlaying()"
         [stepCount]="stepCount()"
+        [showGradientAnnotations]="showGradientAnnotations()"
         (primeChange)="onPrimeChange($event)"
         (targetInputChange)="targetInput.set($event)"
         (targetDigitsInputChange)="targetDigitsInput.set($event)"
@@ -66,6 +71,7 @@
         (centerDigitsBlur)="onCenterDigitsBlur()"
         (logRadiusBlur)="onLogRadiusBlur()"
         (learningRateBlur)="onLearningRateBlur()"
+        (showGradientAnnotationsChange)="showGradientAnnotations.set($event)"
         (togglePlay)="togglePlay()"
         (step)="step()"
         (undo)="undo()"
@@ -96,11 +102,13 @@
     <app-berkovich-disk-calculus
       [gradientBreakdown]="gradientBreakdown()"
       [learningRate]="learningRate()"
+      [prime]="prime()"
     />
   </div>
 
   <!-- Bottom section: Step History -->
   <app-berkovich-disk-history
     [history]="history()"
+    [prime]="prime()"
   />
 </div>

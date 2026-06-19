@@ -304,10 +304,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Execute one animated step: for vertex states, fades out non-optimal
-   *  candidates before applying the state update. Returns a promise that
-   *  resolves when the full visual step is complete. */
-  private animatedStep(): Promise<void> {
+  /** Execute one animated step. */
+  private async animatedStep(): Promise<void> {
     const p = BigInt(this.prime());
     const c = this.currentCenter();
     const rho = this.currentLogRadius();
@@ -316,28 +314,25 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const details = computeGradientDetails(c, rho, y, -2, p, eta);
 
     if (details.isVertex) {
-      // Phase 1: Signal the tree-vis to fade out non-optimal candidates
+      // Phase 1: Pause to let the user observe the node candidates
+      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!this.isPlaying()) return;
+
+      // Phase 2: Fade out non-optimal candidates
       this.animationPhase.set('fadeout');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!this.isPlaying()) return;
 
-      return new Promise(resolve => {
-        // Wait for the non-optimal fadeout CSS transition (500ms)
-        setTimeout(() => {
-          // Phase 2: Apply the actual state update
-          this.applyStepDetails(details);
-          this.animationPhase.set('show');
-
-          // Wait for the new candidates to fully appear before the next step
-          setTimeout(() => {
-            this.animationPhase.set('idle');
-            resolve();
-          }, 800);
-        }, 500);
-      });
-    } else {
-      // Edge (continuous) steps happen quickly
+      // Phase 3: Apply the state update (moves away from the vertex)
       this.animationPhase.set('idle');
       this.applyStepDetails(details);
-      return Promise.resolve();
+    } else {
+      // Edge steps: smooth, shorter delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      if (!this.isPlaying()) return;
+
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
     }
   }
 
@@ -420,25 +415,15 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     this.scheduleNextStep();
   }
 
-  /** Schedule the next animated step using setTimeout so vertex steps
-   *  can take longer than edge steps. */
+  /** Schedule the next animated step. */
   private scheduleNextStep(): void {
     if (!this.isPlaying()) return;
-
-    // Check if the *current* state is at a vertex to determine timing.
-    const p = BigInt(this.prime());
-    const c = this.currentCenter();
-    const rho = this.currentLogRadius();
-    const y = this.targetRational();
-    const eta = this.learningRate();
-    const preview = computeGradientDetails(c, rho, y, -2, p, eta);
-    const delay = preview.isVertex ? 400 : 600;
 
     this.animationTimeout = setTimeout(async () => {
       if (!this.isPlaying()) return;
       await this.animatedStep();
       this.scheduleNextStep();
-    }, delay);
+    }, 10);
   }
 
   private stopAnimation(): void {

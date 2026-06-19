@@ -454,7 +454,7 @@ export function computeGradientDetails(
       nextCenter: c,
       nextLogRadius: rho,
       stepType: 'Converged (Loss = 0)',
-      explanation: `The parameter $x = (${formatRational(c)}, ${rho.toFixed(4)})$ matches the target disk $y = (${formatRational(y)}, ${y_rho.toFixed(4)})$ perfectly. The loss is $0$, and optimization is complete.`,
+      explanation: `The parameter $x = (x_c=${formatDigitSequence(c, p)}, x_\\rho=${rho.toFixed(4)})$ matches the target disk $y = (y_c=${formatDigitSequence(y, p)}, y_\\rho=${y_rho.toFixed(4)})$ perfectly. The loss is $0$, and optimization is complete.`,
       candidates: []
     };
   }

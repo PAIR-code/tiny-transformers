@@ -31,7 +31,7 @@
                       <span class="sel-badge">(STEER DIRECTION)</span>
                     }
                   </td>
-                  <td><markdown [inline]="true" [katex]="true" [data]="'$c = ' + formatRationalLatex(cand.center) + '$'"></markdown></td>
+                  <td><markdown [inline]="true" [katex]="true" [data]="'$x_c = ' + formatDigitSequence(cand.center) + '$'"></markdown></td>
                   <td><markdown [inline]="true" [katex]="true" [data]="'$\\rho = ' + cand.logRadius + '$'"></markdown></td>
                   <td class="loss-col">
                     {{ cand.lossVal.toFixed(4) }}
@@ -70,13 +70,13 @@
       }
 
       <div class="math-block">
-        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^{\\rho_x}, p^{\\rho_y}, |c_x - c_y|_p) = p^{\\max(\\rho_x, \\rho_y, d)}$$\n\n$$d = \\log_p |c_x - c_y|_p = -\\nu_p(c_x - c_y)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho_x - \\rho_y = 2\\max(\\rho_x, \\rho_y, d) - \\rho_x - \\rho_y$$'"></markdown>
+        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^{\\rho_x}, p^{\\rho_y}, |x_c - y_c|_p) = p^{\\max(\\rho_x, \\rho_y, d)}$$\n\n$$d = \\log_p |x_c - y_c|_p = -\\nu_p(x_c - y_c)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho_x - \\rho_y = 2\\max(\\rho_x, \\rho_y, d) - \\rho_x - \\rho_y$$'"></markdown>
         <div class="explanation-text calculus-intro">
           <p>
-            Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(c_x - c_y)$'"></markdown> represents the <strong>Target Center Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$c_x$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$c_y$'"></markdown>).
+            Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(x_c - y_c)$'"></markdown> represents the <strong>Target Center Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown>).
           </p>
           <p>
-            The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$c_x$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$c_y$'"></markdown> differ.
+            The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column (going from smallest power to largest, i.e., from right to left in the comparison grid) where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown> differ.
           </p>
         </div>
         <markdown class="explanation-text" [katex]="true" [data]="gradientBreakdown().explanation"></markdown>

@@ -40,6 +40,7 @@ import {
   formatDigitSequence,
   parseDigitSequence,
   computeGradientDetails,
+  GradientDetails,
   ExtendedNumber,
   extNegate
 } from '../../lib/berkovich/berkovich';
@@ -102,10 +103,13 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
   readonly stepCount = signal<number>(0);
   readonly history = signal<{ step: number; center: Rational; logRadius: number; loss: number; type: string }[]>([]);
 
+  readonly showGradientAnnotations = signal<boolean>(true);
+
   // Animation state
-  private animationInterval: any = null;
+  private animationTimeout: any = null;
   readonly isPlaying = signal<boolean>(false);
   readonly isDraggingRho = signal<boolean>(false);
+  readonly animationPhase = signal<'idle' | 'fadeout'>('idle');
 
   // Real-time displaying values for parameters inputs
   readonly displayCenter = computed(() => {
@@ -312,6 +316,58 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Execute one animated step. */
+  private async animatedStep(): Promise<void> {
+    const p = BigInt(this.prime());
+    const c = this.currentCenter();
+    const rho = this.currentLogRadius();
+    const y = this.targetRational();
+    const y_rho = this.targetLogRadius();
+    const eta = this.learningRate();
+    const details = computeGradientDetails(c, rho, y, y_rho, p, eta);
+
+    if (details.isVertex) {
+      // Phase 1: Pause to let the user observe the node candidates
+      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!this.isPlaying()) return;
+
+      // Phase 2: Fade out non-optimal candidates
+      this.animationPhase.set('fadeout');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!this.isPlaying()) return;
+
+      // Phase 3: Apply the state update (moves away from the vertex)
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
+    } else {
+      // Edge steps: smooth, shorter delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      if (!this.isPlaying()) return;
+
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
+    }
+  }
+
+  /** Shared helper to apply gradient step results to state signals. */
+  private applyStepDetails(details: GradientDetails): void {
+    this.currentCenter.set(details.nextCenter);
+    this.currentLogRadius.set(details.nextLogRadius);
+    this.stepCount.update(s => s + 1);
+
+    this.history.update(h => [...h, {
+      step: this.stepCount(),
+      center: details.nextCenter,
+      logRadius: details.nextLogRadius,
+      loss: details.loss,
+      type: details.stepType
+    }]);
+
+    if (details.loss <= 1e-7 || details.nextLogRadius <= -2.0) {
+      this.stopAnimation();
+    }
+  }
+
   randomizeCenterAndTarget(): void {
     this.stopAnimation();
     const p = BigInt(this.prime());
@@ -334,10 +390,13 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     const cRational = parseDigitSequence(cSeq, p);
     const yRational = parseDigitSequence(ySeq, p);
 
+    const randomYRho = Math.round((Math.random() * 4 - 2) * 10) / 10;
+
     this.centerInput.set(formatRational(cRational));
     this.centerDigitsInput.set(cSeq);
     this.targetInput.set(formatRational(yRational));
     this.targetDigitsInput.set(ySeq);
+    this.targetLogRadiusInput.set(randomYRho.toFixed(1));
 
     this.reset();
   }
@@ -369,16 +428,26 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
 
   private startAnimation(): void {
     this.isPlaying.set(true);
-    this.animationInterval = setInterval(() => {
-      this.step();
-    }, 600);
+    this.scheduleNextStep();
+  }
+
+  /** Schedule the next animated step. */
+  private scheduleNextStep(): void {
+    if (!this.isPlaying()) return;
+
+    this.animationTimeout = setTimeout(async () => {
+      if (!this.isPlaying()) return;
+      await this.animatedStep();
+      this.scheduleNextStep();
+    }, 10);
   }
 
   private stopAnimation(): void {
     this.isPlaying.set(false);
-    if (this.animationInterval) {
-      clearInterval(this.animationInterval);
-      this.animationInterval = null;
+    this.animationPhase.set('idle');
+    if (this.animationTimeout) {
+      clearTimeout(this.animationTimeout);
+      this.animationTimeout = null;
     }
   }
 

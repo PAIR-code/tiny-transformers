@@ -22,6 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
   selector: 'app-berkovich-disk-config',
@@ -35,7 +36,8 @@ import { MatInputModule } from '@angular/material/input';
     MatButtonModule,
     MatSelectModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    MatCheckboxModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -51,6 +53,7 @@ export class BerkovichDiskConfigComponent {
   readonly learningRateInput = input.required<string>();
   readonly isPlaying = input.required<boolean>();
   readonly stepCount = input.required<number>();
+  readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
   readonly primeChange = output<number>();
@@ -69,7 +72,9 @@ export class BerkovichDiskConfigComponent {
   readonly centerDigitsBlur = output<void>();
   readonly logRadiusBlur = output<void>();
   readonly learningRateBlur = output<void>();
+  readonly showGradientAnnotationsChange = output<boolean>();
 
+  // Actions
   readonly togglePlay = output<void>();
   readonly step = output<void>();
   readonly undo = output<void>();

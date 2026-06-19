@@ -11,7 +11,7 @@
         <thead>
           <tr>
             <th>Step</th>
-            <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$c$'"></markdown>)</th>
+            <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown>)</th>
             <th>Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</th>
             <th>Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</th>
             <th>Update Mechanism</th>
@@ -22,7 +22,7 @@
             <tr>
               <td>{{ h.step }}</td>
               <td>
-                <markdown [inline]="true" [katex]="true" [data]="'$' + formatRationalLatex(h.center) + '$'"></markdown>
+                <span style="font-family: monospace;">{{ formatDigitSequence(h.center) }}</span>
               </td>
               <td>{{ h.logRadius.toFixed(4) }}</td>
               <td>{{ h.loss.toFixed(4) }}</td>
