@@ -15,7 +15,6 @@ limitations under the License.
 
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
-import { RouterTestingModule } from '@angular/router/testing';
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.config';
 import { provideZonelessChangeDetection } from '@angular/core';

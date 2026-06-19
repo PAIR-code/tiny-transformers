@@ -16,10 +16,6 @@ limitations under the License.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AutoCompletedTextInputComponent } from './auto-completed-text-input.component';
-import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatInputModule } from '@angular/material/input';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { provideZonelessChangeDetection } from '@angular/core';
 
 describe('AutoCompletedTextInputComponent', () => {
