@@ -398,26 +398,101 @@ text.node-text-label.inactive-stub {
   text-anchor: middle;
 }
 
-.candidate-loss-bg {
-  fill: #ffffff;
-  stroke: #cbd5e1;
-  stroke-width: 1;
-  opacity: 0.9;
-  &.best-candidate-bg {
-    stroke: #10b981;
-    fill: #d1fae5;
+@keyframes lossBgIntroNormal {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #fee2e2;
+    stroke: #fca5a5;
   }
 }
 
+@keyframes lossBgIntroBest {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #d1fae5;
+    stroke: #10b981;
+  }
+}
+
+@keyframes lossTextIntroNormal {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #b91c1c;
+  }
+}
+
+@keyframes lossTextIntroBest {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #047857;
+  }
+}
+
+.candidate-loss-group {
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  pointer-events: none;
+
+  &.best-candidate-group {
+    transition: opacity 0.15s ease-out 0.25s; // delay optimal exit so non-optimal vanish first
+  }
+
+  &.visible {
+    opacity: 1;
+    transition: opacity 0.1s ease-in;
+
+    .candidate-loss-bg {
+      animation: lossBgIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate-bg {
+        animation: lossBgIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+
+    .candidate-loss-label {
+      animation: lossTextIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate {
+        animation: lossTextIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+  }
+}
+
+.candidate-loss-bg {
+  stroke-width: 1px;
+  opacity: 0.95;
+}
+
 .candidate-loss-label {
-  fill: #64748b;
   font-size: 9px;
   font-weight: bold;
   font-family: monospace;
   pointer-events: none;
-  &.best-candidate {
-    fill: #059669;
-  }
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 /* Parameter center label next to the active node */

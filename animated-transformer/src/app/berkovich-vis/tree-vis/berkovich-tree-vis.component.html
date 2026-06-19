@@ -161,15 +161,18 @@
       }
 
       <!-- Candidate Losses at Nodes -->
-      @if (showGradientAnnotations() && gradientBreakdown()?.isVertex && gradientBreakdown()?.candidates) {
-        @for (cand of gradientBreakdown()!.candidates; track cand.branch) {
-          <g [attr.transform]="'translate(' + getCandidateX(cand) + ',' + rhoToY(cand.logRadius) + ')'">
-            <rect x="7" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === gradientBreakdown()?.bestBranch" />
-            <text x="10" y="3" class="candidate-loss-label" [class.best-candidate]="cand.branch === gradientBreakdown()?.bestBranch">
-              L={{ cand.lossVal.toFixed(2) }}
-            </text>
-          </g>
-        }
+      @for (cand of cachedCandidates(); track cand.branch) {
+        <g 
+          [attr.transform]="'translate(' + getCandidateCoords(cand).x + ',' + getCandidateCoords(cand).y + ')'"
+          class="candidate-loss-group"
+          [class.visible]="showCandidates()"
+          [class.best-candidate-group]="cand.branch === cachedBestBranch()"
+        >
+          <rect x="-23" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === cachedBestBranch()" />
+          <text x="0" y="0" class="candidate-loss-label" [class.best-candidate]="cand.branch === cachedBestBranch()">
+            L={{ cand.lossVal.toFixed(2) }}
+          </text>
+        </g>
       }
 
       <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->

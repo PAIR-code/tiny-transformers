@@ -633,6 +633,11 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
 3. **Loss Contribution:** The path-metric loss is $L = |\\rho - d| + d$. This pushes the parameter radius $\\rho$ to match the branching height $d$, and then discrete transitions will move the center $c$ onto the correct child branch at that level.
 `;
 
+  // Local state signals for transitioning candidate losses
+  readonly cachedCandidates = signal<any[]>([]);
+  readonly cachedBestBranch = signal<string>('');
+  readonly showCandidates = signal<boolean>(false);
+
   readonly currentParameterCoord = computed(() => {
     const c_curr = this.currentCenter();
     const rho = this.currentLogRadius();
@@ -675,6 +680,22 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
       }
       untracked(() => {
         this.lastPositions = nextMap;
+      });
+    });
+
+    // Handle candidate losses visibility and cache
+    effect(() => {
+      const breakdown = this.gradientBreakdown();
+      const showAnnotations = this.showGradientAnnotations();
+      
+      untracked(() => {
+        if (showAnnotations && breakdown?.isVertex && breakdown?.candidates) {
+          this.cachedCandidates.set(breakdown.candidates);
+          this.cachedBestBranch.set(breakdown.bestBranch ?? '');
+          this.showCandidates.set(true);
+        } else {
+          this.showCandidates.set(false);
+        }
       });
     });
   }
@@ -748,10 +769,21 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     return node.logRadius === this.rhoMin && formatRational(node.center) === formatRational(y);
   }
 
-  getCandidateX(cand: any): number {
+  getCandidateCoords(cand: any): { x: number, y: number } {
     const p = BigInt(this.prime());
     const visuals = this.treeVisuals();
-    return this.getParameterXAtLevel(cand.center, cand.logRadius, p, visuals.nodes);
+    
+    const node = visuals.nodes.find(n => 
+      n.logRadius === cand.logRadius && formatRational(n.center) === formatRational(cand.center)
+    );
+    
+    if (node) {
+      return { x: node.x, y: node.y };
+    }
+    
+    const x = this.getParameterXAtLevel(cand.center, cand.logRadius, p, visuals.nodes);
+    const y = this.rhoToY(cand.logRadius);
+    return { x, y };
   }
 
   formatCenterDigitString(r: Rational): string {
