@@ -45,12 +45,13 @@ import {
   extNegate
 } from '../../lib/berkovich/berkovich';
 
-import { BerkovichDiskTreeVisComponent } from './tree-vis/berkovich-disk-tree-vis.component';
+
+import { BerkovichStateComponent } from '../berkovich-vis/state-card/berkovich-state.component';
+import { BerkovichDigitsComponent } from '../berkovich-vis/digits-card/berkovich-digits.component';
+import { BerkovichCalculusComponent } from '../berkovich-vis/calculus-card/berkovich-calculus.component';
+import { BerkovichHistoryComponent } from '../berkovich-vis/history-card/berkovich-history.component';
+import { BerkovichTreeVisComponent } from '../berkovich-vis/tree-vis/berkovich-tree-vis.component';
 import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-config.component';
-import { BerkovichDiskStateComponent } from './state-card/berkovich-disk-state.component';
-import { BerkovichDiskDigitsComponent } from './digits-card/berkovich-disk-digits.component';
-import { BerkovichDiskCalculusComponent } from './calculus-card/berkovich-disk-calculus.component';
-import { BerkovichDiskHistoryComponent } from './history-card/berkovich-disk-history.component';
 
 @Component({
   selector: 'app-berkovich-disk-vis',
@@ -58,16 +59,16 @@ import { BerkovichDiskHistoryComponent } from './history-card/berkovich-disk-his
   styleUrls: ['./berkovich-disk-vis.component.scss'],
   imports: [
     CommonModule,
-    MatIconModule,
     MatButtonModule,
+    MatIconModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichDiskTreeVisComponent,
-    BerkovichDiskConfigComponent,
-    BerkovichDiskStateComponent,
-    BerkovichDiskDigitsComponent,
-    BerkovichDiskCalculusComponent,
-    BerkovichDiskHistoryComponent
+    BerkovichStateComponent,
+    BerkovichDigitsComponent,
+    BerkovichCalculusComponent,
+    BerkovichHistoryComponent,
+    BerkovichTreeVisComponent,
+    BerkovichDiskConfigComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

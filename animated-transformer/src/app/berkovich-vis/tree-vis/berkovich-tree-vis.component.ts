@@ -82,6 +82,7 @@ export class BerkovichTreeVisComponent {
   // Inputs
   readonly prime = input.required<number>();
   readonly targetRational = input.required<Rational>();
+  readonly targetLogRadius = input<number>(); // Optional: If provided, shows disk target features
   readonly targetDigitsInput = input.required<string>();
   readonly currentCenter = input.required<Rational>();
   readonly centerDigitsInput = input.required<string>();
@@ -94,6 +95,7 @@ export class BerkovichTreeVisComponent {
 
   // Outputs
   readonly logRadiusChange = output<number>();
+  readonly targetLogRadiusChange = output<number>();
   readonly draggingChange = output<boolean>();
   readonly manualLogRadiusAdjust = output<number>();
   readonly targetDigitsInputChange = output<string>();
@@ -592,8 +594,74 @@ export class BerkovichTreeVisComponent {
         }
       }
     }
-    
     return edgeIds;
+  });
+
+  readonly targetRhoLineRange = computed(() => {
+    const y_rho = this.targetLogRadius();
+    if (y_rho === undefined) return null;
+    
+    const y = this.targetRational();
+    const p = BigInt(this.prime());
+    const visuals = this.treeVisuals();
+    
+    if (y_rho <= this.rhoMin) {
+      return this.getRangeForIntegerRho(y, this.rhoMin, p, visuals);
+    }
+    if (y_rho >= this.rhoMax) {
+      return this.getRangeForIntegerRho(y, this.rhoMax, p, visuals);
+    }
+    
+    const k_child = Math.floor(y_rho);
+    const k_parent = Math.ceil(y_rho);
+    
+    const rangeChild = this.getRangeForIntegerRho(y, k_child, p, visuals);
+    const rangeParent = this.getRangeForIntegerRho(y, k_parent, p, visuals);
+    
+    if (k_child === k_parent) {
+      return rangeChild;
+    }
+    
+    const t = (y_rho - k_child) / (k_parent - k_child);
+    
+    return {
+      x1: rangeChild.x1 + t * (rangeParent.x1 - rangeChild.x1),
+      x2: rangeChild.x2 + t * (rangeParent.x2 - rangeChild.x2)
+    };
+  });
+
+  readonly targetParameterCoord = computed(() => {
+    const y_rho = this.targetLogRadius();
+    if (y_rho === undefined) return null;
+    
+    const y = this.targetRational();
+    const p = BigInt(this.prime());
+    const yCoord = this.rhoToY(y_rho);
+    const nodes = this.treeVisuals().nodes;
+    
+    const k_parent = Math.ceil(y_rho);
+    const k_child = Math.floor(y_rho);
+    
+    const parentNode = nodes.find(n => 
+      n.logRadius === k_parent && extValuationGe(getValuation(subtract(y, n.center), p), -n.logRadius)
+    );
+    const childNode = nodes.find(n => 
+      n.logRadius === k_child && extValuationGe(getValuation(subtract(y, n.center), p), -n.logRadius)
+    );
+    
+    let xCoord: number;
+    if (parentNode && childNode && k_parent !== k_child) {
+      const t = (k_parent - y_rho) / (k_parent - k_child);
+      xCoord = parentNode.x + t * (childNode.x - parentNode.x);
+    } else if (parentNode) {
+      xCoord = parentNode.x;
+    } else if (childNode) {
+      xCoord = childNode.x;
+    } else {
+      xCoord = this.svgWidth() / 2;
+    }
+    
+    return { x: xCoord, y: yCoord };
   });
 
   readonly targetCoord = computed(() => {
@@ -861,6 +929,15 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
       v = Math.max(this.rhoMin, Math.min(this.rhoMax, v));
       this.logRadiusChange.emit(v);
       this.manualLogRadiusAdjust.emit(v);
+    }
+  }
+
+  onTargetLogRadiusInputChange(val: string): void {
+    const sanitized = val.replace(',', '.');
+    let v = parseFloat(sanitized);
+    if (!isNaN(v)) {
+      v = Math.max(this.rhoMin, Math.min(this.rhoMax, v));
+      this.targetLogRadiusChange.emit(v);
     }
   }
 }

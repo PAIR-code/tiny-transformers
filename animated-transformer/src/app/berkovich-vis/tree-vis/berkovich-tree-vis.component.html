@@ -20,6 +20,12 @@
         <span class="editor-label yellow-text">y_c:</span>
         <input class="mini-digit-input" [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(tInput.value)" (blur)="targetDigitsBlur.emit()" #tInput />
       </div>
+      @if (targetLogRadius() !== undefined) {
+        <div class="editor-row">
+          <span class="editor-label yellow-text">y_&rho;:</span>
+          <input class="mini-digit-input mini-rho-input" type="text" [value]="targetLogRadius()!.toFixed(1)" (change)="onTargetLogRadiusInputChange(tyInput.value)" #tyInput />
+        </div>
+      }
       <div class="editor-row">
         <span class="editor-label purple-text">x_c:</span>
         <input class="mini-digit-input" [value]="centerDigitsInput()" (change)="centerDigitsInputChange.emit(cInput.value)" (blur)="centerDigitsBlur.emit()" #cInput />
@@ -122,28 +128,41 @@
             [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
             class="tree-node"
           />
-          <!-- Label for node at the top (root) -->
-          @if (node.logRadius === rhoMax) {
-            <text
-              x="0"
-              [attr.y]="-12"
-              [class.inactive-stub]="!node.isActive"
-              class="node-text-label"
-            >
-              {{ formatCenterDigitString(node.center) }}
-            </text>
-          }
+          <!-- Removed root and leaf text labels -->
         </g>
       }
 
       <!-- Target Indicator Flag -->
-      @for (node of treeVisuals().nodes; track node.id) {
-        @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
-          <!-- Draw Target Marker -->
-          <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
-            <circle r="12" class="target-outer" />
-            <circle r="4" class="target-inner" />
-          </g>
+      @if (targetLogRadius() !== undefined) {
+        <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()!) + 'px)'">
+          <line
+            [attr.x1]="targetRhoLineRange()!.x1"
+            y1="0"
+            [attr.x2]="targetRhoLineRange()!.x2"
+            y2="0"
+            class="target-rho-level-line"
+          />
+          <text
+            [attr.x]="targetRhoLineRange()!.x2 + 8"
+            y="4"
+            class="target-rho-level-text"
+          >
+            y_&rho; = {{ targetLogRadius()!.toFixed(2) }}
+          </text>
+        </g>
+        <g class="target-marker" [style.transform]="'translate(' + targetParameterCoord()!.x + 'px, ' + targetParameterCoord()!.y + 'px)'">
+          <circle r="12" class="target-outer" />
+          <circle r="4" class="target-inner" />
+        </g>
+      } @else {
+        @for (node of treeVisuals().nodes; track node.id) {
+          @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
+            <!-- Draw Target Marker -->
+            <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
+              <circle r="12" class="target-outer" />
+              <circle r="4" class="target-inner" />
+            </g>
+          }
         }
       }
 

@@ -17,7 +17,7 @@
   <div class="dashboard-grid">
     <!-- Left Column: Interactive Tree & Disk Visualizer -->
     <section class="visualizer-card-container">
-      <app-berkovich-disk-tree-vis
+      <app-berkovich-tree-vis
         [prime]="prime()"
         [targetRational]="targetRational()"
         [targetLogRadius]="targetLogRadius()"
@@ -80,26 +80,26 @@
       />
 
       <!-- 2. Current State Details -->
-      <app-berkovich-disk-state
-        [prime]="prime()"
+      <app-berkovich-state
         [currentCenter]="currentCenter()"
         [currentLogRadius]="currentLogRadius()"
         [currentDistanceValuation]="currentDistanceValuation()"
         [currentLoss]="currentLoss()"
         [stepCount]="stepCount()"
+        [prime]="prime()"
       />
     </aside>
   </div>
 
   <!-- Digit expansion and Gradient Details Grid -->
   <div class="dashboard-grid bottom-grid">
-    <!-- Digit Expansion Card -->
-    <app-berkovich-disk-digits
+    <!-- Digits Card -->
+    <app-berkovich-digits
       [digitRows]="digitRows()"
     />
 
-    <!-- Gradient and Calculus Card -->
-    <app-berkovich-disk-calculus
+    <!-- Gradient Calculus Breakdown Card -->
+    <app-berkovich-calculus
       [gradientBreakdown]="gradientBreakdown()"
       [learningRate]="learningRate()"
       [prime]="prime()"
@@ -107,8 +107,12 @@
   </div>
 
   <!-- Bottom section: Step History -->
-  <app-berkovich-disk-history
+  <app-berkovich-history
     [history]="history()"
+    [currentCenter]="currentCenter()"
+    [currentLogRadius]="currentLogRadius()"
+    [currentLoss]="currentLoss()"
+    [currentStep]="stepCount()"
     [prime]="prime()"
   />
 </div>

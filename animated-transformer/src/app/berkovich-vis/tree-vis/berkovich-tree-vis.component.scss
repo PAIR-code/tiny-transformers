@@ -396,6 +396,33 @@ text.node-text-label.inactive-stub {
   color: #64748b;
 }
 
+/* Target Disk Level Line Indicator */
+.target-rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-rho-level-line {
+  fill: none;
+  stroke: #eab308; /* yellow target accent */
+  stroke-width: 4;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+.target-rho-level-text {
+  fill: #eab308;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.target-rho-level-cap {
+  fill: none;
+  stroke: #eab308;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
 .lca-path-label {
   fill: #64748b;
   font-size: 11px;
