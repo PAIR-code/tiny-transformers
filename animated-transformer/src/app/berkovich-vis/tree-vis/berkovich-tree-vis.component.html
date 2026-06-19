@@ -26,9 +26,20 @@
       </div>
       <div class="editor-row">
         <span class="editor-label purple-text">x_&rho;:</span>
-        <input class="mini-digit-input mini-rho-input" type="number" step="0.1" min="-2" max="2" [value]="currentLogRadius()" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
+        <input class="mini-digit-input mini-rho-input" type="text" [value]="currentLogRadius().toFixed(1)" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
       </div>
     </div>
+
+    @if (lcaCoord() !== null) {
+      <div class="lca-distance-explainer-anchor" [style.top.px]="lcaCoord()!.y">
+        <span class="lca-distance-text">d = {{ -currentDistanceValuation()! }}</span>
+        <app-berkovich-explainer 
+          title="Branching Distance (d)" 
+          [content]="distanceExplainerText"
+          [popupDirection]="lcaCoord()!.y < 230 ? 'down' : 'up'"
+        />
+      </div>
+    }
     <svg
       [attr.width]="svgWidth()"
       [attr.height]="svgHeight"
@@ -45,6 +56,15 @@
           <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
         </radialGradient>
       </defs>
+
+      <!-- Decimal Place Divider Line -->
+      <line
+        [attr.x1]="0"
+        [attr.y1]="rhoToY(0)"
+        [attr.x2]="svgWidth()"
+        [attr.y2]="rhoToY(0)"
+        class="decimal-divider-line"
+      />
 
       <!-- Draw Edges -->
       @for (edge of treeVisuals().edges; track edge.id) {
@@ -102,15 +122,15 @@
             [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
             class="tree-node"
           />
-          <!-- Label for nodes at the top (root) and bottom (leaves) -->
-          @if (node.logRadius === rhoMax || node.logRadius === rhoMin) {
+          <!-- Label for node at the top (root) -->
+          @if (node.logRadius === rhoMax) {
             <text
               x="0"
-              [attr.y]="node.logRadius === rhoMax ? -12 : 16"
+              [attr.y]="-12"
               [class.inactive-stub]="!node.isActive"
               class="node-text-label"
             >
-              {{ formatRationalValue(node.center) }}
+              {{ formatCenterDigitString(node.center) }}
             </text>
           }
         </g>
@@ -123,6 +143,31 @@
           <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
             <circle r="12" class="target-outer" />
             <circle r="4" class="target-inner" />
+          </g>
+        }
+      }
+
+      <!-- Distance path line (LCA to Right of SVG) -->
+      @if (lcaCoord() !== null) {
+        <g class="lca-path-group">
+          <line
+            [attr.x1]="lcaCoord()!.x"
+            [attr.y1]="lcaCoord()!.y"
+            [attr.x2]="svgWidth()"
+            [attr.y2]="lcaCoord()!.y"
+            class="lca-path-line"
+          />
+        </g>
+      }
+
+      <!-- Candidate Losses at Nodes -->
+      @if (showGradientAnnotations() && gradientBreakdown()?.isVertex && gradientBreakdown()?.candidates) {
+        @for (cand of gradientBreakdown()!.candidates; track cand.branch) {
+          <g [attr.transform]="'translate(' + getCandidateX(cand) + ',' + rhoToY(cand.logRadius) + ')'">
+            <rect x="7" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === gradientBreakdown()?.bestBranch" />
+            <text x="10" y="3" class="candidate-loss-label" [class.best-candidate]="cand.branch === gradientBreakdown()?.bestBranch">
+              L={{ cand.lossVal.toFixed(2) }}
+            </text>
           </g>
         }
       }
@@ -196,6 +241,18 @@
         >
           x_&rho; = {{ currentLogRadius().toFixed(2) }}
         </text>
+        <!-- Up/Down Arrow for Gradient -->
+        @if (showGradientAnnotations() && gradientBreakdown()?.gRho !== undefined) {
+          <text
+            [attr.x]="rhoLabelX() + 82"
+            y="2"
+            class="rho-gradient-arrow"
+            [class.gradient-up]="gradientBreakdown()!.gRho! > 0"
+            [class.gradient-down]="gradientBreakdown()!.gRho! < 0"
+          >
+            {{ gradientBreakdown()!.gRho! > 0 ? '↓' : '↑' }}
+          </text>
+        }
       </g>
 
       <!-- Parameter Vertex Overlay Layer (Halo + Label) -->

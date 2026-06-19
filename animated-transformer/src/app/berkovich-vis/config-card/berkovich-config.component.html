@@ -73,6 +73,12 @@
           <mat-hint>Gradient step scale</mat-hint>
         </mat-form-field>
       </div>
+
+      <div class="input-row" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+        <mat-checkbox [checked]="showGradientAnnotations()" (change)="showGradientAnnotationsChange.emit($event.checked)">
+          Show Gradient Annotations
+        </mat-checkbox>
+      </div>
     }
 
     <!-- Playback controls in grid -->

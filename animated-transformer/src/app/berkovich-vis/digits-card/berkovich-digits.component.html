@@ -20,6 +20,9 @@
       <div class="digit-row header-row">
         <div class="row-label">Power of p:</div>
         @for (col of digitRows(); track col.power) {
+          @if (col.power === -1) {
+            <div class="decimal-divider"></div>
+          }
           <div class="digit-cell power-cell" [class.resolved]="col.isResolved">
             {{ col.powerLabel }}
           </div>
@@ -30,6 +33,9 @@
       <div class="digit-row target-row">
         <div class="row-label">Target (y):</div>
         @for (col of digitRows(); track col.power) {
+          @if (col.power === -1) {
+            <div class="decimal-divider"></div>
+          }
           <div class="digit-cell val-cell" [class.resolved]="col.isResolved">
             {{ col.targetDigit }}
           </div>
@@ -40,6 +46,9 @@
       <div class="digit-row center-row">
         <div class="row-label">Center (c):</div>
         @for (col of digitRows(); track col.power) {
+          @if (col.power === -1) {
+            <div class="decimal-divider"></div>
+          }
           <div
             class="digit-cell val-cell center-val"
             [class.resolved]="col.isResolved"

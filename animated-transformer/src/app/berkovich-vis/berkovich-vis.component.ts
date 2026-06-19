@@ -77,6 +77,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly centerDigitsInput = signal<string>('00.00');
   readonly logRadiusInput = signal<string>('0.0');
   readonly learningRateInput = signal<string>('0.20');
+  readonly showGradientAnnotations = signal<boolean>(true);
 
   readonly initLogRadius = computed(() => {
     const v = parseFloat(this.logRadiusInput());
@@ -261,13 +262,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     this.currentCenter.set(this.initCenterRational());
     this.currentLogRadius.set(this.initLogRadius());
     this.stepCount.set(0);
-    this.history.set([{
-      step: 0,
-      center: this.initCenterRational(),
-      logRadius: this.initLogRadius(),
-      loss: this.currentLoss(),
-      type: 'Initialization'
-    }]);
+    this.history.set([]);
   }
 
   step(): void {

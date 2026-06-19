@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MarkdownComponent } from 'ngx-markdown';
-import { Rational, simplify } from '../../../lib/berkovich/berkovich';
+import { Rational, simplify, formatDigitSequence } from '../../../lib/berkovich/berkovich';
 
 export interface HistoryItem {
   step: number;
@@ -42,6 +42,15 @@ export interface HistoryItem {
 })
 export class BerkovichHistoryComponent {
   readonly history = input.required<HistoryItem[]>();
+  readonly currentCenter = input<Rational>();
+  readonly currentLogRadius = input<number>();
+  readonly currentLoss = input<number>();
+  readonly currentStep = input<number>();
+  readonly prime = input.required<number>();
+
+  formatCenterDigitString(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
+  }
 
   formatRationalLatex(r: Rational): string {
     const simplified = simplify(r);

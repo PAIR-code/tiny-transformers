@@ -33,8 +33,11 @@ import {
   subtract,
   formatRational,
   getValuation,
-  getAlignedDigits
+  getAlignedDigits,
+  GradientDetails,
+  formatDigitSequence
 } from '../../../lib/berkovich/berkovich';
+import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 
 export interface VisualNode {
   id: string;
@@ -68,7 +71,8 @@ export interface VisualEdge {
     CommonModule,
     MatCardModule,
     MatIconModule,
-    MarkdownComponent
+    MarkdownComponent,
+    BerkovichExplainerComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -81,6 +85,9 @@ export class BerkovichTreeVisComponent {
   readonly centerDigitsInput = input.required<string>();
   readonly currentLogRadius = input.required<number>();
   readonly isDraggingRho = input.required<boolean>();
+  readonly gradientBreakdown = input<GradientDetails>();
+  readonly currentDistanceValuation = input<number>();
+  readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -583,6 +590,49 @@ export class BerkovichTreeVisComponent {
     return edgeIds;
   });
 
+  readonly targetCoord = computed(() => {
+    const y = this.targetRational();
+    const p = BigInt(this.prime());
+    const yCoord = this.rhoToY(this.rhoMin);
+    const nodes = this.treeVisuals().nodes;
+    
+    const node = nodes.find(n => 
+      n.logRadius === this.rhoMin && formatRational(n.center) === formatRational(y)
+    );
+    
+    return { x: node ? node.x : this.svgWidth() / 2, y: yCoord };
+  });
+
+  readonly lcaCoord = computed(() => {
+    const val = this.currentDistanceValuation();
+    if (val === undefined || isNaN(val)) return null;
+    const k = -val;
+    
+    // LCA radius cannot exceed rhoMax or go below rhoMin
+    if (k > this.rhoMax || k < this.rhoMin) return null;
+    
+    const c = this.currentCenter();
+    const p = BigInt(this.prime());
+    const prefix = this.getPrefixCenter(c, k, p);
+    const nodes = this.treeVisuals().nodes;
+    
+    const node = nodes.find(n => 
+      n.logRadius === k && formatRational(n.center) === formatRational(prefix)
+    );
+    return node ? { x: node.x, y: this.rhoToY(k) } : null;
+  });
+
+  readonly distanceExplainerText = `
+The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** of the Lowest Common Ancestor (LCA) of the current center $c$ and target $y$ on the tree.
+
+**Key Interpretations:**
+1. **Branching Point:** It is the height at which the target's digit path and the parameter's digit path split apart (where they differ).
+2. **Digit Resolution:**
+   - If $d = 1$, the paths differ at $p^1$.
+   - If $d = -1$, the paths match down to $p^{-1}$ and differ at $p^{-2}$.
+3. **Loss Contribution:** The path-metric loss is $L = |\\rho - d| + d$. This pushes the parameter radius $\\rho$ to match the branching height $d$, and then discrete transitions will move the center $c$ onto the correct child branch at that level.
+`;
+
   readonly currentParameterCoord = computed(() => {
     const c_curr = this.currentCenter();
     const rho = this.currentLogRadius();
@@ -698,6 +748,16 @@ export class BerkovichTreeVisComponent {
     return node.logRadius === this.rhoMin && formatRational(node.center) === formatRational(y);
   }
 
+  getCandidateX(cand: any): number {
+    const p = BigInt(this.prime());
+    const visuals = this.treeVisuals();
+    return this.getParameterXAtLevel(cand.center, cand.logRadius, p, visuals.nodes);
+  }
+
+  formatCenterDigitString(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
+  }
+
   onPointerDown(event: PointerEvent): void {
     event.preventDefault();
     (event.target as Element).setPointerCapture(event.pointerId);
@@ -730,7 +790,8 @@ export class BerkovichTreeVisComponent {
   }
 
   onLogRadiusInputChange(val: string): void {
-    let v = parseFloat(val);
+    const sanitized = val.replace(',', '.');
+    let v = parseFloat(sanitized);
     if (!isNaN(v)) {
       v = Math.max(this.rhoMin, Math.min(this.rhoMax, v));
       this.logRadiusChange.emit(v);

@@ -340,6 +340,86 @@ text.node-text-label.inactive-stub {
   pointer-events: none; /* click events pass through to rect */
 }
 
+.rho-gradient-arrow {
+  font-size: 14px;
+  font-weight: bold;
+  dominant-baseline: central;
+  pointer-events: none;
+  &.gradient-down {
+    fill: #10b981; /* green for going down/shrinking */
+  }
+  &.gradient-up {
+    fill: #ef4444; /* red for going up/expanding */
+  }
+}
+
+.decimal-divider-line {
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+  opacity: 0.4;
+}
+
+.lca-path-line {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+
+.lca-distance-explainer-anchor {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  pointer-events: auto;
+}
+
+.lca-distance-text {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: bold;
+  color: #64748b;
+}
+
+.lca-path-label {
+  fill: #64748b;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+  text-anchor: middle;
+}
+
+.candidate-loss-bg {
+  fill: #ffffff;
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  opacity: 0.9;
+  &.best-candidate-bg {
+    stroke: #10b981;
+    fill: #d1fae5;
+  }
+}
+
+.candidate-loss-label {
+  fill: #64748b;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: monospace;
+  pointer-events: none;
+  &.best-candidate {
+    fill: #059669;
+  }
+}
+
 /* Parameter center label next to the active node */
 .parameter-node-label {
   fill: #8b5cf6; /* purple parameter accent */

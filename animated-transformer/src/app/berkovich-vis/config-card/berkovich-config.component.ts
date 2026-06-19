@@ -22,6 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
   selector: 'app-berkovich-config',
@@ -35,7 +36,8 @@ import { MatInputModule } from '@angular/material/input';
     MatButtonModule,
     MatSelectModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    MatCheckboxModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -50,6 +52,7 @@ export class BerkovichConfigComponent {
   readonly learningRateInput = input.required<string>();
   readonly isPlaying = input.required<boolean>();
   readonly stepCount = input.required<number>();
+  readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
   readonly primeChange = output<number>();
@@ -59,6 +62,7 @@ export class BerkovichConfigComponent {
   readonly centerDigitsInputChange = output<string>();
   readonly logRadiusInputChange = output<string>();
   readonly learningRateInputChange = output<string>();
+  readonly showGradientAnnotationsChange = output<boolean>();
 
   readonly targetBlur = output<void>();
   readonly targetDigitsBlur = output<void>();
