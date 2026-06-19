@@ -70,17 +70,10 @@ export class LandingPageComponent {
       colorClass: 'card-advanced-docs',
     },
     {
-      title: 'Berkovich Point Explorer',
+      title: 'Berkovich ML Explorers',
       description: 'Explore the continuous optimization landscapes of non-Archimedean p-adic models in Berkovich spaces.',
-      route: '/berkovich-point',
+      route: '/berkovich',
       icon: 'blur_linear',
-      colorClass: 'card-berkovich',
-    },
-    {
-      title: 'Berkovich Target Disk Explorer',
-      description: 'Explore optimization landscapes learning both center and log-radius targets.',
-      route: '/berkovich-disk',
-      icon: 'adjust',
       colorClass: 'card-berkovich',
     },
   ];

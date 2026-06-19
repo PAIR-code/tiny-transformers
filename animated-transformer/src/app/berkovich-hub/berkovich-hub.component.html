@@ -1,0 +1,54 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="landing-container">
+  <header class="landing-header">
+    <div class="header-content">
+      <button mat-icon-button routerLink="/" class="back-btn" aria-label="Go back to landing page">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1>Berkovich Space Explorers</h1>
+        <p class="subtitle">
+          Interactive tools for continuous non-Archimedean ML and gradient descent on p-adic trees.
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <section class="section-group">
+      <div class="cards-grid">
+        @for (card of activeCards; track card.route) {
+          <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+            <div class="card-glow"></div>
+            <div class="card-content">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+              </div>
+              <h3>{{ card.title }}</h3>
+              <p>{{ card.description }}</p>
+              <div class="card-actions">
+                <span class="explore-btn">
+                  Explore
+                  <mat-icon>arrow_forward</mat-icon>
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+</div>

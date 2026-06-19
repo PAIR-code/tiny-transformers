@@ -32,7 +32,9 @@ import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component
 import { provideHttpClient } from '@angular/common/http';
 import { BerkovichPointVisComponent } from './berkovich-point-vis/berkovich-point-vis.component';
 import { BerkovichDiskVisComponent } from './berkovich-disk-vis/berkovich-disk-vis.component';
-// import { BerkovichAdditionVisComponent } from './berkovich-addition-vis/berkovich-addition-vis.component';
+import { BerkovichAdditionVisComponent } from './berkovich-addition-vis/berkovich-addition-vis.component';
+import { BerkovichAdditionGradientsVisComponent } from './berkovich-addition-gradients-vis/berkovich-addition-gradients-vis.component';
+import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -67,10 +69,16 @@ export const routes: Routes = [
       },
     ]
   },
-  { path: 'berkovich-point', component: BerkovichPointVisComponent },
-  { path: 'berkovich-disk', component: BerkovichDiskVisComponent },
-  // { path: 'berkovich-addition', component: BerkovichAdditionVisComponent },
-  { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
+  {
+    path: 'berkovich',
+    children: [
+      { path: '', component: BerkovichHubComponent, pathMatch: 'full' },
+      { path: 'point', component: BerkovichPointVisComponent },
+      { path: 'disk', component: BerkovichDiskVisComponent },
+      { path: 'addition', component: BerkovichAdditionVisComponent },
+      { path: 'addition-gradients', component: BerkovichAdditionGradientsVisComponent }
+    ]
+  },
 ];
 
 export const appConfig: ApplicationConfig = {
