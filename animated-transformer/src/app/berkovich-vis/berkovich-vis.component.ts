@@ -100,9 +100,14 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly history = signal<{ step: number; center: Rational; logRadius: number; loss: number; type: string }[]>([]);
 
   // Animation state
-  private animationInterval: any = null;
+  private animationTimeout: any = null;
   readonly isPlaying = signal<boolean>(false);
   readonly isDraggingRho = signal<boolean>(false);
+  // Tracks the animation phase for vertex steps:
+  // 'idle' = no animation in progress
+  // 'fadeout' = non-optimal loss labels are fading out, state not yet updated
+  // 'show' = new candidates are being shown after state update
+  readonly animationPhase = signal<'idle' | 'fadeout' | 'show'>('idle');
 
   // Real-time displaying values for parameters inputs
   readonly displayCenter = computed(() => {
@@ -162,7 +167,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     const val = this.currentDistanceValuation();
     // If they match exactly, log-radius distance d is -infinity.
     const d = extNegate(val);
-    return computePathLoss(rho, d);
+    return computePathLoss(rho, d, -2);
   });
 
   // Aligned digit row comparisons
@@ -299,6 +304,62 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Execute one animated step: for vertex states, fades out non-optimal
+   *  candidates before applying the state update. Returns a promise that
+   *  resolves when the full visual step is complete. */
+  private animatedStep(): Promise<void> {
+    const p = BigInt(this.prime());
+    const c = this.currentCenter();
+    const rho = this.currentLogRadius();
+    const y = this.targetRational();
+    const eta = this.learningRate();
+    const details = computeGradientDetails(c, rho, y, -2, p, eta);
+
+    if (details.isVertex) {
+      // Phase 1: Signal the tree-vis to fade out non-optimal candidates
+      this.animationPhase.set('fadeout');
+
+      return new Promise(resolve => {
+        // Wait for the non-optimal fadeout CSS transition (500ms)
+        setTimeout(() => {
+          // Phase 2: Apply the actual state update
+          this.applyStepDetails(details);
+          this.animationPhase.set('show');
+
+          // Wait for the new candidates to fully appear before the next step
+          setTimeout(() => {
+            this.animationPhase.set('idle');
+            resolve();
+          }, 800);
+        }, 500);
+      });
+    } else {
+      // Edge (continuous) steps happen quickly
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
+      return Promise.resolve();
+    }
+  }
+
+  /** Shared helper to apply gradient step results to state signals. */
+  private applyStepDetails(details: GradientDetails): void {
+    this.currentCenter.set(details.nextCenter);
+    this.currentLogRadius.set(details.nextLogRadius);
+    this.stepCount.update(s => s + 1);
+
+    this.history.update(h => [...h, {
+      step: this.stepCount(),
+      center: details.nextCenter,
+      logRadius: details.nextLogRadius,
+      loss: details.loss,
+      type: details.stepType
+    }]);
+
+    if (details.loss <= 1e-7 || details.nextLogRadius <= -2.0) {
+      this.stopAnimation();
+    }
+  }
+
   randomizeCenterAndTarget(): void {
     this.stopAnimation();
     const p = BigInt(this.prime());
@@ -356,16 +417,36 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
 
   private startAnimation(): void {
     this.isPlaying.set(true);
-    this.animationInterval = setInterval(() => {
-      this.step();
-    }, 600);
+    this.scheduleNextStep();
+  }
+
+  /** Schedule the next animated step using setTimeout so vertex steps
+   *  can take longer than edge steps. */
+  private scheduleNextStep(): void {
+    if (!this.isPlaying()) return;
+
+    // Check if the *current* state is at a vertex to determine timing.
+    const p = BigInt(this.prime());
+    const c = this.currentCenter();
+    const rho = this.currentLogRadius();
+    const y = this.targetRational();
+    const eta = this.learningRate();
+    const preview = computeGradientDetails(c, rho, y, -2, p, eta);
+    const delay = preview.isVertex ? 400 : 600;
+
+    this.animationTimeout = setTimeout(async () => {
+      if (!this.isPlaying()) return;
+      await this.animatedStep();
+      this.scheduleNextStep();
+    }, delay);
   }
 
   private stopAnimation(): void {
     this.isPlaying.set(false);
-    if (this.animationInterval) {
-      clearInterval(this.animationInterval);
-      this.animationInterval = null;
+    this.animationPhase.set('idle');
+    if (this.animationTimeout) {
+      clearTimeout(this.animationTimeout);
+      this.animationTimeout = null;
     }
   }
 

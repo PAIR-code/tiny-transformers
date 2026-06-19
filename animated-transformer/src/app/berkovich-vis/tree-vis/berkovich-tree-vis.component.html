@@ -149,12 +149,12 @@
 
       <!-- Distance path line (LCA to Right of SVG) -->
       @if (lcaCoord() !== null) {
-        <g class="lca-path-group">
+        <g class="lca-path-group" [style.transform]="'translate(0px, ' + lcaCoord()!.y + 'px)'">
           <line
             [attr.x1]="lcaCoord()!.x"
-            [attr.y1]="lcaCoord()!.y"
+            y1="0"
             [attr.x2]="svgWidth()"
-            [attr.y2]="lcaCoord()!.y"
+            y2="0"
             class="lca-path-line"
           />
         </g>
@@ -167,6 +167,7 @@
           class="candidate-loss-group"
           [class.visible]="showCandidates()"
           [class.best-candidate-group]="cand.branch === cachedBestBranch()"
+          [class.fading-out]="fadingOutNonOptimal() && cand.branch !== cachedBestBranch()"
         >
           <rect x="-23" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === cachedBestBranch()" />
           <text x="0" y="0" class="candidate-loss-label" [class.best-candidate]="cand.branch === cachedBestBranch()">

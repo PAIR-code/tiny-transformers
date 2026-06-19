@@ -90,6 +90,7 @@ export class BerkovichTreeVisComponent {
   readonly gradientBreakdown = input<GradientDetails>();
   readonly currentDistanceValuation = input<ExtendedNumber>();
   readonly showGradientAnnotations = input<boolean>(true);
+  readonly animationPhase = input<'idle' | 'fadeout' | 'show'>('idle');
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -648,6 +649,8 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
   readonly cachedCandidates = signal<any[]>([]);
   readonly cachedBestBranch = signal<string>('');
   readonly showCandidates = signal<boolean>(false);
+  // When true, non-optimal candidate loss labels fade out while the best stays visible.
+  readonly fadingOutNonOptimal = signal<boolean>(false);
 
   readonly currentParameterCoord = computed(() => {
     const c_curr = this.currentCenter();
@@ -698,14 +701,20 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     effect(() => {
       const breakdown = this.gradientBreakdown();
       const showAnnotations = this.showGradientAnnotations();
+      const phase = this.animationPhase();
       
       untracked(() => {
-        if (showAnnotations && breakdown?.isVertex && breakdown?.candidates) {
+        if (phase === 'fadeout') {
+          // Phase 1: keep candidates visible but start fading non-optimal ones out
+          this.fadingOutNonOptimal.set(true);
+        } else if (showAnnotations && breakdown?.isVertex && breakdown?.candidates) {
           this.cachedCandidates.set(breakdown.candidates);
           this.cachedBestBranch.set(breakdown.bestBranch ?? '');
           this.showCandidates.set(true);
+          this.fadingOutNonOptimal.set(false);
         } else {
           this.showCandidates.set(false);
+          this.fadingOutNonOptimal.set(false);
         }
       });
     });

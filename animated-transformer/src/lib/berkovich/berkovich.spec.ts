@@ -142,16 +142,16 @@ describe('Berkovich Math Library - Optimization Step Calculations', () => {
     const parent = candidates.find(cand => cand.branch === 'parent');
     expect(parent).toBeDefined();
     expect(parent?.logRadius).toBe(3);
-    // Loss = |3 - 1| + 1 = 3
-    expect(parent?.lossVal).toBe(3);
+    // Loss = |3 - 1| + 1 - (-2) = 5
+    expect(parent?.lossVal).toBe(5);
     
     // Child 0 candidate
     const child0 = candidates.find(cand => cand.branch === '0');
     expect(child0).toBeDefined();
     expect(child0?.logRadius).toBe(1);
     // child0 center = 0 + 0 = 0. dist = val(0 - 5/3) = val(-5/3) = -1, d_child0 = 1.
-    // Loss = |1 - 1| + 1 = 1
-    expect(child0?.lossVal).toBe(1);
+    // Loss = |1 - 1| + 1 - (-2) = 3
+    expect(child0?.lossVal).toBe(3);
   });
 
   it('should compute continuous steps and snapping boundaries correctly', () => {
@@ -222,8 +222,8 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     expect(details.isVertex).toBe(true);
     expect(details.rho).toBe(2.0);
     expect(details.d).toEqual({ type: 'finite', value: 1 });
-    // Loss = |2.0 - 1| + 1 = 2
-    expect(details.loss).toBe(2);
+    // Loss = |2.0 - 1| + 1 - (-2) = 4
+    expect(details.loss).toBe(4);
     expect(details.bestBranch).toBe('0');
     expect(details.nextCenter).toEqual(parseToRational('0'));
     expect(details.nextLogRadius).toBeCloseTo(1.8);
@@ -276,11 +276,31 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
 
 describe('Berkovich Math Library - Path Loss Helper', () => {
   it('should compute path metric loss correctly', () => {
-    expect(computePathLoss(0, { type: 'finite', value: 1 })).toBe(2);
-    expect(computePathLoss(2, { type: 'finite', value: 1 })).toBe(2);
-    expect(computePathLoss(-1, { type: 'finite', value: 1 })).toBe(3); // |-1 - 1| + 1 = 2 + 1 = 3
-    expect(computePathLoss(0, { type: 'neg-infinity' })).toBe(0);
-    expect(computePathLoss(2, { type: 'neg-infinity' })).toBe(2);
+    expect(computePathLoss(0, { type: 'finite', value: 1 }, 0)).toBe(2);
+    expect(computePathLoss(2, { type: 'finite', value: 1 }, 0)).toBe(2);
+    expect(computePathLoss(-1, { type: 'finite', value: 1 }, 0)).toBe(3); // |-1 - 1| + 1 = 2 + 1 = 3
+    expect(computePathLoss(0, { type: 'neg-infinity' }, 0)).toBe(0);
+    expect(computePathLoss(2, { type: 'neg-infinity' }, 0)).toBe(2);
+  });
+
+  it('should compute path-metric loss to target leaf correctly', () => {
+    // User configuration: target y = 01.20 (5/3), current center x_c = 00.00 (0), rho = 0.0.
+    // The prime is p = 3.
+    // The LCA distance d between 0 and 5/3 is d = -val_3(0 - 5/3) = -val_3(-5/3) = 1.
+    //
+    // 1. If target leaf depth y_rho is assumed to be 0:
+    //    L_path = |rho - d| + d - y_rho = |0 - 1| + 1 - 0 = 2.
+    //    This is the relative path loss where target depth is the root.
+    const relativeLoss = computePathLoss(0.0, { type: 'finite', value: 1.0 }, 0.0);
+    expect(relativeLoss).toBe(2.0);
+
+    // 2. In our finite tree simulator, target leaves are represented down to depth y_rho = -2.
+    //    The true tree distance from parameter (0, 0.0) to target leaf (5/3, -2.0) is:
+    //    L_path = |rho - d| + d - y_rho = |0 - 1| + 1 - (-2) = 4.
+    //    This must be 4 so that the loss function remains positive and only reaches 0
+    //    when the parameter converges exactly to the leaf disk (c = 5/3, rho = -2.0).
+    const trueLeafLoss = computePathLoss(0.0, { type: 'finite', value: 1.0 }, -2.0);
+    expect(trueLeafLoss).toBe(4.0);
   });
 });
 
@@ -393,6 +413,74 @@ describe('Berkovich Tree Candidate Matching', () => {
             `Tree nodes at this level: [${nodesAtLevel.join(', ')}]`
           );
         }
+      }
+    });
+  }
+});
+
+describe('Berkovich Gradient Descent Convergence', () => {
+  const rhoMin = -2;
+  const eta = 0.2;
+  const maxSteps = 200;
+
+  function runDescent(
+    p: bigint, startCenter: Rational, startRho: number, target: Rational
+  ): { converged: boolean; steps: number; finalCenter: Rational; finalRho: number; trace: string[] } {
+    let c = startCenter;
+    let rho = startRho;
+    const trace: string[] = [];
+
+    for (let i = 0; i < maxSteps; i++) {
+      const details = computeGradientDetails(c, rho, target, rhoMin, p, eta);
+      trace.push(
+        `step ${i}: rho=${rho.toFixed(4)} c=${formatRational(c)} ` +
+        `d=${details.d.type === 'finite' ? details.d.value : details.d.type} ` +
+        `loss=${details.loss.toFixed(4)} type=${details.stepType}`
+      );
+      if (details.loss <= 1e-7) {
+        return { converged: true, steps: i, finalCenter: c, finalRho: rho, trace };
+      }
+      c = details.nextCenter;
+      rho = details.nextLogRadius;
+    }
+    return { converged: false, steps: maxSteps, finalCenter: c, finalRho: rho, trace };
+  }
+
+  const cases = [
+    // Default: y=5/3, c=0, rho=0
+    { label: 'default y=5/3 c=0 rho=0', p: 3, target: '5/3', center: '0', rho: 0 },
+    // User-reported: y=5/3 (01.20), c=2/3 (00.20), rho=0
+    { label: 'y=5/3 c=2/3 rho=0', p: 3, target: '5/3', center: '2/3', rho: 0 },
+    // Same target, different start
+    { label: 'y=5/3 c=1/3 rho=0', p: 3, target: '5/3', center: '1/3', rho: 0 },
+    // Start at rho=1
+    { label: 'y=5/3 c=0 rho=1', p: 3, target: '5/3', center: '0', rho: 1 },
+    // Start at rho=2
+    { label: 'y=5/3 c=0 rho=2', p: 3, target: '5/3', center: '0', rho: 2 },
+    // p=2 case
+    { label: 'p=2 y=3/4 c=0 rho=0', p: 2, target: '3/4', center: '0', rho: 0 },
+    // Already at target center, but rho is too large
+    { label: 'y=5/3 c=5/3 rho=0', p: 3, target: '5/3', center: '5/3', rho: 0 },
+    { label: 'y=5/3 c=5/3 rho=1', p: 3, target: '5/3', center: '5/3', rho: 1 },
+    // Identical start and target
+    { label: 'y=5/3 c=5/3 rho=-2', p: 3, target: '5/3', center: '5/3', rho: -2 },
+  ];
+
+  for (const tc of cases) {
+    it(`should converge for: ${tc.label}`, () => {
+      const result = runDescent(
+        BigInt(tc.p),
+        parseToRational(tc.center),
+        tc.rho,
+        parseToRational(tc.target)
+      );
+      if (!result.converged) {
+        const lastLines = result.trace.slice(-10).join('\n');
+        expect.fail(
+          `Did not converge in ${maxSteps} steps.\n` +
+          `Final: rho=${result.finalRho.toFixed(4)} c=${formatRational(result.finalCenter)}\n` +
+          `Last 10 steps:\n${lastLines}`
+        );
       }
     });
   }

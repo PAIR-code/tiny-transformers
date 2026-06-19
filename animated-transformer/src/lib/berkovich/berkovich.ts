@@ -133,10 +133,10 @@ export function getValuation(r: Rational, p: bigint): ExtendedNumber {
   return { type: 'finite', value: numVal - denVal };
 }
 
-export function computePathLoss(rho: number, d: ExtendedNumber): number {
-  if (d.type === 'neg-infinity') return rho;
+export function computePathLoss(rho: number, d: ExtendedNumber, y_rho: number): number {
+  if (d.type === 'neg-infinity') return rho - y_rho;
   if (d.type === 'pos-infinity') return Infinity;
-  return Math.abs(rho - d.value) + d.value;
+  return Math.abs(rho - d.value) + d.value - y_rho;
 }
 
 export function parseToRational(input: string): Rational {
@@ -250,8 +250,11 @@ export function getAlignedDigits(
 
 export interface VertexCandidate {
   branch: string;
+  branchLabel: string;
   center: Rational;
+  centerStr: string;
   logRadius: number;
+  distVal: ExtendedNumber;
   lossVal: number;
 }
 
@@ -280,15 +283,18 @@ export function computeVertexCandidates(
   // Parent candidate
   candidates.push({
     branch: 'parent',
+    branchLabel: 'Parent (∞)',
     center: c,
+    centerStr: formatRational(c),
     logRadius: k + 1,
-    lossVal: computePathLoss(k + 1, d)
+    distVal: d,
+    lossVal: computePathLoss(k + 1, d, y_rho)
   });
   
   // Children candidates
   for (let g = 0; g < Number(p); g++) {
     let shift: Rational;
-    const power = -k + 1;
+    const power = -k;
     if (power <= 0) {
       shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
     } else {
@@ -298,12 +304,15 @@ export function computeVertexCandidates(
     const childDiff = subtract(childCenter, y);
     const childVal = getValuation(childDiff, p);
     const childD = extNegate(childVal);
-    const childLoss = computePathLoss(k - 1, childD);
+    const childLoss = computePathLoss(k - 1, childD, y_rho);
     
     candidates.push({
       branch: g.toString(),
+      branchLabel: `Child ${g}`,
       center: childCenter,
+      centerStr: formatRational(childCenter),
       logRadius: k - 1,
+      distVal: childD,
       lossVal: childLoss
     });
   }
@@ -432,11 +441,13 @@ export function computeGradientDetails(
   const val = getValuation(diff, p);
   // If they match exactly, log-radius distance d is -infinity.
   const d = extNegate(val);
-  const loss = val.type === 'pos-infinity' && rho <= y_rho ? 0 : computePathLoss(rho, d);
+  const loss = val.type === 'pos-infinity' && rho <= y_rho ? 0 : computePathLoss(rho, d, y_rho);
   
+  const vertexState = isVertex(rho);
+
   if (loss < 1e-7) {
     return {
-      isVertex: Math.abs(rho - Math.round(rho)) < 1e-7,
+      isVertex: vertexState,
       rho,
       d,
       loss: 0,
@@ -448,56 +459,9 @@ export function computeGradientDetails(
     };
   }
   
-  const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
-  
-  if (isVertex) {
+  if (vertexState) {
     const k = Math.round(rho);
-    const candidates: {
-      branch: string;
-      branchLabel: string;
-      center: Rational;
-      centerStr: string;
-      logRadius: number;
-      distVal: ExtendedNumber;
-      lossVal: number;
-    }[] = [];
-    
-    // Parent candidate
-    candidates.push({
-      branch: 'parent',
-      branchLabel: 'Parent (∞)',
-      center: c,
-      centerStr: formatRational(c),
-      logRadius: k + 1,
-      distVal: d,
-      lossVal: computePathLoss(k + 1, d)
-    });
-    
-    // Children candidates
-    for (let g = 0; g < Number(p); g++) {
-      let shift: Rational;
-      const power = -k;
-      if (power <= 0) {
-        shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-      } else {
-        shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-      }
-      const childCenter = add(c, shift);
-      const childDiff = subtract(childCenter, y);
-      const childVal = getValuation(childDiff, p);
-      const childD = extNegate(childVal);
-      const childLoss = computePathLoss(k - 1, childD);
-      
-      candidates.push({
-        branch: g.toString(),
-        branchLabel: `Child ${g}`,
-        center: childCenter,
-        centerStr: formatRational(childCenter),
-        logRadius: k - 1,
-        distVal: childD,
-        lossVal: childLoss
-      });
-    }
+    const candidates = computeVertexCandidates(c, rho, y, y_rho, p);
     
     // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
     let minLoss = Infinity;
