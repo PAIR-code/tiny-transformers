@@ -48,15 +48,15 @@ import {
 
 import { BerkovichTreeVisComponent } from './tree-vis/berkovich-tree-vis.component';
 import { BerkovichConfigComponent } from './config-card/berkovich-config.component';
-import { BerkovichStateComponent } from './state-card/berkovich-state.component';
+
 import { BerkovichDigitsComponent } from './digits-card/berkovich-digits.component';
 import { BerkovichCalculusComponent } from './calculus-card/berkovich-calculus.component';
 import { BerkovichHistoryComponent } from './history-card/berkovich-history.component';
 
 @Component({
-  selector: 'app-berkovich-vis',
-  templateUrl: './berkovich-vis.component.html',
-  styleUrls: ['./berkovich-vis.component.scss'],
+  selector: 'app-berkovich-point-vis',
+  templateUrl: './berkovich-point-vis.component.html',
+  styleUrls: ['./berkovich-point-vis.component.scss'],
   imports: [
     CommonModule,
     MatIconModule,
@@ -65,14 +65,13 @@ import { BerkovichHistoryComponent } from './history-card/berkovich-history.comp
     MarkdownComponent,
     BerkovichTreeVisComponent,
     BerkovichConfigComponent,
-    BerkovichStateComponent,
     BerkovichDigitsComponent,
     BerkovichCalculusComponent,
     BerkovichHistoryComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BerkovichVisComponent implements OnInit, OnDestroy {
+export class BerkovichPointVisComponent implements OnInit, OnDestroy {
   // Configurable parameters
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
@@ -81,7 +80,7 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
   readonly centerDigitsInput = signal<string>('00.00');
   readonly logRadiusInput = signal<string>('0.0');
   readonly learningRateInput = signal<string>('0.20');
-  readonly showGradientAnnotations = signal<boolean>(true);
+
 
   readonly initLogRadius = computed(() => {
     const v = parseFloat(this.logRadiusInput());

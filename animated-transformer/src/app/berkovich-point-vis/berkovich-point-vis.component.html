@@ -27,7 +27,7 @@
         [isDraggingRho]="isDraggingRho()"
         [gradientBreakdown]="gradientBreakdown()"
         [currentDistanceValuation]="currentDistanceValuation()"
-        [showGradientAnnotations]="showGradientAnnotations()"
+
         [animationPhase]="animationPhase()"
         (logRadiusChange)="onLogRadiusChange($event)"
         (draggingChange)="onDraggingChange($event)"
@@ -52,7 +52,6 @@
         [learningRateInput]="learningRateInput()"
         [isPlaying]="isPlaying()"
         [stepCount]="stepCount()"
-        [showGradientAnnotations]="showGradientAnnotations()"
         (primeChange)="onPrimeChange($event)"
         (targetInputChange)="targetInput.set($event)"
         (targetDigitsInputChange)="targetDigitsInput.set($event)"
@@ -71,18 +70,10 @@
         (undo)="undo()"
         (reset)="reset()"
         (randomizeCenterAndTarget)="randomizeCenterAndTarget()"
-        (showGradientAnnotationsChange)="showGradientAnnotations.set($event)"
+
       />
 
-      <!-- 2. Current State Details -->
-      <app-berkovich-state
-        [prime]="prime()"
-        [currentCenter]="currentCenter()"
-        [currentLogRadius]="currentLogRadius()"
-        [currentDistanceValuation]="currentDistanceValuation()"
-        [currentLoss]="currentLoss()"
-        [stepCount]="stepCount()"
-      />
+
     </aside>
   </div>
 

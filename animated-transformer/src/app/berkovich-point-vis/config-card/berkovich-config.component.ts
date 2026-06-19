@@ -52,7 +52,6 @@ export class BerkovichConfigComponent {
   readonly learningRateInput = input.required<string>();
   readonly isPlaying = input.required<boolean>();
   readonly stepCount = input.required<number>();
-  readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
   readonly primeChange = output<number>();
@@ -62,7 +61,6 @@ export class BerkovichConfigComponent {
   readonly centerDigitsInputChange = output<string>();
   readonly logRadiusInputChange = output<string>();
   readonly learningRateInputChange = output<string>();
-  readonly showGradientAnnotationsChange = output<boolean>();
 
   readonly targetBlur = output<void>();
   readonly targetDigitsBlur = output<void>();

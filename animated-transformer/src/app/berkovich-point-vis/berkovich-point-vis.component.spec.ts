@@ -19,7 +19,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ngx-markdown';
 import { SecurityContext } from '@angular/core';
-import { BerkovichVisComponent } from './berkovich-vis.component';
+import { BerkovichPointVisComponent } from './berkovich-point-vis.component';
 import { 
   parseToRational, 
   getValuation, 
@@ -97,13 +97,13 @@ describe('P-adic Arithmetic Helpers', () => {
   });
 });
 
-describe('BerkovichVisComponent', () => {
-  let component: BerkovichVisComponent;
-  let fixture: ComponentFixture<BerkovichVisComponent>;
+describe('BerkovichPointVisComponent', () => {
+  let component: BerkovichPointVisComponent;
+  let fixture: ComponentFixture<BerkovichPointVisComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BerkovichVisComponent],
+      imports: [BerkovichPointVisComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
@@ -127,7 +127,7 @@ describe('BerkovichVisComponent', () => {
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BerkovichVisComponent);
+    fixture = TestBed.createComponent(BerkovichPointVisComponent);
     component = fixture.componentInstance;
     
     // Set default test values

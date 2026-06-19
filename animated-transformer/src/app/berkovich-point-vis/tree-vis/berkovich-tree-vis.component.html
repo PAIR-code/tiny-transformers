@@ -265,7 +265,7 @@
           x_&rho; = {{ currentLogRadius().toFixed(2) }}
         </text>
         <!-- Up/Down Arrow for Gradient -->
-        @if (showGradientAnnotations() && gradientBreakdown()?.gRho !== undefined) {
+        @if (gradientBreakdown()?.gRho !== undefined) {
           <text
             [attr.x]="rhoLabelX() + 82"
             y="2"

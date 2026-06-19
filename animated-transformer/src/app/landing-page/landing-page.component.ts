@@ -70,9 +70,9 @@ export class LandingPageComponent {
       colorClass: 'card-advanced-docs',
     },
     {
-      title: 'Berkovich ML Explorer',
+      title: 'Berkovich Point Explorer',
       description: 'Explore the continuous optimization landscapes of non-Archimedean p-adic models in Berkovich spaces.',
-      route: '/berkovich',
+      route: '/berkovich-point',
       icon: 'blur_linear',
       colorClass: 'card-berkovich',
     },

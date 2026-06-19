@@ -46,11 +46,11 @@ import {
 } from '../../lib/berkovich/berkovich';
 
 
-import { BerkovichStateComponent } from '../berkovich-vis/state-card/berkovich-state.component';
-import { BerkovichDigitsComponent } from '../berkovich-vis/digits-card/berkovich-digits.component';
-import { BerkovichCalculusComponent } from '../berkovich-vis/calculus-card/berkovich-calculus.component';
-import { BerkovichHistoryComponent } from '../berkovich-vis/history-card/berkovich-history.component';
-import { BerkovichTreeVisComponent } from '../berkovich-vis/tree-vis/berkovich-tree-vis.component';
+
+import { BerkovichDigitsComponent } from '../berkovich-point-vis/digits-card/berkovich-digits.component';
+import { BerkovichCalculusComponent } from '../berkovich-point-vis/calculus-card/berkovich-calculus.component';
+import { BerkovichHistoryComponent } from '../berkovich-point-vis/history-card/berkovich-history.component';
+import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
 import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-config.component';
 
 @Component({
@@ -63,7 +63,6 @@ import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-confi
     MatIconModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichStateComponent,
     BerkovichDigitsComponent,
     BerkovichCalculusComponent,
     BerkovichHistoryComponent,
@@ -104,7 +103,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
   readonly stepCount = signal<number>(0);
   readonly history = signal<{ step: number; center: Rational; logRadius: number; loss: number; type: string }[]>([]);
 
-  readonly showGradientAnnotations = signal<boolean>(true);
+
 
   // Animation state
   private animationTimeout: any = null;
@@ -278,13 +277,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     this.currentCenter.set(this.initCenterRational());
     this.currentLogRadius.set(this.initLogRadius());
     this.stepCount.set(0);
-    this.history.set([{
-      step: 0,
-      center: this.initCenterRational(),
-      logRadius: this.initLogRadius(),
-      loss: this.currentLoss(),
-      type: 'Initialization'
-    }]);
+    this.history.set([]);
   }
 
   step(): void {

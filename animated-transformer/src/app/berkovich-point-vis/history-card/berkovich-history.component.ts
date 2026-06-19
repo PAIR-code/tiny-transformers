@@ -59,4 +59,14 @@ export class BerkovichHistoryComponent {
     }
     return `\\frac{${simplified.num}}{${simplified.den}}`;
   }
+
+  getPointType(rho: number): string {
+    if (rho <= -2.0) {
+      return 'Type I (Leaf)';
+    } else if (Number.isInteger(rho)) {
+      return 'Type II (Vertex)';
+    } else {
+      return 'Type III (Edge)';
+    }
+  }
 }

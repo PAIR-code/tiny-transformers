@@ -11,9 +11,9 @@
         <thead>
           <tr>
             <th>Step</th>
-            <th>Center (<markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown>)</th>
-            <th>Log-Radius (<markdown [inline]="true" [katex]="true" [data]="'$\\rho$'"></markdown>)</th>
+            <th>Point <markdown [inline]="true" [katex]="true" [data]="'$x = (x_c, x_{\\rho})$'"></markdown></th>
             <th>Loss (<markdown [inline]="true" [katex]="true" [data]="'$L_{\\text{path}}$'"></markdown>)</th>
+            <th>Current Point Type</th>
             <th>Update Mechanism</th>
           </tr>
         </thead>
@@ -22,10 +22,12 @@
             <tr>
               <td>{{ h.step }}</td>
               <td>
-                <span style="font-family: monospace;">{{ formatCenterDigitString(h.center) }}</span>
+                <span style="font-family: monospace;">({{ formatCenterDigitString(h.center) }}, {{ h.logRadius.toFixed(4) }})</span>
               </td>
-              <td>{{ h.logRadius.toFixed(4) }}</td>
               <td>{{ h.loss.toFixed(4) }}</td>
+              <td>
+                <span class="point-type-badge">{{ getPointType(h.logRadius) }}</span>
+              </td>
               <td>
                 <span class="step-type-badge">{{ h.type }}</span>
               </td>
@@ -35,10 +37,12 @@
             <tr class="current-step-row" style="background-color: #f8fafc; font-weight: bold;">
               <td>{{ currentStep() !== undefined ? currentStep() : 0 }} (Current)</td>
               <td>
-                <span style="font-family: monospace;">{{ formatCenterDigitString(currentCenter()!) }}</span>
+                <span style="font-family: monospace;">({{ formatCenterDigitString(currentCenter()!) }}, {{ currentLogRadius()!.toFixed(4) }})</span>
               </td>
-              <td>{{ currentLogRadius()!.toFixed(4) }}</td>
               <td>{{ currentLoss()!.toFixed(4) }}</td>
+              <td>
+                <span class="point-type-badge">{{ getPointType(currentLogRadius()!) }}</span>
+              </td>
               <td>
                 <span class="step-type-badge" style="background-color: #3b82f6; color: white;">Active State</span>
               </td>

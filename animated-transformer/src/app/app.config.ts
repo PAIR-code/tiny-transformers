@@ -30,7 +30,7 @@ import { LogicDocsComponent } from './logic-explorer/logic-docs.component';
 import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs.component';
 import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component';
 import { provideHttpClient } from '@angular/common/http';
-import { BerkovichVisComponent } from './berkovich-vis/berkovich-vis.component';
+import { BerkovichPointVisComponent } from './berkovich-point-vis/berkovich-point-vis.component';
 import { BerkovichDiskVisComponent } from './berkovich-disk-vis/berkovich-disk-vis.component';
 // import { BerkovichAdditionVisComponent } from './berkovich-addition-vis/berkovich-addition-vis.component';
 
@@ -67,7 +67,7 @@ export const routes: Routes = [
       },
     ]
   },
-  { path: 'berkovich', component: BerkovichVisComponent },
+  { path: 'berkovich-point', component: BerkovichPointVisComponent },
   { path: 'berkovich-disk', component: BerkovichDiskVisComponent },
   // { path: 'berkovich-addition', component: BerkovichAdditionVisComponent },
   { path: '**', component: ErrorPageComponent, pathMatch: 'full' },

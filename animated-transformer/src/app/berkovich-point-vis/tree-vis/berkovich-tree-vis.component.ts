@@ -90,7 +90,7 @@ export class BerkovichTreeVisComponent {
   readonly isDraggingRho = input.required<boolean>();
   readonly gradientBreakdown = input<GradientDetails>();
   readonly currentDistanceValuation = input<ExtendedNumber>();
-  readonly showGradientAnnotations = input<boolean>(true);
+
   readonly animationPhase = input<'idle' | 'fadeout' | 'show'>('idle');
 
   // Outputs
@@ -768,14 +768,13 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     // Handle candidate losses visibility and cache
     effect(() => {
       const breakdown = this.gradientBreakdown();
-      const showAnnotations = this.showGradientAnnotations();
       const phase = this.animationPhase();
       
       untracked(() => {
         if (phase === 'fadeout') {
           // Phase 1: keep candidates visible but start fading non-optimal ones out
           this.fadingOutNonOptimal.set(true);
-        } else if (showAnnotations && breakdown?.isVertex && breakdown?.candidates) {
+        } else if (breakdown?.isVertex && breakdown?.candidates) {
           this.cachedCandidates.set(breakdown.candidates);
           this.cachedBestBranch.set(breakdown.bestBranch ?? '');
           this.showCandidates.set(true);

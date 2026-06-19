@@ -53,7 +53,6 @@ export class BerkovichDiskConfigComponent {
   readonly learningRateInput = input.required<string>();
   readonly isPlaying = input.required<boolean>();
   readonly stepCount = input.required<number>();
-  readonly showGradientAnnotations = input<boolean>(true);
 
   // Outputs
   readonly primeChange = output<number>();
@@ -72,7 +71,6 @@ export class BerkovichDiskConfigComponent {
   readonly centerDigitsBlur = output<void>();
   readonly logRadiusBlur = output<void>();
   readonly learningRateBlur = output<void>();
-  readonly showGradientAnnotationsChange = output<boolean>();
 
   // Actions
   readonly togglePlay = output<void>();
