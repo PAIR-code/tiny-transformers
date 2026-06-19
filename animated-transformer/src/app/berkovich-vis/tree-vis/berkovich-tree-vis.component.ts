@@ -76,7 +76,9 @@ export class BerkovichTreeVisComponent {
   // Inputs
   readonly prime = input.required<number>();
   readonly targetRational = input.required<Rational>();
+  readonly targetDigitsInput = input.required<string>();
   readonly currentCenter = input.required<Rational>();
+  readonly centerDigitsInput = input.required<string>();
   readonly currentLogRadius = input.required<number>();
   readonly isDraggingRho = input.required<boolean>();
 
@@ -84,6 +86,10 @@ export class BerkovichTreeVisComponent {
   readonly logRadiusChange = output<number>();
   readonly draggingChange = output<boolean>();
   readonly manualLogRadiusAdjust = output<number>();
+  readonly targetDigitsInputChange = output<string>();
+  readonly centerDigitsInputChange = output<string>();
+  readonly targetDigitsBlur = output<void>();
+  readonly centerDigitsBlur = output<void>();
 
   // Constants
   readonly svgHeight = 460;
@@ -720,6 +726,15 @@ export class BerkovichTreeVisComponent {
         (event.target as Element).releasePointerCapture(event.pointerId);
       } catch {}
       this.manualLogRadiusAdjust.emit(this.currentLogRadius());
+    }
+  }
+
+  onLogRadiusInputChange(val: string): void {
+    let v = parseFloat(val);
+    if (!isNaN(v)) {
+      v = Math.max(this.rhoMin, Math.min(this.rhoMax, v));
+      this.logRadiusChange.emit(v);
+      this.manualLogRadiusAdjust.emit(v);
     }
   }
 }

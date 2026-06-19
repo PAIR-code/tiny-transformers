@@ -20,12 +20,18 @@
       <app-berkovich-tree-vis
         [prime]="prime()"
         [targetRational]="targetRational()"
+        [targetDigitsInput]="targetDigitsInput()"
         [currentCenter]="currentCenter()"
+        [centerDigitsInput]="displayCenterDigits()"
         [currentLogRadius]="currentLogRadius()"
         [isDraggingRho]="isDraggingRho()"
         (logRadiusChange)="onLogRadiusChange($event)"
         (draggingChange)="onDraggingChange($event)"
         (manualLogRadiusAdjust)="onManualLogRadiusAdjust($event)"
+        (targetDigitsInputChange)="targetDigitsInput.set($event)"
+        (centerDigitsInputChange)="centerDigitsInput.set($event)"
+        (targetDigitsBlur)="onTargetDigitsBlur()"
+        (centerDigitsBlur)="onCenterDigitsBlur()"
       />
     </section>
 

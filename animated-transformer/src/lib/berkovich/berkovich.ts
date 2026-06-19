@@ -386,6 +386,20 @@ export function computeGradientDetails(
   const lcaRho = Math.max(rho, y_rho, d);
   const loss = 2 * lcaRho - rho - y_rho;
   
+  if (loss < 1e-7) {
+    return {
+      isVertex: Math.abs(rho - Math.round(rho)) < 1e-7,
+      rho,
+      d,
+      loss: 0,
+      nextCenter: c,
+      nextLogRadius: rho,
+      stepType: 'Converged (Loss = 0)',
+      explanation: `The parameter $x = (${formatRational(c)}, ${rho.toFixed(4)})$ matches the target disk $y = (${formatRational(y)}, ${y_rho.toFixed(4)})$ perfectly. The loss is $0$, and optimization is complete.`,
+      candidates: []
+    };
+  }
+  
   const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
   
   if (isVertex) {

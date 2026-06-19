@@ -26,7 +26,7 @@
       <div class="input-row">
         <!-- Target Value (y) -->
         <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>Target Value (y)</mat-label>
+          <mat-label>Target Center (y_c)</mat-label>
           <input matInput [value]="targetInput()" (change)="targetInputChange.emit(targetField.value)" (blur)="targetBlur.emit()"
             #targetField />
           <mat-hint>fractions/decimals</mat-hint>
@@ -34,7 +34,7 @@
 
         <!-- Target Digits (p^2 ... p^-2) -->
         <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>y Digits</mat-label>
+          <mat-label>y_c Digits</mat-label>
           <input matInput [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(targetDigitsField.value)"
             (blur)="targetDigitsBlur.emit()" #targetDigitsField />
           <mat-hint>base-p digits</mat-hint>
@@ -52,14 +52,14 @@
       <div class="input-row">
         <!-- Init Center (c) -->
         <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>Center (c)</mat-label>
+          <mat-label>Parameter Center (x_c)</mat-label>
           <input matInput [value]="displayCenter()" (change)="centerInputChange.emit(centerField.value)" (blur)="centerBlur.emit()" #centerField />
           <mat-hint>fractions/decimals</mat-hint>
         </mat-form-field>
         
         <!-- Center Digits (p^2 ... p^-2) -->
         <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>c Digits</mat-label>
+          <mat-label>x_c Digits</mat-label>
           <input matInput [value]="displayCenterDigits()" (change)="centerDigitsInputChange.emit(digitsField.value)"
             (blur)="centerDigitsBlur.emit()" #digitsField />
           <mat-hint>base-p digits</mat-hint>
@@ -69,7 +69,7 @@
       <div class="input-row">
         <!-- Init Log-Radius (rho) -->
         <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>Center Log-Radius (c_&rho;)</mat-label>
+          <mat-label>Parameter Log-Radius (x_&rho;)</mat-label>
           <input matInput [value]="displayLogRadius()" (change)="logRadiusInputChange.emit(radiusField.value)" (blur)="logRadiusBlur.emit()" #radiusField />
           <mat-hint>Range [-2.0, 2.0]</mat-hint>
         </mat-form-field>

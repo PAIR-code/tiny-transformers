@@ -5,16 +5,30 @@
       Local Berkovich Subtree
     </mat-card-title>
     <mat-card-subtitle>
-      The <strong>yellow</strong> path indicates the target <markdown [inline]="true" [katex]="true" [data]="'$y$'">
+      The <strong>yellow</strong> path indicates the target center <markdown [inline]="true" [katex]="true" [data]="'$y_c$'">
       </markdown> (yellow circle).
-      The <strong>purple</strong> path is the current (center) value <markdown [inline]="true" [katex]="true" [data]="'$c$'">
+      The <strong>purple</strong> path is the parameter center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'">
       </markdown>.
       The glowing purple halo represents the current state.
       The <strong>green</strong> path is the correct part of the current value from the root.
     </mat-card-subtitle>
   </mat-card-header>
 
-  <mat-card-content class="svg-container">
+  <mat-card-content class="svg-container" style="position: relative;">
+    <div class="digit-editor-overlay">
+      <div class="editor-row">
+        <span class="editor-label yellow-text">y_c:</span>
+        <input class="mini-digit-input" [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(tInput.value)" (blur)="targetDigitsBlur.emit()" #tInput />
+      </div>
+      <div class="editor-row">
+        <span class="editor-label purple-text">x_c:</span>
+        <input class="mini-digit-input" [value]="centerDigitsInput()" (change)="centerDigitsInputChange.emit(cInput.value)" (blur)="centerDigitsBlur.emit()" #cInput />
+      </div>
+      <div class="editor-row">
+        <span class="editor-label purple-text">x_&rho;:</span>
+        <input class="mini-digit-input mini-rho-input" type="number" step="0.1" min="-2" max="2" [value]="currentLogRadius()" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
+      </div>
+    </div>
     <svg
       [attr.width]="svgWidth()"
       [attr.height]="svgHeight"
@@ -180,7 +194,7 @@
           y="1"
           class="rho-level-text"
         >
-          ρ = {{ currentLogRadius().toFixed(2) }}
+          x_&rho; = {{ currentLogRadius().toFixed(2) }}
         </text>
       </g>
 

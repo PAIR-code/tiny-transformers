@@ -303,8 +303,8 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
       type: details.stepType
     }]);
 
-    // Stop playing if we reach the leaf resolution limit of the tree (-2.0)
-    if (details.nextLogRadius <= -2.0) {
+    // Stop playing if we reach convergence (loss = 0) or the leaf resolution limit of the tree (-2.0)
+    if (details.loss <= 1e-7 || details.nextLogRadius <= -2.0) {
       this.stopAnimation();
     }
   }
@@ -482,5 +482,10 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
       loss: lossVal,
       type: `Manual adjust log-radius to ρ=${rho.toFixed(2)}`
     }]);
+  }
+
+  onTargetLogRadiusChange(rho: number): void {
+    this.targetLogRadiusInput.set(rho.toFixed(2));
+    this.reset();
   }
 }

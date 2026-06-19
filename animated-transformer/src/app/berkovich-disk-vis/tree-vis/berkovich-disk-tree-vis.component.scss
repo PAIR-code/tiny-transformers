@@ -340,6 +340,26 @@ text.node-text-label.inactive-stub {
   pointer-events: none; /* click events pass through to rect */
 }
 
+/* Target Disk Level Line Indicator */
+.target-rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-rho-level-line {
+  fill: none;
+  stroke: #eab308; /* yellow target accent */
+  stroke-width: 4;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+.target-rho-level-cap {
+  fill: none;
+  stroke: #eab308;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
 /* Parameter center label next to the active node */
 .parameter-node-label {
   fill: #8b5cf6; /* purple parameter accent */
@@ -358,7 +378,76 @@ text.node-text-label.inactive-stub {
   .digit-label-group,
   .parameter-overlay,
   .tree-edge,
-  .rho-level-group {
+  .rho-level-group,
+  .target-rho-level-group {
     transition: none !important;
+  }
+}
+
+/* Digit Editor Overlay */
+.digit-editor-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.yellow-text {
+  color: #d97706;
+}
+
+.purple-text {
+  color: #7c3aed;
+}
+
+.mini-digit-input {
+  width: 55px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: #f8fafc;
+  color: #1e293b;
+  text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    background: #ffffff;
+  }
+}
+
+.mini-rho-input {
+  width: 50px;
+  -appearance: textfield;
+  -moz-appearance: textfield;
+  
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -appearance: none;
+    margin: 0;
   }
 }

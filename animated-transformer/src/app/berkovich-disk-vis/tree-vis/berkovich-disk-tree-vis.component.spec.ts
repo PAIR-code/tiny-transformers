@@ -62,7 +62,10 @@ describe('BerkovichDiskTreeVisComponent', () => {
   const setInputs = (prime: number, target: string, center: string, rho: number, isDragging = false) => {
     fixture.componentRef.setInput('prime', prime);
     fixture.componentRef.setInput('targetRational', parseToRational(target));
+    fixture.componentRef.setInput('targetLogRadius', -2.0);
+    fixture.componentRef.setInput('targetDigitsInput', '01.20');
     fixture.componentRef.setInput('currentCenter', parseToRational(center));
+    fixture.componentRef.setInput('centerDigitsInput', '00.00');
     fixture.componentRef.setInput('currentLogRadius', rho);
     fixture.componentRef.setInput('isDraggingRho', isDragging);
     fixture.detectChanges();

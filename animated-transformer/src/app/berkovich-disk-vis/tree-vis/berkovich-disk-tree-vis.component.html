@@ -5,16 +5,34 @@
       Local BerkovichDisk Subtree
     </mat-card-title>
     <mat-card-subtitle>
-      The <strong>yellow</strong> path indicates the target <markdown [inline]="true" [katex]="true" [data]="'$y$'">
+      The <strong>yellow</strong> path indicates the target center <markdown [inline]="true" [katex]="true" [data]="'$y_c$'">
       </markdown> (yellow circle).
-      The <strong>purple</strong> path is the current (center) value <markdown [inline]="true" [katex]="true" [data]="'$c$'">
+      The <strong>purple</strong> path is the parameter center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'">
       </markdown>.
-      The glowing purple halo represents the current state.
-      The <strong>green</strong> path is the correct part of the current value from the root.
+      The glowing purple halo represents the current parameter state.
+      The <strong>green</strong> path is the correct part of the parameter center from the root.
     </mat-card-subtitle>
   </mat-card-header>
 
-  <mat-card-content class="svg-container">
+  <mat-card-content class="svg-container" style="position: relative;">
+    <div class="digit-editor-overlay">
+      <div class="editor-row">
+        <span class="editor-label yellow-text">y_c:</span>
+        <input class="mini-digit-input" [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(tInput.value)" (blur)="targetDigitsBlur.emit()" #tInput />
+      </div>
+      <div class="editor-row">
+        <span class="editor-label yellow-text">y_&rho;:</span>
+        <input class="mini-digit-input mini-rho-input" type="number" step="0.1" min="-2" max="2" [value]="targetLogRadius()" (change)="onTargetLogRadiusInputChange(yRhoInput.value)" #yRhoInput />
+      </div>
+      <div class="editor-row">
+        <span class="editor-label purple-text">x_c:</span>
+        <input class="mini-digit-input" [value]="centerDigitsInput()" (change)="centerDigitsInputChange.emit(cInput.value)" (blur)="centerDigitsBlur.emit()" #cInput />
+      </div>
+      <div class="editor-row">
+        <span class="editor-label purple-text">x_&rho;:</span>
+        <input class="mini-digit-input mini-rho-input" type="number" step="0.1" min="-2" max="2" [value]="currentLogRadius()" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
+      </div>
+    </div>
     <svg
       [attr.width]="svgWidth()"
       [attr.height]="svgHeight"
@@ -102,16 +120,36 @@
         </g>
       }
 
-      <!-- Target Indicator Flag -->
-      @for (node of treeVisuals().nodes; track node.id) {
-        @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
-          <!-- Draw Target Marker -->
-          <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
-            <circle r="12" class="target-outer" />
-            <circle r="4" class="target-inner" />
-          </g>
-        }
-      }
+      <!-- Target Marker at the actual target point -->
+      <g class="target-marker" [style.transform]="'translate(' + targetParameterCoord().x + 'px, ' + targetParameterCoord().y + 'px)'">
+        <circle r="12" class="target-outer" />
+        <circle r="4" class="target-inner" />
+      </g>
+
+      <!-- Target Disk Level Line Indicator Group -->
+      <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()) + 'px)'">
+        <line
+          [attr.x1]="targetRhoLineRange().x1"
+          y1="0"
+          [attr.x2]="targetRhoLineRange().x2"
+          y2="0"
+          class="target-rho-level-line"
+        />
+        <line
+          [attr.x1]="targetRhoLineRange().x1"
+          y1="-4"
+          [attr.x2]="targetRhoLineRange().x1"
+          y2="4"
+          class="target-rho-level-cap"
+        />
+        <line
+          [attr.x1]="targetRhoLineRange().x2"
+          y1="-4"
+          [attr.x2]="targetRhoLineRange().x2"
+          y2="4"
+          class="target-rho-level-cap"
+        />
+      </g>
 
       <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
       <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
@@ -180,7 +218,7 @@
           y="1"
           class="rho-level-text"
         >
-          ρ = {{ currentLogRadius().toFixed(2) }}
+          x_&rho; = {{ currentLogRadius().toFixed(2) }}
         </text>
       </g>
 

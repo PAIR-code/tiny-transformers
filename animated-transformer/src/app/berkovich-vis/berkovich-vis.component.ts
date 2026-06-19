@@ -293,8 +293,8 @@ export class BerkovichVisComponent implements OnInit, OnDestroy {
       type: details.stepType
     }]);
 
-    // Stop playing if we reach the leaf resolution limit of the tree (-2.0)
-    if (details.nextLogRadius <= -2.0) {
+    // Stop playing if we reach convergence (loss = 0) or the leaf resolution limit of the tree (-2.0)
+    if (details.loss <= 1e-7 || details.nextLogRadius <= -2.0) {
       this.stopAnimation();
     }
   }
