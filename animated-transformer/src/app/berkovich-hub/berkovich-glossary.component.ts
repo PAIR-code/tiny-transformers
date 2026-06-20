@@ -9,6 +9,19 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 ==============================================================================*/
 
+// =============================================================================
+// STYLE NOTES FOR THIS COMPONENT:
+// - Don't reference the paper (berkovich.tex) in the UI text.
+// - Every mathematical function/concept in the glossary should have an
+//   interactive editable playground section where users can plug in values.
+// - Playgrounds use minimal styling (not full Material Design components).
+// - Input boxes come in pairs: fraction/decimal + p-adic digit sequence,
+//   bidirectionally synced.
+// - Digit strips are view-only. Values are left-aligned, not right-aligned.
+// - Superscripts use <sup> via [innerHTML] when dynamically constructed.
+// - Error feedback appears below invalid inputs with red styling.
+// =============================================================================
+
 import { Component, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -106,6 +119,36 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
   return acc;
 }
 
+/** Validate a p-adic digit string, returning an error message or '' if valid. */
+function validateDigitsString(input: string, p: number): string {
+  const cleaned = input.trim();
+  if (!cleaned) return '';
+
+  // Check format: optional integer digits, optional dot, optional fractional digits
+  const dotIndex = cleaned.indexOf('.');
+  const integerPart = dotIndex === -1 ? cleaned : cleaned.slice(0, dotIndex);
+  const fractionalPart = dotIndex === -1 ? '' : cleaned.slice(dotIndex + 1);
+
+  // Check for multiple dots
+  if (cleaned.split('.').length > 2) {
+    return 'Multiple decimal points found.';
+  }
+
+  // Check each character is a valid digit
+  const allChars = integerPart + fractionalPart;
+  for (const ch of allChars) {
+    const d = parseInt(ch, 10);
+    if (isNaN(d)) {
+      return `Invalid character "${ch}". Only digits 0\u2013${p - 1} and "." are allowed.`;
+    }
+    if (d >= p) {
+      return `Digit ${d} is out of range for base ${p}. Use digits 0\u2013${p - 1}.`;
+    }
+  }
+
+  return '';
+}
+
 @Component({
   selector: 'app-berkovich-glossary',
   template: `
@@ -143,20 +186,30 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
             <div class="inline-playground">
               <div class="playground-title">
                 <mat-icon>offline_bolt</mat-icon>
-                Interactive Valuation & Digit Playground
+                Interactive Valuation, Absolute Value & Digits
               </div>
               <p class="help-text">
-                Edit <strong>x</strong> (fraction/decimal) or its <strong>p-adic digit sequence</strong> (e.g. <code>0001.200</code>). You can also click/tap the digit circles below to increment mod <strong>p</strong>:
+                Edit <strong>x</strong> (fraction/decimal, e.g. 5/3) or its <strong>p-adic digit sequence</strong> (e.g. <code>0001.200</code>).
               </p>
               
               <div class="minimal-form">
-                <div class="minimal-input-group">
-                  <span class="minimal-label">Number x:</span>
-                  <input class="minimal-input" [ngModel]="valInput()" (ngModelChange)="onValInputChange($event)" placeholder="e.g. 5/3">
+                <div class="input-with-error">
+                  <div class="minimal-input-group">
+                    <span class="minimal-label">Number x:</span>
+                    <input class="minimal-input" [class.input-error]="valInputError()" [ngModel]="valInput()" (ngModelChange)="onValInputChange($event)" placeholder="e.g. 5/3">
+                  </div>
+                  @if (valInputError()) {
+                    <span class="error-text">{{ valInputError() }}</span>
+                  }
                 </div>
-                <div class="minimal-input-group">
-                  <span class="minimal-label">Digits sequence:</span>
-                  <input class="minimal-input width-large" [ngModel]="valDigitsInput()" (ngModelChange)="onValDigitsInputChange($event)" placeholder="e.g. 0001.200">
+                <div class="input-with-error">
+                  <div class="minimal-input-group">
+                    <span class="minimal-label">Digits sequence:</span>
+                    <input class="minimal-input width-large" [class.input-error]="valDigitsError()" [ngModel]="valDigitsInput()" (ngModelChange)="onValDigitsInputChange($event)" placeholder="e.g. 0001.200">
+                  </div>
+                  @if (valDigitsError()) {
+                    <span class="error-text">{{ valDigitsError() }}</span>
+                  }
                 </div>
                 <div class="minimal-input-group">
                   <span class="minimal-label">Prime p:</span>
@@ -171,17 +224,20 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
 
               <div class="result-display">
                 <div class="result-row">
-                  <span class="label">Calculated Valuation &nu;<sub>p</sub>(x):</span>
+                  <span class="label">Valuation &nu;<sub>p</sub>(x):</span>
                   <span class="value-highlight">{{ formatValuation(valResult()) }}</span>
                 </div>
+                <div class="result-row">
+                  <span class="label">Absolute Value |x|<sub>p</sub> = p<sup>&minus;&nu;</sup>:</span>
+                  <span class="value"><span [innerHTML]="formatAbsoluteValue()"></span></span>
+                </div>
 
-                <div class="digit-strip-label">Interactive Digit Strip (p<sup>3</sup> down to p<sup>-3</sup>):</div>
+                <div class="digit-strip-label">Digit Strip (p<sup>3</sup> down to p<sup>-3</sup>):</div>
                 <div class="digit-strip">
                   @for (col of valDigits(); track col.power) {
-                    <div class="digit-cell clickable-digit" 
-                         (click)="onDigitClick(col.power)"
+                    <div class="digit-cell" 
                          [class.val-highlight]="isValuationMatch(col.power)"
-                         [title]="'Click to increment mod ' + valPrime() + ' (Power: ' + col.powerLabel + ')'">
+                         [title]="'Power: ' + col.powerLabel">
                       <span class="digit-val">{{ col.digit }}</span>
                       <span class="power-sub">p<sup>{{ col.power }}</sup></span>
                     </div>
@@ -212,13 +268,23 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
               
               <div class="minimal-form block-layout">
                 <div class="input-line">
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">x<sub>c</sub>:</span>
-                    <input class="minimal-input" [ngModel]="hsiaCx()" (ngModelChange)="onHsiaCxChange($event)" placeholder="e.g. 0">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">x<sub>c</sub>:</span>
+                      <input class="minimal-input" [class.input-error]="hsiaCxError()" [ngModel]="hsiaCx()" (ngModelChange)="onHsiaCxChange($event)" placeholder="e.g. 0">
+                    </div>
+                    @if (hsiaCxError()) {
+                      <span class="error-text">{{ hsiaCxError() }}</span>
+                    }
                   </div>
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">Digits:</span>
-                    <input class="minimal-input width-large" [ngModel]="hsiaCxDigits()" (ngModelChange)="onHsiaCxDigitsChange($event)" placeholder="e.g. 0000.000">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">Digits:</span>
+                      <input class="minimal-input width-large" [class.input-error]="hsiaCxDigitsError()" [ngModel]="hsiaCxDigits()" (ngModelChange)="onHsiaCxDigitsChange($event)" placeholder="e.g. 0000.000">
+                    </div>
+                    @if (hsiaCxDigitsError()) {
+                      <span class="error-text">{{ hsiaCxDigitsError() }}</span>
+                    }
                   </div>
                   <div class="minimal-input-group">
                     <span class="minimal-label">x<sub>&rho;</sub>:</span>
@@ -226,13 +292,23 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
                   </div>
                 </div>
                 <div class="input-line">
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">y<sub>c</sub>:</span>
-                    <input class="minimal-input" [ngModel]="hsiaCy()" (ngModelChange)="onHsiaCyChange($event)" placeholder="e.g. 4/3">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">y<sub>c</sub>:</span>
+                      <input class="minimal-input" [class.input-error]="hsiaCyError()" [ngModel]="hsiaCy()" (ngModelChange)="onHsiaCyChange($event)" placeholder="e.g. 4/3">
+                    </div>
+                    @if (hsiaCyError()) {
+                      <span class="error-text">{{ hsiaCyError() }}</span>
+                    }
                   </div>
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">Digits:</span>
-                    <input class="minimal-input width-large" [ngModel]="hsiaCyDigits()" (ngModelChange)="onHsiaCyDigitsChange($event)" placeholder="e.g. 0001.100">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">Digits:</span>
+                      <input class="minimal-input width-large" [class.input-error]="hsiaCyDigitsError()" [ngModel]="hsiaCyDigits()" (ngModelChange)="onHsiaCyDigitsChange($event)" placeholder="e.g. 0001.100">
+                    </div>
+                    @if (hsiaCyDigitsError()) {
+                      <span class="error-text">{{ hsiaCyDigitsError() }}</span>
+                    }
                   </div>
                   <div class="minimal-input-group">
                     <span class="minimal-label">y<sub>&rho;</sub>:</span>
@@ -252,8 +328,8 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
 
               <div class="result-display">
                 <div class="result-row">
-                  <span class="label">Center Difference |x<sub>c</sub> - y<sub>c</sub>|<sub>p</sub>:</span>
-                  <span class="value">{{ formatAbsoluteDiff() }} (log: {{ hsiaResult().logDiff.toFixed(2) }})</span>
+                  <span class="label">Center Difference |x<sub>c</sub> &minus; y<sub>c</sub>|<sub>p</sub>:</span>
+                  <span class="value"><span [innerHTML]="formatAbsoluteDiff()"></span> (log: {{ hsiaResult().logDiff.toFixed(2) }})</span>
                 </div>
                 <div class="result-row">
                   <span class="label">LCA Log-Radius:</span>
@@ -262,6 +338,14 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
                 <div class="result-row">
                   <span class="label">Hsia Distance &delta;(x, y):</span>
                   <span class="value">{{ hsiaResult().absoluteDistance.toFixed(4) }}</span>
+                </div>
+                <div class="result-row">
+                  <span class="label">Disk Equivalence (same point?):</span>
+                  @if (hsiaResult().diskEquivalent) {
+                    <span class="value equiv-yes">Yes &mdash; same Berkovich point</span>
+                  } @else {
+                    <span class="value equiv-no">No &mdash; distinct points</span>
+                  }
                 </div>
               </div>
             </div>
@@ -285,13 +369,23 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
               
               <div class="minimal-form block-layout">
                 <div class="input-line">
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">x<sub>c</sub>:</span>
-                    <input class="minimal-input" [ngModel]="addCx()" (ngModelChange)="onAddCxChange($event)" placeholder="e.g. 1">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">x<sub>c</sub>:</span>
+                      <input class="minimal-input" [class.input-error]="addCxError()" [ngModel]="addCx()" (ngModelChange)="onAddCxChange($event)" placeholder="e.g. 1">
+                    </div>
+                    @if (addCxError()) {
+                      <span class="error-text">{{ addCxError() }}</span>
+                    }
                   </div>
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">Digits:</span>
-                    <input class="minimal-input width-large" [ngModel]="addCxDigits()" (ngModelChange)="onAddCxDigitsChange($event)">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">Digits:</span>
+                      <input class="minimal-input width-large" [class.input-error]="addCxDigitsError()" [ngModel]="addCxDigits()" (ngModelChange)="onAddCxDigitsChange($event)">
+                    </div>
+                    @if (addCxDigitsError()) {
+                      <span class="error-text">{{ addCxDigitsError() }}</span>
+                    }
                   </div>
                   <div class="minimal-input-group">
                     <span class="minimal-label">x<sub>&rho;</sub>:</span>
@@ -299,13 +393,23 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
                   </div>
                 </div>
                 <div class="input-line">
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">y<sub>c</sub>:</span>
-                    <input class="minimal-input" [ngModel]="addCy()" (ngModelChange)="onAddCyChange($event)" placeholder="e.g. 2">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">y<sub>c</sub>:</span>
+                      <input class="minimal-input" [class.input-error]="addCyError()" [ngModel]="addCy()" (ngModelChange)="onAddCyChange($event)" placeholder="e.g. 2">
+                    </div>
+                    @if (addCyError()) {
+                      <span class="error-text">{{ addCyError() }}</span>
+                    }
                   </div>
-                  <div class="minimal-input-group">
-                    <span class="minimal-label">Digits:</span>
-                    <input class="minimal-input width-large" [ngModel]="addCyDigits()" (ngModelChange)="onAddCyDigitsChange($event)">
+                  <div class="input-with-error">
+                    <div class="minimal-input-group">
+                      <span class="minimal-label">Digits:</span>
+                      <input class="minimal-input width-large" [class.input-error]="addCyDigitsError()" [ngModel]="addCyDigits()" (ngModelChange)="onAddCyDigitsChange($event)">
+                    </div>
+                    @if (addCyDigitsError()) {
+                      <span class="error-text">{{ addCyDigitsError() }}</span>
+                    }
                   </div>
                   <div class="minimal-input-group">
                     <span class="minimal-label">y<sub>&rho;</sub>:</span>
@@ -510,7 +614,6 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
       color: #475569;
       font-weight: 500;
       font-size: 12px;
-      min-width: 60px;
     }
     .minimal-input {
       background: #ffffff;
@@ -534,6 +637,25 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
         border-color: #3b82f6;
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
       }
+      &.input-error {
+        border-color: #ef4444;
+        background: #fef2f2;
+        &:focus {
+          border-color: #ef4444;
+          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+        }
+      }
+    }
+    .input-with-error {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .error-text {
+      color: #ef4444;
+      font-size: 11px;
+      font-weight: 500;
+      padding-left: 2px;
     }
     .minimal-select {
       background: #ffffff;
@@ -563,8 +685,9 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
     }
     .result-row {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
+      gap: 8px;
       
       .label {
         color: #64748b;
@@ -596,6 +719,13 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
         color: white;
         border-color: #059669;
       }
+    }
+    .equiv-yes {
+      color: #059669;
+      font-weight: 600;
+    }
+    .equiv-no {
+      color: #64748b;
     }
     
     .digit-strip-label {
@@ -635,20 +765,6 @@ function digitsToRational(cols: { power: number; digit: number }[], p: bigint): 
         margin-top: 1px;
       }
       
-      &.clickable-digit {
-        cursor: pointer;
-        transition: all 0.15s ease;
-        user-select: none;
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-          border-color: #3b82f6;
-        }
-        &:active {
-          transform: translateY(0);
-        }
-      }
-      
       &.val-highlight {
         background: #3b82f6;
         border-color: #2563eb;
@@ -686,6 +802,8 @@ export class BerkovichGlossaryComponent {
   readonly valInput = signal<string>('5/3');
   readonly valDigitsInput = signal<string>('0001.200');
   readonly valPrime = signal<number>(3);
+  readonly valInputError = signal<string>('');
+  readonly valDigitsError = signal<string>('');
 
   readonly valRational = computed(() => {
     try {
@@ -720,17 +838,31 @@ export class BerkovichGlossaryComponent {
     this.valInput.set(newVal);
     try {
       const r = parseToRational(newVal);
+      this.valInputError.set('');
       const digitsStr = formatDigitsString(r, BigInt(this.valPrime()), -3, 3);
       this.valDigitsInput.set(digitsStr);
-    } catch {}
+      this.valDigitsError.set('');
+    } catch (e) {
+      this.valInputError.set('Invalid number. Use integers, decimals, or fractions (e.g. 5/3).');
+    }
   }
 
   onValDigitsInputChange(newDigits: string): void {
     this.valDigitsInput.set(newDigits);
+    const p = this.valPrime();
+    const err = validateDigitsString(newDigits, p);
+    if (err) {
+      this.valDigitsError.set(err);
+      return;
+    }
     try {
-      const r = parseDigitsString(newDigits, BigInt(this.valPrime()));
+      const r = parseDigitsString(newDigits, BigInt(p));
+      this.valDigitsError.set('');
       this.valInput.set(formatRational(r));
-    } catch {}
+      this.valInputError.set('');
+    } catch (e) {
+      this.valDigitsError.set('Could not parse digit sequence.');
+    }
   }
 
   onValPrimeChange(newPrime: number): void {
@@ -738,6 +870,7 @@ export class BerkovichGlossaryComponent {
     try {
       const digitsStr = formatDigitsString(this.valRational(), BigInt(newPrime), -3, 3);
       this.valDigitsInput.set(digitsStr);
+      this.valDigitsError.set('');
     } catch {}
   }
 
@@ -769,6 +902,19 @@ export class BerkovichGlossaryComponent {
     return res.type === 'finite' && res.value === power;
   }
 
+  formatAbsoluteValue(): string {
+    const v = this.valResult();
+    const p = this.valPrime();
+    if (v.type === 'pos-infinity') return '0';
+    if (v.type === 'neg-infinity') return '∞';
+    const exponent = -v.value;
+    const numericValue = Math.pow(p, exponent);
+    if (Number.isInteger(numericValue)) {
+      return `${p}<sup>${exponent}</sup> = ${numericValue}`;
+    }
+    return `${p}<sup>${exponent}</sup> ≈ ${numericValue.toFixed(4)}`;
+  }
+
   // 2. Hsia Distance Calculator state
   readonly hsiaCx = signal<string>('0');
   readonly hsiaCxDigits = signal<string>('0000.000');
@@ -777,6 +923,10 @@ export class BerkovichGlossaryComponent {
   readonly hsiaRx = signal<number>(-1.0);
   readonly hsiaRy = signal<number>(-2.0);
   readonly hsiaPrime = signal<number>(3);
+  readonly hsiaCxError = signal<string>('');
+  readonly hsiaCxDigitsError = signal<string>('');
+  readonly hsiaCyError = signal<string>('');
+  readonly hsiaCyDigitsError = signal<string>('');
 
   readonly cx = computed(() => {
     try { return parseToRational(this.hsiaCx()); } catch { return { num: 0n, den: 1n }; }
@@ -791,10 +941,20 @@ export class BerkovichGlossaryComponent {
     const valDiff = getValuation(diff, p);
     const logDiff = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
     const lcaLogRadius = Math.max(this.hsiaRx(), this.hsiaRy(), logDiff);
+
+    // Disk equivalence: two representations (c₁,ρ₁) and (c₂,ρ₂) are the same
+    // Berkovich point iff ρ₁ = ρ₂ and |c₁ - c₂|_p ≤ p^ρ₁.
+    const sameRho = this.hsiaRx() === this.hsiaRy();
+    const centerDist = valDiff.type === 'finite'
+      ? Math.pow(Number(p), -valDiff.value)
+      : 0; // diff is 0 → distance is 0
+    const diskEquivalent = sameRho && centerDist <= Math.pow(Number(p), this.hsiaRx());
+
     return {
       logDiff,
       lcaLogRadius,
-      absoluteDistance: Math.pow(Number(p), lcaLogRadius)
+      absoluteDistance: Math.pow(Number(p), lcaLogRadius),
+      diskEquivalent
     };
   });
 
@@ -803,30 +963,46 @@ export class BerkovichGlossaryComponent {
     this.hsiaCx.set(newVal);
     try {
       const r = parseToRational(newVal);
+      this.hsiaCxError.set('');
       this.hsiaCxDigits.set(formatDigitsString(r, BigInt(this.hsiaPrime()), -3, 3));
-    } catch {}
+      this.hsiaCxDigitsError.set('');
+    } catch {
+      this.hsiaCxError.set('Invalid number. Use integers, decimals, or fractions.');
+    }
   }
   onHsiaCxDigitsChange(newDigits: string): void {
     this.hsiaCxDigits.set(newDigits);
+    const err = validateDigitsString(newDigits, this.hsiaPrime());
+    if (err) { this.hsiaCxDigitsError.set(err); return; }
     try {
       const r = parseDigitsString(newDigits, BigInt(this.hsiaPrime()));
+      this.hsiaCxDigitsError.set('');
       this.hsiaCx.set(formatRational(r));
-    } catch {}
+      this.hsiaCxError.set('');
+    } catch { this.hsiaCxDigitsError.set('Could not parse digit sequence.'); }
   }
 
   onHsiaCyChange(newVal: string): void {
     this.hsiaCy.set(newVal);
     try {
       const r = parseToRational(newVal);
+      this.hsiaCyError.set('');
       this.hsiaCyDigits.set(formatDigitsString(r, BigInt(this.hsiaPrime()), -3, 3));
-    } catch {}
+      this.hsiaCyDigitsError.set('');
+    } catch {
+      this.hsiaCyError.set('Invalid number. Use integers, decimals, or fractions.');
+    }
   }
   onHsiaCyDigitsChange(newDigits: string): void {
     this.hsiaCyDigits.set(newDigits);
+    const err = validateDigitsString(newDigits, this.hsiaPrime());
+    if (err) { this.hsiaCyDigitsError.set(err); return; }
     try {
       const r = parseDigitsString(newDigits, BigInt(this.hsiaPrime()));
+      this.hsiaCyDigitsError.set('');
       this.hsiaCy.set(formatRational(r));
-    } catch {}
+      this.hsiaCyError.set('');
+    } catch { this.hsiaCyDigitsError.set('Could not parse digit sequence.'); }
   }
 
   onHsiaPrimeChange(newPrime: number): void {
@@ -836,6 +1012,8 @@ export class BerkovichGlossaryComponent {
       const ry = parseToRational(this.hsiaCy());
       this.hsiaCxDigits.set(formatDigitsString(rx, BigInt(newPrime), -3, 3));
       this.hsiaCyDigits.set(formatDigitsString(ry, BigInt(newPrime), -3, 3));
+      this.hsiaCxDigitsError.set('');
+      this.hsiaCyDigitsError.set('');
     } catch {}
   }
 
@@ -845,7 +1023,8 @@ export class BerkovichGlossaryComponent {
       const diff = subtract(this.cx(), this.cy());
       const val = getValuation(diff, p);
       if (val.type === 'finite') {
-        return `p^(-${val.value})`;
+        const exponent = -val.value;
+        return `p<sup>${exponent}</sup>`;
       }
       return '0';
     } catch {
@@ -861,6 +1040,10 @@ export class BerkovichGlossaryComponent {
   readonly addRx = signal<number>(-1.0);
   readonly addRy = signal<number>(-2.0);
   readonly addPrime = signal<number>(3);
+  readonly addCxError = signal<string>('');
+  readonly addCxDigitsError = signal<string>('');
+  readonly addCyError = signal<string>('');
+  readonly addCyDigitsError = signal<string>('');
 
   readonly acx = computed(() => {
     try { return parseToRational(this.addCx()); } catch { return { num: 0n, den: 1n }; }
@@ -874,30 +1057,46 @@ export class BerkovichGlossaryComponent {
     this.addCx.set(newVal);
     try {
       const r = parseToRational(newVal);
+      this.addCxError.set('');
       this.addCxDigits.set(formatDigitsString(r, BigInt(this.addPrime()), -3, 3));
-    } catch {}
+      this.addCxDigitsError.set('');
+    } catch {
+      this.addCxError.set('Invalid number. Use integers, decimals, or fractions.');
+    }
   }
   onAddCxDigitsChange(newDigits: string): void {
     this.addCxDigits.set(newDigits);
+    const err = validateDigitsString(newDigits, this.addPrime());
+    if (err) { this.addCxDigitsError.set(err); return; }
     try {
       const r = parseDigitsString(newDigits, BigInt(this.addPrime()));
+      this.addCxDigitsError.set('');
       this.addCx.set(formatRational(r));
-    } catch {}
+      this.addCxError.set('');
+    } catch { this.addCxDigitsError.set('Could not parse digit sequence.'); }
   }
 
   onAddCyChange(newVal: string): void {
     this.addCy.set(newVal);
     try {
       const r = parseToRational(newVal);
+      this.addCyError.set('');
       this.addCyDigits.set(formatDigitsString(r, BigInt(this.addPrime()), -3, 3));
-    } catch {}
+      this.addCyDigitsError.set('');
+    } catch {
+      this.addCyError.set('Invalid number. Use integers, decimals, or fractions.');
+    }
   }
   onAddCyDigitsChange(newDigits: string): void {
     this.addCyDigits.set(newDigits);
+    const err = validateDigitsString(newDigits, this.addPrime());
+    if (err) { this.addCyDigitsError.set(err); return; }
     try {
       const r = parseDigitsString(newDigits, BigInt(this.addPrime()));
+      this.addCyDigitsError.set('');
       this.addCy.set(formatRational(r));
-    } catch {}
+      this.addCyError.set('');
+    } catch { this.addCyDigitsError.set('Could not parse digit sequence.'); }
   }
 
   onAddPrimeChange(newPrime: number): void {
@@ -907,6 +1106,8 @@ export class BerkovichGlossaryComponent {
       const ry = parseToRational(this.addCy());
       this.addCxDigits.set(formatDigitsString(rx, BigInt(newPrime), -3, 3));
       this.addCyDigits.set(formatDigitsString(ry, BigInt(newPrime), -3, 3));
+      this.addCxDigitsError.set('');
+      this.addCyDigitsError.set('');
     } catch {}
   }
 
@@ -938,22 +1139,24 @@ This glossary provides a reference for the mathematical notation, symbols, and c
 ### 1. The $p$-adic Field & Metrics
 
 * **$p$-adic Number Field ($\\mathbb{Q}_p$)**
-  The completion of the rational numbers $\\mathbb{Q}$ under the non-Archimedean $p$-adic absolute value. Mathematically, elements in $\\mathbb{Q}_p$ are infinite sequences extending infinitely to the right (higher powers of $p$):
-  $$x = \\sum_{n \\ge n_0} a_n p^n \\quad \\text{where } a_n \\in \\{0, \\dotsc, p-1\\}$$
-  In practice (such as in our visualizers and numeric representations), we concern ourselves with a finite subsequence of these digits up to a specific precision cutoff.
+  The completion of the rational numbers $\\mathbb{Q}$ under the non-Archimedean $p$-adic absolute value. Elements of $\\mathbb{Q}_p$ are written as formal power series in $p$:
+  $$x = \\sum_{n \\ge n_0} a_n p^n \\quad \\text{where } a_n \\in \\{0, \\dotsc, p-1\\}, \\; a_{n_0} \\neq 0$$
+  The starting index $n_0$ can be negative (corresponding to "fractional" $p$-adic digits). Mathematically, the series extends infinitely to the right (higher powers of $p$), though in practice we work with a finite truncation up to a specific precision cutoff.
 
 * **$p$-adic Valuation ($\\nu_p(x)$)**
-  The exponent of the highest power of $p$ dividing $x$. It satisfies:
+  For integers, $\\nu_p(x)$ is the exponent of the highest power of $p$ that divides $x$. For rationals, $\\nu_p(a/b) = \\nu_p(a) - \\nu_p(b)$. In terms of the digit expansion above, $\\nu_p(x) = n_0$ — the smallest power of $p$ with a non-zero coefficient. It satisfies:
   $$\\nu_p(xy) = \\nu_p(x) + \\nu_p(y)$$
   $$\\nu_p(x + y) \\ge \\min(\\nu_p(x), \\nu_p(y))$$
-  **Intuitive Digit View**: When $x$ is written as a sequence of digits from left to right (highest powers on the left down to lowest powers on the right), the valuation $\\nu_p(x)$ corresponds to the **index of the furthest-left non-zero digit**. For example, in 3-adic notation:
-  * $x = 00.20_3$ represents $2\\cdot 3^{-1}$. The furthest-left non-zero digit is $2$ at index $-1$. So $\\nu_3(x) = -1$.
-  * $x = 12.01_3$ represents $1\\cdot 3^0 + 2\\cdot 3^1 + 1\\cdot 3^3$. The furthest-left non-zero digit is $1$ at index $0$. So $\\nu_3(x) = 0$.
+  **Intuitive Digit View**: In our display, digit strips are laid out from left to right as $p^3, p^2, p^1, p^0 \\cdot p^{-1}, p^{-2}, p^{-3}$ (highest powers on the left, lowest on the right). The valuation $\\nu_p(x)$ is the **index of the lowest-power non-zero digit** — i.e. the rightmost non-zero digit in the strip.
+  * $1.25 = 5/4 = 1\\cdot 2^{-2} + 0\\cdot 2^{-1} + 1\\cdot 2^{0}$, written $1.01_2$. Lowest-power non-zero digit is at $2^{-2}$, so $\\nu_2(1.25) = -2$.
+  * $x = 0000.200_3$ represents $2\\cdot 3^{-1}$. Lowest-power non-zero digit is at $p^{-1}$, so $\\nu_3(x) = -1$.
+  * $x = 0012.010_3$ represents $1\\cdot 3^{1} + 2\\cdot 3^{0} + 0\\cdot 3^{-1} + 1\\cdot 3^{-2} = 46/9$. Lowest-power non-zero digit is at $p^{-2}$, so $\\nu_3(x) = -2$.
+  * $x = 0100.000_3$ represents $1\\cdot 3^{2} = 9$. Lowest-power non-zero digit is at $p^{2}$, so $\\nu_3(9) = 2$.
 
 * **Absolute Value ($|x|_p$)**
-  The scale metric defined as:
+  Defined as:
   $$|x|_p = p^{-\\nu_p(x)}$$
-  It is **non-Archimedean** because it satisfies the strong triangle inequality (ultrametric):
+  Numbers divisible by high powers of $p$ are **small** in the $p$-adic world (e.g. $|9|_3 = 3^{-2} = 1/9$), while numbers whose denominators contain $p$ are **large** (e.g. $|5/3|_3 = 3^{1} = 3$). This is non-Archimedean — it satisfies the strong triangle inequality (ultrametric):
   $$|x + y|_p \\le \\max(|x|_p, |y|_p)$$
 `;
 
