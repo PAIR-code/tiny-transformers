@@ -2,7 +2,7 @@
   <!-- Header Banner -->
   <header class="explorer-header">
     <div class="header-content">
-      <button mat-icon-button routerLink="/" class="back-btn" aria-label="Go back to landing page">
+      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
@@ -12,6 +12,12 @@
         </p>
       </div>
     </div>
+    <nav class="header-nav">
+      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
+      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
+      <a routerLink="/berkovich/addition" routerLinkActive="active-nav">Addition</a>
+      <a routerLink="/berkovich/addition-gradients" routerLinkActive="active-nav">Addition Gradients</a>
+    </nav>
   </header>
 
   <div class="dashboard-grid">

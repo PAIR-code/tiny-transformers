@@ -33,23 +33,27 @@ import { MarkdownComponent } from 'ngx-markdown';
       </mat-card-header>
 
       <mat-card-content class="calc-content">
+        <div class="explainer-section">
+          <markdown [katex]="true" [data]="explainerMarkdown"></markdown>
+        </div>
+
         <div class="math-block">
           <div class="eq-row">
-            <span class="var">c_&rho;</span> = max(<span class="varA">a_&rho;</span>, <span class="varB">b_&rho;</span>) = max({{ rhoA().toFixed(2) }}, {{ rhoB().toFixed(2) }}) = {{ rhoC().toFixed(2) }}
+            <span class="var">(x+y)<sub>ρ</sub></span> = max(<span class="varA">x<sub>ρ</sub></span>, <span class="varB">y<sub>ρ</sub></span>) = max({{ rhoA().toFixed(2) }}, {{ rhoB().toFixed(2) }}) = {{ rhoC().toFixed(2) }}
           </div>
           
           <div class="eq-row">
             <strong>Active Degree (Derivative):</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'\\\\frac{\\\\partial c_\\\\rho}{\\\\partial a_\\\\rho} ='"></markdown> 
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x+y)_\\\\rho}{\\\\partial x_\\\\rho} =$'"></markdown> 
             <span [class.active-val]="drhoC_drhoA() === 1">{{ drhoC_drhoA() }}</span>
-            <span class="explanation"> (because {{ rhoA() >= rhoB() ? 'a_ρ ≥ b_ρ' : 'a_ρ < b_ρ' }})</span>
+            <span class="explanation"> (because {{ rhoA() >= rhoB() ? 'x_ρ ≥ y_ρ' : 'x_ρ < y_ρ' }})</span>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'\\\\frac{\\\\partial c_\\\\rho}{\\\\partial b_\\\\rho} ='"></markdown> 
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x+y)_\\\\rho}{\\\\partial y_\\\\rho} =$'"></markdown> 
             <span [class.active-val]="drhoC_drhoB() === 1">{{ drhoC_drhoB() }}</span>
-            <span class="explanation"> (because {{ rhoB() >= rhoA() ? 'b_ρ ≥ a_ρ' : 'b_ρ < a_ρ' }})</span>
+            <span class="explanation"> (because {{ rhoB() >= rhoA() ? 'y_ρ ≥ x_ρ' : 'y_ρ < x_ρ' }})</span>
           </div>
 
           <hr class="divider"/>
@@ -58,7 +62,7 @@ import { MarkdownComponent } from 'ngx-markdown';
             <strong>Loss Gradient (L1 Path Metric):</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'\\\\frac{\\\\partial L}{\\\\partial c_\\\\rho} ='"></markdown> 
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial (x+y)_\\\\rho} =$'"></markdown> 
             <span [class.active-val]="dL_drhoC() !== 0">{{ dL_drhoC() > 0 ? '+1' : (dL_drhoC() < 0 ? '-1' : '0') }}</span>
           </div>
 
@@ -66,12 +70,12 @@ import { MarkdownComponent } from 'ngx-markdown';
             <strong>Backpropagation:</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'\\\\frac{\\\\partial L}{\\\\partial a_\\\\rho} ='"></markdown> 
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_\\\\rho} =$'"></markdown> 
             {{ dL_drhoC() }} × {{ drhoC_drhoA() }} = 
             <span class="final-grad" [class.active-val]="drhoC_drhoA() === 1">{{ dL_drhoC() * drhoC_drhoA() }}</span>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'\\\\frac{\\\\partial L}{\\\\partial b_\\\\rho} ='"></markdown> 
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial y_\\\\rho} =$'"></markdown> 
             {{ dL_drhoC() }} × {{ drhoC_drhoB() }} = 
             <span class="final-grad" [class.active-val]="drhoC_drhoB() === 1">{{ dL_drhoC() * drhoC_drhoB() }}</span>
           </div>
@@ -117,4 +121,9 @@ export class BerkovichAdditionCalculusComponent {
   
   readonly drhoC_drhoA = computed(() => this.rhoA() >= this.rhoB() ? 1 : 0);
   readonly drhoC_drhoB = computed(() => this.rhoB() >= this.rhoA() ? 1 : 0);
+
+  readonly explainerMarkdown = `
+Under non-Archimedean addition, the sum's radius is dominated by the maximum input radius: $(x+y)_\\rho = \\max(x_\\rho, y_\\rho)$. 
+Consequently, the gradient propagates strictly to the input parameter with the larger radius.
+`;
 }

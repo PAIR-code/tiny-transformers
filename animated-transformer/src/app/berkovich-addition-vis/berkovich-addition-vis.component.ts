@@ -18,6 +18,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { MarkdownComponent } from 'ngx-markdown';
+import { MatCardModule } from '@angular/material/card';
 
 import {
   Rational,
@@ -41,8 +43,10 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from './tree-vis/berkovic
     CommonModule,
     MatIconModule,
     MatButtonModule,
+    MatCardModule,
     FormsModule,
     RouterModule,
+    MarkdownComponent,
     BerkovichAdditionConfigComponent,
     BerkovichAdditionDigitsComponent,
     BerkovichMultiTreeVisComponent
@@ -50,6 +54,27 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from './tree-vis/berkovic
 })
 export class BerkovichAdditionVisComponent {
   readonly prime = signal<number>(3);
+  readonly isExplainerExpanded = signal<boolean>(true);
+
+  readonly subtitleMath1 = '$x + y = x+y$';
+  readonly subtitleMath2 = '$\\mathbb{A}^1(\\mathbb{Q}_p)$';
+  readonly explainerMarkdown = `
+In non-Archimedean geometry (such as the $p$-adic Berkovich space), addition is performed on **disks** rather than just single points. A Berkovich disk is defined as $D(c, p^{\\rho})$ where $c \\in \\mathbb{Q}_p$ is the disk's center and $p^{\\rho}$ is its radius (uncertainty).
+
+### How Addition Works
+When adding two disks $x = D(x_c, p^{x_{\\rho}})$ and $y = D(y_c, p^{y_{\\rho}})$:
+1. **Center Summation**: The resulting center is the simple $p$-adic sum of the two input centers:
+   $$(x+y)_c = x_c + y_c$$
+   This addition carries digits from lower powers to higher powers (bottom-up on the tree diagram).
+2. **Radius Resolution**: The uncertainty (radius) of the sum disk is the maximum of the two input radii:
+   $$(x+y)_{\\rho} = \\max(x_{\\rho}, y_{\\rho})$$
+   This reflects the principle that any finer digit details below the maximum uncertainty level are **swallowed** (erased) by the summation.
+
+### Visual Guide
+* **The Trees**: The three trees represent Disk $x$ (blue), Disk $y$ (pink), and the Sum Disk $x+y$ (purple) side-by-side.
+* **Active Paths**: The solid colored branches show the path down to the disk centers. At levels below the disk's radius (finer details), the path becomes unresolved and branches out as dashed lines, representing the disk's area of uncertainty.
+* **Guide Lines**: The vertical guide lines (\`rho-guide-line\`) indicate the exact boundary scope of each disk on the trees.
+`;
 
   
   // Inputs

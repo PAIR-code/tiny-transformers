@@ -27,3 +27,50 @@ limitations under the License.
     grid-template-columns: 1fr;
   }
 }
+
+.explainer-card {
+  margin: 24px;
+  padding: 8px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+
+    mat-icon {
+      color: #3b82f6;
+    }
+  }
+
+  .explainer-content {
+    margin-top: 16px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.6;
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+  }
+}

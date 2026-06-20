@@ -71,6 +71,35 @@ limitations under the License.
     font-size: 14px;
     color: #64748b;
   }
+
+  .header-nav {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+
+    a {
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+
+      &.active-nav {
+        color: #3b82f6;
+        background: #eff6ff;
+        font-weight: 600;
+      }
+    }
+  }
 }
 
 /* Grid Layouts */

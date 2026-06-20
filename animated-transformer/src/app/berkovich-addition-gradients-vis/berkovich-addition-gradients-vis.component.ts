@@ -18,6 +18,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { MarkdownComponent } from 'ngx-markdown';
+import { MatCardModule } from '@angular/material/card';
 
 import {
   Rational,
@@ -42,8 +44,10 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from '../berkovich-additi
     CommonModule,
     MatIconModule,
     MatButtonModule,
+    MatCardModule,
     FormsModule,
     RouterModule,
+    MarkdownComponent,
     BerkovichAdditionGradientsConfigComponent,
     BerkovichAdditionCalculusComponent,
     BerkovichMultiTreeVisComponent
@@ -51,6 +55,29 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from '../berkovich-additi
 })
 export class BerkovichAdditionGradientsVisComponent {
   readonly prime = signal<number>(3);
+  readonly isExplainerExpanded = signal<boolean>(true);
+
+  readonly subtitleMath = '$x + y \\to z$';
+  readonly explainerMarkdown = `
+In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x$ and $y$ of an addition operation $x+y$ to match a target disk $z$.
+
+### The Loss Function & Distance
+We define the loss function $L(x, y; z)$ as the branching distance between the sum disk $x+y$ and the target disk $z$:
+$$L(x, y; z) = \\text{dist}(x+y, z)$$
+In tree topology, this is the length of the path from the sum disk node up to the lowest common ancestor (LCA) junction with the target disk.
+
+### How Gradients Flow
+Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\\rho} = \\max(x_{\\rho}, y_{\\rho})$:
+1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x$ and $y$. However, because the tree only branches at discrete levels, the gradient points exactly toward the branch that leads closer to the target center $z_c$.
+2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. Specifically, the gradient of the sum radius $\\partial L / \\partial (x+y)_{\\rho}$ flows back:
+   * Entirely to $x_{\\rho}$ if $x_{\\rho} > y_{\\rho}$
+   * Entirely to $y_{\\rho}$ if $y_{\\rho} > x_{\\rho}$
+   * Equally divided between them if $x_{\\rho} = y_{\\rho}$
+
+### Visual Guide
+* **The Trees**: The four trees represent the target disk $z$ (yellow), input disks $x$ (blue) and $y$ (pink), and the sum disk $x+y$ (purple) side-by-side.
+* **Step SGD**: Click **Step SGD** to take a gradient step. You will see the paths of $x$ and $y$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x+y$ closer and closer to matching $z$.
+`;
 
   
   readonly centerYInput = signal<string>('00.00');
