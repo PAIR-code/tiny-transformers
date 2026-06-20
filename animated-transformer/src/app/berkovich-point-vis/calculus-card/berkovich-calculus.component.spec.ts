@@ -103,6 +103,7 @@ describe('BerkovichCalculusComponent', () => {
   it('should render collapsed by default', async () => {
     fixture.componentRef.setInput('gradientBreakdown', edgeMockData);
     fixture.componentRef.setInput('learningRate', 0.2);
+    fixture.componentRef.setInput('prime', 3n);
     fixture.detectChanges();
 
     expect(component.isCollapsed()).toBe(true);
@@ -112,6 +113,7 @@ describe('BerkovichCalculusComponent', () => {
   it('should toggle collapse state on header click', async () => {
     fixture.componentRef.setInput('gradientBreakdown', edgeMockData);
     fixture.componentRef.setInput('learningRate', 0.2);
+    fixture.componentRef.setInput('prime', 3n);
     fixture.detectChanges();
 
     const header = fixture.nativeElement.querySelector('.clickable-header') as HTMLElement;
@@ -129,6 +131,7 @@ describe('BerkovichCalculusComponent', () => {
   it('should render correct content when expanded on Type III edge', async () => {
     fixture.componentRef.setInput('gradientBreakdown', edgeMockData);
     fixture.componentRef.setInput('learningRate', 0.2);
+    fixture.componentRef.setInput('prime', 3n);
     component.isCollapsed.set(false);
     fixture.detectChanges();
 
@@ -138,6 +141,7 @@ describe('BerkovichCalculusComponent', () => {
   it('should render correct content when expanded on Type II vertex', async () => {
     fixture.componentRef.setInput('gradientBreakdown', vertexMockData);
     fixture.componentRef.setInput('learningRate', 0.2);
+    fixture.componentRef.setInput('prime', 3n);
     component.isCollapsed.set(false);
     fixture.detectChanges();
 

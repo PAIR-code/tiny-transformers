@@ -1,0 +1,163 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<mat-card class="visualizer-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>account_tree</mat-icon>
+      Addition Tree Topology
+    </mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content class="svg-container">
+    <svg
+      [attr.width]="svgWidth()"
+      [attr.height]="svgHeight"
+      class="tree-svg"
+    >
+      <!-- Tree Titles -->
+      @for (title of treeTitles(); track title.text) {
+        <text
+          [attr.x]="title.x"
+          [attr.y]="25"
+          class="tree-title-text"
+          [style.fill]="title.color"
+        >
+          {{ title.text }}
+        </text>
+      }
+
+      <!-- Decimal Place Divider Line -->
+      <line
+        [attr.x1]="0"
+        [attr.y1]="rhoToY(0)"
+        [attr.x2]="svgWidth()"
+        [attr.y2]="rhoToY(0)"
+        class="decimal-divider-line"
+      />
+
+      <!-- Draw Edges -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        <g class="tree-edge-group">
+          <!-- We can draw multiple thick lines slightly offset if they share an edge, but let's just use the first color -->
+          <path
+            [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
+            [class.inactive-stub]="!edge.isActive"
+            class="tree-edge"
+            [style.stroke]="edge.colors.length > 0 ? edge.colors[0] : ''"
+          />
+          <!-- Branch Digit Labels -->
+          <g
+            class="digit-label-group"
+            [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+          >
+            <circle
+              cx="0"
+              cy="0"
+              r="9"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-bg"
+            />
+            <text
+              x="0"
+              y="0"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-label"
+            >
+              {{ edge.digitLabel }}
+            </text>
+          </g>
+        </g>
+      }
+
+      <!-- Draw Nodes -->
+      @for (node of treeVisuals().nodes; track node.id) {
+        <g
+          class="tree-node-group"
+          [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
+        >
+          <circle
+            cx="0"
+            cy="0"
+            [attr.r]="node.logRadius === rhoMin ? 4 : 5"
+            [class.leaf-node]="node.logRadius === rhoMin"
+            [class.vertex-node]="node.logRadius > rhoMin"
+            [class.inactive-stub]="!node.isActive"
+            class="tree-node"
+            [style.stroke]="node.colors.length > 0 ? node.colors[0] : ''"
+          />
+        </g>
+      }
+
+      <!-- Continuous Log-Radius (Rho) Level Line Indicators -->
+      @for (tn of trackedNodes(); track tn.id) {
+        <g class="rho-level-group">
+          @if (tn.rho > rhoMin) {
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+              [attr.y1]="getRhoLineForTrackedNode(tn).y"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+              [attr.y2]="rhoToY(rhoMin)"
+              class="rho-guide-line"
+              [style.stroke]="tn.color"
+            />
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x2"
+              [attr.y1]="getRhoLineForTrackedNode(tn).y"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+              [attr.y2]="rhoToY(rhoMin)"
+              class="rho-guide-line"
+              [style.stroke]="tn.color"
+            />
+          }
+          <line
+            [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+            [attr.y1]="getRhoLineForTrackedNode(tn).y"
+            [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+            [attr.y2]="getRhoLineForTrackedNode(tn).y"
+            class="rho-level-line"
+            [style.stroke]="tn.color"
+          />
+          <!-- Left and right end cap ticks -->
+          <line
+            [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+            [attr.y1]="getRhoLineForTrackedNode(tn).y - 4"
+            [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+            [attr.y2]="getRhoLineForTrackedNode(tn).y + 4"
+            class="rho-level-cap"
+            [style.stroke]="tn.color"
+          />
+          <line
+            [attr.x1]="getRhoLineForTrackedNode(tn).x2"
+            [attr.y1]="getRhoLineForTrackedNode(tn).y - 4"
+            [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+            [attr.y2]="getRhoLineForTrackedNode(tn).y + 4"
+            class="rho-level-cap"
+            [style.stroke]="tn.color"
+          />
+          <text
+            [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
+            [attr.y]="getRhoLineForTrackedNode(tn).y + 4"
+            class="rho-level-text"
+            [style.fill]="tn.color"
+          >
+            @for (seg of parseSubscripts(tn.label); track $index) {
+              <tspan [class.subscript-text]="seg.isSub">{{ seg.text }}</tspan>
+            }
+          </text>
+        </g>
+      }
+    </svg>
+  </mat-card-content>
+</mat-card>

@@ -43,18 +43,18 @@ describe('P-adic Arithmetic Helpers', () => {
     const p2 = 2n;
 
     // Valuation of 9 is 2 in base 3, 0 in base 2
-    expect(getValuation(parseToRational('9'), p3)).toBe(2);
-    expect(getValuation(parseToRational('9'), p2)).toBe(0);
+    expect(getValuation(parseToRational('9'), p3)).toEqual({ type: 'finite', value: 2 });
+    expect(getValuation(parseToRational('9'), p2)).toEqual({ type: 'finite', value: 0 });
 
     // Valuation of 5/3 in base 3 is -1
-    expect(getValuation(parseToRational('5/3'), p3)).toBe(-1);
+    expect(getValuation(parseToRational('5/3'), p3)).toEqual({ type: 'finite', value: -1 });
 
     // Valuation of 1.25 (5/4) in base 2 is -2
-    expect(getValuation(parseToRational('1.25'), p2)).toBe(-2);
-    expect(getValuation(parseToRational('1.25'), 5n)).toBe(1); // 5/4 valuation in base 5 is 1
+    expect(getValuation(parseToRational('1.25'), p2)).toEqual({ type: 'finite', value: -2 });
+    expect(getValuation(parseToRational('1.25'), 5n)).toEqual({ type: 'finite', value: 1 }); // 5/4 valuation in base 5 is 1
 
     // Valuation of 0 should return a high representation for infinity (30)
-    expect(getValuation(parseToRational('0'), p3)).toBe(30);
+    expect(getValuation(parseToRational('0'), p3)).toEqual({ type: 'pos-infinity' });
   });
 
   it('should compute p-adic digits correctly', () => {

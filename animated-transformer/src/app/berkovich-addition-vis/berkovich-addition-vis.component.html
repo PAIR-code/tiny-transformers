@@ -1,0 +1,53 @@
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <header class="explorer-header">
+    <div class="header-content">
+      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1>Berkovich Addition Explorer</h1>
+        <p class="subtitle">
+          Visualizing pure addition <span style="font-family: monospace;">A + B = C</span> in Berkovich space.
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Tree Visualizer -->
+    <section class="visualizer-card-container">
+      <app-berkovich-multi-tree-vis
+        [prime]="prime()"
+        [trackedNodes]="trackedNodes()"
+      ></app-berkovich-multi-tree-vis>
+    </section>
+
+    <!-- Right Column: Config & Digits -->
+    <aside class="control-panel">
+      <!-- 1. Configuration Card -->
+      <app-berkovich-addition-config
+        [prime]="prime()"
+        [centerAInput]="centerAInput()"
+        [rhoAInput]="rhoAInput()"
+        [centerBInput]="centerBInput()"
+        [rhoBInput]="rhoBInput()"
+        (primeChange)="onPrimeChange($event)"
+        (centerAInputChange)="centerAInput.set($event)"
+        (centerABlur)="onCenterABlur()"
+        (rhoAInputChange)="rhoAInput.set($event)"
+        (rhoABlur)="onRhoABlur()"
+        (centerBInputChange)="centerBInput.set($event)"
+        (centerBBlur)="onCenterBBlur()"
+        (rhoBInputChange)="rhoBInput.set($event)"
+        (rhoBBlur)="onRhoBBlur()"
+        (randomize)="onRandomize()"
+      />
+
+      <!-- 2. Addition Digits Result -->
+      <app-berkovich-addition-digits
+        [digitRows]="digitRows()"
+      />
+    </aside>
+  </div>
+</div>
