@@ -35,6 +35,7 @@ import { BerkovichDiskVisComponent } from './berkovich-disk-vis/berkovich-disk-v
 import { BerkovichAdditionVisComponent } from './berkovich-addition-vis/berkovich-addition-vis.component';
 import { BerkovichAdditionGradientsVisComponent } from './berkovich-addition-gradients-vis/berkovich-addition-gradients-vis.component';
 import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
+import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -76,7 +77,8 @@ export const routes: Routes = [
       { path: 'point', component: BerkovichPointVisComponent },
       { path: 'disk', component: BerkovichDiskVisComponent },
       { path: 'addition', component: BerkovichAdditionVisComponent },
-      { path: 'addition-gradients', component: BerkovichAdditionGradientsVisComponent }
+      { path: 'addition-gradients', component: BerkovichAdditionGradientsVisComponent },
+      { path: 'glossary', component: BerkovichGlossaryComponent }
     ]
   },
 ];

@@ -58,3 +58,15 @@ limitations under the License.
     border: 1px solid rgba(244, 63, 94, 0.2);
   }
 }
+
+.card-berkovich-glossary {
+  --glow-color: rgba(139, 92, 246, 0.4); /* Violet */
+  --icon-color: #8b5cf6;
+  --bg-color: rgba(139, 92, 246, 0.05);
+  
+  .card-icon-container {
+    background: var(--bg-color);
+    color: var(--icon-color);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+  }
+}

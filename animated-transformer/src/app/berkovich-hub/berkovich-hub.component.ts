@@ -68,5 +68,12 @@ export class BerkovichHubComponent {
       icon: 'call_split',
       colorClass: 'card-berkovich-addition',
     },
+    {
+      title: 'Notation Glossary',
+      description: 'Reference guide for mathematical definitions, symbols, and non-Archimedean terminology.',
+      route: '/berkovich/glossary',
+      icon: 'menu_book',
+      colorClass: 'card-berkovich-glossary',
+    },
   ];
 }
