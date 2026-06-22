@@ -24,8 +24,8 @@ import {
   formatDigitSequence,
   getValuation,
   extValuationGe,
-} from '../../../lib/berkovich/berkovich';
-import { computeTreeLayout, LayoutNode } from '../../../lib/berkovich/tree_layout';
+} from '../../../../lib/berkovich/berkovich';
+import { computeTreeLayout, LayoutNode } from '../../../../lib/berkovich/tree_layout';
 
 export interface TrackedNode {
   id: string;

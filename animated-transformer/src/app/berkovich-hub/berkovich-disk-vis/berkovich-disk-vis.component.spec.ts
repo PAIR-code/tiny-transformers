@@ -19,7 +19,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ngx-markdown';
 import { SecurityContext } from '@angular/core';
-import { BerkovichPointVisComponent } from './berkovich-point-vis.component';
+import { BerkovichDiskVisComponent } from './berkovich-disk-vis.component';
 import { 
   parseToRational, 
   getValuation, 
@@ -27,7 +27,7 @@ import {
   getAlignedDigits,
   subtract,
   formatRational
-} from '../../lib/berkovich/berkovich';
+} from '../../../lib/berkovich/berkovich';
 
 describe('P-adic Arithmetic Helpers', () => {
   it('should parse integer and rational inputs correctly', () => {
@@ -97,13 +97,13 @@ describe('P-adic Arithmetic Helpers', () => {
   });
 });
 
-describe('BerkovichPointVisComponent', () => {
-  let component: BerkovichPointVisComponent;
-  let fixture: ComponentFixture<BerkovichPointVisComponent>;
+describe('BerkovichDiskVisComponent', () => {
+  let component: BerkovichDiskVisComponent;
+  let fixture: ComponentFixture<BerkovichDiskVisComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BerkovichPointVisComponent],
+      imports: [BerkovichDiskVisComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
@@ -127,7 +127,7 @@ describe('BerkovichPointVisComponent', () => {
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BerkovichPointVisComponent);
+    fixture = TestBed.createComponent(BerkovichDiskVisComponent);
     component = fixture.componentInstance;
     
     // Set default test values

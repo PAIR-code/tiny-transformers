@@ -20,7 +20,7 @@ import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ng
 import { SecurityContext } from '@angular/core';
 import katex from 'katex';
 import { BerkovichTreeVisComponent } from './berkovich-tree-vis.component';
-import { parseToRational, formatRational } from '../../../lib/berkovich/berkovich';
+import { parseToRational, formatRational } from '../../../../lib/berkovich/berkovich';
 
 if (typeof window !== 'undefined') {
   (window as any).katex = katex;

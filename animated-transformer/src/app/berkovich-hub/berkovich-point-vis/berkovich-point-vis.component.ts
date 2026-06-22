@@ -44,7 +44,7 @@ import {
   computePathLoss,
   ExtendedNumber,
   extNegate
-} from '../../lib/berkovich/berkovich';
+} from '../../../lib/berkovich/berkovich';
 
 import { BerkovichTreeVisComponent } from './tree-vis/berkovich-tree-vis.component';
 import { BerkovichConfigComponent } from './config-card/berkovich-config.component';

@@ -43,7 +43,7 @@ import {
   GradientDetails,
   ExtendedNumber,
   extNegate
-} from '../../lib/berkovich/berkovich';
+} from '../../../lib/berkovich/berkovich';
 
 
 

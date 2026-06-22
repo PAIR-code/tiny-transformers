@@ -38,7 +38,7 @@ import {
   formatDigitSequence,
   ExtendedNumber,
   extValuationGe
-} from '../../../lib/berkovich/berkovich';
+} from '../../../../lib/berkovich/berkovich';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 
 export interface VisualNode {

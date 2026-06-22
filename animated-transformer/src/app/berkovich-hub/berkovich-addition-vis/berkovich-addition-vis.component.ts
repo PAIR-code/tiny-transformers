@@ -28,7 +28,7 @@ import {
   formatDigitSequence,
   add,
   getAlignedDigits
-} from '../../lib/berkovich/berkovich';
+} from '../../../lib/berkovich/berkovich';
 
 import { BerkovichAdditionConfigComponent } from './config-card/berkovich-addition-config.component';
 import { BerkovichAdditionDigitsComponent, AdditionDigitRow } from './digits-card/berkovich-addition-digits.component';

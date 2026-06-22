@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MarkdownComponent } from 'ngx-markdown';
-import { Rational, formatDigitSequence } from '../../../lib/berkovich/berkovich';
+import { Rational, formatDigitSequence } from '../../../../lib/berkovich/berkovich';
 
 @Component({
   selector: 'app-berkovich-calculus',

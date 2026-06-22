@@ -28,8 +28,9 @@ import {
   formatDigitSequence,
   add,
   subtract,
-  getValuation
-} from '../../lib/berkovich/berkovich';
+  getValuation,
+  computeGradientDetails
+} from '../../../lib/berkovich/berkovich';
 
 import { BerkovichAdditionGradientsConfigComponent } from './config-card/berkovich-addition-gradients-config.component';
 import { BerkovichAdditionCalculusComponent } from './calculus-card/berkovich-addition-calculus.component';
@@ -116,7 +117,8 @@ Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\
   // Loss and Calculus
   readonly dY = computed<number>(() => {
     const diff = subtract(this.centerC(), this.centerY());
-    return -getValuation(diff, BigInt(this.prime()));
+    const valDiff = getValuation(diff, BigInt(this.prime()));
+    return valDiff.type === 'finite' ? -valDiff.value : -Infinity;
   });
 
   readonly dL_drhoC = computed<number>(() => {
@@ -170,16 +172,28 @@ Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\
     const rA = this.rhoA();
     const rB = this.rhoB();
     
-    const drhoC_drhoA = rA >= rB ? 1 : 0;
-    const drhoC_drhoB = rB >= rA ? 1 : 0;
+    let drhoC_drhoA = 0;
+    let drhoC_drhoB = 0;
+    if (rA > rB) { drhoC_drhoA = 1; }
+    else if (rB > rA) { drhoC_drhoB = 1; }
+    else { drhoC_drhoA = 0.5; drhoC_drhoB = 0.5; }
     
-    // Constant learning rate of 1/p (represented by 0.33 for p=3)
     const eta = 1 / this.prime();
     
-    const newRhoA = rA - eta * drC * drhoC_drhoA;
-    const newRhoB = rB - eta * drC * drhoC_drhoB;
+    const targetX = subtract(this.centerY(), this.centerB());
+    const etaX = eta * drhoC_drhoA;
+    if (etaX > 0 && Math.abs(drC) > 0) {
+      const detailsX = computeGradientDetails(this.centerA(), this.rhoA(), targetX, -2, BigInt(this.prime()), etaX);
+      this.centerAInput.set(formatDigitSequence(detailsX.nextCenter, BigInt(this.prime())));
+      this.rhoAInput.set(detailsX.nextLogRadius.toFixed(2));
+    }
     
-    this.rhoAInput.set(Math.max(-2, Math.min(2, newRhoA)).toFixed(2));
-    this.rhoBInput.set(Math.max(-2, Math.min(2, newRhoB)).toFixed(2));
+    const targetY = subtract(this.centerY(), this.centerA());
+    const etaY = eta * drhoC_drhoB;
+    if (etaY > 0 && Math.abs(drC) > 0) {
+      const detailsY = computeGradientDetails(this.centerB(), this.rhoB(), targetY, -2, BigInt(this.prime()), etaY);
+      this.centerBInput.set(formatDigitSequence(detailsY.nextCenter, BigInt(this.prime())));
+      this.rhoBInput.set(detailsY.nextLogRadius.toFixed(2));
+    }
   }
 }
