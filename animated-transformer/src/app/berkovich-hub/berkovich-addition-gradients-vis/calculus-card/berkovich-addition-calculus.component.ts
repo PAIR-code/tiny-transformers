@@ -28,7 +28,7 @@ import { MarkdownComponent } from 'ngx-markdown';
           Non-Archimedean Gradient Flow
         </mat-card-title>
         <mat-card-subtitle>
-          Chain rule for f(A,B) = A + B
+          Chain rule for f(x₁, x₂) = x₁ + x₂
         </mat-card-subtitle>
       </mat-card-header>
 
@@ -39,21 +39,21 @@ import { MarkdownComponent } from 'ngx-markdown';
 
         <div class="math-block">
           <div class="eq-row">
-            <span class="var">(x+y)<sub>ρ</sub></span> = max(<span class="varA">x<sub>ρ</sub></span>, <span class="varB">y<sub>ρ</sub></span>) = max({{ rhoA().toFixed(2) }}, {{ rhoB().toFixed(2) }}) = {{ rhoC().toFixed(2) }}
+            <span class="var">(x₁+x₂)<sub>ρ</sub></span> = max(<span class="varA">x₁<sub>ρ</sub></span>, <span class="varB">x₂<sub>ρ</sub></span>) = max({{ rhoX1().toFixed(2) }}, {{ rhoX2().toFixed(2) }}) = {{ rhoSum().toFixed(2) }}
           </div>
           
           <div class="eq-row">
             <strong>Active Degree (Derivative):</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x+y)_\\\\rho}{\\\\partial x_\\\\rho} =$'"></markdown> 
-            <span [class.active-val]="drhoC_drhoA() === 1">{{ drhoC_drhoA() }}</span>
-            <span class="explanation"> (because {{ rhoA() >= rhoB() ? 'x_ρ ≥ y_ρ' : 'x_ρ < y_ρ' }})</span>
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x_1+x_2)_\\\\rho}{\\\\partial x_{1,\\\\rho}} =$'"></markdown> 
+            <span [class.active-val]="drhoSum_drhoX1() === 1">{{ drhoSum_drhoX1() }}</span>
+            <span class="explanation"> (because {{ rhoX1() >= rhoX2() ? 'x1_ρ ≥ x2_ρ' : 'x1_ρ < x2_ρ' }})</span>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x+y)_\\\\rho}{\\\\partial y_\\\\rho} =$'"></markdown> 
-            <span [class.active-val]="drhoC_drhoB() === 1">{{ drhoC_drhoB() }}</span>
-            <span class="explanation"> (because {{ rhoB() >= rhoA() ? 'y_ρ ≥ x_ρ' : 'y_ρ < x_ρ' }})</span>
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x_1+x_2)_\\\\rho}{\\\\partial x_{2,\\\\rho}} =$'"></markdown> 
+            <span [class.active-val]="drhoSum_drhoX2() === 1">{{ drhoSum_drhoX2() }}</span>
+            <span class="explanation"> (because {{ rhoX2() >= rhoX1() ? 'x2_ρ ≥ x1_ρ' : 'x2_ρ < x1_ρ' }})</span>
           </div>
 
           <hr class="divider"/>
@@ -62,22 +62,22 @@ import { MarkdownComponent } from 'ngx-markdown';
             <strong>Loss Gradient (L1 Path Metric):</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial (x+y)_\\\\rho} =$'"></markdown> 
-            <span [class.active-val]="dL_drhoC() !== 0">{{ dL_drhoC() > 0 ? '+1' : (dL_drhoC() < 0 ? '-1' : '0') }}</span>
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial (x_1+x_2)_\\\\rho} =$'"></markdown> 
+            <span [class.active-val]="dL_drhoSum() !== 0">{{ dL_drhoSum() > 0 ? '+1' : (dL_drhoSum() < 0 ? '-1' : '0') }}</span>
           </div>
 
           <div class="eq-row">
             <strong>Backpropagation:</strong>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_\\\\rho} =$'"></markdown> 
-            {{ dL_drhoC() }} × {{ drhoC_drhoA() }} = 
-            <span class="final-grad" [class.active-val]="drhoC_drhoA() === 1">{{ dL_drhoC() * drhoC_drhoA() }}</span>
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_{1,\\\\rho}} =$'"></markdown> 
+            {{ dL_drhoSum() }} × {{ drhoSum_drhoX1() }} = 
+            <span class="final-grad" [class.active-val]="drhoSum_drhoX1() === 1">{{ dL_drhoSum() * drhoSum_drhoX1() }}</span>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial y_\\\\rho} =$'"></markdown> 
-            {{ dL_drhoC() }} × {{ drhoC_drhoB() }} = 
-            <span class="final-grad" [class.active-val]="drhoC_drhoB() === 1">{{ dL_drhoC() * drhoC_drhoB() }}</span>
+            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_{2,\\\\rho}} =$'"></markdown> 
+            {{ dL_drhoSum() }} × {{ drhoSum_drhoX2() }} = 
+            <span class="final-grad" [class.active-val]="drhoSum_drhoX2() === 1">{{ dL_drhoSum() * drhoSum_drhoX2() }}</span>
           </div>
         </div>
       </mat-card-content>
@@ -113,17 +113,17 @@ import { MarkdownComponent } from 'ngx-markdown';
   imports: [CommonModule, MatCardModule, MatIconModule, MarkdownComponent]
 })
 export class BerkovichAdditionCalculusComponent {
-  readonly rhoA = input.required<number>();
-  readonly rhoB = input.required<number>();
-  readonly dL_drhoC = input.required<number>();
+  readonly rhoX1 = input.required<number>();
+  readonly rhoX2 = input.required<number>();
+  readonly dL_drhoSum = input.required<number>();
   
-  readonly rhoC = computed(() => Math.max(this.rhoA(), this.rhoB()));
+  readonly rhoSum = computed(() => Math.max(this.rhoX1(), this.rhoX2()));
   
-  readonly drhoC_drhoA = computed(() => this.rhoA() >= this.rhoB() ? 1 : 0);
-  readonly drhoC_drhoB = computed(() => this.rhoB() >= this.rhoA() ? 1 : 0);
+  readonly drhoSum_drhoX1 = computed(() => this.rhoX1() >= this.rhoX2() ? 1 : 0);
+  readonly drhoSum_drhoX2 = computed(() => this.rhoX2() >= this.rhoX1() ? 1 : 0);
 
   readonly explainerMarkdown = `
-Under non-Archimedean addition, the sum's radius is dominated by the maximum input radius: $(x+y)_\\rho = \\max(x_\\rho, y_\\rho)$. 
+Under non-Archimedean addition, the sum's radius is dominated by the maximum input radius: $(x_1+x_2)_\\rho = \\max(x_{1,\\rho}, x_{2,\\rho})$. 
 Consequently, the gradient propagates strictly to the input parameter with the larger radius.
 `;
 }

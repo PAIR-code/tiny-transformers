@@ -28,50 +28,50 @@ import { FormsModule } from '@angular/forms';
       <mat-card-header>
         <mat-card-title>
           <mat-icon>settings</mat-icon>
-          Gradient Config (X + Y → Z)
+          Gradient Config (x₁ + x₂ → y)
         </mat-card-title>
       </mat-card-header>
       <mat-card-content class="config-content">
-        <!-- Target Disk z -->
+        <!-- Target Disk y -->
         <div class="node-config node-y">
-          <div class="node-title">Target Disk z (z<sub>c</sub>, z<sub>ρ</sub>) [Yellow]</div>
+          <div class="node-title">Target Disk y (y<sub>c</sub>) [Yellow]</div>
           <div class="fields-row">
             <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Center z<sub>c</sub></mat-label>
+              <mat-label>Center y<sub>c</sub></mat-label>
               <input matInput [ngModel]="centerYInput()" (ngModelChange)="centerYInputChange.emit($event)" (blur)="centerYBlur.emit()" />
               <mat-hint>base-p digits</mat-hint>
             </mat-form-field>
           </div>
         </div>
 
-        <!-- Disk x -->
+        <!-- Disk x1 -->
         <div class="node-config node-a">
-          <div class="node-title">Disk x (x<sub>c</sub>, x<sub>ρ</sub>) [Blue]</div>
+          <div class="node-title">Disk x₁ (x₁<sub>c</sub>, x₁<sub>ρ</sub>) [Blue]</div>
           <div class="fields-row">
             <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Center x<sub>c</sub></mat-label>
-              <input matInput [ngModel]="centerAInput()" (ngModelChange)="centerAInputChange.emit($event)" (blur)="centerABlur.emit()" />
+              <mat-label>Center x₁<sub>c</sub></mat-label>
+              <input matInput [ngModel]="centerX1Input()" (ngModelChange)="centerX1InputChange.emit($event)" (blur)="centerX1Blur.emit()" />
               <mat-hint>base-p digits</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-field small-field">
-              <mat-label>Radius x<sub>ρ</sub></mat-label>
-              <input matInput type="number" step="1" [ngModel]="rhoAInput()" (ngModelChange)="rhoAInputChange.emit($event)" (blur)="rhoABlur.emit()" />
+              <mat-label>Radius x₁<sub>ρ</sub></mat-label>
+              <input matInput type="number" step="1" [ngModel]="rhoX1Input()" (ngModelChange)="rhoX1InputChange.emit($event)" (blur)="rhoX1Blur.emit()" />
             </mat-form-field>
           </div>
         </div>
 
-        <!-- Disk y -->
+        <!-- Disk x2 -->
         <div class="node-config node-b">
-          <div class="node-title">Disk y (y<sub>c</sub>, y<sub>ρ</sub>) [Pink]</div>
+          <div class="node-title">Disk x₂ (x₂<sub>c</sub>, x₂<sub>ρ</sub>) [Pink]</div>
           <div class="fields-row">
             <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>Center y<sub>c</sub></mat-label>
-              <input matInput [ngModel]="centerBInput()" (ngModelChange)="centerBInputChange.emit($event)" (blur)="centerBBlur.emit()" />
+              <mat-label>Center x₂<sub>c</sub></mat-label>
+              <input matInput [ngModel]="centerX2Input()" (ngModelChange)="centerX2InputChange.emit($event)" (blur)="centerX2Blur.emit()" />
               <mat-hint>base-p digits</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-field small-field">
-              <mat-label>Radius y<sub>ρ</sub></mat-label>
-              <input matInput type="number" step="1" [ngModel]="rhoBInput()" (ngModelChange)="rhoBInputChange.emit($event)" (blur)="rhoBBlur.emit()" />
+              <mat-label>Radius x₂<sub>ρ</sub></mat-label>
+              <input matInput type="number" step="1" [ngModel]="rhoX2Input()" (ngModelChange)="rhoX2InputChange.emit($event)" (blur)="rhoX2Blur.emit()" />
             </mat-form-field>
           </div>
         </div>
@@ -129,25 +129,25 @@ export class BerkovichAdditionGradientsConfigComponent {
   readonly prime = input.required<number>();
   
   readonly centerYInput = input.required<string>();
-  readonly centerAInput = input.required<string>();
-  readonly rhoAInput = input.required<string>();
-  readonly centerBInput = input.required<string>();
-  readonly rhoBInput = input.required<string>();
+  readonly centerX1Input = input.required<string>();
+  readonly rhoX1Input = input.required<string>();
+  readonly centerX2Input = input.required<string>();
+  readonly rhoX2Input = input.required<string>();
 
   readonly primeChange = output<number>();
   
   readonly centerYInputChange = output<string>();
   readonly centerYBlur = output<void>();
   
-  readonly centerAInputChange = output<string>();
-  readonly centerABlur = output<void>();
-  readonly rhoAInputChange = output<string>();
-  readonly rhoABlur = output<void>();
+  readonly centerX1InputChange = output<string>();
+  readonly centerX1Blur = output<void>();
+  readonly rhoX1InputChange = output<string>();
+  readonly rhoX1Blur = output<void>();
   
-  readonly centerBInputChange = output<string>();
-  readonly centerBBlur = output<void>();
-  readonly rhoBInputChange = output<string>();
-  readonly rhoBBlur = output<void>();
+  readonly centerX2InputChange = output<string>();
+  readonly centerX2Blur = output<void>();
+  readonly rhoX2InputChange = output<string>();
+  readonly rhoX2Blur = output<void>();
   
   readonly step = output<void>();
   readonly randomize = output<void>();

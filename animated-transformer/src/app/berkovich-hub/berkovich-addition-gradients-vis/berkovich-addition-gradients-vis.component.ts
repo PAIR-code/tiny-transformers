@@ -58,47 +58,47 @@ export class BerkovichAdditionGradientsVisComponent {
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
 
-  readonly subtitleMath = '$x + y \\to z$';
+  readonly subtitleMath = '$x_1 + x_2 \\to y$';
   readonly explainerMarkdown = `
-In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x$ and $y$ of an addition operation $x+y$ to match a target disk $z$.
+In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x_1$ and $x_2$ of an addition operation $x_1+x_2$ to match a target disk $y$.
 
 ### The Loss Function & Distance
-We define the loss function $L(x, y; z)$ as the branching distance between the sum disk $x+y$ and the target disk $z$:
-$$L(x, y; z) = \\text{dist}(x+y, z)$$
+We define the loss function $L(x_1, x_2; y)$ as the branching distance between the sum disk $x_1+x_2$ and the target disk $y$:
+$$L(x_1, x_2; y) = \\text{dist}(x_1+x_2, y)$$
 In tree topology, this is the length of the path from the sum disk node up to the lowest common ancestor (LCA) junction with the target disk.
 
 ### How Gradients Flow
-Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\\rho} = \\max(x_{\\rho}, y_{\\rho})$:
-1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x$ and $y$. However, because the tree only branches at discrete levels, the gradient points exactly toward the branch that leads closer to the target center $z_c$.
-2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. Specifically, the gradient of the sum radius $\\partial L / \\partial (x+y)_{\\rho}$ flows back:
-   * Entirely to $x_{\\rho}$ if $x_{\\rho} > y_{\\rho}$
-   * Entirely to $y_{\\rho}$ if $y_{\\rho} > x_{\\rho}$
-   * Equally divided between them if $x_{\\rho} = y_{\\rho}$
+Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius is $(x_1+x_2)_{\\rho} = \\max(x_{1,\\rho}, x_{2,\\rho})$:
+1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x_1$ and $x_2$. However, because the tree only branches at discrete levels, the gradient points exactly toward the branch that leads closer to the target center $y_c$.
+2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. Specifically, the gradient of the sum radius $\\partial L / \\partial (x_1+x_2)_{\\rho}$ flows back:
+   * Entirely to $x_{1,\\rho}$ if $x_{1,\\rho} > x_{2,\\rho}$
+   * Entirely to $x_{2,\\rho}$ if $x_{2,\\rho} > x_{1,\\rho}$
+   * Equally divided between them if $x_{1,\\rho} = x_{2,\\rho}$
 
 ### Visual Guide
-* **The Trees**: The four trees represent the target disk $z$ (yellow), input disks $x$ (blue) and $y$ (pink), and the sum disk $x+y$ (purple) side-by-side.
-* **Step SGD**: Click **Step SGD** to take a gradient step. You will see the paths of $x$ and $y$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x+y$ closer and closer to matching $z$.
+* **The Trees**: The four trees represent the target disk $y$ (yellow), input disks $x_1$ (blue) and $x_2$ (pink), and the sum disk $x_1+x_2$ (purple) side-by-side.
+* **Step SGD**: Click **Step SGD** to take a gradient step. You will see the paths of $x_1$ and $x_2$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x_1+x_2$ closer and closer to matching $y$.
 `;
 
   
   readonly centerYInput = signal<string>('00.00');
-  readonly centerAInput = signal<string>('12.20');
-  readonly rhoAInput = signal<string>('0.0');
-  readonly centerBInput = signal<string>('02.20');
-  readonly rhoBInput = signal<string>('-1.0');
+  readonly centerX1Input = signal<string>('12.20');
+  readonly rhoX1Input = signal<string>('0.0');
+  readonly centerX2Input = signal<string>('02.20');
+  readonly rhoX2Input = signal<string>('-1.0');
 
   // Parsed State
   readonly centerY = computed<Rational>(() => this.parseParam(this.centerYInput()));
-  readonly centerA = computed<Rational>(() => this.parseParam(this.centerAInput()));
-  readonly centerB = computed<Rational>(() => this.parseParam(this.centerBInput()));
+  readonly centerX1 = computed<Rational>(() => this.parseParam(this.centerX1Input()));
+  readonly centerX2 = computed<Rational>(() => this.parseParam(this.centerX2Input()));
 
-  readonly rhoA = computed<number>(() => {
-    const v = parseFloat(this.rhoAInput());
+  readonly rhoX1 = computed<number>(() => {
+    const v = parseFloat(this.rhoX1Input());
     return isNaN(v) ? 0.0 : Math.max(-2, Math.min(2, v));
   });
 
-  readonly rhoB = computed<number>(() => {
-    const v = parseFloat(this.rhoBInput());
+  readonly rhoX2 = computed<number>(() => {
+    const v = parseFloat(this.rhoX2Input());
     return isNaN(v) ? 0.0 : Math.max(-2, Math.min(2, v));
   });
 
@@ -111,31 +111,31 @@ Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\
   }
 
   // Output State
-  readonly centerC = computed<Rational>(() => add(this.centerA(), this.centerB()));
-  readonly rhoC = computed<number>(() => Math.max(this.rhoA(), this.rhoB()));
+  readonly centerSum = computed<Rational>(() => add(this.centerX1(), this.centerX2()));
+  readonly rhoSum = computed<number>(() => Math.max(this.rhoX1(), this.rhoX2()));
 
   // Loss and Calculus
   readonly dY = computed<number>(() => {
-    const diff = subtract(this.centerC(), this.centerY());
+    const diff = subtract(this.centerSum(), this.centerY());
     const valDiff = getValuation(diff, BigInt(this.prime()));
     return valDiff.type === 'finite' ? -valDiff.value : -Infinity;
   });
 
-  readonly dL_drhoC = computed<number>(() => {
-    const rC = this.rhoC();
+  readonly dL_drhoSum = computed<number>(() => {
+    const rSum = this.rhoSum();
     const d = this.dY();
-    if (rC > d) return 1;
-    if (rC < d) return -1;
+    if (rSum > d) return 1;
+    if (rSum < d) return -1;
     return 0; // if exactly matches, gradient is technically zero
   });
 
   // Multi-tree Nodes
   readonly trackedNodes = computed<TrackedNode[]>(() => {
     return [
-      { id: 'Z', center: this.centerY(), rho: -2, color: '#fcd34d', label: 'z_c (Target)' },
-      { id: 'X', center: this.centerA(), rho: this.rhoA(), color: '#60a5fa', label: 'x_ρ' },
-      { id: 'Y', center: this.centerB(), rho: this.rhoB(), color: '#f472b6', label: 'y_ρ' },
-      { id: 'X+Y', center: this.centerC(), rho: this.rhoC(), color: '#a78bfa', label: '(x+y)_ρ' }
+      { id: 'Y_target', center: this.centerY(), rho: -2, color: '#fcd34d', label: 'y_c (Target)' },
+      { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
+      { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
+      { id: 'X1+X2', center: this.centerSum(), rho: this.rhoSum(), color: '#a78bfa', label: '(x1+x2)_ρ' }
     ];
   });
 
@@ -143,11 +143,11 @@ Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\
   onPrimeChange(p: number) { this.prime.set(p); }
   
   onCenterYBlur() { this.centerYInput.set(formatDigitSequence(this.centerY(), BigInt(this.prime()))); }
-  onCenterABlur() { this.centerAInput.set(formatDigitSequence(this.centerA(), BigInt(this.prime()))); }
-  onCenterBBlur() { this.centerBInput.set(formatDigitSequence(this.centerB(), BigInt(this.prime()))); }
+  onCenterX1Blur() { this.centerX1Input.set(formatDigitSequence(this.centerX1(), BigInt(this.prime()))); }
+  onCenterX2Blur() { this.centerX2Input.set(formatDigitSequence(this.centerX2(), BigInt(this.prime()))); }
   
-  onRhoABlur() { this.rhoAInput.set(this.rhoA().toFixed(2)); }
-  onRhoBBlur() { this.rhoBInput.set(this.rhoB().toFixed(2)); }
+  onRhoX1Blur() { this.rhoX1Input.set(this.rhoX1().toFixed(2)); }
+  onRhoX2Blur() { this.rhoX2Input.set(this.rhoX2().toFixed(2)); }
 
   onRandomize() {
     const p = this.prime();
@@ -160,40 +160,40 @@ Since the sum disk's center is $(x+y)_c = x_c + y_c$ and its radius is $(x+y)_{\
     };
     const randomRho = () => (Math.random() * 3 - 1.5).toFixed(1);
 
-    this.centerAInput.set(randomDigits());
-    this.centerBInput.set(randomDigits());
-    this.rhoAInput.set(randomRho());
-    this.rhoBInput.set(randomRho());
+    this.centerX1Input.set(randomDigits());
+    this.centerX2Input.set(randomDigits());
+    this.rhoX1Input.set(randomRho());
+    this.rhoX2Input.set(randomRho());
     this.centerYInput.set(randomDigits());
   }
 
   onStep() {
-    const drC = this.dL_drhoC();
-    const rA = this.rhoA();
-    const rB = this.rhoB();
+    const drSum = this.dL_drhoSum();
+    const rX1 = this.rhoX1();
+    const rX2 = this.rhoX2();
     
-    let drhoC_drhoA = 0;
-    let drhoC_drhoB = 0;
-    if (rA > rB) { drhoC_drhoA = 1; }
-    else if (rB > rA) { drhoC_drhoB = 1; }
-    else { drhoC_drhoA = 0.5; drhoC_drhoB = 0.5; }
+    let drhoSum_drhoX1 = 0;
+    let drhoSum_drhoX2 = 0;
+    if (rX1 > rX2) { drhoSum_drhoX1 = 1; }
+    else if (rX2 > rX1) { drhoSum_drhoX2 = 1; }
+    else { drhoSum_drhoX1 = 0.5; drhoSum_drhoX2 = 0.5; }
     
     const eta = 1 / this.prime();
     
-    const targetX = subtract(this.centerY(), this.centerB());
-    const etaX = eta * drhoC_drhoA;
-    if (etaX > 0 && Math.abs(drC) > 0) {
-      const detailsX = computeGradientDetails(this.centerA(), this.rhoA(), targetX, -2, BigInt(this.prime()), etaX);
-      this.centerAInput.set(formatDigitSequence(detailsX.nextCenter, BigInt(this.prime())));
-      this.rhoAInput.set(detailsX.nextLogRadius.toFixed(2));
+    const targetX1 = subtract(this.centerY(), this.centerX2());
+    const etaX1 = eta * drhoSum_drhoX1;
+    if (etaX1 > 0 && Math.abs(drSum) > 0) {
+      const detailsX1 = computeGradientDetails(this.centerX1(), this.rhoX1(), targetX1, -2, BigInt(this.prime()), etaX1);
+      this.centerX1Input.set(formatDigitSequence(detailsX1.nextCenter, BigInt(this.prime())));
+      this.rhoX1Input.set(detailsX1.nextLogRadius.toFixed(2));
     }
     
-    const targetY = subtract(this.centerY(), this.centerA());
-    const etaY = eta * drhoC_drhoB;
-    if (etaY > 0 && Math.abs(drC) > 0) {
-      const detailsY = computeGradientDetails(this.centerB(), this.rhoB(), targetY, -2, BigInt(this.prime()), etaY);
-      this.centerBInput.set(formatDigitSequence(detailsY.nextCenter, BigInt(this.prime())));
-      this.rhoBInput.set(detailsY.nextLogRadius.toFixed(2));
+    const targetX2 = subtract(this.centerY(), this.centerX1());
+    const etaX2 = eta * drhoSum_drhoX2;
+    if (etaX2 > 0 && Math.abs(drSum) > 0) {
+      const detailsX2 = computeGradientDetails(this.centerX2(), this.rhoX2(), targetX2, -2, BigInt(this.prime()), etaX2);
+      this.centerX2Input.set(formatDigitSequence(detailsX2.nextCenter, BigInt(this.prime())));
+      this.rhoX2Input.set(detailsX2.nextLogRadius.toFixed(2));
     }
   }
 }
