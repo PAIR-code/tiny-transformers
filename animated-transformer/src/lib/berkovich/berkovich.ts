@@ -542,3 +542,91 @@ export function computeGradientDetails(
   }
 }
 
+export interface AdditionGradientsStepResult {
+  nextCenterX1: Rational;
+  nextRhoX1: number;
+  nextCenterX2: Rational;
+  nextRhoX2: number;
+  sumCenter: Rational;
+  sumRho: number;
+  loss: number;
+  drhoSum_drhoX1: number;
+  drhoSum_drhoX2: number;
+  drSum: number;
+}
+
+export function stepAdditionGradients(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number
+): AdditionGradientsStepResult {
+  const sumCenter = add(cX1, cX2);
+  const sumRho = Math.max(rhoX1, rhoX2);
+
+  // Distance between sum disk and target
+  const diff = subtract(sumCenter, targetY);
+  const valDiff = getValuation(diff, p);
+  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+  // L1 loss is |sumRho - d| + d - y_rho
+  const y_rho = -2;
+  const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho ? 0 : computePathLoss(sumRho, extNegate(valDiff), y_rho);
+
+  // Gradient of loss w.r.t sumRho
+  let drSum = 0;
+  if (sumRho > d) drSum = 1;
+  else if (sumRho < d) drSum = -1;
+
+  // Active degrees
+  let drhoSum_drhoX1 = 0;
+  let drhoSum_drhoX2 = 0;
+  if (rhoX1 > rhoX2) {
+    drhoSum_drhoX1 = 1;
+  } else if (rhoX2 > rhoX1) {
+    drhoSum_drhoX2 = 1;
+  } else {
+    drhoSum_drhoX1 = 0.5;
+    drhoSum_drhoX2 = 0.5;
+  }
+
+  let nextCenterX1 = cX1;
+  let nextRhoX1 = rhoX1;
+  let nextCenterX2 = cX2;
+  let nextRhoX2 = rhoX2;
+
+  // Update X1
+  const targetX1 = subtract(targetY, cX2);
+  const etaX1 = eta * drhoSum_drhoX1;
+  if (etaX1 > 0) {
+    const detailsX1 = computeGradientDetails(cX1, rhoX1, targetX1, y_rho, p, etaX1);
+    nextCenterX1 = detailsX1.nextCenter;
+    nextRhoX1 = detailsX1.nextLogRadius;
+  }
+
+  // Update X2
+  const targetX2 = subtract(targetY, cX1);
+  const etaX2 = eta * drhoSum_drhoX2;
+  if (etaX2 > 0) {
+    const detailsX2 = computeGradientDetails(cX2, rhoX2, targetX2, y_rho, p, etaX2);
+    nextCenterX2 = detailsX2.nextCenter;
+    nextRhoX2 = detailsX2.nextLogRadius;
+  }
+
+  return {
+    nextCenterX1,
+    nextRhoX1,
+    nextCenterX2,
+    nextRhoX2,
+    sumCenter,
+    sumRho,
+    loss,
+    drhoSum_drhoX1,
+    drhoSum_drhoX2,
+    drSum
+  };
+}
+

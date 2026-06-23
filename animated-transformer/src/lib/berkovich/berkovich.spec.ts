@@ -34,7 +34,8 @@ import {
   parseDigitSequence,
   computeGradientDetails,
   computePathLoss,
-  extValuationGe
+  extValuationGe,
+  stepAdditionGradients
 } from './berkovich';
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
@@ -484,5 +485,69 @@ describe('Berkovich Gradient Descent Convergence', () => {
       }
     });
   }
+});
+
+describe('Berkovich Addition Gradient Descent Convergence', () => {
+  const rhoMin = -2;
+  const eta = 0.2;
+  const maxSteps = 300;
+
+  function runAdditionDescent(
+    p: bigint,
+    startX1: { center: Rational; rho: number },
+    startX2: { center: Rational; rho: number },
+    targetY: Rational
+  ) {
+    let cX1 = startX1.center;
+    let rhoX1 = startX1.rho;
+    let cX2 = startX2.center;
+    let rhoX2 = startX2.rho;
+    const trace: string[] = [];
+
+    for (let i = 0; i < maxSteps; i++) {
+      const result = stepAdditionGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta);
+      trace.push(
+        `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
+        `sum=(${formatRational(result.sumCenter)}, ${result.sumRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+      );
+      if (result.loss <= 1e-7) {
+        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, sumCenter: result.sumCenter, sumRho: result.sumRho, trace };
+      }
+      cX1 = result.nextCenterX1;
+      rhoX1 = result.nextRhoX1;
+      cX2 = result.nextCenterX2;
+      rhoX2 = result.nextRhoX2;
+    }
+    return { converged: false, steps: maxSteps, cX1, rhoX1, cX2, rhoX2, sumCenter: add(cX1, cX2), sumRho: Math.max(rhoX1, rhoX2), trace };
+  }
+
+  it('should converge x1 + x2 to target y', () => {
+    const p = 3n;
+    const targetY = parseToRational('5/3'); // 01.20 in base 3
+    const startX1 = { center: parseToRational('0'), rho: 0.0 };
+    const startX2 = { center: parseToRational('1'), rho: -1.0 }; // sum starts at center 1.0, rho 0.0
+
+    const result = runAdditionDescent(p, startX1, startX2, targetY);
+    if (!result.converged) {
+      const lastLines = result.trace.slice(-10).join('\n');
+      expect.fail(
+        `Did not converge in ${maxSteps} steps.\n` +
+        `Final Sum: (${formatRational(result.sumCenter)}, ${result.sumRho.toFixed(4)})\n` +
+        `Last 10 steps:\n${lastLines}`
+      );
+    }
+
+    // After convergence:
+    // x1 + x2 must be close to targetY within the tree limit precision of rho = -2.
+    // That means the valuation of the difference must be >= 2.
+    const diff = subtract(result.sumCenter, targetY);
+    const valDiff = getValuation(diff, p);
+    
+    // We expect the sum disk to represent a sub-disk of the target disk at level -2
+    // which means center difference distance should be <= p^-2 (so valuation difference >= 2)
+    // and final sum radius should be <= -2.
+    expect(valDiff.type === 'pos-infinity' || (valDiff.type === 'finite' && valDiff.value >= 2)).toBe(true);
+    expect(result.sumRho).toBeLessThanOrEqual(-2.0);
+  });
 });
 

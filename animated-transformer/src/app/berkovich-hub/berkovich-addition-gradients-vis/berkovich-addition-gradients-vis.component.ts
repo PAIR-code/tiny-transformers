@@ -29,7 +29,7 @@ import {
   add,
   subtract,
   getValuation,
-  computeGradientDetails
+  stepAdditionGradients
 } from '../../../lib/berkovich/berkovich';
 
 import { BerkovichAdditionGradientsConfigComponent } from './config-card/berkovich-addition-gradients-config.component';
@@ -168,32 +168,20 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
   }
 
   onStep() {
-    const drSum = this.dL_drhoSum();
-    const rX1 = this.rhoX1();
-    const rX2 = this.rhoX2();
-    
-    let drhoSum_drhoX1 = 0;
-    let drhoSum_drhoX2 = 0;
-    if (rX1 > rX2) { drhoSum_drhoX1 = 1; }
-    else if (rX2 > rX1) { drhoSum_drhoX2 = 1; }
-    else { drhoSum_drhoX1 = 0.5; drhoSum_drhoX2 = 0.5; }
-    
     const eta = 1 / this.prime();
+    const result = stepAdditionGradients(
+      this.centerX1(),
+      this.rhoX1(),
+      this.centerX2(),
+      this.rhoX2(),
+      this.centerY(),
+      BigInt(this.prime()),
+      eta
+    );
     
-    const targetX1 = subtract(this.centerY(), this.centerX2());
-    const etaX1 = eta * drhoSum_drhoX1;
-    if (etaX1 > 0 && Math.abs(drSum) > 0) {
-      const detailsX1 = computeGradientDetails(this.centerX1(), this.rhoX1(), targetX1, -2, BigInt(this.prime()), etaX1);
-      this.centerX1Input.set(formatDigitSequence(detailsX1.nextCenter, BigInt(this.prime())));
-      this.rhoX1Input.set(detailsX1.nextLogRadius.toFixed(2));
-    }
-    
-    const targetX2 = subtract(this.centerY(), this.centerX1());
-    const etaX2 = eta * drhoSum_drhoX2;
-    if (etaX2 > 0 && Math.abs(drSum) > 0) {
-      const detailsX2 = computeGradientDetails(this.centerX2(), this.rhoX2(), targetX2, -2, BigInt(this.prime()), etaX2);
-      this.centerX2Input.set(formatDigitSequence(detailsX2.nextCenter, BigInt(this.prime())));
-      this.rhoX2Input.set(detailsX2.nextLogRadius.toFixed(2));
-    }
+    this.centerX1Input.set(formatDigitSequence(result.nextCenterX1, BigInt(this.prime())));
+    this.rhoX1Input.set(result.nextRhoX1.toFixed(2));
+    this.centerX2Input.set(formatDigitSequence(result.nextCenterX2, BigInt(this.prime())));
+    this.rhoX2Input.set(result.nextRhoX2.toFixed(2));
   }
 }
