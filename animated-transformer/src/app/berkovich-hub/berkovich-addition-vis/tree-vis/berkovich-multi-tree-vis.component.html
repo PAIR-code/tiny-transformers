@@ -20,17 +20,54 @@ limitations under the License.
     </mat-card-title>
   </mat-card-header>
 
-  <mat-card-content class="svg-container">
+  <mat-card-content class="svg-container" style="position: relative;">
     <svg
       [attr.width]="svgWidth()"
       [attr.height]="svgHeight"
       class="tree-svg"
     >
-      <!-- Tree Titles -->
+      <!-- Per-tree input labels rendered above each tree root -->
+      @for (label of treeInputLabels(); track label.trackedNodeId) {
+        @if (label.inp) {
+          <foreignObject
+            [attr.x]="label.editorX"
+            [attr.y]="2"
+            width="110"
+            height="62"
+            class="tree-input-fo"
+          >
+            <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label">
+              <div class="editor-row">
+                <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
+                <input
+                  class="mini-digit-input"
+                  [value]="label.inp.centerInput"
+                  (change)="onInputChange(label.inp.nodeId, 'center', $any($event.target).value)"
+                  (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'center' })"
+                />
+              </div>
+              @if (label.inp.rhoInput !== undefined) {
+                <div class="editor-row">
+                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                  <input
+                    class="mini-digit-input mini-rho-input"
+                    type="text"
+                    [value]="label.inp.rhoInput"
+                    (change)="onInputChange(label.inp.nodeId, 'rho', $any($event.target).value)"
+                    (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'rho' })"
+                  />
+                </div>
+              }
+            </div>
+          </foreignObject>
+        }
+      }
+
+      <!-- Tree Titles (shown only for non-editable trees) -->
       @for (title of treeTitles(); track title.text) {
         <text
           [attr.x]="title.x"
-          [attr.y]="25"
+          [attr.y]="paddingY - 8"
           class="tree-title-text"
           [style.fill]="title.color"
         >
@@ -50,7 +87,6 @@ limitations under the License.
       <!-- Draw Edges -->
       @for (edge of treeVisuals().edges; track edge.id) {
         <g class="tree-edge-group">
-          <!-- We can draw multiple thick lines slightly offset if they share an edge, but let's just use the first color -->
           <path
             [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
             [class.inactive-stub]="!edge.isActive"
@@ -159,5 +195,39 @@ limitations under the License.
         </g>
       }
     </svg>
+
+    <!-- Action bar below the SVG -->
+    @if (editableInputs()) {
+      <div class="action-bar">
+        <select
+          class="method-select"
+          [ngModel]="vertexMethod()"
+          (ngModelChange)="vertexMethodChange.emit($event)"
+          aria-label="Vertex resolution method"
+        >
+          <option value="exact-per-coord">Per-Coord</option>
+          <option value="heuristic-joint">Heuristic Joint</option>
+          <option value="exact-joint">Exact Joint</option>
+        </select>
+        <button
+          mat-stroked-button
+          class="compact-btn"
+          (click)="randomize.emit()"
+          aria-label="Randomize inputs"
+        >
+          <mat-icon>shuffle</mat-icon>
+        </button>
+        <button
+          mat-flat-button
+          color="accent"
+          class="compact-btn"
+          (click)="step.emit()"
+          aria-label="Step SGD"
+        >
+          <mat-icon>fast_forward</mat-icon>
+          Step
+        </button>
+      </div>
+    }
   </mat-card-content>
 </mat-card>

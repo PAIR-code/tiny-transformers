@@ -40,38 +40,23 @@
   </mat-card>
 
   <div class="dashboard-grid">
-    <!-- Left Column: Tree Visualizer -->
+    <!-- Left Column: Tree Visualizer with inline inputs -->
     <section class="visualizer-card-container">
       <app-berkovich-multi-tree-vis
         [prime]="prime()"
         [trackedNodes]="trackedNodes()"
+        [editableInputs]="editableInputs()"
+        [vertexMethod]="vertexMethod()"
+        (inputChange)="onInputChange($event)"
+        (inputBlur)="onInputBlur($event)"
+        (step)="onStep()"
+        (randomize)="onRandomize()"
+        (vertexMethodChange)="onVertexMethodChange($event)"
       ></app-berkovich-multi-tree-vis>
     </section>
 
-    <!-- Right Column: Config & Calculus -->
+    <!-- Right Column: Calculus -->
     <aside class="control-panel">
-      <app-berkovich-addition-gradients-config
-        [prime]="prime()"
-        [centerYInput]="centerYInput()"
-        [centerX1Input]="centerX1Input()"
-        [rhoX1Input]="rhoX1Input()"
-        [centerX2Input]="centerX2Input()"
-        [rhoX2Input]="rhoX2Input()"
-        (primeChange)="onPrimeChange($event)"
-        (centerYInputChange)="centerYInput.set($event)"
-        (centerYBlur)="onCenterYBlur()"
-        (centerX1InputChange)="centerX1Input.set($event)"
-        (centerX1Blur)="onCenterX1Blur()"
-        (rhoX1InputChange)="rhoX1Input.set($event)"
-        (rhoX1Blur)="onRhoX1Blur()"
-        (centerX2InputChange)="centerX2Input.set($event)"
-        (centerX2Blur)="onCenterX2Blur()"
-        (rhoX2InputChange)="rhoX2Input.set($event)"
-        (rhoX2Blur)="onRhoX2Blur()"
-        (step)="onStep()"
-        (randomize)="onRandomize()"
-      />
-
       <app-berkovich-addition-calculus
         [rhoX1]="rhoX1()"
         [rhoX2]="rhoX2()"

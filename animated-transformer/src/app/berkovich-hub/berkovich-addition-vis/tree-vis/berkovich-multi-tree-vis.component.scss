@@ -18,6 +18,12 @@ limitations under the License.
   display: block;
 }
 
+.svg-container {
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+}
+
 .tree-edge {
   fill: none;
   stroke: #cbd5e1;
@@ -25,4 +31,106 @@ limitations under the License.
   transition: stroke 0.3s, stroke-width 0.3s, d 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Per-tree input label rendered above each subtree via foreignObject */
+.tree-input-fo {
+  overflow: visible;
+}
 
+.tree-input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-label {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  min-width: 20px;
+}
+
+.mini-digit-input {
+  width: 50px;
+  font-size: 10px;
+  font-family: monospace;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 1px 3px;
+  background: #f8fafc;
+  color: #1e293b;
+  text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    background: #ffffff;
+  }
+}
+
+.mini-rho-input {
+  width: 38px;
+  -appearance: textfield;
+  -moz-appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -appearance: none;
+    margin: 0;
+  }
+}
+
+/* Action bar below SVG */
+.action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.compact-btn {
+  min-width: 0 !important;
+  padding: 0 10px !important;
+  height: 32px !important;
+  font-size: 12px !important;
+  line-height: 32px !important;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 2px;
+  }
+}
+
+.method-select {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  cursor: pointer;
+  height: 32px;
+
+  &:focus {
+    outline: none;
+    border-color: #8b5cf6;
+  }
+}

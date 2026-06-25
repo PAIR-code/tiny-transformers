@@ -555,6 +555,349 @@ export interface AdditionGradientsStepResult {
   drSum: number;
 }
 
+/**
+ * Three methods for resolving simultaneous Type II vertex branch points,
+ * as described in §3.3 (Numerical Implementation) of berkovich.tex.
+ *
+ * - 'exact-per-coord': Each coordinate independently evaluates all p children
+ *   + parent, selects argmin loss per coordinate. O(k·p) per step.
+ * - 'heuristic-joint': Uses finite-field residual projection of the
+ *   combined residuals to select correlated branches. O(k·p) per step.
+ * - 'exact-joint': Evaluates all p^s combinations for s simultaneous
+ *   vertices and selects the global argmin. O(p^s) per step.
+ */
+export type VertexResolutionMethod =
+  | 'exact-per-coord'
+  | 'heuristic-joint'
+  | 'exact-joint';
+
+/**
+ * Compute the active degrees (partial derivatives of sumRho with respect
+ * to each input rho). This determines how gradient flows backward through
+ * the max operation.
+ */
+export function computeActiveDegrees(
+  rhoX1: number,
+  rhoX2: number
+): { drhoSum_drhoX1: number; drhoSum_drhoX2: number } {
+  if (rhoX1 > rhoX2) {
+    return { drhoSum_drhoX1: 1, drhoSum_drhoX2: 0 };
+  } else if (rhoX2 > rhoX1) {
+    return { drhoSum_drhoX1: 0, drhoSum_drhoX2: 1 };
+  }
+  // When equal, both contribute — use 0.5 each for gradient splitting
+  return { drhoSum_drhoX1: 0.5, drhoSum_drhoX2: 0.5 };
+}
+
+/**
+ * Get the digit of a p-adic number at a specific power level.
+ * This extracts the residue class modulo p after shifting.
+ */
+function getDigitAtLevel(
+  c: Rational,
+  level: number,
+  p: bigint
+): number {
+  const aligned = getAlignedDigits(c, p, level, level);
+  return aligned[0]?.digit ?? 0;
+}
+
+/**
+ * Exact Per-Coordinate vertex resolution.
+ * Each coordinate independently selects its best branch by evaluating
+ * all p children + parent against its own residual target.
+ */
+function stepExactPerCoord(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  y_rho: number,
+  activeDegrees: { drhoSum_drhoX1: number; drhoSum_drhoX2: number }
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  let nextCX1 = cX1;
+  let nextRhoX1 = rhoX1;
+  let nextCX2 = cX2;
+  let nextRhoX2 = rhoX2;
+
+  // Update X1 independently: target for X1 is y - X2_center
+  const targetX1 = subtract(targetY, cX2);
+  const etaX1 = eta * activeDegrees.drhoSum_drhoX1;
+  if (etaX1 > 0) {
+    const detailsX1 = computeGradientDetails(
+      cX1, rhoX1, targetX1, y_rho, p, etaX1
+    );
+    nextCX1 = detailsX1.nextCenter;
+    nextRhoX1 = detailsX1.nextLogRadius;
+  }
+
+  // Update X2 independently: target for X2 is y - X1_center (original)
+  const targetX2 = subtract(targetY, cX1);
+  const etaX2 = eta * activeDegrees.drhoSum_drhoX2;
+  if (etaX2 > 0) {
+    const detailsX2 = computeGradientDetails(
+      cX2, rhoX2, targetX2, y_rho, p, etaX2
+    );
+    nextCX2 = detailsX2.nextCenter;
+    nextRhoX2 = detailsX2.nextLogRadius;
+  }
+
+  return { nextCX1, nextRhoX1, nextCX2, nextRhoX2 };
+}
+
+/**
+ * Heuristic Joint vertex resolution.
+ * When both coordinates are simultaneously at Type II vertices, uses
+ * the combined residual to select correlated branches via finite-field
+ * projection. When only one coordinate is at a vertex, falls back to
+ * exact per-coordinate.
+ */
+function stepHeuristicJoint(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  y_rho: number,
+  activeDegrees: { drhoSum_drhoX1: number; drhoSum_drhoX2: number }
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  const isX1Vertex = isVertex(rhoX1);
+  const isX2Vertex = isVertex(rhoX2);
+
+  // If not both at vertices, fall back to per-coordinate
+  if (!isX1Vertex || !isX2Vertex) {
+    return stepExactPerCoord(
+      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+    );
+  }
+
+  // Both at vertices: use joint residual projection.
+  // The residual is r = y - (x1 + x2). We want to find digits
+  // g1 for x1 and g2 for x2 such that the updated sum
+  // (x1 + g1·p^(-k1)) + (x2 + g2·p^(-k2)) is closest to y.
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const sumCenter = add(cX1, cX2);
+  const residual = subtract(targetY, sumCenter);
+
+  // Extract the target digit from the residual at the relevant level.
+  // For the heuristic, when k1 == k2, the combined effect at that level
+  // is (g1 + g2) mod p = target_digit, so we set g1 = target_digit and
+  // g2 = 0 (or vice versa based on which has larger active degree).
+  const pNum = Number(p);
+
+  let bestG1 = 0;
+  let bestG2 = 0;
+  let bestLoss = Infinity;
+
+  if (k1 === k2) {
+    // Same level: combined constraint (g1 + g2) ≡ target mod p
+    const targetDigit = getDigitAtLevel(residual, -(k1 - 1), p);
+    for (let g1 = 0; g1 < pNum; g1++) {
+      const g2 = ((targetDigit - g1) % pNum + pNum) % pNum;
+      const c1New = addShift(cX1, g1, k1, p);
+      const c2New = addShift(cX2, g2, k2, p);
+      const newSum = add(c1New, c2New);
+      const loss = computeJointLoss(
+        newSum, k1 - 1, targetY, y_rho, p
+      );
+      if (loss < bestLoss) {
+        bestLoss = loss;
+        bestG1 = g1;
+        bestG2 = g2;
+      }
+    }
+  } else {
+    // Different levels: select each digit independently from residual
+    const targetDigit1 = getDigitAtLevel(residual, -(k1 - 1), p);
+    const targetDigit2 = getDigitAtLevel(residual, -(k2 - 1), p);
+    bestG1 = targetDigit1;
+    bestG2 = targetDigit2;
+  }
+
+  // Also consider parent moves (moving up instead of down)
+  const c1Down = addShift(cX1, bestG1, k1, p);
+  const c2Down = addShift(cX2, bestG2, k2, p);
+  const lossDown = computeJointLoss(
+    add(c1Down, c2Down), Math.min(k1, k2) - 1, targetY, y_rho, p
+  );
+  const lossUp = computeJointLoss(
+    sumCenter, Math.max(k1, k2) + 1, targetY, y_rho, p
+  );
+
+  let nextCX1: Rational;
+  let nextRhoX1: number;
+  let nextCX2: Rational;
+  let nextRhoX2: number;
+
+  if (lossUp < lossDown) {
+    // Move both up (parent)
+    nextCX1 = cX1;
+    nextRhoX1 = Math.min(2, k1 + eta);
+    nextCX2 = cX2;
+    nextRhoX2 = Math.min(2, k2 + eta);
+  } else {
+    // Move both down with selected digits
+    nextCX1 = c1Down;
+    nextRhoX1 = Math.max(-2, k1 - eta);
+    nextCX2 = c2Down;
+    nextRhoX2 = Math.max(-2, k2 - eta);
+  }
+
+  return { nextCX1, nextRhoX1, nextCX2, nextRhoX2 };
+}
+
+/**
+ * Exact Joint vertex resolution.
+ * When both coordinates are simultaneously at Type II vertices, evaluates
+ * all p^2 combinations (plus parent options) and selects the global argmin.
+ * Falls back to per-coordinate when only one is at a vertex.
+ */
+function stepExactJoint(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  y_rho: number,
+  activeDegrees: { drhoSum_drhoX1: number; drhoSum_drhoX2: number }
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  const isX1Vertex = isVertex(rhoX1);
+  const isX2Vertex = isVertex(rhoX2);
+
+  // If not both at vertices, fall back to per-coordinate
+  if (!isX1Vertex || !isX2Vertex) {
+    return stepExactPerCoord(
+      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+    );
+  }
+
+  // Both at vertices: exhaustive search over all (p+1)^2 combinations
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const pNum = Number(p);
+
+  interface JointCandidate {
+    cX1: Rational;
+    rhoX1: number;
+    cX2: Rational;
+    rhoX2: number;
+    loss: number;
+  }
+
+  let bestCandidate: JointCandidate | undefined;
+
+  // Generate candidates for X1: p children + 1 parent
+  const x1Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x1Candidates.push({
+      center: addShift(cX1, g, k1, p),
+      rho: k1 - 1
+    });
+  }
+  x1Candidates.push({ center: cX1, rho: k1 + 1 }); // parent
+
+  // Generate candidates for X2: p children + 1 parent
+  const x2Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x2Candidates.push({
+      center: addShift(cX2, g, k2, p),
+      rho: k2 - 1
+    });
+  }
+  x2Candidates.push({ center: cX2, rho: k2 + 1 }); // parent
+
+  // Evaluate all combinations
+  for (const c1 of x1Candidates) {
+    for (const c2 of x2Candidates) {
+      const newSumCenter = add(c1.center, c2.center);
+      const newSumRho = Math.max(c1.rho, c2.rho);
+      const clampedSumRho = Math.max(-2, Math.min(2, newSumRho));
+      const diffVal = getValuation(subtract(newSumCenter, targetY), p);
+      const dExt = extNegate(diffVal);
+      const loss = (diffVal.type === 'pos-infinity' && clampedSumRho <= y_rho)
+        ? 0
+        : computePathLoss(clampedSumRho, dExt, y_rho);
+
+      if (!bestCandidate || loss < bestCandidate.loss) {
+        bestCandidate = {
+          cX1: c1.center,
+          rhoX1: c1.rho,
+          cX2: c2.center,
+          rhoX2: c2.rho,
+          loss
+        };
+      }
+    }
+  }
+
+  if (!bestCandidate) {
+    return { nextCX1: cX1, nextRhoX1: rhoX1, nextCX2: cX2, nextRhoX2: rhoX2 };
+  }
+
+  // Apply eta-scaled step toward the selected rho
+  const nextRhoX1 = Math.max(-2, Math.min(2,
+    bestCandidate.rhoX1 > k1
+      ? k1 + eta  // moving to parent
+      : k1 - eta  // moving to child
+  ));
+  const nextRhoX2 = Math.max(-2, Math.min(2,
+    bestCandidate.rhoX2 > k2
+      ? k2 + eta
+      : k2 - eta
+  ));
+
+  return {
+    nextCX1: bestCandidate.cX1,
+    nextRhoX1,
+    nextCX2: bestCandidate.cX2,
+    nextRhoX2
+  };
+}
+
+/** Helper: add a digit shift to a center at a given vertex level. */
+function addShift(
+  c: Rational,
+  digit: number,
+  k: number,
+  p: bigint
+): Rational {
+  const power = -k;
+  let shift: Rational;
+  if (power <= 0) {
+    shift = simplify({ num: BigInt(digit), den: p ** BigInt(-power) });
+  } else {
+    shift = simplify({
+      num: BigInt(digit) * (p ** BigInt(power)),
+      den: 1n
+    });
+  }
+  return add(c, shift);
+}
+
+/** Helper: compute loss for a joint candidate sum. */
+function computeJointLoss(
+  sumCenter: Rational,
+  sumRho: number,
+  targetY: Rational,
+  y_rho: number,
+  p: bigint
+): number {
+  const clampedRho = Math.max(-2, Math.min(2, sumRho));
+  const diffVal = getValuation(subtract(sumCenter, targetY), p);
+  const dExt = extNegate(diffVal);
+  return (diffVal.type === 'pos-infinity' && clampedRho <= y_rho)
+    ? 0
+    : computePathLoss(clampedRho, dExt, y_rho);
+}
+
 export function stepAdditionGradients(
   cX1: Rational,
   rhoX1: number,
@@ -562,7 +905,8 @@ export function stepAdditionGradients(
   rhoX2: number,
   targetY: Rational,
   p: bigint,
-  eta: number
+  eta: number,
+  method: VertexResolutionMethod = 'exact-per-coord'
 ): AdditionGradientsStepResult {
   const sumCenter = add(cX1, cX2);
   const sumRho = Math.max(rhoX1, rhoX2);
@@ -574,7 +918,9 @@ export function stepAdditionGradients(
 
   // L1 loss is |sumRho - d| + d - y_rho
   const y_rho = -2;
-  const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho ? 0 : computePathLoss(sumRho, extNegate(valDiff), y_rho);
+  const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho
+    ? 0
+    : computePathLoss(sumRho, extNegate(valDiff), y_rho);
 
   // Gradient of loss w.r.t sumRho
   let drSum = 0;
@@ -582,51 +928,47 @@ export function stepAdditionGradients(
   else if (sumRho < d) drSum = -1;
 
   // Active degrees
-  let drhoSum_drhoX1 = 0;
-  let drhoSum_drhoX2 = 0;
-  if (rhoX1 > rhoX2) {
-    drhoSum_drhoX1 = 1;
-  } else if (rhoX2 > rhoX1) {
-    drhoSum_drhoX2 = 1;
-  } else {
-    drhoSum_drhoX1 = 0.5;
-    drhoSum_drhoX2 = 0.5;
-  }
+  const activeDegrees = computeActiveDegrees(rhoX1, rhoX2);
 
-  let nextCenterX1 = cX1;
-  let nextRhoX1 = rhoX1;
-  let nextCenterX2 = cX2;
-  let nextRhoX2 = rhoX2;
+  // Dispatch to the appropriate resolution method
+  let result: {
+    nextCX1: Rational;
+    nextRhoX1: number;
+    nextCX2: Rational;
+    nextRhoX2: number;
+  };
 
-  // Update X1
-  const targetX1 = subtract(targetY, cX2);
-  const etaX1 = eta * drhoSum_drhoX1;
-  if (etaX1 > 0) {
-    const detailsX1 = computeGradientDetails(cX1, rhoX1, targetX1, y_rho, p, etaX1);
-    nextCenterX1 = detailsX1.nextCenter;
-    nextRhoX1 = detailsX1.nextLogRadius;
-  }
-
-  // Update X2
-  const targetX2 = subtract(targetY, cX1);
-  const etaX2 = eta * drhoSum_drhoX2;
-  if (etaX2 > 0) {
-    const detailsX2 = computeGradientDetails(cX2, rhoX2, targetX2, y_rho, p, etaX2);
-    nextCenterX2 = detailsX2.nextCenter;
-    nextRhoX2 = detailsX2.nextLogRadius;
+  switch (method) {
+    case 'heuristic-joint':
+      result = stepHeuristicJoint(
+        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+      );
+      break;
+    case 'exact-joint':
+      result = stepExactJoint(
+        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+      );
+      break;
+    case 'exact-per-coord':
+    default:
+      result = stepExactPerCoord(
+        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+      );
+      break;
   }
 
   return {
-    nextCenterX1,
-    nextRhoX1,
-    nextCenterX2,
-    nextRhoX2,
+    nextCenterX1: result.nextCX1,
+    nextRhoX1: result.nextRhoX1,
+    nextCenterX2: result.nextCX2,
+    nextRhoX2: result.nextRhoX2,
     sumCenter,
     sumRho,
     loss,
-    drhoSum_drhoX1,
-    drhoSum_drhoX2,
+    drhoSum_drhoX1: activeDegrees.drhoSum_drhoX1,
+    drhoSum_drhoX2: activeDegrees.drhoSum_drhoX2,
     drSum
   };
 }
+
 

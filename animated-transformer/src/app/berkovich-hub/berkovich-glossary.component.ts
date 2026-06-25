@@ -1174,7 +1174,7 @@ This glossary provides a reference for the mathematical notation, symbols, and c
   * **Type I (Leaves, $\\rho \\to -\\infty$)**
     Classical $p$-adic points in $\\mathbb{Q}_p$.
   * **Type II (Vertices, $\\rho \\in \\mathbb{Z}$)**
-    Branching points where the tree splits into $p+1$ directions.
+    Branching points where the tree splits into $p+1$ directions ($p$ for the $p$ possible next digits, and 1 for parent direction).
   * **Type III (Edges, $\\rho \\notin \\mathbb{Z}$)**
     Points on segments between junctions with exactly 2 directions.
 

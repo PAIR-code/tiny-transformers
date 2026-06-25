@@ -29,12 +29,16 @@ import {
   add,
   subtract,
   getValuation,
-  stepAdditionGradients
+  stepAdditionGradients,
+  VertexResolutionMethod
 } from '../../../lib/berkovich/berkovich';
 
-import { BerkovichAdditionGradientsConfigComponent } from './config-card/berkovich-addition-gradients-config.component';
 import { BerkovichAdditionCalculusComponent } from './calculus-card/berkovich-addition-calculus.component';
-import { BerkovichMultiTreeVisComponent, TrackedNode } from '../berkovich-addition-vis/tree-vis/berkovich-multi-tree-vis.component';
+import {
+  BerkovichMultiTreeVisComponent,
+  TrackedNode,
+  EditableNodeInputs
+} from '../berkovich-addition-vis/tree-vis/berkovich-multi-tree-vis.component';
 
 @Component({
   selector: 'app-berkovich-addition-gradients-vis',
@@ -49,7 +53,6 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from '../berkovich-additi
     FormsModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichAdditionGradientsConfigComponent,
     BerkovichAdditionCalculusComponent,
     BerkovichMultiTreeVisComponent
   ]
@@ -57,6 +60,7 @@ import { BerkovichMultiTreeVisComponent, TrackedNode } from '../berkovich-additi
 export class BerkovichAdditionGradientsVisComponent {
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
+  readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
 
   readonly subtitleMath = '$x_1 + x_2 \\to y$';
   readonly explainerMarkdown = `
@@ -75,12 +79,18 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
    * Entirely to $x_{2,\\rho}$ if $x_{2,\\rho} > x_{1,\\rho}$
    * Equally divided between them if $x_{1,\\rho} = x_{2,\\rho}$
 
+### Simultaneous Vertex Resolution
+When both parameters simultaneously land on Type II vertices, there are three strategies for selecting branches (configurable via the dropdown):
+- **Per-Coord**: Each coordinate independently selects its optimal branch. $\\mathcal{O}(k \\cdot p)$
+- **Heuristic Joint**: Uses finite-field residual projection to select correlated branches. $\\mathcal{O}(k \\cdot p)$
+- **Exact Joint**: Evaluates all $p^2$ combinations for global optimum. $\\mathcal{O}(p^2)$
+
 ### Visual Guide
 * **The Trees**: The four trees represent the target disk $y$ (yellow), input disks $x_1$ (blue) and $x_2$ (pink), and the sum disk $x_1+x_2$ (purple) side-by-side.
-* **Step SGD**: Click **Step SGD** to take a gradient step. You will see the paths of $x_1$ and $x_2$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x_1+x_2$ closer and closer to matching $y$.
+* **Step SGD**: Click **Step** to take a gradient step. You will see the paths of $x_1$ and $x_2$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x_1+x_2$ closer and closer to matching $y$.
 `;
 
-  
+
   readonly centerYInput = signal<string>('00.00');
   readonly centerX1Input = signal<string>('12.20');
   readonly rhoX1Input = signal<string>('0.0');
@@ -104,7 +114,10 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
 
   private parseParam(s: string): Rational {
     try {
-      return truncateToTreeRange(parseDigitSequence(s, BigInt(this.prime())), BigInt(this.prime()), -2, 1);
+      return truncateToTreeRange(
+        parseDigitSequence(s, BigInt(this.prime())),
+        BigInt(this.prime()), -2, 1
+      );
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -126,7 +139,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     const d = this.dY();
     if (rSum > d) return 1;
     if (rSum < d) return -1;
-    return 0; // if exactly matches, gradient is technically zero
+    return 0;
   });
 
   // Multi-tree Nodes
@@ -139,15 +152,76 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     ];
   });
 
+  // Editable inputs for inline editing inside the tree vis
+  readonly editableInputs = computed<EditableNodeInputs[]>(() => {
+    return [
+      {
+        nodeId: 'Y',
+        trackedNodeId: 'Y_target',
+        centerInput: this.centerYInput(),
+        color: '#d97706',
+        labelPrefix: 'y'
+      },
+      {
+        nodeId: 'X1',
+        trackedNodeId: 'X1',
+        centerInput: this.centerX1Input(),
+        rhoInput: this.rhoX1Input(),
+        color: '#2563eb',
+        labelPrefix: 'x₁'
+      },
+      {
+        nodeId: 'X2',
+        trackedNodeId: 'X2',
+        centerInput: this.centerX2Input(),
+        rhoInput: this.rhoX2Input(),
+        color: '#db2777',
+        labelPrefix: 'x₂'
+      }
+    ];
+  });
+
   // Handlers
   onPrimeChange(p: number) { this.prime.set(p); }
-  
-  onCenterYBlur() { this.centerYInput.set(formatDigitSequence(this.centerY(), BigInt(this.prime()))); }
-  onCenterX1Blur() { this.centerX1Input.set(formatDigitSequence(this.centerX1(), BigInt(this.prime()))); }
-  onCenterX2Blur() { this.centerX2Input.set(formatDigitSequence(this.centerX2(), BigInt(this.prime()))); }
-  
-  onRhoX1Blur() { this.rhoX1Input.set(this.rhoX1().toFixed(2)); }
-  onRhoX2Blur() { this.rhoX2Input.set(this.rhoX2().toFixed(2)); }
+
+  onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
+    switch (event.nodeId) {
+      case 'Y':
+        if (event.field === 'center') this.centerYInput.set(event.value);
+        break;
+      case 'X1':
+        if (event.field === 'center') this.centerX1Input.set(event.value);
+        else this.rhoX1Input.set(event.value);
+        break;
+      case 'X2':
+        if (event.field === 'center') this.centerX2Input.set(event.value);
+        else this.rhoX2Input.set(event.value);
+        break;
+    }
+  }
+
+  onInputBlur(event: { nodeId: string; field: 'center' | 'rho' }) {
+    const p = BigInt(this.prime());
+    switch (event.nodeId) {
+      case 'Y':
+        this.centerYInput.set(formatDigitSequence(this.centerY(), p));
+        break;
+      case 'X1':
+        if (event.field === 'center') {
+          this.centerX1Input.set(formatDigitSequence(this.centerX1(), p));
+        } else {
+          this.rhoX1Input.set(this.rhoX1().toFixed(1));
+        }
+        break;
+      case 'X2':
+        if (event.field === 'center') {
+          this.centerX2Input.set(formatDigitSequence(this.centerX2(), p));
+        } else {
+          this.rhoX2Input.set(this.rhoX2().toFixed(1));
+        }
+        break;
+    }
+  }
 
   onRandomize() {
     const p = this.prime();
@@ -176,12 +250,21 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
       this.rhoX2(),
       this.centerY(),
       BigInt(this.prime()),
-      eta
+      eta,
+      this.vertexMethod()
     );
-    
-    this.centerX1Input.set(formatDigitSequence(result.nextCenterX1, BigInt(this.prime())));
+
+    this.centerX1Input.set(
+      formatDigitSequence(result.nextCenterX1, BigInt(this.prime()))
+    );
     this.rhoX1Input.set(result.nextRhoX1.toFixed(2));
-    this.centerX2Input.set(formatDigitSequence(result.nextCenterX2, BigInt(this.prime())));
+    this.centerX2Input.set(
+      formatDigitSequence(result.nextCenterX2, BigInt(this.prime()))
+    );
     this.rhoX2Input.set(result.nextRhoX2.toFixed(2));
+  }
+
+  onVertexMethodChange(method: VertexResolutionMethod) {
+    this.vertexMethod.set(method);
   }
 }

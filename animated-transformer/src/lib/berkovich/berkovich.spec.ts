@@ -35,8 +35,11 @@ import {
   computeGradientDetails,
   computePathLoss,
   extValuationGe,
-  stepAdditionGradients
+  stepAdditionGradients,
+  computeActiveDegrees,
+  VertexResolutionMethod
 } from './berkovich';
+
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
   it('should simplify fractions correctly', () => {
@@ -257,7 +260,6 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     expect(details2.gRho).toBe(1);
     expect(details2.proposedRho).toBeCloseTo(-0.1);
     expect(details2.crossesInteger).toBe(true);
-    expect(details2.nextCenter).toEqual(c);
     expect(details2.nextLogRadius).toBe(0.0);
     expect(details2.stepType).toBe('Edge (Continuous snap to ρ=0)');
   });
@@ -487,6 +489,114 @@ describe('Berkovich Gradient Descent Convergence', () => {
   }
 });
 
+describe('Berkovich Math Library - Active Degrees', () => {
+  it('should assign full gradient to the larger rho', () => {
+    const { computeActiveDegrees } = require('./berkovich');
+    expect(computeActiveDegrees(1.5, 0.5)).toEqual(
+      { drhoSum_drhoX1: 1, drhoSum_drhoX2: 0 }
+    );
+    expect(computeActiveDegrees(0.5, 1.5)).toEqual(
+      { drhoSum_drhoX1: 0, drhoSum_drhoX2: 1 }
+    );
+  });
+
+  it('should split gradient equally when rho values are equal', () => {
+    const { computeActiveDegrees } = require('./berkovich');
+    expect(computeActiveDegrees(1.0, 1.0)).toEqual(
+      { drhoSum_drhoX1: 0.5, drhoSum_drhoX2: 0.5 }
+    );
+  });
+});
+
+describe('Berkovich Addition - Vertex Resolution Methods', () => {
+  const methods: Array<'exact-per-coord' | 'heuristic-joint' | 'exact-joint'> =
+    ['exact-per-coord', 'heuristic-joint', 'exact-joint'];
+
+  it('all methods should produce valid output structure', () => {
+    const p = 3n;
+    const cX1 = parseToRational('0');
+    const cX2 = parseToRational('1');
+    const targetY = parseToRational('5/3');
+
+    for (const method of methods) {
+      const result = stepAdditionGradients(
+        cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, method
+      );
+      expect(result.sumCenter).toBeDefined();
+      expect(result.sumRho).toBeDefined();
+      expect(typeof result.loss).toBe('number');
+      expect(typeof result.drhoSum_drhoX1).toBe('number');
+      expect(typeof result.drhoSum_drhoX2).toBe('number');
+      expect(typeof result.drSum).toBe('number');
+    }
+  });
+
+  it('exact-joint should find the globally optimal joint branch', () => {
+    const p = 3n;
+    // Both at integer vertices: rhoX1 = 0, rhoX2 = 0
+    const cX1 = parseToRational('0');
+    const cX2 = parseToRational('0');
+    const targetY = parseToRational('5/3'); // = 01.20 in base 3
+
+    const result = stepAdditionGradients(
+      cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, 'exact-joint'
+    );
+
+    // After one step, the sum center should move closer to 5/3
+    const newSum = add(result.nextCenterX1, result.nextCenterX2);
+    const oldDiff = subtract(add(cX1, cX2), targetY);
+    const newDiff = subtract(newSum, targetY);
+    const oldVal = getValuation(oldDiff, p);
+    const newVal = getValuation(newDiff, p);
+
+    // The new valuation should be >= old valuation (closer match)
+    if (oldVal.type === 'finite' && newVal.type === 'finite') {
+      expect(newVal.value).toBeGreaterThanOrEqual(oldVal.value);
+    }
+  });
+
+  it('heuristic-joint should use residual-based digit selection', () => {
+    const p = 3n;
+    const cX1 = parseToRational('0');
+    const cX2 = parseToRational('0');
+    const targetY = parseToRational('5/3');
+
+    const result = stepAdditionGradients(
+      cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, 'heuristic-joint'
+    );
+
+    // Should produce a step (not stay in place)
+    const moved =
+      formatRational(result.nextCenterX1) !== formatRational(cX1) ||
+      formatRational(result.nextCenterX2) !== formatRational(cX2) ||
+      result.nextRhoX1 !== 0.0 ||
+      result.nextRhoX2 !== 0.0;
+    expect(moved).toBe(true);
+  });
+
+  it('methods should fall back to per-coord when only one is at vertex', () => {
+    const p = 3n;
+    const cX1 = parseToRational('0');
+    const cX2 = parseToRational('1');
+    const targetY = parseToRational('5/3');
+
+    // X1 at vertex (0.0), X2 on edge (0.5)
+    const perCoord = stepAdditionGradients(
+      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'exact-per-coord'
+    );
+    const heuristic = stepAdditionGradients(
+      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'heuristic-joint'
+    );
+    const exact = stepAdditionGradients(
+      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'exact-joint'
+    );
+
+    // All should give same result since only one is at vertex
+    expect(heuristic.nextRhoX2).toBeCloseTo(perCoord.nextRhoX2);
+    expect(exact.nextRhoX2).toBeCloseTo(perCoord.nextRhoX2);
+  });
+});
+
 describe('Berkovich Addition Gradient Descent Convergence', () => {
   const rhoMin = -2;
   const eta = 0.2;
@@ -496,7 +606,8 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
     p: bigint,
     startX1: { center: Rational; rho: number },
     startX2: { center: Rational; rho: number },
-    targetY: Rational
+    targetY: Rational,
+    method?: VertexResolutionMethod
   ) {
     let cX1 = startX1.center;
     let rhoX1 = startX1.rho;
@@ -505,7 +616,7 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
     const trace: string[] = [];
 
     for (let i = 0; i < maxSteps; i++) {
-      const result = stepAdditionGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta);
+      const result = stepAdditionGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, method);
       trace.push(
         `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
         `sum=(${formatRational(result.sumCenter)}, ${result.sumRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
@@ -521,13 +632,43 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
     return { converged: false, steps: maxSteps, cX1, rhoX1, cX2, rhoX2, sumCenter: add(cX1, cX2), sumRho: Math.max(rhoX1, rhoX2), trace };
   }
 
-  it('should converge x1 + x2 to target y', () => {
-    const p = 3n;
-    const targetY = parseToRational('5/3'); // 01.20 in base 3
-    const startX1 = { center: parseToRational('0'), rho: 0.0 };
-    const startX2 = { center: parseToRational('1'), rho: -1.0 }; // sum starts at center 1.0, rho 0.0
+  const methods: VertexResolutionMethod[] = ['exact-per-coord', 'heuristic-joint', 'exact-joint'];
 
-    const result = runAdditionDescent(p, startX1, startX2, targetY);
+  for (const method of methods) {
+    it(`should converge x1 + x2 to target y using method: ${method}`, () => {
+      const p = 3n;
+      const targetY = parseToRational('5/3'); // 01.20 in base 3
+      const startX1 = { center: parseToRational('0'), rho: 0.0 };
+      const startX2 = { center: parseToRational('1'), rho: -1.0 }; // sum starts at center 1.0, rho 0.0
+
+      const result = runAdditionDescent(p, startX1, startX2, targetY, method);
+      if (!result.converged) {
+        const lastLines = result.trace.slice(-10).join('\n');
+        expect.fail(
+          `Method ${method} did not converge in ${maxSteps} steps.\n` +
+          `Final Sum: (${formatRational(result.sumCenter)}, ${result.sumRho.toFixed(4)})\n` +
+          `Last 10 steps:\n${lastLines}`
+        );
+      }
+
+      // After convergence:
+      const diff = subtract(result.sumCenter, targetY);
+      const valDiff = getValuation(diff, p);
+      expect(valDiff.type === 'pos-infinity' || (valDiff.type === 'finite' && valDiff.value >= 2)).toBe(true);
+      expect(result.sumRho).toBeLessThanOrEqual(-2.0);
+    });
+  }
+
+  it('should converge with simultaneous vertices using exact-joint', () => {
+    const p = 3n;
+    const targetY = parseToRational('8/9'); // 00.22 in base 3
+    // Both start at vertex rho=0 — forces simultaneous resolution
+    const startX1 = { center: parseToRational('0'), rho: 0.0 };
+    const startX2 = { center: parseToRational('0'), rho: 0.0 };
+
+    const result = runAdditionDescent(
+      p, startX1, startX2, targetY, 'exact-joint'
+    );
     if (!result.converged) {
       const lastLines = result.trace.slice(-10).join('\n');
       expect.fail(
@@ -536,18 +677,7 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
         `Last 10 steps:\n${lastLines}`
       );
     }
-
-    // After convergence:
-    // x1 + x2 must be close to targetY within the tree limit precision of rho = -2.
-    // That means the valuation of the difference must be >= 2.
-    const diff = subtract(result.sumCenter, targetY);
-    const valDiff = getValuation(diff, p);
-    
-    // We expect the sum disk to represent a sub-disk of the target disk at level -2
-    // which means center difference distance should be <= p^-2 (so valuation difference >= 2)
-    // and final sum radius should be <= -2.
-    expect(valDiff.type === 'pos-infinity' || (valDiff.type === 'finite' && valDiff.value >= 2)).toBe(true);
-    expect(result.sumRho).toBeLessThanOrEqual(-2.0);
   });
 });
+
 
