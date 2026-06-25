@@ -37,26 +37,39 @@ limitations under the License.
             class="tree-input-fo"
           >
             <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label">
-              <div class="editor-row">
-                <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
-                <input
-                  class="mini-digit-input"
-                  [value]="label.inp.centerInput"
-                  (change)="onInputChange(label.inp.nodeId, 'center', $any($event.target).value)"
-                  (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'center' })"
-                />
-              </div>
-              @if (label.inp.rhoInput !== undefined) {
+              @if (!label.inp.readonly) {
                 <div class="editor-row">
-                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
                   <input
-                    class="mini-digit-input mini-rho-input"
-                    type="text"
-                    [value]="label.inp.rhoInput"
-                    (change)="onInputChange(label.inp.nodeId, 'rho', $any($event.target).value)"
-                    (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'rho' })"
+                    class="mini-digit-input"
+                    [value]="label.inp.centerInput"
+                    (change)="onInputChange(label.inp.nodeId, 'center', $any($event.target).value)"
+                    (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'center' })"
                   />
                 </div>
+                @if (label.inp.rhoInput !== undefined) {
+                  <div class="editor-row">
+                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                    <input
+                      class="mini-digit-input mini-rho-input"
+                      type="text"
+                      [value]="label.inp.rhoInput"
+                      (change)="onInputChange(label.inp.nodeId, 'rho', $any($event.target).value)"
+                      (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'rho' })"
+                    />
+                  </div>
+                }
+              } @else {
+                <div class="editor-row">
+                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
+                  <span class="mini-digit-display">{{ label.inp.centerInput }}</span>
+                </div>
+                @if (label.inp.rhoInput !== undefined) {
+                  <div class="editor-row">
+                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                    <span class="mini-digit-display">{{ label.inp.rhoInput }}</span>
+                  </div>
+                }
               }
             </div>
           </foreignObject>

@@ -39,45 +39,30 @@ import { MarkdownComponent } from 'ngx-markdown';
 
         <div class="math-block">
           <div class="eq-row">
-            <span class="var">(x₁+x₂)<sub>ρ</sub></span> = max(<span class="varA">x₁<sub>ρ</sub></span>, <span class="varB">x₂<sub>ρ</sub></span>) = max({{ rhoX1().toFixed(2) }}, {{ rhoX2().toFixed(2) }}) = {{ rhoSum().toFixed(2) }}
+            <markdown [katex]="true" [data]="sumRowMarkdown()"></markdown>
           </div>
           
-          <div class="eq-row">
-            <strong>Active Degree (Derivative):</strong>
+          <div class="eq-section-title">Active Degree (Derivative):</div>
+          <div class="eq-row indent">
+            <markdown [katex]="true" [data]="drhoX1Markdown()"></markdown>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x_1+x_2)_\\\\rho}{\\\\partial x_{1,\\\\rho}} =$'"></markdown> 
-            <span [class.active-val]="drhoSum_drhoX1() === 1">{{ drhoSum_drhoX1() }}</span>
-            <span class="explanation"> (because {{ rhoX1() >= rhoX2() ? 'x1_ρ ≥ x2_ρ' : 'x1_ρ < x2_ρ' }})</span>
-          </div>
-          <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial (x_1+x_2)_\\\\rho}{\\\\partial x_{2,\\\\rho}} =$'"></markdown> 
-            <span [class.active-val]="drhoSum_drhoX2() === 1">{{ drhoSum_drhoX2() }}</span>
-            <span class="explanation"> (because {{ rhoX2() >= rhoX1() ? 'x2_ρ ≥ x1_ρ' : 'x2_ρ < x1_ρ' }})</span>
+            <markdown [katex]="true" [data]="drhoX2Markdown()"></markdown>
           </div>
 
           <hr class="divider"/>
 
-          <div class="eq-row">
-            <strong>Loss Gradient (L1 Path Metric):</strong>
-          </div>
+          <div class="eq-section-title">Loss Gradient (L1 Path Metric):</div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial (x_1+x_2)_\\\\rho} =$'"></markdown> 
-            <span [class.active-val]="dL_drhoSum() !== 0">{{ dL_drhoSum() > 0 ? '+1' : (dL_drhoSum() < 0 ? '-1' : '0') }}</span>
+            <markdown [katex]="true" [data]="lossGradMarkdown()"></markdown>
           </div>
 
-          <div class="eq-row">
-            <strong>Backpropagation:</strong>
+          <div class="eq-section-title">Backpropagation:</div>
+          <div class="eq-row indent">
+            <markdown [katex]="true" [data]="backpropX1Markdown()"></markdown>
           </div>
           <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_{1,\\\\rho}} =$'"></markdown> 
-            {{ dL_drhoSum() }} × {{ drhoSum_drhoX1() }} = 
-            <span class="final-grad" [class.active-val]="drhoSum_drhoX1() === 1">{{ dL_drhoSum() * drhoSum_drhoX1() }}</span>
-          </div>
-          <div class="eq-row indent">
-            <markdown [inline]="true" [katex]="true" [data]="'$\\\\frac{\\\\partial L}{\\\\partial x_{2,\\\\rho}} =$'"></markdown> 
-            {{ dL_drhoSum() }} × {{ drhoSum_drhoX2() }} = 
-            <span class="final-grad" [class.active-val]="drhoSum_drhoX2() === 1">{{ dL_drhoSum() * drhoSum_drhoX2() }}</span>
+            <markdown [katex]="true" [data]="backpropX2Markdown()"></markdown>
           </div>
         </div>
       </mat-card-content>
@@ -104,29 +89,15 @@ import { MarkdownComponent } from 'ngx-markdown';
       }
     }
     
-    .calc-content { padding: 16px; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size: 13px; }
+    .calc-content { padding: 16px; }
+    .explainer-section { color: #475569; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
     
     .math-block { display: flex; flex-direction: column; gap: 8px; }
-    .eq-row { display: flex; align-items: center; gap: 8px; }
-    .indent { padding-left: 16px; }
+    .eq-section-title { font-size: 12px; font-weight: 700; color: #475569; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .eq-row { display: flex; align-items: center; }
+    .indent { padding-left: 12px; }
     
-    .var { font-weight: bold; }
-    .varA { color: #2563eb; font-weight: bold; }
-    .varB { color: #db2777; font-weight: bold; }
-    
-    .active-val {
-      color: #10b981;
-      font-weight: bold;
-      background: rgba(16, 185, 129, 0.1);
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    
-    .final-grad { font-weight: bold; font-size: 14px; }
-    
-    .explanation { color: #64748b; font-size: 11px; }
-    
-    .divider { border: 0; border-top: 1px dashed #e2e8f0; margin: 8px 0; width: 100%; }
+    .divider { border: 0; border-top: 1px dashed #e2e8f0; margin: 12px 0; width: 100%; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, MatCardModule, MatIconModule, MarkdownComponent]
@@ -138,8 +109,62 @@ export class BerkovichAdditionCalculusComponent {
   
   readonly rhoSum = computed(() => Math.max(this.rhoX1(), this.rhoX2()));
   
-  readonly drhoSum_drhoX1 = computed(() => this.rhoX1() >= this.rhoX2() ? 1 : 0);
-  readonly drhoSum_drhoX2 = computed(() => this.rhoX2() >= this.rhoX1() ? 1 : 0);
+  readonly activeDegrees = computed(() => {
+    const r1 = this.rhoX1();
+    const r2 = this.rhoX2();
+    if (r1 > r2) return { x1: 1, x2: 0 };
+    if (r2 > r1) return { x1: 0, x2: 1 };
+    return { x1: 0.5, x2: 0.5 };
+  });
+
+  readonly sumRowMarkdown = computed(() => {
+    const r1 = this.rhoX1().toFixed(2);
+    const r2 = this.rhoX2().toFixed(2);
+    const rSum = this.rhoSum().toFixed(2);
+    return `$(x_1+x_2)_\\rho = \\max(x_{1,\\rho}, x_{2,\\rho}) = \\max(${r1}, ${r2}) = ${rSum}$`;
+  });
+
+  readonly drhoX1Markdown = computed(() => {
+    const val = this.activeDegrees().x1;
+    const isAct = val > 0;
+    const valStr = isAct ? `\\color{#10b981}{\\mathbf{${val}}}` : `${val}`;
+    const reason = this.rhoX1() >= this.rhoX2() ? 'x_{1,\\rho} \\ge x_{2,\\rho}' : 'x_{1,\\rho} < x_{2,\\rho}';
+    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{1,\\rho}} = ${valStr} \\quad \\text{(${reason})}$`;
+  });
+
+  readonly drhoX2Markdown = computed(() => {
+    const val = this.activeDegrees().x2;
+    const isAct = val > 0;
+    const valStr = isAct ? `\\color{#10b981}{\\mathbf{${val}}}` : `${val}`;
+    const reason = this.rhoX2() >= this.rhoX1() ? 'x_{2,\\rho} \\ge x_{1,\\rho}' : 'x_{2,\\rho} < x_{1,\\rho}';
+    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{2,\\rho}} = ${valStr} \\quad \\text{(${reason})}$`;
+  });
+
+  readonly lossGradMarkdown = computed(() => {
+    const val = this.dL_drhoSum();
+    const valStr = val > 0 ? '+1' : (val < 0 ? '-1' : '0');
+    const isAct = val !== 0;
+    const styledVal = isAct ? `\\color{#10b981}{\\mathbf{${valStr}}}` : `${valStr}`;
+    return `$\\frac{\\partial L}{\\partial (x_1+x_2)_\\rho} = ${styledVal}$`;
+  });
+
+  readonly backpropX1Markdown = computed(() => {
+    const dL = this.dL_drhoSum();
+    const val = this.activeDegrees().x1;
+    const result = dL * val;
+    const isAct = val > 0 && dL !== 0;
+    const styledResult = isAct ? `\\color{#10b981}{\\mathbf{${result.toFixed(2)}}}` : `${result.toFixed(2)}`;
+    return `$\\frac{\\partial L}{\\partial x_{1,\\rho}} = \\frac{\\partial L}{\\partial (x_1+x_2)_\\rho} \\cdot \\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{1,\\rho}} = ${dL} \\cdot ${val} = ${styledResult}$`;
+  });
+
+  readonly backpropX2Markdown = computed(() => {
+    const dL = this.dL_drhoSum();
+    const val = this.activeDegrees().x2;
+    const result = dL * val;
+    const isAct = val > 0 && dL !== 0;
+    const styledResult = isAct ? `\\color{#10b981}{\\mathbf{${result.toFixed(2)}}}` : `${result.toFixed(2)}`;
+    return `$\\frac{\\partial L}{\\partial x_{2,\\rho}} = \\frac{\\partial L}{\\partial (x_1+x_2)_\\rho} \\cdot \\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{2,\\rho}} = ${dL} \\cdot ${val} = ${styledResult}$`;
+  });
 
   readonly explainerMarkdown = `
 Under non-Archimedean addition, the sum's radius is dominated by the maximum input radius: $(x_1+x_2)_\\rho = \\max(x_{1,\\rho}, x_{2,\\rho})$. 

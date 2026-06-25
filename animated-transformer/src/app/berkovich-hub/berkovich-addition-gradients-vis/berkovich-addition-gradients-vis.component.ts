@@ -59,10 +59,13 @@ import {
     BerkovichMultiTreeVisComponent
   ]
 })
-export class BerkovichAdditionGradientsVisComponent {
+export class BerkovichAdditionGradientsVisComponent implements OnDestroy {
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
+  readonly isPlaying = signal<boolean>(false);
+
+  private playIntervalId: any = null;
 
   readonly subtitleMath = '$x_1 + x_2 \\to y$';
   readonly explainerMarkdown = `
@@ -130,6 +133,15 @@ When both parameters simultaneously land on Type II vertices, there are three st
   readonly rhoSum = computed<number>(() => Math.max(this.rhoX1(), this.rhoX2()));
 
   // Loss and Calculus
+  readonly loss = computed<number>(() => {
+    const diff = subtract(this.centerSum(), this.centerY());
+    const valDiff = getValuation(diff, BigInt(this.prime()));
+    const y_rho = -2;
+    return valDiff.type === 'pos-infinity' && this.rhoSum() <= y_rho
+      ? 0
+      : computePathLoss(this.rhoSum(), extNegate(valDiff), y_rho);
+  });
+
   readonly dY = computed<number>(() => {
     const diff = subtract(this.centerSum(), this.centerY());
     const valDiff = getValuation(diff, BigInt(this.prime()));
@@ -147,23 +159,17 @@ When both parameters simultaneously land on Type II vertices, there are three st
   // Multi-tree Nodes
   readonly trackedNodes = computed<TrackedNode[]>(() => {
     return [
-      { id: 'Y_target', center: this.centerY(), rho: -2, color: '#fcd34d', label: 'y_c (Target)' },
       { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
       { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
-      { id: 'X1+X2', center: this.centerSum(), rho: this.rhoSum(), color: '#a78bfa', label: '(x1+x2)_ρ' }
+      { id: 'X1+X2', center: this.centerSum(), rho: this.rhoSum(), color: '#a78bfa', label: '(x1+x2)_ρ' },
+      { id: 'Y_target', center: this.centerY(), rho: -2, color: '#fcd34d', label: 'y_c (Target)' }
     ];
   });
 
   // Editable inputs for inline editing inside the tree vis
   readonly editableInputs = computed<EditableNodeInputs[]>(() => {
+    const p = BigInt(this.prime());
     return [
-      {
-        nodeId: 'Y',
-        trackedNodeId: 'Y_target',
-        centerInput: this.centerYInput(),
-        color: '#d97706',
-        labelPrefix: 'y'
-      },
       {
         nodeId: 'X1',
         trackedNodeId: 'X1',
@@ -179,14 +185,34 @@ When both parameters simultaneously land on Type II vertices, there are three st
         rhoInput: this.rhoX2Input(),
         color: '#db2777',
         labelPrefix: 'x₂'
+      },
+      {
+        nodeId: 'X1+X2',
+        trackedNodeId: 'X1+X2',
+        centerInput: formatDigitSequence(this.centerSum(), p),
+        rhoInput: this.rhoSum().toFixed(2),
+        color: '#7c3aed',
+        labelPrefix: 'x₁+x₂',
+        readonly: true
+      },
+      {
+        nodeId: 'Y',
+        trackedNodeId: 'Y_target',
+        centerInput: this.centerYInput(),
+        color: '#d97706',
+        labelPrefix: 'y'
       }
     ];
   });
 
   // Handlers
-  onPrimeChange(p: number) { this.prime.set(p); }
+  onPrimeChange(p: number) {
+    this.stopPlaying();
+    this.prime.set(p);
+  }
 
   onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
+    this.stopPlaying();
     switch (event.nodeId) {
       case 'Y':
         if (event.field === 'center') this.centerYInput.set(event.value);
@@ -226,6 +252,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
   }
 
   onRandomize() {
+    this.stopPlaying();
     const p = this.prime();
     const randomDigits = () => {
       const d1 = Math.floor(Math.random() * p).toString();
@@ -267,6 +294,38 @@ When both parameters simultaneously land on Type II vertices, there are three st
   }
 
   onVertexMethodChange(method: VertexResolutionMethod) {
+    this.stopPlaying();
     this.vertexMethod.set(method);
+  }
+
+  onTogglePlay() {
+    if (this.isPlaying()) {
+      this.stopPlaying();
+    } else {
+      this.startPlaying();
+    }
+  }
+
+  private startPlaying() {
+    this.isPlaying.set(true);
+    this.playIntervalId = setInterval(() => {
+      if (this.loss() <= 1e-7) {
+        this.stopPlaying();
+        return;
+      }
+      this.onStep();
+    }, 150);
+  }
+
+  private stopPlaying() {
+    this.isPlaying.set(false);
+    if (this.playIntervalId !== null) {
+      clearInterval(this.playIntervalId);
+      this.playIntervalId = null;
+    }
+  }
+
+  ngOnDestroy() {
+    this.stopPlaying();
   }
 }

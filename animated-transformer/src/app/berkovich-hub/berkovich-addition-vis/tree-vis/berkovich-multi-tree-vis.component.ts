@@ -77,6 +77,7 @@ export interface EditableNodeInputs {
   rhoInput?: string;
   color: string;
   labelPrefix: string;
+  readonly?: boolean;
 }
 
 

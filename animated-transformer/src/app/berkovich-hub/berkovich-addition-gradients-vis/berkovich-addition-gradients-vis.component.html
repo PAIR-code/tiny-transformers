@@ -47,10 +47,12 @@
         [trackedNodes]="trackedNodes()"
         [editableInputs]="editableInputs()"
         [vertexMethod]="vertexMethod()"
+        [isPlaying]="isPlaying()"
         (inputChange)="onInputChange($event)"
         (inputBlur)="onInputBlur($event)"
         (step)="onStep()"
         (randomize)="onRandomize()"
+        (togglePlay)="onTogglePlay()"
         (vertexMethodChange)="onVertexMethodChange($event)"
       ></app-berkovich-multi-tree-vis>
     </section>

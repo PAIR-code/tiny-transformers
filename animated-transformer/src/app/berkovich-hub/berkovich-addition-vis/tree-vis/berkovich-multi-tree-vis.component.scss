@@ -104,6 +104,20 @@ mat-card-title {
   }
 }
 
+.mini-digit-display {
+  width: 50px;
+  font-size: 10px;
+  font-family: monospace;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 1px 3px;
+  background: #f1f5f9;
+  color: #64748b;
+  text-align: center;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
 .mini-rho-input {
   width: 38px;
   -appearance: textfield;
