@@ -314,7 +314,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
         return;
       }
       this.onStep();
-    }, 150);
+    }, 500);
   }
 
   private stopPlaying() {

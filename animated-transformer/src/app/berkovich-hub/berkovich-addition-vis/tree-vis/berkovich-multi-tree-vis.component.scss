@@ -172,3 +172,18 @@ mat-card-title {
     border-color: #8b5cf6;
   }
 }
+
+/* Smooth transitions for continuous rho level indicators */
+.rho-level-group {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rho-level-line, .rho-guide-line, .rho-level-cap {
+  transition: x1 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              x2 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rho-level-text {
+  transition: x 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+

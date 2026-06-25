@@ -26,6 +26,11 @@ limitations under the License.
       [attr.height]="svgHeight"
       class="tree-svg"
     >
+      <defs>
+        <clipPath id="guide-clip">
+          <rect x="0" y="0" [attr.width]="svgWidth()" [attr.height]="rhoToY(rhoMin)"></rect>
+        </clipPath>
+      </defs>
       <!-- Per-tree input labels rendered above each tree root -->
       @for (label of treeInputLabels(); track label.trackedNodeId) {
         @if (label.inp) {
@@ -151,53 +156,58 @@ limitations under the License.
 
       <!-- Continuous Log-Radius (Rho) Level Line Indicators -->
       @for (tn of trackedNodes(); track tn.id) {
-        <g class="rho-level-group">
+        <g
+          class="rho-level-group"
+          [style.transform]="'translateY(' + getRhoLineForTrackedNode(tn).y + 'px)'"
+        >
           @if (tn.rho > rhoMin) {
             <line
               [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-              [attr.y1]="getRhoLineForTrackedNode(tn).y"
+              y1="0"
               [attr.x2]="getRhoLineForTrackedNode(tn).x1"
-              [attr.y2]="rhoToY(rhoMin)"
+              y2="500"
               class="rho-guide-line"
               [style.stroke]="tn.color"
+              clip-path="url(#guide-clip)"
             />
             <line
               [attr.x1]="getRhoLineForTrackedNode(tn).x2"
-              [attr.y1]="getRhoLineForTrackedNode(tn).y"
+              y1="0"
               [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-              [attr.y2]="rhoToY(rhoMin)"
+              y2="500"
               class="rho-guide-line"
               [style.stroke]="tn.color"
+              clip-path="url(#guide-clip)"
             />
           }
           <line
             [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-            [attr.y1]="getRhoLineForTrackedNode(tn).y"
+            y1="0"
             [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-            [attr.y2]="getRhoLineForTrackedNode(tn).y"
+            y2="0"
             class="rho-level-line"
             [style.stroke]="tn.color"
           />
           <!-- Left and right end cap ticks -->
           <line
             [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-            [attr.y1]="getRhoLineForTrackedNode(tn).y - 4"
+            y1="-4"
             [attr.x2]="getRhoLineForTrackedNode(tn).x1"
-            [attr.y2]="getRhoLineForTrackedNode(tn).y + 4"
+            y2="4"
             class="rho-level-cap"
             [style.stroke]="tn.color"
           />
           <line
             [attr.x1]="getRhoLineForTrackedNode(tn).x2"
-            [attr.y1]="getRhoLineForTrackedNode(tn).y - 4"
+            y1="-4"
             [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-            [attr.y2]="getRhoLineForTrackedNode(tn).y + 4"
+            y2="4"
             class="rho-level-cap"
             [style.stroke]="tn.color"
           />
           <text
             [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
-            [attr.y]="getRhoLineForTrackedNode(tn).y + 4"
+            y="4"
             class="rho-level-text"
             [style.fill]="tn.color"
           >
