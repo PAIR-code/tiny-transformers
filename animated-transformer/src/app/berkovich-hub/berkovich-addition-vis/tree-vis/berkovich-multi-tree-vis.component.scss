@@ -21,7 +21,12 @@ limitations under the License.
 .svg-container {
   flex-direction: column;
   align-items: center;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.visualizer-card {
+  height: auto !important;
 }
 
 .tree-edge {
