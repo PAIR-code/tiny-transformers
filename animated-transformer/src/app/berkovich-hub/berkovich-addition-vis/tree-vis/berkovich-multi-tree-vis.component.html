@@ -218,9 +218,20 @@ limitations under the License.
           <mat-icon>shuffle</mat-icon>
         </button>
         <button
+          mat-stroked-button
+          [color]="isPlaying() ? 'warn' : 'accent'"
+          class="compact-btn"
+          (click)="togglePlay.emit()"
+          [aria-label]="isPlaying() ? 'Stop training' : 'Play training'"
+        >
+          <mat-icon>{{ isPlaying() ? 'stop' : 'play_arrow' }}</mat-icon>
+          {{ isPlaying() ? 'Stop' : 'Play' }}
+        </button>
+        <button
           mat-flat-button
           color="accent"
           class="compact-btn"
+          [disabled]="isPlaying()"
           (click)="step.emit()"
           aria-label="Step SGD"
         >

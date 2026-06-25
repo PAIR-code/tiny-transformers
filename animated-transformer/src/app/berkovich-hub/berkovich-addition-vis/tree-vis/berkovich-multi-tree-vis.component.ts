@@ -119,10 +119,12 @@ export class BerkovichMultiTreeVisComponent {
   // Optional inline editing inputs
   readonly editableInputs = input<EditableNodeInputs[]>();
   readonly vertexMethod = input<VertexResolutionMethod>('exact-per-coord');
+  readonly isPlaying = input<boolean>(false);
 
   // Action outputs
   readonly step = output<void>();
   readonly randomize = output<void>();
+  readonly togglePlay = output<void>();
   readonly inputChange = output<{ nodeId: string; field: 'center' | 'rho'; value: string }>();
   readonly inputBlur = output<{ nodeId: string; field: 'center' | 'rho' }>();
   readonly vertexMethodChange = output<VertexResolutionMethod>();

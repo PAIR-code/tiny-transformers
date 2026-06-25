@@ -85,6 +85,25 @@ import { MarkdownComponent } from 'ngx-markdown';
   `,
   styles: [`
     .calc-card { margin-top: 16px; background: white; border: 1px solid #e2e8f0; }
+    
+    mat-card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      
+      mat-icon {
+        color: #0f766e;
+      }
+    }
+    
     .calc-content { padding: 16px; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size: 13px; }
     
     .math-block { display: flex; flex-direction: column; gap: 8px; }

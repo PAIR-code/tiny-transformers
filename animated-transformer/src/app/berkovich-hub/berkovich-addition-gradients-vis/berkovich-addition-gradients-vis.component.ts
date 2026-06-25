@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, ChangeDetectionStrategy, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -30,7 +30,9 @@ import {
   subtract,
   getValuation,
   stepAdditionGradients,
-  VertexResolutionMethod
+  VertexResolutionMethod,
+  extNegate,
+  computePathLoss
 } from '../../../lib/berkovich/berkovich';
 
 import { BerkovichAdditionCalculusComponent } from './calculus-card/berkovich-addition-calculus.component';
