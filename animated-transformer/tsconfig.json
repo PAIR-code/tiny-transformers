@@ -4,7 +4,8 @@
   "compilerOptions": {
     "outDir": "./dist/out-tsc",
     "paths": {
-      "src/*": ["./src/*"]
+      "src/*": ["./src/*"],
+      "experiment-server/*": ["./experiment-server/*"]
     },
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
@@ -49,5 +50,10 @@
     "strictInputAccessModifiers": true,
     "strictTemplates": true,
     "strictStandalone": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "experiment-server"
+  ]
 }

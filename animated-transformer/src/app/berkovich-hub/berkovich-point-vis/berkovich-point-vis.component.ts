@@ -410,6 +410,9 @@ export class BerkovichPointVisComponent implements OnInit, OnDestroy {
     this.targetInput.set(formatRational(yRational));
     this.targetDigitsInput.set(ySeq);
 
+    const randomRho = Math.round((Math.random() * 4 - 2) * 10) / 10;
+    this.logRadiusInput.set(randomRho.toFixed(1));
+
     this.reset();
   }
 

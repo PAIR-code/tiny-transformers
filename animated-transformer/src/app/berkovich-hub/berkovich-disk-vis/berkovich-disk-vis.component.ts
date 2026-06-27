@@ -414,12 +414,14 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     const yRational = parseDigitSequence(ySeq, p);
 
     const randomYRho = Math.round((Math.random() * 4 - 2) * 10) / 10;
+    const randomCRho = Math.round((Math.random() * 4 - 2) * 10) / 10;
 
     this.centerInput.set(formatRational(cRational));
     this.centerDigitsInput.set(cSeq);
     this.targetInput.set(formatRational(yRational));
     this.targetDigitsInput.set(ySeq);
     this.targetLogRadiusInput.set(randomYRho.toFixed(1));
+    this.logRadiusInput.set(randomCRho.toFixed(1));
 
     this.reset();
   }

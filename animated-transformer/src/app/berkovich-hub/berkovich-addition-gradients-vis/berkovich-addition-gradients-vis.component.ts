@@ -40,7 +40,7 @@ import {
   BerkovichMultiTreeVisComponent,
   TrackedNode,
   EditableNodeInputs
-} from '../berkovich-addition-vis/tree-vis/berkovich-multi-tree-vis.component';
+} from './tree-vis/berkovich-multi-tree-vis.component';
 
 @Component({
   selector: 'app-berkovich-addition-gradients-vis',

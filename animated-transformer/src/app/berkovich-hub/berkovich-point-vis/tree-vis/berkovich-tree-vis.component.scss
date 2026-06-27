@@ -21,6 +21,7 @@ limitations under the License.
 
 /* Visualizer Card & SVG */
 .visualizer-card {
+  position: relative;
   height: 100%;
 
   mat-card-header {
@@ -39,6 +40,11 @@ limitations under the License.
     mat-icon {
       color: #0f766e;
     }
+  }
+
+  .visualizer-card-content {
+    position: relative;
+    padding-bottom: 56px !important;
   }
 }
 
@@ -538,7 +544,7 @@ limitations under the License.
   left: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(4px);
   padding: 6px 10px;
@@ -549,7 +555,6 @@ limitations under the License.
   font-size: 11px;
   font-weight: 500;
   color: #334155;
-  cursor: pointer;
   user-select: none;
   
   input {
@@ -559,5 +564,129 @@ limitations under the License.
 
   label {
     cursor: pointer;
+  }
+}
+
+.prime-selector-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: #1e293b;
+
+  label {
+    cursor: default;
+  }
+
+  .prime-select {
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 1px 4px;
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:hover {
+      border-color: #94a3b8;
+    }
+
+    &:focus {
+      border-color: #8b5cf6;
+    }
+  }
+}
+
+.overlay-divider {
+  width: 1px;
+  height: 14px;
+  background-color: #cbd5e1;
+  margin: 0 4px;
+}
+
+.diagram-actions-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  --mat-icon-button-icon-size: 16px !important;
+  --mat-icon-button-state-layer-size: 24px !important;
+}
+
+.diagram-action-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  border-radius: 4px !important;
+  background: transparent !important;
+  
+  &::ng-deep {
+    .mat-mdc-button-touch-target {
+      height: unset !important;
+      width: unset !important;
+    }
+    
+    .mat-icon {
+      width: 16px !important;
+      height: 16px !important;
+      font-size: 16px !important;
+      line-height: 16px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      
+      svg {
+        width: 16px !important;
+        height: 16px !important;
+      }
+    }
+  }
+  
+  &[disabled] {
+    opacity: 0.38 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    background-color: transparent !important;
+  }
+
+  &:hover:not([disabled]) {
+    background-color: #f1f5f9 !important;
+    color: #0f172a;
+  }
+  
+  &.play-btn {
+    background-color: #8b5cf6 !important;
+    color: white;
+    
+    &:hover:not([disabled]) {
+      background-color: #7c3aed !important;
+      color: white;
+    }
+    
+    &.playing {
+      background-color: #ef4444 !important;
+      
+      &:hover:not([disabled]) {
+        background-color: #dc2626 !important;
+      }
+    }
   }
 }

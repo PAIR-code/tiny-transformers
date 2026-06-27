@@ -55,13 +55,6 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
-      title: 'Berkovich Addition',
-      description: 'Visualize how addition works in Berkovich spaces, with centers and radii.',
-      route: '/berkovich/addition',
-      icon: 'add_circle_outline',
-      colorClass: 'card-berkovich-addition',
-    },
-    {
       title: 'Berkovich Addition with Gradients',
       description: 'Visualize backward pass and gradient flow through Berkovich addition.',
       route: '/berkovich/addition-gradients',

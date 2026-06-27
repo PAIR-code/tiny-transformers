@@ -17,6 +17,7 @@ import { Component, input, output, computed, signal, effect, untracked, ChangeDe
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { MarkdownComponent } from 'ngx-markdown';
 import katex from 'katex';
 // @ts-ignore
@@ -73,6 +74,7 @@ export interface VisualEdge {
     CommonModule,
     MatCardModule,
     MatIconModule,
+    MatButtonModule,
     MarkdownComponent,
     BerkovichExplainerComponent
   ],
@@ -94,6 +96,9 @@ export class BerkovichTreeVisComponent {
   readonly animationPhase = input<'idle' | 'fadeout' | 'show'>('idle');
   readonly history = input<{ center: Rational; logRadius: number }[]>([]);
   readonly showNodeComputations = input<boolean>(false);
+  readonly isPlaying = input<boolean>(false);
+  readonly canUndo = input<boolean>(false);
+  readonly canStep = input<boolean>(true);
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -105,6 +110,12 @@ export class BerkovichTreeVisComponent {
   readonly targetDigitsBlur = output<void>();
   readonly centerDigitsBlur = output<void>();
   readonly showNodeComputationsChange = output<boolean>();
+  readonly playToggle = output<void>();
+  readonly stepAction = output<void>();
+  readonly undoAction = output<void>();
+  readonly resetAction = output<void>();
+  readonly randomizeAction = output<void>();
+  readonly primeChange = output<number>();
 
   // Constants
   readonly svgHeight = 460;
@@ -964,5 +975,13 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
   onCheckboxChange(event: Event): void {
     const inputEl = event.target as HTMLInputElement;
     this.showNodeComputationsChange.emit(inputEl.checked);
+  }
+
+  onPrimeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = parseInt(select.value, 10);
+    if (!isNaN(value)) {
+      this.primeChange.emit(value);
+    }
   }
 }

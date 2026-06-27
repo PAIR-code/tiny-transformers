@@ -76,34 +76,5 @@
 
     }
 
-    <!-- Playback controls in grid -->
-    <div class="controls-grid">
-      <div class="controls-row">
-        <button mat-flat-button color="primary" (click)="togglePlay.emit()">
-          <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
-          {{ isPlaying() ? 'Pause' : 'Animate' }}
-        </button>
-        <button mat-stroked-button (click)="step.emit()" [disabled]="isPlaying()">
-          <mat-icon>skip_next</mat-icon>
-          Step
-        </button>
-      </div>
-      <div class="controls-row">
-        <button mat-stroked-button (click)="undo.emit()" [disabled]="stepCount() === 0">
-          <mat-icon>undo</mat-icon>
-          Undo
-        </button>
-        <button mat-stroked-button (click)="reset.emit()">
-          <mat-icon>replay</mat-icon>
-          Reset
-        </button>
-      </div>
-      <div class="controls-row">
-        <button mat-stroked-button (click)="randomizeCenterAndTarget.emit()">
-          <mat-icon>casino</mat-icon>
-          Randomize Inputs
-        </button>
-      </div>
-    </div>
   </mat-card-content>
 </mat-card>

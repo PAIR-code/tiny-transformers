@@ -341,6 +341,22 @@
     </svg>
 
     <div class="animation-control-overlay" (click)="toggleShowNodeComputations()">
+      <div class="prime-selector-wrapper" (click)="$event.stopPropagation()">
+        <label for="prime-select">p =</label>
+        <select 
+          id="prime-select" 
+          [value]="prime()" 
+          (change)="onPrimeChange($event)"
+          class="prime-select"
+        >
+          <option [value]="2">2</option>
+          <option [value]="3">3</option>
+          <option [value]="5">5</option>
+        </select>
+      </div>
+
+      <div class="overlay-divider"></div>
+
       <input 
         type="checkbox" 
         [checked]="showNodeComputations()" 
@@ -349,6 +365,52 @@
         id="steps-show-computations-checkbox"
       />
       <label for="steps-show-computations-checkbox" (click)="$event.stopPropagation()">steps show computations at nodes</label>
+    </div>
+
+    <div class="diagram-actions-overlay">
+      <button 
+        mat-icon-button 
+        [disabled]="!canUndo()" 
+        (click)="undoAction.emit()" 
+        title="Undo last step (Back)"
+        class="diagram-action-btn"
+      >
+        <mat-icon>undo</mat-icon>
+      </button>
+      <button 
+        mat-icon-button 
+        [disabled]="!canStep()" 
+        (click)="stepAction.emit()" 
+        title="Step forward"
+        class="diagram-action-btn"
+      >
+        <mat-icon>skip_next</mat-icon>
+      </button>
+      <button 
+        mat-icon-button 
+        (click)="playToggle.emit()" 
+        title="Animate/Pause"
+        class="diagram-action-btn play-btn"
+        [class.playing]="isPlaying()"
+      >
+        <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+      </button>
+      <button 
+        mat-icon-button 
+        (click)="resetAction.emit()" 
+        title="Reset to initial state"
+        class="diagram-action-btn"
+      >
+        <mat-icon>replay</mat-icon>
+      </button>
+      <button 
+        mat-icon-button 
+        (click)="randomizeAction.emit()" 
+        title="Randomize center & target"
+        class="diagram-action-btn"
+      >
+        <mat-icon>shuffle</mat-icon>
+      </button>
     </div>
   </mat-card-content>
 </mat-card>

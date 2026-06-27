@@ -414,7 +414,8 @@ describe('BerkovichDiskVisComponent', () => {
     }
     
     expect(component.stepCount()).toBe(0);
-    expect(component.currentLogRadius()).toBe(2.0);
+    expect(component.currentLogRadius()).toBeGreaterThanOrEqual(-2.0);
+    expect(component.currentLogRadius()).toBeLessThanOrEqual(2.0);
   });
 
   it('should skip pause animations when showNodeComputations is false', async () => {

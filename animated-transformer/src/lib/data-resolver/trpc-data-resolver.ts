@@ -20,13 +20,18 @@ import { JsonValue } from 'src/lib/json/json';
 import json5 from 'json5';
 import { stringifyJsonValue } from 'src/lib/json/pretty_json';
 
-export class tRpcDataResolver implements AbstractDataResolver<JsonValue> {
+export class tRpcDataResolver extends AbstractDataResolver {
   trpc: CreateTRPCClient<ExperimentServerRouter>;
 
   constructor(url = 'http://localhost:9000') {
+    super();
     this.trpc = createTRPCClient<ExperimentServerRouter>({
       links: [httpBatchLink({ url })],
     });
+  }
+
+  async saveArrayBuffer(path: string[], data: ArrayBuffer): Promise<void> {
+    throw new Error('saveArrayBuffer not implemented in tRpcDataResolver');
   }
 
   async loadArrayBuffer(path: string[]): Promise<ArrayBuffer> {
