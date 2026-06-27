@@ -99,6 +99,7 @@ export class BerkovichTreeVisComponent {
   readonly isPlaying = input<boolean>(false);
   readonly canUndo = input<boolean>(false);
   readonly canStep = input<boolean>(true);
+  readonly learningRateInput = input<string>('0.20');
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -116,6 +117,8 @@ export class BerkovichTreeVisComponent {
   readonly resetAction = output<void>();
   readonly randomizeAction = output<void>();
   readonly primeChange = output<number>();
+  readonly learningRateInputChange = output<string>();
+  readonly learningRateBlur = output<void>();
 
   // Constants
   readonly svgHeight = 460;

@@ -609,6 +609,23 @@ limitations under the License.
   margin: 0 4px;
 }
 
+.learning-rate-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+
+  label {
+    cursor: default;
+  }
+
+  .mini-lr-input {
+    width: 42px !important;
+  }
+}
+
 .footer-control-right {
   display: flex;
   align-items: center;
