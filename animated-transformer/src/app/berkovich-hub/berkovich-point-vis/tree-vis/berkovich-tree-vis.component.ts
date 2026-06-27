@@ -92,6 +92,7 @@ export class BerkovichTreeVisComponent {
   readonly currentDistanceValuation = input<ExtendedNumber>();
 
   readonly animationPhase = input<'idle' | 'fadeout' | 'show'>('idle');
+  readonly history = input<{ center: Rational; logRadius: number }[]>([]);
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -721,8 +722,22 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
   readonly fadingOutNonOptimal = signal<boolean>(false);
 
   readonly currentParameterCoord = computed(() => {
-    const c_curr = this.currentCenter();
-    const rho = this.currentLogRadius();
+    return this.getParameterCoord(this.currentCenter(), this.currentLogRadius());
+  });
+
+  readonly historyCoords = computed(() => {
+    const hist = this.history();
+    const sliced = hist.slice(-3);
+    const count = sliced.length;
+    return sliced.map((h, index) => {
+      const coord = this.getParameterCoord(h.center, h.logRadius);
+      const age = count - 1 - index;
+      const opacity = age === 0 ? 0.6 : age === 1 ? 0.35 : 0.15;
+      return { ...coord, opacity };
+    });
+  });
+
+  getParameterCoord(c_curr: Rational, rho: number): { x: number; y: number } {
     const p = BigInt(this.prime());
     const yCoord = this.rhoToY(rho);
     const nodes = this.treeVisuals().nodes;
@@ -750,7 +765,7 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
     }
     
     return { x: xCoord, y: yCoord };
-  });
+  }
 
   constructor() {
     // Track previous node positions for slide-out animations

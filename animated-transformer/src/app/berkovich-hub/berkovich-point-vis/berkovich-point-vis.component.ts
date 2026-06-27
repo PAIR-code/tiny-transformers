@@ -274,7 +274,7 @@ export class BerkovichPointVisComponent implements OnInit, OnDestroy {
     this.history.set([]);
   }
 
-  step(): void {
+  async step(): Promise<void> {
     const p = BigInt(this.prime());
     const c = this.currentCenter();
     const rho = this.currentLogRadius();
@@ -283,19 +283,27 @@ export class BerkovichPointVisComponent implements OnInit, OnDestroy {
 
     const details = computeGradientDetails(c, rho, y, -2, p, eta);
 
-    // Update state signals
-    this.currentCenter.set(details.nextCenter);
-    this.currentLogRadius.set(details.nextLogRadius);
-    this.stepCount.update(s => s + 1);
+    if (details.isVertex || details.crossesInteger) {
+      if (details.crossesInteger) {
+        // Snap visually to the boundary first
+        const snapped = details.snappedRho!;
+        this.currentLogRadius.set(snapped);
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
 
-    // Add to history
-    this.history.update(h => [...h, {
-      step: this.stepCount(),
-      center: details.nextCenter,
-      logRadius: details.nextLogRadius,
-      loss: details.loss,
-      type: details.stepType
-    }]);
+      // Phase 1: Pause to observe candidates
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Phase 2: Fade out non-optimal candidates
+      this.animationPhase.set('fadeout');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Phase 3: Move to final position
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
+    } else {
+      this.applyStepDetails(details);
+    }
 
     // Stop playing if we reach convergence (loss = 0) or the leaf resolution limit of the tree (-2.0)
     if (details.loss <= 1e-7 || details.nextLogRadius <= -2.0) {
@@ -323,6 +331,26 @@ export class BerkovichPointVisComponent implements OnInit, OnDestroy {
       if (!this.isPlaying()) return;
 
       // Phase 3: Apply the state update (moves away from the vertex)
+      this.animationPhase.set('idle');
+      this.applyStepDetails(details);
+    } else if (details.crossesInteger) {
+      // Snap visual representation to the integer boundary first
+      const snapped = details.snappedRho!;
+      this.currentLogRadius.set(snapped);
+      // Wait a tiny bit for computed signals to update so candidate branches are visible
+      await new Promise(resolve => setTimeout(resolve, 50));
+      if (!this.isPlaying()) return;
+
+      // Phase 1: Pause to observe candidates
+      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!this.isPlaying()) return;
+
+      // Phase 2: Fade out non-optimal candidates
+      this.animationPhase.set('fadeout');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!this.isPlaying()) return;
+
+      // Phase 3: Apply the remaining step coordinates
       this.animationPhase.set('idle');
       this.applyStepDetails(details);
     } else {
@@ -422,7 +450,7 @@ export class BerkovichPointVisComponent implements OnInit, OnDestroy {
       if (!this.isPlaying()) return;
       await this.animatedStep();
       this.scheduleNextStep();
-    }, 10);
+    }, 200);
   }
 
   private stopAnimation(): void {

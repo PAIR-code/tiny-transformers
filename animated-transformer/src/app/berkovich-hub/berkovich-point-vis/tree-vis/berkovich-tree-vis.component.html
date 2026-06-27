@@ -278,6 +278,17 @@
         }
       </g>
 
+      <!-- Dotted circles at step-points in history -->
+      @for (coord of historyCoords(); track $index) {
+        <circle
+          [attr.cx]="coord.x"
+          [attr.cy]="coord.y"
+          r="5"
+          class="history-dot"
+          [style.opacity]="coord.opacity"
+        />
+      }
+
       <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
       <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
         <circle

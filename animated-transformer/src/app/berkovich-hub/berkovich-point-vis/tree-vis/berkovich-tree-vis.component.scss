@@ -165,6 +165,14 @@ limitations under the License.
   }
 }
 
+.history-dot {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 1.5px;
+  stroke-dasharray: 2 2;
+  opacity: 0.6;
+}
+
 /* Continuous Log-Radius level line indicator */
 .rho-level-group {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);

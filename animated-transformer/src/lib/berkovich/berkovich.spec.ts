@@ -260,8 +260,9 @@ describe('Berkovich Math Library - Shared Gradient Steps', () => {
     expect(details2.gRho).toBe(1);
     expect(details2.proposedRho).toBeCloseTo(-0.1);
     expect(details2.crossesInteger).toBe(true);
-    expect(details2.nextLogRadius).toBe(0.0);
-    expect(details2.stepType).toBe('Edge (Continuous snap to ρ=0)');
+    expect(details2.nextCenter).toEqual(parseToRational('5/3'));
+    expect(details2.nextLogRadius).toBeCloseTo(-0.1);
+    expect(details2.stepType).toBe('Edge (Crossed boundary; snapped to vertex ρ=0 and took branch Child 1)');
   });
 
   it('should clamp nextLogRadius to the represented range [-2, 2]', () => {

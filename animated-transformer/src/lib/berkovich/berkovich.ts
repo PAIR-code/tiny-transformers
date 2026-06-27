@@ -511,33 +511,70 @@ export function computeGradientDetails(
     const kLower = Math.floor(rho);
     const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
     
+    let nextCenter = c;
     let nextLogRadius: number;
     let stepType: string;
+    let explanation = '';
+    let candidates: VertexCandidate[] | undefined = undefined;
+    let bestBranch: string | undefined = undefined;
+    let bestBranchLabel: string | undefined = undefined;
+
     if (crossesInteger) {
-      nextLogRadius = gRho > 0 ? kLower : kUpper;
-      stepType = `Edge (Continuous snap to ρ=${nextLogRadius})`;
+      const snapped = gRho > 0 ? kLower : kUpper;
+      const dist = Math.abs(rho - snapped);
+      const etaRemaining = eta - dist;
+      
+      const vertexCandidates = computeVertexCandidates(c, snapped, y, y_rho, p);
+      
+      let minLoss = Infinity;
+      let maxValuation: ExtendedNumber = { type: 'neg-infinity' };
+      let bestCand = vertexCandidates[0];
+      for (const cand of vertexCandidates) {
+        const valShift = getValuation(subtract(y, cand.center), p);
+        if (cand.lossVal < minLoss) {
+          minLoss = cand.lossVal;
+          maxValuation = valShift;
+          bestCand = cand;
+        } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
+          if (extCompare(valShift, maxValuation) > 0) {
+            maxValuation = valShift;
+            bestCand = cand;
+          }
+        }
+      }
+      
+      nextCenter = bestCand.center;
+      const nextLogRadiusUnclamped = bestCand.branch === 'parent' ? snapped + etaRemaining : snapped - etaRemaining;
+      nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadiusUnclamped));
+      
+      stepType = `Edge (Crossed boundary; snapped to vertex ρ=${snapped} and took branch ${bestCand.branchLabel})`;
+      explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient points ${gRho > 0 ? 'down' : 'up'} ($g_\\rho = ${gRho > 0 ? '+1.0' : '-1.0'}$). Moving by $\\eta = ${eta}$ crosses the integer boundary at $\\rho = ${snapped}$ with remaining step $\\eta_{\\text{rem}} = ${etaRemaining.toFixed(4)}$. At that vertex, we evaluate the tangent branches and proceed along the best branch **${bestCand.branchLabel}** by $\\eta_{\\text{rem}}$, landing at $\\rho_{\\text{new}} = ${nextLogRadius.toFixed(4)}$.`;
+      candidates = vertexCandidates;
+      bestBranch = bestCand.branch;
+      bestBranchLabel = bestCand.branchLabel;
     } else {
-      nextLogRadius = proposedRho;
+      nextCenter = c;
+      nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, proposedRho));
       stepType = `Edge (Continuous descent dL/dρ=${gRho > 0 ? '+1' : '-1'})`;
+      explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient of the loss with respect to $\\rho$ is $\\frac{dL}{d\\rho} = \\text{sgn}(\\rho - \\max(d, \\rho_y)) = ${gRho > 0 ? '+1.0' : '-1.0'}$ (since $\\rho ${rho >= max_d_yrho ? '\\ge' : '<'} \\max(d, \\rho_y)$). Under gradient descent, the proposed update is $\\rho_{\\text{new}} = \\rho - \\eta \\cdot \\frac{dL}{d\\rho} = ${proposedRho.toFixed(4)}$.`;
     }
-    nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadius));
-    
-    const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
-    const explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient of the loss with respect to $\\rho$ is $\\frac{dL}{d\\rho} = \\text{sgn}(\\rho - \\max(d, \\rho_y)) = ${gRho > 0 ? '+1.0' : '-1.0'}$ (since $\\rho ${rho >= max_d_yrho ? '\\ge' : '<'} \\max(d, \\rho_y)$). Under gradient descent, the proposed update is $\\rho_{\\text{new}} = \\rho - \\eta \\cdot \\frac{dL}{d\\rho} = ${proposedRho.toFixed(4)}$.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to $\\rho = ${snappedRho}$ to land exactly on a Type II vertex.` : ''}`;
-    
+
     return {
       isVertex: false,
       rho,
       d,
       loss,
-      nextCenter: c,
+      nextCenter,
       nextLogRadius,
       stepType,
       explanation,
       gRho,
       proposedRho,
       crossesInteger,
-      snappedRho
+      snappedRho: crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho,
+      candidates,
+      bestBranch,
+      bestBranchLabel
     };
   }
 }

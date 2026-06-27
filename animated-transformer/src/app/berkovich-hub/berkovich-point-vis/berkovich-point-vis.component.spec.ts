@@ -147,7 +147,7 @@ describe('BerkovichPointVisComponent', () => {
     expect(formatRational(component.currentCenter())).toBe('0');
   });
 
-  it('should perform continuous gradient steps and snapping', () => {
+  it('should perform continuous gradient steps and snapping', async () => {
     // Set starting log-radius to 1.8 (on a Type III edge)
     component.currentLogRadius.set(1.8);
     component.stepCount.set(0);
@@ -157,7 +157,7 @@ describe('BerkovichPointVisComponent', () => {
     // At step 0, rho = 1.8. Since rho = 1.8 >= d = 1.0, dL/drho = +1.
     // Proposed update is rho = 1.8 - 0.5 * 1 = 1.3.
     // Since 1.3 does not cross an integer (remains in [1, 2]), we update to 1.3.
-    component.step();
+    await component.step();
     expect(component.stepCount()).toBe(1);
     expect(component.currentLogRadius()).toBeCloseTo(1.3);
     expect(formatRational(component.currentCenter())).toBe('0');
@@ -165,13 +165,13 @@ describe('BerkovichPointVisComponent', () => {
     // Next step: rho = 1.3 >= d = 1.0, dL/drho = +1.
     // Proposed update is rho = 1.3 - 0.5 * 1 = 0.8.
     // Since this crosses 1.0 (an integer boundary), it snaps to 1.0.
-    component.step();
+    await component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBeCloseTo(1.0);
-    expect(formatRational(component.currentCenter())).toBe('0');
+    expect(component.currentLogRadius()).toBeCloseTo(0.8);
+    expect(formatRational(component.currentCenter())).toBe('2/3');
   });
 
-  it('should perform vertex transitions at integer boundaries', () => {
+  it('should perform vertex transitions at integer boundaries', async () => {
     // Set state exactly at vertex rho = 1.0
     component.currentCenter.set(parseToRational('0'));
     component.currentLogRadius.set(1.0);
@@ -180,14 +180,14 @@ describe('BerkovichPointVisComponent', () => {
     // Target is y = 5/3.
     // Since rho = 1.0 (vertex), we do branch transition.
     // It should choose Child 2 (center = 2/3), nextLogRadius = 1.0 - 0.5 = 0.5.
-    component.step();
+    await component.step();
     
     expect(component.stepCount()).toBe(1);
     expect(component.currentLogRadius()).toBeCloseTo(0.5);
     expect(formatRational(component.currentCenter())).toBe('2/3');
   });
 
-  it('should support undoing the last step and restoring previous state', () => {
+  it('should support undoing the last step and restoring previous state', async () => {
     // Initialize starting state
     component.currentLogRadius.set(1.8);
     component.stepCount.set(0);
@@ -200,14 +200,15 @@ describe('BerkovichPointVisComponent', () => {
     }]);
 
     // Step 1: rho -> 1.3
-    component.step();
+    await component.step();
     expect(component.stepCount()).toBe(1);
     expect(component.currentLogRadius()).toBeCloseTo(1.3);
 
-    // Step 2: rho -> 1.0 (snapped)
-    component.step();
+    // Step 2: rho -> 0.8 (crossed boundary, selected Child 2)
+    await component.step();
     expect(component.stepCount()).toBe(2);
-    expect(component.currentLogRadius()).toBeCloseTo(1.0);
+    expect(component.currentLogRadius()).toBeCloseTo(0.8);
+    expect(formatRational(component.currentCenter())).toBe('2/3');
 
     // Undo Step 2 -> restores Step 1 (rho = 1.3)
     component.undo();
@@ -295,7 +296,7 @@ describe('BerkovichPointVisComponent', () => {
     expect(component.targetInput()).toBe('4/3');
   });
 
-  it('should correctly break ties at Type II vertices to choose the branch containing the target', () => {
+  it('should correctly break ties at Type II vertices to choose the branch containing the target', async () => {
     component.prime.set(3);
     component.targetInput.set('5/3');
     component.centerInput.set('0');
@@ -310,14 +311,14 @@ describe('BerkovichPointVisComponent', () => {
     expect(component.currentLogRadius()).toBe(1.0);
 
     // Step 1: from level 1.0 to 0.0 (resolves power -1, target digit 2, center becomes 2/3)
-    component.step();
+    await component.step();
     fixture.detectChanges();
 
     expect(component.currentCenter()).toEqual({ num: 2n, den: 3n });
     expect(component.currentLogRadius()).toBe(0.0);
 
     // Step 2: from level 0.0 to -1.0 (resolves power 0, target digit 1, center becomes 5/3)
-    component.step();
+    await component.step();
     fixture.detectChanges();
 
     expect(component.currentCenter()).toEqual({ num: 5n, den: 3n });
@@ -359,7 +360,7 @@ describe('BerkovichPointVisComponent', () => {
     expect(rows.find(r => r.power === 2)!.isResolved).toBe(false);
   });
 
-  it('should decrease rho when above the branching level and increase rho when below the branching level', () => {
+  it('should decrease rho when above the branching level and increase rho when below the branching level', async () => {
     component.prime.set(3);
     component.targetInput.set('5/3'); // sequence 01.20, d_branch = 1.0
     component.centerInput.set('2/3'); // sequence 00.20
@@ -371,7 +372,7 @@ describe('BerkovichPointVisComponent', () => {
     component.currentLogRadius.set(1.21);
     component.stepCount.set(0);
     
-    component.step();
+    await component.step();
     fixture.detectChanges();
     expect(component.currentLogRadius()).toBeCloseTo(1.11);
     expect(formatRational(component.currentCenter())).toBe('2/3');
@@ -381,7 +382,7 @@ describe('BerkovichPointVisComponent', () => {
     component.currentLogRadius.set(0.80);
     component.stepCount.set(0);
     
-    component.step();
+    await component.step();
     fixture.detectChanges();
     expect(component.currentLogRadius()).toBeCloseTo(0.90);
     expect(formatRational(component.currentCenter())).toBe('1/3');
