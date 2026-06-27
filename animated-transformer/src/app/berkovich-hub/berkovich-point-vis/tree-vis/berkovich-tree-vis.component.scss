@@ -44,7 +44,6 @@ limitations under the License.
 
   .visualizer-card-content {
     position: relative;
-    padding-bottom: 56px !important;
   }
 }
 
@@ -538,24 +537,26 @@ limitations under the License.
   }
 }
 
-.animation-control-overlay {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
+.visualizer-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.footer-control-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-size: 11px;
   font-weight: 500;
   color: #334155;
   user-select: none;
+  cursor: pointer;
   
   input {
     cursor: pointer;
@@ -608,20 +609,10 @@ limitations under the License.
   margin: 0 4px;
 }
 
-.diagram-actions-overlay {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
+.footer-control-right {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
-  padding: 4px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
   --mat-icon-button-icon-size: 16px !important;
   --mat-icon-button-state-layer-size: 24px !important;

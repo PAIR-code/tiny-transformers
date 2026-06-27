@@ -339,8 +339,10 @@
         />
       </g>
     </svg>
+  </mat-card-content>
 
-    <div class="animation-control-overlay" (click)="toggleShowNodeComputations()">
+  <div class="visualizer-card-footer">
+    <div class="footer-control-left" (click)="toggleShowNodeComputations()">
       <div class="prime-selector-wrapper" (click)="$event.stopPropagation()">
         <label for="prime-select">p =</label>
         <select 
@@ -367,7 +369,7 @@
       <label for="steps-show-computations-checkbox" (click)="$event.stopPropagation()">steps show computations at nodes</label>
     </div>
 
-    <div class="diagram-actions-overlay">
+    <div class="footer-control-right">
       <button 
         mat-icon-button 
         [disabled]="!canUndo()" 
@@ -412,5 +414,5 @@
         <mat-icon>shuffle</mat-icon>
       </button>
     </div>
-  </mat-card-content>
+  </div>
 </mat-card>
