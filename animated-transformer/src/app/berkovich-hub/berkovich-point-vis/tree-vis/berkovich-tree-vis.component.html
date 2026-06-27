@@ -299,5 +299,16 @@
         />
       </g>
     </svg>
+
+    <div class="animation-control-overlay" (click)="toggleShowNodeComputations()">
+      <input 
+        type="checkbox" 
+        [checked]="showNodeComputations()" 
+        (change)="onCheckboxChange($event)"
+        (click)="$event.stopPropagation()"
+        id="steps-show-computations-checkbox"
+      />
+      <label for="steps-show-computations-checkbox" (click)="$event.stopPropagation()">steps show computations at nodes</label>
+    </div>
   </mat-card-content>
 </mat-card>

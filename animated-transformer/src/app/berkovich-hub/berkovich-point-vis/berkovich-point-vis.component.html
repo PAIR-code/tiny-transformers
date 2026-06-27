@@ -37,6 +37,8 @@
 
         [animationPhase]="animationPhase()"
         [history]="history()"
+        [showNodeComputations]="showNodeComputations()"
+        (showNodeComputationsChange)="showNodeComputations.set($event)"
         (logRadiusChange)="onLogRadiusChange($event)"
         (draggingChange)="onDraggingChange($event)"
         (manualLogRadiusAdjust)="onManualLogRadiusAdjust($event)"

@@ -110,6 +110,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
   readonly isPlaying = signal<boolean>(false);
   readonly isDraggingRho = signal<boolean>(false);
   readonly animationPhase = signal<'idle' | 'fadeout'>('idle');
+  readonly showNodeComputations = signal<boolean>(false);
 
   // Real-time displaying values for parameters inputs
   readonly displayCenter = computed(() => {
@@ -290,7 +291,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
 
     const details = computeGradientDetails(c, rho, y, y_rho, p, eta);
 
-    if (details.isVertex || details.crossesInteger) {
+    if (this.showNodeComputations() && (details.isVertex || details.crossesInteger)) {
       if (details.crossesInteger) {
         // Snap visually to the boundary first
         const snapped = details.snappedRho!;
@@ -328,7 +329,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     const eta = this.learningRate();
     const details = computeGradientDetails(c, rho, y, y_rho, p, eta);
 
-    if (details.isVertex) {
+    if (this.showNodeComputations() && details.isVertex) {
       // Phase 1: Pause to let the user observe the node candidates
       await new Promise(resolve => setTimeout(resolve, 800));
       if (!this.isPlaying()) return;
@@ -341,7 +342,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
       // Phase 3: Apply the state update (moves away from the vertex)
       this.animationPhase.set('idle');
       this.applyStepDetails(details);
-    } else if (details.crossesInteger) {
+    } else if (this.showNodeComputations() && details.crossesInteger) {
       // Snap visual representation to the integer boundary first
       const snapped = details.snappedRho!;
       this.currentLogRadius.set(snapped);
@@ -362,7 +363,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
       this.animationPhase.set('idle');
       this.applyStepDetails(details);
     } else {
-      // Edge steps: smooth, shorter delay
+      // Edge steps or when node computations are disabled: smooth, shorter delay
       await new Promise(resolve => setTimeout(resolve, 300));
       if (!this.isPlaying()) return;
 

@@ -93,6 +93,7 @@ export class BerkovichTreeVisComponent {
 
   readonly animationPhase = input<'idle' | 'fadeout' | 'show'>('idle');
   readonly history = input<{ center: Rational; logRadius: number }[]>([]);
+  readonly showNodeComputations = input<boolean>(false);
 
   // Outputs
   readonly logRadiusChange = output<number>();
@@ -103,6 +104,7 @@ export class BerkovichTreeVisComponent {
   readonly centerDigitsInputChange = output<string>();
   readonly targetDigitsBlur = output<void>();
   readonly centerDigitsBlur = output<void>();
+  readonly showNodeComputationsChange = output<boolean>();
 
   // Constants
   readonly svgHeight = 460;
@@ -953,5 +955,14 @@ The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** o
       v = Math.max(this.rhoMin, Math.min(this.rhoMax, v));
       this.targetLogRadiusChange.emit(v);
     }
+  }
+
+  toggleShowNodeComputations(): void {
+    this.showNodeComputationsChange.emit(!this.showNodeComputations());
+  }
+
+  onCheckboxChange(event: Event): void {
+    const inputEl = event.target as HTMLInputElement;
+    this.showNodeComputationsChange.emit(inputEl.checked);
   }
 }

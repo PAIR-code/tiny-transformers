@@ -416,6 +416,24 @@ describe('BerkovichDiskVisComponent', () => {
     expect(component.stepCount()).toBe(0);
     expect(component.currentLogRadius()).toBe(2.0);
   });
+
+  it('should skip pause animations when showNodeComputations is false', async () => {
+    component.prime.set(3);
+    component.targetInput.set('5/3');
+    component.showNodeComputations.set(false);
+    component.currentCenter.set(parseToRational('0'));
+    component.currentLogRadius.set(1.0);
+    component.stepCount.set(0);
+
+    const startTime = Date.now();
+    await component.step();
+    const duration = Date.now() - startTime;
+
+    expect(duration).toBeLessThan(100);
+    expect(component.stepCount()).toBe(1);
+    expect(component.currentLogRadius()).toBeCloseTo(0.5);
+    expect(formatRational(component.currentCenter())).toBe('2/3');
+  });
 });
 
 
