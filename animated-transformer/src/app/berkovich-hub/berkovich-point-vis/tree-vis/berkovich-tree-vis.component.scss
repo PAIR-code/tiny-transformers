@@ -416,13 +416,50 @@ limitations under the License.
   transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.rho-disk-shading {
+  fill: #8b5cf6;
+  opacity: 0.04;
+  pointer-events: none;
+  transition: 
+    x 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-disk-shading {
+  fill: #d97706; /* amber-600 */
+  opacity: 0.04;
+  pointer-events: none;
+  transition: 
+    x 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-rho-guide-line {
+  stroke: #d97706;
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  transition: 
+    x1 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    x2 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y2 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Disable transitions during active pointer dragging to maintain zero-latency snappiness */
 .dragging-active {
   .tree-node-group,
   .digit-label-group,
   .parameter-overlay,
   .tree-edge,
-  .rho-level-group {
+  .rho-level-group,
+  .rho-disk-shading,
+  .target-rho-level-group,
+  .target-disk-shading,
+  .target-rho-guide-line {
     transition: none !important;
   }
 }

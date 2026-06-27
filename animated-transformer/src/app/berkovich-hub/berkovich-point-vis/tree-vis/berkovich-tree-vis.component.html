@@ -63,6 +63,28 @@
         </radialGradient>
       </defs>
 
+      <!-- Shaded background for Berkovich Disk -->
+      @if (currentLogRadius() > rhoMin) {
+        <rect
+          [attr.x]="rhoLineRange().x1"
+          [attr.y]="rhoToY(currentLogRadius())"
+          [attr.width]="rhoLineRange().x2 - rhoLineRange().x1"
+          [attr.height]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+          class="rho-disk-shading"
+        />
+      }
+
+      <!-- Shaded background for Target Berkovich Disk -->
+      @if (targetLogRadius() !== undefined && targetLogRadius()! > rhoMin) {
+        <rect
+          [attr.x]="targetRhoLineRange()!.x1"
+          [attr.y]="rhoToY(targetLogRadius()!)"
+          [attr.width]="targetRhoLineRange()!.x2 - targetRhoLineRange()!.x1"
+          [attr.height]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+          class="target-disk-shading"
+        />
+      }
+
       <!-- Decimal Place Divider Line -->
       <line
         [attr.x1]="0"
@@ -135,6 +157,24 @@
       <!-- Target Indicator Flag -->
       @if (targetLogRadius() !== undefined) {
         <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()!) + 'px)'">
+          <!-- Target vertical guide lines down to leaf level -->
+          @if (targetLogRadius()! > rhoMin) {
+            <line
+              [attr.x1]="targetRhoLineRange()!.x1"
+              y1="0"
+              [attr.x2]="targetRhoLineRange()!.x1"
+              [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+              class="target-rho-guide-line"
+            />
+            <line
+              [attr.x1]="targetRhoLineRange()!.x2"
+              y1="0"
+              [attr.x2]="targetRhoLineRange()!.x2"
+              [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+              class="target-rho-guide-line"
+            />
+          }
+
           <line
             [attr.x1]="targetRhoLineRange()!.x1"
             y1="0"
