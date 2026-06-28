@@ -100,7 +100,7 @@ describe('BerkovichCalculusComponent', () => {
     snappedRho: 1.6
   };
 
-  it('should render collapsed by default', async () => {
+  it('should render expanded by default', async () => {
     fixture.componentRef.setInput('gradientBreakdown', edgeMockData);
     fixture.componentRef.setInput('learningRate', 0.2);
     fixture.componentRef.setInput('prime', 3);
@@ -109,7 +109,7 @@ describe('BerkovichCalculusComponent', () => {
     fixture.componentRef.setInput('currentLogRadius', 1.8);
     fixture.detectChanges();
 
-    expect(component.isCollapsed()).toBe(true);
+    expect(component.isCollapsed()).toBe(false);
     await expect(fixture.nativeElement).toMatchScreenshot();
   });
 
@@ -126,12 +126,12 @@ describe('BerkovichCalculusComponent', () => {
     header.click();
     fixture.detectChanges();
 
-    expect(component.isCollapsed()).toBe(false);
+    expect(component.isCollapsed()).toBe(true);
 
     header.click();
     fixture.detectChanges();
 
-    expect(component.isCollapsed()).toBe(true);
+    expect(component.isCollapsed()).toBe(false);
   });
 
   it('should render correct content when expanded on Type III edge', async () => {

@@ -1008,4 +1008,628 @@ export function stepAdditionGradients(
   };
 }
 
+export interface MultiplicationGradientsStepResult {
+  nextCenterX1: Rational;
+  nextRhoX1: number;
+  nextCenterX2: Rational;
+  nextRhoX2: number;
+  prodCenter: Rational;
+  prodRho: number;
+  loss: number;
+  drhoProd_drhoX1: number;
+  drhoProd_drhoX2: number;
+  drProd: number;
+}
+
+export function computeMultiplicationActiveDegrees(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  p: bigint
+): { drhoProd_drhoX1: number; drhoProd_drhoX2: number } {
+  const val1 = getValuation(cX1, p);
+  const val2 = getValuation(cX2, p);
+
+  const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+  const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+
+  const t1 = logNorm2 + rhoX1;
+  const t2 = logNorm1 + rhoX2;
+  const t3 = rhoX1 + rhoX2;
+
+  const maxVal = Math.max(t1, t2, t3);
+
+  let d1 = 0;
+  let d2 = 0;
+  let activeCount = 0;
+
+  if (Math.abs(t1 - maxVal) < 1e-9) {
+    d1 += 1;
+    activeCount++;
+  }
+  if (Math.abs(t2 - maxVal) < 1e-9) {
+    d2 += 1;
+    activeCount++;
+  }
+  if (Math.abs(t3 - maxVal) < 1e-9) {
+    d1 += 1;
+    d2 += 1;
+    activeCount++;
+  }
+
+  return {
+    drhoProd_drhoX1: d1 / activeCount,
+    drhoProd_drhoX2: d2 / activeCount
+  };
+}
+
+function computeMultiplicationJointLoss(
+  prodCenter: Rational,
+  prodRho: number,
+  targetY: Rational,
+  y_rho: number,
+  p: bigint
+): number {
+  const clampedRho = Math.max(-2, Math.min(2, prodRho));
+  const diffVal = getValuation(subtract(prodCenter, targetY), p);
+  const dExt = extNegate(diffVal);
+  return (diffVal.type === 'pos-infinity' && clampedRho <= y_rho)
+    ? 0
+    : computePathLoss(clampedRho, dExt, y_rho);
+}
+
+function computeProdRho(
+  c1: Rational,
+  rho1: number,
+  c2: Rational,
+  rho2: number,
+  p: bigint
+): number {
+  const val1 = getValuation(c1, p);
+  const val2 = getValuation(c2, p);
+  const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+  const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+  return Math.max(logNorm2 + rho1, logNorm1 + rho2, rho1 + rho2);
+}
+
+function stepMultiplicationExactPerCoord(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  y_rho: number,
+  activeDegrees: { drhoProd_drhoX1: number; drhoProd_drhoX2: number }
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  let nextCX1 = cX1;
+  let nextRhoX1 = rhoX1;
+  let nextCX2 = cX2;
+  let nextRhoX2 = rhoX2;
+
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const pNum = Number(p);
+
+  if (activeDegrees.drhoProd_drhoX1 > 0) {
+    if (isVertex(rhoX1)) {
+      let bestLoss = Infinity;
+      let bestC1 = cX1;
+      let bestRho1 = rhoX1;
+
+      for (let g = 0; g < pNum; g++) {
+        const c1Cand = addShift(cX1, g, k1, p);
+        const rho1Cand = k1 - 1;
+        const loss = computeMultiplicationJointLoss(
+          multiply(c1Cand, cX2),
+          computeProdRho(c1Cand, rho1Cand, cX2, rhoX2, p),
+          targetY, y_rho, p
+        );
+        if (loss < bestLoss) {
+          bestLoss = loss;
+          bestC1 = c1Cand;
+          bestRho1 = rho1Cand;
+        }
+      }
+      const lossParent = computeMultiplicationJointLoss(
+        multiply(cX1, cX2),
+        computeProdRho(cX1, k1 + 1, cX2, rhoX2, p),
+        targetY, y_rho, p
+      );
+      if (lossParent < bestLoss) {
+        bestLoss = lossParent;
+        bestC1 = cX1;
+        bestRho1 = k1 + 1;
+      }
+
+      nextCX1 = bestC1;
+      nextRhoX1 = Math.max(-2, Math.min(2, bestRho1 > k1 ? k1 + eta : k1 - eta));
+    } else {
+      const diff = subtract(multiply(cX1, cX2), targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+      const prodRho = computeProdRho(cX1, rhoX1, cX2, rhoX2, p);
+      let drProd = 0;
+      if (prodRho > d) drProd = 1;
+      else if (prodRho < d) drProd = -1;
+
+      const grad1 = drProd * activeDegrees.drhoProd_drhoX1;
+      nextRhoX1 = Math.max(-2, Math.min(2, rhoX1 - eta * grad1));
+    }
+  }
+
+  if (activeDegrees.drhoProd_drhoX2 > 0) {
+    if (isVertex(rhoX2)) {
+      let bestLoss = Infinity;
+      let bestC2 = cX2;
+      let bestRho2 = rhoX2;
+
+      for (let g = 0; g < pNum; g++) {
+        const c2Cand = addShift(cX2, g, k2, p);
+        const rho2Cand = k2 - 1;
+        const loss = computeMultiplicationJointLoss(
+          multiply(cX1, c2Cand),
+          computeProdRho(cX1, rhoX1, c2Cand, rho2Cand, p),
+          targetY, y_rho, p
+        );
+        if (loss < bestLoss) {
+          bestLoss = loss;
+          bestC2 = c2Cand;
+          bestRho2 = rho2Cand;
+        }
+      }
+      const lossParent = computeMultiplicationJointLoss(
+        multiply(cX1, cX2),
+        computeProdRho(cX1, rhoX1, cX2, k2 + 1, p),
+        targetY, y_rho, p
+      );
+      if (lossParent < bestLoss) {
+        bestLoss = lossParent;
+        bestC2 = cX2;
+        bestRho2 = k2 + 1;
+      }
+
+      nextCX2 = bestC2;
+      nextRhoX2 = Math.max(-2, Math.min(2, bestRho2 > k2 ? k2 + eta : k2 - eta));
+    } else {
+      const diff = subtract(multiply(cX1, cX2), targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+      const prodRho = computeProdRho(cX1, rhoX1, cX2, rhoX2, p);
+      let drProd = 0;
+      if (prodRho > d) drProd = 1;
+      else if (prodRho < d) drProd = -1;
+
+      const grad2 = drProd * activeDegrees.drhoProd_drhoX2;
+      nextRhoX2 = Math.max(-2, Math.min(2, rhoX2 - eta * grad2));
+    }
+  }
+
+  return { nextCX1: nextCX1, nextRhoX1: nextRhoX1, nextCX2: nextCX2, nextRhoX2: nextRhoX2 };
+}
+
+function stepMultiplicationExactJoint(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  y_rho: number,
+  activeDegrees: { drhoProd_drhoX1: number; drhoProd_drhoX2: number }
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  const isX1Vertex = isVertex(rhoX1);
+  const isX2Vertex = isVertex(rhoX2);
+
+  if (!isX1Vertex || !isX2Vertex) {
+    return stepMultiplicationExactPerCoord(
+      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+    );
+  }
+
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const pNum = Number(p);
+
+  interface JointCandidate {
+    cX1: Rational;
+    rhoX1: number;
+    cX2: Rational;
+    rhoX2: number;
+    loss: number;
+  }
+
+  let bestCandidate: JointCandidate | undefined;
+
+  const x1Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x1Candidates.push({ center: addShift(cX1, g, k1, p), rho: k1 - 1 });
+  }
+  x1Candidates.push({ center: cX1, rho: k1 + 1 });
+
+  const x2Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x2Candidates.push({ center: addShift(cX2, g, k2, p), rho: k2 - 1 });
+  }
+  x2Candidates.push({ center: cX2, rho: k2 + 1 });
+
+  for (const c1 of x1Candidates) {
+    for (const c2 of x2Candidates) {
+      const prodCenter = multiply(c1.center, c2.center);
+      const prodRho = computeProdRho(c1.center, c1.rho, c2.center, c2.rho, p);
+      const loss = computeMultiplicationJointLoss(prodCenter, prodRho, targetY, y_rho, p);
+
+      if (!bestCandidate || loss < bestCandidate.loss) {
+        bestCandidate = {
+          cX1: c1.center,
+          rhoX1: c1.rho,
+          cX2: c2.center,
+          rhoX2: c2.rho,
+          loss
+        };
+      }
+    }
+  }
+
+  if (!bestCandidate) {
+    return { nextCX1: cX1, nextRhoX1: rhoX1, nextCX2: cX2, nextRhoX2: rhoX2 };
+  }
+
+  const nextRhoX1 = Math.max(-2, Math.min(2, bestCandidate.rhoX1 > k1 ? k1 + eta : k1 - eta));
+  const nextRhoX2 = Math.max(-2, Math.min(2, bestCandidate.rhoX2 > k2 ? k2 + eta : k2 - eta));
+
+  return {
+    nextCX1: bestCandidate.cX1,
+    nextRhoX1,
+    nextCX2: bestCandidate.cX2,
+    nextRhoX2
+  };
+}
+
+export function stepMultiplicationGradients(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  method: VertexResolutionMethod = 'exact-per-coord'
+): MultiplicationGradientsStepResult {
+  const prodCenter = multiply(cX1, cX2);
+
+  const val1 = getValuation(cX1, p);
+  const val2 = getValuation(cX2, p);
+  const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+  const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+
+  const t1 = logNorm2 + rhoX1;
+  const t2 = logNorm1 + rhoX2;
+  const t3 = rhoX1 + rhoX2;
+  const prodRho = Math.max(t1, t2, t3);
+
+  const diff = subtract(prodCenter, targetY);
+  const valDiff = getValuation(diff, p);
+  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+  const y_rho = -2;
+  const loss = valDiff.type === 'pos-infinity' && prodRho <= y_rho
+    ? 0
+    : computePathLoss(prodRho, extNegate(valDiff), y_rho);
+
+  let drProd = 0;
+  if (prodRho > d) drProd = 1;
+  else if (prodRho < d) drProd = -1;
+
+  const activeDegrees = computeMultiplicationActiveDegrees(cX1, rhoX1, cX2, rhoX2, p);
+
+  let result: {
+    nextCX1: Rational;
+    nextRhoX1: number;
+    nextCX2: Rational;
+    nextRhoX2: number;
+  };
+
+  if (method === 'exact-joint') {
+    result = stepMultiplicationExactJoint(
+      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+    );
+  } else {
+    result = stepMultiplicationExactPerCoord(
+      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees
+    );
+  }
+
+  return {
+    nextCenterX1: result.nextCX1,
+    nextRhoX1: result.nextRhoX1,
+    nextCenterX2: result.nextCX2,
+    nextRhoX2: result.nextRhoX2,
+    prodCenter,
+    prodRho,
+    loss,
+    drhoProd_drhoX1: activeDegrees.drhoProd_drhoX1,
+    drhoProd_drhoX2: activeDegrees.drhoProd_drhoX2,
+    drProd
+  };
+}
+
+export interface SoftmaxGradientsStepResult {
+  nextCenterX1: Rational;
+  nextRhoX1: number;
+  nextCenterX2: Rational;
+  nextRhoX2: number;
+  loss: number;
+  pi1: number;
+  pi2: number;
+  drho1: number;
+  drho2: number;
+}
+
+function computeSoftmaxLoss(
+  c1: Rational,
+  rho1: number,
+  c2: Rational,
+  rho2: number,
+  targetY: Rational,
+  p: bigint,
+  beta: number
+): number {
+  const d1Ext = getValuation(subtract(c1, targetY), p);
+  const d2Ext = getValuation(subtract(c2, targetY), p);
+  const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
+  const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
+
+  const M1 = 2 * Math.max(rho1, d1) - rho1;
+  const M2 = 2 * Math.max(rho2, d2) - rho2;
+
+  const D1 = -M1;
+  const D2 = -M2;
+
+  const maxD = Math.max(D1, D2);
+  const exp1 = Math.exp(beta * (D1 - maxD));
+  const exp2 = Math.exp(beta * (D2 - maxD));
+  return -Math.log(exp1 / (exp1 + exp2) + 1e-15);
+}
+
+function stepSoftmaxExactPerCoord(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  beta: number
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  let nextCX1 = cX1;
+  let nextRhoX1 = rhoX1;
+  let nextCX2 = cX2;
+  let nextRhoX2 = rhoX2;
+
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const pNum = Number(p);
+
+  if (isVertex(rhoX1)) {
+    let bestLoss = Infinity;
+    let bestC1 = cX1;
+    let bestRho1 = rhoX1;
+
+    for (let g = 0; g < pNum; g++) {
+      const c1Cand = addShift(cX1, g, k1, p);
+      const rho1Cand = k1 - 1;
+      const loss = computeSoftmaxLoss(c1Cand, rho1Cand, cX2, rhoX2, targetY, p, beta);
+      if (loss < bestLoss) {
+        bestLoss = loss;
+        bestC1 = c1Cand;
+        bestRho1 = rho1Cand;
+      }
+    }
+    const lossParent = computeSoftmaxLoss(cX1, k1 + 1, cX2, rhoX2, targetY, p, beta);
+    if (lossParent < bestLoss) {
+      bestLoss = lossParent;
+      bestC1 = cX1;
+      bestRho1 = k1 + 1;
+    }
+
+    nextCX1 = bestC1;
+    nextRhoX1 = Math.max(-2, Math.min(2, bestRho1 > k1 ? k1 + eta : k1 - eta));
+  } else {
+    const d1Ext = getValuation(subtract(cX1, targetY), p);
+    const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
+    const loss = computeSoftmaxLoss(cX1, rhoX1, cX2, rhoX2, targetY, p, beta);
+    const pi1 = Math.exp(-loss);
+    let sgn1 = 0;
+    if (rhoX1 > d1) sgn1 = 1;
+    else if (rhoX1 < d1) sgn1 = -1;
+    const drho1 = beta * (1 - pi1) * sgn1;
+    nextRhoX1 = Math.max(-2, Math.min(2, rhoX1 - eta * drho1));
+  }
+
+  if (isVertex(rhoX2)) {
+    let bestLoss = Infinity;
+    let bestC2 = cX2;
+    let bestRho2 = rhoX2;
+
+    for (let g = 0; g < pNum; g++) {
+      const c2Cand = addShift(cX2, g, k2, p);
+      const rho2Cand = k2 - 1;
+      const loss = computeSoftmaxLoss(cX1, rhoX1, c2Cand, rho2Cand, targetY, p, beta);
+      if (loss < bestLoss) {
+        bestLoss = loss;
+        bestC2 = c2Cand;
+        bestRho2 = rho2Cand;
+      }
+    }
+    const lossParent = computeSoftmaxLoss(cX1, rhoX1, cX2, k2 + 1, targetY, p, beta);
+    if (lossParent < bestLoss) {
+      bestLoss = lossParent;
+      bestC2 = cX2;
+      bestRho2 = k2 + 1;
+    }
+
+    nextCX2 = bestC2;
+    nextRhoX2 = Math.max(-2, Math.min(2, bestRho2 > k2 ? k2 + eta : k2 - eta));
+  } else {
+    const d2Ext = getValuation(subtract(cX2, targetY), p);
+    const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
+    const loss = computeSoftmaxLoss(cX1, rhoX1, cX2, rhoX2, targetY, p, beta);
+    const pi2 = 1 - Math.exp(-loss);
+    let sgn2 = 0;
+    if (rhoX2 > d2) sgn2 = 1;
+    else if (rhoX2 < d2) sgn2 = -1;
+    const drho2 = rhoX2 >= d2 ? -beta * pi2 * sgn2 : 0;
+    nextRhoX2 = Math.max(-2, Math.min(2, rhoX2 - eta * drho2));
+  }
+
+  return { nextCX1, nextRhoX1, nextCX2, nextRhoX2 };
+}
+
+function stepSoftmaxExactJoint(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  beta: number
+): { nextCX1: Rational; nextRhoX1: number; nextCX2: Rational; nextRhoX2: number } {
+  const isX1Vertex = isVertex(rhoX1);
+  const isX2Vertex = isVertex(rhoX2);
+
+  if (!isX1Vertex || !isX2Vertex) {
+    return stepSoftmaxExactPerCoord(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, beta);
+  }
+
+  const k1 = Math.round(rhoX1);
+  const k2 = Math.round(rhoX2);
+  const pNum = Number(p);
+
+  interface JointCandidate {
+    cX1: Rational;
+    rhoX1: number;
+    cX2: Rational;
+    rhoX2: number;
+    loss: number;
+  }
+
+  let bestCandidate: JointCandidate | undefined;
+
+  const x1Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x1Candidates.push({ center: addShift(cX1, g, k1, p), rho: k1 - 1 });
+  }
+  x1Candidates.push({ center: cX1, rho: k1 + 1 });
+
+  const x2Candidates: { center: Rational; rho: number }[] = [];
+  for (let g = 0; g < pNum; g++) {
+    x2Candidates.push({ center: addShift(cX2, g, k2, p), rho: k2 - 1 });
+  }
+  x2Candidates.push({ center: cX2, rho: k2 + 1 });
+
+  for (const c1 of x1Candidates) {
+    for (const c2 of x2Candidates) {
+      const loss = computeSoftmaxLoss(c1.center, c1.rho, c2.center, c2.rho, targetY, p, beta);
+
+      if (!bestCandidate || loss < bestCandidate.loss) {
+        bestCandidate = {
+          cX1: c1.center,
+          rhoX1: c1.rho,
+          cX2: c2.center,
+          rhoX2: c2.rho,
+          loss
+        };
+      }
+    }
+  }
+
+  if (!bestCandidate) {
+    return { nextCX1: cX1, nextRhoX1: rhoX1, nextCX2: cX2, nextRhoX2: rhoX2 };
+  }
+
+  const nextRhoX1 = Math.max(-2, Math.min(2, bestCandidate.rhoX1 > k1 ? k1 + eta : k1 - eta));
+  const nextRhoX2 = Math.max(-2, Math.min(2, bestCandidate.rhoX2 > k2 ? k2 + eta : k2 - eta));
+
+  return {
+    nextCX1: bestCandidate.cX1,
+    nextRhoX1,
+    nextCX2: bestCandidate.cX2,
+    nextRhoX2
+  };
+}
+
+export function stepSoftmaxGradients(
+  cX1: Rational,
+  rhoX1: number,
+  cX2: Rational,
+  rhoX2: number,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  beta: number = 1.0,
+  method: VertexResolutionMethod = 'exact-per-coord'
+): SoftmaxGradientsStepResult {
+  const d1Ext = getValuation(subtract(cX1, targetY), p);
+  const d2Ext = getValuation(subtract(cX2, targetY), p);
+
+  const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
+  const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
+
+  const M1 = 2 * Math.max(rhoX1, d1) - rhoX1;
+  const M2 = 2 * Math.max(rhoX2, d2) - rhoX2;
+
+  const D1 = -M1;
+  const D2 = -M2;
+
+  const maxD = Math.max(D1, D2);
+  const exp1 = Math.exp(beta * (D1 - maxD));
+  const exp2 = Math.exp(beta * (D2 - maxD));
+  const sumExp = exp1 + exp2;
+
+  const pi1 = exp1 / sumExp;
+  const pi2 = exp2 / sumExp;
+
+  const loss = -Math.log(pi1 + 1e-15);
+
+  let sgn1 = 0;
+  if (rhoX1 > d1) sgn1 = 1;
+  else if (rhoX1 < d1) sgn1 = -1;
+  const drho1 = beta * (1 - pi1) * sgn1;
+
+  let sgn2 = 0;
+  if (rhoX2 > d2) sgn2 = 1;
+  else if (rhoX2 < d2) sgn2 = -1;
+  const drho2 = rhoX2 >= d2 ? -beta * pi2 * sgn2 : 0;
+
+  let result: {
+    nextCX1: Rational;
+    nextRhoX1: number;
+    nextCX2: Rational;
+    nextRhoX2: number;
+  };
+
+  if (method === 'exact-joint') {
+    result = stepSoftmaxExactJoint(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, beta);
+  } else {
+    result = stepSoftmaxExactPerCoord(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, beta);
+  }
+
+  return {
+    nextCenterX1: result.nextCX1,
+    nextRhoX1: result.nextRhoX1,
+    nextCenterX2: result.nextCX2,
+    nextRhoX2: result.nextRhoX2,
+    loss,
+    pi1,
+    pi2,
+    drho1,
+    drho2
+  };
+}
+
 

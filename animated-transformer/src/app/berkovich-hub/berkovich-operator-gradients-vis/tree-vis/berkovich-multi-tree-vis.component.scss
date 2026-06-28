@@ -18,21 +18,70 @@ limitations under the License.
   display: block;
 }
 
-mat-card-header {
-  padding: 12px 16px;
+.visualizer-card-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 12px 16px !important;
   border-bottom: 1px solid #e2e8f0;
+  box-sizing: border-box;
+
+  ::ng-deep .mat-mdc-card-header-text {
+    margin: 0 !important;
+  }
 }
 
-mat-card-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #0f172a;
-
+.visualizer-title-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  
   mat-icon {
     color: #0f766e;
+    margin: 0 !important;
+  }
+}
+
+.header-operator-select-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+
+  label {
+    cursor: default;
+  }
+}
+
+.header-operator-select {
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: #ffffff;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  height: 24px;
+  box-sizing: border-box;
+
+  &:hover {
+    border-color: #94a3b8;
+  }
+
+  &:focus {
+    border-color: #0f766e;
   }
 }
 .svg-container {

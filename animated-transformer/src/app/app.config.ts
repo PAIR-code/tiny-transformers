@@ -32,7 +32,7 @@ import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component
 import { provideHttpClient } from '@angular/common/http';
 import { BerkovichPointVisComponent } from './berkovich-hub/berkovich-point-vis/berkovich-point-vis.component';
 import { BerkovichDiskVisComponent } from './berkovich-hub/berkovich-disk-vis/berkovich-disk-vis.component';
-import { BerkovichAdditionGradientsVisComponent } from './berkovich-hub/berkovich-addition-gradients-vis/berkovich-addition-gradients-vis.component';
+import { BerkovichOperatorGradientsVisComponent } from './berkovich-hub/berkovich-operator-gradients-vis/berkovich-operator-gradients-vis.component';
 import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
 
@@ -75,7 +75,7 @@ export const routes: Routes = [
       { path: '', component: BerkovichHubComponent, pathMatch: 'full' },
       { path: 'point', component: BerkovichPointVisComponent },
       { path: 'disk', component: BerkovichDiskVisComponent },
-      { path: 'addition-gradients', component: BerkovichAdditionGradientsVisComponent },
+      { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
       { path: 'glossary', component: BerkovichGlossaryComponent }
     ]
   },

@@ -20,20 +20,20 @@ import { SecurityContext } from '@angular/core';
 import katex from 'katex';
 // @ts-ignore
 import renderMathInElement from 'katex/dist/contrib/auto-render.js';
-import { BerkovichAdditionCalculusComponent } from './berkovich-addition-calculus.component';
+import { BerkovichOperatorCalculusComponent } from './berkovich-operator-calculus.component';
 
 if (typeof window !== 'undefined') {
   (window as any).katex = katex;
   (window as any).renderMathInElement = renderMathInElement;
 }
 
-describe('BerkovichAdditionCalculusComponent', () => {
-  let component: BerkovichAdditionCalculusComponent;
-  let fixture: ComponentFixture<BerkovichAdditionCalculusComponent>;
+describe('BerkovichOperatorCalculusComponent', () => {
+  let component: BerkovichOperatorCalculusComponent;
+  let fixture: ComponentFixture<BerkovichOperatorCalculusComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BerkovichAdditionCalculusComponent],
+      imports: [BerkovichOperatorCalculusComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideMarkdown({
@@ -51,31 +51,63 @@ describe('BerkovichAdditionCalculusComponent', () => {
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BerkovichAdditionCalculusComponent);
+    fixture = TestBed.createComponent(BerkovichOperatorCalculusComponent);
     component = fixture.componentInstance;
   });
 
-  it('should compute correct addition radius and active degrees when x1_rho > x2_rho', () => {
+  it('should format correct addition markdown when x1_rho > x2_rho', () => {
+    fixture.componentRef.setInput('operator', 'addition');
     fixture.componentRef.setInput('rhoX1', 1.0);
     fixture.componentRef.setInput('rhoX2', -0.5);
-    fixture.componentRef.setInput('dL_drhoSum', 1.0);
+    fixture.componentRef.setInput('stepDetails', {
+      outCenter: { num: 0n, den: 1n },
+      outRho: 1.0,
+      loss: 0.5,
+      drhoX1: 1.0,
+      drhoX2: 0.0,
+      drOut: 1.0
+    });
     fixture.detectChanges();
 
-    expect(component.rhoSum()).toBe(1.0);
-    expect(component.activeDegrees()).toEqual({ x1: 1, x2: 0 });
-    
-    // Markdown formulas should contain expected math content and no invalid \\text{} wrapper around relations
-    expect(component.drhoX1Markdown()).toContain('x_{1,\\rho} \\ge x_{2,\\rho}');
-    expect(component.drhoX1Markdown()).not.toContain('\\text{(x_{1,\\rho}');
+    // Check outputs
+    expect(component.outRowMarkdown()).toContain('1.00');
+    expect(component.drhoX1Markdown()).toContain('1.00');
+    expect(component.drhoX2Markdown()).toContain('0.00');
   });
 
-  it('should split active degrees equally when x1_rho == x2_rho', () => {
+  it('should format correct multiplication markdown', () => {
+    fixture.componentRef.setInput('operator', 'multiplication');
     fixture.componentRef.setInput('rhoX1', 0.5);
     fixture.componentRef.setInput('rhoX2', 0.5);
-    fixture.componentRef.setInput('dL_drhoSum', -1.0);
+    fixture.componentRef.setInput('stepDetails', {
+      outCenter: { num: 0n, den: 1n },
+      outRho: 1.0,
+      loss: 0.2,
+      drhoX1: 0.5,
+      drhoX2: 0.5,
+      drOut: -1.0
+    });
     fixture.detectChanges();
 
-    expect(component.rhoSum()).toBe(0.5);
-    expect(component.activeDegrees()).toEqual({ x1: 0.5, x2: 0.5 });
+    expect(component.outRowMarkdown()).toContain('x_1 \\cdot x_2');
+    expect(component.drhoX1Markdown()).toContain('0.50');
+    expect(component.drhoX2Markdown()).toContain('0.50');
+  });
+
+  it('should format correct softmax markdown', () => {
+    fixture.componentRef.setInput('operator', 'softmax');
+    fixture.componentRef.setInput('rhoX1', 0.0);
+    fixture.componentRef.setInput('rhoX2', 0.0);
+    fixture.componentRef.setInput('stepDetails', {
+      loss: 0.1,
+      drhoX1: -0.1,
+      drhoX2: 0.1,
+      pi1: 0.9,
+      pi2: 0.1
+    });
+    fixture.detectChanges();
+
+    expect(component.softmaxProbMarkdown()).toContain('pi_1 = 0.900');
+    expect(component.softmaxBackpropX1Markdown()).toContain('-0.100');
   });
 });

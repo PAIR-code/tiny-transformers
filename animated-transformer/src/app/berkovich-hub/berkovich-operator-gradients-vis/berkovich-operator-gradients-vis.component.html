@@ -6,9 +6,9 @@
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
-        <h1>Berkovich Addition & Gradients Explorer</h1>
+        <h1>Berkovich Binary Operator Gradients Explorer</h1>
         <p class="subtitle">
-          Visualizing the backward pass and continuous gradient flow through an addition operation <markdown [inline]="true" [katex]="true" [data]="subtitleMath"></markdown>
+          Visualizing backward pass and continuous gradient flow through <markdown [inline]="true" [katex]="true" [data]="subtitleMath()"></markdown>
         </p>
       </div>
     </div>
@@ -25,6 +25,7 @@
     <!-- Left Column: Tree Visualizer with inline inputs -->
     <section class="visualizer-card-container">
       <app-berkovich-multi-tree-vis
+        [operator]="operator()"
         [prime]="prime()"
         [trackedNodes]="trackedNodes()"
         [editableInputs]="editableInputs()"
@@ -32,6 +33,7 @@
         [isPlaying]="isPlaying()"
         [learningRateInput]="learningRateInput()"
         [canUndo]="canUndo()"
+        (operatorChange)="onOperatorChange($event)"
         (inputChange)="onInputChange($event)"
         (inputBlur)="onInputBlur($event)"
         (step)="onStep()"
@@ -47,28 +49,29 @@
 
     <!-- Right Column: Calculus -->
     <aside class="control-panel">
-      <app-berkovich-addition-calculus
+      <app-berkovich-operator-calculus
+        [operator]="operator()"
         [rhoX1]="rhoX1()"
         [rhoX2]="rhoX2()"
-        [dL_drhoSum]="dL_drhoSum()"
+        [stepDetails]="stepDetails()"
       />
     </aside>
   </div>
 
-    <!-- Explainer Section -->
+  <!-- Explainer Section -->
   <mat-card class="explainer-card collapsible-card">
     <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" style="cursor: pointer; width: 100%;">
       <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 16px;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <mat-icon>info</mat-icon>
-          <span>Understanding Gradients & Optimization of Addition</span>
+          <span>Understanding Gradients & Optimization of {{ operator() | titlecase }}</span>
         </div>
         <mat-icon class="collapse-chevron" style="color: #64748b;">{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
       </mat-card-title>
     </mat-card-header>
     @if (isExplainerExpanded()) {
       <mat-card-content class="explainer-content" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 12px;">
-        <markdown [katex]="true" [data]="explainerMarkdown"></markdown>
+        <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
       </mat-card-content>
     }
   </mat-card>

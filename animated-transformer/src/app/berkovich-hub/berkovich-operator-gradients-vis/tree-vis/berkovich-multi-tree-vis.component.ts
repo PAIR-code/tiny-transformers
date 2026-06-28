@@ -62,6 +62,8 @@ function computeSpaceOuter(p: number, baseGap: number = 40, minNodeGap: number =
   return treeSpan - rootX;
 }
 
+export type BerkovichBinaryOperator = 'addition' | 'multiplication' | 'softmax';
+
 export interface TrackedNode {
   id: string;
   center: Rational;
@@ -119,12 +121,14 @@ export class BerkovichMultiTreeVisComponent {
 
   // Optional inline editing inputs
   readonly editableInputs = input<EditableNodeInputs[]>();
+  readonly operator = input<BerkovichBinaryOperator>('addition');
   readonly vertexMethod = input<VertexResolutionMethod>('exact-per-coord');
   readonly isPlaying = input<boolean>(false);
   readonly learningRateInput = input<string>('0.20');
   readonly canUndo = input<boolean>(false);
 
   // Action outputs
+  readonly operatorChange = output<BerkovichBinaryOperator>();
   readonly step = output<void>();
   readonly randomize = output<void>();
   readonly togglePlay = output<void>();

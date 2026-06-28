@@ -37,7 +37,9 @@ import {
   extValuationGe,
   stepAdditionGradients,
   computeActiveDegrees,
-  VertexResolutionMethod
+  VertexResolutionMethod,
+  stepMultiplicationGradients,
+  stepSoftmaxGradients
 } from './berkovich';
 
 
@@ -680,5 +682,103 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
     }
   });
 });
+
+describe('Berkovich Multiplication Gradient Descent Convergence', () => {
+  const rhoMin = -2;
+  const eta = 0.2;
+  const maxSteps = 300;
+
+  function runMultiplicationDescent(
+    p: bigint,
+    startX1: { center: Rational; rho: number },
+    startX2: { center: Rational; rho: number },
+    targetY: Rational,
+    method?: VertexResolutionMethod
+  ) {
+    let cX1 = startX1.center;
+    let rhoX1 = startX1.rho;
+    let cX2 = startX2.center;
+    let rhoX2 = startX2.rho;
+    const trace: string[] = [];
+
+    for (let i = 0; i < maxSteps; i++) {
+      const result = stepMultiplicationGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, method);
+      trace.push(
+        `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
+        `prod=(${formatRational(result.prodCenter)}, ${result.prodRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+      );
+      if (result.loss <= 1e-7) {
+        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, prodCenter: result.prodCenter, prodRho: result.prodRho, trace };
+      }
+      cX1 = result.nextCenterX1;
+      rhoX1 = result.nextRhoX1;
+      cX2 = result.nextCenterX2;
+      rhoX2 = result.nextRhoX2;
+    }
+    return { converged: false, steps: maxSteps, cX1, rhoX1, cX2, rhoX2, prodCenter: multiply(cX1, cX2), prodRho: rhoMin, trace };
+  }
+
+  it('should converge x1 * x2 to target y using exact-per-coord', () => {
+    const p = 3n;
+    const targetY = parseToRational('2'); // 2 in base 3
+    const startX1 = { center: parseToRational('1'), rho: 0.0 };
+    const startX2 = { center: parseToRational('1'), rho: -1.0 };
+
+    const result = runMultiplicationDescent(p, startX1, startX2, targetY, 'exact-per-coord');
+    if (!result.converged) {
+      expect.fail(result.trace.join('\n'));
+    }
+    expect(result.prodRho).toBeLessThanOrEqual(-2.0);
+  });
+
+  it('should converge x1 * x2 to target y using exact-joint', () => {
+    const p = 3n;
+    const targetY = parseToRational('2');
+    const startX1 = { center: parseToRational('1'), rho: 0.0 };
+    const startX2 = { center: parseToRational('1'), rho: -1.0 };
+
+    const result = runMultiplicationDescent(p, startX1, startX2, targetY, 'exact-joint');
+    expect(result.converged).toBe(true);
+  });
+});
+
+describe('Berkovich Softmax Gradient Descent Convergence', () => {
+  const eta = 0.2;
+  const maxSteps = 300;
+
+  it('should converge centroids X1 and X2 to classify target Y as Class 1', () => {
+    const p = 3n;
+    const targetY = parseToRational('0');
+    let cX1 = parseToRational('1');
+    let rhoX1 = 0.0;
+    let cX2 = parseToRational('0');
+    let rhoX2 = 0.0;
+
+    const trace: string[] = [];
+    let converged = false;
+    for (let i = 0; i < maxSteps; i++) {
+      const result = stepSoftmaxGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, 3.0, 'exact-per-coord');
+      trace.push(
+        `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
+        `pi1=${result.pi1.toFixed(4)} pi2=${result.pi2.toFixed(4)} loss=${result.loss.toFixed(4)}`
+      );
+      if (result.loss < 0.05) {
+        converged = true;
+        break;
+      }
+      cX1 = result.nextCenterX1;
+      rhoX1 = result.nextRhoX1;
+      cX2 = result.nextCenterX2;
+      rhoX2 = result.nextRhoX2;
+    }
+
+    if (!converged) {
+      expect.fail(trace.join('\n'));
+    }
+    const valDiff1 = getValuation(subtract(cX1, targetY), p);
+    expect(valDiff1.type === 'pos-infinity' || (valDiff1.type === 'finite' && valDiff1.value >= 1)).toBe(true);
+  });
+});
+
 
 

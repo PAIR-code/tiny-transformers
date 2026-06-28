@@ -13,11 +13,25 @@ limitations under the License.
 ==============================================================================-->
 
 <mat-card class="visualizer-card">
-  <mat-card-header>
-    <mat-card-title>
+  <mat-card-header class="visualizer-card-header">
+    <mat-card-title class="visualizer-title-left">
       <mat-icon>account_tree</mat-icon>
-      Addition Tree Topology
+      <span>{{ operator() | titlecase }} Tree Topology</span>
     </mat-card-title>
+    <div class="header-operator-select-wrapper">
+      <label for="header-operator-select">Operator:</label>
+      <select 
+        id="header-operator-select" 
+        [ngModel]="operator()" 
+        (ngModelChange)="operatorChange.emit($event)"
+        class="header-operator-select"
+        aria-label="Binary operator selection"
+      >
+        <option value="addition">Addition</option>
+        <option value="multiplication">Multiplication</option>
+        <option value="softmax">Softmax</option>
+      </select>
+    </div>
   </mat-card-header>
 
   <mat-card-content class="svg-container" style="position: relative;">

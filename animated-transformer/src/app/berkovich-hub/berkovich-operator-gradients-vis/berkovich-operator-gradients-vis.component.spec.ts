@@ -21,20 +21,20 @@ import { SecurityContext } from '@angular/core';
 import katex from 'katex';
 // @ts-ignore
 import renderMathInElement from 'katex/dist/contrib/auto-render.js';
-import { BerkovichAdditionGradientsVisComponent } from './berkovich-addition-gradients-vis.component';
+import { BerkovichOperatorGradientsVisComponent } from './berkovich-operator-gradients-vis.component';
 
 if (typeof window !== 'undefined') {
   (window as any).katex = katex;
   (window as any).renderMathInElement = renderMathInElement;
 }
 
-describe('BerkovichAdditionGradientsVisComponent', () => {
-  let component: BerkovichAdditionGradientsVisComponent;
-  let fixture: ComponentFixture<BerkovichAdditionGradientsVisComponent>;
+describe('BerkovichOperatorGradientsVisComponent', () => {
+  let component: BerkovichOperatorGradientsVisComponent;
+  let fixture: ComponentFixture<BerkovichOperatorGradientsVisComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BerkovichAdditionGradientsVisComponent],
+      imports: [BerkovichOperatorGradientsVisComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
@@ -53,7 +53,7 @@ describe('BerkovichAdditionGradientsVisComponent', () => {
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BerkovichAdditionGradientsVisComponent);
+    fixture = TestBed.createComponent(BerkovichOperatorGradientsVisComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

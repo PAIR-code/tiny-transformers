@@ -169,7 +169,7 @@ function validateDigitsString(input: string, p: number): string {
         <nav class="header-nav">
           <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
           <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-          <a routerLink="/berkovich/addition-gradients" routerLinkActive="active-nav">Addition Gradients</a>
+          <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Operator Gradients</a>
           <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
         </nav>
       </header>

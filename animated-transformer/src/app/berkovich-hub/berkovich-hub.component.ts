@@ -55,11 +55,11 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
-      title: 'Berkovich Addition with Gradients',
-      description: 'Visualize backward pass and gradient flow through Berkovich addition.',
-      route: '/berkovich/addition-gradients',
+      title: 'Berkovich Operator Gradients',
+      description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
+      route: '/berkovich/operator-gradients',
       icon: 'call_split',
-      colorClass: 'card-berkovich-addition',
+      colorClass: 'card-berkovich-operator',
     },
     {
       title: 'Notation Glossary',

@@ -28,24 +28,28 @@ import {
   formatDigitSequence,
   add,
   subtract,
+  multiply,
   getValuation,
   stepAdditionGradients,
+  stepMultiplicationGradients,
+  stepSoftmaxGradients,
   VertexResolutionMethod,
   extNegate,
   computePathLoss
 } from '../../../lib/berkovich/berkovich';
 
-import { BerkovichAdditionCalculusComponent } from './calculus-card/berkovich-addition-calculus.component';
+import { BerkovichOperatorCalculusComponent } from './calculus-card/berkovich-operator-calculus.component';
 import {
   BerkovichMultiTreeVisComponent,
   TrackedNode,
-  EditableNodeInputs
+  EditableNodeInputs,
+  BerkovichBinaryOperator
 } from './tree-vis/berkovich-multi-tree-vis.component';
 
 @Component({
-  selector: 'app-berkovich-addition-gradients-vis',
-  templateUrl: './berkovich-addition-gradients-vis.component.html',
-  styleUrls: ['./berkovich-addition-gradients-vis.component.scss'],
+  selector: 'app-berkovich-operator-gradients-vis',
+  templateUrl: './berkovich-operator-gradients-vis.component.html',
+  styleUrls: ['./berkovich-operator-gradients-vis.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
@@ -55,21 +59,23 @@ import {
     FormsModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichAdditionCalculusComponent,
+    BerkovichOperatorCalculusComponent,
     BerkovichMultiTreeVisComponent
   ]
 })
-export class BerkovichAdditionGradientsVisComponent implements OnDestroy {
+export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
+  readonly operator = signal<BerkovichBinaryOperator>('addition');
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
   readonly isPlaying = signal<boolean>(false);
-  readonly learningRateInput = signal<string>( '0.20');
+  readonly learningRateInput = signal<string>('0.20');
   readonly learningRate = computed(() => {
     const v = parseFloat(this.learningRateInput());
     return isNaN(v) ? 0.20 : v;
   });
   readonly history = signal<{
+    operator: BerkovichBinaryOperator;
     centerX1Input: string;
     rhoX1Input: string;
     centerX2Input: string;
@@ -80,8 +86,55 @@ export class BerkovichAdditionGradientsVisComponent implements OnDestroy {
 
   private playIntervalId: any = null;
 
-  readonly subtitleMath = '$x_1 + x_2 \\to y$';
-  readonly explainerMarkdown = `
+  readonly subtitleMath = computed(() => {
+    const op = this.operator();
+    if (op === 'multiplication') return '$x_1 \\cdot x_2 \\to y$';
+    if (op === 'softmax') return '$\\text{softmax}(x_1, x_2) \\to y$';
+    return '$x_1 + x_2 \\to y$';
+  });
+
+  readonly explainerMarkdown = computed(() => {
+    const op = this.operator();
+    if (op === 'multiplication') {
+      return `
+This page demonstrates training the inputs $x_1$ and $x_2$ of a multiplication operation $x_1 \\cdot x_2$ to match a target disk $y$.
+
+### The Product Radius Formula
+Under non-Archimedean multiplication, the product disk's log-radius is given by:
+$$(x_1 \\cdot x_2)_\\rho = \\max(\\log_p |x_{1,c}|_p + x_{2,\\rho}, \\quad \\log_p |x_{2,c}|_p + x_{1,\\rho}, \\quad x_{1,\\rho} + x_{2,\\rho})$$
+Where $|c|_p = p^{-\\nu_p(c)}$ is the $p$-adic norm.
+
+### Why do $\\rho$ values get so big? (The Uncertainty Amplifier)
+In $p$-adic metrics, a number with a high denominator power (like $1/9 \\implies$ valuation $-2$) has a huge norm ($|1/9|_3 = 9 \\implies \\log_3 |1/9|_3 = 2$). 
+When you multiply a disk by such a number, its uncertainty is amplified:
+* If $x_1$ has a center with a large norm (e.g. $\\log_p |x_{1,c}|_p = K > 0$), then the first term in the max becomes $K + x_{2,\\rho}$.
+* This means the product's radius is magnified by $K$, pushing $(x_1 \\cdot x_2)_{\\rho}$ to be much larger than either input radius.
+* **Intuitively**: Multiplying by a large value stretches the uncertainty interval. If you are uncertain about $x_2$ by $1/3$ (log-radius $-1$), and you multiply it by $9$ (norm log-radius $2$), your uncertainty about the product becomes $9 \\times (1/3) = 3$ (log-radius $+1$).
+
+### How Gradients Flow
+1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient w.r.t centers propagates back using the derivative of the product.
+2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The gradient flows back only to the radius parameter that dominates the product radius max-plus term.
+      `;
+    }
+    if (op === 'softmax') {
+      return `
+This page demonstrates training the centroids $x_1$ and $x_2$ of a binary classifier to classify the input target $y$ as Class 1.
+
+### The Loss Function & Cross-Entropy
+We compute the path-metric error for each class $k \\in \\{1, 2\\}$:
+$$M_k = 2 \\max(x_{k,\\rho}, \\text{dist}(x_{k,c}, y)) - x_{k,\\rho}$$
+And logits $D_k = -M_k$. We compute the probability of Class 1 via Softmax:
+$$\\pi_1 = \\frac{\\exp(\\beta D_1)}{\\exp(\\beta D_1) + \\exp(\\beta D_2)}$$
+The training minimizes the Cross-Entropy loss $\\mathcal{L} = -\\log(\\pi_1)$.
+
+### How Gradients Flow
+The gradients w.r.t the radii flow back based on:
+$$\\frac{\\partial \\mathcal{L}}{\\partial x_{1,\\rho}} = \\beta(1 - \\pi_1) \\operatorname{sgn}(x_{1,\\rho} - d_1)$$
+$$\\frac{\\partial \\mathcal{L}}{\\partial x_{2,\\rho}} = -\\beta \\pi_2 \\operatorname{sgn}(x_{2,\\rho} - d_2)$$
+For the incorrect class $x_2$, the gradient is zeroed out if the sample lies already outside the class domain ($x_{2,\\rho} < d_2$) to prevent unbounded domain shrinkage.
+      `;
+    }
+    return `
 In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x_1$ and $x_2$ of an addition operation $x_1+x_2$ to match a target disk $y$.
 
 ### The Loss Function & Distance
@@ -91,23 +144,13 @@ In tree topology, this is the length of the path from the sum disk node up to th
 
 ### How Gradients Flow
 Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius is $(x_1+x_2)_{\\rho} = \\max(x_{1,\\rho}, x_{2,\\rho})$:
-1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x_1$ and $x_2$. However, because the tree only branches at discrete levels, the gradient points exactly toward the branch that leads closer to the target center $y_c$.
-2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. Specifically, the gradient of the sum radius $\\partial L / \\partial (x_1+x_2)_{\\rho}$ flows back:
+1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x_1$ and $x_2$. The gradient points toward the branch that leads closer to the target center $y_c$.
+2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. The gradient of the sum radius $\\partial L / \\partial (x_1+x_2)_{\\rho}$ flows back:
    * Entirely to $x_{1,\\rho}$ if $x_{1,\\rho} > x_{2,\\rho}$
    * Entirely to $x_{2,\\rho}$ if $x_{2,\\rho} > x_{1,\\rho}$
    * Equally divided between them if $x_{1,\\rho} = x_{2,\\rho}$
-
-### Simultaneous Vertex Resolution
-When both parameters simultaneously land on Type II vertices, there are three strategies for selecting branches (configurable via the dropdown):
-- **Per-Coord**: Each coordinate independently selects its optimal branch. $\\mathcal{O}(k \\cdot p)$
-- **Heuristic Joint**: Uses finite-field residual projection to select correlated branches. $\\mathcal{O}(k \\cdot p)$
-- **Exact Joint**: Evaluates all $p^2$ combinations for global optimum. $\\mathcal{O}(p^2)$
-
-### Visual Guide
-* **The Trees**: The four trees represent the target disk $y$ (yellow), input disks $x_1$ (blue) and $x_2$ (pink), and the sum disk $x_1+x_2$ (purple) side-by-side.
-* **Step SGD**: Click **Step** to take a gradient step. You will see the paths of $x_1$ and $x_2$ adjust base-$p$ digits from lower levels upwards, shifting the sum disk $x_1+x_2$ closer and closer to matching $y$.
-`;
-
+    `;
+  });
 
   readonly centerYInput = signal<string>('00.00');
   readonly centerX1Input = signal<string>('12.20');
@@ -141,40 +184,169 @@ When both parameters simultaneously land on Type II vertices, there are three st
     }
   }
 
-  // Output State
-  readonly centerSum = computed<Rational>(() => add(this.centerX1(), this.centerX2()));
-  readonly rhoSum = computed<number>(() => Math.max(this.rhoX1(), this.rhoX2()));
+  // Combined dynamics
+  readonly stepDetails = computed(() => {
+    const op = this.operator();
+    const p = BigInt(this.prime());
+    const c1 = this.centerX1();
+    const r1 = this.rhoX1();
+    const c2 = this.centerX2();
+    const r2 = this.rhoX2();
+    const targetY = this.centerY();
 
-  // Loss and Calculus
-  readonly loss = computed<number>(() => {
-    const diff = subtract(this.centerSum(), this.centerY());
-    const valDiff = getValuation(diff, BigInt(this.prime()));
-    const y_rho = -2;
-    return valDiff.type === 'pos-infinity' && this.rhoSum() <= y_rho
-      ? 0
-      : computePathLoss(this.rhoSum(), extNegate(valDiff), y_rho);
+    if (op === 'softmax') {
+      const d1Ext = getValuation(subtract(c1, targetY), p);
+      const d2Ext = getValuation(subtract(c2, targetY), p);
+      const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
+      const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
+
+      const M1 = 2 * Math.max(r1, d1) - r1;
+      const M2 = 2 * Math.max(r2, d2) - r2;
+      const D1 = -M1;
+      const D2 = -M2;
+
+      const maxD = Math.max(D1, D2);
+      const beta = 3.0; // matching test sharpness
+      const exp1 = Math.exp(beta * (D1 - maxD));
+      const exp2 = Math.exp(beta * (D2 - maxD));
+      const pi1 = exp1 / (exp1 + exp2);
+      const pi2 = exp2 / (exp1 + exp2);
+
+      const loss = -Math.log(pi1 + 1e-15);
+
+      let sgn1 = 0;
+      if (r1 > d1) sgn1 = 1;
+      else if (r1 < d1) sgn1 = -1;
+      const drho1 = beta * (1 - pi1) * sgn1;
+
+      let sgn2 = 0;
+      if (r2 > d2) sgn2 = 1;
+      else if (r2 < d2) sgn2 = -1;
+      const drho2 = r2 >= d2 ? -beta * pi2 * sgn2 : 0;
+
+      return {
+        outCenter: { num: 0n, den: 1n },
+        outRho: -2,
+        loss,
+        drhoX1: drho1,
+        drhoX2: drho2,
+        drOut: 0,
+        dY1: d1,
+        dY2: d2,
+        pi1,
+        pi2
+      };
+    } else if (op === 'multiplication') {
+      const prodCenter = truncateToTreeRange(multiply(c1, c2), p, -2, 1);
+      const val1 = getValuation(c1, p);
+      const val2 = getValuation(c2, p);
+      const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+      const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+      const prodRho = Math.max(logNorm2 + r1, logNorm1 + r2, r1 + r2);
+
+      const diff = subtract(prodCenter, targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+      const y_rho = -2;
+      const loss = valDiff.type === 'pos-infinity' && prodRho <= y_rho
+        ? 0
+        : computePathLoss(prodRho, extNegate(valDiff), y_rho);
+
+      let drProd = 0;
+      if (prodRho > d) drProd = 1;
+      else if (prodRho < d) drProd = -1;
+
+      // Active degrees w.r.t product:
+      let drhoProd_drhoX1 = 0.0;
+      let drhoProd_drhoX2 = 0.0;
+      const t1 = logNorm2 + r1;
+      const t2 = logNorm1 + r2;
+      const t3 = r1 + r2;
+      const m = Math.max(t1, t2, t3);
+      let count = 0;
+      if (Math.abs(t1 - m) < 1e-9) count++;
+      if (Math.abs(t2 - m) < 1e-9) count++;
+      if (Math.abs(t3 - m) < 1e-9) count++;
+
+      if (Math.abs(t1 - m) < 1e-9) drhoProd_drhoX1 += 1.0 / count;
+      if (Math.abs(t2 - m) < 1e-9) drhoProd_drhoX2 += 1.0 / count;
+      if (Math.abs(t3 - m) < 1e-9) {
+        drhoProd_drhoX1 += 1.0 / count;
+        drhoProd_drhoX2 += 1.0 / count;
+      }
+
+      return {
+        outCenter: prodCenter,
+        outRho: prodRho,
+        loss,
+        drhoX1: drhoProd_drhoX1,
+        drhoX2: drhoProd_drhoX2,
+        drOut: drProd,
+        dY1: d,
+        dY2: d
+      };
+    } else {
+      // addition
+      const sumCenter = truncateToTreeRange(add(c1, c2), p, -2, 1);
+      const sumRho = Math.max(r1, r2);
+
+      const diff = subtract(sumCenter, targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+      const y_rho = -2;
+      const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho
+        ? 0
+        : computePathLoss(sumRho, extNegate(valDiff), y_rho);
+
+      let drSum = 0;
+      if (sumRho > d) drSum = 1;
+      else if (sumRho < d) drSum = -1;
+
+      let drhoSum_drhoX1 = 0.0;
+      let drhoSum_drhoX2 = 0.0;
+      if (r1 > r2) {
+        drhoSum_drhoX1 = 1.0;
+      } else if (r2 > r1) {
+        drhoSum_drhoX2 = 1.0;
+      } else {
+        drhoSum_drhoX1 = 0.5;
+        drhoSum_drhoX2 = 0.5;
+      }
+
+      return {
+        outCenter: sumCenter,
+        outRho: sumRho,
+        loss,
+        drhoX1: drhoSum_drhoX1,
+        drhoX2: drhoSum_drhoX2,
+        drOut: drSum,
+        dY1: d,
+        dY2: d
+      };
+    }
   });
 
-  readonly dY = computed<number>(() => {
-    const diff = subtract(this.centerSum(), this.centerY());
-    const valDiff = getValuation(diff, BigInt(this.prime()));
-    return valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-  });
-
-  readonly dL_drhoSum = computed<number>(() => {
-    const rSum = this.rhoSum();
-    const d = this.dY();
-    if (rSum > d) return 1;
-    if (rSum < d) return -1;
-    return 0;
-  });
+  readonly loss = computed(() => this.stepDetails().loss);
 
   // Multi-tree Nodes
   readonly trackedNodes = computed<TrackedNode[]>(() => {
+    const op = this.operator();
+    const details = this.stepDetails();
+    if (op === 'softmax') {
+      return [
+        { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ (Class 1)' },
+        { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ (Class 2)' },
+        { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y (Input Target)' }
+      ];
+    }
+    const labelOut = op === 'multiplication' ? '(x1*x2)_ρ' : '(x1+x2)_ρ';
+    const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
     return [
       { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
       { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
-      { id: 'X1+X2', center: this.centerSum(), rho: this.rhoSum(), color: '#a78bfa', label: '(x1+x2)_ρ' },
+      { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
       { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
     ];
   });
@@ -182,6 +354,40 @@ When both parameters simultaneously land on Type II vertices, there are three st
   // Editable inputs for inline editing inside the tree vis
   readonly editableInputs = computed<EditableNodeInputs[]>(() => {
     const p = BigInt(this.prime());
+    const op = this.operator();
+    const details = this.stepDetails();
+
+    if (op === 'softmax') {
+      return [
+        {
+          nodeId: 'X1',
+          trackedNodeId: 'X1',
+          centerInput: this.centerX1Input(),
+          rhoInput: this.rhoX1Input(),
+          color: '#2563eb',
+          labelPrefix: 'x₁ (C1)'
+        },
+        {
+          nodeId: 'X2',
+          trackedNodeId: 'X2',
+          centerInput: this.centerX2Input(),
+          rhoInput: this.rhoX2Input(),
+          color: '#db2777',
+          labelPrefix: 'x₂ (C2)'
+        },
+        {
+          nodeId: 'Y',
+          trackedNodeId: 'Y',
+          centerInput: this.centerYInput(),
+          color: '#eab308',
+          labelPrefix: 'y'
+        }
+      ];
+    }
+
+    const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
+    const labelOut = op === 'multiplication' ? 'x₁·x₂' : 'x₁+x₂';
+
     return [
       {
         nodeId: 'X1',
@@ -200,12 +406,12 @@ When both parameters simultaneously land on Type II vertices, there are three st
         labelPrefix: 'x₂'
       },
       {
-        nodeId: 'X1+X2',
-        trackedNodeId: 'X1+X2',
-        centerInput: formatDigitSequence(this.centerSum(), p),
-        rhoInput: this.rhoSum().toFixed(2),
+        nodeId: idOut,
+        trackedNodeId: idOut,
+        centerInput: formatDigitSequence(details.outCenter, p),
+        rhoInput: details.outRho.toFixed(2),
         color: '#7c3aed',
-        labelPrefix: 'x₁+x₂',
+        labelPrefix: labelOut,
         readonly: true
       },
       {
@@ -219,6 +425,12 @@ When both parameters simultaneously land on Type II vertices, there are three st
   });
 
   // Handlers
+  onOperatorChange(op: BerkovichBinaryOperator) {
+    this.stopPlaying();
+    this.operator.set(op);
+    this.history.set([]);
+  }
+
   onPrimeChange(p: number) {
     this.stopPlaying();
     this.prime.set(p);
@@ -300,6 +512,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
     this.history.update(h => [
       ...h,
       {
+        operator: this.operator(),
         centerX1Input: this.centerX1Input(),
         rhoX1Input: this.rhoX1Input(),
         centerX2Input: this.centerX2Input(),
@@ -309,24 +522,55 @@ When both parameters simultaneously land on Type II vertices, there are three st
     ]);
 
     const eta = this.learningRate();
-    const result = stepAdditionGradients(
-      this.centerX1(),
-      this.rhoX1(),
-      this.centerX2(),
-      this.rhoX2(),
-      this.centerY(),
-      BigInt(this.prime()),
-      eta,
-      this.vertexMethod()
-    );
+    const op = this.operator();
+    const p = BigInt(this.prime());
 
-    this.centerX1Input.set(
-      formatDigitSequence(result.nextCenterX1, BigInt(this.prime()))
-    );
+    let result: {
+      nextCenterX1: Rational;
+      nextRhoX1: number;
+      nextCenterX2: Rational;
+      nextRhoX2: number;
+    };
+
+    if (op === 'softmax') {
+      result = stepSoftmaxGradients(
+        this.centerX1(),
+        this.rhoX1(),
+        this.centerX2(),
+        this.rhoX2(),
+        this.centerY(),
+        p,
+        eta,
+        3.0, // beta matching standard temperature
+        this.vertexMethod()
+      );
+    } else if (op === 'multiplication') {
+      result = stepMultiplicationGradients(
+        this.centerX1(),
+        this.rhoX1(),
+        this.centerX2(),
+        this.rhoX2(),
+        this.centerY(),
+        p,
+        eta,
+        this.vertexMethod()
+      );
+    } else {
+      result = stepAdditionGradients(
+        this.centerX1(),
+        this.rhoX1(),
+        this.centerX2(),
+        this.rhoX2(),
+        this.centerY(),
+        p,
+        eta,
+        this.vertexMethod()
+      );
+    }
+
+    this.centerX1Input.set(formatDigitSequence(result.nextCenterX1, p));
     this.rhoX1Input.set(result.nextRhoX1.toFixed(2));
-    this.centerX2Input.set(
-      formatDigitSequence(result.nextCenterX2, BigInt(this.prime()))
-    );
+    this.centerX2Input.set(formatDigitSequence(result.nextCenterX2, p));
     this.rhoX2Input.set(result.nextRhoX2.toFixed(2));
   }
 
@@ -339,6 +583,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
     const newHist = currentHist.slice(0, -1);
     const prev = currentHist[currentHist.length - 1];
 
+    this.operator.set(prev.operator);
     this.centerX1Input.set(prev.centerX1Input);
     this.rhoX1Input.set(prev.rhoX1Input);
     this.centerX2Input.set(prev.centerX2Input);
