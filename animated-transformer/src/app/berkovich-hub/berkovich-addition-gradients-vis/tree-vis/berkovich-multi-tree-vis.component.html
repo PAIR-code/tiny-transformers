@@ -124,6 +124,7 @@ limitations under the License.
             [class.inactive-stub]="!edge.isActive"
             class="tree-edge"
             [style.stroke]="edge.colors.length > 0 ? edge.colors[0] : ''"
+            [style.stroke-width]="edge.isActive ? 3.5 : 1.5"
           />
           <!-- Branch Digit Labels -->
           <g

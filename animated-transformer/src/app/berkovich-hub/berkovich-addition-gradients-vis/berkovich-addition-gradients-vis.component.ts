@@ -175,7 +175,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
       { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
       { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
       { id: 'X1+X2', center: this.centerSum(), rho: this.rhoSum(), color: '#a78bfa', label: '(x1+x2)_ρ' },
-      { id: 'Y', center: this.centerY(), rho: -2, color: '#fcd34d', label: 'y_c (Target)' }
+      { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
     ];
   });
 
@@ -212,7 +212,7 @@ When both parameters simultaneously land on Type II vertices, there are three st
         nodeId: 'Y',
         trackedNodeId: 'Y',
         centerInput: this.centerYInput(),
-        color: '#d97706',
+        color: '#eab308',
         labelPrefix: 'y'
       }
     ];
