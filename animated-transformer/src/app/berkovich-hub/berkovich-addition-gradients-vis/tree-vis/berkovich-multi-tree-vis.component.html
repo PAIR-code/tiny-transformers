@@ -31,6 +31,20 @@ limitations under the License.
           <rect x="0" y="0" [attr.width]="svgWidth()" [attr.height]="rhoToY(rhoMin)"></rect>
         </clipPath>
       </defs>
+
+      <!-- Shaded backgrounds for Berkovich Disks of all tracked nodes -->
+      @for (tn of trackedNodes(); track tn.id) {
+        @if (tn.rho > rhoMin) {
+          <rect
+            [attr.x]="getRhoLineForTrackedNode(tn).x1"
+            [attr.y]="rhoToY(tn.rho)"
+            [attr.width]="getRhoLineForTrackedNode(tn).x2 - getRhoLineForTrackedNode(tn).x1"
+            [attr.height]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+            class="rho-disk-shading"
+            [style.fill]="tn.color"
+          />
+        }
+      }
       <!-- Per-tree input labels rendered above each tree root -->
       @for (label of treeInputLabels(); track label.trackedNodeId) {
         @if (label.inp) {
@@ -149,73 +163,72 @@ limitations under the License.
             [class.vertex-node]="node.logRadius > rhoMin"
             [class.inactive-stub]="!node.isActive"
             class="tree-node"
-            [style.stroke]="node.colors.length > 0 ? node.colors[0] : ''"
           />
         </g>
       }
 
       <!-- Continuous Log-Radius (Rho) Level Line Indicators -->
       @for (tn of trackedNodes(); track tn.id) {
-        <g
-          class="rho-level-group"
-          [style.transform]="'translateY(' + getRhoLineForTrackedNode(tn).y + 'px)'"
-        >
-          @if (tn.rho > rhoMin) {
+        @if (tn.id !== 'Y') {
+          <g
+            class="rho-level-group"
+            [style.transform]="'translateY(' + getRhoLineForTrackedNode(tn).y + 'px)'"
+          >
+            @if (tn.rho > rhoMin) {
+              <line
+                [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+                y1="0"
+                [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+                class="rho-guide-line"
+                [style.stroke]="tn.color"
+              />
+              <line
+                [attr.x1]="getRhoLineForTrackedNode(tn).x2"
+                y1="0"
+                [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+                class="rho-guide-line"
+                [style.stroke]="tn.color"
+              />
+            }
             <line
               [attr.x1]="getRhoLineForTrackedNode(tn).x1"
               y1="0"
-              [attr.x2]="getRhoLineForTrackedNode(tn).x1"
-              y2="500"
-              class="rho-guide-line"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+              y2="0"
+              class="rho-level-line"
               [style.stroke]="tn.color"
-              clip-path="url(#guide-clip)"
+            />
+            <!-- Left and right end cap ticks -->
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+              y1="-4"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+              y2="4"
+              class="rho-level-cap"
+              [style.stroke]="tn.color"
             />
             <line
               [attr.x1]="getRhoLineForTrackedNode(tn).x2"
-              y1="0"
+              y1="-4"
               [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-              y2="500"
-              class="rho-guide-line"
+              y2="4"
+              class="rho-level-cap"
               [style.stroke]="tn.color"
-              clip-path="url(#guide-clip)"
             />
-          }
-          <line
-            [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-            y1="0"
-            [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-            y2="0"
-            class="rho-level-line"
-            [style.stroke]="tn.color"
-          />
-          <!-- Left and right end cap ticks -->
-          <line
-            [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-            y1="-4"
-            [attr.x2]="getRhoLineForTrackedNode(tn).x1"
-            y2="4"
-            class="rho-level-cap"
-            [style.stroke]="tn.color"
-          />
-          <line
-            [attr.x1]="getRhoLineForTrackedNode(tn).x2"
-            y1="-4"
-            [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-            y2="4"
-            class="rho-level-cap"
-            [style.stroke]="tn.color"
-          />
-          <text
-            [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
-            y="4"
-            class="rho-level-text"
-            [style.fill]="tn.color"
-          >
-            @for (seg of parseSubscripts(tn.label); track $index) {
-              <tspan [class.subscript-text]="seg.isSub">{{ seg.text }}</tspan>
-            }
-          </text>
-        </g>
+            <text
+              [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
+              y="4"
+              class="rho-level-text"
+              [style.fill]="tn.color"
+            >
+              @for (seg of parseSubscripts(tn.label); track $index) {
+                <tspan [class.subscript-text]="seg.isSub">{{ seg.text }}</tspan>
+              }
+            </text>
+          </g>
+        }
       }
     </svg>
 
