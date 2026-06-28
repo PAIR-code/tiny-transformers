@@ -1632,4 +1632,177 @@ export function stepSoftmaxGradients(
   };
 }
 
+export type BerkovichUnaryOperator = 'shift' | 'scale' | 'square';
 
+export interface UnaryGradientsStepResult {
+  nextCenterX: Rational;
+  nextRhoX: number;
+  outCenter: Rational;
+  outRho: number;
+  loss: number;
+  drhoOut_drhoX: number;
+  drOut: number;
+}
+
+export function stepUnaryOperatorGradients(
+  cX: Rational,
+  rhoX: number,
+  op: BerkovichUnaryOperator,
+  targetY: Rational,
+  p: bigint,
+  eta: number,
+  method: VertexResolutionMethod = 'exact-per-coord'
+): UnaryGradientsStepResult {
+  const y_rho = -2;
+  const pNum = Number(p);
+
+  // Constants
+  // Shift: b = 1
+  const b = simplify({ num: 1n, den: 1n });
+  // Scale: a = p
+  const a = simplify({ num: p, den: 1n });
+
+  // 1. Forward Pass
+  let outCenter: Rational;
+  let outRho: number;
+  let activeDegree = 1.0;
+
+  if (op === 'shift') {
+    outCenter = add(cX, b);
+    outRho = rhoX;
+    activeDegree = 1.0;
+  } else if (op === 'scale') {
+    outCenter = multiply(a, cX);
+    // log_p |p|_p = -1
+    outRho = -1.0 + rhoX;
+    activeDegree = 1.0;
+  } else {
+    // square: f(x) = x^2
+    outCenter = multiply(cX, cX);
+    const valC = getValuation(cX, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const t1 = logNormC + rhoX;
+    const t2 = 2.0 * rhoX;
+    outRho = Math.max(t1, t2);
+
+    if (Math.abs(t1 - t2) < 1e-9) {
+      activeDegree = 1.5;
+    } else if (t1 > t2) {
+      activeDegree = 1.0;
+    } else {
+      activeDegree = 2.0;
+    }
+  }
+
+  // Truncate outCenter to tree range [-2, 1] for visual and boundary consistency
+  const outCenterTrunc = truncateToTreeRange(outCenter, p, -2, 1);
+
+  // 2. Loss & Distance
+  const diff = subtract(outCenterTrunc, targetY);
+  const valDiff = getValuation(diff, p);
+  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+  const loss = valDiff.type === 'pos-infinity' && outRho <= y_rho
+    ? 0
+    : computePathLoss(outRho, extNegate(valDiff), y_rho);
+
+  // 3. Gradient w.r.t outRho
+  let drOut = 0;
+  if (outRho > d) drOut = 1;
+  else if (outRho < d) drOut = -1;
+
+  // 4. Backward Pass & Resolution
+  let nextCX = cX;
+  let nextRhoX = rhoX;
+
+  const isInteger = Math.abs(rhoX - Math.round(rhoX)) < 1e-9;
+
+  if (!isInteger) {
+    // Continuous update
+    const rawNextRhoX = rhoX - eta * drOut * activeDegree;
+    nextRhoX = Math.max(-2, Math.min(2, rawNextRhoX));
+    nextCX = cX;
+  } else {
+    // Vertex transition: evaluate parent and children
+    const intRhoX = Math.round(rhoX);
+    
+    // Candidate 1: Move up (parent)
+    const parentRhoX = Math.min(2, intRhoX + 1);
+    const parentLoss = evaluateCandidateLoss(cX, parentRhoX, op, targetY, p, y_rho, a, b);
+
+    let bestLoss = parentLoss;
+    let bestCX = cX;
+    let bestRhoX = parentRhoX;
+
+    // Candidates 2..p+1: Move down to children
+    const childRhoX = Math.max(-2, intRhoX - 1);
+    if (childRhoX >= -2) {
+      const power = -intRhoX;
+      for (let g = 0; g < pNum; g++) {
+        let shift: Rational;
+        if (power <= 0) {
+          shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+        } else {
+          shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
+        }
+        const childCX = add(cX, shift);
+        const childLoss = evaluateCandidateLoss(childCX, childRhoX, op, targetY, p, y_rho, a, b);
+
+        if (childLoss < bestLoss - 1e-9) {
+          bestLoss = childLoss;
+          bestCX = childCX;
+          bestRhoX = childRhoX;
+        }
+      }
+    }
+
+    nextCX = bestCX;
+    nextRhoX = bestRhoX;
+  }
+
+  return {
+    nextCenterX: nextCX,
+    nextRhoX,
+    outCenter: outCenterTrunc,
+    outRho,
+    loss,
+    drhoOut_drhoX: activeDegree,
+    drOut
+  };
+}
+
+function evaluateCandidateLoss(
+  cX: Rational,
+  rhoX: number,
+  op: BerkovichUnaryOperator,
+  targetY: Rational,
+  p: bigint,
+  y_rho: number,
+  a: Rational,
+  b: Rational
+): number {
+  let outCenter: Rational;
+  let outRho: number;
+
+  if (op === 'shift') {
+    outCenter = add(cX, b);
+    outRho = rhoX;
+  } else if (op === 'scale') {
+    outCenter = multiply(a, cX);
+    outRho = -1.0 + rhoX;
+  } else {
+    // square
+    outCenter = multiply(cX, cX);
+    const valC = getValuation(cX, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    outRho = Math.max(logNormC + rhoX, 2.0 * rhoX);
+  }
+
+  const outCenterTrunc = truncateToTreeRange(outCenter, p, -2, 1);
+  const diff = subtract(outCenterTrunc, targetY);
+  const valDiff = getValuation(diff, p);
+
+  return valDiff.type === 'pos-infinity' && outRho <= y_rho
+    ? 0
+    : computePathLoss(outRho, extNegate(valDiff), y_rho);
+}

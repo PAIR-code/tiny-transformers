@@ -39,7 +39,9 @@ import {
   computeActiveDegrees,
   VertexResolutionMethod,
   stepMultiplicationGradients,
-  stepSoftmaxGradients
+  stepSoftmaxGradients,
+  stepUnaryOperatorGradients,
+  BerkovichUnaryOperator
 } from './berkovich';
 
 
@@ -777,6 +779,79 @@ describe('Berkovich Softmax Gradient Descent Convergence', () => {
     }
     const valDiff1 = getValuation(subtract(cX1, targetY), p);
     expect(valDiff1.type === 'pos-infinity' || (valDiff1.type === 'finite' && valDiff1.value >= 1)).toBe(true);
+  });
+});
+
+describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
+  const eta = 0.2;
+  const maxSteps = 100;
+
+  function runUnaryDescent(
+    p: bigint,
+    startX: { center: Rational; rho: number },
+    op: BerkovichUnaryOperator,
+    targetY: Rational
+  ) {
+    let cX = startX.center;
+    let rhoX = startX.rho;
+    const trace: string[] = [];
+
+    for (let i = 0; i < maxSteps; i++) {
+      const result = stepUnaryOperatorGradients(cX, rhoX, op, targetY, p, eta);
+      trace.push(
+        `step ${i}: x=(${formatRational(cX)}, ${rhoX.toFixed(3)}) ` +
+        `out=(${formatRational(result.outCenter)}, ${result.outRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+      );
+      if (result.loss <= 1e-7) {
+        return { converged: true, steps: i, cX, rhoX, outCenter: result.outCenter, outRho: result.outRho, trace };
+      }
+      cX = result.nextCenterX;
+      rhoX = result.nextRhoX;
+    }
+    return { converged: false, steps: maxSteps, cX, rhoX, outCenter: startX.center, outRho: -2.0, trace };
+  }
+
+  it('should converge shift (x + 1) to target 3', () => {
+    const p = 3n;
+    const targetY = parseToRational('3'); // 3
+    const startX = { center: parseToRational('1'), rho: 0.0 };
+
+    const result = runUnaryDescent(p, startX, 'shift', targetY);
+    if (!result.converged) {
+      expect.fail(result.trace.join('\n'));
+    }
+    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    const valDiff = getValuation(subtract(result.cX, parseToRational('2')), p);
+    expect(valDiff.type).toBe('pos-infinity');
+  });
+
+  it('should converge scale (x * 3) to target 3', () => {
+    const p = 3n;
+    const targetY = parseToRational('3'); // 3
+    const startX = { center: simplify({ num: 1n, den: 3n }), rho: 0.0 }; // x = 1/3
+
+    const result = runUnaryDescent(p, startX, 'scale', targetY);
+    if (!result.converged) {
+      expect.fail(result.trace.join('\n'));
+    }
+    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    const valDiff = getValuation(subtract(result.cX, parseToRational('1')), p);
+    expect(valDiff.type).toBe('pos-infinity');
+  });
+
+  it('should converge square (x^2) to target 4', () => {
+    const p = 3n;
+    const targetY = parseToRational('4'); // 4
+    const startX = { center: parseToRational('1'), rho: 0.0 }; // x = 1
+
+    const result = runUnaryDescent(p, startX, 'square', targetY);
+    if (!result.converged) {
+      expect.fail(result.trace.join('\n'));
+    }
+    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    // Assert that the output matches the target 4
+    const valDiff = getValuation(subtract(result.outCenter, targetY), p);
+    expect(valDiff.type).toBe('pos-infinity');
   });
 });
 
