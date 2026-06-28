@@ -229,17 +229,8 @@ describe('BerkovichDiskVisComponent', () => {
     expect(component.history().length).toBe(1);
   });
 
-  it('should synchronize centerInput and centerDigitsInput bidirectionally', () => {
+  it('should update centerInput when centerDigitsInput changes', () => {
     component.prime.set(3);
-    component.centerInput.set('0');
-    fixture.detectChanges();
-    expect(component.centerDigitsInput()).toBe('00.00');
-
-    component.centerInput.set('5/3');
-    component.onCenterBlur();
-    fixture.detectChanges();
-    expect(component.centerDigitsInput()).toBe('01.20');
-
     component.centerDigitsInput.set('10.00');
     component.onCenterDigitsBlur();
     fixture.detectChanges();
@@ -283,13 +274,8 @@ describe('BerkovichDiskVisComponent', () => {
     expect(component.displayLogRadius()).toBe('1.00');
   });
 
-  it('should synchronize targetInput and targetDigitsInput bidirectionally', () => {
+  it('should update targetInput when targetDigitsInput changes', () => {
     component.prime.set(3);
-    component.targetInput.set('5/3');
-    component.onTargetBlur();
-    fixture.detectChanges();
-    expect(component.targetDigitsInput()).toBe('01.20');
-
     component.targetDigitsInput.set('01.10');
     component.onTargetDigitsBlur();
     fixture.detectChanges();

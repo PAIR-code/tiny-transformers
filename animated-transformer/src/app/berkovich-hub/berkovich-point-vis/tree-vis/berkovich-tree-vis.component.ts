@@ -720,7 +720,7 @@ export class BerkovichTreeVisComponent {
   });
 
   readonly distanceExplainerText = `
-The distance $d = -\\text{val}_p(c - y)$ indicates the **height (log-radius)** of the Lowest Common Ancestor (LCA) of the current center $c$ and target $y$ on the tree.
+The distance $d = -\\nu_p(c - y)$ indicates the **height (log-radius)** of the Lowest Common Ancestor (LCA) of the current center $c$ and target $y$ on the tree.
 
 **Key Interpretations:**
 1. **Branching Point:** It is the height at which the target's digit path and the parameter's digit path split apart (where they differ).

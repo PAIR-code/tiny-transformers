@@ -51,7 +51,6 @@ import { BerkovichDigitsComponent } from '../berkovich-point-vis/digits-card/ber
 import { BerkovichCalculusComponent } from '../berkovich-point-vis/calculus-card/berkovich-calculus.component';
 import { BerkovichHistoryComponent } from '../berkovich-point-vis/history-card/berkovich-history.component';
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
-import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-config.component';
 
 @Component({
   selector: 'app-berkovich-disk-vis',
@@ -66,8 +65,7 @@ import { BerkovichDiskConfigComponent } from './config-card/berkovich-disk-confi
     BerkovichDigitsComponent,
     BerkovichCalculusComponent,
     BerkovichHistoryComponent,
-    BerkovichTreeVisComponent,
-    BerkovichDiskConfigComponent
+    BerkovichTreeVisComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -76,7 +74,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
   readonly prime = signal<number>(3);
   readonly targetInput = signal<string>('5/3');
   readonly targetDigitsInput = signal<string>('01.20');
-  readonly targetLogRadiusInput = signal<string>('-2.0');
+  readonly targetLogRadiusInput = signal<string>('-1.0');
   readonly centerInput = signal<string>('0');
   readonly centerDigitsInput = signal<string>('00.00');
   readonly logRadiusInput = signal<string>('0.0');
@@ -89,7 +87,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
 
   readonly targetLogRadius = computed(() => {
     const v = parseFloat(this.targetLogRadiusInput());
-    return isNaN(v) ? -2.0 : v;
+    return isNaN(v) ? -1.0 : v;
   });
 
   readonly learningRate = computed(() => {
@@ -476,20 +474,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     }
   }
 
-  onPrimeChange(newPrime: number): void {
-    this.prime.set(newPrime);
-  }
 
-  onTargetBlur(): void {
-    const p = BigInt(this.prime());
-    try {
-      const r = parseToRational(this.targetInput());
-      const truncated = truncateToTreeRange(r, p, -2, 1);
-      this.targetInput.set(formatRational(truncated));
-    } catch {
-      this.targetInput.set('0');
-    }
-  }
 
   onTargetDigitsBlur(): void {
     const p = BigInt(this.prime());
@@ -503,26 +488,9 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     }
   }
 
-  onTargetLogRadiusBlur(): void {
-    let v = parseFloat(this.targetLogRadiusInput());
-    if (isNaN(v)) {
-      v = -2.0;
-    } else {
-      v = Math.max(-2, Math.min(2, v));
-    }
-    this.targetLogRadiusInput.set(v.toFixed(1));
-  }
 
-  onCenterBlur(): void {
-    const p = BigInt(this.prime());
-    try {
-      const r = parseToRational(this.centerInput());
-      const truncated = truncateToTreeRange(r, p, -2, 1);
-      this.centerInput.set(formatRational(truncated));
-    } catch {
-      this.centerInput.set('0');
-    }
-  }
+
+
 
   onCenterDigitsBlur(): void {
     const p = BigInt(this.prime());
@@ -536,15 +504,7 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
     }
   }
 
-  onLogRadiusBlur(): void {
-    let v = parseFloat(this.logRadiusInput());
-    if (isNaN(v)) {
-      v = 0.0;
-    } else {
-      v = Math.max(-2, Math.min(2, v));
-    }
-    this.logRadiusInput.set(v.toFixed(1));
-  }
+
 
   onLearningRateBlur(): void {
     let v = parseFloat(this.learningRateInput());

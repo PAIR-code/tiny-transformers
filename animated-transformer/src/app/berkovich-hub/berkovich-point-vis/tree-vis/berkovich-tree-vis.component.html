@@ -23,7 +23,7 @@
       @if (targetLogRadius() !== undefined) {
         <div class="editor-row">
           <span class="editor-label yellow-text">y_&rho;:</span>
-          <input class="mini-digit-input mini-rho-input" type="text" [value]="targetLogRadius()!.toFixed(1)" (change)="onTargetLogRadiusInputChange(tyInput.value)" #tyInput />
+          <input class="mini-digit-input mini-rho-input" type="text" [value]="targetLogRadius()!.toFixed(2)" (change)="onTargetLogRadiusInputChange(tyInput.value)" #tyInput />
         </div>
       }
       <div class="editor-row">
@@ -32,7 +32,7 @@
       </div>
       <div class="editor-row">
         <span class="editor-label purple-text">x_&rho;:</span>
-        <input class="mini-digit-input mini-rho-input" type="text" [value]="currentLogRadius().toFixed(1)" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
+        <input class="mini-digit-input mini-rho-input" type="text" [value]="currentLogRadius().toFixed(2)" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
       </div>
     </div>
 
