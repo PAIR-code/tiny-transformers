@@ -69,7 +69,7 @@ import { MarkdownComponent } from 'ngx-markdown';
     </mat-card>
   `,
   styles: [`
-    .calc-card { margin-top: 16px; background: white; border: 1px solid #e2e8f0; }
+    .calc-card { }
     
     mat-card-header {
       padding: 12px 16px;
@@ -129,7 +129,7 @@ export class BerkovichAdditionCalculusComponent {
     const isAct = val > 0;
     const valStr = isAct ? `\\color{#10b981}{\\mathbf{${val}}}` : `${val}`;
     const reason = this.rhoX1() >= this.rhoX2() ? 'x_{1,\\rho} \\ge x_{2,\\rho}' : 'x_{1,\\rho} < x_{2,\\rho}';
-    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{1,\\rho}} = ${valStr} \\quad \\text{(${reason})}$`;
+    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{1,\\rho}} = ${valStr} \\quad (${reason})$`;
   });
 
   readonly drhoX2Markdown = computed(() => {
@@ -137,7 +137,7 @@ export class BerkovichAdditionCalculusComponent {
     const isAct = val > 0;
     const valStr = isAct ? `\\color{#10b981}{\\mathbf{${val}}}` : `${val}`;
     const reason = this.rhoX2() >= this.rhoX1() ? 'x_{2,\\rho} \\ge x_{1,\\rho}' : 'x_{2,\\rho} < x_{1,\\rho}';
-    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{2,\\rho}} = ${valStr} \\quad \\text{(${reason})}$`;
+    return `$\\frac{\\partial (x_1+x_2)_\\rho}{\\partial x_{2,\\rho}} = ${valStr} \\quad (${reason})$`;
   });
 
   readonly lossGradMarkdown = computed(() => {

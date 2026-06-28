@@ -30,13 +30,18 @@
         [editableInputs]="editableInputs()"
         [vertexMethod]="vertexMethod()"
         [isPlaying]="isPlaying()"
+        [learningRateInput]="learningRateInput()"
+        [canUndo]="canUndo()"
         (inputChange)="onInputChange($event)"
         (inputBlur)="onInputBlur($event)"
         (step)="onStep()"
         (randomize)="onRandomize()"
         (togglePlay)="onTogglePlay()"
         (vertexMethodChange)="onVertexMethodChange($event)"
-        (primeChange)="prime.set($event)"
+        (primeChange)="onPrimeChange($event)"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (learningRateBlur)="onLearningRateBlur()"
+        (undo)="onUndo()"
       ></app-berkovich-multi-tree-vis>
     </section>
 

@@ -64,6 +64,19 @@ export class BerkovichAdditionGradientsVisComponent implements OnDestroy {
   readonly isExplainerExpanded = signal<boolean>(true);
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
   readonly isPlaying = signal<boolean>(false);
+  readonly learningRateInput = signal<string>( '0.20');
+  readonly learningRate = computed(() => {
+    const v = parseFloat(this.learningRateInput());
+    return isNaN(v) ? 0.20 : v;
+  });
+  readonly history = signal<{
+    centerX1Input: string;
+    rhoX1Input: string;
+    centerX2Input: string;
+    rhoX2Input: string;
+    centerYInput: string;
+  }[]>([]);
+  readonly canUndo = computed(() => this.history().length > 0);
 
   private playIntervalId: any = null;
 
@@ -209,10 +222,12 @@ When both parameters simultaneously land on Type II vertices, there are three st
   onPrimeChange(p: number) {
     this.stopPlaying();
     this.prime.set(p);
+    this.history.set([]);
   }
 
   onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
     this.stopPlaying();
+    this.history.set([]);
     switch (event.nodeId) {
       case 'Y':
         if (event.field === 'center') this.centerYInput.set(event.value);
@@ -251,8 +266,19 @@ When both parameters simultaneously land on Type II vertices, there are three st
     }
   }
 
+  onLearningRateBlur(): void {
+    let v = parseFloat(this.learningRateInput());
+    if (isNaN(v)) {
+      v = 0.20;
+    } else {
+      v = Math.max(0.01, Math.min(2.0, v));
+    }
+    this.learningRateInput.set(v.toFixed(2));
+  }
+
   onRandomize() {
     this.stopPlaying();
+    this.history.set([]);
     const p = this.prime();
     const randomDigits = () => {
       const d1 = Math.floor(Math.random() * p).toString();
@@ -271,7 +297,18 @@ When both parameters simultaneously land on Type II vertices, there are three st
   }
 
   onStep() {
-    const eta = 1 / this.prime();
+    this.history.update(h => [
+      ...h,
+      {
+        centerX1Input: this.centerX1Input(),
+        rhoX1Input: this.rhoX1Input(),
+        centerX2Input: this.centerX2Input(),
+        rhoX2Input: this.rhoX2Input(),
+        centerYInput: this.centerYInput()
+      }
+    ]);
+
+    const eta = this.learningRate();
     const result = stepAdditionGradients(
       this.centerX1(),
       this.rhoX1(),
@@ -291,6 +328,23 @@ When both parameters simultaneously land on Type II vertices, there are three st
       formatDigitSequence(result.nextCenterX2, BigInt(this.prime()))
     );
     this.rhoX2Input.set(result.nextRhoX2.toFixed(2));
+  }
+
+  onUndo() {
+    this.stopPlaying();
+    const currentHist = this.history();
+    if (currentHist.length === 0) {
+      return;
+    }
+    const newHist = currentHist.slice(0, -1);
+    const prev = currentHist[currentHist.length - 1];
+
+    this.centerX1Input.set(prev.centerX1Input);
+    this.rhoX1Input.set(prev.rhoX1Input);
+    this.centerX2Input.set(prev.centerX2Input);
+    this.rhoX2Input.set(prev.rhoX2Input);
+    this.centerYInput.set(prev.centerYInput);
+    this.history.set(newHist);
   }
 
   onVertexMethodChange(method: VertexResolutionMethod) {

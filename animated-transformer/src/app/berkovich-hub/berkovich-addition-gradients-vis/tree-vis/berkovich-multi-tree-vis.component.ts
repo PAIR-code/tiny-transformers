@@ -121,6 +121,8 @@ export class BerkovichMultiTreeVisComponent {
   readonly editableInputs = input<EditableNodeInputs[]>();
   readonly vertexMethod = input<VertexResolutionMethod>('exact-per-coord');
   readonly isPlaying = input<boolean>(false);
+  readonly learningRateInput = input<string>('0.20');
+  readonly canUndo = input<boolean>(false);
 
   // Action outputs
   readonly step = output<void>();
@@ -130,6 +132,9 @@ export class BerkovichMultiTreeVisComponent {
   readonly inputBlur = output<{ nodeId: string; field: 'center' | 'rho' }>();
   readonly vertexMethodChange = output<VertexResolutionMethod>();
   readonly primeChange = output<number>();
+  readonly learningRateInputChange = output<string>();
+  readonly learningRateBlur = output<void>();
+  readonly undo = output<void>();
 
   readonly treeGap = 32; // 2em gap between trees
   readonly sideMargin = 20;

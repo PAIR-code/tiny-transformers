@@ -257,6 +257,29 @@ limitations under the License.
       </div>
 
       <div class="footer-control-right">
+        <div class="learning-rate-wrapper">
+          <label for="lr-input">&eta; =</label>
+          <input 
+            id="lr-input"
+            class="mini-digit-input mini-lr-input" 
+            [value]="learningRateInput()" 
+            (change)="learningRateInputChange.emit(lrInput.value)" 
+            (blur)="learningRateBlur.emit()"
+            #lrInput 
+          />
+        </div>
+
+        <div class="overlay-divider"></div>
+
+        <button 
+          mat-icon-button 
+          [disabled]="!canUndo() || isPlaying()" 
+          (click)="undo.emit()" 
+          title="Undo last step (Back)"
+          class="diagram-action-btn"
+        >
+          <mat-icon>undo</mat-icon>
+        </button>
         <button 
           mat-icon-button 
           [disabled]="isPlaying()" 
