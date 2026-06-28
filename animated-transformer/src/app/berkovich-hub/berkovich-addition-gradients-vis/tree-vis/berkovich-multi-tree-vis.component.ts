@@ -129,6 +129,7 @@ export class BerkovichMultiTreeVisComponent {
   readonly inputChange = output<{ nodeId: string; field: 'center' | 'rho'; value: string }>();
   readonly inputBlur = output<{ nodeId: string; field: 'center' | 'rho' }>();
   readonly vertexMethodChange = output<VertexResolutionMethod>();
+  readonly primeChange = output<number>();
 
   readonly treeGap = 32; // 2em gap between trees
   readonly sideMargin = 20;
@@ -339,5 +340,10 @@ export class BerkovichMultiTreeVisComponent {
 
   onInputChange(nodeId: string, field: 'center' | 'rho', value: string): void {
     this.inputChange.emit({ nodeId, field, value });
+  }
+
+  onPrimeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.primeChange.emit(Number(select.value));
   }
 }

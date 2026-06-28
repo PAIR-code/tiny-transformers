@@ -48,7 +48,7 @@ export class BerkovichCalculusComponent {
   readonly currentLogRadius = input.required<number>();
 
   // Local collapse state
-  readonly isCollapsed = signal<boolean>(true);
+  readonly isCollapsed = signal<boolean>(false);
 
   toggleCollapse(): void {
     this.isCollapsed.update(c => !c);

@@ -20,7 +20,37 @@
     </nav>
   </header>
 
-  <!-- Explainer Section -->
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Tree Visualizer with inline inputs -->
+    <section class="visualizer-card-container">
+      <app-berkovich-multi-tree-vis
+        [prime]="prime()"
+        [trackedNodes]="trackedNodes()"
+        [editableInputs]="editableInputs()"
+        [vertexMethod]="vertexMethod()"
+        [isPlaying]="isPlaying()"
+        (inputChange)="onInputChange($event)"
+        (inputBlur)="onInputBlur($event)"
+        (step)="onStep()"
+        (randomize)="onRandomize()"
+        (togglePlay)="onTogglePlay()"
+        (vertexMethodChange)="onVertexMethodChange($event)"
+        (primeChange)="prime.set($event)"
+      ></app-berkovich-multi-tree-vis>
+    </section>
+
+    <!-- Right Column: Calculus -->
+    <aside class="control-panel">
+      <app-berkovich-addition-calculus
+        [rhoX1]="rhoX1()"
+        [rhoX2]="rhoX2()"
+        [dL_drhoSum]="dL_drhoSum()"
+      />
+    </aside>
+  </div>
+
+    <!-- Explainer Section -->
   <mat-card class="explainer-card collapsible-card">
     <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" style="cursor: pointer; width: 100%;">
       <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 16px;">
@@ -38,31 +68,4 @@
     }
   </mat-card>
 
-  <div class="dashboard-grid">
-    <!-- Left Column: Tree Visualizer with inline inputs -->
-    <section class="visualizer-card-container">
-      <app-berkovich-multi-tree-vis
-        [prime]="prime()"
-        [trackedNodes]="trackedNodes()"
-        [editableInputs]="editableInputs()"
-        [vertexMethod]="vertexMethod()"
-        [isPlaying]="isPlaying()"
-        (inputChange)="onInputChange($event)"
-        (inputBlur)="onInputBlur($event)"
-        (step)="onStep()"
-        (randomize)="onRandomize()"
-        (togglePlay)="onTogglePlay()"
-        (vertexMethodChange)="onVertexMethodChange($event)"
-      ></app-berkovich-multi-tree-vis>
-    </section>
-
-    <!-- Right Column: Calculus -->
-    <aside class="control-panel">
-      <app-berkovich-addition-calculus
-        [rhoX1]="rhoX1()"
-        [rhoX2]="rhoX2()"
-        [dL_drhoSum]="dL_drhoSum()"
-      />
-    </aside>
-  </div>
 </div>

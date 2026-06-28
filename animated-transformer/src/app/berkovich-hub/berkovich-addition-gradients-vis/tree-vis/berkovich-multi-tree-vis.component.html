@@ -219,49 +219,71 @@ limitations under the License.
       }
     </svg>
 
-    <!-- Action bar below the SVG -->
-    @if (editableInputs()) {
-      <div class="action-bar">
-        <select
-          class="method-select"
-          [ngModel]="vertexMethod()"
-          (ngModelChange)="vertexMethodChange.emit($event)"
-          aria-label="Vertex resolution method"
+  </mat-card-content>
+
+  @if (editableInputs()) {
+    <div class="visualizer-card-footer">
+      <div class="footer-control-left">
+        <div class="prime-selector-wrapper">
+          <label for="prime-select">p =</label>
+          <select 
+            id="prime-select" 
+            [value]="prime()" 
+            (change)="onPrimeChange($event)"
+            class="prime-select"
+          >
+            <option [value]="2">2</option>
+            <option [value]="3">3</option>
+            <option [value]="5">5</option>
+          </select>
+        </div>
+
+        <div class="overlay-divider"></div>
+
+        <div class="method-selector-wrapper">
+          <label for="method-select">Method =</label>
+          <select
+            id="method-select"
+            class="method-select"
+            [ngModel]="vertexMethod()"
+            (ngModelChange)="vertexMethodChange.emit($event)"
+            aria-label="Vertex resolution method"
+          >
+            <option value="exact-per-coord">Per-Coord</option>
+            <option value="heuristic-joint">Heuristic Joint</option>
+            <option value="exact-joint">Exact Joint</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="footer-control-right">
+        <button 
+          mat-icon-button 
+          [disabled]="isPlaying()" 
+          (click)="step.emit()" 
+          title="Step forward"
+          class="diagram-action-btn"
         >
-          <option value="exact-per-coord">Per-Coord</option>
-          <option value="heuristic-joint">Heuristic Joint</option>
-          <option value="exact-joint">Exact Joint</option>
-        </select>
-        <button
-          mat-stroked-button
-          class="compact-btn"
-          (click)="randomize.emit()"
-          aria-label="Randomize inputs"
+          <mat-icon>skip_next</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          (click)="togglePlay.emit()" 
+          title="Animate/Pause"
+          class="diagram-action-btn play-btn"
+          [class.playing]="isPlaying()"
+        >
+          <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          (click)="randomize.emit()" 
+          title="Randomize center & target"
+          class="diagram-action-btn"
         >
           <mat-icon>shuffle</mat-icon>
         </button>
-        <button
-          mat-stroked-button
-          [color]="isPlaying() ? 'warn' : 'accent'"
-          class="compact-btn"
-          (click)="togglePlay.emit()"
-          [aria-label]="isPlaying() ? 'Stop training' : 'Play training'"
-        >
-          <mat-icon>{{ isPlaying() ? 'stop' : 'play_arrow' }}</mat-icon>
-          {{ isPlaying() ? 'Stop' : 'Play' }}
-        </button>
-        <button
-          mat-flat-button
-          color="accent"
-          class="compact-btn"
-          [disabled]="isPlaying()"
-          (click)="step.emit()"
-          aria-label="Step SGD"
-        >
-          <mat-icon>fast_forward</mat-icon>
-          Step
-        </button>
       </div>
-    }
-  </mat-card-content>
+    </div>
+  }
 </mat-card>
