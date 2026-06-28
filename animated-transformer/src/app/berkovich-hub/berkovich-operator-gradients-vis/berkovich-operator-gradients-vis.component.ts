@@ -89,7 +89,6 @@ export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
   readonly subtitleMath = computed(() => {
     const op = this.operator();
     if (op === 'multiplication') return '$x_1 \\cdot x_2 \\to y$';
-    if (op === 'softmax') return '$\\text{softmax}(x_1, x_2) \\to y$';
     return '$x_1 + x_2 \\to y$';
   });
 
@@ -114,24 +113,6 @@ When you multiply a disk by such a number, its uncertainty is amplified:
 ### How Gradients Flow
 1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient w.r.t centers propagates back using the derivative of the product.
 2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The gradient flows back only to the radius parameter that dominates the product radius max-plus term.
-      `;
-    }
-    if (op === 'softmax') {
-      return `
-This page demonstrates training the centroids $x_1$ and $x_2$ of a binary classifier to classify the input target $y$ as Class 1.
-
-### The Loss Function & Cross-Entropy
-We compute the path-metric error for each class $k \\in \\{1, 2\\}$:
-$$M_k = 2 \\max(x_{k,\\rho}, \\text{dist}(x_{k,c}, y)) - x_{k,\\rho}$$
-And logits $D_k = -M_k$. We compute the probability of Class 1 via Softmax:
-$$\\pi_1 = \\frac{\\exp(\\beta D_1)}{\\exp(\\beta D_1) + \\exp(\\beta D_2)}$$
-The training minimizes the Cross-Entropy loss $\\mathcal{L} = -\\log(\\pi_1)$.
-
-### How Gradients Flow
-The gradients w.r.t the radii flow back based on:
-$$\\frac{\\partial \\mathcal{L}}{\\partial x_{1,\\rho}} = \\beta(1 - \\pi_1) \\operatorname{sgn}(x_{1,\\rho} - d_1)$$
-$$\\frac{\\partial \\mathcal{L}}{\\partial x_{2,\\rho}} = -\\beta \\pi_2 \\operatorname{sgn}(x_{2,\\rho} - d_2)$$
-For the incorrect class $x_2$, the gradient is zeroed out if the sample lies already outside the class domain ($x_{2,\\rho} < d_2$) to prevent unbounded domain shrinkage.
       `;
     }
     return `
@@ -194,49 +175,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     const r2 = this.rhoX2();
     const targetY = this.centerY();
 
-    if (op === 'softmax') {
-      const d1Ext = getValuation(subtract(c1, targetY), p);
-      const d2Ext = getValuation(subtract(c2, targetY), p);
-      const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
-      const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
-
-      const M1 = 2 * Math.max(r1, d1) - r1;
-      const M2 = 2 * Math.max(r2, d2) - r2;
-      const D1 = -M1;
-      const D2 = -M2;
-
-      const maxD = Math.max(D1, D2);
-      const beta = 3.0; // matching test sharpness
-      const exp1 = Math.exp(beta * (D1 - maxD));
-      const exp2 = Math.exp(beta * (D2 - maxD));
-      const pi1 = exp1 / (exp1 + exp2);
-      const pi2 = exp2 / (exp1 + exp2);
-
-      const loss = -Math.log(pi1 + 1e-15);
-
-      let sgn1 = 0;
-      if (r1 > d1) sgn1 = 1;
-      else if (r1 < d1) sgn1 = -1;
-      const drho1 = beta * (1 - pi1) * sgn1;
-
-      let sgn2 = 0;
-      if (r2 > d2) sgn2 = 1;
-      else if (r2 < d2) sgn2 = -1;
-      const drho2 = r2 >= d2 ? -beta * pi2 * sgn2 : 0;
-
-      return {
-        outCenter: { num: 0n, den: 1n },
-        outRho: -2,
-        loss,
-        drhoX1: drho1,
-        drhoX2: drho2,
-        drOut: 0,
-        dY1: d1,
-        dY2: d2,
-        pi1,
-        pi2
-      };
-    } else if (op === 'multiplication') {
+    if (op === 'multiplication') {
       const prodCenter = truncateToTreeRange(multiply(c1, c2), p, -2, 1);
       const val1 = getValuation(c1, p);
       const val2 = getValuation(c2, p);
@@ -334,13 +273,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
   readonly trackedNodes = computed<TrackedNode[]>(() => {
     const op = this.operator();
     const details = this.stepDetails();
-    if (op === 'softmax') {
-      return [
-        { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ (Class 1)' },
-        { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ (Class 2)' },
-        { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y (Input Target)' }
-      ];
-    }
+
     const labelOut = op === 'multiplication' ? '(x1*x2)_ρ' : '(x1+x2)_ρ';
     const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
     return [
@@ -357,33 +290,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     const op = this.operator();
     const details = this.stepDetails();
 
-    if (op === 'softmax') {
-      return [
-        {
-          nodeId: 'X1',
-          trackedNodeId: 'X1',
-          centerInput: this.centerX1Input(),
-          rhoInput: this.rhoX1Input(),
-          color: '#2563eb',
-          labelPrefix: 'x₁ (C1)'
-        },
-        {
-          nodeId: 'X2',
-          trackedNodeId: 'X2',
-          centerInput: this.centerX2Input(),
-          rhoInput: this.rhoX2Input(),
-          color: '#db2777',
-          labelPrefix: 'x₂ (C2)'
-        },
-        {
-          nodeId: 'Y',
-          trackedNodeId: 'Y',
-          centerInput: this.centerYInput(),
-          color: '#eab308',
-          labelPrefix: 'y'
-        }
-      ];
-    }
+
 
     const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
     const labelOut = op === 'multiplication' ? 'x₁·x₂' : 'x₁+x₂';
@@ -532,19 +439,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
       nextRhoX2: number;
     };
 
-    if (op === 'softmax') {
-      result = stepSoftmaxGradients(
-        this.centerX1(),
-        this.rhoX1(),
-        this.centerX2(),
-        this.rhoX2(),
-        this.centerY(),
-        p,
-        eta,
-        3.0, // beta matching standard temperature
-        this.vertexMethod()
-      );
-    } else if (op === 'multiplication') {
+    if (op === 'multiplication') {
       result = stepMultiplicationGradients(
         this.centerX1(),
         this.rhoX1(),

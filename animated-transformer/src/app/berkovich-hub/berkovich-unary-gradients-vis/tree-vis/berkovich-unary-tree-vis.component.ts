@@ -14,7 +14,7 @@ limitations under the License.
 
 import { Component, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
+import { MatCardModule } from '@angular/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
@@ -28,41 +28,11 @@ import {
   formatDigitSequence,
   getValuation,
   extValuationGe,
-  VertexResolutionMethod,
+  computeSpaceOuter,
+  computeTreeLayout,
+  LayoutNode,
+  BerkovichUnaryOperator
 } from '../../../../lib/berkovich/berkovich';
-import { computeTreeLayout, LayoutNode } from '../../../../lib/berkovich/tree_layout';
-
-function computeSpaceOuter(p: number, baseGap: number = 40, minNodeGap: number = 50): number {
-  interface DummyNode extends LayoutNode {
-    children: DummyNode[];
-  }
-  const buildLeftmostTree = (depth: number): DummyNode => {
-    const node: DummyNode = {
-      isActive: true,
-      children: []
-    };
-    if (depth > 0) {
-      for (let i = 0; i < p; i++) {
-        if (i === 0) { // leftmost active
-          node.children.push(buildLeftmostTree(depth - 1));
-        } else {
-          node.children.push({
-            isActive: false,
-            children: []
-          });
-        }
-      }
-    }
-    return node;
-  };
-
-  const rootLeft = buildLeftmostTree(4);
-  const treeSpan = computeTreeLayout(rootLeft, baseGap, minNodeGap);
-  const rootX = rootLeft.x!;
-  return treeSpan - rootX;
-}
-
-export type BerkovichBinaryOperator = 'addition' | 'multiplication';
 
 export interface TrackedNode {
   id: string;
@@ -74,16 +44,14 @@ export interface TrackedNode {
 
 export interface EditableNodeInputs {
   nodeId: string;
-  trackedNodeId: string; // maps to the TrackedNode.id this input controls
+  trackedNodeId: string;
   centerInput: string;
   rhoInput?: string;
   color: string;
   labelPrefix: string;
-  readonly?: boolean;
 }
 
-
-export interface MultiVisualNode {
+interface MultiVisualNode {
   id: string;
   x: number;
   y: number;
@@ -91,10 +59,10 @@ export interface MultiVisualNode {
   logRadius: number;
   label: string;
   isActive: boolean;
-  colors: string[]; // which tracked nodes is this path active for
+  colors: string[];
 }
 
-export interface MultiVisualEdge {
+interface MultiVisualEdge {
   id: string;
   x1: number;
   y1: number;
@@ -106,51 +74,50 @@ export interface MultiVisualEdge {
 }
 
 @Component({
-  selector: 'app-berkovich-multi-tree-vis',
-  templateUrl: './berkovich-multi-tree-vis.component.html',
-  styleUrls: ['./berkovich-multi-tree-vis.component.scss'],
+  selector: 'app-berkovich-unary-tree-vis',
+  templateUrl: './berkovich-unary-tree-vis.component.html',
+  styleUrls: ['./berkovich-unary-tree-vis.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatSelectModule, MatFormFieldModule, FormsModule
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    CommonModule,
+    MatCardModule,
+    MatIconModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    FormsModule
+  ]
 })
-export class BerkovichMultiTreeVisComponent {
+export class BerkovichUnaryTreeVisComponent {
+  readonly operator = input<BerkovichUnaryOperator>('shift');
   readonly prime = input.required<number>();
+  readonly learningRateInput = input.required<string>();
+  readonly vertexMethod = input.required<any>();
   readonly trackedNodes = input.required<TrackedNode[]>();
-
-  // Optional inline editing inputs
   readonly editableInputs = input<EditableNodeInputs[]>();
-  readonly operator = input<BerkovichBinaryOperator>('addition');
-  readonly vertexMethod = input<VertexResolutionMethod>('exact-per-coord');
-  readonly isPlaying = input<boolean>(false);
-  readonly learningRateInput = input<string>('0.20');
-  readonly canUndo = input<boolean>(false);
 
-  // Action outputs
-  readonly operatorChange = output<BerkovichBinaryOperator>();
-  readonly step = output<void>();
-  readonly randomize = output<void>();
-  readonly togglePlay = output<void>();
+  readonly operatorChange = output<BerkovichUnaryOperator>();
+  readonly primeChange = output<number>();
+  readonly vertexMethodChange = output<any>();
   readonly inputChange = output<{ nodeId: string; field: 'center' | 'rho'; value: string }>();
   readonly inputBlur = output<{ nodeId: string; field: 'center' | 'rho' }>();
-  readonly vertexMethodChange = output<VertexResolutionMethod>();
-  readonly primeChange = output<number>();
+  readonly step = output<void>();
+  readonly randomize = output<void>();
+  readonly runToggle = output<void>();
+  readonly isPlaying = input.required<boolean>();
   readonly learningRateInputChange = output<string>();
   readonly learningRateBlur = output<void>();
   readonly undo = output<void>();
 
-  readonly treeGap = 32; // 2em gap between trees
+  readonly treeGap = 32;
   readonly sideMargin = 20;
-  readonly svgHeight = 440; // reduced height to avoid vertical scrolling
-  readonly paddingY = 75; // extra room at top for input labels
+  readonly svgHeight = 440;
+  readonly paddingY = 75;
   readonly rhoMax = 2;
   readonly rhoMin = -2;
-  readonly activePathStepY = 80; // reduced vertical step
-  readonly stubPathStepY = 56; // scaled proportionally
+  readonly activePathStepY = 80;
+  readonly stubPathStepY = 56;
 
-
-  /** Data for each per-tree input label rendered inside the SVG. */
   readonly treeInputLabels = computed<{
     x: number;
     editorX: number;
@@ -162,7 +129,6 @@ export class BerkovichMultiTreeVisComponent {
     const svgW = visuals.width;
     return visuals.rootPositions.map(rp => {
       const inp = editable?.find(e => e.trackedNodeId === rp.trackedNodeId);
-      // Clamp editor X coordinate to stay within SVG boundaries [2, svgWidth - 112]
       const editorX = Math.max(2, Math.min(svgW - 112, rp.x - 55));
       return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inp };
     });
@@ -196,7 +162,6 @@ export class BerkovichMultiTreeVisComponent {
     const titles: { x: number; text: string; color: string }[] = [];
     const rootPositions: { trackedNodeId: string; x: number }[] = [];
 
-    // First pass: build all trees and measure their widths
     const treeData: {
       tn: TrackedNode;
       rootNode: LayoutNodeWithData;
@@ -237,14 +202,11 @@ export class BerkovichMultiTreeVisComponent {
       treeData.push({ tn, rootNode, treeWidth });
     }
 
-    // Second pass: position trees in their respective columns
     for (let idx = 0; idx < n; idx++) {
       const td = treeData[idx];
       const colStart = sideMargin + idx * (colWidth + colGap);
       const colCenter = colStart + colWidth / 2;
 
-      // Align rootNode.x exactly with the column center (colCenter)
-      // to guarantee spaceOuter on both sides.
       const offset = colCenter - td.rootNode.x!;
 
       const positionNode = (node: LayoutNodeWithData, parentX?: number, parentY?: number, digitLabel?: string) => {
@@ -274,7 +236,7 @@ export class BerkovichMultiTreeVisComponent {
 
       positionNode(td.rootNode);
 
-      const rootX = td.rootNode.x! + offset; // which is exactly colCenter
+      const rootX = td.rootNode.x! + offset;
       rootPositions.push({ trackedNodeId: td.tn.id, x: rootX });
       titles.push({ x: rootX, text: td.tn.id.toLowerCase(), color: td.tn.color });
     }
@@ -300,59 +262,40 @@ export class BerkovichMultiTreeVisComponent {
     return node ? node.x : this.svgWidth() / 2;
   }
 
-  getRhoLineForTrackedNode(tn: TrackedNode) {
+  readonly rhoIndicatorX = computed(() => {
+    const tracked = this.trackedNodes();
+    const xNode = tracked.find(tn => tn.id === 'X');
+    if (!xNode) return this.svgWidth() - 40;
+    
+    const treeVis = this.treeVisuals();
     const p = BigInt(this.prime());
-    const visuals = this.treeVisuals();
-    const k = Math.floor(tn.rho);
-    const prefix = tn.id + '_';
-    const nodesInDisk = visuals.nodes.filter(n => {
-      if (!n.id.startsWith(prefix)) return false;
-      if (n.logRadius > Math.ceil(tn.rho)) return false;
-      return extValuationGe(getValuation(subtract(n.center, tn.center), p), -tn.rho);
-    });
-    
-    if (nodesInDisk.length === 0) {
-      const x = this.getParameterXAtLevel(tn.center, k, p, visuals.nodes.filter(n => n.id.startsWith(prefix)));
-      return { x1: x - 15, x2: x + 15, y: this.rhoToY(tn.rho) };
-    }
-    
-    let minX = Infinity;
-    let maxX = -Infinity;
-    for (const node of nodesInDisk) {
-      if (node.x < minX) minX = node.x;
-      if (node.x > maxX) maxX = node.x;
-    }
-    
-    if (minX === maxX) {
-      return { x1: minX - 15, x2: minX + 15, y: this.rhoToY(tn.rho) };
-    }
-    return { x1: minX, x2: maxX, y: this.rhoToY(tn.rho) };
+    const x = this.getParameterXAtLevel(xNode.center, xNode.rho, p, treeVis.nodes);
+    return x;
+  });
+
+  getRhoLineForTrackedNode(tn: TrackedNode) {
+    const treeVis = this.treeVisuals();
+    const p = BigInt(this.prime());
+    const x = this.getParameterXAtLevel(tn.center, tn.rho, p, treeVis.nodes);
+    const y = this.rhoToY(tn.rho);
+    return { x1: x - 18, y1: y, x2: x + 18, y2: y };
   }
 
-  parseSubscripts(val: string): { text: string; isSub: boolean }[] {
-    const segs: { text: string; isSub: boolean }[] = [];
-    const regex = /([^_]*)_([a-zA-Z0-9ρ\(\)\+]+)/g;
-    let lastIndex = 0;
-    let match;
-    while ((match = regex.exec(val)) !== null) {
-      if (match[1]) {
-        segs.push({ text: match[1], isSub: false });
-      }
-      segs.push({ text: match[2], isSub: true });
-      lastIndex = regex.lastIndex;
-    }
-    if (lastIndex < val.length) {
-      segs.push({ text: val.substring(lastIndex), isSub: false });
-    }
-    return segs.length > 0 ? segs : [{ text: val, isSub: false }];
+  readonly leafNodes = computed(() => {
+    return this.treeVisuals().nodes.filter(n => n.logRadius === this.rhoMin);
+  });
+
+  parseSubscripts(s: string): { text: string; isSub: boolean }[] {
+    const parts = s.split('.');
+    if (parts.length < 2) return [{ text: s, isSub: false }];
+    return [
+      { text: parts[0] + '.', isSub: false },
+      { text: parts[1], isSub: true }
+    ];
   }
 
-  onInputChange(nodeId: string, field: 'center' | 'rho', value: string): void {
-    this.inputChange.emit({ nodeId, field, value });
-  }
-
-  onPrimeChange(event: Event): void {
+  onPrimeChange(event: Event) {
     const select = event.target as HTMLSelectElement;
-    this.primeChange.emit(Number(select.value));
+    this.primeChange.emit(parseInt(select.value, 10));
   }
 }

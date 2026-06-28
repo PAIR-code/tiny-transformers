@@ -33,6 +33,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { BerkovichPointVisComponent } from './berkovich-hub/berkovich-point-vis/berkovich-point-vis.component';
 import { BerkovichDiskVisComponent } from './berkovich-hub/berkovich-disk-vis/berkovich-disk-vis.component';
 import { BerkovichOperatorGradientsVisComponent } from './berkovich-hub/berkovich-operator-gradients-vis/berkovich-operator-gradients-vis.component';
+import { BerkovichUnaryGradientsVisComponent } from './berkovich-hub/berkovich-unary-gradients-vis/berkovich-unary-gradients-vis.component';
 import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
 
@@ -76,6 +77,7 @@ export const routes: Routes = [
       { path: 'point', component: BerkovichPointVisComponent },
       { path: 'disk', component: BerkovichDiskVisComponent },
       { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
+      { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
       { path: 'glossary', component: BerkovichGlossaryComponent }
     ]
   },

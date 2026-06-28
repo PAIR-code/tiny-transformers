@@ -62,6 +62,13 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich-operator',
     },
     {
+      title: 'Berkovich Unary Gradients',
+      description: 'Visualize backward pass and gradient flow through unary operations (shift, scale, and squaring).',
+      route: '/berkovich/unary-gradients',
+      icon: 'looks_one',
+      colorClass: 'card-berkovich-unary',
+    },
+    {
       title: 'Notation Glossary',
       description: 'Reference guide for mathematical definitions, symbols, and non-Archimedean terminology.',
       route: '/berkovich/glossary',

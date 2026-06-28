@@ -1,0 +1,293 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<mat-card class="visualizer-card">
+  <mat-card-header class="visualizer-card-header">
+    <mat-card-title class="visualizer-title-left">
+      <mat-icon>account_tree</mat-icon>
+      <span>{{ operator() | titlecase }} Tree Topology</span>
+    </mat-card-title>
+    <div class="header-operator-select-wrapper">
+      <label for="header-operator-select">Operator:</label>
+      <select 
+        id="header-operator-select" 
+        [ngModel]="operator()" 
+        (ngModelChange)="operatorChange.emit($event)"
+        class="header-operator-select"
+        aria-label="Unary operator selection"
+      >
+        <option value="shift">Shift (x + 1)</option>
+        <option value="scale">Scale (x * 3)</option>
+        <option value="square">Square (x²)</option>
+      </select>
+    </div>
+  </mat-card-header>
+
+  <mat-card-content class="svg-container" style="position: relative;">
+    <svg
+      [attr.width]="svgWidth()"
+      [attr.height]="svgHeight"
+      class="tree-svg"
+    >
+      <defs>
+        <clipPath id="guide-clip">
+          <rect x="0" y="0" [attr.width]="svgWidth()" [attr.height]="rhoToY(rhoMin)"></rect>
+        </clipPath>
+      </defs>
+
+      <!-- Shaded backgrounds for Berkovich Disks of all tracked nodes -->
+      @for (tn of trackedNodes(); track tn.id) {
+        <rect
+          [attr.x]="getRhoLineForTrackedNode(tn).x1"
+          [attr.y]="paddingY"
+          [attr.width]="getRhoLineForTrackedNode(tn).x2 - getRhoLineForTrackedNode(tn).x1"
+          [attr.height]="getRhoLineForTrackedNode(tn).y1 - paddingY"
+          class="rho-disk-shading"
+          [style.fill]="tn.color"
+        />
+      }
+
+      <!-- Grid lines indicating the log-radius levels (Type II vertex planes) -->
+      @for (level of [2, 1, 0, -1, -2]; track level) {
+        <line
+          x1="0"
+          [attr.y1]="rhoToY(level)"
+          [attr.x2]="svgWidth()"
+          [attr.y2]="rhoToY(level)"
+          class="rho-guide-line"
+          clip-path="url(#guide-clip)"
+        />
+        <text
+          [attr.x]="svgWidth() - 36"
+          [attr.y]="rhoToY(level) + 4"
+          class="rho-guide-text"
+        >
+          &rho; = {{ level }}
+        </text>
+      }
+
+      <!-- Stub paths (thin light lines for parts of trees that are not active) -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        @if (!edge.isActive) {
+          <line
+            [attr.x1]="edge.x1"
+            [attr.y1]="edge.y1"
+            [attr.x2]="edge.x2"
+            [attr.y2]="edge.y2"
+            class="tree-edge"
+          />
+        }
+      }
+
+      <!-- Active parameter pathways (colored thicker lines where parameter centers sit) -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        @if (edge.isActive) {
+          @for (color of edge.colors; track color) {
+            <line
+              [attr.x1]="edge.x1"
+              [attr.y1]="edge.y1"
+              [attr.x2]="edge.x2"
+              [attr.y2]="edge.y2"
+              class="tree-edge active-path"
+              [style.stroke]="color"
+            />
+          }
+        }
+      }
+
+      <!-- Tree digit labels (0, 1, 2 on branches) -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        @if (edge.isActive) {
+          <text
+            [attr.x]="(edge.x1 + edge.x2) / 2"
+            [attr.y]="(edge.y1 + edge.y2) / 2 - 4"
+            class="digit-label"
+          >
+            {{ edge.digitLabel }}
+          </text>
+        }
+      }
+
+      <!-- Subtree Root Titles (e.g. "x", "f(x)", "y") -->
+      @for (title of treeVisuals().titles; track title.text) {
+        <text
+          [attr.x]="title.x"
+          [attr.y]="paddingY - 48"
+          class="tree-title"
+          [style.fill]="title.color"
+        >
+          {{ title.text }}
+        </text>
+      }
+
+      <!-- Inactive nodes (small circles) -->
+      @for (node of treeVisuals().nodes; track node.id) {
+        @if (!node.isActive) {
+          <circle
+            [attr.cx]="node.x"
+            [attr.cy]="node.y"
+            r="4"
+            class="tree-node"
+          />
+        }
+      }
+
+      <!-- Active nodes (small circles highlighted with parameter colors) -->
+      @for (node of treeVisuals().nodes; track node.id) {
+        @if (node.isActive) {
+          @for (color of node.colors; track color; let idx = $index) {
+            <circle
+              [attr.cx]="node.x"
+              [attr.cy]="node.y"
+              [attr.r]="6"
+              class="tree-node active-node"
+              [style.stroke]="color"
+            />
+          }
+        }
+      }
+
+      <!-- Solid horizontal bars indicating parameter log-radius levels -->
+      @for (tn of trackedNodes(); track tn.id) {
+        @if (tn.id !== 'Y') {
+          <g class="rho-indicator-group">
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+              [attr.y1]="getRhoLineForTrackedNode(tn).y1"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+              [attr.y2]="getRhoLineForTrackedNode(tn).y2"
+              class="rho-level-line"
+              [style.stroke]="tn.color"
+            />
+            <circle
+              [attr.cx]="getRhoLineForTrackedNode(tn).x1"
+              [attr.cy]="getRhoLineForTrackedNode(tn).y1"
+              r="2.5"
+              class="rho-level-cap"
+              [style.fill]="tn.color"
+            />
+            <circle
+              [attr.cx]="getRhoLineForTrackedNode(tn).x2"
+              [attr.cy]="getRhoLineForTrackedNode(tn).y2"
+              r="2.5"
+              class="rho-level-cap"
+              [style.fill]="tn.color"
+            />
+            <text
+              [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
+              y="4"
+              class="rho-level-text"
+              [style.fill]="tn.color"
+            >
+              @for (seg of parseSubscripts(tn.label); track $index) {
+                <tspan [class.subscript-text]="seg.isSub">{{ seg.text }}</tspan>
+              }
+            </text>
+          </g>
+        }
+      }
+    </svg>
+
+  </mat-card-content>
+
+  @if (editableInputs()) {
+    <div class="visualizer-card-footer">
+      <div class="footer-control-left">
+        <div class="prime-selector-wrapper">
+          <label for="prime-select">p =</label>
+          <select 
+            id="prime-select" 
+            [value]="prime()" 
+            (change)="onPrimeChange($event)"
+            class="prime-select"
+          >
+            <option [value]="2">2</option>
+            <option [value]="3">3</option>
+            <option [value]="5">5</option>
+          </select>
+        </div>
+
+        <div class="overlay-divider"></div>
+
+        <div class="method-selector-wrapper">
+          <label for="method-select">Method =</label>
+          <select
+            id="method-select"
+            class="method-select"
+            [ngModel]="vertexMethod()"
+            (ngModelChange)="vertexMethodChange.emit($event)"
+            aria-label="Vertex resolution method"
+          >
+            <option value="exact-per-coord">Per-Coord</option>
+            <option value="heuristic-joint">Heuristic Joint</option>
+            <option value="exact-joint">Exact Joint</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="footer-control-right">
+        <div class="learning-rate-wrapper">
+          <label for="lr-input">&eta; =</label>
+          <input 
+            id="lr-input"
+            class="mini-digit-input mini-lr-input" 
+            [value]="learningRateInput()" 
+            (change)="learningRateInputChange.emit(lrInput.value)" 
+            (blur)="learningRateBlur.emit()"
+            #lrInput 
+          />
+        </div>
+
+        <div class="button-row">
+          <button 
+            mat-stroked-button 
+            (click)="undo.emit()" 
+            class="action-btn"
+          >
+            <mat-icon>undo</mat-icon>
+            Undo
+          </button>
+          
+          <button 
+            mat-stroked-button 
+            (click)="randomize.emit()" 
+            class="action-btn"
+          >
+            <mat-icon>shuffle</mat-icon>
+            Randomize
+          </button>
+          
+          <button 
+            mat-stroked-button 
+            (click)="step.emit()" 
+            class="action-btn"
+          >
+            <mat-icon>play_arrow</mat-icon>
+            Step SGD
+          </button>
+          
+          <button 
+            mat-flat-button 
+            (click)="runToggle.emit()" 
+            [class.playing]="isPlaying()"
+            class="action-btn run-btn"
+          >
+            <mat-icon>{{ isPlaying() ? 'pause' : 'fast_forward' }}</mat-icon>
+            {{ isPlaying() ? 'Pause' : 'Run SGD' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</mat-card>

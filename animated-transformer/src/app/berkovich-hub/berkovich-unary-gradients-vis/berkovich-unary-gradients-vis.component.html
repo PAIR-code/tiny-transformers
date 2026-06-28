@@ -1,0 +1,92 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="landing-container">
+  <header class="landing-header">
+    <div class="header-content">
+      <a routerLink="/berkovich" class="back-btn" aria-label="Back to Berkovich Hub">
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+      <div>
+        <h1>Unary Operator Gradients Explorer</h1>
+        <p class="subtitle">
+          Visualizing backward pass and gradient flow through Berkovich unary operations:
+          <markdown [inline]="true" [katex]="true" [data]="subtitleMath()"></markdown>
+        </p>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
+      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
+      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Operator Gradients</a>
+      <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+    </nav>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Interactive Tree & Point Visualizer -->
+    <section class="visualizer-card-container">
+      <app-berkovich-unary-tree-vis
+        [operator]="operator()"
+        [prime]="prime()"
+        [learningRateInput]="learningRateInput()"
+        [vertexMethod]="vertexMethod()"
+        [trackedNodes]="trackedNodes()"
+        [editableInputs]="editableInputs()"
+        [isPlaying]="isPlaying()"
+        (operatorChange)="onOperatorChange($event)"
+        (primeChange)="onPrimeChange($event)"
+        (vertexMethodChange)="vertexMethod.set($event)"
+        (inputChange)="onInputChange($event)"
+        (inputBlur)="onInputBlur($event)"
+        (step)="onStep()"
+        (randomize)="onRandomize()"
+        (runToggle)="onRunToggle()"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (learningRateBlur)="onLearningRateBlur()"
+        (undo)="onUndo()"
+      ></app-berkovich-unary-tree-vis>
+    </section>
+
+    <!-- Right Column: Calculus -->
+    <aside class="control-panel">
+      <app-berkovich-unary-calculus
+        [operator]="operator()"
+        [rhoX]="rhoX()"
+        [stepDetails]="stepDetails()"
+      />
+    </aside>
+  </div>
+
+  <!-- Expandable Explainer Card (Bottom) -->
+  <footer class="explainer-card-wrapper">
+    <mat-card class="explainer-card">
+      <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" class="clickable-header">
+        <mat-card-title>
+          <mat-icon>menu_book</mat-icon>
+          Understanding Gradients & Optimization of {{ operator() | titlecase }}
+        </mat-card-title>
+        <button mat-icon-button class="toggle-btn" aria-label="Toggle explainer body">
+          <mat-icon>{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+      </mat-card-header>
+      
+      @if (isExplainerExpanded()) {
+        <mat-card-content class="explainer-content">
+          <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
+        </mat-card-content>
+      }
+    </mat-card>
+  </footer>
+</div>
