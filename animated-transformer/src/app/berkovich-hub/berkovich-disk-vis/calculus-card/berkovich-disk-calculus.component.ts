@@ -27,9 +27,9 @@ import {
 } from '../../../../lib/berkovich/berkovich';
 
 @Component({
-  selector: 'app-berkovich-calculus',
-  templateUrl: './berkovich-calculus.component.html',
-  styleUrls: ['./berkovich-calculus.component.scss'],
+  selector: 'app-berkovich-disk-calculus',
+  templateUrl: './berkovich-disk-calculus.component.html',
+  styleUrls: ['./berkovich-disk-calculus.component.scss'],
   imports: [
     CommonModule,
     MatCardModule,
@@ -38,7 +38,7 @@ import {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BerkovichCalculusComponent {
+export class BerkovichDiskCalculusComponent {
   readonly gradientBreakdown = input.required<any>();
   readonly learningRate = input.required<number>();
   readonly prime = input.required<number>();
@@ -46,6 +46,7 @@ export class BerkovichCalculusComponent {
   readonly currentCenter = input.required<Rational>();
   readonly targetRational = input.required<Rational>();
   readonly currentLogRadius = input.required<number>();
+  readonly targetLogRadius = input.required<number>();
 
   // Local collapse state
   readonly isCollapsed = signal<boolean>(true);
@@ -63,6 +64,7 @@ export class BerkovichCalculusComponent {
     const xc = this.currentCenter();
     const yc = this.targetRational();
     const rho = this.currentLogRadius();
+    const y_rho = this.targetLogRadius();
     
     const diff = subtract(xc, yc);
     const val = getValuation(diff, p);
@@ -90,17 +92,10 @@ export class BerkovichCalculusComponent {
     
     const dValStr = dVal === -Infinity ? '-\\infty' : dVal.toFixed(2);
     
-    // For Point SGD, target log radius is fixed to -2.0
-    const absDiff = Math.abs(rho - dVal);
-    const computedLoss = dVal === -Infinity ? (rho - (-2.0)) : (absDiff + dVal - (-2.0));
+    // Formula for Disk SGD:
+    const maxVal = Math.max(rho, y_rho, dVal);
+    const computedLoss = 2 * maxVal - rho - y_rho;
     
-    let calcSteps = '';
-    if (dVal === -Infinity) {
-      calcSteps = `$$L_{\\text{path}} = \\rho - \\rho_y = ${rho.toFixed(2)} - (-2.0) = ${computedLoss.toFixed(4)}$$`;
-    } else {
-      calcSteps = `$$L_{\\text{path}} = |${rho.toFixed(2)} - (${dValStr})| + (${dValStr}) + 2 = ${computedLoss.toFixed(4)}$$`;
-    }
-
     return `
 ### Worked Example with Current State:
 1. **Centers & Difference:**
@@ -114,10 +109,11 @@ export class BerkovichCalculusComponent {
 
 3. **Log-Radius Distance Loss:**
    - Current Log-Radius: $\\rho = ${rho.toFixed(2)}$
-   - Simulator Offset: $\\rho_y = -2.0$
-   - Formula: $L_{\\text{path}} = |\\rho - d| + d + 2$
+   - Target Log-Radius: $\\rho_y = ${y_rho.toFixed(2)}$
+   - Formula: $L_{\\text{path}} = 2\\max(\\rho, \\rho_y, d) - \\rho - \\rho_y$
    - Calculation:
-     ${calcSteps}
+     $$\\max(\\rho, \\rho_y, d) = \\max(${rho.toFixed(2)}, ${y_rho.toFixed(2)}, ${dValStr}) = ${maxVal.toFixed(2)}$$
+     $$L_{\\text{path}} = 2(${maxVal.toFixed(2)}) - (${rho.toFixed(2)}) - (${y_rho.toFixed(2)}) = ${computedLoss.toFixed(4)}$$
 `;
   });
 }

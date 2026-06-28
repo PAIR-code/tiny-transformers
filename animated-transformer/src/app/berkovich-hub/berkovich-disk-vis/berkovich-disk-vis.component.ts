@@ -48,7 +48,7 @@ import {
 
 
 import { BerkovichDigitsComponent } from '../berkovich-point-vis/digits-card/berkovich-digits.component';
-import { BerkovichCalculusComponent } from '../berkovich-point-vis/calculus-card/berkovich-calculus.component';
+import { BerkovichDiskCalculusComponent } from './calculus-card/berkovich-disk-calculus.component';
 import { BerkovichHistoryComponent } from '../berkovich-point-vis/history-card/berkovich-history.component';
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
 
@@ -63,7 +63,7 @@ import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berko
     RouterModule,
     MarkdownComponent,
     BerkovichDigitsComponent,
-    BerkovichCalculusComponent,
+    BerkovichDiskCalculusComponent,
     BerkovichHistoryComponent,
     BerkovichTreeVisComponent
   ],

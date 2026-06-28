@@ -70,7 +70,7 @@
       }
 
       <div class="math-block">
-        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, p^{\\rho_y}, |x_c - y_c|_p) = p^{\\max(\\rho, \\rho_y, d)}$$\n\n$$d = \\log_p |x_c - y_c|_p = -\\nu_p(x_c - y_c)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho - \\rho_y = |\\rho - d| + d - \\rho_y$$'"></markdown>
+        <markdown [katex]="true" [data]="'$$\\delta(x, y) = \\max(p^\\rho, p^{\\rho_y}, |x_c - y_c|_p) = p^{\\max(\\rho, \\rho_y, d)}$$\n\n$$d = \\log_p |x_c - y_c|_p = -\\nu_p(x_c - y_c)$$\n\n$$\\text{Loss} = L_{\\text{path}} = 2 \\log_p \\delta(x, y) - \\rho - \\rho_y = 2 \\max(\\rho, \\rho_y, d) - \\rho - \\rho_y$$'"></markdown>
         <div class="explanation-text calculus-intro">
           <p>
             Here, <markdown [inline]="true" [katex]="true" [data]="'$d = -\\nu_p(x_c - y_c)$'"></markdown> represents the <strong>Target Distance</strong> (specifically the log-radius of the lowest common ancestor of center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown> and target <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown>).
@@ -79,7 +79,7 @@
             The value <markdown [inline]="true" [katex]="true" [data]="'$-d$'"></markdown> corresponds to the power of the first digit column where the digit expansions of <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown> differ.
           </p>
           <p>
-            <strong>Note on Simulator Offset:</strong> Since our simulator tree is truncated at target leaf depth <markdown [inline]="true" [katex]="true" [data]="'$\\rho_y = -2$'"></markdown>, the formula calculates true tree path distance as <markdown [inline]="true" [katex]="true" [data]="'$\\text{Loss} = |\\rho - d| + d + 2$'"></markdown>.
+            For disks, the loss is the path distance between the parameter disk <markdown [inline]="true" [katex]="true" [data]="'$B(x_c, p^{-\\rho})$'"></markdown> and target disk <markdown [inline]="true" [katex]="true" [data]="'$B(y_c, p^{-\\rho_y})$'"></markdown>.
           </p>
         </div>
 
