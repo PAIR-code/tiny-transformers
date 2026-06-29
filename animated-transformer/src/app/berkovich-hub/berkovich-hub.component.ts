@@ -55,7 +55,7 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
-      title: 'Berkovich Space Explorers',
+      title: 'Shakespeare next-character predictor',
       description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
       route: '/berkovich/space-explorers',
       icon: 'explore',

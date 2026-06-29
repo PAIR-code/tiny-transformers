@@ -605,3 +605,115 @@ limitations under the License.
     background: #ffffff;
   }
 }
+
+/* Unified Visualizer Explorer Header */
+.explorer-header {
+  background: #ffffff;
+  border-bottom: solid 1px #e2e8f0;
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+
+  .header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .back-btn {
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    &:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    color: #64748b;
+  }
+
+  .header-nav {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+    flex-wrap: wrap;
+
+    a {
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+
+      &.active-nav {
+        color: #3b82f6;
+        background: #eff6ff;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.collapsible-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+
+  .collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+
+    .toggle-btn {
+      color: #64748b;
+    }
+  }
+
+  .introspect-body {
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-container {
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 8px;
+}
+

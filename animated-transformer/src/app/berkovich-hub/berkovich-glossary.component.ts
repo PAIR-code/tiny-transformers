@@ -171,7 +171,7 @@ function validateDigitsString(input: string, p: number): string {
           <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
           <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Operator Gradients</a>
           <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Gradients</a>
-          <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Space Explorers</a>
+          <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
           <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
         </nav>
       </header>

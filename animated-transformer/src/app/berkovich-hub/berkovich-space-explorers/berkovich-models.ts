@@ -282,6 +282,29 @@ export class BerkovichCharLearner {
 
     return { loss, predIdx, forwardResult: fwd };
   }
+
+  trainBatch(
+    samples: { contextIndices: number[]; targetIdx: number }[],
+    lr: number,
+    reg: number,
+    regEmbed: number,
+    aggMode: 'min' | 'average',
+    beta: number
+  ): { loss: number; accuracy: number } {
+    const B = samples.length;
+    let totalLoss = 0;
+    let correctCount = 0;
+
+    for (const sample of samples) {
+      const step = this.trainStep(sample.contextIndices, sample.targetIdx, lr, reg, regEmbed, aggMode, beta);
+      totalLoss += step.loss;
+      if (step.predIdx === sample.targetIdx) {
+        correctCount++;
+      }
+    }
+
+    return { loss: totalLoss / (B + 1e-15), accuracy: correctCount / (B + 1e-15) };
+  }
 }
 
 export interface EuclideanForwardResult {
@@ -406,5 +429,76 @@ export class EuclideanCharLearner {
     }
 
     return { loss, predIdx, forwardResult: fwd };
+  }
+
+  trainBatch(
+    samples: { contextIndices: number[]; targetIdx: number }[],
+    lr: number,
+    reg: number
+  ): { loss: number; accuracy: number } {
+    const B = samples.length;
+    let totalLoss = 0;
+    let correctCount = 0;
+
+    // Accumulators for gradients
+    const accumDW = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
+    const accumDb = Array(this.V).fill(0.0);
+    const accumDEmb = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
+    const embCounts = Array(this.V).fill(0);
+
+    for (const sample of samples) {
+      const N = sample.contextIndices.length;
+      const fwd = this.forward(sample.contextIndices);
+      const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+      totalLoss += loss;
+      const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+      if (predIdx === sample.targetIdx) correctCount++;
+
+      const gLogits = fwd.probs.map((pi, k) => pi - (k === sample.targetIdx ? 1 : 0));
+
+      for (let k = 0; k < this.V; k++) {
+        const gk = gLogits[k];
+        accumDb[k] += gk;
+        for (let d = 0; d < this.embDim; d++) {
+          accumDW[k][d] += gk * fwd.H[d];
+        }
+      }
+
+      // Backprop to embeddings
+      const dH = Array(this.embDim).fill(0.0);
+      for (let k = 0; k < this.V; k++) {
+        const gk = gLogits[k];
+        for (let d = 0; d < this.embDim; d++) {
+          dH[d] += gk * this.weights[k][d];
+        }
+      }
+
+      for (let j = 0; j < N; j++) {
+        const charIdx = sample.contextIndices[j];
+        embCounts[charIdx]++;
+        for (let d = 0; d < this.embDim; d++) {
+          accumDEmb[charIdx][d] += dH[d] / (N + 1e-15);
+        }
+      }
+    }
+
+    // Apply accumulated gradients (averaged by B)
+    for (let k = 0; k < this.V; k++) {
+      this.biases[k] -= lr * (accumDb[k] / B);
+      for (let d = 0; d < this.embDim; d++) {
+        this.weights[k][d] -= lr * (accumDW[k][d] / B + reg * this.weights[k][d]);
+      }
+    }
+
+    for (let charIdx = 0; charIdx < this.V; charIdx++) {
+      if (embCounts[charIdx] > 0) {
+        for (let d = 0; d < this.embDim; d++) {
+          const grad = accumDEmb[charIdx][d] / B;
+          this.embeddings[charIdx][d] -= lr * (grad + reg * this.embeddings[charIdx][d]);
+        }
+      }
+    }
+
+    return { loss: totalLoss / (B + 1e-15), accuracy: correctCount / (B + 1e-15) };
   }
 }

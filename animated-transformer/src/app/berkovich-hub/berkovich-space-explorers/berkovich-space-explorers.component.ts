@@ -34,6 +34,15 @@ import {
 
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
 import { BerkovichCharLearner, EuclideanCharLearner, BerkovichDisk } from './berkovich-models';
+import { MarkdownComponent } from 'ngx-markdown';
+import {
+  D3LineChartComponent,
+  ChartConfig,
+  defaultChartConfig,
+  ScalingKind,
+  CurveKind,
+  NamedChartPoint
+} from '../../d3-line-chart/d3-line-chart.component';
 
 // Interface for prediction logs in the UI
 interface PredictionLog {
@@ -53,13 +62,13 @@ interface PredictionLog {
     MatButtonModule,
     MatIconModule,
     RouterModule,
-    BerkovichTreeVisComponent
+    BerkovichTreeVisComponent,
+    D3LineChartComponent,
+    MarkdownComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
-  readonly mathFormula = '$$D_k = \\min_{d=1}^5 (-M_{k,d}), \\quad \\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$';
-
   // Configurable Parameters (Signals)
   readonly textInput = signal<string>(
 `ROMEO:
@@ -83,8 +92,24 @@ By any other name would smell as sweet;`
   readonly regularizationEmbed = signal<number>(0.02);
   readonly aggMode = signal<'min' | 'average'>('min');
   readonly beta = signal<number>(3.0);
-  readonly batchSize = signal<number>(8);
+  readonly batchSize = signal<number>(128);
   readonly trainingSpeed = signal<number>(100);
+
+  // Dynamic LaTeX Explainer and Dimension Helpers
+  readonly explainerText = computed(() => {
+    const dim = this.embDim();
+    return `
+We train a character-level model (like Kaparthy's Shakespeare next-character predictor) directly in your browser.
+Characters are embedded as **${dim} Berkovich disks** $(c_i, \\rho_i) \\in \\Gamma_p^{${dim}}$ (or Euclidean vectors for the baseline).
+Next token predictions are computed by taking the aggregated context representation and projecting it against learned affinoid domains (constraints) for each alphabet class using the **Affinoid Softmax**:
+
+$$D_k = \\min_{d=1}^{${dim}} (-M_{k,d}), \\quad \\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
+
+Where $M_{k,d}$ is the continuous path-metric error on the tree. Regularization penalizes the disk radii ($p^\\rho$), creating a continuous separation margin and resolving prediction ties.
+    `;
+  });
+
+  readonly dimensions = computed(() => Array.from({ length: this.embDim() }, (_, i) => i));
 
   // Model & Training State
   readonly berkovichModel = signal<BerkovichCharLearner | null>(null);
@@ -95,6 +120,49 @@ By any other name would smell as sweet;`
   readonly currentLossVal = signal<number>(0.0);
   readonly currentAccuracyVal = signal<number>(0.0);
   readonly recentPredictions = signal<PredictionLog[]>([]);
+
+  readonly isInspectExpanded = signal<boolean>(false);
+  readonly lossHistory = signal<number[]>([]);
+  readonly accuracyHistory = signal<number[]>([]);
+
+  readonly chartPoints = computed<NamedChartPoint[]>(() => {
+    const lossH = this.lossHistory();
+    const accH = this.accuracyHistory();
+    const points: NamedChartPoint[] = [];
+
+    lossH.forEach((val, index) => {
+      points.push({
+        x: index,
+        y: val,
+        name: 'Loss'
+      });
+    });
+
+    accH.forEach((val, index) => {
+      points.push({
+        x: index,
+        y: val,
+        name: 'Accuracy'
+      });
+    });
+
+    return points;
+  });
+
+  readonly chartConfig = computed<ChartConfig>(() => {
+    const defaultConfig = defaultChartConfig();
+    return {
+      ...defaultConfig,
+      width: 580,
+      height: 220,
+      xLabel: 'Step',
+      yLabel: 'Value',
+      yTickFormat: '.2f',
+      xTickFormat: 'd',
+      legendX: 420,
+      legendY: 10,
+    };
+  });
 
   // Introspection Selection
   readonly selectedIntrospectType = signal<'embedding' | 'constraint'>('embedding');
@@ -242,11 +310,17 @@ By any other name would smell as sweet;`
     this.currentLossVal.set(0.0);
     this.currentAccuracyVal.set(0.0);
     this.recentPredictions.set([]);
+    this.lossHistory.set([]);
+    this.accuracyHistory.set([]);
     this.lastStepTargets.set({ embedding: {}, constraint: {} });
 
     const vocab = this.vocab();
     const p = this.prime();
     const dim = this.embDim();
+
+    if (this.selectedDimension() >= dim) {
+      this.selectedDimension.set(0);
+    }
 
     if (this.approach() === 'euclidean-ngram') {
       this.euclideanModel.set(new EuclideanCharLearner(vocab, dim));
@@ -259,6 +333,13 @@ By any other name would smell as sweet;`
     if (vocab.length > 0) {
       const defaultChar = vocab.includes('e') ? 'e' : vocab[0];
       this.selectedChar.set(defaultChar);
+    }
+  }
+
+  onEmbDimChange(val: number) {
+    if (val >= 1 && val <= 10) {
+      this.embDim.set(val);
+      this.resetWeights();
     }
   }
 
@@ -297,7 +378,6 @@ By any other name would smell as sweet;`
     return { contextIndices, targetIdx, contextText, targetChar };
   }
 
-  // Run a single training batch step
   stepTrain() {
     const bSize = this.batchSize();
     const lr = this.learningRate();
@@ -309,50 +389,71 @@ By any other name would smell as sweet;`
     const vocab = this.vocab();
     const bMode = this.approach();
 
-    let totalLoss = 0;
-    let correctCount = 0;
-    const logs: PredictionLog[] = [];
-
     const bModel = this.berkovichModel();
     const eModel = this.euclideanModel();
 
+    // 1. Gather all samples in the batch
+    const samples: { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string }[] = [];
     for (let b = 0; b < bSize; b++) {
       const sample = this.getNextSample();
-      if (sample.targetIdx === -1) continue;
-
-      let loss = 0;
-      let predIdx = 0;
-
-      if (bMode !== 'euclidean-ngram' && bModel) {
-        // Berkovich update
-        const step = bModel.trainStep(sample.contextIndices, sample.targetIdx, lr, regT, regE, mode, temp);
-        loss = step.loss;
-        predIdx = step.predIdx;
-
-        // Record the targets for introspect displaying
-        this.updateIntrospectTargets(sample.contextIndices, sample.targetIdx, bModel);
-      } else if (eModel) {
-        // Euclidean update
-        const step = eModel.trainStep(sample.contextIndices, sample.targetIdx, lr, regT);
-        loss = step.loss;
-        predIdx = step.predIdx;
+      if (sample.targetIdx !== -1) {
+        samples.push(sample);
       }
-
-      totalLoss += loss;
-      const isCorrect = predIdx === sample.targetIdx;
-      if (isCorrect) correctCount++;
-
-      logs.push({
-        input: sample.contextText,
-        target: sample.targetChar,
-        pred: vocab[predIdx] || '?',
-        loss,
-        correct: isCorrect
-      });
     }
 
-    const avgLoss = totalLoss / bSize;
-    const avgAcc = correctCount / bSize;
+    if (samples.length === 0) return;
+
+    let avgLoss = 0;
+    let avgAcc = 0;
+    const logs: PredictionLog[] = [];
+
+    if (bMode !== 'euclidean-ngram' && bModel) {
+      // Train batch on Berkovich model
+      const batchResult = bModel.trainBatch(samples, lr, regT, regE, mode, temp);
+      avgLoss = batchResult.loss;
+      avgAcc = batchResult.accuracy;
+
+      // Generate logs using the updated model for the UI list
+      for (const sample of samples) {
+        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        const isCorrect = predIdx === sample.targetIdx;
+        const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+
+        logs.push({
+          input: sample.contextText,
+          target: sample.targetChar,
+          pred: vocab[predIdx] || '?',
+          loss,
+          correct: isCorrect
+        });
+      }
+
+      // Record the targets for introspect displaying for the very last sample in the batch
+      const lastSample = samples[samples.length - 1];
+      this.updateIntrospectTargets(lastSample.contextIndices, lastSample.targetIdx, bModel);
+
+    } else if (eModel) {
+      // Train batch on Euclidean model
+      const batchResult = eModel.trainBatch(samples, lr, regT);
+      avgLoss = batchResult.loss;
+      avgAcc = batchResult.accuracy;
+
+      for (const sample of samples) {
+        const fwd = eModel.forward(sample.contextIndices);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        const isCorrect = predIdx === sample.targetIdx;
+        const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+
+        logs.push({
+          input: sample.contextText,
+          target: sample.targetChar,
+          pred: vocab[predIdx] || '?',
+          loss,
+          correct: isCorrect
+        });
+      }
+    }
 
     this.currentLossVal.set(avgLoss);
     this.currentAccuracyVal.set(avgAcc);
@@ -363,6 +464,10 @@ By any other name would smell as sweet;`
       ...logs.reverse(),
       ...current
     ].slice(0, 15));
+
+    // Record the loss and accuracy history for chart plotting
+    this.lossHistory.update(h => [...h, avgLoss]);
+    this.accuracyHistory.update(h => [...h, avgAcc]);
 
     // Force refresh models reference to trigger UI bindings
     if (bModel) this.berkovichModel.set(bModel);

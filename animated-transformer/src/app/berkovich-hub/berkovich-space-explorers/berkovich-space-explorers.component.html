@@ -13,16 +13,24 @@ limitations under the License.
 ==============================================================================-->
 <div class="space-explorers-container">
   <!-- Top Navigation & Header -->
-  <header class="page-header">
-    <div class="header-left">
-      <a routerLink="/berkovich" class="back-button">
+  <header class="explorer-header" style="margin-bottom: 24px;">
+    <div class="header-content">
+      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
         <mat-icon>arrow_back</mat-icon>
-      </a>
+      </button>
       <div>
-        <h1>Berkovich Space Explorers</h1>
+        <h1>Shakespeare next-character predictor</h1>
         <p class="subtitle">Introspective Browser-based Next-Character Learner in Berkovich & p-adic Spaces</p>
       </div>
     </div>
+    <nav class="header-nav">
+      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
+      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
+      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Operator Gradients</a>
+      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Gradients</a>
+      <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
+      <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+    </nav>
   </header>
 
   <div class="explorers-grid">
@@ -32,15 +40,7 @@ limitations under the License.
       <!-- Explainer Cards -->
       <section class="card explainer-card">
         <h3><mat-icon>info</mat-icon> How does it work?</h3>
-        <p>
-          We train a character-level model (like Kaparthy's Shakespeare next-character predictor) directly in your browser.
-          Characters are embedded as <strong>5 Berkovich disks</strong> $(c_i, \rho_i) \in \Gamma_p^5$.
-          Next token predictions are computed by taking the aggregated context representation and projecting it against learned affinoid domains (constraints) for each alphabet class using the <strong>Affinoid Softmax</strong>:
-        </p>
-        <div class="math-block" [innerText]="mathFormula"></div>
-        <p>
-          Where $M_{{ '{' }}k,d{{ '}' }}$ is the continuous path-metric error on the tree. Regularization penalizes the disk radii ($p^\rho$), creating a continuous separation margin and resolving prediction ties.
-        </p>
+        <markdown [katex]="true" [data]="explainerText()"></markdown>
       </section>
 
       <!-- Model Setup & Parameters Card -->
@@ -66,6 +66,11 @@ limitations under the License.
               <option value="7">7</option>
               <option value="11">11</option>
             </select>
+          </div>
+
+          <div class="form-field">
+            <label for="emb-dim">Embedding Size (Dims)</label>
+            <input id="emb-dim" type="number" min="1" max="10" [value]="embDim()" (change)="onEmbDimChange(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
@@ -103,7 +108,7 @@ limitations under the License.
 
           <div class="form-field">
             <label for="batch-size">Batch Size</label>
-            <input id="batch-size" type="number" min="1" max="128" [value]="batchSize()" (change)="batchSize.set(+$any($event.target).value)" />
+            <input id="batch-size" type="number" min="1" max="512" [value]="batchSize()" (change)="batchSize.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
@@ -173,152 +178,145 @@ limitations under the License.
     <!-- RIGHT PANEL: Introspector & Tree Visualizer -->
     <div class="panel-right">
       
-      <!-- Model Introspection & Parameter Tree Vis -->
-      <section class="card viz-card" *ngIf="approach() !== 'euclidean-ngram'">
-        <div class="viz-header">
-          <h3><mat-icon>pageview</mat-icon> Parameter Introspector</h3>
-          
-          <div class="selector-row">
-            <select [value]="selectedIntrospectType()" (change)="selectedIntrospectType.set($any($event.target).value)">
-              <option value="embedding">Char Embeddings (E)</option>
-              <option value="constraint">Class Targets (W)</option>
-            </select>
-
-            <select [value]="selectedChar()" (change)="selectedChar.set($any($event.target).value)">
-              <option *ngFor="let char of vocab()" [value]="char">
-                Character: '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
-              </option>
-            </select>
-
-            <select [value]="selectedDimension()" (change)="selectedDimension.set(+$any($event.target).value)">
-              <option *ngFor="let d of [0,1,2,3,4]" [value]="d">Dimension {{ d }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Render the selected parameter details -->
-        <div class="param-summary" *ngIf="selectedParameterTreeProps() as props">
-          <div class="param-badge">
-            <span class="param-name">
-              {{ selectedIntrospectType() === 'embedding' ? 'E' : 'W' }}[{{ selectedChar() === '\n' ? '\\n' : selectedChar() }}][{{ selectedDimension() }}]
-            </span>
-            <span class="param-val">
-              Center: <strong>{{ props.centerDigitsInput }}</strong>, Log-radius: <strong>{{ props.currentLogRadius.toFixed(4) }}</strong>
-            </span>
-          </div>
-          
-          <div class="param-target-badge">
-            Last Step Target: Center <strong>{{ props.targetDigitsInput }}</strong>, Log-radius <strong>{{ props.targetLogRadius.toFixed(2) }}</strong>
-            <span class="loss-pill" [class.loss-low]="props.gradientBreakdown.loss < 0.1">
-              Path Loss: {{ props.gradientBreakdown.loss.toFixed(4) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- The embedded Berkovich Tree visualization component -->
-        <div class="tree-vis-wrapper" *ngIf="selectedParameterTreeProps() as props">
-          <app-berkovich-tree-vis
-            [prime]="props.prime"
-            [targetRational]="props.targetRational"
-            [targetLogRadius]="props.targetLogRadius"
-            [targetDigitsInput]="props.targetDigitsInput"
-            [currentCenter]="props.currentCenter"
-            [centerDigitsInput]="props.centerDigitsInput"
-            [currentLogRadius]="props.currentLogRadius"
-            [isDraggingRho]="props.isDraggingRho"
-            [gradientBreakdown]="props.gradientBreakdown"
-            [currentDistanceValuation]="props.currentDistanceValuation"
-            [isPlaying]="false"
-            [canUndo]="false"
-            [canStep]="false"
-            (logRadiusChange)="onTreeLogRadiusChange($event)"
-          ></app-berkovich-tree-vis>
-        </div>
-
-        <div class="tree-tip">
-          <mat-icon>mouse</mat-icon> <em>Pro-tip:</em> Drag the yellow/blue nodes or level indicators on the tree to manually adjust the center & log-radius values for this parameter in real-time!
+      <!-- Training Progress Chart Card -->
+      <section class="card chart-card">
+        <h3><mat-icon>show_chart</mat-icon> Training Progress (Loss &amp; Accuracy)</h3>
+        <div class="chart-container" style="display: flex; justify-content: center; align-items: center; min-height: 230px;">
+          @if (chartPoints().length > 0) {
+            <app-d3-line-chart
+              [dataPoints]="chartPoints()"
+              [inChartConfig]="chartConfig()"
+            />
+          } @else {
+            <div class="empty-chart-state" style="color: #64748b; font-size: 13px; text-align: center; padding: 24px;">
+              <mat-icon style="font-size: 32px; height: 32px; width: 32px; color: #cbd5e1; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">insights</mat-icon>
+              No training data yet. Click <strong>Step</strong> or <strong>Auto-Train</strong> to start learning.
+            </div>
+          }
         </div>
       </section>
 
-      <!-- Embeddings Matrix Overview -->
-      <section class="card matrix-card">
-        <h3><mat-icon>grid_on</mat-icon> Learned Parameters Matrix Overview</h3>
-        <p class="summary-text" *ngIf="approach() !== 'euclidean-ngram'">
-          Showing centers and log-radii for each vocabulary character across all 5 dimensions. Select any cell to load it in the Introspector tree above.
-        </p>
-        
-        <div class="table-container">
-          <table class="matrix-table" *ngIf="approach() !== 'euclidean-ngram' && berkovichModel() as model">
-            <thead>
-              <tr>
-                <th>Char</th>
-                <th *ngFor="let d of [0,1,2,3,4]">Dim {{ d }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let char of vocab(); let idx = index">
-                <td class="char-cell" [class.selected-row]="selectedChar() === char">
-                  '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
-                </td>
-                <td *ngFor="let d of [0,1,2,3,4]" 
-                    class="matrix-cell" 
-                    [class.selected-cell]="selectedChar() === char && selectedDimension() === d"
-                    (click)="selectParameter(char, d)">
-                  <div class="cell-center">{{ formatCenter(model.embeddings[idx][d].center) }}</div>
-                  <div class="cell-rho">&rho;={{ model.embeddings[idx][d].rho.toFixed(2) }}</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <table class="matrix-table" *ngIf="approach() === 'euclidean-ngram' && euclideanModel() as model">
-            <thead>
-              <tr>
-                <th>Char</th>
-                <th *ngFor="let d of [0,1,2,3,4]">Dim {{ d }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let char of vocab(); let idx = index">
-                <td class="char-cell">
-                  '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
-                </td>
-                <td *ngFor="let d of [0,1,2,3,4]" class="matrix-cell">
-                  {{ model.embeddings[idx][d].toFixed(4) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Collapsible Introspection Card -->
+      <section class="card collapsible-card introspect-section-card" *ngIf="approach() !== 'euclidean-ngram'">
+        <div class="collapsible-header" (click)="isInspectExpanded.set(!isInspectExpanded())" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; padding: 4px 0;">
+          <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">
+            <mat-icon style="color: #0f766e;">analytics</mat-icon>
+            <span>Model Weights &amp; Parameter Introspector</span>
+          </h3>
+          <button mat-icon-button class="toggle-btn" aria-label="Toggle parameter introspector">
+            <mat-icon style="color: #64748b;">{{ isInspectExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
         </div>
-      </section>
 
-      <!-- Recent Predictions History Logs -->
-      <section class="card predictions-card">
-        <h3><mat-icon>receipt_long</mat-icon> Step Predictions Log</h3>
-        
-        <div class="predictions-list">
-          <div class="prediction-header-row">
-            <span>Context Input</span>
-            <span>Target</span>
-            <span>Predicted (Prob)</span>
-            <span>Loss</span>
-            <span>Status</span>
-          </div>
+        @if (isInspectExpanded()) {
+          <div class="introspect-body animate-fade-in" style="display: flex; flex-direction: column; gap: 24px; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            
+            <!-- Parameter Introspector Tree -->
+            <div class="viz-header" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px;">
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
+                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #0f766e;">pageview</mat-icon>
+                <span>Parameter Tree Visualizer</span>
+              </h4>
+              
+              <div class="selector-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <select [value]="selectedIntrospectType()" (change)="selectedIntrospectType.set($any($event.target).value)">
+                  <option value="embedding">Char Embeddings (E)</option>
+                  <option value="constraint">Class Targets (W)</option>
+                </select>
 
-          <div class="prediction-item" *ngFor="let item of recentPredictions(); let i = index" [class.correct-pred]="item.correct">
-            <span class="context-col">"{{ item.input }}"</span>
-            <span class="target-col">'{{ item.target === '\n' ? '\\n' : (item.target === ' ' ? '␣' : item.target) }}'</span>
-            <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : (item.pred === ' ' ? '␣' : item.pred) }}'</span>
-            <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
-            <span class="status-col">
-              <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
-            </span>
-          </div>
+                <select [value]="selectedChar()" (change)="selectedChar.set($any($event.target).value)">
+                  <option *ngFor="let char of vocab()" [value]="char">
+                    Character: '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                  </option>
+                </select>
 
-          <div class="empty-predictions" *ngIf="recentPredictions().length === 0">
-            No steps executed yet. Click "Train" or "Step" to run updates.
+                <select [value]="selectedDimension()" (change)="selectedDimension.set(+$any($event.target).value)">
+                  <option *ngFor="let d of dimensions()" [value]="d">Dimension {{ d }}</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Render the selected parameter details -->
+            <div class="param-summary" *ngIf="selectedParameterTreeProps() as props">
+              <div class="param-badge">
+                <span class="param-name">
+                  {{ selectedIntrospectType() === 'embedding' ? 'E' : 'W' }}[{{ selectedChar() === '\n' ? '\\n' : selectedChar() }}][{{ selectedDimension() }}]
+                </span>
+                <span class="param-val">
+                  Center: <strong>{{ props.centerDigitsInput }}</strong>, Log-radius: <strong>{{ props.currentLogRadius.toFixed(4) }}</strong>
+                </span>
+              </div>
+              
+              <div class="param-target-badge">
+                Last Step Target: Center <strong>{{ props.targetDigitsInput }}</strong>, Log-radius <strong>{{ props.targetLogRadius.toFixed(2) }}</strong>
+                <span class="loss-pill" [class.loss-low]="props.gradientBreakdown.loss < 0.1">
+                  Path Loss: {{ props.gradientBreakdown.loss.toFixed(4) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- The embedded Berkovich Tree visualization component -->
+            <div class="tree-vis-wrapper" *ngIf="selectedParameterTreeProps() as props">
+              <app-berkovich-tree-vis
+                [prime]="props.prime"
+                [targetRational]="props.targetRational"
+                [targetLogRadius]="props.targetLogRadius"
+                [targetDigitsInput]="props.targetDigitsInput"
+                [currentCenter]="props.currentCenter"
+                [centerDigitsInput]="props.centerDigitsInput"
+                [currentLogRadius]="props.currentLogRadius"
+                [isDraggingRho]="props.isDraggingRho"
+                [gradientBreakdown]="props.gradientBreakdown"
+                [currentDistanceValuation]="props.currentDistanceValuation"
+                [isPlaying]="false"
+                [canUndo]="false"
+                [canStep]="false"
+                (logRadiusChange)="onTreeLogRadiusChange($event)"
+              ></app-berkovich-tree-vis>
+            </div>
+
+            <div class="tree-tip">
+              <mat-icon>mouse</mat-icon> <em>Pro-tip:</em> Drag the yellow/blue nodes or level indicators on the tree to manually adjust center & log-radius values in real-time!
+            </div>
+
+            <!-- Embeddings Matrix Overview -->
+            <div class="matrix-overview-wrapper" style="margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
+                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #0f766e;">grid_on</mat-icon>
+                <span>Learned Parameters Matrix Overview</span>
+              </h4>
+              <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
+                Showing centers and log-radii for each vocabulary character across all 5 dimensions. Select any cell to load it in the Introspector tree above.
+              </p>
+              
+              <div class="table-container">
+                <table class="matrix-table" *ngIf="berkovichModel() as model">
+                  <thead>
+                    <tr>
+                      <th>Char</th>
+                      <th *ngFor="let d of dimensions()">Dim {{ d }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let char of vocab(); let idx = index">
+                      <td class="char-cell" [class.selected-row]="selectedChar() === char">
+                        '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                      </td>
+                      <td *ngFor="let d of dimensions()" 
+                          class="matrix-cell" 
+                          [class.selected-cell]="selectedChar() === char && selectedDimension() === d"
+                          (click)="selectParameter(char, d)">
+                        <div class="cell-center">{{ formatCenter(model.embeddings[idx][d].center) }}</div>
+                        <div class="cell-rho">&rho;={{ model.embeddings[idx][d].rho.toFixed(2) }}</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
-        </div>
+        }
       </section>
 
     </div>
