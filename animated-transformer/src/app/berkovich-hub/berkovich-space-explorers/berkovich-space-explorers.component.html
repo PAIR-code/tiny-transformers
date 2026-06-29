@@ -305,8 +305,12 @@ limitations under the License.
                           class="matrix-cell" 
                           [class.selected-cell]="selectedChar() === char && selectedDimension() === d"
                           (click)="selectParameter(char, d)">
-                        <div class="cell-center">{{ formatCenter(model.embeddings[idx][d].center) }}</div>
-                        <div class="cell-rho">&rho;={{ model.embeddings[idx][d].rho.toFixed(2) }}</div>
+                        <app-berkovich-digit-display
+                          [center]="model.embeddings[idx][d].center"
+                          [rho]="model.embeddings[idx][d].rho"
+                          [prime]="prime()"
+                          [showRho]="true"
+                        />
                       </td>
                     </tr>
                   </tbody>

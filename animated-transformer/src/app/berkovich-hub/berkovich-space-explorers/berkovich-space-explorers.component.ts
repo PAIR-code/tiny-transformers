@@ -35,6 +35,7 @@ import {
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
 import { BerkovichCharLearner, EuclideanCharLearner, BerkovichDisk } from './berkovich-models';
 import { MarkdownComponent } from 'ngx-markdown';
+import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import {
   D3LineChartComponent,
   ChartConfig,
@@ -64,7 +65,8 @@ interface PredictionLog {
     RouterModule,
     BerkovichTreeVisComponent,
     D3LineChartComponent,
-    MarkdownComponent
+    MarkdownComponent,
+    BerkovichDigitDisplayComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
