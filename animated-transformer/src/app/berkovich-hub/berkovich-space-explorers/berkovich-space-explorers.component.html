@@ -33,17 +33,34 @@ limitations under the License.
     </nav>
   </header>
 
-  <div class="explorers-grid">
-    <!-- LEFT PANEL: Configuration, Control, and Dataset -->
-    <div class="panel-left">
-      
-      <!-- Explainer Cards -->
-      <section class="card explainer-card">
-        <h3><mat-icon>info</mat-icon> How does it work?</h3>
-        <markdown [katex]="true" [data]="explainerText()"></markdown>
+  <div class="dashboard-rows">
+    <!-- ROW 1: Dataset Snippet & Model Config -->
+    <div class="dashboard-row two-columns">
+      <!-- Left Column: Dataset Snippet -->
+      <section class="card dataset-card">
+        <div class="card-header-row">
+          <h3><mat-icon>article</mat-icon> Dataset Snippet</h3>
+          <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
+        </div>
+        <textarea class="text-input" [value]="textInput()" (input)="onTextInput($any($event.target).value)"></textarea>
+        
+        <div class="dataset-meta">
+          <span><strong>Text size:</strong> {{ textInput().length }} chars</span>
+          <span><strong>Vocabulary size (V):</strong> {{ vocab().length }} unique characters</span>
+        </div>
+        
+        <div class="vocab-chips-container">
+          <div class="vocab-title">Vocabulary Mapping:</div>
+          <div class="vocab-chips">
+            <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
+              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}</span>
+              <span class="idx-span">{{ idx }}</span>
+            </span>
+          </div>
+        </div>
       </section>
 
-      <!-- Model Setup & Parameters Card -->
+      <!-- Right Column: Model Configuration -->
       <section class="card config-card">
         <h3><mat-icon>settings</mat-icon> Model Configuration</h3>
         
@@ -117,8 +134,11 @@ limitations under the License.
           </div>
         </div>
       </section>
+    </div>
 
-      <!-- Training controls card -->
+    <!-- ROW 2: Training Controls & Training Progress -->
+    <div class="dashboard-row two-columns">
+      <!-- Left Column: Training Controls -->
       <section class="card training-controls-card">
         <h3><mat-icon>play_circle</mat-icon> Training Controls</h3>
         <div class="stats-row">
@@ -149,36 +169,7 @@ limitations under the License.
         </div>
       </section>
 
-      <!-- Training Dataset Setup Card -->
-      <section class="card dataset-card">
-        <div class="card-header-row">
-          <h3><mat-icon>article</mat-icon> Dataset Snippet</h3>
-          <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
-        </div>
-        <textarea class="text-input" [value]="textInput()" (input)="onTextInput($any($event.target).value)"></textarea>
-        
-        <div class="dataset-meta">
-          <span><strong>Text size:</strong> {{ textInput().length }} chars</span>
-          <span><strong>Vocabulary size (V):</strong> {{ vocab().length }} unique characters</span>
-        </div>
-        
-        <div class="vocab-chips-container">
-          <div class="vocab-title">Vocabulary Mapping:</div>
-          <div class="vocab-chips">
-            <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
-              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}</span>
-              <span class="idx-span">{{ idx }}</span>
-            </span>
-          </div>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- RIGHT PANEL: Introspector & Tree Visualizer -->
-    <div class="panel-right">
-      
-      <!-- Training Progress Chart Card -->
+      <!-- Right Column: Training Progress (Loss & Accuracy Chart) -->
       <section class="card chart-card">
         <h3><mat-icon>show_chart</mat-icon> Training Progress (Loss &amp; Accuracy)</h3>
         <div class="chart-container" style="display: flex; justify-content: center; align-items: center; min-height: 230px;">
@@ -195,8 +186,17 @@ limitations under the License.
           }
         </div>
       </section>
+    </div>
 
-      <!-- Collapsible Introspection Card -->
+    <!-- ROW 3: Explainer ("How does it work?") & Parameter Inspector -->
+    <div class="dashboard-row stack-column">
+      <!-- How does it work? -->
+      <section class="card explainer-card">
+        <h3><mat-icon>info</mat-icon> How does it work?</h3>
+        <markdown [katex]="true" [data]="explainerText()"></markdown>
+      </section>
+
+      <!-- Model Weights & Parameter Introspector -->
       <section class="card collapsible-card introspect-section-card" *ngIf="approach() !== 'euclidean-ngram'">
         <div class="collapsible-header" (click)="isInspectExpanded.set(!isInspectExpanded())" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; padding: 4px 0;">
           <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">
@@ -282,7 +282,7 @@ limitations under the License.
                 <span>Learned Parameters Matrix Overview</span>
               </h4>
               <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
-                Showing centers and log-radii for each vocabulary character across all 5 dimensions. Select any cell to load it in the Introspector tree above.
+                Showing centers and log-radii for each vocabulary character across all active dimensions. Select any cell to load it in the Introspector tree above.
               </p>
               
               <div class="table-container">
@@ -314,7 +314,6 @@ limitations under the License.
           </div>
         }
       </section>
-
     </div>
   </div>
 </div>

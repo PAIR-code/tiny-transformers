@@ -78,17 +78,30 @@ limitations under the License.
   }
 }
 
-.explorers-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+.dashboard-rows {
+  display: flex;
+  flex-direction: column;
   gap: 24px;
+}
+
+.dashboard-row {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
 
   @media (min-width: 1024px) {
-    grid-template-columns: 450px 1fr;
+    flex-direction: row;
+    align-items: stretch;
+
+    &.two-columns > * {
+      flex: 1;
+      min-width: 0;
+    }
   }
 }
 
-.panel-left, .panel-right {
+.stack-column {
   display: flex;
   flex-direction: column;
   gap: 24px;
