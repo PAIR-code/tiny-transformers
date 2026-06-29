@@ -40,7 +40,10 @@ limitations under the License.
       <section class="card dataset-card">
         <div class="card-header-row">
           <h3><mat-icon>article</mat-icon> Dataset Snippet</h3>
-          <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="small-btn" (click)="loadToyData()"><mat-icon>extension</mat-icon> Fetch Toy Data</button>
+            <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
+          </div>
         </div>
         <textarea class="text-input" [value]="textInput()" (input)="onTextInput($any($event.target).value)"></textarea>
         

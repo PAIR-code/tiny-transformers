@@ -302,6 +302,11 @@ Where $M_{k,d}$ is the continuous path-metric error on the tree. Regularization 
     }
   }
 
+  loadToyData() {
+    this.textInput.set("the cat sat on the mat");
+    this.resetWeights();
+  }
+
   resetWeights() {
     this.pauseTraining();
     this.stepCount.set(0);
