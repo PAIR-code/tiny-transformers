@@ -70,18 +70,7 @@ interface PredictionLog {
 })
 export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   // Configurable Parameters (Signals)
-  readonly textInput = signal<string>(
-`ROMEO:
-Shall I speak more, or shall I speak at this?
-JULIET:
-'Tis but thy name that is my enemy;
-Thou art thyself, though not a Montague.
-What's Montague? it is nor hand, nor foot,
-Nor arm, nor face, nor any other part
-Belonging to a man. O, be some other name!
-What's in a name? that which we call a rose
-By any other name would smell as sweet;`
-  );
+  readonly textInput = signal<string>("the cat sat on the mat");
 
   readonly approach = signal<'berkovich-bigram' | 'berkovich-ngram' | 'euclidean-ngram'>('berkovich-bigram');
   readonly prime = signal<number>(3);
@@ -95,17 +84,51 @@ By any other name would smell as sweet;`
   readonly batchSize = signal<number>(128);
   readonly trainingSpeed = signal<number>(100);
 
-  // Dynamic LaTeX Explainer and Dimension Helpers
   readonly explainerText = computed(() => {
+    const approach = this.approach();
     const dim = this.embDim();
+
+    if (approach === 'euclidean-ngram') {
+      return `
+#### Euclidean N-Gram Predictor (Baseline)
+This baseline uses standard vector spaces. Characters are mapped to Euclidean vectors $e_c \\in \\mathbb{R}^{${dim}}$.
+
+1. **Forward Pass**:
+   * For context characters $x_1, \\dots, x_N$, we look up their embeddings $E[x_i]$ and average them: $H = \\frac{1}{N} \\sum_{i=1}^N E[x_i]$.
+   * Compute scores (logits) for each alphabet class $k$ using weights $W_k$ and bias $b_k$: $S_k = b_k + H \\cdot W_k$.
+   * Propagate probabilities using the Standard Softmax:
+     $$\\pi_k = \\frac{e^{\\beta S_k}}{\\sum_j e^{\\beta S_j}}$$
+
+2. **Hyper-parameters & Variables**:
+   * **Embedding Size (Dims)**: Dimension of vector space (${dim}).
+   * **Context Size (N)**: Number of historical characters used for prediction.
+   * **Learning Rate ($\\eta$)**: Size of gradient updates.
+   * **Softmax Temp ($\\beta$)**: Controls prediction entropy (higher $\\beta$ creates peakier probabilities).
+      `;
+    }
+
     return `
-We train a character-level model (like Kaparthy's Shakespeare next-character predictor) directly in your browser.
-Characters are embedded as **${dim} Berkovich disks** $(c_i, \\rho_i) \\in \\Gamma_p^{${dim}}$ (or Euclidean vectors for the baseline).
-Next token predictions are computed by taking the aggregated context representation and projecting it against learned affinoid domains (constraints) for each alphabet class using the **Affinoid Softmax**:
+#### Berkovich p-adic Predictor (Non-Archimedean)
+In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) \\in \\Gamma_p^{${dim}}$, where $c \\in \\mathbb{Q}_p$ is the branch center and $\\rho \\in \\mathbb{R}$ is the log-radius of uncertainty.
 
-$$D_k = \\min_{d=1}^{${dim}} (-M_{k,d}), \\quad \\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
+1. **Forward Pass**:
+   * **Context Aggregation**: Context embeddings $E[x_i]$ are aggregated into $H$ using the **Aggregation Mode**:
+     * *Supremum Norm (Min Logit)*: $H_d = \\bigoplus_i E[x_i]_d$ (corresponds to the minimum logit/supremum disk on the tree).
+     * *Affinoid Average*: A weighted centroid on the p-adic tree.
+   * **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$:
+     $$D_{k,d} = -\\text{dist}_{\\text{tree}}(H_d, W_{k,d})$$
+     $$D_k = \\min_{d=1}^{${dim}} D_{k,d}$$
+   * **Affinoid Softmax**:
+     $$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
 
-Where $M_{k,d}$ is the continuous path-metric error on the tree. Regularization penalizes the disk radii ($p^\\rho$), creating a continuous separation margin and resolving prediction ties.
+2. **Why two Radius Regularizations?**
+   * **Radius Reg (Target $\\lambda$)**: Shrinks the log-radii of classification disks $W_k$. Penalizing $\\rho(W_k)$ pushes the boundary disks to resolve ties and create clear margins between prediction outputs.
+   * **Radius Reg (Embed $\\lambda$)**: Shrinks the log-radii of character embeddings $E_c$. Shrunk embedding sizes mean cleaner p-adic tree coordinates with tighter branches, preventing overlaps.
+
+3. **Hyper-parameters & Variables**:
+   * **p-adic Base ($p$)**: The prime number controlling tree branching.
+   * **Embedding Size (Dims)**: Number of dimensions/trees (${dim}).
+   * **Softmax Temp ($\\beta$)**: Direct scaling of affinoid path metric values.
     `;
   });
 
