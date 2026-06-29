@@ -86,6 +86,11 @@ export type ChartConfig = {
   yLabel: string; // a label for the y-axis
   xLabel: string; // a label for the x-axis
 
+  // Optional dual-Y axis settings
+  rightYLabel?: string;
+  rightYLineNames?: string[];
+  rightYDomain?: [number, number];
+
   // The scaling factor for x and y axis.
   xScaleKind: ScalingKind;
   yScaleKind: ScalingKind;
@@ -121,6 +126,10 @@ export function defaultChartConfig(): ChartConfig {
     yLabel: 'y: undefined', // a label for the y-axis
     xLabel: 'x: undefined', // a label for the x-axis
 
+    rightYLabel: '',
+    rightYLineNames: [],
+    rightYDomain: undefined,
+
     // The scaling factor for x and y axis.
     xScaleKind: ScalingKind.scaleLinear,
     yScaleKind: ScalingKind.scaleLinear,
@@ -152,6 +161,7 @@ type ChartElements = {
   legend: d3.Selection<SVGGElement, unknown, null, undefined>;
   xAxisG: d3.Selection<SVGGElement, unknown, null, undefined>;
   yAxisG: d3.Selection<SVGGElement, unknown, null, undefined>;
+  yAxisRightG: d3.Selection<SVGGElement, unknown, null, undefined>;
   yAxisLinesG: d3.Selection<SVGGElement, unknown, null, undefined>;
   pathsG: d3.Selection<SVGGElement, unknown, null, undefined>;
 };
@@ -207,6 +217,7 @@ export class D3LineChartComponent {
       legend: svg.append('g'),
       xAxisG: svg.append('g'),
       yAxisG: svg.append('g'),
+      yAxisRightG: svg.append('g'),
       yAxisLinesG: svg.append('g'),
       pathsG: svg.append('g'),
     };
@@ -239,12 +250,26 @@ export class D3LineChartComponent {
     const yRange = [height - marginBottom, marginTop];
 
     const xDomain = d3.extent(shownData.map((d) => d.x)) as [number, number];
-    const yDomain = d3.extent(shownData.map((d) => d.y)) as [number, number];
     const xScale = scaleFn(config.xScaleKind, xDomain, xRange);
-    const yScale = scaleFn(config.yScaleKind, yDomain, yRange);
+
+    const rightNames = new Set(config.rightYLineNames || []);
+    const leftData = shownData.filter(d => !rightNames.has(d.name));
+    const rightData = shownData.filter(d => rightNames.has(d.name));
+
+    const yDomainLeft = d3.extent(leftData.map((d) => d.y)) as [number, number];
+    if (yDomainLeft[0] !== undefined) {
+      yDomainLeft[0] = 0;
+    }
+    const yScaleLeft = scaleFn(config.yScaleKind, yDomainLeft, yRange);
+
+    let yScaleRight: ScaleFn | undefined;
+    if (rightNames.size > 0) {
+      const yDomainRight = config.rightYDomain || (d3.extent(rightData.map((d) => d.y)) as [number, number]);
+      yScaleRight = scaleFn(config.yScaleKind, yDomainRight, yRange);
+    }
 
     // The x and y axis lines, labels, and ticks.
-    this.updateAxis(chartElements, config, xScale, yScale);
+    this.updateAxis(chartElements, config, xScale, yScaleLeft, yScaleRight);
 
     const color = d3
       .scaleOrdinal<string, string>()
@@ -253,7 +278,7 @@ export class D3LineChartComponent {
 
     // The Key/Lengend.
     this.updateLegend(chartElements, config, color, hiddenLineNames, pointsByName);
-    this.updateLines(chartElements, config, color, xScale, yScale, hiddenLineNames, pointsByName);
+    this.updateLines(chartElements, config, color, xScale, yScaleLeft, yScaleRight, hiddenLineNames, pointsByName);
   }
 
   updateLines(
@@ -261,36 +286,37 @@ export class D3LineChartComponent {
     config: ChartConfig,
     color: d3.ScaleOrdinal<string, string, never>,
     xScale: ScaleFn,
-    yScale: ScaleFn,
+    yScaleLeft: ScaleFn,
+    yScaleRight: ScaleFn | undefined,
     hiddenLineNames: Set<string>,
     pointsByName: { [name: string]: NamedChartPoint[] },
   ) {
     const { pathsG } = chartElements;
     const pointNamesToPlot = Object.keys(pointsByName).filter((n) => !hiddenLineNames.has(n));
+    const rightNames = new Set(config.rightYLineNames || []);
 
-    // Make the lines in the chart.
-    const line = d3
-      .line<NamedChartPoint>(
-        (p) => p.x,
-        (p) => p.y,
-      )
-      .curve(curveFn(config.lineCurveKind))
-      .x((p) => xScale(p.x))
-      .y((p) => yScale(p.y));
+    pathsG.selectAll('path').remove();
 
-    pathsG
-      .selectAll('path')
-      .data(pointNamesToPlot)
-      .join('path')
-      // append("path")
-      .attr('fill', 'none')
-      .attr('stroke', (d) => color(d))
-      // CONSIDER: allow this to be over-written by a line specific style?
-      .attr('stroke-width', config.lineStrokeWidth)
-      .attr('stroke-linecap', config.lineStrokeLinecap)
-      .attr('stroke-linejoin', config.lineStrokeLinejoin)
-      .attr('stroke-opacity', config.lineStrokeOpacity)
-      .attr('d', (d) => line(pointsByName[d]));
+    pointNamesToPlot.forEach((name) => {
+      const activeYScale = (rightNames.has(name) && yScaleRight) ? yScaleRight : yScaleLeft;
+      
+      const line = d3
+        .line<NamedChartPoint>()
+        .curve(curveFn(config.lineCurveKind))
+        .x((p) => xScale(p.x))
+        .y((p) => activeYScale(p.y));
+
+      pathsG
+        .append('path')
+        .datum(pointsByName[name])
+        .attr('fill', 'none')
+        .attr('stroke', color(name))
+        .attr('stroke-width', config.lineStrokeWidth)
+        .attr('stroke-linecap', config.lineStrokeLinecap)
+        .attr('stroke-linejoin', config.lineStrokeLinejoin)
+        .attr('stroke-opacity', config.lineStrokeOpacity)
+        .attr('d', line);
+    });
   }
 
   updateLegend(
@@ -349,38 +375,63 @@ export class D3LineChartComponent {
     chartElements: ChartElements,
     config: ChartConfig,
     xScale: ScaleFn,
-    yScale: ScaleFn,
+    yScaleLeft: ScaleFn,
+    yScaleRight: ScaleFn | undefined,
   ): void {
-    const { svg, xAxisG, yAxisG, yAxisLinesG } = chartElements;
+    const { svg, xAxisG, yAxisG, yAxisRightG, yAxisLinesG } = chartElements;
     const { width, height, marginLeft, marginRight, marginTop, marginBottom } = config;
 
-    // Make the x and y axis, and
     const xAxis = d3
       .axisBottom(xScale)
       .ticks(width / 80, d3.format(config.xTickFormat))
       .tickSizeOuter(0);
-    const yAxis = d3.axisLeft(yScale).ticks(height / 40, d3.format(config.yTickFormat));
-    const yAxisLines = d3.axisLeft(yScale).ticks(height / 40, null);
+    const yAxisLeft = d3.axisLeft(yScaleLeft).ticks(height / 40, d3.format(config.yTickFormat));
+    const yAxisLines = d3.axisLeft(yScaleLeft).ticks(height / 40, null);
 
     svg.attr('width', width).attr('height', height).attr('viewBox', [0, 0, width, height]);
-    // .attr('style', 'max-width: 100%; height: auto; height: intrinsic;');
 
-    // TODO: select x-axis
     xAxisG.attr('transform', `translate(0,${height - marginBottom})`).call(xAxis);
-    // .call(g => (g.selection ? g.selection() : g).select(".domain").remove());
 
-    // TODO: select y-axis
-    yAxisG.attr('transform', `translate(${marginLeft},0)`).call(yAxis);
+    yAxisG.attr('transform', `translate(${marginLeft},0)`).call(yAxisLeft);
 
-    // TODO: better way to do this? This seems a bit silly, creating ticks and
-    // text elements, and then changing the attributes and removing the text.
+    if (yAxisRightG) {
+      yAxisRightG.selectAll('*').remove();
+      if (yScaleRight) {
+        const yAxisRight = d3.axisRight(yScaleRight).ticks(height / 40, d3.format(config.yTickFormat));
+        yAxisRightG
+          .attr('transform', `translate(${width - marginRight},0)`)
+          .call(yAxisRight);
+
+        if (config.rightYLabel) {
+          yAxisRightG
+            .append('text')
+            .attr('fill', '#475569')
+            .attr('transform', 'rotate(90)')
+            .attr('y', -35)
+            .attr('x', (height - marginBottom + marginTop) / 2)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '10px')
+            .attr('font-weight', '600')
+            .text(config.rightYLabel);
+        }
+      }
+    }
+
     const yAxisLinesSelection = yAxisLinesG
       .attr('transform', `translate(${marginLeft},0)`)
       .call(yAxisLines.tickFormat(() => ''));
+    
+    yAxisLinesSelection.selectAll('line').remove();
     yAxisLinesSelection
       .selectAll('line')
+      .data(yScaleLeft.ticks(height / 40))
+      .join('line')
+      .attr('y1', d => yScaleLeft(d))
+      .attr('y2', d => yScaleLeft(d))
       .attr('x2', width - marginLeft - marginRight)
+      .attr('stroke', '#cbd5e1')
       .attr('stroke-opacity', 0.1);
+
     yAxisLinesSelection.selectAll('text').remove();
   }
 

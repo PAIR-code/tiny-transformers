@@ -93,6 +93,18 @@ limitations under the License.
             <input id="emb-dim" type="number" min="1" max="10" [value]="embDim()" (change)="onEmbDimChange(+$any($event.target).value)" />
           </div>
 
+          @if (approach() !== 'euclidean-ngram') {
+            <div class="form-field">
+              <label for="digits-left">Digits Left of Dot</label>
+              <input id="digits-left" type="number" min="1" max="5" [value]="digitsLeft()" (change)="digitsLeft.set(+$any($event.target).value)" />
+            </div>
+
+            <div class="form-field">
+              <label for="digits-right">Digits Right of Dot</label>
+              <input id="digits-right" type="number" min="0" max="5" [value]="digitsRight()" (change)="digitsRight.set(+$any($event.target).value)" />
+            </div>
+          }
+
           <div class="form-field">
             <label for="context-len">Context Size (N)</label>
             <input id="context-len" type="number" min="1" max="5" [value]="contextLength()" (change)="onContextLengthChange(+$any($event.target).value)" />
@@ -310,6 +322,8 @@ limitations under the License.
                           [rho]="model.embeddings[idx][d].rho"
                           [prime]="prime()"
                           [showRho]="true"
+                          [digitsLeft]="digitsLeft()"
+                          [digitsRight]="digitsRight()"
                         />
                       </td>
                     </tr>

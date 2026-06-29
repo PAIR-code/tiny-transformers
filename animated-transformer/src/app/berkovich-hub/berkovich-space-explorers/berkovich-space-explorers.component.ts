@@ -78,6 +78,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly prime = signal<number>(3);
   readonly contextLength = signal<number>(1); // For bigram this is fixed at 1, for ngram adjustable
   readonly embDim = signal<number>(5);
+  readonly digitsLeft = signal<number>(2);
+  readonly digitsRight = signal<number>(2);
   readonly learningRate = signal<number>(0.15);
   readonly regularizationTarget = signal<number>(0.04);
   readonly regularizationEmbed = signal<number>(0.02);
@@ -181,11 +183,14 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
       width: 580,
       height: 220,
       xLabel: 'Step',
-      yLabel: 'Value',
+      yLabel: 'Loss',
       yTickFormat: '.2f',
       xTickFormat: 'd',
       legendX: 420,
       legendY: 10,
+      rightYLabel: 'Accuracy',
+      rightYLineNames: ['Accuracy'],
+      rightYDomain: [0.0, 1.0],
     };
   });
 

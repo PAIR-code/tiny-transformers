@@ -58,14 +58,21 @@ export class BerkovichDigitDisplayComponent {
   readonly rho = input.required<number>();
   readonly prime = input.required<number>();
   readonly showRho = input<boolean>(true);
+  readonly digitsLeft = input<number>(2);
+  readonly digitsRight = input<number>(2);
 
   readonly cells = computed<DigitDisplayCell[]>(() => {
     const r = this.center();
     const p = BigInt(this.prime());
     const valRho = this.rho();
+    const left = this.digitsLeft();
+    const right = this.digitsRight();
 
-    const aligned = getAlignedDigits(r, p, -2, 1);
-    // Reverse: highest power (1) left, lowest power (-2) right
+    const minPower = -right;
+    const maxPower = left - 1;
+
+    const aligned = getAlignedDigits(r, p, minPower, maxPower);
+    // Reverse: highest power left, lowest power right
     const reversed = [...aligned].reverse();
     
     const val = -valRho;
