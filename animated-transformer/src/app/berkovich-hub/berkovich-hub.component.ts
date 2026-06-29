@@ -55,6 +55,13 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
+      title: 'Berkovich Space Explorers',
+      description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
+      route: '/berkovich/space-explorers',
+      icon: 'explore',
+      colorClass: 'card-berkovich',
+    },
+    {
       title: 'Berkovich Operator Gradients',
       description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
       route: '/berkovich/operator-gradients',

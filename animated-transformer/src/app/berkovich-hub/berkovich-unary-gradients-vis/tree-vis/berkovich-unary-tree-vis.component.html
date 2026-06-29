@@ -48,141 +48,189 @@ limitations under the License.
 
       <!-- Shaded backgrounds for Berkovich Disks of all tracked nodes -->
       @for (tn of trackedNodes(); track tn.id) {
-        <rect
-          [attr.x]="getRhoLineForTrackedNode(tn).x1"
-          [attr.y]="paddingY"
-          [attr.width]="getRhoLineForTrackedNode(tn).x2 - getRhoLineForTrackedNode(tn).x1"
-          [attr.height]="getRhoLineForTrackedNode(tn).y1 - paddingY"
-          class="rho-disk-shading"
-          [style.fill]="tn.color"
-        />
-      }
-
-      <!-- Grid lines indicating the log-radius levels (Type II vertex planes) -->
-      @for (level of [2, 1, 0, -1, -2]; track level) {
-        <line
-          x1="0"
-          [attr.y1]="rhoToY(level)"
-          [attr.x2]="svgWidth()"
-          [attr.y2]="rhoToY(level)"
-          class="rho-guide-line"
-          clip-path="url(#guide-clip)"
-        />
-        <text
-          [attr.x]="svgWidth() - 36"
-          [attr.y]="rhoToY(level) + 4"
-          class="rho-guide-text"
-        >
-          &rho; = {{ level }}
-        </text>
-      }
-
-      <!-- Stub paths (thin light lines for parts of trees that are not active) -->
-      @for (edge of treeVisuals().edges; track edge.id) {
-        @if (!edge.isActive) {
-          <line
-            [attr.x1]="edge.x1"
-            [attr.y1]="edge.y1"
-            [attr.x2]="edge.x2"
-            [attr.y2]="edge.y2"
-            class="tree-edge"
+        @if (tn.rho > rhoMin) {
+          <rect
+            [attr.x]="getRhoLineForTrackedNode(tn).x1"
+            [attr.y]="rhoToY(tn.rho)"
+            [attr.width]="getRhoLineForTrackedNode(tn).x2 - getRhoLineForTrackedNode(tn).x1"
+            [attr.height]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+            class="rho-disk-shading"
+            [style.fill]="tn.color"
           />
         }
       }
-
-      <!-- Active parameter pathways (colored thicker lines where parameter centers sit) -->
-      @for (edge of treeVisuals().edges; track edge.id) {
-        @if (edge.isActive) {
-          @for (color of edge.colors; track color) {
-            <line
-              [attr.x1]="edge.x1"
-              [attr.y1]="edge.y1"
-              [attr.x2]="edge.x2"
-              [attr.y2]="edge.y2"
-              class="tree-edge active-path"
-              [style.stroke]="color"
-            />
-          }
-        }
-      }
-
-      <!-- Tree digit labels (0, 1, 2 on branches) -->
-      @for (edge of treeVisuals().edges; track edge.id) {
-        @if (edge.isActive) {
-          <text
-            [attr.x]="(edge.x1 + edge.x2) / 2"
-            [attr.y]="(edge.y1 + edge.y2) / 2 - 4"
-            class="digit-label"
+      <!-- Per-tree input labels rendered above each tree root -->
+      @for (label of treeInputLabels(); track label.trackedNodeId) {
+        @if (label.inp) {
+          <foreignObject
+            [attr.x]="label.editorX"
+            [attr.y]="2"
+            width="110"
+            height="62"
+            class="tree-input-fo"
           >
-            {{ edge.digitLabel }}
-          </text>
+            <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label">
+              @if (!label.inp.readonly) {
+                <div class="editor-row">
+                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
+                  <input
+                    class="mini-digit-input"
+                    [value]="label.inp.centerInput"
+                    (change)="onInputChange(label.inp.nodeId, 'center', $any($event.target).value)"
+                    (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'center' })"
+                  />
+                </div>
+                @if (label.inp.rhoInput !== undefined) {
+                  <div class="editor-row">
+                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                    <input
+                      class="mini-digit-input mini-rho-input"
+                      type="text"
+                      [value]="label.inp.rhoInput"
+                      (change)="onInputChange(label.inp.nodeId, 'rho', $any($event.target).value)"
+                      (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'rho' })"
+                    />
+                  </div>
+                }
+              } @else {
+                <div class="editor-row">
+                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
+                  <span class="mini-digit-display">{{ label.inp.centerInput }}</span>
+                </div>
+                @if (label.inp.rhoInput !== undefined) {
+                  <div class="editor-row">
+                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                    <span class="mini-digit-display">{{ label.inp.rhoInput }}</span>
+                  </div>
+                }
+              }
+            </div>
+          </foreignObject>
         }
       }
 
-      <!-- Subtree Root Titles (e.g. "x", "f(x)", "y") -->
-      @for (title of treeVisuals().titles; track title.text) {
+      <!-- Tree Titles (shown only for non-editable trees) -->
+      @for (title of treeTitles(); track title.text) {
         <text
           [attr.x]="title.x"
-          [attr.y]="paddingY - 48"
-          class="tree-title"
+          [attr.y]="paddingY - 8"
+          class="tree-title-text"
           [style.fill]="title.color"
         >
           {{ title.text }}
         </text>
       }
 
-      <!-- Inactive nodes (small circles) -->
+      <!-- Decimal Place Divider Line -->
+      <line
+        [attr.x1]="0"
+        [attr.y1]="rhoToY(0)"
+        [attr.x2]="svgWidth()"
+        [attr.y2]="rhoToY(0)"
+        class="decimal-divider-line"
+      />
+
+      <!-- Draw Edges -->
+      @for (edge of treeVisuals().edges; track edge.id) {
+        <g class="tree-edge-group">
+          <path
+            [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
+            [class.inactive-stub]="!edge.isActive"
+            class="tree-edge"
+            [style.stroke]="edge.colors.length > 0 ? edge.colors[0] : ''"
+            [style.stroke-width]="edge.isActive ? 3.5 : 1.5"
+          />
+          <!-- Branch Digit Labels -->
+          <g
+            class="digit-label-group"
+            [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+          >
+            <circle
+              cx="0"
+              cy="0"
+              r="9"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-bg"
+            />
+            <text
+              x="0"
+              y="0"
+              [class.inactive-stub]="!edge.isActive"
+              class="digit-label"
+            >
+              {{ edge.digitLabel }}
+            </text>
+          </g>
+        </g>
+      }
+
+      <!-- Draw Nodes -->
       @for (node of treeVisuals().nodes; track node.id) {
-        @if (!node.isActive) {
+        <g
+          class="tree-node-group"
+          [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
+        >
           <circle
-            [attr.cx]="node.x"
-            [attr.cy]="node.y"
-            r="4"
+            cx="0"
+            cy="0"
+            [attr.r]="node.logRadius === rhoMin ? 4 : 5"
+            [class.leaf-node]="node.logRadius === rhoMin"
+            [class.vertex-node]="node.logRadius > rhoMin"
+            [class.inactive-stub]="!node.isActive"
             class="tree-node"
           />
-        }
+        </g>
       }
 
-      <!-- Active nodes (small circles highlighted with parameter colors) -->
-      @for (node of treeVisuals().nodes; track node.id) {
-        @if (node.isActive) {
-          @for (color of node.colors; track color; let idx = $index) {
-            <circle
-              [attr.cx]="node.x"
-              [attr.cy]="node.y"
-              [attr.r]="6"
-              class="tree-node active-node"
-              [style.stroke]="color"
-            />
-          }
-        }
-      }
-
-      <!-- Solid horizontal bars indicating parameter log-radius levels -->
+      <!-- Continuous Log-Radius (Rho) Level Line Indicators -->
       @for (tn of trackedNodes(); track tn.id) {
         @if (tn.id !== 'Y') {
-          <g class="rho-indicator-group">
+          <g
+            class="rho-level-group"
+            [style.transform]="'translateY(' + getRhoLineForTrackedNode(tn).y + 'px)'"
+          >
+            @if (tn.rho > rhoMin) {
+              <line
+                [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+                y1="0"
+                [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+                class="rho-guide-line"
+                [style.stroke]="tn.color"
+              />
+              <line
+                [attr.x1]="getRhoLineForTrackedNode(tn).x2"
+                y1="0"
+                [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(tn.rho)"
+                class="rho-guide-line"
+                [style.stroke]="tn.color"
+              />
+            }
             <line
               [attr.x1]="getRhoLineForTrackedNode(tn).x1"
-              [attr.y1]="getRhoLineForTrackedNode(tn).y1"
+              y1="0"
               [attr.x2]="getRhoLineForTrackedNode(tn).x2"
-              [attr.y2]="getRhoLineForTrackedNode(tn).y2"
+              y2="0"
               class="rho-level-line"
               [style.stroke]="tn.color"
             />
-            <circle
-              [attr.cx]="getRhoLineForTrackedNode(tn).x1"
-              [attr.cy]="getRhoLineForTrackedNode(tn).y1"
-              r="2.5"
+            <!-- Left and right end cap ticks -->
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x1"
+              y1="-4"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x1"
+              y2="4"
               class="rho-level-cap"
-              [style.fill]="tn.color"
+              [style.stroke]="tn.color"
             />
-            <circle
-              [attr.cx]="getRhoLineForTrackedNode(tn).x2"
-              [attr.cy]="getRhoLineForTrackedNode(tn).y2"
-              r="2.5"
+            <line
+              [attr.x1]="getRhoLineForTrackedNode(tn).x2"
+              y1="-4"
+              [attr.x2]="getRhoLineForTrackedNode(tn).x2"
+              y2="4"
               class="rho-level-cap"
-              [style.fill]="tn.color"
+              [style.stroke]="tn.color"
             />
             <text
               [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
@@ -249,44 +297,43 @@ limitations under the License.
           />
         </div>
 
-        <div class="button-row">
-          <button 
-            mat-stroked-button 
-            (click)="undo.emit()" 
-            class="action-btn"
-          >
-            <mat-icon>undo</mat-icon>
-            Undo
-          </button>
-          
-          <button 
-            mat-stroked-button 
-            (click)="randomize.emit()" 
-            class="action-btn"
-          >
-            <mat-icon>shuffle</mat-icon>
-            Randomize
-          </button>
-          
-          <button 
-            mat-stroked-button 
-            (click)="step.emit()" 
-            class="action-btn"
-          >
-            <mat-icon>play_arrow</mat-icon>
-            Step SGD
-          </button>
-          
-          <button 
-            mat-flat-button 
-            (click)="runToggle.emit()" 
-            [class.playing]="isPlaying()"
-            class="action-btn run-btn"
-          >
-            <mat-icon>{{ isPlaying() ? 'pause' : 'fast_forward' }}</mat-icon>
-            {{ isPlaying() ? 'Pause' : 'Run SGD' }}
-          </button>
-        </div>
+        <div class="overlay-divider"></div>
+
+        <button 
+          mat-icon-button 
+          [disabled]="!canUndo() || isPlaying()" 
+          (click)="undo.emit()" 
+          title="Undo last step (Back)"
+          class="diagram-action-btn"
+        >
+          <mat-icon>undo</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          [disabled]="isPlaying()" 
+          (click)="step.emit()" 
+          title="Step forward"
+          class="diagram-action-btn"
+        >
+          <mat-icon>skip_next</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          (click)="togglePlay.emit()" 
+          title="Animate/Pause"
+          class="diagram-action-btn play-btn"
+          [class.playing]="isPlaying()"
+        >
+          <mat-icon>{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          (click)="randomize.emit()" 
+          title="Randomize center & target"
+          class="diagram-action-btn"
+        >
+          <mat-icon>shuffle</mat-icon>
+        </button>
       </div>
     </div>
   }

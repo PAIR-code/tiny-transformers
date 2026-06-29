@@ -12,16 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================-->
 
-<div class="landing-container">
-  <header class="landing-header">
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <header class="explorer-header">
     <div class="header-content">
-      <a routerLink="/berkovich" class="back-btn" aria-label="Back to Berkovich Hub">
+      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
         <mat-icon>arrow_back</mat-icon>
-      </a>
+      </button>
       <div>
         <h1>Unary Operator Gradients Explorer</h1>
         <p class="subtitle">
-          Visualizing backward pass and gradient flow through Berkovich unary operations:
+          Visualizing backward pass and continuous gradient flow through Berkovich unary operations:
           <markdown [inline]="true" [katex]="true" [data]="subtitleMath()"></markdown>
         </p>
       </div>
@@ -30,6 +31,8 @@ limitations under the License.
       <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
       <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
       <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Operator Gradients</a>
+      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Gradients</a>
+      <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Space Explorers</a>
       <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
     </nav>
   </header>
@@ -45,6 +48,7 @@ limitations under the License.
         [trackedNodes]="trackedNodes()"
         [editableInputs]="editableInputs()"
         [isPlaying]="isPlaying()"
+        [canUndo]="canUndo()"
         (operatorChange)="onOperatorChange($event)"
         (primeChange)="onPrimeChange($event)"
         (vertexMethodChange)="vertexMethod.set($event)"
@@ -52,7 +56,7 @@ limitations under the License.
         (inputBlur)="onInputBlur($event)"
         (step)="onStep()"
         (randomize)="onRandomize()"
-        (runToggle)="onRunToggle()"
+        (togglePlay)="onRunToggle()"
         (learningRateInputChange)="learningRateInput.set($event)"
         (learningRateBlur)="onLearningRateBlur()"
         (undo)="onUndo()"
@@ -69,24 +73,22 @@ limitations under the License.
     </aside>
   </div>
 
-  <!-- Expandable Explainer Card (Bottom) -->
-  <footer class="explainer-card-wrapper">
-    <mat-card class="explainer-card">
-      <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" class="clickable-header">
-        <mat-card-title>
-          <mat-icon>menu_book</mat-icon>
-          Understanding Gradients & Optimization of {{ operator() | titlecase }}
-        </mat-card-title>
-        <button mat-icon-button class="toggle-btn" aria-label="Toggle explainer body">
-          <mat-icon>{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
-        </button>
-      </mat-card-header>
-      
-      @if (isExplainerExpanded()) {
-        <mat-card-content class="explainer-content">
-          <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
-        </mat-card-content>
-      }
-    </mat-card>
-  </footer>
+  <!-- Explainer Section -->
+  <mat-card class="explainer-card collapsible-card">
+    <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" style="cursor: pointer; width: 100%;">
+      <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <mat-icon>info</mat-icon>
+          <span>Understanding Gradients & Optimization of {{ operator() | titlecase }}</span>
+        </div>
+        <mat-icon class="collapse-chevron" style="color: #64748b;">{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </mat-card-title>
+    </mat-card-header>
+    @if (isExplainerExpanded()) {
+      <mat-card-content class="explainer-content" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 12px;">
+        <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
+      </mat-card-content>
+    }
+  </mat-card>
+
 </div>

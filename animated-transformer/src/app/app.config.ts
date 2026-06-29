@@ -36,6 +36,7 @@ import { BerkovichOperatorGradientsVisComponent } from './berkovich-hub/berkovic
 import { BerkovichUnaryGradientsVisComponent } from './berkovich-hub/berkovich-unary-gradients-vis/berkovich-unary-gradients-vis.component';
 import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
+import { BerkovichSpaceExplorersComponent } from './berkovich-hub/berkovich-space-explorers/berkovich-space-explorers.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -78,6 +79,7 @@ export const routes: Routes = [
       { path: 'disk', component: BerkovichDiskVisComponent },
       { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
       { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
+      { path: 'space-explorers', component: BerkovichSpaceExplorersComponent },
       { path: 'glossary', component: BerkovichGlossaryComponent }
     ]
   },

@@ -23,6 +23,7 @@ import { MatCardModule } from '@angular/material/card';
 
 import {
   Rational,
+  simplify,
   parseDigitSequence,
   truncateToTreeRange,
   formatDigitSequence,
@@ -176,19 +177,55 @@ $$(x + 1)_\\rho = \\rho_x$$
   readonly trackedNodes = computed<TrackedNode[]>(() => {
     const op = this.operator();
     const details = this.stepDetails();
+    const p = BigInt(this.prime());
     const labelOut = op === 'scale' ? '(px)_ρ' : op === 'square' ? '(x²)_ρ' : '(x+1)_ρ';
     const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : 'X1';
+
+    let centerC: Rational;
+    let rhoC: number;
+    let labelC: string;
+
+    if (op === 'scale') {
+      centerC = simplify({ num: p, den: 1n });
+      rhoC = -2;
+      labelC = 'c = p';
+    } else if (op === 'square') {
+      centerC = this.centerX();
+      rhoC = this.rhoX();
+      labelC = 'x_ρ (copy)';
+    } else {
+      centerC = simplify({ num: 1n, den: 1n });
+      rhoC = -2;
+      labelC = 'c = 1';
+    }
+
     return [
       { id: 'X', center: this.centerX(), rho: this.rhoX(), color: '#60a5fa', label: 'x_ρ' },
+      { id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: labelC },
       { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
-      { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y' }
+      { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
     ];
   });
 
   // Editable inputs for inline editing inside the tree vis
   readonly editableInputs = computed<EditableNodeInputs[]>(() => {
     const op = this.operator();
-    const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : 'X1';
+
+    let centerCInput: string;
+    let rhoCInput: string | undefined = undefined;
+    let labelPrefixC: string;
+
+    if (op === 'scale') {
+      centerCInput = '10.';
+      labelPrefixC = 'c';
+    } else if (op === 'square') {
+      centerCInput = this.centerXInput();
+      rhoCInput = this.rhoXInput();
+      labelPrefixC = 'x';
+    } else {
+      centerCInput = '1';
+      labelPrefixC = 'c';
+    }
 
     return [
       {
@@ -198,6 +235,15 @@ $$(x + 1)_\\rho = \\rho_x$$
         rhoInput: this.rhoXInput(),
         color: '#60a5fa',
         labelPrefix: 'x'
+      },
+      {
+        nodeId: 'C',
+        trackedNodeId: 'C',
+        centerInput: centerCInput,
+        rhoInput: rhoCInput,
+        color: '#94a3b8',
+        labelPrefix: labelPrefixC,
+        readonly: true
       },
       {
         nodeId: 'Y',

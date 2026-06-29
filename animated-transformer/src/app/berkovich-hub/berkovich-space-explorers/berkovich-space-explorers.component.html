@@ -1,0 +1,326 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+you may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+<div class="space-explorers-container">
+  <!-- Top Navigation & Header -->
+  <header class="page-header">
+    <div class="header-left">
+      <a routerLink="/berkovich" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+      <div>
+        <h1>Berkovich Space Explorers</h1>
+        <p class="subtitle">Introspective Browser-based Next-Character Learner in Berkovich & p-adic Spaces</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="explorers-grid">
+    <!-- LEFT PANEL: Configuration, Control, and Dataset -->
+    <div class="panel-left">
+      
+      <!-- Explainer Cards -->
+      <section class="card explainer-card">
+        <h3><mat-icon>info</mat-icon> How does it work?</h3>
+        <p>
+          We train a character-level model (like Kaparthy's Shakespeare next-character predictor) directly in your browser.
+          Characters are embedded as <strong>5 Berkovich disks</strong> $(c_i, \rho_i) \in \Gamma_p^5$.
+          Next token predictions are computed by taking the aggregated context representation and projecting it against learned affinoid domains (constraints) for each alphabet class using the <strong>Affinoid Softmax</strong>:
+        </p>
+        <div class="math-block" [innerText]="mathFormula"></div>
+        <p>
+          Where $M_{{ '{' }}k,d{{ '}' }}$ is the continuous path-metric error on the tree. Regularization penalizes the disk radii ($p^\rho$), creating a continuous separation margin and resolving prediction ties.
+        </p>
+      </section>
+
+      <!-- Model Setup & Parameters Card -->
+      <section class="card config-card">
+        <h3><mat-icon>settings</mat-icon> Model Configuration</h3>
+        
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="approach-select">Approach / Architecture</label>
+            <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
+              <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
+              <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
+              <option value="euclidean-ngram">Euclidean Real Baseline (N-Gram)</option>
+            </select>
+          </div>
+
+          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
+            <label for="prime-select">p-adic Base (Prime p)</label>
+            <select id="prime-select" [value]="prime()" (change)="onPrimeChange(+$any($event.target).value)">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="5">5</option>
+              <option value="7">7</option>
+              <option value="11">11</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="context-len">Context Size (N)</label>
+            <input id="context-len" type="number" min="1" max="5" [value]="contextLength()" (change)="onContextLengthChange(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field">
+            <label for="lr-input">Learning Rate (&eta;)</label>
+            <input id="lr-input" type="number" step="0.01" min="0.001" [value]="learningRate()" (change)="learningRate.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
+            <label for="reg-target">Radius Reg (Target &lambda;)</label>
+            <input id="reg-target" type="number" step="0.001" min="0" [value]="regularizationTarget()" (change)="regularizationTarget.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
+            <label for="reg-emb">Radius Reg (Embed &lambda;)</label>
+            <input id="reg-emb" type="number" step="0.001" min="0" [value]="regularizationEmbed()" (change)="regularizationEmbed.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
+            <label for="agg-mode">Aggregation Mode</label>
+            <select id="agg-mode" [value]="aggMode()" (change)="aggMode.set($any($event.target).value)">
+              <option value="min">Supremum Norm (Min Logit)</option>
+              <option value="average">Affinoid Average</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="beta-input">Softmax Temperature (&beta;)</label>
+            <input id="beta-input" type="number" step="0.5" min="0.1" [value]="beta()" (change)="beta.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field">
+            <label for="batch-size">Batch Size</label>
+            <input id="batch-size" type="number" min="1" max="128" [value]="batchSize()" (change)="batchSize.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field">
+            <label for="train-speed">Auto-Step Interval (ms)</label>
+            <input id="train-speed" type="number" step="50" min="0" [value]="trainingSpeed()" (change)="trainingSpeed.set(+$any($event.target).value)" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Training controls card -->
+      <section class="card training-controls-card">
+        <h3><mat-icon>play_circle</mat-icon> Training Controls</h3>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-val">{{ stepCount() }}</div>
+            <div class="stat-lbl">Steps Run</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">{{ epochCount() }}</div>
+            <div class="stat-lbl">Epochs</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">{{ currentLossVal().toFixed(4) }}</div>
+            <div class="stat-lbl">Loss</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">{{ (currentAccuracyVal() * 100).toFixed(1) }}%</div>
+            <div class="stat-lbl">Accuracy</div>
+          </div>
+        </div>
+
+        <div class="button-bar">
+          <button mat-flat-button color="primary" *ngIf="!isPlaying()" (click)="startTraining()"><mat-icon>play_arrow</mat-icon> Train</button>
+          <button mat-flat-button color="warn" *ngIf="isPlaying()" (click)="pauseTraining()"><mat-icon>pause</mat-icon> Pause</button>
+          <button mat-stroked-button (click)="stepTrain()"><mat-icon>redo</mat-icon> Step</button>
+          <button mat-stroked-button (click)="trainEpoch()"><mat-icon>autorenew</mat-icon> 1 Epoch</button>
+          <button mat-stroked-button color="warn" (click)="resetWeights()"><mat-icon>refresh</mat-icon> Reset</button>
+        </div>
+      </section>
+
+      <!-- Training Dataset Setup Card -->
+      <section class="card dataset-card">
+        <div class="card-header-row">
+          <h3><mat-icon>article</mat-icon> Dataset Snippet</h3>
+          <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
+        </div>
+        <textarea class="text-input" [value]="textInput()" (input)="onTextInput($any($event.target).value)"></textarea>
+        
+        <div class="dataset-meta">
+          <span><strong>Text size:</strong> {{ textInput().length }} chars</span>
+          <span><strong>Vocabulary size (V):</strong> {{ vocab().length }} unique characters</span>
+        </div>
+        
+        <div class="vocab-chips-container">
+          <div class="vocab-title">Vocabulary Mapping:</div>
+          <div class="vocab-chips">
+            <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
+              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}</span>
+              <span class="idx-span">{{ idx }}</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- RIGHT PANEL: Introspector & Tree Visualizer -->
+    <div class="panel-right">
+      
+      <!-- Model Introspection & Parameter Tree Vis -->
+      <section class="card viz-card" *ngIf="approach() !== 'euclidean-ngram'">
+        <div class="viz-header">
+          <h3><mat-icon>pageview</mat-icon> Parameter Introspector</h3>
+          
+          <div class="selector-row">
+            <select [value]="selectedIntrospectType()" (change)="selectedIntrospectType.set($any($event.target).value)">
+              <option value="embedding">Char Embeddings (E)</option>
+              <option value="constraint">Class Targets (W)</option>
+            </select>
+
+            <select [value]="selectedChar()" (change)="selectedChar.set($any($event.target).value)">
+              <option *ngFor="let char of vocab()" [value]="char">
+                Character: '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+              </option>
+            </select>
+
+            <select [value]="selectedDimension()" (change)="selectedDimension.set(+$any($event.target).value)">
+              <option *ngFor="let d of [0,1,2,3,4]" [value]="d">Dimension {{ d }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Render the selected parameter details -->
+        <div class="param-summary" *ngIf="selectedParameterTreeProps() as props">
+          <div class="param-badge">
+            <span class="param-name">
+              {{ selectedIntrospectType() === 'embedding' ? 'E' : 'W' }}[{{ selectedChar() === '\n' ? '\\n' : selectedChar() }}][{{ selectedDimension() }}]
+            </span>
+            <span class="param-val">
+              Center: <strong>{{ props.centerDigitsInput }}</strong>, Log-radius: <strong>{{ props.currentLogRadius.toFixed(4) }}</strong>
+            </span>
+          </div>
+          
+          <div class="param-target-badge">
+            Last Step Target: Center <strong>{{ props.targetDigitsInput }}</strong>, Log-radius <strong>{{ props.targetLogRadius.toFixed(2) }}</strong>
+            <span class="loss-pill" [class.loss-low]="props.gradientBreakdown.loss < 0.1">
+              Path Loss: {{ props.gradientBreakdown.loss.toFixed(4) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- The embedded Berkovich Tree visualization component -->
+        <div class="tree-vis-wrapper" *ngIf="selectedParameterTreeProps() as props">
+          <app-berkovich-tree-vis
+            [prime]="props.prime"
+            [targetRational]="props.targetRational"
+            [targetLogRadius]="props.targetLogRadius"
+            [targetDigitsInput]="props.targetDigitsInput"
+            [currentCenter]="props.currentCenter"
+            [centerDigitsInput]="props.centerDigitsInput"
+            [currentLogRadius]="props.currentLogRadius"
+            [isDraggingRho]="props.isDraggingRho"
+            [gradientBreakdown]="props.gradientBreakdown"
+            [currentDistanceValuation]="props.currentDistanceValuation"
+            [isPlaying]="false"
+            [canUndo]="false"
+            [canStep]="false"
+            (logRadiusChange)="onTreeLogRadiusChange($event)"
+          ></app-berkovich-tree-vis>
+        </div>
+
+        <div class="tree-tip">
+          <mat-icon>mouse</mat-icon> <em>Pro-tip:</em> Drag the yellow/blue nodes or level indicators on the tree to manually adjust the center & log-radius values for this parameter in real-time!
+        </div>
+      </section>
+
+      <!-- Embeddings Matrix Overview -->
+      <section class="card matrix-card">
+        <h3><mat-icon>grid_on</mat-icon> Learned Parameters Matrix Overview</h3>
+        <p class="summary-text" *ngIf="approach() !== 'euclidean-ngram'">
+          Showing centers and log-radii for each vocabulary character across all 5 dimensions. Select any cell to load it in the Introspector tree above.
+        </p>
+        
+        <div class="table-container">
+          <table class="matrix-table" *ngIf="approach() !== 'euclidean-ngram' && berkovichModel() as model">
+            <thead>
+              <tr>
+                <th>Char</th>
+                <th *ngFor="let d of [0,1,2,3,4]">Dim {{ d }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let char of vocab(); let idx = index">
+                <td class="char-cell" [class.selected-row]="selectedChar() === char">
+                  '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                </td>
+                <td *ngFor="let d of [0,1,2,3,4]" 
+                    class="matrix-cell" 
+                    [class.selected-cell]="selectedChar() === char && selectedDimension() === d"
+                    (click)="selectParameter(char, d)">
+                  <div class="cell-center">{{ formatCenter(model.embeddings[idx][d].center) }}</div>
+                  <div class="cell-rho">&rho;={{ model.embeddings[idx][d].rho.toFixed(2) }}</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="matrix-table" *ngIf="approach() === 'euclidean-ngram' && euclideanModel() as model">
+            <thead>
+              <tr>
+                <th>Char</th>
+                <th *ngFor="let d of [0,1,2,3,4]">Dim {{ d }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let char of vocab(); let idx = index">
+                <td class="char-cell">
+                  '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                </td>
+                <td *ngFor="let d of [0,1,2,3,4]" class="matrix-cell">
+                  {{ model.embeddings[idx][d].toFixed(4) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Recent Predictions History Logs -->
+      <section class="card predictions-card">
+        <h3><mat-icon>receipt_long</mat-icon> Step Predictions Log</h3>
+        
+        <div class="predictions-list">
+          <div class="prediction-header-row">
+            <span>Context Input</span>
+            <span>Target</span>
+            <span>Predicted (Prob)</span>
+            <span>Loss</span>
+            <span>Status</span>
+          </div>
+
+          <div class="prediction-item" *ngFor="let item of recentPredictions(); let i = index" [class.correct-pred]="item.correct">
+            <span class="context-col">"{{ item.input }}"</span>
+            <span class="target-col">'{{ item.target === '\n' ? '\\n' : (item.target === ' ' ? '␣' : item.target) }}'</span>
+            <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : (item.pred === ' ' ? '␣' : item.pred) }}'</span>
+            <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
+            <span class="status-col">
+              <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+            </span>
+          </div>
+
+          <div class="empty-predictions" *ngIf="recentPredictions().length === 0">
+            No steps executed yet. Click "Train" or "Step" to run updates.
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
