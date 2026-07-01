@@ -122,9 +122,11 @@ limitations under the License.
             </div>
           }
 
-          <div class="form-field">
+          <div class="form-field" [class.field-disabled]="approach() === 'berkovich-bigram'">
             <label for="context-len">Context Size (N)</label>
-            <input id="context-len" type="number" min="1" max="5" [value]="contextLength()" (change)="onContextLengthChange(+$any($event.target).value)" />
+            <input id="context-len" type="number" min="1" max="5" [value]="contextLength()"
+              [disabled]="approach() === 'berkovich-bigram'"
+              (change)="onContextLengthChange(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
