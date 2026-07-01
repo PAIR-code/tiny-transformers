@@ -55,6 +55,10 @@ interface PredictionLog {
   correct: boolean;
 }
 
+function formatDisplayString(str: string): string {
+  return str.replace(/ /g, '␣').replace(/\n/g, '\\n');
+}
+
 @Component({
   selector: 'app-berkovich-space-explorers',
   templateUrl: './berkovich-space-explorers.component.html',
@@ -85,15 +89,23 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly regularizationTarget = signal<number>(0.04);
   readonly regularizationEmbed = signal<number>(0.02);
   readonly aggMode = signal<'min' | 'average'>('min');
-  readonly beta = signal<number>(3.0);
+  readonly beta = signal<number>(1.0);
   readonly batchSize = signal<number>(128);
   readonly trainingSpeed = signal<number>(100);
-  readonly validationSize = signal<number>(200);
+  readonly valMode = signal<'fixed' | 'random' | 'overlap'>('fixed');
+  readonly valSizeOverlap = signal<number>(10);
+  readonly valPercentageHoldout = signal<number>(0.2);
   readonly effectiveValidationSize = computed(() => {
     const text = this.textInput();
-    const valSize = this.validationSize();
-    return Math.min(valSize, Math.max(0, Math.floor(text.length * 0.2)));
+    const mode = this.valMode();
+    if (mode === 'overlap') {
+      return Math.min(this.valSizeOverlap(), text.length);
+    } else {
+      const pct = this.valPercentageHoldout();
+      return Math.max(1, Math.floor(text.length * pct));
+    }
   });
+  readonly randomValIndices = signal<Set<number>>(new Set());
 
   readonly initialLoss = signal<number | null>(null);
   readonly initialAccuracy = signal<number | null>(null);
@@ -191,6 +203,7 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
   readonly recentPredictions = signal<PredictionLog[]>([]);
 
   readonly validationPredictions = computed<PredictionLog[]>(() => {
+    this.stepCount(); // Force recalculation on every training step
     const bModel = this.berkovichModel();
     const eModel = this.euclideanModel();
     const samples = this.getValidationSamples();
@@ -212,10 +225,10 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         results.push({
-          preText: sample.preText,
-          input: sample.contextText,
-          pred: vocab[predIdx] || '?',
-          target: sample.targetChar,
+          preText: formatDisplayString(sample.preText),
+          input: formatDisplayString(sample.contextText),
+          pred: formatDisplayString(vocab[predIdx] || '?'),
+          target: formatDisplayString(sample.targetChar),
           loss,
           correct: isCorrect
         });
@@ -228,10 +241,10 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         results.push({
-          preText: sample.preText,
-          input: sample.contextText,
-          pred: vocab[predIdx] || '?',
-          target: sample.targetChar,
+          preText: formatDisplayString(sample.preText),
+          input: formatDisplayString(sample.contextText),
+          pred: formatDisplayString(vocab[predIdx] || '?'),
+          target: formatDisplayString(sample.targetChar),
           loss,
           correct: isCorrect
         });
@@ -294,7 +307,10 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
     return {
       ...defaultConfig,
       width: 580,
-      height: 220,
+      height: 280,
+      marginLeft: 80,
+      marginRight: 60,
+      marginBottom: 80,
       xLabel: 'Step',
       yLabel: 'Loss',
       yTickFormat: '.2f',
@@ -305,6 +321,15 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
       rightYLineNames: ['Train Accuracy', 'Val Accuracy'],
       rightYDomain: [0.0, 1.0],
     };
+  });
+
+  readonly chartBaselines = computed(() => {
+    const b = this.baselineMetrics();
+    if (!b) return [];
+    return [
+      { y: b.valLoss, name: 'Opt Val Loss', color: '#fca5a5', isRightAxis: false },
+      { y: b.valAcc, name: 'Opt Val Acc', color: '#fcd34d', isRightAxis: true }
+    ];
   });
 
   // Introspection Selection
@@ -387,13 +412,15 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
   });
 
   constructor() {
-    // Rebuild models and reset when vocab, prime, embDim, approach, or validationSize changes
+    // Rebuild models and reset when config changes
     effect(() => {
       this.vocab();
       this.prime();
       this.embDim();
       this.approach();
-      this.validationSize();
+      this.valSizeOverlap();
+      this.valPercentageHoldout();
+      this.valMode();
       untracked(() => {
         this.resetWeights();
       });
@@ -406,6 +433,20 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
 
   ngOnDestroy(): void {
     this.pauseTraining();
+  }
+
+  setHoldoutMode() {
+    if (this.valMode() === 'overlap') {
+      this.valMode.set('fixed');
+    }
+  }
+
+  toggleRandomHoldout() {
+    if (this.valMode() === 'random') {
+      this.valMode.set('fixed');
+    } else {
+      this.valMode.set('random');
+    }
   }
 
   onApproachChange(val: any) {
@@ -451,27 +492,66 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
     this.resetWeights();
   }
 
+  private generateValidationIndices() {
+    const text = this.textInput();
+    const N = this.contextLength();
+    const valSize = this.effectiveValidationSize();
+    const mode = this.valMode();
+
+    const indices = new Set<number>();
+    if (text.length <= valSize + N) {
+      this.randomValIndices.set(indices);
+      return;
+    }
+
+    if (mode === 'fixed') {
+      const start = text.length - valSize - N;
+      for (let i = 0; i < valSize; i++) {
+        indices.add(start + i);
+      }
+    } else if (mode === 'random') {
+      const maxIdx = text.length - N;
+      const pool: number[] = [];
+      for (let i = 0; i < maxIdx; i++) {
+        pool.push(i);
+      }
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = pool[i];
+        pool[i] = pool[j];
+        pool[j] = temp;
+      }
+      for (let i = 0; i < Math.min(valSize, pool.length); i++) {
+        indices.add(pool[i]);
+      }
+    } else if (mode === 'overlap') {
+      const start = text.length - valSize - N;
+      for (let i = 0; i < valSize; i++) {
+        indices.add(start + i);
+      }
+    }
+
+    this.randomValIndices.set(indices);
+  }
+
   private getValidationSamples(): { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string; preText: string }[] {
     const text = this.textInput();
     const vocab = this.vocab();
     const N = this.contextLength();
-    const valSize = this.effectiveValidationSize();
-
-    if (text.length <= valSize + N) {
-      return [];
-    }
+    const valIndices = this.randomValIndices();
 
     const samples = [];
-    const start = text.length - valSize - N;
-    for (let i = 0; i < valSize; i++) {
-      const contextText = text.slice(start + i, start + i + N);
-      const targetChar = text[start + i + N];
-      const contextIndices = [...contextText].map(c => vocab.indexOf(c));
-      const targetIdx = vocab.indexOf(targetChar);
-      const preText = text.slice(Math.max(0, start + i - 5), start + i);
+    for (const idx of valIndices) {
+      if (idx + N < text.length) {
+        const contextText = text.slice(idx, idx + N);
+        const targetChar = text[idx + N];
+        const contextIndices = [...contextText].map(c => vocab.indexOf(c));
+        const targetIdx = vocab.indexOf(targetChar);
+        const preText = text.slice(Math.max(0, idx - 5), idx);
 
-      if (targetIdx !== -1 && !contextIndices.includes(-1)) {
-        samples.push({ contextIndices, targetIdx, contextText, targetChar, preText });
+        if (targetIdx !== -1 && !contextIndices.includes(-1)) {
+          samples.push({ contextIndices, targetIdx, contextText, targetChar, preText });
+        }
       }
     }
     return samples;
@@ -552,6 +632,8 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
       this.selectedChar.set(defaultChar);
     }
 
+    this.generateValidationIndices();
+
     const initialEval = this.evaluateValidation();
     this.initialLoss.set(initialEval.loss);
     this.initialAccuracy.set(initialEval.accuracy);
@@ -559,27 +641,44 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
     this.currentTrainAccuracy.set(initialEval.accuracy);
     this.currentValLoss.set(initialEval.loss);
     this.currentValAccuracy.set(initialEval.accuracy);
+
+    // Seed histories with step 0
+    this.trainLossHistory.set([initialEval.loss]);
+    this.trainAccuracyHistory.set([initialEval.accuracy]);
+    this.valLossHistory.set([initialEval.loss]);
+    this.valAccuracyHistory.set([initialEval.accuracy]);
+
+    // Auto-compute baseline limits on reset
+    this.computeBaselineLimits();
   }
 
   computeBaselineLimits() {
     const text = this.textInput();
     const vocab = this.vocab();
     const N = this.contextLength();
-    const valSize = this.effectiveValidationSize();
+    const valIndices = this.randomValIndices();
+    const valM = this.valMode();
 
-    const trainTextLen = text.length - valSize;
-    if (trainTextLen <= N) {
-      alert("Text is too short to compute baseline limits.");
+    // 1. Find all active training index positions
+    const trainIndices: number[] = [];
+    for (let i = 0; i < text.length - N; i++) {
+      if (valM === 'overlap' || !valIndices.has(i)) {
+        trainIndices.push(i);
+      }
+    }
+
+    if (trainIndices.length === 0) {
+      this.baselineMetrics.set(null);
       return;
     }
 
-    // 1. Compute empirical frequencies from training text
+    // 2. Compute empirical frequencies from training indices
     const counts = new Map<string, Map<string, number>>();
     const totals = new Map<string, number>();
 
-    for (let i = 0; i < trainTextLen - N; i++) {
-      const context = text.slice(i, i + N);
-      const target = text[i + N];
+    for (const idx of trainIndices) {
+      const context = text.slice(idx, idx + N);
+      const target = text[idx + N];
 
       if (!counts.has(context)) {
         counts.set(context, new Map<string, number>());
@@ -590,14 +689,14 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
       totals.set(context, totals.get(context)! + 1);
     }
 
-    // 2. Evaluate on training samples
+    // 3. Evaluate on training samples
     let trainLossSum = 0;
     let trainCorrect = 0;
     let trainSampleCount = 0;
 
-    for (let i = 0; i < trainTextLen - N; i++) {
-      const context = text.slice(i, i + N);
-      const target = text[i + N];
+    for (const idx of trainIndices) {
+      const context = text.slice(idx, idx + N);
+      const target = text[idx + N];
       trainSampleCount++;
 
       const charCounts = counts.get(context)!;
@@ -607,7 +706,6 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
 
       trainLossSum += -Math.log(prob + 1e-15);
 
-      // Find argmax prediction
       let maxChar = '';
       let maxCount = -1;
       for (const [char, count] of charCounts.entries()) {
@@ -621,7 +719,7 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
       }
     }
 
-    // 3. Evaluate on validation samples (using getValidationSamples)
+    // 4. Evaluate on validation samples (using getValidationSamples)
     const valSamples = this.getValidationSamples();
     let valLossSum = 0;
     let valCorrect = 0;
@@ -652,10 +750,8 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
           valCorrect++;
         }
       } else {
-        // Unseen context: uniform distribution baseline
         const prob = 1 / V;
         valLossSum += -Math.log(prob);
-        // Check first character index for deterministic guess
         if (target === vocab[0]) {
           valCorrect++;
         }
@@ -692,18 +788,32 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
     const text = this.textInput();
     const vocab = this.vocab();
     const N = this.contextLength();
-    const valSize = this.effectiveValidationSize();
+    const valMode = this.valMode();
+    const valIndices = this.randomValIndices();
 
-    // Training text length (excluding validation set at the end)
-    const trainTextLen = text.length - valSize;
-
-    if (trainTextLen <= N) {
+    if (text.length <= N) {
       return { contextIndices: [], targetIdx: -1, contextText: '', targetChar: '', preText: '' };
     }
 
-    if (this.textCursor + N >= trainTextLen) {
-      this.textCursor = 0;
-      this.epochCount.update(e => e + 1);
+    let attempts = 0;
+    const maxAttempts = text.length;
+    while (attempts < maxAttempts) {
+      if (this.textCursor + N >= text.length) {
+        this.textCursor = 0;
+        this.epochCount.update(e => e + 1);
+      }
+
+      const isValIndex = valIndices.has(this.textCursor);
+      if (valMode === 'overlap' || !isValIndex) {
+        break; // Found valid training index
+      }
+
+      this.textCursor++;
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      return { contextIndices: [], targetIdx: -1, contextText: '', targetChar: '', preText: '' };
     }
 
     const contextText = text.slice(this.textCursor, this.textCursor + N);
@@ -760,10 +870,10 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         logs.push({
-          preText: sample.preText,
-          input: sample.contextText,
-          pred: vocab[predIdx] || '?',
-          target: sample.targetChar,
+          preText: formatDisplayString(sample.preText),
+          input: formatDisplayString(sample.contextText),
+          pred: formatDisplayString(vocab[predIdx] || '?'),
+          target: formatDisplayString(sample.targetChar),
           loss,
           correct: isCorrect
         });
@@ -786,10 +896,10 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         logs.push({
-          preText: sample.preText,
-          input: sample.contextText,
-          pred: vocab[predIdx] || '?',
-          target: sample.targetChar,
+          preText: formatDisplayString(sample.preText),
+          input: formatDisplayString(sample.contextText),
+          pred: formatDisplayString(vocab[predIdx] || '?'),
+          target: formatDisplayString(sample.targetChar),
           loss,
           correct: isCorrect
         });

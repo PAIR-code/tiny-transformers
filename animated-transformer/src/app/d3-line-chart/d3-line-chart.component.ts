@@ -37,10 +37,28 @@ export interface NamedChartPoint {
   x: number;
   y: number;
   name: string;
-  // Used for display purposes, sometimes we set points to be the same as the
-  // previous point (to flatline, but also change the style to let the user know
-  // it's NaN).
   isNaN?: boolean;
+}
+
+export interface ChartBaseline {
+  y: number;
+  name: string;
+  color?: string;
+  isRightAxis?: boolean;
+}
+
+export const CHART_COLOR_MAP: { [name: string]: string } = {
+  'Train Loss': '#3b82f6',        // Blue
+  'Val Loss': '#ef4444',          // Red
+  'Train Accuracy': '#10b981',    // Emerald Green
+  'Val Accuracy': '#f59e0b',      // Amber
+  'Opt Train Loss': '#93c5fd',    // Light Blue
+  'Opt Val Loss': '#fca5a5',      // Light Red
+  'Opt Val Acc': '#fcd34d',       // Light Amber
+};
+
+export function getLineColor(name: string): string {
+  return CHART_COLOR_MAP[name] || '#64748b';
 }
 
 export type ScaleFn = d3.ScaleContinuousNumeric<number, number>;
@@ -180,6 +198,7 @@ export class D3LineChartComponent {
   readonly configUpdate = output<ChartConfig>();
   readonly inChartConfig = input<ChartConfig | undefined>();
   readonly dataPoints = input<NamedChartPoint[]>([]);
+  readonly baselines = input<ChartBaseline[]>([]);
 
   readonly chartElements = signal<ChartElements | null>(null);
   readonly config = signal<ChartConfig>(defaultChartConfig());
@@ -200,6 +219,7 @@ export class D3LineChartComponent {
       const chartElements = this.chartElements();
       const data = this.dataPoints();
       const config = this.config();
+      const baselines = this.baselines();
       if (chartElements && data) {
         this.updateChart(chartElements, config, data);
       }
@@ -271,20 +291,16 @@ export class D3LineChartComponent {
     // The x and y axis lines, labels, and ticks.
     this.updateAxis(chartElements, config, xScale, yScaleLeft, yScaleRight);
 
-    const color = d3
-      .scaleOrdinal<string, string>()
-      .domain(Object.keys(pointsByName))
-      .range(d3.schemeSet2);
-
     // The Key/Lengend.
-    this.updateLegend(chartElements, config, color, hiddenLineNames, pointsByName);
-    this.updateLines(chartElements, config, color, xScale, yScaleLeft, yScaleRight, hiddenLineNames, pointsByName);
+    this.updateLegend(chartElements, config, getLineColor, hiddenLineNames, pointsByName, this.baselines());
+    this.updateLines(chartElements, config, getLineColor, xScale, yScaleLeft, yScaleRight, hiddenLineNames, pointsByName);
+    this.updateBaselines(chartElements, config, xScale, yScaleLeft, yScaleRight, this.baselines());
   }
 
   updateLines(
     chartElements: ChartElements,
     config: ChartConfig,
-    color: d3.ScaleOrdinal<string, string, never>,
+    colorFn: (name: string) => string,
     xScale: ScaleFn,
     yScaleLeft: ScaleFn,
     yScaleRight: ScaleFn | undefined,
@@ -296,9 +312,11 @@ export class D3LineChartComponent {
     const rightNames = new Set(config.rightYLineNames || []);
 
     pathsG.selectAll('path').remove();
+    pathsG.selectAll('.chart-initial-dot').remove();
 
     pointNamesToPlot.forEach((name) => {
       const activeYScale = (rightNames.has(name) && yScaleRight) ? yScaleRight : yScaleLeft;
+      const pts = pointsByName[name];
       
       const line = d3
         .line<NamedChartPoint>()
@@ -308,67 +326,165 @@ export class D3LineChartComponent {
 
       pathsG
         .append('path')
-        .datum(pointsByName[name])
+        .datum(pts)
         .attr('fill', 'none')
-        .attr('stroke', color(name))
+        .attr('stroke', colorFn(name))
         .attr('stroke-width', config.lineStrokeWidth)
         .attr('stroke-linecap', config.lineStrokeLinecap)
         .attr('stroke-linejoin', config.lineStrokeLinejoin)
         .attr('stroke-opacity', config.lineStrokeOpacity)
         .attr('d', line);
+
+      // Draw initial point as a bigger circle/dot (step 0)
+      if (pts && pts.length > 0) {
+        const firstPt = pts[0];
+        pathsG
+          .append('circle')
+          .attr('class', 'chart-initial-dot')
+          .attr('cx', xScale(firstPt.x))
+          .attr('cy', activeYScale(firstPt.y))
+          .attr('r', 5.5) // Bigger dot
+          .attr('fill', colorFn(name))
+          .attr('stroke', '#ffffff')
+          .attr('stroke-width', 1.8)
+          .attr('opacity', 0.95);
+      }
     });
   }
 
   updateLegend(
     chartElements: ChartElements,
     config: ChartConfig,
-    color: d3.ScaleOrdinal<string, string, never>,
+    colorFn: (name: string) => string,
     hiddenLineNames: Set<string>,
     pointsByName: { [name: string]: NamedChartPoint[] },
+    baselines: ChartBaseline[]
   ) {
     const { legend } = chartElements;
+    const { width, height, marginLeft, marginRight, marginBottom } = config;
 
-    const allLineNames = Object.keys(pointsByName);
+    const rightNames = new Set(config.rightYLineNames || []);
+    const leftLineNames = Object.keys(pointsByName).filter(n => !rightNames.has(n));
+    const leftBaselines = baselines.filter(b => !b.isRightAxis).map(b => b.name);
+    const leftKeys = [...leftLineNames, ...leftBaselines];
 
-    // Add one dot in the legend for each name.
-    legend
-      .selectAll('circle')
-      .data(allLineNames)
-      .join('circle')
-      .on('click', (_event, d) => {
-        this.toggleShowHideLine(d);
-      })
-      .attr('cx', config.legendX)
-      .attr('cy', function (d, i) {
-        return config.legendY + i * 15;
-      })
-      .attr('r', 4)
-      .style('stroke', (d) => color(d))
-      .style('fill', (d) => {
-        if (hiddenLineNames.has(d)) {
-          return '#FFF';
-        }
-        return color(d);
-      });
+    const rightLineNames = Object.keys(pointsByName).filter(n => rightNames.has(n));
+    const rightBaselines = baselines.filter(b => b.isRightAxis).map(b => b.name);
+    const rightKeys = [...rightLineNames, ...rightBaselines];
 
-    // Add one dot in the legend for each name.
-    legend
-      .selectAll('text')
-      .data(allLineNames)
-      .join('text')
-      .attr('font-size', 'smaller')
-      .attr('x', config.legendX + 10)
-      .attr('y', function (d, i) {
-        return config.legendY + i * 15;
-      })
-      .style('fill', function (d) {
-        return color(d);
-      })
-      .text(function (d) {
-        return d;
-      })
-      .attr('text-anchor', 'left')
-      .style('alignment-baseline', 'middle');
+    const legendPositions: { [name: string]: { x: number; y: number; isBaseline: boolean } } = {};
+    const startY = height - marginBottom + 28;
+
+    leftKeys.forEach((name, idx) => {
+      legendPositions[name] = {
+        x: marginLeft,
+        y: startY + idx * 14,
+        isBaseline: leftBaselines.includes(name)
+      };
+    });
+
+    rightKeys.forEach((name, idx) => {
+      legendPositions[name] = {
+        x: width - marginRight - 110,
+        y: startY + idx * 14,
+        isBaseline: rightBaselines.includes(name)
+      };
+    });
+
+    const allKeys = [...leftKeys, ...rightKeys];
+
+    // Clear old legend elements
+    legend.selectAll('*').remove();
+
+    allKeys.forEach((name) => {
+      const pos = legendPositions[name];
+      if (!pos) return;
+
+      const isHidden = hiddenLineNames.has(name);
+      const color = colorFn(name);
+
+      if (pos.isBaseline) {
+        // Draw dashed line snippet for baseline key
+        legend
+          .append('line')
+          .attr('class', 'baseline-legend-item')
+          .attr('x1', pos.x - 4)
+          .attr('x2', pos.x + 10)
+          .attr('y1', pos.y)
+          .attr('y2', pos.y)
+          .attr('stroke', color)
+          .attr('stroke-width', 1.5)
+          .attr('stroke-dasharray', '2,2');
+      } else {
+        // Draw circle for line key (with toggle action)
+        legend
+          .append('circle')
+          .attr('cx', pos.x + 3)
+          .attr('cy', pos.y)
+          .attr('r', 4)
+          .style('stroke', color)
+          .style('fill', isHidden ? '#FFF' : color)
+          .style('cursor', 'pointer')
+          .on('click', () => {
+            this.toggleShowHideLine(name);
+          });
+      }
+
+      // Draw text label next to the symbol
+      legend
+        .append('text')
+        .attr('class', 'baseline-legend-item')
+        .attr('font-size', '10px')
+        .attr('font-weight', '500')
+        .attr('x', pos.x + 16)
+        .attr('y', pos.y)
+        .style('fill', isHidden ? '#94a3b8' : color)
+        .style('cursor', pos.isBaseline ? 'default' : 'pointer')
+        .text(name)
+        .attr('alignment-baseline', 'middle')
+        .on('click', () => {
+          if (!pos.isBaseline) {
+            this.toggleShowHideLine(name);
+          }
+        });
+    });
+  }
+
+  updateBaselines(
+    chartElements: ChartElements,
+    config: ChartConfig,
+    xScale: ScaleFn,
+    yScaleLeft: ScaleFn,
+    yScaleRight: ScaleFn | undefined,
+    baselines: ChartBaseline[]
+  ) {
+    const { pathsG } = chartElements;
+    const { width, marginLeft, marginRight } = config;
+
+    // Remove any previously drawn baseline elements
+    pathsG.selectAll('.chart-baseline-line').remove();
+
+    baselines.forEach((b) => {
+      const activeYScale = (b.isRightAxis && yScaleRight) ? yScaleRight : yScaleLeft;
+      const yVal = activeYScale(b.y);
+
+      const isRight = !!b.isRightAxis;
+      const xStart = isRight ? marginLeft : marginLeft - 10;
+      const xEnd = isRight ? width - marginRight + 10 : width - marginRight;
+
+      // Draw horizontal line extending slightly past axis
+      pathsG
+        .append('line')
+        .attr('class', 'chart-baseline-line')
+        .attr('x1', xStart)
+        .attr('x2', xEnd)
+        .attr('y1', yVal)
+        .attr('y2', yVal)
+        .attr('stroke', b.color || '#94a3b8')
+        .attr('stroke-width', 1.2)
+        .attr('stroke-dasharray', '3,3')
+        .attr('stroke-opacity', 0.7);
+    });
   }
 
   updateAxis(
@@ -393,6 +509,19 @@ export class D3LineChartComponent {
     xAxisG.attr('transform', `translate(0,${height - marginBottom})`).call(xAxis);
 
     yAxisG.attr('transform', `translate(${marginLeft},0)`).call(yAxisLeft);
+
+    if (config.yLabel) {
+      yAxisG
+        .append('text')
+        .attr('fill', '#475569')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', -35)
+        .attr('x', -(height - marginBottom + marginTop) / 2)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '10px')
+        .attr('font-weight', '600')
+        .text(config.yLabel);
+    }
 
     if (yAxisRightG) {
       yAxisRightG.selectAll('*').remove();

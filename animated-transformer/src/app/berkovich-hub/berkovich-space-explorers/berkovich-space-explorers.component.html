@@ -80,7 +80,13 @@ limitations under the License.
         
         <div class="form-grid">
           <div class="form-field">
-            <label for="approach-select">Approach / Architecture</label>
+            <label for="approach-select">
+              Approach / Architecture
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
+                title="Selects between:&#10;- Berkovich Bigram: Context=1, maps characters onto Berkovich space points.&#10;- Berkovich N-Gram: Context=N, aggregates contexts using p-adic tree filters.&#10;- Euclidean Baseline: Context=N, standard vector space lookup model.">
+                info
+              </mat-icon>
+            </label>
             <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
               <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
               <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
@@ -145,7 +151,13 @@ limitations under the License.
           </div>
 
           <div class="form-field">
-            <label for="beta-input">Softmax Temperature (&beta;)</label>
+            <label for="beta-input">
+              Softmax Temperature (&beta;)
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
+                title="Higher beta (temperature parameter) makes the model's predictions more confident and peaky, while lower beta makes them more uniform/random.">
+                info
+              </mat-icon>
+            </label>
             <input id="beta-input" type="number" step="0.5" min="0.1" [value]="beta()" (change)="beta.set(+$any($event.target).value)" />
           </div>
 
@@ -160,8 +172,50 @@ limitations under the License.
           </div>
 
           <div class="form-field">
-            <label for="validation-size">Validation Size (Chars)</label>
-            <input id="validation-size" type="number" step="50" min="10" max="1000" [value]="validationSize()" (change)="validationSize.set(+$any($event.target).value)" />
+            <label>
+              Validation Split Mode
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
+                title="Determines how the dataset is split:&#10;- Holdout: Validation is evaluated on a separate contiguous partition (or random sample) of the text.&#10;- Overlap: Validation is evaluated on the training text itself (useful to verify overfitting).">
+                info
+              </mat-icon>
+            </label>
+            <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center; min-height: 28px;">
+              <!-- Main toggles: Holdout vs Overlap -->
+              <div style="display: flex; gap: 4px;">
+                <button mat-stroked-button [color]="valMode() !== 'overlap' ? 'primary' : ''" (click)="setHoldoutMode()" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Holdout</button>
+                <button mat-stroked-button [color]="valMode() === 'overlap' ? 'primary' : ''" (click)="valMode.set('overlap')" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Overlap</button>
+              </div>
+
+              <!-- Randomize toggle (only for Holdout mode) -->
+              <button mat-icon-button *ngIf="valMode() !== 'overlap'"
+                [color]="valMode() === 'random' ? 'primary' : ''"
+                (click)="toggleRandomHoldout()"
+                title="Randomize holdout indices"
+                style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">shuffle</mat-icon>
+              </button>
+
+              <!-- Shuffle/Re-randomize trigger (only when randomized mode active) -->
+              <button mat-icon-button *ngIf="valMode() === 'random'"
+                (click)="resetWeights()"
+                title="Shuffle/Re-randomize indices"
+                style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #64748b;">refresh</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field" *ngIf="valMode() === 'overlap'">
+            <label for="validation-size-overlap">Validation Size (Chars)</label>
+            <input id="validation-size-overlap" type="number" step="50" min="10" max="1000" [value]="valSizeOverlap()" (change)="valSizeOverlap.set(+$any($event.target).value)" />
+          </div>
+
+          <div class="form-field" *ngIf="valMode() !== 'overlap'">
+            <label for="validation-pct-holdout">Holdout Percentage (%)</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input id="validation-pct-holdout" type="number" step="5" min="5" max="50" [value]="valPercentageHoldout() * 100" (change)="valPercentageHoldout.set(+$any($event.target).value / 100)" style="width: 80px;" />
+              <span style="font-size: 11.5px; color: #64748b;">(Size: {{ effectiveValidationSize() }} chars)</span>
+            </div>
           </div>
         </div>
       </section>
@@ -218,6 +272,7 @@ limitations under the License.
             <app-d3-line-chart
               [dataPoints]="chartPoints()"
               [inChartConfig]="chartConfig()"
+              [baselines]="chartBaselines()"
             />
           } @else {
             <div class="empty-chart-state" style="color: #64748b; font-size: 13px; text-align: center; padding: 24px;">
@@ -227,18 +282,79 @@ limitations under the License.
           }
         </div>
       </section>
-    </div>
-
-    <!-- ROW 3: Explainer ("How does it work?") & Parameter Inspector -->
-    <div class="dashboard-row stack-column">
-      <!-- How does it work? -->
-      <section class="card explainer-card">
-        <h3><mat-icon>info</mat-icon> How does it work?</h3>
-        <markdown [katex]="true" [data]="explainerText()"></markdown>
+    </div>    <!-- ROW 3: Predictions (Recent Training & Held-out Validation) -->
+    <div class="dashboard-row two-columns" style="width: 100%;">
+      <!-- Left: Recent Training Predictions -->
+      <section class="card predictions-card">
+        <h3><mat-icon>history</mat-icon> Recent Training Predictions</h3>
+        <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
+          Showing the last 15 training batch predictions made by the model.
+        </p>
+        <div class="predictions-list" *ngIf="recentPredictions().length > 0; else emptyTrainPreds">
+          <div class="prediction-header-row">
+            <span class="context-col">Context</span>
+            <span class="pred-col">Predicted</span>
+            <span class="target-col">Target</span>
+            <span class="loss-col">Loss</span>
+            <span class="status-col">Status</span>
+          </div>
+          <div class="prediction-item" *ngFor="let item of recentPredictions()" [class.correct-pred]="item.correct">
+            <span class="context-col">
+              <span class="pre-context">{{ item.preText }}</span>{{ item.input }}
+            </span>
+            <span class="pred-col">'{{ item.pred }}'</span>
+            <span class="target-col">'{{ item.target }}'</span>
+            <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
+            <span class="status-col">
+              <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+            </span>
+          </div>
+        </div>
+        <ng-template #emptyTrainPreds>
+          <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
+            No training predictions yet.
+          </div>
+        </ng-template>
       </section>
 
+      <!-- Right: Held-out Evaluation Predictions -->
+      <section class="card predictions-card">
+        <h3><mat-icon>rule</mat-icon> Held-out Evaluation Predictions (Size: {{ effectiveValidationSize() }})</h3>
+        <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
+          Showing predictions on the first 15 characters of the fixed holdout evaluation set.
+        </p>
+        <div class="predictions-list" *ngIf="validationPredictions().length > 0; else emptyValPreds">
+          <div class="prediction-header-row">
+            <span class="context-col">Context</span>
+            <span class="pred-col">Predicted</span>
+            <span class="target-col">Target</span>
+            <span class="loss-col">Loss</span>
+            <span class="status-col">Status</span>
+          </div>
+          <div class="prediction-item" *ngFor="let item of validationPredictions()" [class.correct-pred]="item.correct">
+            <span class="context-col">
+              <span class="pre-context">{{ item.preText }}</span>{{ item.input }}
+            </span>
+            <span class="pred-col">'{{ item.pred }}'</span>
+            <span class="target-col">'{{ item.target }}'</span>
+            <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
+            <span class="status-col">
+              <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+            </span>
+          </div>
+        </div>
+        <ng-template #emptyValPreds>
+          <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
+            No validation predictions yet.
+          </div>
+        </ng-template>
+      </section>
+    </div>
+
+    <!-- ROW 4: Model Weights & Parameter Introspector -->
+    <div class="dashboard-row" style="width: 100%; margin-top: 16px;" *ngIf="approach() !== 'euclidean-ngram'">
       <!-- Model Weights & Parameter Introspector -->
-      <section class="card collapsible-card introspect-section-card" *ngIf="approach() !== 'euclidean-ngram'">
+      <section class="card collapsible-card introspect-section-card">
         <div class="collapsible-header" (click)="isInspectExpanded.set(!isInspectExpanded())" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; padding: 4px 0;">
           <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">
             <mat-icon style="color: #0f766e;">analytics</mat-icon>
@@ -361,75 +477,14 @@ limitations under the License.
           </div>
         }
       </section>
+    </div>
 
-      <!-- ROW 4: Predictions (Recent Training & Held-out Validation) -->
-      <div class="dashboard-row two-columns" style="width: 100%;">
-        <!-- Left: Recent Training Predictions -->
-        <section class="card predictions-card">
-          <h3><mat-icon>history</mat-icon> Recent Training Predictions</h3>
-          <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
-            Showing the last 15 training batch predictions made by the model.
-          </p>
-          <div class="predictions-list" *ngIf="recentPredictions().length > 0; else emptyTrainPreds">
-            <div class="prediction-header-row">
-              <span class="context-col">Context</span>
-              <span class="pred-col">Predicted</span>
-              <span class="target-col">Target</span>
-              <span class="loss-col">Loss</span>
-              <span class="status-col">Status</span>
-            </div>
-            <div class="prediction-item" *ngFor="let item of recentPredictions()" [class.correct-pred]="item.correct">
-              <span class="context-col">
-                <span class="pre-context">{{ item.preText }}</span>{{ item.input === '\n' ? '\\n' : item.input }}
-              </span>
-              <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : item.pred }}'</span>
-              <span class="target-col">'{{ item.target === '\n' ? '\\n' : item.target }}'</span>
-              <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
-              <span class="status-col">
-                <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
-              </span>
-            </div>
-          </div>
-          <ng-template #emptyTrainPreds>
-            <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
-              No training predictions yet.
-            </div>
-          </ng-template>
-        </section>
- 
-        <!-- Right: Held-out Evaluation Predictions -->
-        <section class="card predictions-card">
-          <h3><mat-icon>rule</mat-icon> Held-out Evaluation Predictions (Size: {{ effectiveValidationSize() }})</h3>
-          <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
-            Showing predictions on the first 15 characters of the fixed holdout evaluation set.
-          </p>
-          <div class="predictions-list" *ngIf="validationPredictions().length > 0; else emptyValPreds">
-            <div class="prediction-header-row">
-              <span class="context-col">Context</span>
-              <span class="pred-col">Predicted</span>
-              <span class="target-col">Target</span>
-              <span class="loss-col">Loss</span>
-              <span class="status-col">Status</span>
-            </div>
-            <div class="prediction-item" *ngFor="let item of validationPredictions()" [class.correct-pred]="item.correct">
-              <span class="context-col">
-                <span class="pre-context">{{ item.preText }}</span>{{ item.input === '\n' ? '\\n' : item.input }}
-              </span>
-              <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : item.pred }}'</span>
-              <span class="target-col">'{{ item.target === '\n' ? '\\n' : item.target }}'</span>
-              <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
-              <span class="status-col">
-                <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
-              </span>
-            </div>
-          </div>
-          <ng-template #emptyValPreds>
-            <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
-              No validation predictions yet.
-            </div>
-          </ng-template>
-        </section>
-      </div>
+    <!-- ROW 5: Explainer ("How does it work?") -->
+    <div class="dashboard-row" style="width: 100%; margin-top: 16px;">
+      <section class="card explainer-card">
+        <h3><mat-icon>info</mat-icon> How does it work?</h3>
+        <markdown [katex]="true" [data]="explainerText()"></markdown>
+      </section>
     </div>
   </div>
 </div>
