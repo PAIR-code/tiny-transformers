@@ -61,4 +61,55 @@ describe('BerkovichUnaryGradientsVisComponent', () => {
   it('should create the unary component', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should initialize inputs to valid 4-digit representations', () => {
+    expect(component.centerXInput()).toBe('00.10');
+    expect(component.centerYInput()).toBe('10.00');
+    expect(component.centerX()).toEqual({ num: 1n, den: 3n });
+    expect(component.centerY()).toEqual({ num: 3n, den: 1n });
+  });
+
+  it('should update inputs on operator change', () => {
+    // Change to scale
+    component.onOperatorChange('scale');
+    expect(component.centerXInput()).toBe('00.10');
+    expect(component.centerYInput()).toBe('10.00');
+    expect(component.centerX()).toEqual({ num: 1n, den: 3n });
+    expect(component.centerY()).toEqual({ num: 3n, den: 1n });
+
+    // Change to square
+    component.onOperatorChange('square');
+    expect(component.centerXInput()).toBe('01.00');
+    expect(component.centerYInput()).toBe('11.00');
+    expect(component.centerX()).toEqual({ num: 1n, den: 1n });
+    expect(component.centerY()).toEqual({ num: 4n, den: 1n });
+
+    // Change to shift
+    component.onOperatorChange('shift');
+    expect(component.centerXInput()).toBe('01.00');
+    expect(component.centerYInput()).toBe('10.00');
+    expect(component.centerX()).toEqual({ num: 1n, den: 1n });
+    expect(component.centerY()).toEqual({ num: 3n, den: 1n });
+  });
+
+  it('should format and sync inputs when prime changes', () => {
+    // Set some valid inputs in base 3
+    component.centerXInput.set('02.00'); // 2 in base 3
+    component.centerYInput.set('12.00'); // 5 in base 3 (1*3 + 2*1)
+    
+    // Verify parsed values in base 3
+    expect(component.centerX()).toEqual({ num: 2n, den: 1n });
+    expect(component.centerY()).toEqual({ num: 5n, den: 1n });
+
+    // Change prime to 5
+    component.onPrimeChange(5);
+
+    // Inputs should be formatted for base 5 representation of the same numbers (2 and 5)
+    // 2 in base 5 is '02.00'
+    // 5 in base 5 is '10.00' (1*5 + 0)
+    expect(component.centerXInput()).toBe('02.00');
+    expect(component.centerYInput()).toBe('10.00');
+    expect(component.centerX()).toEqual({ num: 2n, den: 1n });
+    expect(component.centerY()).toEqual({ num: 5n, den: 1n });
+  });
 });

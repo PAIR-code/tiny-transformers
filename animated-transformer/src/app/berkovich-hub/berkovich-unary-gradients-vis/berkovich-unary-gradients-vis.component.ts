@@ -69,10 +69,10 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
 
   // Input states
-  readonly centerXInput = signal<string>('0.1'); // 1/3 in base 3
+  readonly centerXInput = signal<string>('00.10'); // 1/3 in base 3
   readonly rhoXInput = signal<string>('0.0');
 
-  readonly centerYInput = signal<string>('1.0'); // 3 in base 3 is 10, let's start with target 3 (10.) or 1.
+  readonly centerYInput = signal<string>('10.00'); // 3 in base 3 is 10, let's start with target 3 (10.) or 1.
 
   // Parsed states
   readonly centerX = computed<Rational>(() => {
@@ -261,23 +261,32 @@ $$(x + 1)_\\rho = \\rho_x$$
     this.operator.set(op);
     this.history.set([]);
     // Reset inputs depending on operator
-    const p = this.prime();
     if (op === 'scale') {
-      this.centerXInput.set('0.1'); // 1/3
-      this.centerYInput.set('1.0'); // 3
+      this.centerXInput.set('00.10'); // 1/3
+      this.centerYInput.set('10.00'); // 3
     } else if (op === 'square') {
-      this.centerXInput.set('1.0'); // 1
-      this.centerYInput.set('1.1'); // 4 (11_3)
+      this.centerXInput.set('01.00'); // 1
+      this.centerYInput.set('11.00'); // 4 (11_3)
     } else {
-      this.centerXInput.set('1.0'); // 1
-      this.centerYInput.set('1.0'); // 3 (10_3)
+      this.centerXInput.set('01.00'); // 1
+      this.centerYInput.set('10.00'); // 3 (10_3)
     }
   }
 
   onPrimeChange(p: number) {
     this.stopPlaying();
+    
+    // Get the current rational values using the current prime
+    const currentX = this.centerX();
+    const currentY = this.centerY();
+    
     this.prime.set(p);
     this.history.set([]);
+    
+    // Re-format the current rational values in the new prime
+    const pBig = BigInt(p);
+    this.centerXInput.set(formatDigitSequence(currentX, pBig));
+    this.centerYInput.set(formatDigitSequence(currentY, pBig));
   }
 
   onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
