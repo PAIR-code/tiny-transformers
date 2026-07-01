@@ -192,7 +192,7 @@ limitations under the License.
 .training-controls-card {
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 12px;
     margin-bottom: 20px;
   }
@@ -216,6 +216,13 @@ limitations under the License.
       margin-top: 4px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+    }
+
+    .stat-sub {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 2px;
+      font-weight: 500;
     }
   }
 
@@ -582,7 +589,13 @@ limitations under the License.
 
     .context-col {
       font-family: monospace;
-      color: #475569;
+      color: #0f172a;
+      font-weight: 700;
+
+      .pre-context {
+        color: #94a3b8;
+        font-weight: normal;
+      }
     }
 
     .target-col, .pred-col {

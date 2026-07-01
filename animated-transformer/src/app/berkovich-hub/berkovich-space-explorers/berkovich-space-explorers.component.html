@@ -51,6 +51,17 @@ limitations under the License.
           <span><strong>Text size:</strong> {{ textInput().length }} chars</span>
           <span><strong>Vocabulary size (V):</strong> {{ vocab().length }} unique characters</span>
         </div>
+
+        <div class="dataset-meta" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <button class="small-btn" (click)="computeBaselineLimits()" style="background: #f0fdf4; color: #16a34a; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <mat-icon style="font-size: 14px; width: 14px; height: 14px;">calculate</mat-icon> Compute Optimal Baseline
+          </button>
+          
+          <div *ngIf="baselineMetrics() as baseline" style="font-size: 11.5px; color: #475569; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px;">
+            <span><strong>Optimal Train Loss:</strong> {{ baseline.trainLoss.toFixed(4) }} (Acc: {{ (baseline.trainAcc * 100).toFixed(1) }}%)</span>
+            <span><strong>Optimal Val Loss:</strong> {{ baseline.valLoss.toFixed(4) }} (Acc: {{ (baseline.valAcc * 100).toFixed(1) }}%)</span>
+          </div>
+        </div>
         
         <div class="vocab-chips-container">
           <div class="vocab-title">Vocabulary Mapping:</div>
@@ -147,6 +158,11 @@ limitations under the License.
             <label for="train-speed">Auto-Step Interval (ms)</label>
             <input id="train-speed" type="number" step="50" min="0" [value]="trainingSpeed()" (change)="trainingSpeed.set(+$any($event.target).value)" />
           </div>
+
+          <div class="form-field">
+            <label for="validation-size">Validation Size (Chars)</label>
+            <input id="validation-size" type="number" step="50" min="10" max="1000" [value]="validationSize()" (change)="validationSize.set(+$any($event.target).value)" />
+          </div>
         </div>
       </section>
     </div>
@@ -166,12 +182,22 @@ limitations under the License.
             <div class="stat-lbl">Epochs</div>
           </div>
           <div class="stat-box">
-            <div class="stat-val">{{ currentLossVal().toFixed(4) }}</div>
-            <div class="stat-lbl">Loss</div>
+            <div class="stat-val">{{ currentTrainLoss().toFixed(4) }}</div>
+            <div class="stat-lbl">Train Loss</div>
           </div>
           <div class="stat-box">
-            <div class="stat-val">{{ (currentAccuracyVal() * 100).toFixed(1) }}%</div>
-            <div class="stat-lbl">Accuracy</div>
+            <div class="stat-val">{{ (currentTrainAccuracy() * 100).toFixed(1) }}%</div>
+            <div class="stat-lbl">Train Acc</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">{{ currentValLoss().toFixed(4) }}</div>
+            <div class="stat-lbl">Val Loss</div>
+            <div class="stat-sub" *ngIf="initialLoss() !== null">Init: {{ initialLoss()?.toFixed(4) }}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">{{ (currentValAccuracy() * 100).toFixed(1) }}%</div>
+            <div class="stat-lbl">Val Acc</div>
+            <div class="stat-sub" *ngIf="initialAccuracy() !== null">Init: {{ (initialAccuracy()! * 100).toFixed(1) }}%</div>
           </div>
         </div>
 
@@ -335,6 +361,75 @@ limitations under the License.
           </div>
         }
       </section>
+
+      <!-- ROW 4: Predictions (Recent Training & Held-out Validation) -->
+      <div class="dashboard-row two-columns" style="width: 100%;">
+        <!-- Left: Recent Training Predictions -->
+        <section class="card predictions-card">
+          <h3><mat-icon>history</mat-icon> Recent Training Predictions</h3>
+          <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
+            Showing the last 15 training batch predictions made by the model.
+          </p>
+          <div class="predictions-list" *ngIf="recentPredictions().length > 0; else emptyTrainPreds">
+            <div class="prediction-header-row">
+              <span class="context-col">Context</span>
+              <span class="pred-col">Predicted</span>
+              <span class="target-col">Target</span>
+              <span class="loss-col">Loss</span>
+              <span class="status-col">Status</span>
+            </div>
+            <div class="prediction-item" *ngFor="let item of recentPredictions()" [class.correct-pred]="item.correct">
+              <span class="context-col">
+                <span class="pre-context">{{ item.preText }}</span>{{ item.input === '\n' ? '\\n' : item.input }}
+              </span>
+              <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : item.pred }}'</span>
+              <span class="target-col">'{{ item.target === '\n' ? '\\n' : item.target }}'</span>
+              <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
+              <span class="status-col">
+                <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+              </span>
+            </div>
+          </div>
+          <ng-template #emptyTrainPreds>
+            <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
+              No training predictions yet.
+            </div>
+          </ng-template>
+        </section>
+ 
+        <!-- Right: Held-out Evaluation Predictions -->
+        <section class="card predictions-card">
+          <h3><mat-icon>rule</mat-icon> Held-out Evaluation Predictions (Size: {{ effectiveValidationSize() }})</h3>
+          <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
+            Showing predictions on the first 15 characters of the fixed holdout evaluation set.
+          </p>
+          <div class="predictions-list" *ngIf="validationPredictions().length > 0; else emptyValPreds">
+            <div class="prediction-header-row">
+              <span class="context-col">Context</span>
+              <span class="pred-col">Predicted</span>
+              <span class="target-col">Target</span>
+              <span class="loss-col">Loss</span>
+              <span class="status-col">Status</span>
+            </div>
+            <div class="prediction-item" *ngFor="let item of validationPredictions()" [class.correct-pred]="item.correct">
+              <span class="context-col">
+                <span class="pre-context">{{ item.preText }}</span>{{ item.input === '\n' ? '\\n' : item.input }}
+              </span>
+              <span class="pred-col">'{{ item.pred === '\n' ? '\\n' : item.pred }}'</span>
+              <span class="target-col">'{{ item.target === '\n' ? '\\n' : item.target }}'</span>
+              <span class="loss-col">{{ item.loss.toFixed(4) }}</span>
+              <span class="status-col">
+                <mat-icon>{{ item.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+              </span>
+            </div>
+          </div>
+          <ng-template #emptyValPreds>
+            <div class="empty-predictions" style="padding: 24px; text-align: center; color: #94a3b8; background: #ffffff;">
+              No validation predictions yet.
+            </div>
+          </ng-template>
+        </section>
+      </div>
     </div>
   </div>
 </div>

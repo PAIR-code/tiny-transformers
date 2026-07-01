@@ -60,6 +60,9 @@ describe('BerkovichSpaceExplorersComponent', () => {
     // Default model should be set to Berkovich
     expect(component.berkovichModel()).toBeTruthy();
     expect(component.euclideanModel()).toBeNull();
+
+    expect(component.initialLoss()).toBeGreaterThan(0);
+    expect(component.initialAccuracy()).toBeGreaterThanOrEqual(0);
   });
 
   it('should switch approaches and reset weights correctly', () => {
@@ -87,6 +90,7 @@ describe('BerkovichSpaceExplorersComponent', () => {
 
     expect(component.stepCount()).toBe(1);
     expect(component.recentPredictions().length).toBeGreaterThan(0);
-    expect(component.currentLossVal()).toBeGreaterThanOrEqual(0);
+    expect(component.currentTrainLoss()).toBeGreaterThanOrEqual(0);
+    expect(component.currentValLoss()).toBeGreaterThanOrEqual(0);
   });
 });

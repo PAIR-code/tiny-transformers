@@ -47,6 +47,7 @@ import {
 
 // Interface for prediction logs in the UI
 interface PredictionLog {
+  preText: string;
   input: string;
   pred: string;
   target: string;
@@ -87,6 +88,21 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly beta = signal<number>(3.0);
   readonly batchSize = signal<number>(128);
   readonly trainingSpeed = signal<number>(100);
+  readonly validationSize = signal<number>(200);
+  readonly effectiveValidationSize = computed(() => {
+    const text = this.textInput();
+    const valSize = this.validationSize();
+    return Math.min(valSize, Math.max(0, Math.floor(text.length * 0.2)));
+  });
+
+  readonly initialLoss = signal<number | null>(null);
+  readonly initialAccuracy = signal<number | null>(null);
+  readonly baselineMetrics = signal<{
+    trainLoss: number;
+    trainAcc: number;
+    valLoss: number;
+    valAcc: number;
+  } | null>(null);
 
   readonly explainerText = computed(() => {
     const approach = this.approach();
@@ -107,32 +123,56 @@ This baseline uses standard vector spaces. Characters are mapped to Euclidean ve
    * **Embedding Size (Dims)**: Dimension of vector space (${dim}).
    * **Context Size (N)**: Number of historical characters used for prediction.
    * **Learning Rate ($\\eta$)**: Size of gradient updates.
-   * **Softmax Temp ($\\beta$)**: Controls prediction entropy (higher $\\beta$ creates peakier probabilities).
+   * **Softmax Temp ($\\beta$)**: Scales logits before exponentiation. A higher temperature $\\beta$ magnifies logit differences, pushing the model toward peaky, deterministic, and highly confident predictions. A lower temperature $\\beta$ flattens the distribution, increasing prediction entropy and output diversity.
+      `;
+    }
+
+    if (approach === 'berkovich-bigram') {
+      return `
+#### Berkovich p-adic Bigram Predictor ($N=1$)
+This model predicts the next character based on a single preceding character ($N=1$) using Berkovich spaces.
+
+1. **Forward Pass**:
+   * **Embedding Lookup**: The single context character $x_1$ is mapped directly to its embedding disk $E_c = (c, \\rho) \\in \\Gamma_p^{${dim}}$. Since the context length is 1, no aggregation is needed: $H = E_c$.
+   * **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$ for each character class $k$:
+     $$D_{k,d} = -\\text{dist}_{\\text{tree}}(H_d, W_{k,d})$$
+     $$D_k = \\min_{d=1}^{${dim}} D_{k,d}$$
+   * **Affinoid Softmax**: Compute class probabilities:
+     $$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
+
+2. **Values vs. Parameters**:
+   * **Values (Inputs & Target Labels)**: Represented as exact $p$-adic numbers ($c \\in \\mathbb{Q}_p$, i.e. Type I leaf points). Numerically, they are represented with a fixed log-radius of **$-2.0$** (corresponding to digit representation precision).
+   * **Parameters (Embeddings & Constraints)**: Represented as Berkovich disks ($E_c$ and $W_k$). The optimizer continuously adjusts their centers $c$ and radii $\rho$ to fit the training text.
+
+3. **Why two Radius Regularizations?**
+   * **Radius Reg (Target $\\lambda$)**: Shrinks the log-radii of classification disks $W_k$. This creates a "separation pressure" to resolve decision ties and enforce clean margins.
+   * **Radius Reg (Embed $\\lambda$)**: Shrinks the log-radii of character embeddings $E_c$, encouraging tight, well-separated tree coordinates.
+
+4. **Softmax Temperature ($\\beta$)**:
+   * Scales the negated path distance logits before softmax. Higher $\\beta$ makes the class probabilities more peaky and deterministic around the closest affinoid domain, while lower $\\beta$ flattens predictions, allowing wider search exploration.
       `;
     }
 
     return `
-#### Berkovich p-adic Predictor (Non-Archimedean)
-In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) \\in \\Gamma_p^{${dim}}$, where $c \\in \\mathbb{Q}_p$ is the branch center and $\\rho \\in \\mathbb{R}$ is the log-radius of uncertainty.
+#### Berkovich p-adic N-Gram Predictor ($N > 1$)
+This model aggregates a context of $N > 1$ preceding characters to predict the next character using Berkovich spaces.
 
 1. **Forward Pass**:
-   * **Context Aggregation**: Context embeddings $E[x_i]$ are aggregated into $H$ using the **Aggregation Mode**:
-     * *Supremum Norm (Min Logit)*: $H_d = \\bigoplus_i E[x_i]_d$ (corresponds to the minimum logit/supremum disk on the tree).
-     * *Affinoid Average*: A weighted centroid on the p-adic tree.
-   * **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$:
-     $$D_{k,d} = -\\text{dist}_{\\text{tree}}(H_d, W_{k,d})$$
-     $$D_k = \\min_{d=1}^{${dim}} D_{k,d}$$
-   * **Affinoid Softmax**:
-     $$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
+   * **Embedding Lookup**: Context characters $x_1, \\dots, x_N$ are mapped to embedding disks $E[x_j]_d = (c_j, \\rho_j)$.
+   * **Context Aggregation**: Context embeddings are combined into an aggregated hidden disk $H = (c_H, \\rho_H)$ using $p^{-j}$ positional scaling (older history is shifted deeper into the tree):
+     * Center sum: $c_H = \\sum_{j=1}^N c_j \\cdot p^{-j}$ (which weights recent characters higher).
+     * Log-radius: $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$. This propagates the uncertainty of the context scaled by age/position.
+   * **Affinoid Projection & Softmax**: The aggregated representation $H$ is projected against target class disks $W_k$ to compute path losses and softmax probabilities, exactly as in the Bigram model.
 
-2. **Why two Radius Regularizations?**
-   * **Radius Reg (Target $\\lambda$)**: Shrinks the log-radii of classification disks $W_k$. Penalizing $\\rho(W_k)$ pushes the boundary disks to resolve ties and create clear margins between prediction outputs.
-   * **Radius Reg (Embed $\\lambda$)**: Shrinks the log-radii of character embeddings $E_c$. Shrunk embedding sizes mean cleaner p-adic tree coordinates with tighter branches, preventing overlaps.
+2. **Values vs. Parameters**:
+   * **Values (Inputs & Target Labels)**: Represented as exact $p$-adic numbers ($c \\in \\mathbb{Q}_p$) with a fixed log-radius of **$-2.0$** (digit representation precision).
+   * **Parameters (Embeddings & Constraints)**: Represented as Berkovich disks ($E_c$ and $W_k$) with dynamic center and radius updates via Berkovich gradient descent.
 
-3. **Hyper-parameters & Variables**:
-   * **p-adic Base ($p$)**: The prime number controlling tree branching.
-   * **Embedding Size (Dims)**: Number of dimensions/trees (${dim}).
-   * **Softmax Temp ($\\beta$)**: Direct scaling of affinoid path metric values.
+3. **Why two Radius Regularizations?**
+   * Same as the Bigram model, regularizing constraint and embedding radii ensures tight class boundaries and clean tree coordinates.
+
+4. **Softmax Temperature ($\\beta$)**:
+   * Scales the negated path distance logits before softmax. Higher $\\beta$ makes the class probabilities more peaky and deterministic around the closest affinoid domain, while lower $\\beta$ flattens predictions, allowing wider search exploration.
     `;
   });
 
@@ -144,32 +184,105 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
   readonly stepCount = signal<number>(0);
   readonly epochCount = signal<number>(0);
   
-  readonly currentLossVal = signal<number>(0.0);
-  readonly currentAccuracyVal = signal<number>(0.0);
+  readonly currentTrainLoss = signal<number>(0.0);
+  readonly currentTrainAccuracy = signal<number>(0.0);
+  readonly currentValLoss = signal<number>(0.0);
+  readonly currentValAccuracy = signal<number>(0.0);
   readonly recentPredictions = signal<PredictionLog[]>([]);
 
+  readonly validationPredictions = computed<PredictionLog[]>(() => {
+    const bModel = this.berkovichModel();
+    const eModel = this.euclideanModel();
+    const samples = this.getValidationSamples();
+
+    if (samples.length === 0) {
+      return [];
+    }
+
+    const mode = this.aggMode();
+    const temp = this.beta();
+    const vocab = this.vocab();
+    const results: PredictionLog[] = [];
+
+    if (bModel) {
+      for (const sample of samples) {
+        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        const isCorrect = predIdx === sample.targetIdx;
+        const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+
+        results.push({
+          preText: sample.preText,
+          input: sample.contextText,
+          pred: vocab[predIdx] || '?',
+          target: sample.targetChar,
+          loss,
+          correct: isCorrect
+        });
+      }
+    } else if (eModel) {
+      for (const sample of samples) {
+        const fwd = eModel.forward(sample.contextIndices);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        const isCorrect = predIdx === sample.targetIdx;
+        const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+
+        results.push({
+          preText: sample.preText,
+          input: sample.contextText,
+          pred: vocab[predIdx] || '?',
+          target: sample.targetChar,
+          loss,
+          correct: isCorrect
+        });
+      }
+    }
+
+    return results.slice(0, 15);
+  });
+
   readonly isInspectExpanded = signal<boolean>(false);
-  readonly lossHistory = signal<number[]>([]);
-  readonly accuracyHistory = signal<number[]>([]);
+  readonly trainLossHistory = signal<number[]>([]);
+  readonly trainAccuracyHistory = signal<number[]>([]);
+  readonly valLossHistory = signal<number[]>([]);
+  readonly valAccuracyHistory = signal<number[]>([]);
 
   readonly chartPoints = computed<NamedChartPoint[]>(() => {
-    const lossH = this.lossHistory();
-    const accH = this.accuracyHistory();
+    const tLossH = this.trainLossHistory();
+    const tAccH = this.trainAccuracyHistory();
+    const vLossH = this.valLossHistory();
+    const vAccH = this.valAccuracyHistory();
     const points: NamedChartPoint[] = [];
 
-    lossH.forEach((val, index) => {
+    tLossH.forEach((val, index) => {
       points.push({
         x: index,
         y: val,
-        name: 'Loss'
+        name: 'Train Loss'
       });
     });
 
-    accH.forEach((val, index) => {
+    vLossH.forEach((val, index) => {
       points.push({
         x: index,
         y: val,
-        name: 'Accuracy'
+        name: 'Val Loss'
+      });
+    });
+
+    tAccH.forEach((val, index) => {
+      points.push({
+        x: index,
+        y: val,
+        name: 'Train Accuracy'
+      });
+    });
+
+    vAccH.forEach((val, index) => {
+      points.push({
+        x: index,
+        y: val,
+        name: 'Val Accuracy'
       });
     });
 
@@ -189,7 +302,7 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
       legendX: 420,
       legendY: 10,
       rightYLabel: 'Accuracy',
-      rightYLineNames: ['Accuracy'],
+      rightYLineNames: ['Train Accuracy', 'Val Accuracy'],
       rightYDomain: [0.0, 1.0],
     };
   });
@@ -274,12 +387,13 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
   });
 
   constructor() {
-    // Rebuild models and reset when vocab, prime, embDim, or approach changes
+    // Rebuild models and reset when vocab, prime, embDim, approach, or validationSize changes
     effect(() => {
       this.vocab();
       this.prime();
       this.embDim();
       this.approach();
+      this.validationSize();
       untracked(() => {
         this.resetWeights();
       });
@@ -337,17 +451,85 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
     this.resetWeights();
   }
 
+  private getValidationSamples(): { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string; preText: string }[] {
+    const text = this.textInput();
+    const vocab = this.vocab();
+    const N = this.contextLength();
+    const valSize = this.effectiveValidationSize();
+
+    if (text.length <= valSize + N) {
+      return [];
+    }
+
+    const samples = [];
+    const start = text.length - valSize - N;
+    for (let i = 0; i < valSize; i++) {
+      const contextText = text.slice(start + i, start + i + N);
+      const targetChar = text[start + i + N];
+      const contextIndices = [...contextText].map(c => vocab.indexOf(c));
+      const targetIdx = vocab.indexOf(targetChar);
+      const preText = text.slice(Math.max(0, start + i - 5), start + i);
+
+      if (targetIdx !== -1 && !contextIndices.includes(-1)) {
+        samples.push({ contextIndices, targetIdx, contextText, targetChar, preText });
+      }
+    }
+    return samples;
+  }
+
+  evaluateValidation(): { loss: number; accuracy: number } {
+    const bModel = this.berkovichModel();
+    const eModel = this.euclideanModel();
+    const samples = this.getValidationSamples();
+
+    if (samples.length === 0) {
+      return { loss: 0, accuracy: 0 };
+    }
+
+    const mode = this.aggMode();
+    const temp = this.beta();
+
+    let totalLoss = 0;
+    let correctCount = 0;
+
+    if (bModel) {
+      for (const sample of samples) {
+        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        totalLoss += -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        if (predIdx === sample.targetIdx) {
+          correctCount++;
+        }
+      }
+    } else if (eModel) {
+      for (const sample of samples) {
+        const fwd = eModel.forward(sample.contextIndices);
+        totalLoss += -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        if (predIdx === sample.targetIdx) {
+          correctCount++;
+        }
+      }
+    }
+
+    return {
+      loss: totalLoss / samples.length,
+      accuracy: correctCount / samples.length
+    };
+  }
+
   resetWeights() {
     this.pauseTraining();
     this.stepCount.set(0);
     this.epochCount.set(0);
     this.textCursor = 0;
-    this.currentLossVal.set(0.0);
-    this.currentAccuracyVal.set(0.0);
     this.recentPredictions.set([]);
-    this.lossHistory.set([]);
-    this.accuracyHistory.set([]);
+    this.trainLossHistory.set([]);
+    this.trainAccuracyHistory.set([]);
+    this.valLossHistory.set([]);
+    this.valAccuracyHistory.set([]);
     this.lastStepTargets.set({ embedding: {}, constraint: {} });
+    this.baselineMetrics.set(null);
 
     const vocab = this.vocab();
     const p = this.prime();
@@ -369,6 +551,123 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
       const defaultChar = vocab.includes('e') ? 'e' : vocab[0];
       this.selectedChar.set(defaultChar);
     }
+
+    const initialEval = this.evaluateValidation();
+    this.initialLoss.set(initialEval.loss);
+    this.initialAccuracy.set(initialEval.accuracy);
+    this.currentTrainLoss.set(initialEval.loss);
+    this.currentTrainAccuracy.set(initialEval.accuracy);
+    this.currentValLoss.set(initialEval.loss);
+    this.currentValAccuracy.set(initialEval.accuracy);
+  }
+
+  computeBaselineLimits() {
+    const text = this.textInput();
+    const vocab = this.vocab();
+    const N = this.contextLength();
+    const valSize = this.effectiveValidationSize();
+
+    const trainTextLen = text.length - valSize;
+    if (trainTextLen <= N) {
+      alert("Text is too short to compute baseline limits.");
+      return;
+    }
+
+    // 1. Compute empirical frequencies from training text
+    const counts = new Map<string, Map<string, number>>();
+    const totals = new Map<string, number>();
+
+    for (let i = 0; i < trainTextLen - N; i++) {
+      const context = text.slice(i, i + N);
+      const target = text[i + N];
+
+      if (!counts.has(context)) {
+        counts.set(context, new Map<string, number>());
+        totals.set(context, 0);
+      }
+      const charCounts = counts.get(context)!;
+      charCounts.set(target, (charCounts.get(target) ?? 0) + 1);
+      totals.set(context, totals.get(context)! + 1);
+    }
+
+    // 2. Evaluate on training samples
+    let trainLossSum = 0;
+    let trainCorrect = 0;
+    let trainSampleCount = 0;
+
+    for (let i = 0; i < trainTextLen - N; i++) {
+      const context = text.slice(i, i + N);
+      const target = text[i + N];
+      trainSampleCount++;
+
+      const charCounts = counts.get(context)!;
+      const total = totals.get(context)!;
+      const targetCount = charCounts.get(target) ?? 0;
+      const prob = targetCount / total;
+
+      trainLossSum += -Math.log(prob + 1e-15);
+
+      // Find argmax prediction
+      let maxChar = '';
+      let maxCount = -1;
+      for (const [char, count] of charCounts.entries()) {
+        if (count > maxCount) {
+          maxCount = count;
+          maxChar = char;
+        }
+      }
+      if (maxChar === target) {
+        trainCorrect++;
+      }
+    }
+
+    // 3. Evaluate on validation samples (using getValidationSamples)
+    const valSamples = this.getValidationSamples();
+    let valLossSum = 0;
+    let valCorrect = 0;
+
+    const V = vocab.length;
+
+    for (const sample of valSamples) {
+      const context = sample.contextText;
+      const target = sample.targetChar;
+
+      const charCounts = counts.get(context);
+      if (charCounts && totals.has(context)) {
+        const total = totals.get(context)!;
+        const targetCount = charCounts.get(target) ?? 0;
+        const prob = targetCount / total;
+        valLossSum += -Math.log(prob + 1e-15);
+
+        // Find argmax
+        let maxChar = '';
+        let maxCount = -1;
+        for (const [char, count] of charCounts.entries()) {
+          if (count > maxCount) {
+            maxCount = count;
+            maxChar = char;
+          }
+        }
+        if (maxChar === target) {
+          valCorrect++;
+        }
+      } else {
+        // Unseen context: uniform distribution baseline
+        const prob = 1 / V;
+        valLossSum += -Math.log(prob);
+        // Check first character index for deterministic guess
+        if (target === vocab[0]) {
+          valCorrect++;
+        }
+      }
+    }
+
+    this.baselineMetrics.set({
+      trainLoss: trainSampleCount > 0 ? trainLossSum / trainSampleCount : 0,
+      trainAcc: trainSampleCount > 0 ? trainCorrect / trainSampleCount : 0,
+      valLoss: valSamples.length > 0 ? valLossSum / valSamples.length : 0,
+      valAcc: valSamples.length > 0 ? valCorrect / valSamples.length : 0
+    });
   }
 
   onEmbDimChange(val: number) {
@@ -389,28 +688,33 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
   }
 
   // Get sequential training sample
-  private getNextSample(): { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string } {
+  private getNextSample(): { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string; preText: string } {
     const text = this.textInput();
     const vocab = this.vocab();
     const N = this.contextLength();
+    const valSize = this.effectiveValidationSize();
 
-    if (text.length <= N) {
-      return { contextIndices: [], targetIdx: -1, contextText: '', targetChar: '' };
+    // Training text length (excluding validation set at the end)
+    const trainTextLen = text.length - valSize;
+
+    if (trainTextLen <= N) {
+      return { contextIndices: [], targetIdx: -1, contextText: '', targetChar: '', preText: '' };
     }
 
-    if (this.textCursor + N >= text.length) {
+    if (this.textCursor + N >= trainTextLen) {
       this.textCursor = 0;
       this.epochCount.update(e => e + 1);
     }
 
     const contextText = text.slice(this.textCursor, this.textCursor + N);
     const targetChar = text[this.textCursor + N];
+    const preText = text.slice(Math.max(0, this.textCursor - 5), this.textCursor);
 
     const contextIndices = [...contextText].map(c => vocab.indexOf(c));
     const targetIdx = vocab.indexOf(targetChar);
 
     this.textCursor++;
-    return { contextIndices, targetIdx, contextText, targetChar };
+    return { contextIndices, targetIdx, contextText, targetChar, preText };
   }
 
   stepTrain() {
@@ -428,7 +732,7 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
     const eModel = this.euclideanModel();
 
     // 1. Gather all samples in the batch
-    const samples: { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string }[] = [];
+    const samples: { contextIndices: number[]; targetIdx: number; contextText: string; targetChar: string; preText: string }[] = [];
     for (let b = 0; b < bSize; b++) {
       const sample = this.getNextSample();
       if (sample.targetIdx !== -1) {
@@ -456,9 +760,10 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         logs.push({
+          preText: sample.preText,
           input: sample.contextText,
-          target: sample.targetChar,
           pred: vocab[predIdx] || '?',
+          target: sample.targetChar,
           loss,
           correct: isCorrect
         });
@@ -481,17 +786,21 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
 
         logs.push({
+          preText: sample.preText,
           input: sample.contextText,
-          target: sample.targetChar,
           pred: vocab[predIdx] || '?',
+          target: sample.targetChar,
           loss,
           correct: isCorrect
         });
       }
     }
 
-    this.currentLossVal.set(avgLoss);
-    this.currentAccuracyVal.set(avgAcc);
+    const valEval = this.evaluateValidation();
+    this.currentTrainLoss.set(avgLoss);
+    this.currentTrainAccuracy.set(avgAcc);
+    this.currentValLoss.set(valEval.loss);
+    this.currentValAccuracy.set(valEval.accuracy);
     this.stepCount.update(s => s + 1);
 
     // Keep log limited to last 15 items
@@ -501,8 +810,10 @@ In this model, characters are embedded as **Berkovich disks** $E_c = (c, \\rho) 
     ].slice(0, 15));
 
     // Record the loss and accuracy history for chart plotting
-    this.lossHistory.update(h => [...h, avgLoss]);
-    this.accuracyHistory.update(h => [...h, avgAcc]);
+    this.trainLossHistory.update(h => [...h, avgLoss]);
+    this.trainAccuracyHistory.update(h => [...h, avgAcc]);
+    this.valLossHistory.update(h => [...h, valEval.loss]);
+    this.valAccuracyHistory.update(h => [...h, valEval.accuracy]);
 
     // Force refresh models reference to trigger UI bindings
     if (bModel) this.berkovichModel.set(bModel);
