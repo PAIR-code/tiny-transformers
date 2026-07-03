@@ -69,6 +69,8 @@ export interface WalkthroughScore {
 export interface WalkthroughPrediction {
   char: string;
   prob: number;
+  score: number;
+  expScore: number;
 }
 
 export interface WalkthroughDetails {
@@ -79,6 +81,7 @@ export interface WalkthroughDetails {
   aggregated: WalkthroughEmbed[];
   scores: WalkthroughScore[];
   predictions: WalkthroughPrediction[];
+  sumExp: number;
 }
 
 // Interface for prediction logs in the UI
@@ -276,9 +279,13 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
       // Step 4: Softmax predictions
       const probs = [...fwd.probs];
+      const expScores = fwd.logits.map(score => Math.exp(beta * score));
+      const sumExp = expScores.reduce((a, b) => a + b, 0);
       const predictions = probs.map((prob, idx) => ({
         char: vocab[idx],
-        prob
+        prob,
+        score: fwd.logits[idx],
+        expScore: expScores[idx]
       })).sort((a, b) => b.prob - a.prob);
 
       return {
@@ -288,7 +295,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         embeddings,
         aggregated,
         scores: sortedScores,
-        predictions: predictions.slice(0, 5)
+        predictions: predictions.slice(0, 5),
+        sumExp
       };
 
     } else if (eModel) {
@@ -343,9 +351,13 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
       // Step 4: Softmax predictions
       const probs = [...fwd.probs];
+      const expScores = fwd.logits.map(score => Math.exp(beta * score));
+      const sumExp = expScores.reduce((a, b) => a + b, 0);
       const predictions = probs.map((prob, idx) => ({
         char: vocab[idx],
-        prob
+        prob,
+        score: fwd.logits[idx],
+        expScore: expScores[idx]
       })).sort((a, b) => b.prob - a.prob);
 
       return {
@@ -355,7 +367,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         embeddings,
         aggregated,
         scores: sortedScores,
-        predictions: predictions.slice(0, 5)
+        predictions: predictions.slice(0, 5),
+        sumExp
       };
     }
 
