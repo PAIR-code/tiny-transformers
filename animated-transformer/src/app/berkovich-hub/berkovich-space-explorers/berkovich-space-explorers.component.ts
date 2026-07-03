@@ -45,6 +45,41 @@ import {
   NamedChartPoint
 } from '../../d3-line-chart/d3-line-chart.component';
 
+export interface WalkthroughEmbed {
+  dim: number;
+  center?: { num: bigint; den: bigint };
+  rho?: number;
+  val?: number;
+}
+
+export interface WalkthroughEmbedGroup {
+  char: string;
+  charIdx: number;
+  embeds: WalkthroughEmbed[];
+}
+
+export interface WalkthroughScore {
+  char: string;
+  classIdx: number;
+  dimDists?: number[];
+  finalScore: number;
+  logit?: number;
+}
+
+export interface WalkthroughPrediction {
+  char: string;
+  prob: number;
+}
+
+export interface WalkthroughDetails {
+  type: 'berkovich' | 'euclidean';
+  contextText: string;
+  embeddings: WalkthroughEmbedGroup[];
+  aggregated: WalkthroughEmbed[];
+  scores: WalkthroughScore[];
+  predictions: WalkthroughPrediction[];
+}
+
 // Interface for prediction logs in the UI
 interface PredictionLog {
   preText: string;
@@ -115,6 +150,167 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     valLoss: number;
     valAcc: number;
   } | null>(null);
+
+  readonly walkthroughInput = signal<string>('');
+
+  readonly walkthroughDetails = computed<WalkthroughDetails | null>(() => {
+    const input = this.walkthroughInput();
+    const approach = this.approach();
+    const vocab = this.vocab();
+    const N = this.contextLength();
+    const p = this.prime();
+    const bModel = this.berkovichModel();
+    const eModel = this.euclideanModel();
+    const beta = this.beta();
+
+    if (!input) return null;
+
+    // Use at most the last N characters as context
+    const contextText = input.slice(Math.max(0, input.length - N));
+    // Pad to context length N if typed text is too short
+    const paddedContext = contextText.padStart(N, vocab[0] || ' ');
+
+    const contextIndices = [...paddedContext].map(c => {
+      const idx = vocab.indexOf(c);
+      return idx === -1 ? 0 : idx;
+    });
+
+    if (approach !== 'euclidean-ngram' && bModel) {
+      const dims = bModel.embDim;
+      
+      // Step 1: Embeddings Lookup
+      const embeddings = [];
+      for (let j = 0; j < N; j++) {
+        const charIdx = contextIndices[j];
+        const char = paddedContext[j];
+        const charEmbeds = [];
+        for (let d = 0; d < dims; d++) {
+          charEmbeds.push({
+            dim: d,
+            center: { ...bModel.embeddings[charIdx][d].center },
+            rho: bModel.embeddings[charIdx][d].rho,
+            val: undefined as number | undefined
+          });
+        }
+        embeddings.push({ char, charIdx, embeds: charEmbeds });
+      }
+
+      // Step 2: Context Aggregation
+      const fwd = bModel.forward(contextIndices, this.aggMode(), beta);
+      const aggregated = [];
+      for (let d = 0; d < dims; d++) {
+        aggregated.push({
+          dim: d,
+          center: { ...fwd.H[d].center },
+          rho: fwd.H[d].rho,
+          val: undefined as number | undefined
+        });
+      }
+
+      // Step 3: Projection & Scores
+      const scores = [];
+      for (let k = 0; k < vocab.length; k++) {
+        const char = vocab[k];
+        const dimDists: number[] = [];
+        for (let d = 0; d < dims; d++) {
+          dimDists.push(fwd.dists[k][d]);
+        }
+        const finalScore = fwd.logits[k];
+        scores.push({
+          char,
+          classIdx: k,
+          dimDists,
+          finalScore,
+          logit: undefined as number | undefined
+        });
+      }
+      const sortedScores = [...scores].sort((a, b) => b.finalScore - a.finalScore);
+
+      // Step 4: Softmax predictions
+      const probs = [...fwd.probs];
+      const predictions = probs.map((prob, idx) => ({
+        char: vocab[idx],
+        prob
+      })).sort((a, b) => b.prob - a.prob);
+
+      return {
+        type: 'berkovich',
+        contextText: paddedContext,
+        embeddings,
+        aggregated,
+        scores: sortedScores,
+        predictions: predictions.slice(0, 5)
+      };
+
+    } else if (eModel) {
+      const dims = eModel.embDim;
+
+      // Step 1: Embeddings Lookup
+      const embeddings = [];
+      for (let j = 0; j < N; j++) {
+        const charIdx = contextIndices[j];
+        const char = paddedContext[j];
+        const charEmbeds = [];
+        for (let d = 0; d < dims; d++) {
+          charEmbeds.push({
+            dim: d,
+            center: undefined as { num: bigint; den: bigint } | undefined,
+            rho: undefined as number | undefined,
+            val: eModel.embeddings[charIdx][d]
+          });
+        }
+        embeddings.push({ char, charIdx, embeds: charEmbeds });
+      }
+
+      // Step 2: Average Pooling
+      const fwd = eModel.forward(contextIndices);
+      const aggregated = [];
+      for (let d = 0; d < dims; d++) {
+        aggregated.push({
+          dim: d,
+          center: undefined as { num: bigint; den: bigint } | undefined,
+          rho: undefined as number | undefined,
+          val: fwd.H[d]
+        });
+      }
+
+      // Step 3: Class Scores (Logits)
+      const scores = [];
+      for (let k = 0; k < vocab.length; k++) {
+        const char = vocab[k];
+        let logit = eModel.biases[k];
+        for (let d = 0; d < dims; d++) {
+          logit += fwd.H[d] * eModel.weights[k][d];
+        }
+        scores.push({
+          char,
+          classIdx: k,
+          dimDists: undefined as number[] | undefined,
+          finalScore: logit,
+          logit
+        });
+      }
+      const sortedScores = [...scores].sort((a, b) => b.finalScore - a.finalScore);
+
+      // Step 4: Softmax predictions
+      const probs = [...fwd.probs];
+      const predictions = probs.map((prob, idx) => ({
+        char: vocab[idx],
+        prob
+      })).sort((a, b) => b.prob - a.prob);
+
+      return {
+        type: 'euclidean',
+        contextText: paddedContext,
+        embeddings,
+        aggregated,
+        scores: sortedScores,
+        predictions: predictions.slice(0, 5)
+      };
+    }
+
+    return null;
+  });
 
   readonly explainerText = computed(() => {
     const approach = this.approach();
@@ -425,6 +621,20 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
         this.resetWeights();
       });
     });
+
+    // Auto-update walkthroughInput to match first validation predictions sample on load
+    effect(() => {
+      const preds = this.validationPredictions();
+      if (preds.length > 0) {
+        untracked(() => {
+          const current = this.walkthroughInput();
+          if (current === '') {
+            const raw = preds[0].input.replace(/␣/g, ' ').replace(/\\n/g, '\n');
+            this.walkthroughInput.set(raw);
+          }
+        });
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -446,6 +656,14 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
       this.valMode.set('fixed');
     } else {
       this.valMode.set('random');
+    }
+  }
+
+  resetWalkthroughToValidation() {
+    const preds = this.validationPredictions();
+    if (preds.length > 0) {
+      const rawInput = preds[0].input.replace(/␣/g, ' ').replace(/\\n/g, '\n');
+      this.walkthroughInput.set(rawInput);
     }
   }
 
