@@ -64,6 +64,8 @@ export interface WalkthroughScore {
   dimDists?: number[];
   finalScore: number;
   logit?: number;
+  bias?: number;
+  dimDetails?: any[];
 }
 
 export interface WalkthroughPrediction {
@@ -263,8 +265,17 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       for (let k = 0; k < vocab.length; k++) {
         const char = vocab[k];
         const dimDists: number[] = [];
+        const dimDetails = [];
         for (let d = 0; d < dims; d++) {
           dimDists.push(fwd.dists[k][d]);
+          dimDetails.push({
+            dim: d,
+            contextCenter: { ...fwd.H[d].center },
+            contextRho: fwd.H[d].rho,
+            constraintCenter: { ...bModel.constraints[k][d].center },
+            constraintRho: bModel.constraints[k][d].rho,
+            loss: fwd.pathLosses[k][d]
+          });
         }
         const finalScore = fwd.logits[k];
         scores.push({
@@ -272,7 +283,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
           classIdx: k,
           dimDists,
           finalScore,
-          logit: undefined as number | undefined
+          dimDetails
         });
       }
       const sortedScores = [...scores].sort((a, b) => b.finalScore - a.finalScore);
@@ -336,15 +347,23 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       for (let k = 0; k < vocab.length; k++) {
         const char = vocab[k];
         let logit = eModel.biases[k];
+        const dimDetails = [];
         for (let d = 0; d < dims; d++) {
-          logit += fwd.H[d] * eModel.weights[k][d];
+          const product = fwd.H[d] * eModel.weights[k][d];
+          logit += product;
+          dimDetails.push({
+            dim: d,
+            contextVal: fwd.H[d],
+            weightVal: eModel.weights[k][d],
+            product
+          });
         }
         scores.push({
           char,
           classIdx: k,
-          dimDists: undefined as number[] | undefined,
           finalScore: logit,
-          logit
+          bias: eModel.biases[k],
+          dimDetails
         });
       }
       const sortedScores = [...scores].sort((a, b) => b.finalScore - a.finalScore);
@@ -659,6 +678,10 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       const rawInput = preds[0].input.replace(/␣/g, ' ').replace(/\\n/g, '\n');
       this.onWalkthroughInputChange(rawInput);
     }
+  }
+
+  formatDigits(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
   }
 
   onApproachChange(val: any) {
