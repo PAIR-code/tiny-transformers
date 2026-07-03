@@ -74,6 +74,7 @@ export interface WalkthroughPrediction {
 export interface WalkthroughDetails {
   type: 'berkovich' | 'euclidean';
   contextText: string;
+  preText: string;
   embeddings: WalkthroughEmbedGroup[];
   aggregated: WalkthroughEmbed[];
   scores: WalkthroughScore[];
@@ -111,6 +112,27 @@ function formatDisplayString(str: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
+  readonly formatDisplayString = formatDisplayString;
+  readonly wrapInQuotes = (str: string) => `'${str}'`;
+  readonly stepData = {
+    bigram: {
+      step1: "1. **Embedding Lookup**: The single context character $x_1$ is mapped directly to its embedding disk $E_c = (c, \\rho) \\in \\Gamma_p^d$. Since the context length is 1, no aggregation is needed: $H = E_c$.",
+      step2: "2. **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$ for each character class $k$. The score is the minimum path distance across dimensions: $D_k = \\min_d -\\text{dist}(H_d, W_{k,d})$:",
+      step3: "3. **Affinoid Softmax**: Compute class probabilities: $\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$:"
+    },
+    ngram: {
+      step1: "1. **Embedding Lookup**: Context characters $x_1, \\dots, x_N$ are mapped to embedding disks $E[x_j]_d = (c_j, \\rho_j) \\in \\Gamma_p^d$.",
+      step2: "2. **Context Aggregation**: Context embeddings are combined into an aggregated hidden disk $H_d = (c_H, \\rho_H)$ using $p^{-j}$ positional scaling (older history is shifted deeper):  \n$c_H = \\sum_{j=1}^N c_j p^{-j}$, $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$:",
+      step3: "3. **Affinoid Projection**: Projects aggregated context $H$ against learned targets $W_k$. The score is the minimum path distance across dimensions: $D_k = \\min_d -\\text{dist}(H_d, W_{k,d})$:",
+      step4: "4. **Affinoid Softmax**: Applies standard softmax scaled by temperature $\\beta$ to obtain final class probabilities:  \n$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$:"
+    },
+    euclidean: {
+      step1: "1. **Embedding Lookup**: For context characters $x_1, \\dots, x_N$, we look up their embedding vectors $E[x_i] \\in \\mathbb{R}^d$.",
+      step2: "2. **Average Pooling**: Aggregates embeddings using mean pooling: $H = \\frac{1}{N} \\sum_{i=1}^N E[x_i]$:",
+      step3: "3. **Linear Logits**: Compute scores (logits) for each alphabet class $k$ using weights $W_k$ and bias $b_k$:  \n$S_k = b_k + H \\cdot W_k$:",
+      step4: "4. **Standard Softmax**: Propagate probabilities using the Standard Softmax:  \n$\\pi_k = \\frac{e^{\\beta S_k}}{\\sum_j e^{\\beta S_j}}$:"
+    }
+  };
   // Configurable Parameters (Signals)
   readonly textInput = signal<string>("the cat sat on the mat");
 
@@ -152,9 +174,34 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   } | null>(null);
 
   readonly walkthroughInput = signal<string>('');
+  readonly lastValidWalkthroughInput = signal<string>('');
+  readonly walkthroughInputError = signal<string | null>(null);
+
+  validateContext(input: string): string | null {
+    if (!input || input.trim() === '') {
+      return 'Context cannot be empty.';
+    }
+    const vocab = this.vocab();
+    for (const char of input) {
+      if (vocab.indexOf(char) === -1) {
+        const displayChar = char === ' ' ? 'space' : char === '\n' ? '\\n' : char;
+        return `Character '${displayChar}' is not present in the vocabulary.`;
+      }
+    }
+    return null;
+  }
+
+  onWalkthroughInputChange(newVal: string) {
+    this.walkthroughInput.set(newVal);
+    const error = this.validateContext(newVal);
+    this.walkthroughInputError.set(error);
+    if (!error) {
+      this.lastValidWalkthroughInput.set(newVal);
+    }
+  }
 
   readonly walkthroughDetails = computed<WalkthroughDetails | null>(() => {
-    const input = this.walkthroughInput();
+    const input = this.lastValidWalkthroughInput();
     const approach = this.approach();
     const vocab = this.vocab();
     const N = this.contextLength();
@@ -169,6 +216,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     const contextText = input.slice(Math.max(0, input.length - N));
     // Pad to context length N if typed text is too short
     const paddedContext = contextText.padStart(N, vocab[0] || ' ');
+    const preText = input.length > N ? input.slice(0, input.length - N) : '';
 
     const contextIndices = [...paddedContext].map(c => {
       const idx = vocab.indexOf(c);
@@ -236,6 +284,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       return {
         type: 'berkovich',
         contextText: paddedContext,
+        preText: preText,
         embeddings,
         aggregated,
         scores: sortedScores,
@@ -302,6 +351,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       return {
         type: 'euclidean',
         contextText: paddedContext,
+        preText: preText,
         embeddings,
         aggregated,
         scores: sortedScores,
@@ -312,77 +362,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     return null;
   });
 
-  readonly explainerText = computed(() => {
-    const approach = this.approach();
-    const dim = this.embDim();
 
-    if (approach === 'euclidean-ngram') {
-      return `
-#### Euclidean N-Gram Predictor (Baseline)
-This baseline uses standard vector spaces. Characters are mapped to Euclidean vectors $e_c \\in \\mathbb{R}^{${dim}}$.
-
-1. **Forward Pass**:
-   * For context characters $x_1, \\dots, x_N$, we look up their embeddings $E[x_i]$ and average them: $H = \\frac{1}{N} \\sum_{i=1}^N E[x_i]$.
-   * Compute scores (logits) for each alphabet class $k$ using weights $W_k$ and bias $b_k$: $S_k = b_k + H \\cdot W_k$.
-   * Propagate probabilities using the Standard Softmax:
-     $$\\pi_k = \\frac{e^{\\beta S_k}}{\\sum_j e^{\\beta S_j}}$$
-
-2. **Hyper-parameters & Variables**:
-   * **Embedding Size (Dims)**: Dimension of vector space (${dim}).
-   * **Context Size (N)**: Number of historical characters used for prediction.
-   * **Learning Rate ($\\eta$)**: Size of gradient updates.
-   * **Softmax Temp ($\\beta$)**: Scales logits before exponentiation. A higher temperature $\\beta$ magnifies logit differences, pushing the model toward peaky, deterministic, and highly confident predictions. A lower temperature $\\beta$ flattens the distribution, increasing prediction entropy and output diversity.
-      `;
-    }
-
-    if (approach === 'berkovich-bigram') {
-      return `
-#### Berkovich p-adic Bigram Predictor ($N=1$)
-This model predicts the next character based on a single preceding character ($N=1$) using Berkovich spaces.
-
-1. **Forward Pass**:
-   * **Embedding Lookup**: The single context character $x_1$ is mapped directly to its embedding disk $E_c = (c, \\rho) \\in \\Gamma_p^{${dim}}$. Since the context length is 1, no aggregation is needed: $H = E_c$.
-   * **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$ for each character class $k$:
-     $$D_{k,d} = -\\text{dist}_{\\text{tree}}(H_d, W_{k,d})$$
-     $$D_k = \\min_{d=1}^{${dim}} D_{k,d}$$
-   * **Affinoid Softmax**: Compute class probabilities:
-     $$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$$
-
-2. **Values vs. Parameters**:
-   * **Values (Inputs & Target Labels)**: Represented as exact $p$-adic numbers ($c \\in \\mathbb{Q}_p$, i.e. Type I leaf points). Numerically, they are represented with a fixed log-radius of **$-2.0$** (corresponding to digit representation precision).
-   * **Parameters (Embeddings & Constraints)**: Represented as Berkovich disks ($E_c$ and $W_k$). The optimizer continuously adjusts their centers $c$ and radii $\rho$ to fit the training text.
-
-3. **Why two Radius Regularizations?**
-   * **Radius Reg (Target $\\lambda$)**: Shrinks the log-radii of classification disks $W_k$. This creates a "separation pressure" to resolve decision ties and enforce clean margins.
-   * **Radius Reg (Embed $\\lambda$)**: Shrinks the log-radii of character embeddings $E_c$, encouraging tight, well-separated tree coordinates.
-
-4. **Softmax Temperature ($\\beta$)**:
-   * Scales the negated path distance logits before softmax. Higher $\\beta$ makes the class probabilities more peaky and deterministic around the closest affinoid domain, while lower $\\beta$ flattens predictions, allowing wider search exploration.
-      `;
-    }
-
-    return `
-#### Berkovich p-adic N-Gram Predictor ($N > 1$)
-This model aggregates a context of $N > 1$ preceding characters to predict the next character using Berkovich spaces.
-
-1. **Forward Pass**:
-   * **Embedding Lookup**: Context characters $x_1, \\dots, x_N$ are mapped to embedding disks $E[x_j]_d = (c_j, \\rho_j)$.
-   * **Context Aggregation**: Context embeddings are combined into an aggregated hidden disk $H = (c_H, \\rho_H)$ using $p^{-j}$ positional scaling (older history is shifted deeper into the tree):
-     * Center sum: $c_H = \\sum_{j=1}^N c_j \\cdot p^{-j}$ (which weights recent characters higher).
-     * Log-radius: $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$. This propagates the uncertainty of the context scaled by age/position.
-   * **Affinoid Projection & Softmax**: The aggregated representation $H$ is projected against target class disks $W_k$ to compute path losses and softmax probabilities, exactly as in the Bigram model.
-
-2. **Values vs. Parameters**:
-   * **Values (Inputs & Target Labels)**: Represented as exact $p$-adic numbers ($c \\in \\mathbb{Q}_p$) with a fixed log-radius of **$-2.0$** (digit representation precision).
-   * **Parameters (Embeddings & Constraints)**: Represented as Berkovich disks ($E_c$ and $W_k$) with dynamic center and radius updates via Berkovich gradient descent.
-
-3. **Why two Radius Regularizations?**
-   * Same as the Bigram model, regularizing constraint and embedding radii ensures tight class boundaries and clean tree coordinates.
-
-4. **Softmax Temperature ($\\beta$)**:
-   * Scales the negated path distance logits before softmax. Higher $\\beta$ makes the class probabilities more peaky and deterministic around the closest affinoid domain, while lower $\\beta$ flattens predictions, allowing wider search exploration.
-    `;
-  });
 
   readonly dimensions = computed(() => Array.from({ length: this.embDim() }, (_, i) => i));
 
@@ -631,6 +611,7 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
           if (current === '') {
             const raw = preds[0].input.replace(/␣/g, ' ').replace(/\\n/g, '\n');
             this.walkthroughInput.set(raw);
+            this.lastValidWalkthroughInput.set(raw);
           }
         });
       }
@@ -663,7 +644,7 @@ This model aggregates a context of $N > 1$ preceding characters to predict the n
     const preds = this.validationPredictions();
     if (preds.length > 0) {
       const rawInput = preds[0].input.replace(/␣/g, ' ').replace(/\\n/g, '\n');
-      this.walkthroughInput.set(rawInput);
+      this.onWalkthroughInputChange(rawInput);
     }
   }
 

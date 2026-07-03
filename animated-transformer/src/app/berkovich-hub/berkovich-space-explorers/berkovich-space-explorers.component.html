@@ -67,7 +67,7 @@ limitations under the License.
           <div class="vocab-title">Vocabulary Mapping:</div>
           <div class="vocab-chips">
             <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
-              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}</span>
+              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ formatDisplayString(char) }}</span>
               <span class="idx-span">{{ idx }}</span>
             </span>
           </div>
@@ -275,7 +275,7 @@ limitations under the License.
               [dataPoints]="chartPoints()"
               [inChartConfig]="chartConfig()"
               [baselines]="chartBaselines()"
-            />
+            ></app-d3-line-chart>
           } @else {
             <div class="empty-chart-state" style="color: #64748b; font-size: 13px; text-align: center; padding: 24px;">
               <mat-icon style="font-size: 32px; height: 32px; width: 32px; color: #cbd5e1; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">insights</mat-icon>
@@ -385,7 +385,7 @@ limitations under the License.
 
                 <select [value]="selectedChar()" (change)="selectedChar.set($any($event.target).value)">
                   <option *ngFor="let char of vocab()" [value]="char">
-                    Character: '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                    Character: '{{ formatDisplayString(char) }}'
                   </option>
                 </select>
 
@@ -449,13 +449,13 @@ limitations under the License.
                   <thead>
                     <tr>
                       <th>Char</th>
-                      <th *ngFor="let d of dimensions()">Dim {{ d }}</th>
+                      <th *ngFor="let d of dimensions()" [textContent]="'Dim ' + d"></th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let char of vocab(); let idx = index">
                       <td class="char-cell" [class.selected-row]="selectedChar() === char">
-                        '{{ char === '\n' ? '\\n' : (char === ' ' ? '␣' : char) }}'
+                        '{{ formatDisplayString(char) }}'
                       </td>
                       <td *ngFor="let d of dimensions()" 
                           class="matrix-cell" 
@@ -468,7 +468,7 @@ limitations under the License.
                           [showRho]="true"
                           [digitsLeft]="digitsLeft()"
                           [digitsRight]="digitsRight()"
-                        />
+                        ></app-berkovich-digit-display>
                       </td>
                     </tr>
                   </tbody>
@@ -483,177 +483,500 @@ limitations under the License.
 
     <!-- ROW 5: Explainer ("How does it work?") -->
     <div class="dashboard-row" style="width: 100%; margin-top: 16px;">
-      <section class="card explainer-card">
-        <h3><mat-icon>info</mat-icon> How does it work?</h3>
-        
-        <!-- Interactive Sandbox Section -->
-        <div class="sandbox-section" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0 24px 0;">
-          <h4 style="margin: 0 0 12px 0; font-size: 13.5px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
-            <mat-icon style="color: #3b82f6;">science</mat-icon>
-            <span>Interactive Forward Pass Walkthrough Sandbox</span>
+        <!-- Approach 1: Berkovich Bigram -->
+        @if (approach() === 'berkovich-bigram') {
+          <section class="card explainer-card">
+            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+          <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
+            Berkovich p-adic Bigram Predictor (N = 1)
           </h4>
-          <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
-            Type any sequence below (length &ge; N). The boxes below will dynamically compute and display each step of the neural network's calculations based on the live model parameters.
+          <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #475569; line-height: 1.5;">
+            This model predicts the next character based on a single preceding character ($N=1$) using Berkovich spaces.
           </p>
 
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-            <label for="walkthrough-input-field" style="font-size: 11px; font-weight: 600; color: #475569;">Walkthrough Context Input (Editable)</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input id="walkthrough-input-field" type="text" [value]="walkthroughInput()" (input)="walkthroughInput.set($any($event.target).value)" 
-                placeholder="e.g. cat" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;" />
-              <button class="small-btn" (click)="resetWalkthroughToValidation()" style="font-size: 11px; height: 34px;">Reset to First Val Sample</button>
+          <!-- Walkthrough Context Input Box -->
+          <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; overflow: hidden;" *ngIf="walkthroughDetails() as details">
+            <summary style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #3b82f6;">settings</mat-icon>
+                <span>Configure Walkthrough Context</span>
+              </div>
+              <span class="context-col" style="font-size: 12px; font-weight: 700; font-family: monospace; display: flex; align-items: center;">
+                <span style="font-weight: normal; color: #64748b; margin-right: 4px; font-family: sans-serif;">Active:</span>
+                <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
+              </span>
+            </summary>
+            
+            <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0;">
+              <label for="walkthrough-input-field-bigram" style="font-size: 11.5px; font-weight: 700; color: #475569;">Walkthrough Context Input (Editable)</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input id="walkthrough-input-field-bigram" type="text" [value]="walkthroughInput()" (input)="onWalkthroughInputChange($any($event.target).value)" 
+                  placeholder="e.g. cat" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;" />
+                <button class="small-btn" (click)="resetWalkthroughToValidation()" style="font-size: 11px; height: 34px;">Reset to First Val Sample</button>
+              </div>
+              
+              <!-- Validation Error Message -->
+              <div *ngIf="walkthroughInputError() as error" style="color: #ef4444; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                <mat-icon style="font-size: 14px; height: 14px; width: 14px; color: #ef4444;">error</mat-icon>
+                <span [textContent]="error"></span>
+              </div>
+              
+              <div style="font-size: 11px; color: #64748b;">
+                Active context used for calculation: <strong>"{{ details.contextText }}"</strong> (length: {{ contextLength() }})
+              </div>
+            </div>
+          </details>
+
+          @if (walkthroughDetails(); as details) {
+            <div style="display: flex; flex-direction: column; gap: 16px; font-size: 13px; line-height: 1.5; color: #334155;">
+            <!-- Step 1 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.bigram.step1"></markdown>
+              
+              <!-- STEP 1 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;"
+                         [textContent]="'Show Step 1 lookup details for ' + details.contextText">
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155; display: flex; flex-direction: column; gap: 8px;">
+                  <div *ngFor="let charItem of details.embeddings; let last = last" 
+                       [style.border-bottom]="last ? 'none' : '1px dashed #e2e8f0'"
+                       [style.padding-bottom]="last ? '0' : '12px'"
+                       [style.margin-bottom]="last ? '0' : '12px'">
+                    <div style="margin-bottom: 6px; font-size: 11.5px; font-weight: 600;">
+                      Character <strong [textContent]="wrapInQuotes(formatDisplayString(charItem.char))"></strong> (index: {{ charItem.charIdx }}):
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px;">
+                      <div *ngFor="let e of charItem.embeds" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
+                        <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;" [textContent]="'Dim ' + e.dim"></div>
+                        <span *ngIf="e.center && e.rho !== undefined">
+                          <app-berkovich-digit-display
+                            [center]="e.center"
+                            [rho]="e.rho"
+                            [prime]="prime()"
+                            [showRho]="true"
+                            [digitsLeft]="digitsLeft()"
+                            [digitsRight]="digitsRight()"
+                          ></app-berkovich-digit-display>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 2 (Affinoid Projection) -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.bigram.step2"></markdown>
+              
+              <!-- STEP 3 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 2 projection details
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="max-height: 200px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 4px;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; font-family: monospace;">
+                      <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                          <th style="padding: 6px 10px;">Class</th>
+                          <th style="padding: 6px 10px;">Dimension Distances</th>
+                          <th style="padding: 6px 10px;">Final Logit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let s of details.scores" style="border-bottom: 1px solid #f8fafc;">
+                          <td style="padding: 6px 10px; font-weight: bold;" [textContent]="wrapInQuotes(formatDisplayString(s.char))"></td>
+                          <td style="padding: 6px 10px; color: #64748b;">
+                            [<span *ngFor="let d of s.dimDists; let last=last">{{ d.toFixed(2) }}{{ last ? '' : ', ' }}</span>]
+                          </td>
+                          <td style="padding: 6px 10px; font-weight: bold; color: #0f766e;">
+                            {{ s.finalScore.toFixed(3) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 3 (Affinoid Softmax) -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.bigram.step3"></markdown>
+              
+              <!-- STEP 4 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;" open>
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 3 output probabilities
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div *ngFor="let p of details.predictions; let rank=index" style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
+                      <span style="font-weight: 700; color: #64748b; width: 60px;" [textContent]="'Rank ' + (rank + 1) + ':'"></span>
+                      <span style="font-family: monospace; font-weight: 700; font-size: 13px; color: #0f172a;" [textContent]="wrapInQuotes(formatDisplayString(p.char))"></span>
+                      <div style="flex: 1; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; max-width: 150px;">
+                        <div style="background: #3b82f6; height: 100%;" [style.width.%]="p.prob * 100"></div>
+                      </div>
+                      <span style="color: #2563eb; width: 60px; text-align: right; font-weight: bold;">{{ (p.prob * 100).toFixed(1) }}%</span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Explanatory note -->
+            <div style="margin-top: 16px; font-size: 12.5px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+              <markdown [katex]="true" [data]="
+                '- **Values vs. Parameters**: Values (Inputs & Target Labels) are exact $p$-adic leaf coordinates ($c \\in \\mathbb{Q}_p$, fixed radius $-2.0$). Parameters (Embeddings & Constraints) are dynamic Berkovich disks ($E_c, W_k$).\n- **Why two Radius Regularizations?**\n  - **Radius Reg (Target $\\lambda$)**: Shrinks constraints $W_k$ log-radii to enforce margins and resolve ties.\n  - **Radius Reg (Embed $\\lambda$)**: Shrinks embedding disks $E_c$ to create tight coordinates in the tree.'
+              "></markdown>
             </div>
           </div>
+        } @else {
+            <div style="padding: 24px; text-align: center; color: #94a3b8; font-size: 12.5px;">
+              Type a valid context string above to activate the live walkthrough.
+            </div>
+          }
+          </section>
+        } @else if (approach() === 'berkovich-ngram') {
+          <section class="card explainer-card">
+            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+            <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
+            Berkovich p-adic N-Gram Predictor (N > 1)
+          </h4>
+          <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #475569; line-height: 1.5;">
+            This model aggregates a context of $N > 1$ preceding characters to predict the next character using Berkovich spaces.
+          </p>
 
-          <div *ngIf="walkthroughDetails() as details; else noDetails" style="display: flex; flex-direction: column; gap: 12px;">
-            <!-- Active Context Display -->
-            <div style="font-size: 12px; color: #475569; background: #ffffff; border: 1px solid #f1f5f9; padding: 8px 12px; border-radius: 6px;">
-              Active context used for calculation: <strong>"{{ details.contextText }}"</strong> (length: {{ contextLength() }})
+          <!-- Walkthrough Context Input Box -->
+          <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; overflow: hidden;" *ngIf="walkthroughDetails() as details">
+            <summary style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #3b82f6;">settings</mat-icon>
+                <span>Configure Walkthrough Context</span>
+              </div>
+              <span class="context-col" style="font-size: 12px; font-weight: 700; font-family: monospace; display: flex; align-items: center;">
+                <span style="font-weight: normal; color: #64748b; margin-right: 4px; font-family: sans-serif;">Active:</span>
+                <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
+              </span>
+            </summary>
+            
+            <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0;">
+              <label for="walkthrough-input-field-ngram" style="font-size: 11.5px; font-weight: 700; color: #475569;">Walkthrough Context Input (Editable)</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input id="walkthrough-input-field-ngram" type="text" [value]="walkthroughInput()" (input)="onWalkthroughInputChange($any($event.target).value)" 
+                  placeholder="e.g. cat" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;" />
+                <button class="small-btn" (click)="resetWalkthroughToValidation()" style="font-size: 11px; height: 34px;">Reset to First Val Sample</button>
+              </div>
+              
+              <!-- Validation Error Message -->
+              <div *ngIf="walkthroughInputError() as error" style="color: #ef4444; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                <mat-icon style="font-size: 14px; height: 14px; width: 14px; color: #ef4444;">error</mat-icon>
+                <span [textContent]="error"></span>
+              </div>
+              
+              <div style="font-size: 11px; color: #64748b;">
+                Active context used for calculation: <strong>"{{ details.contextText }}"</strong> (length: {{ contextLength() }})
+              </div>
+            </div>
+          </details>
+
+          @if (walkthroughDetails(); as details) {
+            <div style="display: flex; flex-direction: column; gap: 16px; font-size: 13px; line-height: 1.5; color: #334155;">
+            <!-- Step 1 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.ngram.step1"></markdown>
+              
+              <!-- STEP 1 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;"
+                         [textContent]="'Show Step 1 lookup details for ' + details.contextText">
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155; display: flex; flex-direction: column; gap: 8px;">
+                  <div *ngFor="let charItem of details.embeddings; let last = last" 
+                       [style.border-bottom]="last ? 'none' : '1px dashed #e2e8f0'"
+                       [style.padding-bottom]="last ? '0' : '12px'"
+                       [style.margin-bottom]="last ? '0' : '12px'">
+                    <div style="margin-bottom: 6px; font-size: 11.5px; font-weight: 600;">
+                      Character <strong [textContent]="wrapInQuotes(formatDisplayString(charItem.char))"></strong> (index: {{ charItem.charIdx }}):
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px;">
+                      <div *ngFor="let e of charItem.embeds" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
+                        <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;" [textContent]="'Dim ' + e.dim"></div>
+                        <span *ngIf="e.center && e.rho !== undefined">
+                          <app-berkovich-digit-display
+                            [center]="e.center"
+                            [rho]="e.rho"
+                            [prime]="prime()"
+                            [showRho]="true"
+                            [digitsLeft]="digitsLeft()"
+                            [digitsRight]="digitsRight()"
+                          ></app-berkovich-digit-display>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
 
-            <!-- Step-by-Step Unfolding Boxes (details/summary) -->
-            
-            <!-- STEP 1: Embeddings Lookup -->
-            <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;" open>
-              <summary style="padding: 10px 14px; font-size: 12.5px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none;">
-                Step 1: Embedding Lookup (E)
-              </summary>
-              <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155; display: flex; flex-direction: column; gap: 8px;">
-                <p style="margin: 0 0 8px 0; color: #64748b;">Lookup the Berkovich/Euclidean embedding coordinate for each character in the active context window:</p>
-                
-                <div *ngFor="let charItem of details.embeddings" style="border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
-                  <div style="margin-bottom: 6px; font-size: 12px; font-weight: 600;">
-                    Character <strong>'{{ charItem.char === '\n' ? '\\n' : (charItem.char === ' ' ? '␣' : charItem.char) }}'</strong> (index: {{ charItem.charIdx }}):
-                  </div>
+            <!-- Step 2 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.ngram.step2"></markdown>
+              
+              <!-- STEP 2 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 2 aggregation details (H)
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
                   <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px;">
-                    <div *ngFor="let e of charItem.embeds" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
-                      <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;">Dim {{ e.dim }}</div>
-                      <span *ngIf="details.type === 'berkovich' && e.center && e.rho !== undefined">
+                    <div *ngFor="let h of details.aggregated" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
+                      <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;" [textContent]="'Dim ' + h.dim"></div>
+                      <span *ngIf="h.center && h.rho !== undefined">
                         <app-berkovich-digit-display
-                          [center]="e.center"
-                          [rho]="e.rho"
+                          [center]="h.center"
+                          [rho]="h.rho"
                           [prime]="prime()"
                           [showRho]="true"
                           [digitsLeft]="digitsLeft()"
                           [digitsRight]="digitsRight()"
-                        />
-                      </span>
-                      <span *ngIf="details.type === 'euclidean' && e.val !== undefined">
-                        {{ e.val.toFixed(4) }}
+                        ></app-berkovich-digit-display>
                       </span>
                     </div>
                   </div>
                 </div>
-              </div>
-            </details>
-
-            <!-- STEP 2: Aggregation -->
-            <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;" open>
-              <summary style="padding: 10px 14px; font-size: 12.5px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none;">
-                Step 2: Context Aggregation (H)
-              </summary>
-              <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
-                <div *ngIf="details.type === 'berkovich'">
-                  <markdown [katex]="true" [data]="'Combines character coordinates using positional scaling: $c_H = \\sum_{j=1}^N c_j p^{-j}$, $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$:'" style="font-size: 11.5px;"></markdown>
-                </div>
-                <div *ngIf="details.type === 'euclidean'">
-                  <markdown [katex]="true" [data]="'Combines characters using average pooling: $H_d = \\frac{1}{N} \\sum_{j=1}^N E[x_j]_d$:'" style="font-size: 11.5px;"></markdown>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px; margin-top: 8px;">
-                  <div *ngFor="let h of details.aggregated" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
-                    <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;">Dim {{ h.dim }}</div>
-                    <span *ngIf="details.type === 'berkovich' && h.center && h.rho !== undefined">
-                      <app-berkovich-digit-display
-                        [center]="h.center"
-                        [rho]="h.rho"
-                        [prime]="prime()"
-                        [showRho]="true"
-                        [digitsLeft]="digitsLeft()"
-                        [digitsRight]="digitsRight()"
-                      />
-                    </span>
-                    <span *ngIf="details.type === 'euclidean' && h.val !== undefined">
-                      Value: {{ h.val.toFixed(4) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-            <!-- STEP 3: Projection & Scores -->
-            <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
-              <summary style="padding: 10px 14px; font-size: 12.5px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none;">
-                Step 3: Distance Projection &amp; Logits
-              </summary>
-              <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
-                <div *ngIf="details.type === 'berkovich'">
-                  <markdown [katex]="true" [data]="'Projects aggregated context $H$ against learned targets $W_k$. The score is the minimum path distance across dimensions: $D_k = \\min_d -\\text{dist}(H_d, W_{k,d})$:'" style="font-size: 11.5px;"></markdown>
-                </div>
-                <div *ngIf="details.type === 'euclidean'">
-                  <markdown [katex]="true" [data]="'Computes logits using biases and weights: $S_k = b_k + H \\cdot W_k$:'" style="font-size: 11.5px;"></markdown>
-                </div>
-                
-                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 4px; margin-top: 8px;">
-                  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; font-family: monospace;">
-                    <thead>
-                      <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                        <th style="padding: 6px 10px;">Class</th>
-                        <th style="padding: 6px 10px;" *ngIf="details.type === 'berkovich'">Dimension Distances</th>
-                        <th style="padding: 6px 10px;">Final Logit</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let s of details.scores" style="border-bottom: 1px solid #f8fafc;">
-                        <td style="padding: 6px 10px; font-weight: bold;">
-                          '{{ s.char === '\n' ? '\\n' : (s.char === ' ' ? '␣' : s.char) }}'
-                        </td>
-                        <td style="padding: 6px 10px; color: #64748b;" *ngIf="details.type === 'berkovich'">
-                          [<span *ngFor="let d of s.dimDists; let last=last">{{ d.toFixed(2) }}{{ last ? '' : ', ' }}</span>]
-                        </td>
-                        <td style="padding: 6px 10px; font-weight: bold; color: #0f766e;">
-                          {{ s.finalScore.toFixed(3) }}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </details>
-
-            <!-- STEP 4: Softmax Probabilities -->
-            <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;" open>
-              <summary style="padding: 10px 14px; font-size: 12.5px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none;">
-                Step 4: Softmax Class Probabilities (Top 5 Predictions)
-              </summary>
-              <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
-                <markdown [katex]="true" [data]="'Applies standard softmax scaled by temperature $\\beta$ to obtain final class probabilities $\\pi_k = \\frac{e^{\\beta \\text{logit}_k}}{\\sum_j e^{\\beta \\text{logit}_j}}$:'" style="font-size: 11.5px;"></markdown>
-                
-                <div style="display: flex; flex-direction: column; gap: 6px; padding-left: 8px;">
-                  <div *ngFor="let p of details.predictions; let rank=index" style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
-                    <span style="font-weight: 700; color: #64748b; width: 60px;">Rank {{ rank + 1 }}:</span>
-                    <span style="font-family: monospace; font-weight: 700; font-size: 13px; color: #0f172a;">
-                      '{{ p.char === '\n' ? '\\n' : (p.char === ' ' ? '␣' : p.char) }}'
-                    </span>
-                    <div style="flex: 1; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; max-width: 150px;">
-                      <div style="background: #3b82f6; height: 100%;" [style.width.%]="p.prob * 100"></div>
-                    </div>
-                    <span style="color: #2563eb; width: 60px; text-align: right; font-weight: bold;">{{ (p.prob * 100).toFixed(1) }}%</span>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-          </div>
-          <ng-template #noDetails>
-            <div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">
-              Type a valid string to start the mathematical walkthrough calculations.
+              </details>
             </div>
-          </ng-template>
-        </div>
 
-        <markdown [katex]="true" [data]="explainerText()"></markdown>
-      </section>
+            <!-- Step 3 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.ngram.step3"></markdown>
+              
+              <!-- STEP 3 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 3 projection details
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="max-height: 200px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 4px;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; font-family: monospace;">
+                      <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                          <th style="padding: 6px 10px;">Class</th>
+                          <th style="padding: 6px 10px;">Dimension Distances</th>
+                          <th style="padding: 6px 10px;">Final Logit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let s of details.scores" style="border-bottom: 1px solid #f8fafc;">
+                          <td style="padding: 6px 10px; font-weight: bold;" [textContent]="wrapInQuotes(formatDisplayString(s.char))"></td>
+                          <td style="padding: 6px 10px; color: #64748b;">
+                            [<span *ngFor="let d of s.dimDists; let last=last">{{ d.toFixed(2) }}{{ last ? '' : ', ' }}</span>]
+                          </td>
+                          <td style="padding: 6px 10px; font-weight: bold; color: #0f766e;">
+                            {{ s.finalScore.toFixed(3) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 4 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.ngram.step4"></markdown>
+              
+              <!-- STEP 4 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;" open>
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 4 output probabilities
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div *ngFor="let p of details.predictions; let rank=index" style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
+                      <span style="font-weight: 700; color: #64748b; width: 60px;" [textContent]="'Rank ' + (rank + 1) + ':'"></span>
+                      <span style="font-family: monospace; font-weight: 700; font-size: 13px; color: #0f172a;" [textContent]="wrapInQuotes(formatDisplayString(p.char))"></span>
+                      <div style="flex: 1; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; max-width: 150px;">
+                        <div style="background: #3b82f6; height: 100%;" [style.width.%]="p.prob * 100"></div>
+                      </div>
+                      <span style="color: #2563eb; width: 60px; text-align: right; font-weight: bold;">{{ (p.prob * 100).toFixed(1) }}%</span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Explanatory note -->
+            <div style="margin-top: 16px; font-size: 12.5px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+              <markdown [katex]="true" [data]="
+                '- **Values vs. Parameters**: Values are exact Type I leaf points ($c \\in \\mathbb{Q}_p$) with a fixed log-radius of $-2.0$. Parameters (Embeddings & Constraints) are dynamic Berkovich disks ($E_c, W_k$).\n- **Why two Radius Regularizations?**: Same as the Bigram model, regularizing constraint and embedding radii ensures tight class boundaries and clean tree coordinates.'
+              "></markdown>
+            </div>
+          </div>
+        } @else {
+            <div style="padding: 24px; text-align: center; color: #94a3b8; font-size: 12.5px;">
+              Type a valid context string above to activate the live walkthrough.
+            </div>
+          }
+          </section>
+        } @else {
+          <section class="card explainer-card">
+            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+            <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
+            Euclidean N-Gram Predictor (Baseline)
+          </h4>
+          <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #475569; line-height: 1.5;">
+            This baseline uses standard vector spaces. Characters are mapped to Euclidean vectors <markdown [katex]="true" [data]="'$e_c \\in \\mathbb{R}^d$'" style="display:inline;"></markdown>.
+          </p>
+
+          <!-- Walkthrough Context Input Box -->
+          <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; overflow: hidden;" *ngIf="walkthroughDetails() as details">
+            <summary style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer; background: #f1f5f9; user-select: none; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #3b82f6;">settings</mat-icon>
+                <span>Configure Walkthrough Context</span>
+              </div>
+              <span class="context-col" style="font-size: 12px; font-weight: 700; font-family: monospace; display: flex; align-items: center;">
+                <span style="font-weight: normal; color: #64748b; margin-right: 4px; font-family: sans-serif;">Active:</span>
+                <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
+              </span>
+            </summary>
+            
+            <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0;">
+              <label for="walkthrough-input-field-euclidean" style="font-size: 11.5px; font-weight: 700; color: #475569;">Walkthrough Context Input (Editable)</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input id="walkthrough-input-field-euclidean" type="text" [value]="walkthroughInput()" (input)="onWalkthroughInputChange($any($event.target).value)" 
+                  placeholder="e.g. cat" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;" />
+                <button class="small-btn" (click)="resetWalkthroughToValidation()" style="font-size: 11px; height: 34px;">Reset to First Val Sample</button>
+              </div>
+              
+              <!-- Validation Error Message -->
+              <div *ngIf="walkthroughInputError() as error" style="color: #ef4444; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                <mat-icon style="font-size: 14px; height: 14px; width: 14px; color: #ef4444;">error</mat-icon>
+                <span [textContent]="error"></span>
+              </div>
+              
+              <div style="font-size: 11px; color: #64748b;">
+                Active context used for calculation: <strong>"{{ details.contextText }}"</strong> (length: {{ contextLength() }})
+              </div>
+            </div>
+          </details>
+
+          @if (walkthroughDetails(); as details) {
+            <div style="display: flex; flex-direction: column; gap: 16px; font-size: 13px; line-height: 1.5; color: #334155;">
+            <!-- Step 1 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.euclidean.step1"></markdown>
+              
+              <!-- STEP 1 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;"
+                         [textContent]="'Show Step 1 lookup details for ' + details.contextText">
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155; display: flex; flex-direction: column; gap: 8px;">
+                  <div *ngFor="let charItem of details.embeddings; let last = last" 
+                       [style.border-bottom]="last ? 'none' : '1px dashed #e2e8f0'"
+                       [style.padding-bottom]="last ? '0' : '12px'"
+                       [style.margin-bottom]="last ? '0' : '12px'">
+                    <div style="margin-bottom: 6px; font-size: 11.5px; font-weight: 600;">
+                      Character <strong [textContent]="wrapInQuotes(formatDisplayString(charItem.char))"></strong> (index: {{ charItem.charIdx }}):
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px;">
+                      <div *ngFor="let e of charItem.embeds" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
+                        <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;" [textContent]="'Dim ' + e.dim"></div>
+                        <span *ngIf="e.val !== undefined" [textContent]="e.val.toFixed(4)"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 2 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.euclidean.step2"></markdown>
+              
+              <!-- STEP 2 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 2 average pooling details (H)
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding-left: 8px;">
+                    <div *ngFor="let h of details.aggregated" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px;">
+                      <div style="font-weight: 700; color: #0f766e; margin-bottom: 4px;" [textContent]="'Dim ' + h.dim"></div>
+                      <span *ngIf="h.val !== undefined" [textContent]="'Value: ' + h.val.toFixed(4)"></span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 3 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.euclidean.step3"></markdown>
+              
+              <!-- STEP 3 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;">
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 3 logits details
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="max-height: 200px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 4px;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; font-family: monospace;">
+                      <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                          <th style="padding: 6px 10px;">Class</th>
+                          <th style="padding: 6px 10px;">Final Logit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let s of details.scores" style="border-bottom: 1px solid #f8fafc;">
+                          <td style="padding: 6px 10px; font-weight: bold;" [textContent]="wrapInQuotes(formatDisplayString(s.char))"></td>
+                          <td style="padding: 6px 10px; font-weight: bold; color: #0f766e;" [textContent]="s.finalScore.toFixed(3)"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 4 -->
+            <div>
+              <markdown [katex]="true" [data]="stepData.euclidean.step4"></markdown>
+              
+              <!-- STEP 4 Unfolding Details -->
+              <details style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px;" open>
+                <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #3b82f6; cursor: pointer; background: #f8fafc; user-select: none;">
+                  Show Step 4 output probabilities
+                </summary>
+                <div style="padding: 12px; font-size: 11.5px; line-height: 1.5; color: #334155;">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div *ngFor="let p of details.predictions; let rank=index" style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
+                      <span style="font-weight: 700; color: #64748b; width: 60px;" [textContent]="'Rank ' + (rank + 1) + ':'"></span>
+                      <span style="font-family: monospace; font-weight: 700; font-size: 13px; color: #0f172a;" [textContent]="wrapInQuotes(formatDisplayString(p.char))"></span>
+                      <div style="flex: 1; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; max-width: 150px;">
+                        <div style="background: #3b82f6; height: 100%;" [style.width.%]="p.prob * 100"></div>
+                      </div>
+                      <span style="color: #2563eb; width: 60px; text-align: right; font-weight: bold;" [textContent]="(p.prob * 100).toFixed(1) + '%'"></span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+        } @else {
+          <div style="padding: 24px; text-align: center; color: #94a3b8; font-size: 12.5px;">
+            Type a valid context string above to activate the live walkthrough.
+          </div>
+        }
+        </section>
+      }
     </div>
   </div>
 </div>
