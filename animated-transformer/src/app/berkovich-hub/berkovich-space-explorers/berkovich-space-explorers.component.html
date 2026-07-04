@@ -80,13 +80,14 @@ limitations under the License.
         
         <div class="form-grid">
           <div class="form-field">
-            <label for="approach-select">
-              Approach / Architecture
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
-                title="Selects between:&#10;- Berkovich Bigram: Context=1, maps characters onto Berkovich space points.&#10;- Berkovich N-Gram: Context=N, aggregates contexts using p-adic tree filters.&#10;- Euclidean Baseline: Context=N, standard vector space lookup model.">
-                info
-              </mat-icon>
-            </label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="approach-select" style="margin: 0;">Approach / Architecture</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('approach', $event)" [class.icon-pressed]="activePopup() === 'approach'">{{ activePopup() === 'approach' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'approach') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Selects between Berkovich (Context=1 or N) and Euclidean models.</div>
+              }
+            </div>
             <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
               <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
               <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
@@ -95,7 +96,14 @@ limitations under the License.
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <label for="prime-select">p-adic Base (Prime p)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="prime-select" style="margin: 0;">p-adic Base (Prime p)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('prime', $event)" [class.icon-pressed]="activePopup() === 'prime'">{{ activePopup() === 'prime' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'prime') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">The underlying prime number p for the Berkovich space. Must be prime (e.g. 2, 3, 5).</div>
+              }
+            </div>
             <select id="prime-select" [value]="prime()" (change)="onPrimeChange(+$any($event.target).value)">
               <option value="2">2</option>
               <option value="3">3</option>
@@ -106,46 +114,102 @@ limitations under the License.
           </div>
 
           <div class="form-field">
-            <label for="emb-dim">Embedding Size (Dims)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="emb-dim" style="margin: 0;">Embedding Size (Dims)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('emb', $event)" [class.icon-pressed]="activePopup() === 'emb'">{{ activePopup() === 'emb' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'emb') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Number of independent dimensions (trees in Berkovich, axes in Euclidean) used to embed characters.</div>
+              }
+            </div>
             <input id="emb-dim" type="number" min="1" max="10" [value]="embDim()" (change)="onEmbDimChange(+$any($event.target).value)" />
           </div>
 
           @if (approach() !== 'euclidean-ngram') {
             <div class="form-field">
-              <label for="digits-left">Digits Left of Dot</label>
+              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                <label for="digits-left" style="margin: 0;">Digits Left of Dot</label>
+                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                  (click)="togglePopup('dleft', $event)" [class.icon-pressed]="activePopup() === 'dleft'">{{ activePopup() === 'dleft' ? 'info' : 'info_outline' }}</mat-icon>
+                @if (activePopup() === 'dleft') {
+                  <div class="custom-popup" (click)="$event.stopPropagation()">Controls the visual precision of the p-adic center digits displayed in the UI.</div>
+                }
+              </div>
               <input id="digits-left" type="number" min="1" max="5" [value]="digitsLeft()" (change)="digitsLeft.set(+$any($event.target).value)" />
             </div>
 
             <div class="form-field">
-              <label for="digits-right">Digits Right of Dot</label>
+              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                <label for="digits-right" style="margin: 0;">Digits Right of Dot</label>
+                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                  (click)="togglePopup('dright', $event)" [class.icon-pressed]="activePopup() === 'dright'">{{ activePopup() === 'dright' ? 'info' : 'info_outline' }}</mat-icon>
+                @if (activePopup() === 'dright') {
+                  <div class="custom-popup" (click)="$event.stopPropagation()">Controls the visual precision of the p-adic center digits displayed in the UI.</div>
+                }
+              </div>
               <input id="digits-right" type="number" min="0" max="5" [value]="digitsRight()" (change)="digitsRight.set(+$any($event.target).value)" />
             </div>
           }
 
           <div class="form-field" [class.field-disabled]="approach() === 'berkovich-bigram'">
-            <label for="context-len">Context Size (N)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="context-len" style="margin: 0;">Context Size (N)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('context', $event)" [class.icon-pressed]="activePopup() === 'context'">{{ activePopup() === 'context' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'context') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">The number of preceding characters the model uses to predict the next one.</div>
+              }
+            </div>
             <input id="context-len" type="number" min="1" max="5" [value]="contextLength()"
               [disabled]="approach() === 'berkovich-bigram'"
               (change)="onContextLengthChange(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
-            <label for="lr-input">Learning Rate (&eta;)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="lr-input" style="margin: 0;">Learning Rate (&eta;)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('lr', $event)" [class.icon-pressed]="activePopup() === 'lr'">{{ activePopup() === 'lr' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'lr') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">The step size used during gradient descent to update parameters.</div>
+              }
+            </div>
             <input id="lr-input" type="number" step="0.01" min="0.001" [value]="learningRate()" (change)="learningRate.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <label for="reg-target">Radius Reg (Target &lambda;)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="reg-target" style="margin: 0;">Target Radius (&rho;) Reg (&lambda;)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('regtarget', $event)" [class.icon-pressed]="activePopup() === 'regtarget'">{{ activePopup() === 'regtarget' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'regtarget') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to target class radius, preventing it from growing indefinitely.</div>
+              }
+            </div>
             <input id="reg-target" type="number" step="0.001" min="0" [value]="regularizationTarget()" (change)="regularizationTarget.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <label for="reg-emb">Radius Reg (Embed &lambda;)</label>
+            <label for="reg-emb">
+              Embed Radius (&rho;) Reg (&lambda;)
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer; display: inline-flex; vertical-align: middle; margin-left: 2px;"
+                (click)="togglePopup('regemb', $event)" [class.icon-pressed]="activePopup() === 'regemb'">{{ activePopup() === 'regemb' ? 'info' : 'info_outline' }}</mat-icon>
+            </label>
+            @if (activePopup() === 'regemb') {
+              <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to context embedding radius.</div>
+            }
             <input id="reg-emb" type="number" step="0.001" min="0" [value]="regularizationEmbed()" (change)="regularizationEmbed.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <label for="agg-mode">Aggregation Mode</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="agg-mode" style="margin: 0;">Aggregation Mode</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('aggmode', $event)" [class.icon-pressed]="activePopup() === 'aggmode'">{{ activePopup() === 'aggmode' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'aggmode') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">In N-gram models, determines if dimension losses are aggregated via supremum norm (Min Logit) or average.</div>
+              }
+            </div>
             <select id="agg-mode" [value]="aggMode()" (change)="aggMode.set($any($event.target).value)">
               <option value="min">Supremum Norm (Min Logit)</option>
               <option value="average">Affinoid Average</option>
@@ -153,34 +217,50 @@ limitations under the License.
           </div>
 
           <div class="form-field">
-            <label for="beta-input">
-              Softmax Temperature (&beta;)
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
-                title="Higher beta (temperature parameter) makes the model's predictions more confident and peaky, while lower beta makes them more uniform/random.">
-                info
-              </mat-icon>
-            </label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="beta-input" style="margin: 0;">Softmax Temperature (&beta;)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('beta', $event)" [class.icon-pressed]="activePopup() === 'beta'">{{ activePopup() === 'beta' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'beta') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Controls prediction confidence. Higher beta sharpens probabilities; lower beta flattens them.</div>
+              }
+            </div>
             <input id="beta-input" type="number" step="0.5" min="0.1" [value]="beta()" (change)="beta.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
-            <label for="batch-size">Batch Size</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="batch-size" style="margin: 0;">Batch Size</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('batch', $event)" [class.icon-pressed]="activePopup() === 'batch'">{{ activePopup() === 'batch' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'batch') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Number of samples to process before making a gradient update.</div>
+              }
+            </div>
             <input id="batch-size" type="number" min="1" max="512" [value]="batchSize()" (change)="batchSize.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
-            <label for="train-speed">Auto-Step Interval (ms)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="train-speed" style="margin: 0;">Auto-Step Interval (ms)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('trainspeed', $event)" [class.icon-pressed]="activePopup() === 'trainspeed'">{{ activePopup() === 'trainspeed' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'trainspeed') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Speed (in milliseconds) at which automatic training loops occur.</div>
+              }
+            </div>
             <input id="train-speed" type="number" step="50" min="0" [value]="trainingSpeed()" (change)="trainingSpeed.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field">
-            <label>
-              Validation Split Mode
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: help; display: inline-block; vertical-align: middle; margin-left: 2px;"
-                title="Determines how the dataset is split:&#10;- Holdout: Validation is evaluated on a separate contiguous partition (or random sample) of the text.&#10;- Overlap: Validation is evaluated on the training text itself (useful to verify overfitting).">
-                info
-              </mat-icon>
-            </label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label style="margin: 0;">Validation Split Mode</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('valmode', $event)" [class.icon-pressed]="activePopup() === 'valmode'">{{ activePopup() === 'valmode' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'valmode') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">'Holdout' evaluates unseen text chunks; 'Overlap' evaluates training text to measure overfitting.</div>
+              }
+            </div>
             <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center; min-height: 28px;">
               <!-- Main toggles: Holdout vs Overlap -->
               <div style="display: flex; gap: 4px;">
@@ -208,12 +288,26 @@ limitations under the License.
           </div>
 
           <div class="form-field" *ngIf="valMode() === 'overlap'">
-            <label for="validation-size-overlap">Validation Size (Chars)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="validation-size-overlap" style="margin: 0;">Validation Size (Chars)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('valoverlap', $event)" [class.icon-pressed]="activePopup() === 'valoverlap'">{{ activePopup() === 'valoverlap' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'valoverlap') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Number of characters from the start of training text to use for validation.</div>
+              }
+            </div>
             <input id="validation-size-overlap" type="number" step="50" min="10" max="1000" [value]="valSizeOverlap()" (change)="valSizeOverlap.set(+$any($event.target).value)" />
           </div>
 
           <div class="form-field" *ngIf="valMode() !== 'overlap'">
-            <label for="validation-pct-holdout">Holdout Percentage (%)</label>
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="validation-pct-holdout" style="margin: 0;">Holdout Percentage (%)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                (click)="togglePopup('valpct', $event)" [class.icon-pressed]="activePopup() === 'valpct'">{{ activePopup() === 'valpct' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'valpct') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Percentage of the total text held out purely for validation.</div>
+              }
+            </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <input id="validation-pct-holdout" type="number" step="5" min="5" max="50" [value]="valPercentageHoldout() * 100" (change)="valPercentageHoldout.set(+$any($event.target).value / 100)" style="width: 80px;" />
               <span style="font-size: 11.5px; color: #64748b;">(Size: {{ effectiveValidationSize() }} chars)</span>
@@ -482,7 +576,8 @@ limitations under the License.
     </div>
 
     <!-- ROW 5: Explainer ("How does it work?") -->
-    <div class="dashboard-row" style="width: 100%; margin-top: 16px;">
+    <div id="how-it-works" class="dashboard-row" style="width: 100%; margin-top: 16px; scroll-margin-top: 20px;">
+
         <!-- Approach 1: Berkovich Bigram -->
         @if (approach() === 'berkovich-bigram') {
           <section class="card explainer-card">

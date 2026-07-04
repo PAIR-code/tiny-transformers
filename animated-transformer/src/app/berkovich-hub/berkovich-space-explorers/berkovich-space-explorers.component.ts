@@ -100,6 +100,8 @@ function formatDisplayString(str: string): string {
   return str.replace(/ /g, '␣').replace(/\n/g, '\\n');
 }
 
+import { MatTooltipModule } from '@angular/material/tooltip';
+
 @Component({
   selector: 'app-berkovich-space-explorers',
   templateUrl: './berkovich-space-explorers.component.html',
@@ -108,13 +110,15 @@ function formatDisplayString(str: string): string {
     CommonModule,
     MatButtonModule,
     MatIconModule,
+    MatTooltipModule,
     RouterModule,
     BerkovichTreeVisComponent,
     D3LineChartComponent,
     MarkdownComponent,
     BerkovichDigitDisplayComponent
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:click)': 'activePopup.set(null)' }
 })
 export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly formatDisplayString = formatDisplayString;
@@ -150,6 +154,17 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly learningRate = signal<number>(0.15);
   readonly regularizationTarget = signal<number>(0.04);
   readonly regularizationEmbed = signal<number>(0.02);
+  readonly activePopup = signal<string | null>(null);
+
+  togglePopup(id: string, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.activePopup() === id) {
+      this.activePopup.set(null);
+    } else {
+      this.activePopup.set(id);
+    }
+  }
   readonly aggMode = signal<'min' | 'average'>('min');
   readonly beta = signal<number>(1.0);
   readonly batchSize = signal<number>(128);
