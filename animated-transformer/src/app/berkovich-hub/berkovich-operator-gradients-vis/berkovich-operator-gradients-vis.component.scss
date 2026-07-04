@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-@import '../berkovich-point-vis/berkovich-point-vis.component.scss';
+@use '../berkovich-point-vis/berkovich-point-vis.component.scss';
 
 .dashboard-grid {
   display: grid;
