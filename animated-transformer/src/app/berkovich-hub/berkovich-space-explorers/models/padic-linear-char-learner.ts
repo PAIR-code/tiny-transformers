@@ -97,6 +97,18 @@ export class PadicLinearCharLearner extends CharLearner<BerkovichConfig, Berkovi
   forward(contextIndices: number[], config: BerkovichConfig): BerkovichForwardResult {
     // Only takes the most recent character for the linear projection
     const N = contextIndices.length;
+    if (N === 0) {
+      const uniform = 1.0 / this.V;
+      return {
+        probs: Array(this.V).fill(uniform),
+        logits: Array(this.V).fill(0),
+        activeDims: Array.from({length: this.embDim}, (_, i) => i),
+        H: this.B,
+        dists: Array(this.V).fill(Array(this.embDim).fill(0)),
+        pathLosses: Array(this.V).fill(Array(this.embDim).fill(0))
+      };
+    }
+
     const charIdx = contextIndices[N - 1];
     const X = this.C[charIdx];
 

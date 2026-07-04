@@ -41,16 +41,17 @@ import { formatRational, formatDigitSequence } from '../../../../lib/berkovich/b
       Maps each character $c$ to a fixed set of p-adic constants $X_c$. A linear transformation $Y = X_c \\cdot M + B$ is applied in $\\mathbb{{ '{' }}Q{{ '}' }}_p$, and probabilities are derived from distances to the target constants.
     </p>
 
+    <app-walkthrough-context
+      [inputId]="'walkthrough-input-field-padic-linear'"
+      [contextLength]="1"
+      [preText]="details()?.preText ?? ''"
+      [contextText]="details()?.contextText ?? ''"
+      [walkthroughInput]="walkthroughInput()"
+      [walkthroughInputError]="walkthroughInputError()"
+      (inputChanged)="walkthroughInputChange.emit($event)">
+    </app-walkthrough-context>
+
     @if (details(); as walkthrough) {
-      <app-walkthrough-context
-        [inputId]="'walkthrough-input-field-padic-linear'"
-        [contextLength]="1"
-        [preText]="walkthrough.preText"
-        [contextText]="walkthrough.contextText"
-        [walkthroughInput]="walkthroughInput()"
-        [walkthroughInputError]="walkthroughInputError()"
-        (inputChanged)="walkthroughInputChange.emit($event)">
-      </app-walkthrough-context>
 
       <div style="display: flex; flex-direction: column; gap: 16px; font-size: 13px; line-height: 1.5; color: #334155;">
         <!-- Step 1 -->

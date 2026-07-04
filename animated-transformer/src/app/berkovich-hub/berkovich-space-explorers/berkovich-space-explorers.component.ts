@@ -320,6 +320,73 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         sumExp
       };
 
+    } else if (approach === 'padic-linear' && this.padicLinearModel()) {
+      const pModel = this.padicLinearModel()!;
+      const dims = pModel.embDim;
+      
+      const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: this.aggMode(), beta: beta };
+      const fwd = pModel.forward(contextIndices, config);
+
+      // Extract embeddings mapped directly from fixed constants C
+      const embeddings = [];
+      const charIdx = contextIndices[N - 1]; // Only looks at immediate previous character
+      const char = paddedContext[N - 1];
+      const charEmbeds = [];
+      for (let d = 0; d < dims; d++) {
+        charEmbeds.push({
+          dim: d,
+          center: { ...pModel.C[charIdx][d] },
+          rho: Infinity, // Type I points have infinite log-radius
+          val: undefined
+        });
+      }
+      embeddings.push({ char, charIdx, embeds: charEmbeds });
+
+      // Step 3: Distance from Y to Target Points C_k
+      const scores = [];
+      for (let k = 0; k < vocab.length; k++) {
+        const targetChar = vocab[k];
+        const dimDetails = [];
+        for (let d = 0; d < dims; d++) {
+          dimDetails.push({
+            dim: d,
+            contextCenter: { ...fwd.H[d].center }, // Y disk center
+            contextRho: fwd.H[d].rho,              // Y disk log-radius
+            constraintCenter: { ...pModel.C[k][d] }, // Target class point
+            constraintRho: Infinity,               // Target class is Type I leaf
+            dist: fwd.dists[k][d],
+            loss: fwd.pathLosses[k][d]
+          });
+        }
+        scores.push({
+          char: targetChar,
+          classIdx: k,
+          finalScore: fwd.logits[k],
+          dimDetails
+        });
+      }
+      const sortedScores = [...scores].sort((a, b) => b.finalScore - a.finalScore);
+
+      const probs = [...fwd.probs];
+      const expScores = fwd.logits.map(score => Math.exp(beta * score));
+      const sumExp = expScores.reduce((a, b) => a + b, 0);
+      const predictions = probs.map((prob, idx) => ({
+        char: vocab[idx],
+        prob,
+        score: fwd.logits[idx],
+        expScore: expScores[idx]
+      })).sort((a, b) => b.prob - a.prob);
+
+      return {
+        type: 'berkovich',
+        contextText: paddedContext,
+        preText: preText,
+        embeddings,
+        aggregated: [],
+        scores: sortedScores,
+        predictions: predictions.slice(0, 5),
+        sumExp
+      };
     } else if (eModel) {
       const dims = eModel.embDim;
 
@@ -433,6 +500,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     this.stepCount(); // Force recalculation on every training step
     const bModel = this.berkovichModel();
     const eModel = this.euclideanModel();
+    const pModel = this.padicLinearModel();
     const samples = this.getValidationSamples();
 
     if (samples.length === 0) {
@@ -444,10 +512,27 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     const vocab = this.vocab();
     const results: PredictionLog[] = [];
 
-    if (bModel) {
+    if (bModel && this.approach() !== 'padic-linear') {
       const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: mode, beta: temp };
       for (const sample of samples) {
         const fwd = bModel.forward(sample.contextIndices, config);
+        const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+        const isCorrect = predIdx === sample.targetIdx;
+        const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+
+        results.push({
+          preText: formatDisplayString(sample.preText),
+          input: formatDisplayString(sample.contextText),
+          pred: formatDisplayString(vocab[predIdx] || '?'),
+          target: formatDisplayString(sample.targetChar),
+          loss,
+          correct: isCorrect
+        });
+      }
+    } else if (pModel && this.approach() === 'padic-linear') {
+      const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: mode, beta: temp };
+      for (const sample of samples) {
+        const fwd = pModel.forward(sample.contextIndices, config);
         const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
         const isCorrect = predIdx === sample.targetIdx;
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
@@ -586,7 +671,19 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     return Array.from(chars).sort();
   });
 
-  // Selected parameter properties mapped for the Berkovich Tree Viewer
+  // Model parameters (visualized in tree)
+  readonly activeModelParams = computed(() => {
+    const bModel = this.berkovichModel();
+    if (bModel) {
+      return bModel.parameters;
+    }
+    const pModel = this.padicLinearModel();
+    if (pModel) {
+      return pModel.parameters;
+    }
+    return null;
+  });
+
   readonly selectedParameterTreeProps = computed(() => {
     const model = this.berkovichModel();
     if (!model) return null;
@@ -1120,16 +1217,18 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     let avgAcc = 0;
     const logs: PredictionLog[] = [];
 
-    if (bMode !== 'euclidean-ngram' && bModel) {
-      // Train batch on Berkovich model
+    const activeM = this.activeModel();
+
+    if (bMode !== 'euclidean-ngram' && activeM) {
+      // Train batch on Berkovich or PadicLinear model
       const config: BerkovichConfig = { lr, reg: regT, regEmbed: regE, aggMode: mode, beta: temp };
-      const batchResult = bModel.trainBatch(samples, config);
+      const batchResult = activeM.trainBatch(samples, config);
       avgLoss = batchResult.loss;
       avgAcc = batchResult.accuracy;
 
       // Generate logs using the updated model for the UI list
       for (const sample of samples) {
-        const fwd = bModel.forward(sample.contextIndices, config);
+        const fwd = activeM.forward(sample.contextIndices, config) as any;
         const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
         const isCorrect = predIdx === sample.targetIdx;
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
@@ -1145,8 +1244,11 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       }
 
       // Record the targets for introspect displaying for the very last sample in the batch
-      const lastSample = samples[samples.length - 1];
-      this.updateIntrospectTargets(lastSample.contextIndices, lastSample.targetIdx, bModel);
+      // (Only supported for standard Berkovich parameter tree shapes `E` and `W`)
+      if (bModel) {
+        const lastSample = samples[samples.length - 1];
+        this.updateIntrospectTargets(lastSample.contextIndices, lastSample.targetIdx, bModel);
+      }
 
     } else if (eModel) {
       // Train batch on Euclidean model
@@ -1194,6 +1296,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     // Force refresh models reference to trigger UI bindings
     if (bModel) this.berkovichModel.set(bModel);
     if (eModel) this.euclideanModel.set(eModel);
+    
+    const pModel = this.padicLinearModel();
+    if (pModel) this.padicLinearModel.set(pModel);
   }
 
   // Update target coordinates for introspector visualization

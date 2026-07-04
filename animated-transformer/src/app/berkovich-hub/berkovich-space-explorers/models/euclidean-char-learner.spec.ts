@@ -36,7 +36,7 @@ describe('EuclideanCharLearner Spec', () => {
 
     const initialLoss = -Math.log(res.probs[target] + 1e-15);
 
-    const stepRes = learner.trainStep(context, target, 0.1, 0.01);
+    const stepRes = learner.trainStep(context, target, config);
     expect(stepRes.loss).toBeCloseTo(initialLoss, 5);
 
     const nextRes = learner.forward(context);
