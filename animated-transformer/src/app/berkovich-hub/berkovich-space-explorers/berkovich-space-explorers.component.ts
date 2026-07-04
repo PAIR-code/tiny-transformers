@@ -33,8 +33,8 @@ import {
 } from '../../../lib/berkovich/berkovich';
 
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
-import { BerkovichCharLearner, EuclideanCharLearner, BerkovichDisk } from './berkovich-models';
-import { MarkdownComponent } from 'ngx-markdown';
+import { BerkovichCharLearner, BerkovichDisk } from './models/berkovich-char-learner';
+import { EuclideanCharLearner } from './models/euclidean-char-learner';
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import {
   D3LineChartComponent,
@@ -45,46 +45,17 @@ import {
   NamedChartPoint
 } from '../../d3-line-chart/d3-line-chart.component';
 
-export interface WalkthroughEmbed {
-  dim: number;
-  center?: { num: bigint; den: bigint };
-  rho?: number;
-  val?: number;
-}
+import {
+  WalkthroughEmbed,
+  WalkthroughEmbedGroup,
+  WalkthroughScore,
+  WalkthroughPrediction,
+  WalkthroughDetails
+} from './walkthrough-components/shared/walkthrough-types';
 
-export interface WalkthroughEmbedGroup {
-  char: string;
-  charIdx: number;
-  embeds: WalkthroughEmbed[];
-}
-
-export interface WalkthroughScore {
-  char: string;
-  classIdx: number;
-  dimDists?: number[];
-  finalScore: number;
-  logit?: number;
-  bias?: number;
-  dimDetails?: any[];
-}
-
-export interface WalkthroughPrediction {
-  char: string;
-  prob: number;
-  score: number;
-  expScore: number;
-}
-
-export interface WalkthroughDetails {
-  type: 'berkovich' | 'euclidean';
-  contextText: string;
-  preText: string;
-  embeddings: WalkthroughEmbedGroup[];
-  aggregated: WalkthroughEmbed[];
-  scores: WalkthroughScore[];
-  predictions: WalkthroughPrediction[];
-  sumExp: number;
-}
+import { BerkovichBigramWalkthroughComponent } from './walkthrough-components/berkovich-bigram-walkthrough.component';
+import { BerkovichNgramWalkthroughComponent } from './walkthrough-components/berkovich-ngram-walkthrough.component';
+import { EuclideanWalkthroughComponent } from './walkthrough-components/euclidean-walkthrough.component';
 
 // Interface for prediction logs in the UI
 interface PredictionLog {
@@ -114,8 +85,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     RouterModule,
     BerkovichTreeVisComponent,
     D3LineChartComponent,
-    MarkdownComponent,
-    BerkovichDigitDisplayComponent
+    BerkovichDigitDisplayComponent,
+    BerkovichBigramWalkthroughComponent,
+    BerkovichNgramWalkthroughComponent,
+    EuclideanWalkthroughComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:click)': 'activePopup.set(null)' }
@@ -151,7 +124,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly embDim = signal<number>(5);
   readonly digitsLeft = signal<number>(2);
   readonly digitsRight = signal<number>(2);
-  readonly learningRate = signal<number>(0.15);
+  readonly learningRate = signal<number>(0.01);
   readonly regularizationTarget = signal<number>(0.04);
   readonly regularizationEmbed = signal<number>(0.02);
   readonly activePopup = signal<string | null>(null);
@@ -371,12 +344,12 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         let logit = eModel.biases[k];
         const dimDetails = [];
         for (let d = 0; d < dims; d++) {
-          const product = fwd.H[d] * eModel.W[k][d];
+          const product = fwd.H[d] * eModel.W[d][k];
           logit += product;
           dimDetails.push({
             dim: d,
             contextVal: fwd.H[d],
-            weightVal: eModel.W[k][d],
+            weightVal: eModel.W[d][k],
             product
           });
         }

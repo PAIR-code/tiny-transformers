@@ -14,19 +14,19 @@ limitations under the License.
 ==============================================================================*/
 
 import { describe, it, expect } from 'vitest';
-import { BerkovichCharLearner, EuclideanCharLearner } from './berkovich-models';
+import { BerkovichCharLearner } from './berkovich-char-learner';
 
-describe('Berkovich & Euclidean Models Spec', () => {
+describe('BerkovichCharLearner Spec', () => {
   const vocab = ['a', 'b', 'c', 'd'];
   const prime = 3;
   const embDim = 5;
 
-  it('should initialize and run forward for BerkovichCharLearner', () => {
+  it('should initialize and run forward', () => {
     const learner = new BerkovichCharLearner(prime, vocab, embDim);
-    expect(learner.embeddings.length).toBe(vocab.length);
-    expect(learner.embeddings[0].length).toBe(embDim);
-    expect(learner.constraints.length).toBe(vocab.length);
-    expect(learner.constraints[0].length).toBe(embDim);
+    expect(learner.E.length).toBe(vocab.length);
+    expect(learner.E[0].length).toBe(embDim);
+    expect(learner.W.length).toBe(vocab.length);
+    expect(learner.W[0].length).toBe(embDim);
 
     const context = [0, 1, 2]; // 'a', 'b', 'c'
     const res = learner.forward(context, 'min', 1.0);
@@ -35,11 +35,11 @@ describe('Berkovich & Euclidean Models Spec', () => {
     expect(res.H.length).toBe(embDim);
     
     // Sum of probs should be close to 1
-    const sumProbs = res.probs.reduce((a, b) => a + b, 0);
+    const sumProbs = res.probs.reduce((a: number, b: number) => a + b, 0);
     expect(sumProbs).toBeCloseTo(1.0, 5);
   });
 
-  it('should execute a train step for BerkovichCharLearner', () => {
+  it('should execute a train step', () => {
     const learner = new BerkovichCharLearner(prime, vocab, embDim);
     const context = [0, 1]; // 'a', 'b'
     const target = 2; // 'c'
@@ -54,28 +54,5 @@ describe('Berkovich & Euclidean Models Spec', () => {
     // Run forward again and verify the probability has updated
     const nextFwd = learner.forward(context, 'min', 1.0);
     console.log(`Initial target probability: ${initialProb.toFixed(4)}, next: ${nextFwd.probs[target].toFixed(4)}`);
-  });
-
-  it('should initialize, forward and train for EuclideanCharLearner', () => {
-    const learner = new EuclideanCharLearner(vocab, embDim);
-    expect(learner.embeddings.length).toBe(vocab.length);
-    expect(learner.weights.length).toBe(vocab.length);
-    expect(learner.biases.length).toBe(vocab.length);
-
-    const context = [0, 1, 2];
-    const target = 3;
-
-    const res = learner.forward(context);
-    expect(res.probs.length).toBe(vocab.length);
-    const sumProbs = res.probs.reduce((a, b) => a + b, 0);
-    expect(sumProbs).toBeCloseTo(1.0, 5);
-
-    const initialLoss = -Math.log(res.probs[target] + 1e-15);
-
-    const stepRes = learner.trainStep(context, target, 0.1, 0.01);
-    expect(stepRes.loss).toBeCloseTo(initialLoss, 5);
-
-    const nextRes = learner.forward(context);
-    expect(nextRes.probs[target]).toBeGreaterThan(res.probs[target]);
   });
 });
