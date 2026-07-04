@@ -590,7 +590,7 @@ limitations under the License.
         <!-- Approach 1: Berkovich Bigram -->
         @if (approach() === 'berkovich-bigram') {
           <section class="card explainer-card">
-            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+            <h3><mat-icon>info</mat-icon> How Model Inference Works?</h3>
           <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
             Berkovich p-adic Bigram Predictor (N = 1)
           </h4>
@@ -603,7 +603,7 @@ limitations under the License.
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px;">
               <!-- Active Context Display -->
               <div style="display: flex; align-items: center; font-size: 11px; font-family: sans-serif; font-weight: normal; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
-                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Active Context:</span>
+                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Worked Example Context (N=1):</span>
                 <span class="context-col" style="font-family: monospace; font-weight: 700; color: #0f172a; font-size: 11.5px; display: flex; align-items: center;">
                   <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
                 </span>
@@ -797,12 +797,12 @@ limitations under the License.
           </section>
         } @else if (approach() === 'berkovich-ngram') {
           <section class="card explainer-card">
-            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+            <h3><mat-icon>info</mat-icon> How Model Inference Works?</h3>
             <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
-            Berkovich p-adic N-Gram Predictor (N > 1)
+            Berkovich p-adic N-Gram Predictor (Adjustable N)
           </h4>
           <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #475569; line-height: 1.5;">
-            This model aggregates a context of $N > 1$ preceding characters to predict the next character using Berkovich spaces.
+            This model aggregates a context of up to $N$ preceding characters to predict the next character using Berkovich spaces.
           </p>
 
           @if (walkthroughDetails(); as details) {
@@ -810,7 +810,7 @@ limitations under the License.
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px;">
               <!-- Active Context Display -->
               <div style="display: flex; align-items: center; font-size: 11px; font-family: sans-serif; font-weight: normal; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
-                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Active Context:</span>
+                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Worked Example Context (N={{ contextLength() }}):</span>
                 <span class="context-col" style="font-family: monospace; font-weight: 700; color: #0f172a; font-size: 11.5px; display: flex; align-items: center;">
                   <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
                 </span>
@@ -1033,7 +1033,7 @@ limitations under the License.
           </section>
         } @else {
           <section class="card explainer-card">
-            <h3><mat-icon>info</mat-icon> How does it work?</h3>
+            <h3><mat-icon>info</mat-icon> How Model Inference Works?</h3>
             <h4 style="margin: 12px 0 8px 0; font-size: 14px; font-weight: 700; color: #0f172a;">
             Euclidean N-Gram Predictor (Baseline)
           </h4>
@@ -1046,7 +1046,7 @@ limitations under the License.
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px;">
               <!-- Active Context Display -->
               <div style="display: flex; align-items: center; font-size: 11px; font-family: sans-serif; font-weight: normal; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
-                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Active Context:</span>
+                <span style="color: #64748b; margin-right: 6px; font-weight: 600;">Worked Example Context (N={{ contextLength() }}):</span>
                 <span class="context-col" style="font-family: monospace; font-weight: 700; color: #0f172a; font-size: 11.5px; display: flex; align-items: center;">
                   <span class="pre-context" style="color: #94a3b8; font-weight: normal;">{{ details.preText }}</span>{{ details.contextText }}
                 </span>
