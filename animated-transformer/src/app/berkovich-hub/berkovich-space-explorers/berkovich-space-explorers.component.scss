@@ -159,48 +159,49 @@ limitations under the License.
     grid-template-columns: 1fr 1fr;
     gap: 16px;
   }
+}
 
-  .form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    position: relative;
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
 
-    label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  select, input {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1e293b;
+    background-color: #ffffff;
+    outline: none;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      border-color: #3b82f6;
     }
 
-    select, input {
-      padding: 8px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: inherit;
-      color: #1e293b;
-      background-color: #ffffff;
-      outline: none;
-      transition: border-color 0.2s ease;
-
-      &:focus {
-        border-color: #3b82f6;
-      }
-
-      &:disabled {
-        background-color: #f1f5f9;
-        color: #94a3b8;
-        cursor: not-allowed;
-        border-color: #e2e8f0;
-      }
-    }
-
-    &.field-disabled {
-      label {
-        color: #94a3b8 !important;
-      }
+    &:disabled {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+      border-color: #e2e8f0;
     }
   }
+
+  &.field-disabled {
+    label {
+      color: #94a3b8 !important;
+    }
+  }
+}
 
   .custom-popup {
     position: absolute;
@@ -222,7 +223,6 @@ limitations under the License.
   .icon-pressed {
     color: #3b82f6 !important;
   }
-}
 
 .training-controls-card {
   .stats-row {

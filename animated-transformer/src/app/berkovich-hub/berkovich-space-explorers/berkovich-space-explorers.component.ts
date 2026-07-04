@@ -165,6 +165,12 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       this.activePopup.set(id);
     }
   }
+
+  parseNumberInput(value: string): number {
+    const normalized = value.replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
   readonly aggMode = signal<'min' | 'average'>('min');
   readonly beta = signal<number>(1.0);
   readonly batchSize = signal<number>(128);

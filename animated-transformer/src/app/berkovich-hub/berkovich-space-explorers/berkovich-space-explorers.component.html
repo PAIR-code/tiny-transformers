@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================-->
-<div class="space-explorers-container">
+<div class="space-explorers-container" lang="en">
   <!-- Top Navigation & Header -->
   <header class="explorer-header" style="margin-bottom: 24px;">
     <div class="header-content">
@@ -36,10 +36,10 @@ limitations under the License.
   <div class="dashboard-rows">
     <!-- ROW 1: Dataset Snippet & Model Config -->
     <div class="dashboard-row two-columns">
-      <!-- Left Column: Dataset Snippet -->
+      <!-- Left Column: Data & Eval -->
       <section class="card dataset-card">
         <div class="card-header-row">
-          <h3><mat-icon>article</mat-icon> Dataset Snippet</h3>
+          <h3><mat-icon>article</mat-icon> Data & Eval</h3>
           <div style="display: flex; gap: 8px;">
             <button class="small-btn" (click)="loadToyData()"><mat-icon>extension</mat-icon> Fetch Toy Data</button>
             <button class="small-btn" (click)="loadFullShakespeare()"><mat-icon>download</mat-icon> Fetch Tiny Shakespeare</button>
@@ -52,6 +52,85 @@ limitations under the License.
           <span><strong>Vocabulary size (V):</strong> {{ vocab().length }} unique characters</span>
         </div>
 
+        <div class="vocab-chips-container">
+          <div class="vocab-title">Vocabulary Mapping:</div>
+          <div class="vocab-chips">
+            <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
+              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ formatDisplayString(char) }}</span>
+              <span class="idx-span">{{ idx }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #475569;">Validation & Evaluation Split</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%;">
+            <!-- Split Mode -->
+            <div class="form-field">
+              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                <label style="margin: 0;">Validation Split Mode</label>
+                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                  (click)="togglePopup('valmode', $event)" [class.icon-pressed]="activePopup() === 'valmode'">{{ activePopup() === 'valmode' ? 'info' : 'info_outline' }}</mat-icon>
+                @if (activePopup() === 'valmode') {
+                  <div class="custom-popup" (click)="$event.stopPropagation()">'Holdout' evaluates unseen text chunks; 'Overlap' evaluates training text to measure overfitting.</div>
+                }
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center; min-height: 28px;">
+                <!-- Main toggles: Holdout vs Overlap -->
+                <div style="display: flex; gap: 4px;">
+                  <button mat-stroked-button [color]="valMode() !== 'overlap' ? 'primary' : ''" (click)="setHoldoutMode()" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Holdout</button>
+                  <button mat-stroked-button [color]="valMode() === 'overlap' ? 'primary' : ''" (click)="valMode.set('overlap')" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Overlap</button>
+                </div>
+
+                <!-- Randomize toggle (only for Holdout mode) -->
+                <button mat-icon-button *ngIf="valMode() !== 'overlap'"
+                  [color]="valMode() === 'random' ? 'primary' : ''"
+                  (click)="toggleRandomHoldout()"
+                  title="Randomize holdout indices"
+                  style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
+                  <mat-icon style="font-size: 18px; width: 18px; height: 18px;">shuffle</mat-icon>
+                </button>
+
+                <!-- Shuffle/Re-randomize trigger (only when randomized mode active) -->
+                <button mat-icon-button *ngIf="valMode() === 'random'"
+                  (click)="resetWeights()"
+                  title="Shuffle/Re-randomize indices"
+                  style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
+                  <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #64748b;">refresh</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Size / Pct -->
+            <div class="form-field" *ngIf="valMode() === 'overlap'">
+              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                <label for="validation-size-overlap" style="margin: 0;">Validation Size (Chars)</label>
+                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                  (click)="togglePopup('valoverlap', $event)" [class.icon-pressed]="activePopup() === 'valoverlap'">{{ activePopup() === 'valoverlap' ? 'info' : 'info_outline' }}</mat-icon>
+                @if (activePopup() === 'valoverlap') {
+                  <div class="custom-popup" (click)="$event.stopPropagation()">Number of characters from the start of training text to use for validation.</div>
+                }
+              </div>
+              <input id="validation-size-overlap" type="number" step="50" min="10" max="1000" [value]="valSizeOverlap()" (change)="valSizeOverlap.set(+$any($event.target).value)" />
+            </div>
+
+            <div class="form-field" *ngIf="valMode() !== 'overlap'">
+              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                <label for="validation-pct-holdout" style="margin: 0;">Holdout Percentage (%)</label>
+                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+                  (click)="togglePopup('valpct', $event)" [class.icon-pressed]="activePopup() === 'valpct'">{{ activePopup() === 'valpct' ? 'info' : 'info_outline' }}</mat-icon>
+                @if (activePopup() === 'valpct') {
+                  <div class="custom-popup" (click)="$event.stopPropagation()">Percentage of the total text held out purely for validation.</div>
+                }
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input id="validation-pct-holdout" type="text" inputmode="decimal" [value]="valPercentageHoldout() * 100" (change)="valPercentageHoldout.set(parseNumberInput($any($event.target).value) / 100)" style="width: 80px;" />
+                <span style="font-size: 11.5px; color: #64748b;">(Size: {{ effectiveValidationSize() }} chars)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="dataset-meta" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
           <button class="small-btn" (click)="computeBaselineLimits()" style="background: #f0fdf4; color: #16a34a; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
             <mat-icon style="font-size: 14px; width: 14px; height: 14px;">calculate</mat-icon> Compute Optimal Baseline
@@ -60,16 +139,6 @@ limitations under the License.
           <div *ngIf="baselineMetrics() as baseline" style="font-size: 11.5px; color: #475569; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px;">
             <span><strong>Optimal Train Loss:</strong> {{ baseline.trainLoss.toFixed(4) }} (Acc: {{ (baseline.trainAcc * 100).toFixed(1) }}%)</span>
             <span><strong>Optimal Val Loss:</strong> {{ baseline.valLoss.toFixed(4) }} (Acc: {{ (baseline.valAcc * 100).toFixed(1) }}%)</span>
-          </div>
-        </div>
-        
-        <div class="vocab-chips-container">
-          <div class="vocab-title">Vocabulary Mapping:</div>
-          <div class="vocab-chips">
-            <span class="vocab-chip" *ngFor="let char of vocab(); let idx = index">
-              <span class="char-span" [class.space-char]="char === ' '" [class.newline-char]="char === '\n'">{{ formatDisplayString(char) }}</span>
-              <span class="idx-span">{{ idx }}</span>
-            </span>
           </div>
         </div>
       </section>
@@ -174,7 +243,7 @@ limitations under the License.
                 <div class="custom-popup" (click)="$event.stopPropagation()">The step size used during gradient descent to update parameters.</div>
               }
             </div>
-            <input id="lr-input" type="number" step="0.01" min="0.001" [value]="learningRate()" (change)="learningRate.set(+$any($event.target).value)" />
+            <input id="lr-input" type="text" inputmode="decimal" [value]="learningRate()" (change)="learningRate.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
@@ -186,19 +255,19 @@ limitations under the License.
                 <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to target class radius, preventing it from growing indefinitely.</div>
               }
             </div>
-            <input id="reg-target" type="number" step="0.001" min="0" [value]="regularizationTarget()" (change)="regularizationTarget.set(+$any($event.target).value)" />
+            <input id="reg-target" type="text" inputmode="decimal" [value]="regularizationTarget()" (change)="regularizationTarget.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <label for="reg-emb">
-              Embed Radius (&rho;) Reg (&lambda;)
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer; display: inline-flex; vertical-align: middle; margin-left: 2px;"
+            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+              <label for="reg-emb" style="margin: 0;">Embed Radius (&rho;) Reg (&lambda;)</label>
+              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
                 (click)="togglePopup('regemb', $event)" [class.icon-pressed]="activePopup() === 'regemb'">{{ activePopup() === 'regemb' ? 'info' : 'info_outline' }}</mat-icon>
-            </label>
-            @if (activePopup() === 'regemb') {
-              <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to context embedding radius.</div>
-            }
-            <input id="reg-emb" type="number" step="0.001" min="0" [value]="regularizationEmbed()" (change)="regularizationEmbed.set(+$any($event.target).value)" />
+              @if (activePopup() === 'regemb') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to context embedding radius.</div>
+              }
+            </div>
+            <input id="reg-emb" type="text" inputmode="decimal" [value]="regularizationEmbed()" (change)="regularizationEmbed.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
@@ -225,7 +294,7 @@ limitations under the License.
                 <div class="custom-popup" (click)="$event.stopPropagation()">Controls prediction confidence. Higher beta sharpens probabilities; lower beta flattens them.</div>
               }
             </div>
-            <input id="beta-input" type="number" step="0.5" min="0.1" [value]="beta()" (change)="beta.set(+$any($event.target).value)" />
+            <input id="beta-input" type="text" inputmode="decimal" [value]="beta()" (change)="beta.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <div class="form-field">
@@ -252,67 +321,7 @@ limitations under the License.
             <input id="train-speed" type="number" step="50" min="0" [value]="trainingSpeed()" (change)="trainingSpeed.set(+$any($event.target).value)" />
           </div>
 
-          <div class="form-field">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label style="margin: 0;">Validation Split Mode</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('valmode', $event)" [class.icon-pressed]="activePopup() === 'valmode'">{{ activePopup() === 'valmode' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'valmode') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">'Holdout' evaluates unseen text chunks; 'Overlap' evaluates training text to measure overfitting.</div>
-              }
-            </div>
-            <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center; min-height: 28px;">
-              <!-- Main toggles: Holdout vs Overlap -->
-              <div style="display: flex; gap: 4px;">
-                <button mat-stroked-button [color]="valMode() !== 'overlap' ? 'primary' : ''" (click)="setHoldoutMode()" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Holdout</button>
-                <button mat-stroked-button [color]="valMode() === 'overlap' ? 'primary' : ''" (click)="valMode.set('overlap')" style="font-size: 11px; padding: 0 8px; height: 28px; line-height: 28px; min-width: 0;">Overlap</button>
-              </div>
-
-              <!-- Randomize toggle (only for Holdout mode) -->
-              <button mat-icon-button *ngIf="valMode() !== 'overlap'"
-                [color]="valMode() === 'random' ? 'primary' : ''"
-                (click)="toggleRandomHoldout()"
-                title="Randomize holdout indices"
-                style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">shuffle</mat-icon>
-              </button>
-
-              <!-- Shuffle/Re-randomize trigger (only when randomized mode active) -->
-              <button mat-icon-button *ngIf="valMode() === 'random'"
-                (click)="resetWeights()"
-                title="Shuffle/Re-randomize indices"
-                style="width: 28px; height: 28px; line-height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #64748b;">refresh</mat-icon>
-              </button>
-            </div>
-          </div>
-
-          <div class="form-field" *ngIf="valMode() === 'overlap'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="validation-size-overlap" style="margin: 0;">Validation Size (Chars)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('valoverlap', $event)" [class.icon-pressed]="activePopup() === 'valoverlap'">{{ activePopup() === 'valoverlap' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'valoverlap') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Number of characters from the start of training text to use for validation.</div>
-              }
-            </div>
-            <input id="validation-size-overlap" type="number" step="50" min="10" max="1000" [value]="valSizeOverlap()" (change)="valSizeOverlap.set(+$any($event.target).value)" />
-          </div>
-
-          <div class="form-field" *ngIf="valMode() !== 'overlap'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="validation-pct-holdout" style="margin: 0;">Holdout Percentage (%)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('valpct', $event)" [class.icon-pressed]="activePopup() === 'valpct'">{{ activePopup() === 'valpct' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'valpct') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Percentage of the total text held out purely for validation.</div>
-              }
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input id="validation-pct-holdout" type="number" step="5" min="5" max="50" [value]="valPercentageHoldout() * 100" (change)="valPercentageHoldout.set(+$any($event.target).value / 100)" style="width: 80px;" />
-              <span style="font-size: 11.5px; color: #64748b;">(Size: {{ effectiveValidationSize() }} chars)</span>
-            </div>
-          </div>
+          <!-- End of Config Fields -->
         </div>
       </section>
     </div>
