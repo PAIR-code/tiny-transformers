@@ -121,14 +121,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly wrapInQuotes = (str: string) => `'${str}'`;
   readonly stepData = {
     bigram: {
-      step1: "1. **Embedding Lookup**: The single context character $x_1$ is mapped directly to its embedding disk $E_c = (c, \\rho) \\in \\Gamma_p^d$. Since the context length is 1, no aggregation is needed: $H = E_c$.",
-      step2: "2. **Affinoid Projection**: We project $H$ against learned target classification disks $W_k$ for each character class $k$. The score is the minimum path distance across dimensions: $D_k = \\min_d -\\text{dist}(H_d, W_{k,d})$:",
-      step3: "3. **Affinoid Softmax**: Compute class probabilities: $\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$:"
+      step1: "1. **Embedding Lookup**: The single context character $x_1$ is mapped directly to its embedding disk $E = (c_E, \\rho_E) \\in \\Gamma_p^d$. Since the context length is 1, no aggregation is needed: $H = E$.",
+      step2: "2. **Affinoid Projection**: We project $H = (c_H, \\rho_H)$ against learned target classification disks $W_k = (c_W, \\rho_W)$ for each character class $k$. The final logit score $D_k$ is the combined negated dimension path losses: $D_k = -\\max_d(L_d(H_d, W_{k,d}))$ or $D_k = -\\text{avg}_d(L_d(H_d, W_{k,d}))$, depending on the aggregation mode.  \n\n    The path loss $L_d$ in dimension $d$ is:  \n    $L_d(H_d, W_{k,d}) = |\\rho_W - d_{cen}| + d_{cen} - \\rho_H \\quad \\text{where } d_{cen} = -\\nu_p(c_H - c_W)$.",
+      step3: "3. **Affinoid Softmax**: Compute class probabilities using standard softmax scaled by temperature $\\beta$: $\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$"
     },
     ngram: {
       step1: "1. **Embedding Lookup**: Context characters $x_1, \\dots, x_N$ are mapped to embedding disks $E[x_j]_d = (c_j, \\rho_j) \\in \\Gamma_p^d$.",
-      step2: "2. **Context Aggregation**: Context embeddings are combined into an aggregated hidden disk $H_d = (c_H, \\rho_H)$ using $p^{-j}$ positional scaling (older history is shifted deeper):  \n$c_H = \\sum_{j=1}^N c_j p^{-j}$, $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$:",
-      step3: "3. **Affinoid Projection**: Projects aggregated context $H$ against learned targets $W_k$. The score is the minimum path distance across dimensions: $D_k = \\min_d -\\text{dist}(H_d, W_{k,d})$:",
+      step2: "2. **Context Aggregation**: Context embeddings are combined into an aggregated hidden disk $H_d = (c_H, \\rho_H)$ using $p^{-j}$ positional scaling (older history is shifted deeper):  \n$c_H = \\sum_{j=1}^N c_j p^{-j}$, $\\rho_H = \\max_{j=1}^N (\\rho_j - j)$ clamped to $[-2, 2]$.",
+      step3: "3. **Affinoid Projection**: We project $H = (c_H, \\rho_H)$ against learned target classification disks $W_k = (c_W, \\rho_W)$ for each character class $k$. The final logit score $D_k$ is the combined negated dimension path losses: $D_k = -\\max_d(L_d(H_d, W_{k,d}))$ or $D_k = -\\text{avg}_d(L_d(H_d, W_{k,d}))$, depending on the aggregation mode.  \n\n    The path loss $L_d$ in dimension $d$ is:  \n    $L_d(H_d, W_{k,d}) = |\\rho_W - d_{cen}| + d_{cen} - \\rho_H \\quad \\text{where } d_{cen} = -\\nu_p(c_H - c_W)$.",
       step4: "4. **Affinoid Softmax**: Applies standard softmax scaled by temperature $\\beta$ to obtain final class probabilities:  \n$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$:"
     },
     euclidean: {
@@ -240,8 +240,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         for (let d = 0; d < dims; d++) {
           charEmbeds.push({
             dim: d,
-            center: { ...bModel.embeddings[charIdx][d].center },
-            rho: bModel.embeddings[charIdx][d].rho,
+            center: { ...bModel.E[charIdx][d].center },
+            rho: bModel.E[charIdx][d].rho,
             val: undefined as number | undefined
           });
         }
@@ -272,8 +272,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
             dim: d,
             contextCenter: { ...fwd.H[d].center },
             contextRho: fwd.H[d].rho,
-            constraintCenter: { ...bModel.constraints[k][d].center },
-            constraintRho: bModel.constraints[k][d].rho,
+            constraintCenter: { ...bModel.W[k][d].center },
+            constraintRho: bModel.W[k][d].rho,
+            dist: fwd.dists[k][d],
             loss: fwd.pathLosses[k][d]
           });
         }
@@ -324,7 +325,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
             dim: d,
             center: undefined as { num: bigint; den: bigint } | undefined,
             rho: undefined as number | undefined,
-            val: eModel.embeddings[charIdx][d]
+            val: eModel.E[charIdx][d]
           });
         }
         embeddings.push({ char, charIdx, embeds: charEmbeds });
@@ -349,12 +350,12 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
         let logit = eModel.biases[k];
         const dimDetails = [];
         for (let d = 0; d < dims; d++) {
-          const product = fwd.H[d] * eModel.weights[k][d];
+          const product = fwd.H[d] * eModel.W[k][d];
           logit += product;
           dimDetails.push({
             dim: d,
             contextVal: fwd.H[d],
-            weightVal: eModel.weights[k][d],
+            weightVal: eModel.W[k][d],
             product
           });
         }
@@ -584,11 +585,11 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     let rho = 0.0;
 
     if (type === 'embedding') {
-      const disk = model.embeddings[charIdx][d];
+      const disk = model.E[charIdx][d];
       center = disk.center;
       rho = disk.rho;
     } else {
-      const disk = model.constraints[charIdx][d];
+      const disk = model.W[charIdx][d];
       center = disk.center;
       rho = disk.rho;
     }
@@ -682,6 +683,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
   formatDigits(r: Rational): string {
     return formatDigitSequence(r, BigInt(this.prime()));
+  }
+
+  formatDistance(d: number): string {
+    return d === -Infinity ? '-∞' : d.toFixed(2);
+  }
+
+  isNegInfinity(val: number): boolean {
+    return val === -Infinity;
   }
 
   onApproachChange(val: any) {
@@ -1186,26 +1195,26 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       // 2. Target for active embeddings of context chars
       for (let j = 1; j <= N; j++) {
         const charIdx = contextIndices[j - 1];
-        const emb = model.embeddings[charIdx][d];
+        const emb = model.E[charIdx][d];
 
         // check if this character was active in max-pool (rho_j - j == H_d.rho)
         if (Math.abs((emb.rho - j) - fwd.H[d].rho) < 1e-7) {
           let otherSum = { num: 0n, den: 1n };
           for (let l = 1; l <= N; l++) {
             if (l !== j) {
-              const otherEmb = model.embeddings[contextIndices[l - 1]][d];
+              const otherEmb = model.E[contextIndices[l - 1]][d];
               otherSum = add(otherSum, simplify({
                 num: otherEmb.center.num,
                 den: otherEmb.center.den * (p ** BigInt(l))
               }));
             }
           }
-          const diff = subtract(model.constraints[targetIdx][d].center, otherSum);
+          const diff = subtract(model.W[targetIdx][d].center, otherSum);
           const targetCenter = simplify({
             num: diff.num * (p ** BigInt(j)),
             den: diff.den
           });
-          const targetLogRadius = model.constraints[targetIdx][d].rho + j;
+          const targetLogRadius = model.W[targetIdx][d].rho + j;
 
           if (!targets.embedding[charIdx]) {
             targets.embedding[charIdx] = {};
@@ -1235,9 +1244,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     if (charIdx === -1) return;
 
     if (type === 'embedding') {
-      model.embeddings[charIdx][d].rho = newRho;
+      model.E[charIdx][d].rho = newRho;
     } else {
-      model.constraints[charIdx][d].rho = newRho;
+      model.W[charIdx][d].rho = newRho;
     }
 
     this.berkovichModel.set(model);

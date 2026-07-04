@@ -46,16 +46,16 @@ export class BerkovichCharLearner {
   readonly prime: bigint;
   
   // Weights representation
-  embeddings: BerkovichDisk[][]; // [V, embDim]
-  constraints: BerkovichDisk[][]; // [V, embDim]
+  E: BerkovichDisk[][]; // Embeddings [V, embDim]
+  W: BerkovichDisk[][]; // Targets (Constraints) [V, embDim]
 
   constructor(prime: number, vocab: string[], embDim: number = 5) {
     this.V = vocab.length;
     this.embDim = embDim;
     this.prime = BigInt(prime);
 
-    this.embeddings = [];
-    this.constraints = [];
+    this.E = [];
+    this.W = [];
 
     // Initialize with small random disks in [-2, 2]
     for (let i = 0; i < this.V; i++) {
@@ -65,8 +65,8 @@ export class BerkovichCharLearner {
         embRow.push(this.randomDisk());
         constrRow.push(this.randomDisk());
       }
-      this.embeddings.push(embRow);
-      this.constraints.push(constrRow);
+      this.E.push(embRow);
+      this.W.push(constrRow);
     }
   }
 
@@ -93,7 +93,7 @@ export class BerkovichCharLearner {
 
       for (let j = 1; j <= N; j++) {
         const charIdx = contextIndices[j - 1];
-        const emb = this.embeddings[charIdx][d];
+        const emb = this.E[charIdx][d];
         
         // c_j * p^-j
         const cScaled = simplify({ num: emb.center.num, den: emb.center.den * (p ** BigInt(j)) });
@@ -122,13 +122,13 @@ export class BerkovichCharLearner {
       const classLosses: number[] = [];
       
       for (let d = 0; d < this.embDim; d++) {
-        const valDiff = getValuation(subtract(H[d].center, this.constraints[k][d].center), p);
+        const valDiff = getValuation(subtract(H[d].center, this.W[k][d].center), p);
         const distance = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
         classDists.push(distance);
 
-        const loss = valDiff.type === 'pos-infinity' && this.constraints[k][d].rho <= H[d].rho
+        const loss = valDiff.type === 'pos-infinity' && this.W[k][d].rho <= H[d].rho
           ? 0
-          : computePathLoss(this.constraints[k][d].rho, extNegate(valDiff), H[d].rho);
+          : computePathLoss(this.W[k][d].rho, extNegate(valDiff), H[d].rho);
         classLosses.push(loss);
       }
 
@@ -207,12 +207,12 @@ export class BerkovichCharLearner {
         // Skip updating negative class targets if sample is already outside its domain
         if (k !== targetIdx && fwd.pathLosses[k][d] > 0) {
           // Still apply regularizer to target k, d
-          const W = this.constraints[k][d];
+          const W = this.W[k][d];
           W.rho = Math.max(-2, Math.min(2, W.rho - lr * reg * Math.log(Number(p)) * Math.exp(W.rho * Math.log(Number(p)))));
           continue;
         }
 
-        const W = this.constraints[k][d];
+        const W = this.W[k][d];
         const H = fwd.H[d];
 
         // 3a. Update Class Target Constraints
@@ -236,7 +236,7 @@ export class BerkovichCharLearner {
         // Find which character(s) in context were active for H_d (max pooled)
         for (let j = 1; j <= N; j++) {
           const charIdx = contextIndices[j - 1];
-          const emb = this.embeddings[charIdx][d];
+          const emb = this.E[charIdx][d];
 
           const isEmbActive = Math.abs((emb.rho - j) - H.rho) < 1e-7;
           if (!isEmbActive) continue;
@@ -245,7 +245,7 @@ export class BerkovichCharLearner {
           let otherSum = { num: 0n, den: 1n };
           for (let l = 1; l <= N; l++) {
             if (l !== j) {
-              const otherEmb = this.embeddings[contextIndices[l - 1]][d];
+              const otherEmb = this.E[contextIndices[l - 1]][d];
               const term = simplify({
                 num: otherEmb.center.num,
                 den: otherEmb.center.den * (p ** BigInt(l))
@@ -317,16 +317,16 @@ export class EuclideanCharLearner {
   readonly V: number;
   readonly embDim: number;
 
-  embeddings: number[][]; // [V, embDim]
-  weights: number[][];    // [V, embDim]
+  E: number[][]; // [V, embDim]
+  W: number[][]; // [embDim, V]
   biases: number[];       // [V]
 
   constructor(vocab: string[], embDim: number = 5) {
     this.V = vocab.length;
     this.embDim = embDim;
 
-    this.embeddings = [];
-    this.weights = [];
+    this.E = [];
+    this.W = [];
     this.biases = [];
 
     // Xavier/Glorot-like initialization
@@ -338,8 +338,8 @@ export class EuclideanCharLearner {
         embRow.push((Math.random() - 0.5) * scale);
         weightRow.push((Math.random() - 0.5) * scale);
       }
-      this.embeddings.push(embRow);
-      this.weights.push(weightRow);
+      this.E.push(embRow);
+      this.W.push(weightRow);
       this.biases.push(0.0);
     }
   }
@@ -352,7 +352,7 @@ export class EuclideanCharLearner {
     for (let d = 0; d < this.embDim; d++) {
       let sum = 0;
       for (let j = 0; j < N; j++) {
-        sum += this.embeddings[contextIndices[j]][d];
+        sum += this.E[contextIndices[j]][d];
       }
       H[d] = sum / (N + 1e-15);
     }
@@ -362,7 +362,7 @@ export class EuclideanCharLearner {
     for (let k = 0; k < this.V; k++) {
       let score = this.biases[k];
       for (let d = 0; d < this.embDim; d++) {
-        score += H[d] * this.weights[k][d];
+        score += H[d] * this.W[d][k];
       }
       logits.push(score);
     }
@@ -393,38 +393,30 @@ export class EuclideanCharLearner {
     const gLogits = fwd.probs.map((pi, k) => pi - (k === targetIdx ? 1 : 0));
 
     // 3. Gradients w.r.t weights, biases, and H
-    const dW: number[][] = [];
+    const dLogits = [...gLogits];
     const db: number[] = [...gLogits];
-    const dH: number[] = Array(this.embDim).fill(0.0);
-
-    for (let k = 0; k < this.V; k++) {
-      const gk = gLogits[k];
-      const dWRow: number[] = [];
-      for (let d = 0; d < this.embDim; d++) {
-        // dL/dw = g_k * H_d + reg * w_k,d
-        dWRow.push(gk * fwd.H[d] + reg * this.weights[k][d]);
-        // dL/dH_d = sum_k g_k * w_k,d
-        dH[d] += gk * this.weights[k][d];
-      }
-      dW.push(dWRow);
-    }
-
+    
     // Gradient w.r.t embeddings (due to mean pooling, dL/demb = dL/dH * 1/N)
-    const dEmb: number[] = dH.map(val => val / (N + 1e-15));
+    const dEmb = new Array(this.embDim).fill(0);
+    for (let d = 0; d < this.embDim; d++) {
+      for (let k = 0; k < this.V; k++) {
+        dEmb[d] += dLogits[k] * this.W[d][k];
+      }
+      dEmb[d] /= N;
+    }
 
     // 4. Update Weights
     for (let k = 0; k < this.V; k++) {
       this.biases[k] -= lr * db[k];
       for (let d = 0; d < this.embDim; d++) {
-        this.weights[k][d] -= lr * dW[k][d];
+        this.W[d][k] -= lr * (dLogits[k] * fwd.H[d] + reg * this.W[d][k]);
       }
     }
 
     for (let j = 0; j < N; j++) {
       const charIdx = contextIndices[j];
       for (let d = 0; d < this.embDim; d++) {
-        // emb = emb - lr * (dEmb_d + reg * emb)
-        this.embeddings[charIdx][d] -= lr * (dEmb[d] + reg * this.embeddings[charIdx][d]);
+        this.E[charIdx][d] -= lr * (dEmb[d] + reg * this.E[charIdx][d]);
       }
     }
 
@@ -441,7 +433,7 @@ export class EuclideanCharLearner {
     let correctCount = 0;
 
     // Accumulators for gradients
-    const accumDW = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
+    const accumDW = Array.from({ length: this.embDim }, () => Array(this.V).fill(0.0));
     const accumDb = Array(this.V).fill(0.0);
     const accumDEmb = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
     const embCounts = Array(this.V).fill(0);
@@ -460,7 +452,7 @@ export class EuclideanCharLearner {
         const gk = gLogits[k];
         accumDb[k] += gk;
         for (let d = 0; d < this.embDim; d++) {
-          accumDW[k][d] += gk * fwd.H[d];
+          accumDW[d][k] += gk * fwd.H[d];
         }
       }
 
@@ -469,7 +461,7 @@ export class EuclideanCharLearner {
       for (let k = 0; k < this.V; k++) {
         const gk = gLogits[k];
         for (let d = 0; d < this.embDim; d++) {
-          dH[d] += gk * this.weights[k][d];
+          dH[d] += gk * this.W[d][k];
         }
       }
 
@@ -486,7 +478,7 @@ export class EuclideanCharLearner {
     for (let k = 0; k < this.V; k++) {
       this.biases[k] -= lr * (accumDb[k] / B);
       for (let d = 0; d < this.embDim; d++) {
-        this.weights[k][d] -= lr * (accumDW[k][d] / B + reg * this.weights[k][d]);
+        this.W[d][k] -= lr * (accumDW[d][k] / B + reg * this.W[d][k]);
       }
     }
 
@@ -494,7 +486,7 @@ export class EuclideanCharLearner {
       if (embCounts[charIdx] > 0) {
         for (let d = 0; d < this.embDim; d++) {
           const grad = accumDEmb[charIdx][d] / B;
-          this.embeddings[charIdx][d] -= lr * (grad + reg * this.embeddings[charIdx][d]);
+          this.E[charIdx][d] -= lr * (grad + reg * this.E[charIdx][d]);
         }
       }
     }

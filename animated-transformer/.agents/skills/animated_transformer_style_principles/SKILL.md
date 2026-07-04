@@ -100,6 +100,7 @@ We develop with Angular 22+ utilizing modern standalone components and strict co
   })
   export class CustomElementComponent { ... }
   ```
+- **Modern Control Flow**: Exclusively use native Angular control flow block syntax (`@if`, `@for`, `@switch`) instead of the legacy structure directives (`*ngIf`, `*ngFor`, `*ngSwitch`). Keep templates clean and avoid complex inline logic.
 - **Strict UI/Component Compilation**:
   - `"strictInjectionParameters": true`: Disallows injection tokens that are missing or cannot be resolved.
   - `"strictTemplates": true`: Standardizes strict type check verification on HTML inputs, outputs, and template bindings.
