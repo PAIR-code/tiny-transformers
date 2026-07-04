@@ -33,8 +33,9 @@ import {
 } from '../../../lib/berkovich/berkovich';
 
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
-import { BerkovichCharLearner, BerkovichDisk } from './models/berkovich-char-learner';
-import { EuclideanCharLearner } from './models/euclidean-char-learner';
+import { BerkovichBigramCharLearner, BerkovichNgramCharLearner, BerkovichCharLearnerBase, BerkovichDisk, BerkovichConfig } from './models/berkovich-char-learner';
+import { EuclideanCharLearner, EuclideanConfig } from './models/euclidean-char-learner';
+import { PadicLinearCharLearner } from './models/padic-linear-char-learner';
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import {
   D3LineChartComponent,
@@ -44,6 +45,8 @@ import {
   CurveKind,
   NamedChartPoint
 } from '../../d3-line-chart/d3-line-chart.component';
+
+import { ModelConfigEditorComponent } from './model-config-editor/model-config-editor.component';
 
 import {
   WalkthroughEmbed,
@@ -56,6 +59,7 @@ import {
 import { BerkovichBigramWalkthroughComponent } from './walkthrough-components/berkovich-bigram-walkthrough.component';
 import { BerkovichNgramWalkthroughComponent } from './walkthrough-components/berkovich-ngram-walkthrough.component';
 import { EuclideanWalkthroughComponent } from './walkthrough-components/euclidean-walkthrough.component';
+import { PadicLinearWalkthroughComponent } from './walkthrough-components/padic-linear-walkthrough.component';
 
 // Interface for prediction logs in the UI
 interface PredictionLog {
@@ -88,7 +92,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     BerkovichDigitDisplayComponent,
     BerkovichBigramWalkthroughComponent,
     BerkovichNgramWalkthroughComponent,
-    EuclideanWalkthroughComponent
+    EuclideanWalkthroughComponent,
+    PadicLinearWalkthroughComponent,
+    ModelConfigEditorComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:click)': 'activePopup.set(null)' }
@@ -108,6 +114,11 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       step3: "3. **Affinoid Projection**: We project $H = (c_H, \\rho_H)$ against learned target classification disks $W_k = (c_W, \\rho_W)$ for each character class $k$. The final logit score $D_k$ is the combined negated dimension path losses: $D_k = -\\max_d(L_d(H_d, W_{k,d}))$ or $D_k = -\\text{avg}_d(L_d(H_d, W_{k,d}))$, depending on the aggregation mode.  \n\n    The path loss $L_d$ in dimension $d$ is:  \n    $L_d(H_d, W_{k,d}) = |\\rho_W - d_{cen}| + d_{cen} - \\rho_H \\quad \\text{where } d_{cen} = -\\nu_p(c_H - c_W)$.",
       step4: "4. **Affinoid Softmax**: Applies standard softmax scaled by temperature $\\beta$ to obtain final class probabilities:  \n$\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$:"
     },
+    padicLinear: {
+      step1: "1. **Embedding Constants**: The single context character is mapped to its fixed p-adic base-$P$ digits constant $X_c$.",
+      step2: "2. **Linear Transformation**: $Y = X_c \\cdot M + B$. The projection loss is computed between $Y$ and the fixed target constants $C_k$: $D_k = -\\max_d(L_d(Y_d, C_{k,d}))$.",
+      step3: "3. **Affinoid Softmax**: Compute class probabilities using standard softmax scaled by temperature $\\beta$: $\\pi_k = \\frac{e^{\\beta D_k}}{\\sum_j e^{\\beta D_j}}$"
+    },
     euclidean: {
       step1: "1. **Embedding Lookup**: For context characters $x_1, \\dots, x_N$, we look up their embedding vectors $E[x_i] \\in \\mathbb{R}^d$.",
       step2: "2. **Average Pooling**: Aggregates embeddings using mean pooling: $H = \\frac{1}{N} \\sum_{i=1}^N E[x_i]$:",
@@ -118,15 +129,18 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   // Configurable Parameters (Signals)
   readonly textInput = signal<string>("the cat sat on the mat");
 
-  readonly approach = signal<'berkovich-bigram' | 'berkovich-ngram' | 'euclidean-ngram'>('berkovich-bigram');
-  readonly prime = signal<number>(3);
-  readonly contextLength = signal<number>(1); // For bigram this is fixed at 1, for ngram adjustable
-  readonly embDim = signal<number>(5);
-  readonly digitsLeft = signal<number>(2);
-  readonly digitsRight = signal<number>(2);
-  readonly learningRate = signal<number>(0.01);
-  readonly regularizationTarget = signal<number>(0.04);
-  readonly regularizationEmbed = signal<number>(0.02);
+  readonly approach = signal<'berkovich-bigram' | 'berkovich-ngram' | 'euclidean-ngram' | 'padic-linear'>('berkovich-bigram');
+  readonly modelConfigValues = signal<Record<string, any>>({});
+  
+  readonly prime = computed(() => this.modelConfigValues()['prime'] ?? 3);
+  readonly contextLength = computed(() => this.modelConfigValues()['contextLength'] ?? 1); 
+  readonly embDim = computed(() => this.modelConfigValues()['embDim'] ?? 5);
+  readonly learningRate = computed(() => this.modelConfigValues()['lr'] ?? 0.01);
+  readonly regularizationTarget = computed(() => this.modelConfigValues()['reg'] ?? 0.04);
+  readonly regularizationEmbed = computed(() => this.modelConfigValues()['regEmbed'] ?? 0.02);
+  
+  readonly digitsLeft = computed(() => this.modelConfigValues()['digitsLeft'] ?? 2);
+  readonly digitsRight = computed(() => this.modelConfigValues()['digitsRight'] ?? 2);
   readonly activePopup = signal<string | null>(null);
 
   togglePopup(id: string, event: Event) {
@@ -144,8 +158,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     const parsed = parseFloat(normalized);
     return isNaN(parsed) ? 0 : parsed;
   }
-  readonly aggMode = signal<'min' | 'average'>('min');
-  readonly beta = signal<number>(1.0);
+  readonly aggMode = computed<'min' | 'average'>(() => this.modelConfigValues()['aggMode'] ?? 'min');
+  readonly beta = computed<number>(() => this.modelConfigValues()['beta'] ?? 1.0);
   readonly batchSize = signal<number>(128);
   readonly trainingSpeed = signal<number>(100);
   readonly valMode = signal<'fixed' | 'random' | 'overlap'>('fixed');
@@ -243,7 +257,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       }
 
       // Step 2: Context Aggregation
-      const fwd = bModel.forward(contextIndices, this.aggMode(), beta);
+      const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: this.aggMode(), beta: beta };
+      const fwd = bModel.forward(contextIndices, config);
       const aggregated = [];
       for (let d = 0; d < dims; d++) {
         aggregated.push({
@@ -365,8 +380,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
       // Step 4: Softmax predictions
       const probs = [...fwd.probs];
-      const expScores = fwd.logits.map(score => Math.exp(beta * score));
-      const sumExp = expScores.reduce((a, b) => a + b, 0);
+      const expScores = fwd.logits.map((score: number) => Math.exp(beta * score));
+      const sumExp = expScores.reduce((a: number, b: number) => a + b, 0);
       const predictions = probs.map((prob, idx) => ({
         char: vocab[idx],
         prob,
@@ -394,8 +409,17 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly dimensions = computed(() => Array.from({ length: this.embDim() }, (_, i) => i));
 
   // Model & Training State
-  readonly berkovichModel = signal<BerkovichCharLearner | null>(null);
+  readonly berkovichModel = signal<BerkovichCharLearnerBase | null>(null);
   readonly euclideanModel = signal<EuclideanCharLearner | null>(null);
+  readonly padicLinearModel = signal<PadicLinearCharLearner | null>(null);
+  
+  readonly activeModel = computed(() => {
+    const app = this.approach();
+    if (app === 'euclidean-ngram') return this.euclideanModel();
+    if (app === 'padic-linear') return this.padicLinearModel();
+    return this.berkovichModel();
+  });
+  
   readonly stepCount = signal<number>(0);
   readonly epochCount = signal<number>(0);
   
@@ -421,8 +445,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     const results: PredictionLog[] = [];
 
     if (bModel) {
+      const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: mode, beta: temp };
       for (const sample of samples) {
-        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        const fwd = bModel.forward(sample.contextIndices, config);
         const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
         const isCorrect = predIdx === sample.targetIdx;
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
@@ -618,8 +643,6 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     // Rebuild models and reset when config changes
     effect(() => {
       this.vocab();
-      this.prime();
-      this.embDim();
       this.approach();
       this.valSizeOverlap();
       this.valPercentageHoldout();
@@ -690,22 +713,17 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   onApproachChange(val: any) {
     this.approach.set(val);
     if (val === 'berkovich-bigram') {
-      this.contextLength.set(1);
+      this.modelConfigValues.update(v => ({...v, contextLength: 1}));
     }
   }
 
-  onPrimeChange(val: number) {
-    this.prime.set(val);
+  onModelConfigChange(event: { key: string; value: any; requiresRebuild: boolean }) {
+    this.modelConfigValues.update(v => ({...v, [event.key]: event.value}));
+    if (event.requiresRebuild) {
+      this.resetWeights();
+    }
   }
 
-  onContextLengthChange(val: number) {
-    if (this.approach() === 'berkovich-bigram') {
-      this.contextLength.set(1);
-    } else {
-      this.contextLength.set(Math.max(1, Math.min(5, val)));
-    }
-    this.resetWeights();
-  }
 
   onTextInput(val: string) {
     if (val.trim().length > 0) {
@@ -811,8 +829,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     let correctCount = 0;
 
     if (bModel) {
+      const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: mode, beta: temp };
       for (const sample of samples) {
-        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        const fwd = bModel.forward(sample.contextIndices, config);
         totalLoss += -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
         const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
         if (predIdx === sample.targetIdx) {
@@ -849,20 +868,33 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     this.lastStepTargets.set({ embedding: {}, constraint: {} });
     this.baselineMetrics.set(null);
 
-    const vocab = this.vocab();
-    const p = this.prime();
-    const dim = this.embDim();
-
-    if (this.selectedDimension() >= dim) {
-      this.selectedDimension.set(0);
-    }
+    this.padicLinearModel.set(null);
+    this.berkovichModel.set(null);
+    this.euclideanModel.set(null);
 
     if (this.approach() === 'euclidean-ngram') {
-      this.euclideanModel.set(new EuclideanCharLearner(vocab, dim));
-      this.berkovichModel.set(null);
+      const model = new EuclideanCharLearner(this.vocab(), this.embDim());
+      this.euclideanModel.set(model);
+    } else if (this.approach() === 'padic-linear') {
+      try {
+        const model = new PadicLinearCharLearner(this.vocab(), this.embDim(), this.prime());
+        this.padicLinearModel.set(model);
+      } catch (e: any) {
+        console.error("Failed to initialize PadicLinearCharLearner:", e);
+        // Fallback or show error
+        this.padicLinearModel.set(null);
+      }
+    } else if (this.approach() === 'berkovich-ngram') {
+      const model = new BerkovichNgramCharLearner(this.vocab(), this.embDim(), this.prime());
+      this.berkovichModel.set(model);
     } else {
-      this.berkovichModel.set(new BerkovichCharLearner(p, vocab, dim));
-      this.euclideanModel.set(null);
+      const model = new BerkovichBigramCharLearner(this.vocab(), this.embDim(), this.prime());
+      this.berkovichModel.set(model);
+    }
+
+    const vocab = this.vocab();
+    if (this.selectedDimension() >= this.embDim()) {
+      this.selectedDimension.set(0);
     }
 
     if (vocab.length > 0) {
@@ -1004,12 +1036,6 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     });
   }
 
-  onEmbDimChange(val: number) {
-    if (val >= 1 && val <= 10) {
-      this.embDim.set(val);
-      this.resetWeights();
-    }
-  }
 
   // Visual helper in cells
   formatCenter(c: Rational): string {
@@ -1096,13 +1122,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
     if (bMode !== 'euclidean-ngram' && bModel) {
       // Train batch on Berkovich model
-      const batchResult = bModel.trainBatch(samples, lr, regT, regE, mode, temp);
+      const config: BerkovichConfig = { lr, reg: regT, regEmbed: regE, aggMode: mode, beta: temp };
+      const batchResult = bModel.trainBatch(samples, config);
       avgLoss = batchResult.loss;
       avgAcc = batchResult.accuracy;
 
       // Generate logs using the updated model for the UI list
       for (const sample of samples) {
-        const fwd = bModel.forward(sample.contextIndices, mode, temp);
+        const fwd = bModel.forward(sample.contextIndices, config);
         const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
         const isCorrect = predIdx === sample.targetIdx;
         const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
@@ -1123,7 +1150,8 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
     } else if (eModel) {
       // Train batch on Euclidean model
-      const batchResult = eModel.trainBatch(samples, lr, regT);
+      const config: EuclideanConfig = { lr, reg: regT };
+      const batchResult = eModel.trainBatch(samples, config);
       avgLoss = batchResult.loss;
       avgAcc = batchResult.accuracy;
 
@@ -1169,12 +1197,13 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   }
 
   // Update target coordinates for introspector visualization
-  private updateIntrospectTargets(contextIndices: number[], targetIdx: number, model: BerkovichCharLearner) {
+  private updateIntrospectTargets(contextIndices: number[], targetIdx: number, model: BerkovichCharLearnerBase) {
     const p = BigInt(this.prime());
     const N = contextIndices.length;
     const targets = this.lastStepTargets();
 
-    const fwd = model.forward(contextIndices, this.aggMode(), this.beta());
+    const config: BerkovichConfig = { lr: 0, reg: 0, regEmbed: 0, aggMode: this.aggMode(), beta: this.beta() };
+    const fwd = model.forward(contextIndices, config);
 
     for (let d = 0; d < model.embDim; d++) {
       // 1. Target for class constraint is H_d

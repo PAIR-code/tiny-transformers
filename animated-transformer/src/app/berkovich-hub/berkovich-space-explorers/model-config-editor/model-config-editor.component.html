@@ -1,0 +1,37 @@
+<ng-container>
+  @for (def of configDefs(); track def.key) {
+    <div class="form-field">
+      <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+        <label [for]="'config-' + def.key" style="margin: 0;">{{ def.label }}</label>
+        <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+          (click)="togglePopup(def.key, $event)" [class.icon-pressed]="activePopup() === def.key">{{ activePopup() === def.key ? 'info' : 'info_outline' }}</mat-icon>
+        @if (activePopup() === def.key) {
+          <div class="custom-popup" (click)="$event.stopPropagation()">{{ def.description }}</div>
+        }
+      </div>
+
+      @switch (def.kind) {
+        @case (ConfigFieldType.Number) {
+          <input 
+            [id]="'config-' + def.key" 
+            type="text"
+            inputmode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
+            [value]="configValues()[def.key] ?? def.defaultValue" 
+            (change)="onNumberChange(asNumberDef(def), $event)" 
+          />
+        }
+        @case (ConfigFieldType.Select) {
+          <select 
+            [id]="'config-' + def.key" 
+            [value]="configValues()[def.key] ?? def.defaultValue"
+            (change)="onSelectChange(asSelectDef(def), $event)">
+            @for (opt of asSelectDef(def).options; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        }
+      }
+    </div>
+  }
+</ng-container>

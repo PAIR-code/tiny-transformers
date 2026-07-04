@@ -13,23 +13,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+import { CharLearner, CharLearnerKind, ConfigFieldDef, ConfigFieldType } from './char-learner';
+
 export interface EuclideanForwardResult {
   probs: number[];
   logits: number[];
   H: number[];
 }
 
-export class EuclideanCharLearner {
-  readonly V: number;
-  readonly embDim: number;
+export interface EuclideanConfig {
+  lr: number;
+  reg: number;
+}
+
+export interface EuclideanParams {
+  E: number[][];
+  W: number[][];
+  biases: number[];
+}
+
+export class EuclideanCharLearner extends CharLearner<EuclideanConfig, EuclideanForwardResult, EuclideanParams> {
+  readonly kind = CharLearnerKind.EuclideanNgram;
+  
+  readonly configDefs: ConfigFieldDef[] = [
+    { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+    { key: 'contextLength', label: 'Context Length', kind: ConfigFieldType.Number, description: 'Number of history characters to use', defaultValue: 3, requiresRebuild: true },
+    { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+    { key: 'reg', label: 'Regularization', kind: ConfigFieldType.Number, description: 'L2 weight decay', defaultValue: 0.04, step: 0.01 }
+  ];
+
 
   E: number[][]; // [V, embDim]
   W: number[][]; // [embDim, V]
   biases: number[];       // [V]
 
+  get parameters(): EuclideanParams {
+    return { E: this.E, W: this.W, biases: this.biases };
+  }
+
   constructor(vocab: string[], embDim: number = 5) {
-    this.V = vocab.length;
-    this.embDim = embDim;
+    super(vocab, embDim);
 
     this.E = [];
     this.W = [];
@@ -58,7 +81,7 @@ export class EuclideanCharLearner {
     }
   }
 
-  forward(contextIndices: number[]): EuclideanForwardResult {
+  forward(contextIndices: number[], config?: EuclideanConfig): EuclideanForwardResult {
     const N = contextIndices.length;
 
     // 1. Aggregation (mean pooling)
@@ -93,10 +116,10 @@ export class EuclideanCharLearner {
   trainStep(
     contextIndices: number[],
     targetIdx: number,
-    lr: number,
-    reg: number
+    config: EuclideanConfig
   ): { loss: number; predIdx: number; forwardResult: EuclideanForwardResult } {
     const N = contextIndices.length;
+    const { lr, reg } = config;
 
     // 1. Forward Pass
     const fwd = this.forward(contextIndices);
@@ -139,10 +162,10 @@ export class EuclideanCharLearner {
 
   trainBatch(
     samples: { contextIndices: number[]; targetIdx: number }[],
-    lr: number,
-    reg: number
+    config: EuclideanConfig
   ): { loss: number; accuracy: number } {
     const B = samples.length;
+    const { lr, reg } = config;
     let totalLoss = 0;
     let correctCount = 0;
 

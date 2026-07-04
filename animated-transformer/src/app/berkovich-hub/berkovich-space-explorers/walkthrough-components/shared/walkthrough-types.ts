@@ -44,7 +44,7 @@ export interface WalkthroughScore {
 }
 
 export interface WalkthroughDetails {
-  type: 'berkovich' | 'euclidean';
+  type: 'berkovich' | 'euclidean' | 'padic-linear';
   contextText: string;
   preText: string;
   embeddings: WalkthroughEmbedGroup[];

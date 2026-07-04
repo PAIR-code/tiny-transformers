@@ -23,6 +23,7 @@ import {
   computeGradientDetails,
   extNegate
 } from '../../../../lib/berkovich/berkovich';
+import { CharLearner, CharLearnerKind, ConfigFieldDef, ConfigFieldType } from './char-learner';
 
 export interface BerkovichDisk {
   center: Rational;
@@ -38,18 +39,32 @@ export interface BerkovichForwardResult {
   pathLosses: number[][]; // [V, embDim]
 }
 
-export class BerkovichCharLearner {
-  readonly V: number;
-  readonly embDim: number;
+export interface BerkovichConfig {
+  lr: number;
+  reg: number;
+  regEmbed: number;
+  aggMode: 'min' | 'average';
+  beta: number;
+}
+
+export interface BerkovichParams {
+  E: BerkovichDisk[][];
+  W: BerkovichDisk[][];
+}
+
+export abstract class BerkovichCharLearnerBase extends CharLearner<BerkovichConfig, BerkovichForwardResult, BerkovichParams> {
   readonly prime: bigint;
   
   // Weights representation
   E: BerkovichDisk[][]; // Embeddings [V, embDim]
   W: BerkovichDisk[][]; // Targets (Constraints) [V, embDim]
 
-  constructor(prime: number, vocab: string[], embDim: number = 5) {
-    this.V = vocab.length;
-    this.embDim = embDim;
+  get parameters(): BerkovichParams {
+    return { E: this.E, W: this.W };
+  }
+
+  constructor(vocab: string[], embDim: number, prime: number) {
+    super(vocab, embDim);
     this.prime = BigInt(prime);
 
     this.E = [];
@@ -79,8 +94,9 @@ export class BerkovichCharLearner {
     return { center, rho };
   }
 
-  forward(contextIndices: number[], aggMode: 'min' | 'average', beta: number): BerkovichForwardResult {
+  forward(contextIndices: number[], config: BerkovichConfig): BerkovichForwardResult {
     const p = this.prime;
+    const { aggMode, beta } = config;
     const N = contextIndices.length;
 
     // 1. Context embedding aggregation (weighted sum using p^-j scaling)
@@ -173,17 +189,14 @@ export class BerkovichCharLearner {
   trainStep(
     contextIndices: number[],
     targetIdx: number,
-    lr: number,
-    reg: number,
-    regEmbed: number,
-    aggMode: 'min' | 'average',
-    beta: number
+    config: BerkovichConfig
   ): { loss: number; predIdx: number; forwardResult: BerkovichForwardResult } {
     const p = this.prime;
     const N = contextIndices.length;
+    const { lr, reg, regEmbed, aggMode, beta } = config;
 
     // 1. Forward Pass
-    const fwd = this.forward(contextIndices, aggMode, beta);
+    const fwd = this.forward(contextIndices, config);
     const loss = -Math.log(fwd.probs[targetIdx] + 1e-15);
     const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
 
@@ -283,18 +296,14 @@ export class BerkovichCharLearner {
 
   trainBatch(
     samples: { contextIndices: number[]; targetIdx: number }[],
-    lr: number,
-    reg: number,
-    regEmbed: number,
-    aggMode: 'min' | 'average',
-    beta: number
+    config: BerkovichConfig
   ): { loss: number; accuracy: number } {
     const B = samples.length;
     let totalLoss = 0;
     let correctCount = 0;
 
     for (const sample of samples) {
-      const step = this.trainStep(sample.contextIndices, sample.targetIdx, lr, reg, regEmbed, aggMode, beta);
+      const step = this.trainStep(sample.contextIndices, sample.targetIdx, config);
       totalLoss += step.loss;
       if (step.predIdx === sample.targetIdx) {
         correctCount++;
@@ -304,3 +313,37 @@ export class BerkovichCharLearner {
     return { loss: totalLoss / (B + 1e-15), accuracy: correctCount / (B + 1e-15) };
   }
 }
+
+export class BerkovichNgramCharLearner extends BerkovichCharLearnerBase {
+  readonly kind = CharLearnerKind.BerkovichNgram;
+  
+  readonly configDefs: ConfigFieldDef[] = [
+    { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+    { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+    { key: 'contextLength', label: 'Context Length', kind: ConfigFieldType.Number, description: 'Number of history characters to use', defaultValue: 3, requiresRebuild: true },
+    { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+    { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+    { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+    { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+    { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance (Max Loss)' }, { value: 'average', label: 'Average Distance' }] },
+    { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+    { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+  ];
+}
+
+export class BerkovichBigramCharLearner extends BerkovichCharLearnerBase {
+  readonly kind = CharLearnerKind.BerkovichBigram;
+  
+  readonly configDefs: ConfigFieldDef[] = [
+    { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+    { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+    { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+    { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+    { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+    { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+    { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance (Max Loss)' }, { value: 'average', label: 'Average Distance' }] },
+    { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+    { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+  ];
+}
+

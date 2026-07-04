@@ -143,159 +143,45 @@ limitations under the License.
         </div>
       </section>
 
-      <!-- Right Column: Model Configuration -->
+      <!-- Right Column: Training Configuration -->
       <section class="card config-card">
-        <h3><mat-icon>settings</mat-icon> Model Configuration</h3>
+        <h3><mat-icon>settings</mat-icon> Training Configuration</h3>
         
-        <div class="form-grid">
-          <div class="form-field">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="approach-select" style="margin: 0;">Approach / Architecture</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('approach', $event)" [class.icon-pressed]="activePopup() === 'approach'">{{ activePopup() === 'approach' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'approach') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Selects between Berkovich (Context=1 or N) and Euclidean models.</div>
-              }
-            </div>
-            <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
-              <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
-              <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
-              <option value="euclidean-ngram">Euclidean Real Baseline (N-Gram)</option>
-            </select>
+        <div class="form-field" style="margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+            <label for="approach-select" style="margin: 0;">Approach / Architecture</label>
+            <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
+              (click)="togglePopup('approach', $event)" [class.icon-pressed]="activePopup() === 'approach'">{{ activePopup() === 'approach' ? 'info' : 'info_outline' }}</mat-icon>
+            @if (activePopup() === 'approach') {
+              <div class="custom-popup" (click)="$event.stopPropagation()">Selects between Berkovich (Context=1 or N) and Euclidean models.</div>
+            }
           </div>
+          <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
+            <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
+            <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
+            <option value="euclidean-ngram">Euclidean Real Baseline (N-Gram)</option>
+            <option value="padic-linear">P-Adic Linear Layer</option>
+          </select>
+        </div>
 
-          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="prime-select" style="margin: 0;">p-adic Base (Prime p)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('prime', $event)" [class.icon-pressed]="activePopup() === 'prime'">{{ activePopup() === 'prime' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'prime') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">The underlying prime number p for the Berkovich space. Must be prime (e.g. 2, 3, 5).</div>
-              }
-            </div>
-            <select id="prime-select" [value]="prime()" (change)="onPrimeChange(+$any($event.target).value)">
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="5">5</option>
-              <option value="7">7</option>
-              <option value="11">11</option>
-            </select>
-          </div>
+        <div style="height: 1px; background: #e2e8f0; margin: 16px 0;"></div>
 
-          <div class="form-field">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="emb-dim" style="margin: 0;">Embedding Size (Dims)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('emb', $event)" [class.icon-pressed]="activePopup() === 'emb'">{{ activePopup() === 'emb' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'emb') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Number of independent dimensions (trees in Berkovich, axes in Euclidean) used to embed characters.</div>
-              }
-            </div>
-            <input id="emb-dim" type="number" min="1" max="10" [value]="embDim()" (change)="onEmbDimChange(+$any($event.target).value)" />
-          </div>
-
-          @if (approach() !== 'euclidean-ngram') {
-            <div class="form-field">
-              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-                <label for="digits-left" style="margin: 0;">Digits Left of Dot</label>
-                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                  (click)="togglePopup('dleft', $event)" [class.icon-pressed]="activePopup() === 'dleft'">{{ activePopup() === 'dleft' ? 'info' : 'info_outline' }}</mat-icon>
-                @if (activePopup() === 'dleft') {
-                  <div class="custom-popup" (click)="$event.stopPropagation()">Controls the visual precision of the p-adic center digits displayed in the UI.</div>
-                }
-              </div>
-              <input id="digits-left" type="number" min="1" max="5" [value]="digitsLeft()" (change)="digitsLeft.set(+$any($event.target).value)" />
-            </div>
-
-            <div class="form-field">
-              <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-                <label for="digits-right" style="margin: 0;">Digits Right of Dot</label>
-                <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                  (click)="togglePopup('dright', $event)" [class.icon-pressed]="activePopup() === 'dright'">{{ activePopup() === 'dright' ? 'info' : 'info_outline' }}</mat-icon>
-                @if (activePopup() === 'dright') {
-                  <div class="custom-popup" (click)="$event.stopPropagation()">Controls the visual precision of the p-adic center digits displayed in the UI.</div>
-                }
-              </div>
-              <input id="digits-right" type="number" min="0" max="5" [value]="digitsRight()" (change)="digitsRight.set(+$any($event.target).value)" />
-            </div>
+        <div class="form-grid" style="margin-bottom: 16px;">
+          @if (activeModel()?.configDefs; as defs) {
+            <!-- Using display: contents to keep the grid flow seamless -->
+            <app-model-config-editor 
+              style="display: contents;"
+              [configDefs]="defs" 
+              [configValues]="modelConfigValues()"
+              (valueChange)="onModelConfigChange($event)">
+            </app-model-config-editor>
           }
+        </div>
 
-          <div class="form-field" [class.field-disabled]="approach() === 'berkovich-bigram'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="context-len" style="margin: 0;">Context Size (N)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('context', $event)" [class.icon-pressed]="activePopup() === 'context'">{{ activePopup() === 'context' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'context') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">The number of preceding characters the model uses to predict the next one.</div>
-              }
-            </div>
-            <input id="context-len" type="number" min="1" max="5" [value]="contextLength()"
-              [disabled]="approach() === 'berkovich-bigram'"
-              (change)="onContextLengthChange(+$any($event.target).value)" />
-          </div>
+        <div style="height: 1px; background: #e2e8f0; margin: 16px 0;"></div>
+        <h4 style="font-size: 12.5px; margin: 0 0 12px 0; color: #64748b; font-weight: 600;">Training HParams</h4>
 
-          <div class="form-field">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="lr-input" style="margin: 0;">Learning Rate (&eta;)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('lr', $event)" [class.icon-pressed]="activePopup() === 'lr'">{{ activePopup() === 'lr' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'lr') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">The step size used during gradient descent to update parameters.</div>
-              }
-            </div>
-            <input id="lr-input" type="text" inputmode="decimal" [value]="learningRate()" (change)="learningRate.set(parseNumberInput($any($event.target).value))" />
-          </div>
-
-          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="reg-target" style="margin: 0;">Target Radius (&rho;) Reg (&lambda;)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('regtarget', $event)" [class.icon-pressed]="activePopup() === 'regtarget'">{{ activePopup() === 'regtarget' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'regtarget') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to target class radius, preventing it from growing indefinitely.</div>
-              }
-            </div>
-            <input id="reg-target" type="text" inputmode="decimal" [value]="regularizationTarget()" (change)="regularizationTarget.set(parseNumberInput($any($event.target).value))" />
-          </div>
-
-          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="reg-emb" style="margin: 0;">Embed Radius (&rho;) Reg (&lambda;)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('regemb', $event)" [class.icon-pressed]="activePopup() === 'regemb'">{{ activePopup() === 'regemb' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'regemb') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Regularization strength applied to context embedding radius.</div>
-              }
-            </div>
-            <input id="reg-emb" type="text" inputmode="decimal" [value]="regularizationEmbed()" (change)="regularizationEmbed.set(parseNumberInput($any($event.target).value))" />
-          </div>
-
-          <div class="form-field" *ngIf="approach() !== 'euclidean-ngram'">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="agg-mode" style="margin: 0;">Aggregation Mode</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('aggmode', $event)" [class.icon-pressed]="activePopup() === 'aggmode'">{{ activePopup() === 'aggmode' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'aggmode') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">In N-gram models, determines if dimension losses are aggregated via supremum norm (Min Logit) or average.</div>
-              }
-            </div>
-            <select id="agg-mode" [value]="aggMode()" (change)="aggMode.set($any($event.target).value)">
-              <option value="min">Supremum Norm (Min Logit)</option>
-              <option value="average">Affinoid Average</option>
-            </select>
-          </div>
-
-          <div class="form-field">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
-              <label for="beta-input" style="margin: 0;">Softmax Temperature (&beta;)</label>
-              <mat-icon style="font-size: 13px; width: 13px; height: 13px; color: #64748b; cursor: pointer;"
-                (click)="togglePopup('beta', $event)" [class.icon-pressed]="activePopup() === 'beta'">{{ activePopup() === 'beta' ? 'info' : 'info_outline' }}</mat-icon>
-              @if (activePopup() === 'beta') {
-                <div class="custom-popup" (click)="$event.stopPropagation()">Controls prediction confidence. Higher beta sharpens probabilities; lower beta flattens them.</div>
-              }
-            </div>
-            <input id="beta-input" type="text" inputmode="decimal" [value]="beta()" (change)="beta.set(parseNumberInput($any($event.target).value))" />
-          </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
 
           <div class="form-field">
             <div style="display: flex; align-items: center; gap: 4px; position: relative;">
@@ -306,7 +192,7 @@ limitations under the License.
                 <div class="custom-popup" (click)="$event.stopPropagation()">Number of samples to process before making a gradient update.</div>
               }
             </div>
-            <input id="batch-size" type="number" min="1" max="512" [value]="batchSize()" (change)="batchSize.set(+$any($event.target).value)" />
+            <input id="batch-size" type="text" inputmode="decimal" [value]="batchSize()" (change)="batchSize.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <div class="form-field">
@@ -318,7 +204,7 @@ limitations under the License.
                 <div class="custom-popup" (click)="$event.stopPropagation()">Speed (in milliseconds) at which automatic training loops occur.</div>
               }
             </div>
-            <input id="train-speed" type="number" step="50" min="0" [value]="trainingSpeed()" (change)="trainingSpeed.set(+$any($event.target).value)" />
+            <input id="train-speed" type="text" inputmode="decimal" [value]="trainingSpeed()" (change)="trainingSpeed.set(parseNumberInput($any($event.target).value))" />
           </div>
 
           <!-- End of Config Fields -->
@@ -617,6 +503,20 @@ limitations under the License.
             [stepData]="stepData.ngram"
             (walkthroughInputChange)="onWalkthroughInputChange($event)">
           </app-berkovich-ngram-walkthrough>
+        } @else if (approach() === 'padic-linear') {
+          <app-padic-linear-walkthrough
+            [details]="walkthroughDetails()"
+            [walkthroughInput]="walkthroughInput()"
+            [walkthroughInputError]="walkthroughInputError()"
+            [beta]="beta()"
+            [prime]="prime()"
+            [vocab]="vocab()"
+            [aggMode]="aggMode()"
+            [digitsLeft]="digitsLeft()"
+            [digitsRight]="digitsRight()"
+            [stepData]="stepData.padicLinear"
+            (walkthroughInputChange)="onWalkthroughInputChange($event)">
+          </app-padic-linear-walkthrough>
         } @else {
           <app-euclidean-walkthrough
             [details]="walkthroughDetails()"
