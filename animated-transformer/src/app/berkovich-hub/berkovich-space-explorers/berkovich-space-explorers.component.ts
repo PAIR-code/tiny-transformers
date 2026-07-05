@@ -1178,20 +1178,83 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
 
     const vocab = this.vocab();
 
-
     this.generateValidationIndices();
 
     const initialEval = this.evaluateValidation();
     this.initialLoss.set(initialEval.loss);
     this.initialAccuracy.set(initialEval.accuracy);
-    this.currentTrainLoss.set(initialEval.loss);
-    this.currentTrainAccuracy.set(initialEval.accuracy);
+
+    // Evaluate initial training batch metrics at step 0
+    let initialTrainLoss = initialEval.loss;
+    let initialTrainAcc = initialEval.accuracy;
+    const initialLogs: PredictionLog[] = [];
+    const activeM = this.activeModel();
+
+    if (activeM) {
+      const bSize = this.batchSize();
+      const savedCursor = this.textCursor;
+      const savedEpoch = this.epochCount();
+      const initialSamples: any[] = [];
+      for (let b = 0; b < bSize; b++) {
+        const sample = this.getNextSample();
+        if (sample.targetIdx !== -1) {
+          initialSamples.push(sample);
+        }
+      }
+      
+      // Restore cursor and epoch count so training doesn't start advanced!
+      this.textCursor = savedCursor;
+      this.epochCount.set(savedEpoch);
+
+      if (initialSamples.length > 0) {
+        let totalLoss = 0;
+        let correctCount = 0;
+        
+        const mode = this.aggMode();
+        const temp = this.beta();
+        const config = {
+          lr: 0,
+          reg: 0,
+          regEmbed: 0,
+          aggMode: mode,
+          beta: temp,
+          ...this.modelConfigValues()
+        };
+
+        for (const sample of initialSamples) {
+          const fwd = app !== 'euclidean-ngram' 
+            ? (activeM.forward(sample.contextIndices, config as any) as any)
+            : (activeM as EuclideanCharLearner).forward(sample.contextIndices);
+          const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
+          const isCorrect = predIdx === sample.targetIdx;
+          const loss = -Math.log(fwd.probs[sample.targetIdx] + 1e-15);
+          totalLoss += loss;
+          if (isCorrect) correctCount++;
+
+          initialLogs.push({
+            preText: formatDisplayString(sample.preText),
+            input: formatDisplayString(sample.contextText),
+            pred: formatDisplayString(vocab[predIdx] || '?'),
+            target: formatDisplayString(sample.targetChar),
+            loss,
+            correct: isCorrect
+          });
+        }
+        
+        initialTrainLoss = totalLoss / initialSamples.length;
+        initialTrainAcc = correctCount / initialSamples.length;
+        this.recentPredictions.set(initialLogs.slice(0, 15));
+      }
+    }
+
+    this.currentTrainLoss.set(initialTrainLoss);
+    this.currentTrainAccuracy.set(initialTrainAcc);
     this.currentValLoss.set(initialEval.loss);
     this.currentValAccuracy.set(initialEval.accuracy);
 
     // Seed histories with step 0
-    this.trainLossHistory.set([initialEval.loss]);
-    this.trainAccuracyHistory.set([initialEval.accuracy]);
+    this.trainLossHistory.set([initialTrainLoss]);
+    this.trainAccuracyHistory.set([initialTrainAcc]);
     this.valLossHistory.set([initialEval.loss]);
     this.valAccuracyHistory.set([initialEval.accuracy]);
 
