@@ -86,11 +86,10 @@ export class PadicLinearCharLearner extends CharLearner<BerkovichConfig, Berkovi
 
   private randomDisk(): BerkovichDisk {
     const p = this.prime;
-    // center = d0 + d1/p
     const d0 = BigInt(Math.floor(Math.random() * Number(p)));
     const d1 = BigInt(Math.floor(Math.random() * Number(p)));
     const center = simplify(add({ num: d0, den: 1n }, { num: d1, den: p }));
-    const rho = (Math.random() - 0.5) * 1.0;
+    const rho = -2.0 - Math.random() * 0.5;
     return { center, rho };
   }
 
@@ -163,16 +162,17 @@ export class PadicLinearCharLearner extends CharLearner<BerkovichConfig, Berkovi
         const diff = subtract(yDisk.center, tVal);
         const dVal = getValuation(diff, this.prime);
         
-        // The distance is max(rad(Y_d), |y - t|)
-        // In log-radius: min(yDisk.rho, dVal)
-        let effectiveVal = yDisk.rho;
+        // The Hsia distance in log-radius is max(yDisk.rho, -dValuation)
+        let logDist = yDisk.rho;
         if (dVal.type === 'finite') {
-          effectiveVal = Math.min(effectiveVal, dVal.value);
+          logDist = Math.max(logDist, -dVal.value);
         } else if (dVal.type === 'neg-infinity') {
-          effectiveVal = Math.min(effectiveVal, -Infinity);
+          logDist = Math.max(logDist, Infinity);
+        } else if (dVal.type === 'pos-infinity') {
+          logDist = Math.max(logDist, -Infinity);
         }
 
-        const logit = effectiveVal; // larger effective valuation = smaller distance = larger logit
+        const logit = -logDist; // larger Hsia log-distance = worse fit = smaller logit
         distK.push(logit);
         
         // Path loss
@@ -307,19 +307,22 @@ export class PadicLinearCharLearner extends CharLearner<BerkovichConfig, Berkovi
           
           // update rho gradients for B and M
           const yRho = yDisk.rho;
-          if (Math.abs(yRho - this.B[d].rho) < 1e-6) {
-            B_grads[d] += gradD * dLoss_dYrho;
-          }
-          for (let i = 0; i < this.embDim; i++) {
-            const xVal = getValuation(X[i], this.prime);
-            const mRho = this.M[i][d].rho - (xVal.type === 'finite' ? xVal.value : 0);
-            if (Math.abs(yRho - mRho) < 1e-6) {
-              M_grads[i][d] += gradD * dLoss_dYrho;
+          // Only propagate gradient to radius if target is inside the disk
+          if (yDisk.rho >= dVal) {
+            if (Math.abs(yRho - this.B[d].rho) < 1e-6) {
+              B_grads[d] += gradD * dLoss_dYrho;
+            }
+            for (let i = 0; i < this.embDim; i++) {
+              const xVal = getValuation(X[i], this.prime);
+              const mRho = this.M[i][d].rho - (xVal.type === 'finite' ? xVal.value : 0);
+              if (Math.abs(yRho - mRho) < 1e-6) {
+                M_grads[i][d] += gradD * dLoss_dYrho;
+              }
             }
           }
 
           // Force on centers
-          if (gradD > 0) { // pull towards target
+          if (gradD < 0) { // pull towards correct target
             B_forces[d].push(this.C[k][d]);
             for (let i = 0; i < this.embDim; i++) {
               if (X[i].num !== 0n) {
@@ -343,12 +346,12 @@ export class PadicLinearCharLearner extends CharLearner<BerkovichConfig, Berkovi
       }
 
       // Discrete Center Updates (Heuristic majority vote or random sampling from forces)
-      if (B_forces[d].length > 0 && Math.random() < lr) {
+      if (B_forces[d].length > 0 && Math.random() < 0.2) {
         const rIdx = Math.floor(Math.random() * B_forces[d].length);
         this.B[d].center = B_forces[d][rIdx];
       }
       for (let i = 0; i < this.embDim; i++) {
-        if (M_forces[i][d].length > 0 && Math.random() < lr) {
+        if (M_forces[i][d].length > 0 && Math.random() < 0.2) {
           const rIdx = Math.floor(Math.random() * M_forces[i][d].length);
           this.M[i][d].center = M_forces[i][d][rIdx];
         }

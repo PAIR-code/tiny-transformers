@@ -16,6 +16,10 @@ limitations under the License.
 export enum CharLearnerKind {
   BerkovichBigram = 'berkovich-bigram',
   BerkovichNgram = 'berkovich-ngram',
+  BerkovichBigramBias = 'berkovich-bigram-bias',
+  AffinoidNgram = 'affinoid-ngram',
+  TropicalMlp = 'tropical-mlp',
+  BerkovichAttention = 'berkovich-attention',
   EuclideanNgram = 'euclidean-ngram',
   PadicLinear = 'padic-linear'
 }

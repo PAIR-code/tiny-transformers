@@ -159,6 +159,10 @@ limitations under the License.
           <select id="approach-select" [value]="approach()" (change)="onApproachChange($any($event.target).value)">
             <option value="berkovich-bigram">Berkovich Bigram Classifier (Context=1)</option>
             <option value="berkovich-ngram">Berkovich Context Aggregator (N-Gram)</option>
+            <option value="berkovich-bigram-bias">Berkovich Bigram + Class Bias</option>
+            <option value="affinoid-ngram">Affinoid N-Gram (M-Constraints)</option>
+            <option value="tropical-mlp">Deep Tropical MLP</option>
+            <option value="berkovich-attention">Berkovich QKV Attention</option>
             <option value="euclidean-ngram">Euclidean Real Baseline (N-Gram)</option>
             <option value="padic-linear">P-Adic Linear Layer</option>
           </select>
@@ -343,7 +347,7 @@ limitations under the License.
     </div>
 
     <!-- ROW 4: Model Weights & Parameter Introspector -->
-    <div class="dashboard-row" style="width: 100%; margin-top: 16px;" *ngIf="approach() !== 'euclidean-ngram'">
+    <div class="dashboard-row" style="width: 100%; margin-top: 16px;" *ngIf="approach() === 'berkovich-bigram' || approach() === 'berkovich-ngram' || approach() === 'berkovich-bigram-bias' || approach() === 'berkovich-attention' || approach() === 'padic-linear'">
       <!-- Model Weights & Parameter Introspector -->
       <section class="card collapsible-card introspect-section-card">
         <div class="collapsible-header" (click)="isInspectExpanded.set(!isInspectExpanded())" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; padding: 4px 0;">
@@ -357,115 +361,27 @@ limitations under the License.
         </div>
 
         @if (isInspectExpanded()) {
-          <div class="introspect-body animate-fade-in" style="display: flex; flex-direction: column; gap: 24px; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-            
-            <!-- Parameter Introspector Tree -->
-            <div class="viz-header" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px;">
-              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
-                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #0f766e;">pageview</mat-icon>
-                <span>Parameter Tree Visualizer</span>
-              </h4>
-              
-              <div class="selector-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <select [value]="selectedIntrospectType()" (change)="selectedIntrospectType.set($any($event.target).value)">
-                  <option value="embedding">Char Embeddings (E)</option>
-                  <option value="constraint">Class Targets (W)</option>
-                </select>
-
-                <select [value]="selectedChar()" (change)="selectedChar.set($any($event.target).value)">
-                  <option *ngFor="let char of vocab()" [value]="char">
-                    Character: '{{ formatDisplayString(char) }}'
-                  </option>
-                </select>
-
-                <select [value]="selectedDimension()" (change)="selectedDimension.set(+$any($event.target).value)">
-                  <option *ngFor="let d of dimensions()" [value]="d">Dimension {{ d }}</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Render the selected parameter details -->
-            <div class="param-summary" *ngIf="selectedParameterTreeProps() as props">
-              <div class="param-badge">
-                <span class="param-name">
-                  {{ selectedIntrospectType() === 'embedding' ? 'E' : 'W' }}[{{ selectedChar() === '\n' ? '\\n' : selectedChar() }}][{{ selectedDimension() }}]
-                </span>
-                <span class="param-val">
-                  Center: <strong>{{ props.centerDigitsInput }}</strong>, Log-radius: <strong>{{ props.currentLogRadius.toFixed(4) }}</strong>
-                </span>
-              </div>
-              
-              <div class="param-target-badge">
-                Last Step Target: Center <strong>{{ props.targetDigitsInput }}</strong>, Log-radius <strong>{{ props.targetLogRadius.toFixed(2) }}</strong>
-                <span class="loss-pill" [class.loss-low]="props.gradientBreakdown.loss < 0.1">
-                  Path Loss: {{ props.gradientBreakdown.loss.toFixed(4) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- The embedded Berkovich Tree visualization component -->
-            <div class="tree-vis-wrapper" *ngIf="selectedParameterTreeProps() as props">
-              <app-berkovich-tree-vis
-                [prime]="props.prime"
-                [targetRational]="props.targetRational"
-                [targetLogRadius]="props.targetLogRadius"
-                [targetDigitsInput]="props.targetDigitsInput"
-                [currentCenter]="props.currentCenter"
-                [centerDigitsInput]="props.centerDigitsInput"
-                [currentLogRadius]="props.currentLogRadius"
-                [isDraggingRho]="props.isDraggingRho"
-                [gradientBreakdown]="props.gradientBreakdown"
-                [currentDistanceValuation]="props.currentDistanceValuation"
-                [isPlaying]="false"
-                [canUndo]="false"
-                [canStep]="false"
-                (logRadiusChange)="onTreeLogRadiusChange($event)"
-              ></app-berkovich-tree-vis>
-            </div>
-
-            <!-- Embeddings Matrix Overview -->
-            <div class="matrix-overview-wrapper" style="margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-              <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
-                <mat-icon style="font-size: 16px; height: 16px; width: 16px; color: #0f766e;">grid_on</mat-icon>
-                <span>Learned Parameters Matrix Overview</span>
-              </h4>
-              <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
-                Showing centers and log-radii for each vocabulary character across all active dimensions. Select any cell to load it in the Introspector tree above.
-              </p>
-              
-              <div class="table-container">
-                <table class="matrix-table" *ngIf="berkovichModel() as model">
-                  <thead>
-                    <tr>
-                      <th>Char</th>
-                      <th *ngFor="let d of dimensions()" [textContent]="'Dim ' + d"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr *ngFor="let char of vocab(); let idx = index">
-                      <td class="char-cell" [class.selected-row]="selectedChar() === char">
-                        '{{ formatDisplayString(char) }}'
-                      </td>
-                      <td *ngFor="let d of dimensions()" 
-                          class="matrix-cell" 
-                          [class.selected-cell]="selectedChar() === char && selectedDimension() === d"
-                          (click)="selectParameter(char, d)">
-                        <app-berkovich-digit-display
-                          [center]="model.E[idx][d].center"
-                          [rho]="model.E[idx][d].rho"
-                          [prime]="prime()"
-                          [showRho]="true"
-                          [digitsLeft]="digitsLeft()"
-                          [digitsRight]="digitsRight()"
-                        ></app-berkovich-digit-display>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
+          @if (berkovichModel(); as bModel) {
+            <app-berkovich-model-inspector
+              [model]="bModel"
+              [vocab]="vocab()"
+              [dimensions]="dimensions()"
+              [prime]="prime()"
+              [digitsLeft]="digitsLeft()"
+              [digitsRight]="digitsRight()"
+              [lastStepTargets]="lastStepTargets()"
+              (logRadiusChange)="onBerkovichLogRadiusChange($event)"
+            ></app-berkovich-model-inspector>
+          } @else if (padicLinearModel(); as pModel) {
+            <app-padic-linear-model-inspector
+              [model]="pModel"
+              [dimensions]="dimensions()"
+              [prime]="prime()"
+              [digitsLeft]="digitsLeft()"
+              [digitsRight]="digitsRight()"
+              (logRadiusChange)="onPadicLinearLogRadiusChange($event)"
+            ></app-padic-linear-model-inspector>
+          }
         }
       </section>
     </div>
