@@ -285,7 +285,7 @@ limitations under the License.
         <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
           Showing the last 15 training batch predictions made by the model.
         </p>
-        <div class="predictions-list" *ngIf="recentPredictions().length > 0; else emptyTrainPreds">
+        <div class="predictions-list" *ngIf="sortedRecentPredictions().length > 0; else emptyTrainPreds">
           <div class="prediction-header-row">
             <span class="context-col">Context</span>
             <span class="pred-col">Predicted</span>
@@ -293,7 +293,7 @@ limitations under the License.
             <span class="loss-col">Loss</span>
             <span class="status-col">Status</span>
           </div>
-          <div class="prediction-item" *ngFor="let item of recentPredictions()" [class.correct-pred]="item.correct">
+          <div class="prediction-item" *ngFor="let item of sortedRecentPredictions()" [class.correct-pred]="item.correct">
             <span class="context-col">
               <span class="pre-context">{{ item.preText }}</span>{{ item.input }}
             </span>
@@ -311,14 +311,14 @@ limitations under the License.
           </div>
         </ng-template>
       </section>
-
+ 
       <!-- Right: Held-out Evaluation Predictions -->
       <section class="card predictions-card">
         <h3><mat-icon>rule</mat-icon> Held-out Evaluation Predictions (Size: {{ effectiveValidationSize() }})</h3>
         <p class="summary-text" style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">
           Showing predictions on the first 15 characters of the fixed holdout evaluation set.
         </p>
-        <div class="predictions-list" *ngIf="validationPredictions().length > 0; else emptyValPreds">
+        <div class="predictions-list" *ngIf="sortedValidationPredictions().length > 0; else emptyValPreds">
           <div class="prediction-header-row">
             <span class="context-col">Context</span>
             <span class="pred-col">Predicted</span>
@@ -326,7 +326,7 @@ limitations under the License.
             <span class="loss-col">Loss</span>
             <span class="status-col">Status</span>
           </div>
-          <div class="prediction-item" *ngFor="let item of validationPredictions()" [class.correct-pred]="item.correct">
+          <div class="prediction-item" *ngFor="let item of sortedValidationPredictions()" [class.correct-pred]="item.correct">
             <span class="context-col">
               <span class="pre-context">{{ item.preText }}</span>{{ item.input }}
             </span>

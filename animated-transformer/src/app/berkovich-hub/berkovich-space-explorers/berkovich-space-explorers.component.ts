@@ -623,6 +623,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly currentValAccuracy = signal<number>(0.0);
   readonly recentPredictions = signal<PredictionLog[]>([]);
 
+  readonly sortedRecentPredictions = computed<PredictionLog[]>(() => {
+    return [...this.recentPredictions()].sort((a, b) => {
+      const inputCompare = a.input.localeCompare(b.input);
+      if (inputCompare !== 0) return inputCompare;
+      return a.preText.localeCompare(b.preText);
+    });
+  });
+
   readonly validationPredictions = computed<PredictionLog[]>(() => {
     this.stepCount(); // Force recalculation on every training step
     const bModel = this.berkovichModel();
@@ -692,6 +700,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     }
 
     return results.slice(0, 15);
+  });
+
+  readonly sortedValidationPredictions = computed<PredictionLog[]>(() => {
+    return [...this.validationPredictions()].sort((a, b) => {
+      const inputCompare = a.input.localeCompare(b.input);
+      if (inputCompare !== 0) return inputCompare;
+      return a.preText.localeCompare(b.preText);
+    });
   });
 
   readonly isInspectExpanded = signal<boolean>(false);

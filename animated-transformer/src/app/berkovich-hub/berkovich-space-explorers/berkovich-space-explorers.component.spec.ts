@@ -93,4 +93,22 @@ describe('BerkovichSpaceExplorersComponent', () => {
     expect(component.currentTrainLoss()).toBeGreaterThanOrEqual(0);
     expect(component.currentValLoss()).toBeGreaterThanOrEqual(0);
   });
+
+  it('should sort predictions by active context (input), then full context (preText)', () => {
+    const dummyPredictions = [
+      { preText: 'b', input: 'z', pred: 'x', target: 'x', loss: 0.1, correct: true },
+      { preText: 'a', input: 'z', pred: 'x', target: 'x', loss: 0.2, correct: true },
+      { preText: 'c', input: 'y', pred: 'x', target: 'x', loss: 0.3, correct: true },
+      { preText: 'a', input: 'y', pred: 'x', target: 'x', loss: 0.4, correct: true },
+    ];
+    component.recentPredictions.set(dummyPredictions);
+    fixture.detectChanges();
+
+    const sorted = component.sortedRecentPredictions();
+    expect(sorted.length).toBe(4);
+    expect(sorted[0]).toEqual(dummyPredictions[3]); // input: 'y', preText: 'a'
+    expect(sorted[1]).toEqual(dummyPredictions[2]); // input: 'y', preText: 'c'
+    expect(sorted[2]).toEqual(dummyPredictions[1]); // input: 'z', preText: 'a'
+    expect(sorted[3]).toEqual(dummyPredictions[0]); // input: 'z', preText: 'b'
+  });
 });

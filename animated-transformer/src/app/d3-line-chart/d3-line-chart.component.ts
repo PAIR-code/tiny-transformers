@@ -47,6 +47,14 @@ export interface ChartBaseline {
   isRightAxis?: boolean;
 }
 
+interface InitialDot {
+  name: string;
+  color: string;
+  cx: number;
+  cy: number;
+  r: number;
+}
+
 export const CHART_COLOR_MAP: { [name: string]: string } = {
   'Train Loss': '#3b82f6',        // Blue
   'Val Loss': '#ef4444',          // Red
@@ -182,6 +190,7 @@ type ChartElements = {
   yAxisRightG: d3.Selection<SVGGElement, unknown, null, undefined>;
   yAxisLinesG: d3.Selection<SVGGElement, unknown, null, undefined>;
   pathsG: d3.Selection<SVGGElement, unknown, null, undefined>;
+  hoverG: d3.Selection<SVGGElement, unknown, null, undefined>;
 };
 
 // ============================================================================
@@ -240,6 +249,7 @@ export class D3LineChartComponent {
       yAxisRightG: svg.append('g'),
       yAxisLinesG: svg.append('g'),
       pathsG: svg.append('g'),
+      hoverG: svg.append('g'),
     };
     this.chartElements.set(chartElements);
   }
@@ -295,6 +305,7 @@ export class D3LineChartComponent {
     this.updateLegend(chartElements, config, getLineColor, hiddenLineNames, pointsByName, this.baselines());
     this.updateLines(chartElements, config, getLineColor, xScale, yScaleLeft, yScaleRight, hiddenLineNames, pointsByName);
     this.updateBaselines(chartElements, config, xScale, yScaleLeft, yScaleRight, this.baselines());
+    this.setupHoverIndicator(chartElements, config, xScale, yScaleLeft, yScaleRight, hiddenLineNames, pointsByName);
   }
 
   updateLines(
@@ -313,6 +324,8 @@ export class D3LineChartComponent {
 
     pathsG.selectAll('path').remove();
     pathsG.selectAll('.chart-initial-dot').remove();
+
+    const initialDots: InitialDot[] = [];
 
     pointNamesToPlot.forEach((name) => {
       const activeYScale = (rightNames.has(name) && yScaleRight) ? yScaleRight : yScaleLeft;
@@ -335,21 +348,248 @@ export class D3LineChartComponent {
         .attr('stroke-opacity', config.lineStrokeOpacity)
         .attr('d', line);
 
-      // Draw initial point as a bigger circle/dot (step 0)
+      // Collect initial point as a bigger circle/dot (step 0)
       if (pts && pts.length > 0) {
         const firstPt = pts[0];
+        initialDots.push({
+          name,
+          color: colorFn(name),
+          cx: xScale(firstPt.x),
+          cy: activeYScale(firstPt.y),
+          r: 5.5,
+        });
+      }
+    });
+
+    this.drawInitialDots(pathsG, initialDots);
+  }
+
+  private drawInitialDots(
+    pathsG: d3.Selection<SVGGElement, unknown, null, undefined>,
+    dots: InitialDot[]
+  ) {
+    // 1. Group dots by overlap
+    const components = this.findOverlapComponents(dots);
+
+    // 2. Render each component
+    components.forEach((component) => {
+      if (component.length === 1) {
+        // Normal single dot
+        const dot = component[0];
         pathsG
           .append('circle')
           .attr('class', 'chart-initial-dot')
-          .attr('cx', xScale(firstPt.x))
-          .attr('cy', activeYScale(firstPt.y))
-          .attr('r', 5.5) // Bigger dot
-          .attr('fill', colorFn(name))
+          .attr('cx', dot.cx)
+          .attr('cy', dot.cy)
+          .attr('r', dot.r)
+          .attr('fill', dot.color)
           .attr('stroke', '#ffffff')
           .attr('stroke-width', 1.8)
           .attr('opacity', 0.95);
+      } else {
+        // Check if they share the same center
+        const shareCenter = this.allShareCenter(component);
+        if (shareCenter) {
+          this.drawSplitCircleSameCenter(pathsG, component);
+        } else if (component.length === 2) {
+          // Venn diagram overlap
+          this.drawVennDiagramOverlap(pathsG, component[0], component[1]);
+        } else {
+          // Fallback: draw normal circles for each
+          component.forEach((dot) => {
+            pathsG
+              .append('circle')
+              .attr('class', 'chart-initial-dot')
+              .attr('cx', dot.cx)
+              .attr('cy', dot.cy)
+              .attr('r', dot.r)
+              .attr('fill', dot.color)
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1.8)
+              .attr('opacity', 0.95);
+          });
+        }
       }
     });
+  }
+
+  private findOverlapComponents(dots: InitialDot[]): InitialDot[][] {
+    const components: InitialDot[][] = [];
+    const visited = new Set<number>();
+
+    for (let i = 0; i < dots.length; i++) {
+      if (visited.has(i)) continue;
+      const component: InitialDot[] = [dots[i]];
+      visited.add(i);
+
+      const queue = [i];
+      while (queue.length > 0) {
+        const currIdx = queue.shift()!;
+        const curr = dots[currIdx];
+
+        for (let j = 0; j < dots.length; j++) {
+          if (visited.has(j)) continue;
+          const other = dots[j];
+          const dist = Math.sqrt(
+            Math.pow(curr.cx - other.cx, 2) + Math.pow(curr.cy - other.cy, 2)
+          );
+          if (dist < curr.r + other.r) {
+            component.push(other);
+            visited.add(j);
+            queue.push(j);
+          }
+        }
+      }
+      components.push(component);
+    }
+    return components;
+  }
+
+  private allShareCenter(component: InitialDot[]): boolean {
+    if (component.length < 2) return true;
+    const first = component[0];
+    for (let i = 1; i < component.length; i++) {
+      const dist = Math.sqrt(
+        Math.pow(first.cx - component[i].cx, 2) + Math.pow(first.cy - component[i].cy, 2)
+      );
+      if (dist >= 0.5) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private drawSplitCircleSameCenter(
+    pathsG: d3.Selection<SVGGElement, unknown, null, undefined>,
+    dots: InitialDot[]
+  ) {
+    const N = dots.length;
+    const first = dots[0];
+    const cx = first.cx;
+    const cy = first.cy;
+    const r = first.r;
+
+    // Draw the slices
+    for (let i = 0; i < N; i++) {
+      const dot = dots[i];
+      const thetaStart = (i * 2 * Math.PI) / N;
+      const thetaEnd = ((i + 1) * 2 * Math.PI) / N;
+
+      const xStart = cx + r * Math.cos(thetaStart);
+      const yStart = cy + r * Math.sin(thetaStart);
+      const xEnd = cx + r * Math.cos(thetaEnd);
+      const yEnd = cy + r * Math.sin(thetaEnd);
+
+      const pathData = `M ${cx} ${cy} L ${xStart} ${yStart} A ${r} ${r} 0 0 1 ${xEnd} ${yEnd} Z`;
+
+      pathsG
+        .append('path')
+        .attr('class', 'chart-initial-dot')
+        .attr('d', pathData)
+        .attr('fill', dot.color)
+        .attr('opacity', 0.95);
+    }
+
+    // Draw outline circle on top for clean white border
+    pathsG
+      .append('circle')
+      .attr('class', 'chart-initial-dot')
+      .attr('cx', cx)
+      .attr('cy', cy)
+      .attr('r', r)
+      .attr('fill', 'none')
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.8)
+      .attr('opacity', 0.95);
+  }
+
+  private drawVennDiagramOverlap(
+    pathsG: d3.Selection<SVGGElement, unknown, null, undefined>,
+    A: InitialDot,
+    B: InitialDot
+  ) {
+    const dx = B.cx - A.cx;
+    const dy = B.cy - A.cy;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const r = A.r;
+
+    // 1. Draw base circles (Circle A and Circle B) with white borders
+    pathsG
+      .append('circle')
+      .attr('class', 'chart-initial-dot')
+      .attr('cx', A.cx)
+      .attr('cy', A.cy)
+      .attr('r', A.r)
+      .attr('fill', A.color)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.8)
+      .attr('opacity', 0.95);
+
+    pathsG
+      .append('circle')
+      .attr('class', 'chart-initial-dot')
+      .attr('cx', B.cx)
+      .attr('cy', B.cy)
+      .attr('r', B.r)
+      .attr('fill', B.color)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.8)
+      .attr('opacity', 0.95);
+
+    // 2. Find intersection points
+    const a = d / 2;
+    const h = Math.sqrt(r * r - a * a);
+
+    const xm = A.cx + dx / 2;
+    const ym = A.cy + dy / 2;
+
+    const rx = -dy * (h / d);
+    const ry = dx * (h / d);
+
+    const q1 = { x: xm + rx, y: ym + ry };
+    const q2 = { x: xm - rx, y: ym - ry };
+
+    // 3. Draw the two halves of the lens
+    // Half closer to A (inside B): filled with A.color. Arc of Circle B from Q2 to Q1.
+    const pathLeft = `M ${q1.x} ${q1.y} L ${q2.x} ${q2.y} A ${r} ${r} 0 0 0 ${q1.x} ${q1.y} Z`;
+    pathsG
+      .append('path')
+      .attr('class', 'chart-initial-dot')
+      .attr('d', pathLeft)
+      .attr('fill', A.color)
+      .attr('opacity', 0.95);
+
+    // Half closer to B (inside A): filled with B.color. Arc of Circle A from Q1 to Q2.
+    const pathRight = `M ${q2.x} ${q2.y} L ${q1.x} ${q1.y} A ${r} ${r} 0 0 0 ${q2.x} ${q2.y} Z`;
+    pathsG
+      .append('path')
+      .attr('class', 'chart-initial-dot')
+      .attr('d', pathRight)
+      .attr('fill', B.color)
+      .attr('opacity', 0.95);
+
+    // 4. Draw the outline/stroke around the shared area (lens) and chord boundary (1px width)
+    const pathLensOutline = `M ${q1.x} ${q1.y} A ${r} ${r} 0 0 0 ${q2.x} ${q2.y} A ${r} ${r} 0 0 0 ${q1.x} ${q1.y} Z`;
+    pathsG
+      .append('path')
+      .attr('class', 'chart-initial-dot')
+      .attr('d', pathLensOutline)
+      .attr('fill', 'none')
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.0)
+      .attr('opacity', 0.95);
+
+    // Draw the division line (chord) inside the lens for extra clarity (1px width)
+    pathsG
+      .append('line')
+      .attr('class', 'chart-initial-dot')
+      .attr('x1', q1.x)
+      .attr('y1', q1.y)
+      .attr('x2', q2.x)
+      .attr('y2', q2.y)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.0)
+      .attr('opacity', 0.95);
   }
 
   updateLegend(
@@ -431,7 +671,7 @@ export class D3LineChartComponent {
       }
 
       // Draw text label next to the symbol
-      legend
+      const textNode = legend
         .append('text')
         .attr('class', 'baseline-legend-item')
         .attr('font-size', '10px')
@@ -447,6 +687,30 @@ export class D3LineChartComponent {
             this.toggleShowHideLine(name);
           }
         });
+
+      if (!isHidden) {
+        let valueStr = '';
+        if (pos.isBaseline) {
+          const b = baselines.find((bl) => bl.name === name);
+          if (b !== undefined) {
+            valueStr = ` (${b.y.toFixed(4)})`;
+          }
+        } else {
+          const pts = pointsByName[name];
+          if (pts && pts.length > 0) {
+            const lastPt = pts[pts.length - 1];
+            valueStr = ` (${lastPt.y.toFixed(4)})`;
+          }
+        }
+
+        if (valueStr) {
+          textNode
+            .append('tspan')
+            .style('fill', '#64748b')
+            .style('font-weight', 'normal')
+            .text(valueStr);
+        }
+      }
     });
   }
 
@@ -562,6 +826,160 @@ export class D3LineChartComponent {
       .attr('stroke-opacity', 0.1);
 
     yAxisLinesSelection.selectAll('text').remove();
+  }
+
+  private setupHoverIndicator(
+    chartElements: ChartElements,
+    config: ChartConfig,
+    xScale: ScaleFn,
+    yScaleLeft: ScaleFn,
+    yScaleRight: ScaleFn | undefined,
+    hiddenLineNames: Set<string>,
+    pointsByName: { [name: string]: NamedChartPoint[] }
+  ) {
+    const { svg, hoverG } = chartElements;
+    const { width, height, marginLeft, marginRight, marginTop, marginBottom } = config;
+    const rightNames = new Set(config.rightYLineNames || []);
+
+    // Create or select transparent overlay rect to capture events
+    let overlay = svg.select<SVGRectElement>('.chart-overlay');
+    if (overlay.empty()) {
+      overlay = svg
+        .append('rect')
+        .attr('class', 'chart-overlay')
+        .attr('fill', 'none')
+        .attr('pointer-events', 'all');
+    }
+    overlay
+      .attr('x', marginLeft)
+      .attr('y', marginTop)
+      .attr('width', width - marginLeft - marginRight)
+      .attr('height', height - marginTop - marginBottom);
+
+    // Clear hover group initially
+    hoverG.selectAll('*').remove();
+
+    // Create hover indicator elements inside hoverG
+    const hoverCircle = hoverG
+      .append('circle')
+      .attr('class', 'chart-hover-indicator-circle')
+      .attr('r', 4.5)
+      .attr('fill', '#ffffff')
+      .attr('stroke-width', 2.0)
+      .attr('display', 'none');
+
+    // Tooltip text container
+    const hoverTooltip = hoverG
+      .append('g')
+      .attr('class', 'chart-hover-indicator-tooltip')
+      .attr('display', 'none');
+
+    // Add background rect for the tooltip text
+    const tooltipBg = hoverTooltip
+      .append('rect')
+      .attr('rx', 3)
+      .attr('ry', 3)
+      .attr('fill', 'rgba(15, 23, 42, 0.85)')
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 0.5);
+
+    const tooltipText = hoverTooltip
+      .append('text')
+      .attr('font-size', '9px')
+      .attr('font-weight', '600')
+      .attr('fill', '#ffffff')
+      .attr('text-anchor', 'middle');
+
+    overlay
+      .on('mousemove', (event) => {
+        const [mx, my] = d3.pointer(event, overlay.node());
+
+        // Find closest point across all shown lines
+        let closestPt: { x: number; y: number; name: string; screenX: number; screenY: number } | null = null;
+        let minDist = Infinity;
+
+        const pointNamesToPlot = Object.keys(pointsByName).filter((n) => !hiddenLineNames.has(n));
+
+        pointNamesToPlot.forEach((name) => {
+          const activeYScale = (rightNames.has(name) && yScaleRight) ? yScaleRight : yScaleLeft;
+          const pts = pointsByName[name];
+          if (!pts) return;
+
+          pts.forEach((pt) => {
+            if (pt.isNaN) return;
+            const px = xScale(pt.x);
+            const py = activeYScale(pt.y);
+            const dist = Math.sqrt((px - mx) ** 2 + (py - my) ** 2);
+
+            if (dist < minDist) {
+              minDist = dist;
+              closestPt = {
+                x: pt.x,
+                y: pt.y,
+                name,
+                screenX: px,
+                screenY: py,
+              };
+            }
+          });
+        });
+
+        // Threshold of 30px
+        if (closestPt && minDist < 30) {
+          const pt = closestPt as any;
+          const color = getLineColor(pt.name);
+          hoverCircle
+            .attr('cx', pt.screenX)
+            .attr('cy', pt.screenY)
+            .attr('stroke', color)
+            .attr('display', 'block');
+
+          // Text content
+          const textContent = `${pt.name} - x: ${pt.x}, y: ${pt.y.toFixed(4)}`;
+          tooltipText.text(textContent);
+
+          // Get dimensions of text
+          const bbox = (tooltipText.node() as SVGTextElement).getBBox();
+          const paddingX = 6;
+          const paddingY = 4;
+          const bgWidth = bbox.width + paddingX * 2;
+          const bgHeight = bbox.height + paddingY * 2;
+
+          // Position tooltip above the point, centered horizontally
+          let tx = pt.screenX;
+          let ty = pt.screenY - 10 - bgHeight / 2;
+
+          // Boundaries checking to prevent tooltip from going off-screen
+          if (tx - bgWidth / 2 < marginLeft) {
+            tx = marginLeft + bgWidth / 2;
+          } else if (tx + bgWidth / 2 > width - marginRight) {
+            tx = width - marginRight - bgWidth / 2;
+          }
+          if (ty < marginTop) {
+            ty = pt.screenY + 10 + bgHeight / 2; // place below the point if it goes off-top
+          }
+
+          tooltipBg
+            .attr('x', -bgWidth / 2)
+            .attr('y', -bgHeight / 2)
+            .attr('width', bgWidth)
+            .attr('height', bgHeight);
+
+          tooltipText
+            .attr('y', bbox.height / 4); // center text vertically
+
+          hoverTooltip
+            .attr('transform', `translate(${tx}, ${ty})`)
+            .attr('display', 'block');
+        } else {
+          hoverCircle.attr('display', 'none');
+          hoverTooltip.attr('display', 'none');
+        }
+      })
+      .on('mouseleave', () => {
+        hoverCircle.attr('display', 'none');
+        hoverTooltip.attr('display', 'none');
+      });
   }
 
   toggleShowHideLine(d: string) {
