@@ -1,0 +1,60 @@
+<h4 class="walkthrough-title">
+  Berkovich p-adic Bigram Predictor (N = 1)
+</h4>
+<markdown class="walkthrough-description" [katex]="true" [data]="descriptionMarkdown"></markdown>
+
+@if (details(); as walkthrough) {
+  <app-walkthrough-context
+    [inputId]="'walkthrough-input-field-bigram'"
+    [contextLength]="1"
+    [preText]="walkthrough.preText"
+    [contextText]="walkthrough.contextText"
+    [walkthroughInput]="walkthroughInput()"
+    [walkthroughInputError]="walkthroughInputError()"
+    (inputChanged)="walkthroughInputChange.emit($event)">
+  </app-walkthrough-context>
+
+  <div class="walkthrough-container">
+    <!-- Step 1 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step1"></markdown>
+      <app-berkovich-lookup-walkthrough
+        [embeddings]="walkthrough.embeddings"
+        [contextText]="walkthrough.contextText"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-lookup-walkthrough>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step2"></markdown>
+      <app-berkovich-decoder-walkthrough
+        [scores]="walkthrough.scores"
+        [aggMode]="aggMode()"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-decoder-walkthrough>
+    </div>
+
+    <!-- Step 3 -->
+    <app-softmax-walkthrough-table
+      [stepTitle]="'Show Step 3 output probabilities'"
+      [predictions]="walkthrough.predictions"
+      [denominatorSum]="walkthrough.sumExp"
+      [beta]="beta()"
+      [guideData]="softmaxGuide">
+    </app-softmax-walkthrough-table>
+
+    <!-- Explanatory note -->
+    <div class="explanatory-note">
+      <markdown [katex]="true" [data]="explanationMarkdown"></markdown>
+    </div>
+  </div>
+} @else {
+  <div class="unactivated-message">
+    Type a valid context string above to activate the live walkthrough.
+  </div>
+}

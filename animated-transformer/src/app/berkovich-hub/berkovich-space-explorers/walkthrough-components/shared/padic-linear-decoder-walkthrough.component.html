@@ -1,0 +1,54 @@
+<details class="walkthrough-details">
+  <summary class="walkthrough-summary">
+    Show Step 2 projection & path loss details
+  </summary>
+  <div class="walkthrough-content">
+    <div class="table-wrapper">
+      <table class="walkthrough-table">
+        <thead>
+          <tr>
+            <th>Target Constants (C_k)</th>
+            <th>p-Adic Path Details (|Y_d - C_k|)</th>
+            <th class="right-align">Final Logit Score (S)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of scores(); track s.classIdx) {
+            <tr>
+              <td>
+                <div class="char-display">
+                  {{ wrapInQuotes(formatDisplayString(s.char)) }}
+                </div>
+                <div class="char-idx">Idx: {{ s.classIdx }}</div>
+              </td>
+              <td>
+                <div class="details-wrapper">
+                  @for (det of s.dimDetails; track det.dim) {
+                    <app-berkovich-dimension-calculation
+                      [dim]="det.dim"
+                      [contextCenter]="det.contextCenter"
+                      [contextRho]="det.contextRho"
+                      [constraintCenter]="det.constraintCenter"
+                      [constraintRho]="det.constraintRho"
+                      [dist]="det.dist"
+                      [loss]="det.loss"
+                      [prime]="prime()"
+                      [digitsLeft]="digitsLeft()"
+                      [digitsRight]="digitsRight()"
+                    ></app-berkovich-dimension-calculation>
+                  }
+                </div>
+              </td>
+              <td class="right-align">
+                <div>{{ s.finalScore.toFixed(3) }}</div>
+                <div class="score-aggregation"
+                     [textContent]="aggMode() === 'min' ? 'Score = -max(Loss)' : 'Score = -avg(Loss)'">
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>

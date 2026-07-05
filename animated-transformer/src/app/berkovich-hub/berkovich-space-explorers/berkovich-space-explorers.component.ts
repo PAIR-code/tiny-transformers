@@ -17,7 +17,8 @@ import { Component, OnInit, OnDestroy, signal, computed, effect, ChangeDetection
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { ConfigFieldDef, ConfigFieldType } from './models/char-learner';
 
 import {
   Rational,
@@ -133,6 +134,9 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       step4: "4. **Standard Softmax**: Propagate probabilities using the Standard Softmax:  \n$\\pi_k = \\frac{e^{\\beta S_k}}{\\sum_j e^{\\beta S_j}}$:"
     }
   };
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
   // Configurable Parameters (Signals)
   readonly textInput = signal<string>("the cat sat on the mat");
 
@@ -311,11 +315,13 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
           });
         }
         const finalScore = fwd.logits[k];
+        const biasVal = (bModel as any).b ? (bModel as any).b[k] : undefined;
         scores.push({
           char,
           classIdx: k,
           dimDists,
           finalScore,
+          bias: biasVal,
           dimDetails
         });
       }
@@ -513,6 +519,100 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     if (app === 'tropical-mlp') return this.tropicalMlpModel();
     return this.berkovichModel();
   });
+
+  readonly configDefs = computed<ConfigFieldDef[]>(() => {
+    return this.getConfigDefsForApproach(this.approach());
+  });
+
+  getConfigDefsForApproach(app: string): ConfigFieldDef[] {
+    if (app === 'euclidean-ngram') {
+      return [
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 }
+      ];
+    }
+    if (app === 'padic-linear') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 }
+      ];
+    }
+    if (app === 'affinoid-ngram') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'numConstraints', label: 'Constraints', kind: ConfigFieldType.Number, description: 'Number of target classification constraints per class', defaultValue: 3, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 }
+      ];
+    }
+    if (app === 'tropical-mlp') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'hiddenDim', label: 'Hidden Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the hidden layer', defaultValue: 8, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'reg', label: 'Weight Reg.', kind: ConfigFieldType.Number, description: 'Regularization on weights log-radius', defaultValue: 0.01, step: 0.005 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 }
+      ];
+    }
+    if (app === 'berkovich-bigram-bias') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+        { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+        { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance' }, { value: 'average', label: 'Average Distance' }] },
+        { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+        { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+      ];
+    }
+    if (app === 'berkovich-attention') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+        { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+        { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance' }, { value: 'average', label: 'Average Distance' }] },
+        { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+        { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+      ];
+    }
+    if (app === 'berkovich-ngram') {
+      return [
+        { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+        { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+        { key: 'contextLength', label: 'Context Length', kind: ConfigFieldType.Number, description: 'Number of history characters to use', defaultValue: 3, requiresRebuild: true },
+        { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+        { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+        { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+        { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+        { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance' }, { value: 'average', label: 'Average Distance' }] },
+        { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+        { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+      ];
+    }
+    // Default is berkovich-bigram
+    return [
+      { key: 'prime', label: 'Prime (p)', kind: ConfigFieldType.Number, description: 'The prime base for the p-adic space', defaultValue: 3, requiresRebuild: true },
+      { key: 'embDim', label: 'Embedding Dim', kind: ConfigFieldType.Number, description: 'Number of dimensions in the embedding space', defaultValue: 5, requiresRebuild: true },
+      { key: 'lr', label: 'Learning Rate', kind: ConfigFieldType.Number, description: 'Step size for updates', defaultValue: 0.01, step: 0.001 },
+      { key: 'reg', label: 'Constraint Reg.', kind: ConfigFieldType.Number, description: 'Regularization on target log-radius', defaultValue: 0.04, step: 0.01 },
+      { key: 'regEmbed', label: 'Embed Reg.', kind: ConfigFieldType.Number, description: 'Regularization on embedding log-radius', defaultValue: 0.02, step: 0.01 },
+      { key: 'beta', label: 'Softmax Beta', kind: ConfigFieldType.Number, description: 'Temperature scaling for softmax', defaultValue: 1.0, step: 0.1 },
+      { key: 'aggMode', label: 'Agg. Mode', kind: ConfigFieldType.Select, description: 'How to aggregate dimension distances', defaultValue: 'min', options: [{ value: 'min', label: 'Min Distance' }, { value: 'average', label: 'Average Distance' }] },
+      { key: 'digitsLeft', label: 'Digits (Left)', kind: ConfigFieldType.Number, description: 'P-adic digits to the left of the point', defaultValue: 2, min: 0 },
+      { key: 'digitsRight', label: 'Digits (Right)', kind: ConfigFieldType.Number, description: 'P-adic digits to the right of the point', defaultValue: 2, min: 0 }
+    ];
+  }
   
   readonly stepCount = signal<number>(0);
   readonly epochCount = signal<number>(0);
@@ -712,11 +812,75 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     effect(() => {
       this.vocab();
       this.approach();
+      this.prime();
+      this.embDim();
+      this.contextLength();
       this.valSizeOverlap();
       this.valPercentageHoldout();
       this.valMode();
       untracked(() => {
         this.resetWeights();
+      });
+    });
+
+    // Sync to URL parameters when approach or modelConfigValues changes
+    effect(() => {
+      const approach = this.approach();
+      const currentValues = this.modelConfigValues();
+      const defs = this.configDefs();
+      
+      untracked(() => {
+        const queryParams: Record<string, any> = {
+          approach: approach
+        };
+
+        for (const def of defs) {
+          const val = currentValues[def.key] !== undefined ? currentValues[def.key] : def.defaultValue;
+          if (val !== def.defaultValue) {
+            queryParams[def.key] = val;
+          } else {
+            queryParams[def.key] = null;
+          }
+        }
+
+        // Compare with current URL params to avoid redundant navigation
+        const currentUrlParams = this.route.snapshot.queryParams;
+        let hasDiff = false;
+        
+        for (const key of Object.keys(queryParams)) {
+          const newVal = queryParams[key];
+          const oldVal = currentUrlParams[key];
+          
+          if (newVal === null) {
+            if (oldVal !== undefined) {
+              hasDiff = true;
+              break;
+            }
+          } else {
+            if (oldVal === undefined || String(newVal) !== String(oldVal)) {
+              hasDiff = true;
+              break;
+            }
+          }
+        }
+
+        if (!hasDiff) {
+          for (const key of Object.keys(currentUrlParams)) {
+            if (queryParams[key] === undefined) {
+              hasDiff = true;
+              break;
+            }
+          }
+        }
+
+        if (hasDiff) {
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams,
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        }
       });
     });
 
@@ -737,6 +901,43 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Sync from URL params on load / route changes
+    this.route.queryParams.subscribe(params => {
+      // 1. Sync approach
+      if (params['approach'] && params['approach'] !== this.approach()) {
+        this.approach.set(params['approach']);
+      }
+
+      // 2. Sync config values
+      const defs = this.configDefs();
+      const newConfigValues = { ...this.modelConfigValues() };
+      let hasChanges = false;
+      
+      for (const def of defs) {
+        const paramVal = params[def.key];
+        if (paramVal !== undefined) {
+          let val: any = paramVal;
+          if (def.kind === ConfigFieldType.Number) {
+            const parsed = parseFloat(paramVal);
+            val = isNaN(parsed) ? def.defaultValue : parsed;
+          }
+          if (newConfigValues[def.key] !== val) {
+            newConfigValues[def.key] = val;
+            hasChanges = true;
+          }
+        } else {
+          if (newConfigValues[def.key] !== undefined) {
+            delete newConfigValues[def.key];
+            hasChanges = true;
+          }
+        }
+      }
+      
+      if (hasChanges) {
+        this.modelConfigValues.set(newConfigValues);
+      }
+    });
+
     this.resetWeights();
   }
 

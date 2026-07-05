@@ -1,0 +1,60 @@
+<h4 class="walkthrough-title">
+  P-Adic Linear Predictor
+</h4>
+<markdown class="walkthrough-description" [katex]="true" [data]="descriptionMarkdown"></markdown>
+
+<app-walkthrough-context
+  [inputId]="'walkthrough-input-field-padic-linear'"
+  [contextLength]="1"
+  [preText]="details()?.preText ?? ''"
+  [contextText]="details()?.contextText ?? ''"
+  [walkthroughInput]="walkthroughInput()"
+  [walkthroughInputError]="walkthroughInputError()"
+  (inputChanged)="walkthroughInputChange.emit($event)">
+</app-walkthrough-context>
+
+@if (details(); as walkthrough) {
+  <div class="walkthrough-container">
+    <!-- Step 1 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step1"></markdown>
+      <app-padic-linear-lookup-walkthrough
+        [embeddings]="walkthrough.embeddings"
+        [contextText]="walkthrough.contextText"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-padic-linear-lookup-walkthrough>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step2"></markdown>
+      <app-padic-linear-decoder-walkthrough
+        [scores]="walkthrough.scores"
+        [aggMode]="aggMode()"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-padic-linear-decoder-walkthrough>
+    </div>
+
+    <!-- Step 3 -->
+    <app-softmax-walkthrough-table
+      [stepTitle]="'Show Step 3 output probabilities'"
+      [predictions]="walkthrough.predictions"
+      [denominatorSum]="walkthrough.sumExp"
+      [beta]="beta()"
+      [guideData]="softmaxGuide">
+    </app-softmax-walkthrough-table>
+
+    <!-- Explanatory note -->
+    <div class="explanatory-note">
+      <markdown [katex]="true" [data]="explanationMarkdown"></markdown>
+    </div>
+  </div>
+} @else {
+  <div class="unactivated-message">
+    Type a valid context string above to activate the live walkthrough.
+  </div>
+}

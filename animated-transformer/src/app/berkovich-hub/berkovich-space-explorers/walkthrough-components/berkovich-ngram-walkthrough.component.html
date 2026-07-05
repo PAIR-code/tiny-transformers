@@ -1,0 +1,107 @@
+<h4 class="walkthrough-title">
+  Berkovich p-adic N-Gram Predictor (Adjustable N)
+</h4>
+<markdown class="walkthrough-description" [katex]="true" [data]="descriptionMarkdown"></markdown>
+
+@if (details(); as walkthrough) {
+  <app-walkthrough-context
+    [inputId]="'walkthrough-input-field-ngram'"
+    [contextLength]="contextLength()"
+    [preText]="walkthrough.preText"
+    [contextText]="walkthrough.contextText"
+    [walkthroughInput]="walkthroughInput()"
+    [walkthroughInputError]="walkthroughInputError()"
+    (inputChanged)="walkthroughInputChange.emit($event)">
+  </app-walkthrough-context>
+
+  <div class="walkthrough-container">
+    <!-- Step 1 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step1"></markdown>
+      <app-berkovich-lookup-walkthrough
+        [embeddings]="walkthrough.embeddings"
+        [contextText]="walkthrough.contextText"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-lookup-walkthrough>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step2"></markdown>
+
+      <details class="aggregation-details">
+        <summary class="aggregation-summary">
+          Show Step 2 Hidden aggregated disk values (H)
+        </summary>
+        <div class="aggregation-content">
+          <div class="aggregation-header">
+            Aggregated Hidden Disk in each dimension:
+          </div>
+          <div class="dimensions-wrapper">
+            @for (h of walkthrough.aggregated; track h.dim) {
+              <div class="dimension-card">
+                <div class="dimension-title">Dimension {{ h.dim }}</div>
+
+                <div class="dimension-grid">
+                  <div class="grid-col">
+                    <span class="col-label">Center c_H (Rational)</span>
+                    <span class="col-value">{{ formatRationalVal(h.center) }}</span>
+                  </div>
+                  <div class="grid-col min-w-140">
+                    <span class="col-label">Center c_H (p-adic digits)</span>
+                    @if (h.center && h.rho !== undefined) {
+                      <app-berkovich-digit-display
+                        [center]="h.center"
+                        [rho]="h.rho"
+                        [prime]="prime()"
+                        [showRho]="false"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()">
+                      </app-berkovich-digit-display>
+                    }
+                  </div>
+                  <div class="grid-col">
+                    <span class="col-label">Log-radius &rho;_H</span>
+                    <span class="col-value blue-val">{{ h.rho?.toFixed(4) }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Step 3 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step3"></markdown>
+      <app-berkovich-decoder-walkthrough
+        [scores]="walkthrough.scores"
+        [aggMode]="aggMode()"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-decoder-walkthrough>
+    </div>
+
+    <!-- Step 4 -->
+    <app-softmax-walkthrough-table
+      [stepTitle]="'Show Step 4 output probabilities'"
+      [predictions]="walkthrough.predictions"
+      [denominatorSum]="walkthrough.sumExp"
+      [beta]="beta()"
+      [guideData]="softmaxGuide">
+    </app-softmax-walkthrough-table>
+
+    <!-- Explanatory note -->
+    <div class="explanatory-note">
+      <markdown [katex]="true" [data]="explanationMarkdown"></markdown>
+    </div>
+  </div>
+} @else {
+  <div class="unactivated-message">
+    Type a valid context string above to activate the live walkthrough.
+  </div>
+}

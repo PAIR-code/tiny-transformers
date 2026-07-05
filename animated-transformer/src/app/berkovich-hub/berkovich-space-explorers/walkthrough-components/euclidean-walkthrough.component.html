@@ -1,0 +1,76 @@
+<h4 class="walkthrough-title">
+  Euclidean N-Gram Predictor (Baseline)
+</h4>
+<markdown class="walkthrough-description" [katex]="true" [data]="descriptionMarkdown"></markdown>
+
+@if (details(); as walkthrough) {
+  <app-walkthrough-context
+    [inputId]="'walkthrough-input-field-euclidean'"
+    [contextLength]="contextLength()"
+    [preText]="walkthrough.preText"
+    [contextText]="walkthrough.contextText"
+    [walkthroughInput]="walkthroughInput()"
+    [walkthroughInputError]="walkthroughInputError()"
+    (inputChanged)="walkthroughInputChange.emit($event)">
+  </app-walkthrough-context>
+
+  <div class="walkthrough-container">
+    <!-- Step 1 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step1"></markdown>
+      <app-euclidean-lookup-walkthrough
+        [embeddings]="walkthrough.embeddings"
+        [contextText]="walkthrough.contextText">
+      </app-euclidean-lookup-walkthrough>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step2"></markdown>
+
+      <details class="aggregation-details">
+        <summary class="aggregation-summary">
+          Show Step 2 Hidden aggregated vector values (H)
+        </summary>
+        <div class="aggregation-content">
+          <div class="aggregation-header">
+            Aggregated State Vector (H):
+          </div>
+          <div class="vector-display">
+            [ {{ walkthrough.aggregated[0]?.val?.toFixed(4) }}
+            @for (val of walkthrough.aggregated.slice(1); track val.dim) {
+              , {{ val.val?.toFixed(4) }}
+            }
+            ]
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Step 3 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step3"></markdown>
+      <app-euclidean-decoder-walkthrough
+        [scores]="walkthrough.scores">
+      </app-euclidean-decoder-walkthrough>
+    </div>
+
+    <!-- Step 4 -->
+    <app-softmax-walkthrough-table
+      [stepTitle]="'Show Step 4 output probabilities'"
+      [predictions]="walkthrough.predictions"
+      [denominatorSum]="walkthrough.sumExp"
+      [beta]="beta()"
+      [guideData]="softmaxGuide">
+    </app-softmax-walkthrough-table>
+
+    <!-- Explanatory note -->
+    <div class="explanatory-note">
+      <markdown [katex]="true" [data]="explanationMarkdown"></markdown>
+    </div>
+  </div>
+} @else {
+  <div class="unactivated-message">
+    Type a valid context string above to activate the live walkthrough.
+  </div>
+}

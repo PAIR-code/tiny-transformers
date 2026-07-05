@@ -2,14 +2,8 @@
 ==============================================================================*/
 
 import {
-  Rational,
   simplify,
-  add,
-  subtract,
-  getValuation,
-  computePathLoss,
-  computeGradientDetails,
-  extNegate
+  add
 } from '../../../../lib/berkovich/berkovich';
 import { CharLearner, CharLearnerKind, ConfigFieldDef, ConfigFieldType } from './char-learner';
 import { BerkovichDisk, BerkovichForwardResult, BerkovichConfig, BerkovichParams, BerkovichCharLearnerBase } from './berkovich-char-learner';
@@ -49,7 +43,7 @@ export class BerkovichBigramBiasCharLearner extends BerkovichCharLearnerBase {
     const { aggMode, beta } = config;
     const N = contextIndices.length;
 
-    // 1. Context embedding aggregation (just last char if N=1)
+    // 1. Context embedding aggregation (weighted sum using p^-j scaling)
     const H: BerkovichDisk[] = [];
     for (let d = 0; d < this.embDim; d++) {
       let cSum = { num: 0n, den: 1n };
@@ -57,7 +51,7 @@ export class BerkovichBigramBiasCharLearner extends BerkovichCharLearnerBase {
 
       for (let j = 1; j <= N; j++) {
         const charIdx = contextIndices[j - 1];
-        const emb = this.E[charIdx][d];
+        const emb = this.encoder.E[charIdx][d];
         
         const cScaled = simplify({ num: emb.center.num, den: emb.center.den * (p ** BigInt(j)) });
         cSum = add(cSum, cScaled);
@@ -72,63 +66,17 @@ export class BerkovichBigramBiasCharLearner extends BerkovichCharLearnerBase {
       H.push({ center: cSum, rho: maxRho });
     }
 
-    // 2. Class distance evaluation
-    const logits: number[] = [];
-    const activeDims: number[] = [];
-    const dists: number[][] = [];
-    const pathLosses: number[][] = [];
+    // 2. Class distance evaluation via decoder
+    const dec = this.decoder.decode(H, config);
+    const biasedLogits = dec.logits.map((score, k) => score + this.b[k]);
 
-    for (let k = 0; k < this.V; k++) {
-      const classDists: number[] = [];
-      const classLosses: number[] = [];
-      
-      for (let d = 0; d < this.embDim; d++) {
-        const valDiff = getValuation(subtract(H[d].center, this.W[k][d].center), p);
-        const distance = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-        classDists.push(distance);
-
-        const loss = valDiff.type === 'pos-infinity' && this.W[k][d].rho <= H[d].rho
-          ? 0
-          : computePathLoss(this.W[k][d].rho, extNegate(valDiff), H[d].rho);
-        classLosses.push(loss);
-      }
-
-      dists.push(classDists);
-      pathLosses.push(classLosses);
-
-      let score = 0;
-      let actD = 0;
-
-      if (aggMode === 'min') {
-        let maxL = -1;
-        for (let d = 0; d < this.embDim; d++) {
-          if (classLosses[d] > maxL) {
-            maxL = classLosses[d];
-            actD = d;
-          }
-        }
-        score = -maxL;
-      } else {
-        let sumL = 0;
-        for (let d = 0; d < this.embDim; d++) {
-          sumL += classLosses[d];
-        }
-        score = -sumL / this.embDim;
-        actD = -1;
-      }
-
-      // Add the learned real-valued class bias
-      logits.push(score + this.b[k]);
-      activeDims.push(actD);
-    }
-
-    // Softmax
-    const maxLogit = Math.max(...logits);
-    const exps = logits.map(l => Math.exp(beta * (l - maxLogit)));
+    // 3. Softmax
+    const maxLogit = Math.max(...biasedLogits);
+    const exps = biasedLogits.map(l => Math.exp(beta * (l - maxLogit)));
     const sumExps = exps.reduce((a, b) => a + b, 0);
     const probs = exps.map(e => e / (sumExps + 1e-15));
 
-    return { probs, logits, activeDims, H, dists, pathLosses };
+    return { probs, logits: biasedLogits, activeDims: dec.activeDims, H, dists: dec.dists, pathLosses: dec.pathLosses };
   }
 
   override trainStep(
@@ -136,7 +84,6 @@ export class BerkovichBigramBiasCharLearner extends BerkovichCharLearnerBase {
     targetIdx: number,
     config: BerkovichConfig
   ): { loss: number; predIdx: number; forwardResult: BerkovichForwardResult } {
-    const p = this.prime;
     const N = contextIndices.length;
     const { lr, reg, regEmbed, aggMode, beta } = config;
 
@@ -145,85 +92,20 @@ export class BerkovichBigramBiasCharLearner extends BerkovichCharLearnerBase {
     const loss = -Math.log(fwd.probs[targetIdx] + 1e-15);
     const predIdx = fwd.probs.indexOf(Math.max(...fwd.probs));
 
-    // 2. Logits gradient: dL / dLogit_k = beta * (pi_k - I[k == target])
+    // 2. Logits gradient
     const gLogits = fwd.probs.map((pi, k) => beta * (pi - (k === targetIdx ? 1 : 0)));
 
-    // 3. Update biases and parameter disks
+    // 3. Update biases: b_k -= lr * (gk / beta)
     for (let k = 0; k < this.V; k++) {
-      const gk = gLogits[k];
+      this.b[k] -= lr * (gLogits[k] / beta);
+    }
 
-      // Update bias: b_k -= lr * (dL / dLogit_k) / beta = lr * (I[k == target] - pi_k)
-      this.b[k] -= lr * (gk / beta);
+    // 4. Update decoder target constraints
+    this.decoder.update(fwd.H, targetIdx, gLogits, config, fwd.activeDims);
 
-      for (let d = 0; d < this.embDim; d++) {
-        const isDimActive = aggMode === 'min' ? (d === fwd.activeDims[k]) : true;
-        if (!isDimActive) continue;
-
-        const weight = aggMode === 'min' ? 1.0 : (1.0 / this.embDim);
-        const gk_dim = gk * weight;
-
-        if (k !== targetIdx && fwd.pathLosses[k][d] > 0) {
-          const W = this.W[k][d];
-          W.rho = Math.max(-2, Math.min(2, W.rho - lr * reg * Math.log(Number(p)) * Math.exp(W.rho * Math.log(Number(p)))));
-          continue;
-        }
-
-        const W = this.W[k][d];
-        const H = fwd.H[d];
-
-        if (gk_dim < 0) {
-          const details = computeGradientDetails(W.center, W.rho, H.center, H.rho, p, lr * Math.abs(gk_dim));
-          W.center = details.nextCenter;
-          W.rho = details.nextLogRadius;
-        } else if (gk_dim > 0) {
-          const valuationDiff = getValuation(subtract(W.center, H.center), p);
-          const dValuation = valuationDiff.type === 'finite' ? -valuationDiff.value : -Infinity;
-          const sgn = W.rho >= dValuation ? 1 : -1;
-          W.rho = Math.max(-2, Math.min(2, W.rho - lr * gk_dim * sgn));
-        }
-
-        W.rho = Math.max(-2, Math.min(2, W.rho - lr * reg * Math.log(Number(p)) * Math.exp(W.rho * Math.log(Number(p)))));
-
-        for (let j = 1; j <= N; j++) {
-          const charIdx = contextIndices[j - 1];
-          const emb = this.E[charIdx][d];
-
-          const isEmbActive = Math.abs((emb.rho - j) - H.rho) < 1e-7;
-          if (!isEmbActive) continue;
-
-          let otherSum = { num: 0n, den: 1n };
-          for (let l = 1; l <= N; l++) {
-            if (l !== j) {
-              const otherEmb = this.E[contextIndices[l - 1]][d];
-              const term = simplify({
-                num: otherEmb.center.num,
-                den: otherEmb.center.den * (p ** BigInt(l))
-              });
-              otherSum = add(otherSum, term);
-            }
-          }
-
-          const diffCenter = subtract(W.center, otherSum);
-          const targetCenter = simplify({
-            num: diffCenter.num * (p ** BigInt(j)),
-            den: diffCenter.den
-          });
-          const targetLogRadius = W.rho + j;
-
-          if (gk_dim < 0) {
-            const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, p, lr * Math.abs(gk_dim));
-            emb.center = details.nextCenter;
-            emb.rho = details.nextLogRadius;
-          } else if (gk_dim > 0) {
-            const valuationDiff = getValuation(subtract(emb.center, targetCenter), p);
-            const dValuation = valuationDiff.type === 'finite' ? -valuationDiff.value : -Infinity;
-            const sgn = emb.rho >= dValuation ? 1 : -1;
-            emb.rho = Math.max(-2, Math.min(2, emb.rho - lr * gk_dim * sgn));
-          }
-
-          emb.rho = Math.max(-2, Math.min(2, emb.rho - lr * regEmbed * Math.log(Number(p)) * Math.exp(emb.rho * Math.log(Number(p)))));
-        }
-      }
+    // 5. Update encoder input embeddings
+    if (N > 0) {
+      this.encoder.update(contextIndices, fwd.H, this.decoder.W, gLogits, fwd.activeDims, fwd.pathLosses, targetIdx, config);
     }
 
     return { loss, predIdx, forwardResult: fwd };

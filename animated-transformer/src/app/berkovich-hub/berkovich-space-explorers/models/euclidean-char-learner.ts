@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { CharLearner, CharLearnerKind, ConfigFieldDef, ConfigFieldType } from './char-learner';
+import { EuclideanEmbeddingEncoder, EuclideanDotProductDecoder } from './encoders-decoders';
 
 export interface EuclideanForwardResult {
   probs: number[];
@@ -42,10 +43,12 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
     { key: 'reg', label: 'Regularization', kind: ConfigFieldType.Number, description: 'L2 weight decay', defaultValue: 0.04, step: 0.01 }
   ];
 
+  encoder: EuclideanEmbeddingEncoder;
+  decoder: EuclideanDotProductDecoder;
 
-  E: number[][]; // [V, embDim]
-  W: number[][]; // [embDim, V]
-  biases: number[];       // [V]
+  get E(): number[][] { return this.encoder.E; }
+  get W(): number[][] { return this.decoder.W; }
+  get biases(): number[] { return this.decoder.b; }
 
   get parameters(): EuclideanParams {
     return { E: this.E, W: this.W, biases: this.biases };
@@ -53,32 +56,14 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
 
   constructor(vocab: string[], embDim: number = 5) {
     super(vocab, embDim);
+    this.encoder = new EuclideanEmbeddingEncoder(vocab, embDim);
+    this.decoder = new EuclideanDotProductDecoder(vocab, embDim);
+    this.resetWeights();
+  }
 
-    this.E = [];
-    this.W = [];
-    this.biases = [];
-
-    // Xavier/Glorot-like initialization
-    const scale = Math.sqrt(2.0 / embDim);
-
-    // Initialize W: [embDim, V]
-    for (let d = 0; d < this.embDim; d++) {
-      const weightRow: number[] = [];
-      for (let i = 0; i < this.V; i++) {
-        weightRow.push((Math.random() - 0.5) * scale);
-      }
-      this.W.push(weightRow);
-    }
-
-    // Initialize E: [V, embDim] and biases: [V]
-    for (let i = 0; i < this.V; i++) {
-      const embRow: number[] = [];
-      for (let d = 0; d < this.embDim; d++) {
-        embRow.push((Math.random() - 0.5) * scale);
-      }
-      this.E.push(embRow);
-      this.biases.push(0.0);
-    }
+  resetWeights() {
+    this.encoder.reset();
+    this.decoder.reset();
   }
 
   forward(contextIndices: number[], config?: EuclideanConfig): EuclideanForwardResult {
@@ -95,22 +80,15 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
     }
 
     // 2. Linear logits
-    const logits: number[] = [];
-    for (let k = 0; k < this.V; k++) {
-      let score = this.biases[k];
-      for (let d = 0; d < this.embDim; d++) {
-        score += H[d] * this.W[d][k];
-      }
-      logits.push(score);
-    }
+    const dec = this.decoder.decode(H);
 
     // 3. Softmax
-    const maxLogit = Math.max(...logits);
-    const exps = logits.map(l => Math.exp(l - maxLogit));
+    const maxLogit = Math.max(...dec.logits);
+    const exps = dec.logits.map(l => Math.exp(l - maxLogit));
     const sumExps = exps.reduce((a, b) => a + b, 0);
     const probs = exps.map(e => e / (sumExps + 1e-15));
 
-    return { probs, logits, H };
+    return { probs, logits: dec.logits, H };
   }
 
   trainStep(
@@ -129,31 +107,24 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
     // 2. Gradients w.r.t logits: g_k = pi_k - I[k == target]
     const gLogits = fwd.probs.map((pi, k) => pi - (k === targetIdx ? 1 : 0));
 
-    // 3. Gradients w.r.t weights, biases, and H
-    const dLogits = [...gLogits];
-    const db: number[] = [...gLogits];
-    
-    // Gradient w.r.t embeddings (due to mean pooling, dL/demb = dL/dH * 1/N)
-    const dEmb = new Array(this.embDim).fill(0);
-    for (let d = 0; d < this.embDim; d++) {
-      for (let k = 0; k < this.V; k++) {
-        dEmb[d] += dLogits[k] * this.W[d][k];
-      }
-      dEmb[d] /= N;
-    }
+    // 3. Update biases and weights (decoder)
+    this.decoder.update(fwd.H, gLogits, lr, reg);
 
-    // 4. Update Weights
-    for (let k = 0; k < this.V; k++) {
-      this.biases[k] -= lr * db[k];
+    // 4. Update embeddings (encoder)
+    if (N > 0) {
+      const dEmb = new Array(this.embDim).fill(0);
       for (let d = 0; d < this.embDim; d++) {
-        this.W[d][k] -= lr * (dLogits[k] * fwd.H[d] + reg * this.W[d][k]);
+        for (let k = 0; k < this.V; k++) {
+          dEmb[d] += gLogits[k] * this.W[k][d];
+        }
+        dEmb[d] /= N;
       }
-    }
 
-    for (let j = 0; j < N; j++) {
-      const charIdx = contextIndices[j];
-      for (let d = 0; d < this.embDim; d++) {
-        this.E[charIdx][d] -= lr * (dEmb[d] + reg * this.E[charIdx][d]);
+      for (let j = 0; j < N; j++) {
+        const charIdx = contextIndices[j];
+        for (let d = 0; d < this.embDim; d++) {
+          this.E[charIdx][d] -= lr * (dEmb[d] + reg * this.E[charIdx][d]);
+        }
       }
     }
 
@@ -170,7 +141,7 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
     let correctCount = 0;
 
     // Accumulators for gradients
-    const accumDW = Array.from({ length: this.embDim }, () => Array(this.V).fill(0.0));
+    const accumDW = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
     const accumDb = Array(this.V).fill(0.0);
     const accumDEmb = Array.from({ length: this.V }, () => Array(this.embDim).fill(0.0));
     const embCounts = Array(this.V).fill(0);
@@ -189,7 +160,7 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
         const gk = gLogits[k];
         accumDb[k] += gk;
         for (let d = 0; d < this.embDim; d++) {
-          accumDW[d][k] += gk * fwd.H[d];
+          accumDW[k][d] += gk * fwd.H[d];
         }
       }
 
@@ -198,7 +169,7 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
       for (let k = 0; k < this.V; k++) {
         const gk = gLogits[k];
         for (let d = 0; d < this.embDim; d++) {
-          dH[d] += gk * this.W[d][k];
+          dH[d] += gk * this.W[k][d];
         }
       }
 
@@ -215,7 +186,7 @@ export class EuclideanCharLearner extends CharLearner<EuclideanConfig, Euclidean
     for (let k = 0; k < this.V; k++) {
       this.biases[k] -= lr * (accumDb[k] / B);
       for (let d = 0; d < this.embDim; d++) {
-        this.W[d][k] -= lr * (accumDW[d][k] / B + reg * this.W[d][k]);
+        this.W[k][d] -= lr * (accumDW[k][d] / B + reg * this.W[k][d]);
       }
     }
 

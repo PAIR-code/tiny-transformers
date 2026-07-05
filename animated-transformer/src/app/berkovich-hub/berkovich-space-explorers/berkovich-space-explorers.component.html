@@ -171,7 +171,7 @@ limitations under the License.
         <div style="height: 1px; background: #e2e8f0; margin: 16px 0;"></div>
 
         <div class="form-grid" style="margin-bottom: 16px;">
-          @if (activeModel()?.configDefs; as defs) {
+          @if (configDefs(); as defs) {
             <!-- Using display: contents to keep the grid flow seamless -->
             <app-model-config-editor 
               style="display: contents;"
@@ -390,7 +390,7 @@ limitations under the License.
     <div id="how-it-works" class="dashboard-row" style="width: 100%; margin-top: 16px; scroll-margin-top: 20px;">
       <section class="card explainer-card" style="width: 100%;">
         <h3><mat-icon>info</mat-icon> How Model Inference Works?</h3>
-        @if (approach() === 'berkovich-bigram') {
+        @if (approach() === 'berkovich-bigram' || approach() === 'berkovich-bigram-bias') {
           <app-berkovich-bigram-walkthrough
             [details]="walkthroughDetails()"
             [walkthroughInput]="walkthroughInput()"

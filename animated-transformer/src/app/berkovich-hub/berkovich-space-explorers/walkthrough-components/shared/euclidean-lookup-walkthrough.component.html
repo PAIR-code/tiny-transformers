@@ -1,0 +1,25 @@
+<details class="lookup-details">
+  <summary class="lookup-summary" [textContent]="'Show Step 1 lookup details for ' + contextText()">
+  </summary>
+  <div class="lookup-content">
+    @for (charItem of embeddings(); track charItem.charIdx) {
+      <div class="char-item">
+        <div class="char-header">
+          Character {{ charItem.charIdx + 1 }}: <span class="char-badge">{{ wrapInQuotes(formatDisplayString(charItem.char)) }}</span>
+        </div>
+        <div class="char-data-wrapper">
+          <div class="emb-vector-row">
+            <strong>Embedding vector:</strong>
+            <span>
+              [{{ charItem.embeds[0]?.val?.toFixed(4) }}
+              @for (val of charItem.embeds.slice(1); track val.dim) {
+                , {{ val.val?.toFixed(4) }}
+              }
+              ]
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</details>

@@ -23,11 +23,13 @@ describe('EuclideanCharLearner Spec', () => {
   it('should initialize, forward and train', () => {
     const learner = new EuclideanCharLearner(vocab, embDim);
     expect(learner.E.length).toBe(vocab.length);
-    expect(learner.W.length).toBe(embDim);
+    expect(learner.W.length).toBe(vocab.length);
+    expect(learner.W[0].length).toBe(embDim);
     expect(learner.biases.length).toBe(vocab.length);
 
     const context = [0, 1, 2];
     const target = 3;
+    const config = { lr: 0.1, reg: 0.01 };
 
     const res = learner.forward(context);
     expect(res.probs.length).toBe(vocab.length);

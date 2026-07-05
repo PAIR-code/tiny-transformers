@@ -1,0 +1,37 @@
+.walkthrough-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.walkthrough-description {
+  margin: 0 0 12px 0;
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.walkthrough-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.explanatory-note {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: #475569;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
+.unactivated-message {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12.5px;
+}

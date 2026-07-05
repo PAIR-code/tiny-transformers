@@ -1,14 +1,16 @@
 import { PadicLinearCharLearner } from './padic-linear-char-learner';
+import { BerkovichConfig } from './berkovich-char-learner';
 
 describe('PadicLinearCharLearner', () => {
   it('should initialize and run forward without crashing', () => {
     const vocab = ['a', 'b', 'c'];
-    const learner = new PadicLinearCharLearner(vocab, 2, 2n);
-    const config = {
-      learningRate: 0.01,
-      regularization: 0.001,
+    const learner = new PadicLinearCharLearner(vocab, 2, 2);
+    const config: BerkovichConfig = {
+      lr: 0.01,
+      reg: 0.001,
+      regEmbed: 0.002,
       beta: 1.0,
-      aggMode: 'min' as 'min' | 'average'
+      aggMode: 'min'
     };
 
     // empty context
@@ -20,6 +22,6 @@ describe('PadicLinearCharLearner', () => {
     expect(out2).toBeDefined();
 
     // train step
-    learner.trainStep([0, 1], 2, config as any);
+    learner.trainStep([0, 1], 2, config);
   });
 });
