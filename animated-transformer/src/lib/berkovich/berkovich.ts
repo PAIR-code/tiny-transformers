@@ -1632,7 +1632,7 @@ export function stepSoftmaxGradients(
   };
 }
 
-export type BerkovichUnaryOperator = 'shift' | 'scale' | 'square';
+export type BerkovichUnaryOperator = 'shift' | 'scale' | 'square' | 'cube';
 
 export interface UnaryGradientsStepResult {
   nextCenterX: Rational;
@@ -1676,7 +1676,7 @@ export function stepUnaryOperatorGradients(
     // log_p |p|_p = -1
     outRho = -1.0 + rhoX;
     activeDegree = 1.0;
-  } else {
+  } else if (op === 'square') {
     // square: f(x) = x^2
     outCenter = multiply(cX, cX);
     const valC = getValuation(cX, p);
@@ -1692,6 +1692,24 @@ export function stepUnaryOperatorGradients(
     } else {
       activeDegree = 2.0;
     }
+  } else {
+    // cube: f(x) = x^3
+    outCenter = multiply(cX, multiply(cX, cX));
+    const valC = getValuation(cX, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const log3 = (p === 3n) ? -1.0 : 0.0;
+    const t1 = log3 + 2.0 * logNormC + rhoX;
+    const t2 = log3 + logNormC + 2.0 * rhoX;
+    const t3 = 3.0 * rhoX;
+    outRho = Math.max(t1, t2, t3);
+
+    let maxVal = outRho;
+    let sumDegrees = 0;
+    let count = 0;
+    if (Math.abs(t1 - maxVal) < 1e-9) { sumDegrees += 1.0; count++; }
+    if (Math.abs(t2 - maxVal) < 1e-9) { sumDegrees += 2.0; count++; }
+    if (Math.abs(t3 - maxVal) < 1e-9) { sumDegrees += 3.0; count++; }
+    activeDegree = sumDegrees / count;
   }
 
   // Truncate outCenter to tree range [-2, 1] for visual and boundary consistency
@@ -1790,12 +1808,23 @@ function evaluateCandidateLoss(
   } else if (op === 'scale') {
     outCenter = multiply(a, cX);
     outRho = -1.0 + rhoX;
-  } else {
+  } else if (op === 'square') {
     // square
     outCenter = multiply(cX, cX);
     const valC = getValuation(cX, p);
     const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
     outRho = Math.max(logNormC + rhoX, 2.0 * rhoX);
+  } else {
+    // cube
+    outCenter = multiply(cX, multiply(cX, cX));
+    const valC = getValuation(cX, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const log3 = (p === 3n) ? -1.0 : 0.0;
+    outRho = Math.max(
+      log3 + 2.0 * logNormC + rhoX,
+      log3 + logNormC + 2.0 * rhoX,
+      3.0 * rhoX
+    );
   }
 
   const outCenterTrunc = truncateToTreeRange(outCenter, p, -2, 1);

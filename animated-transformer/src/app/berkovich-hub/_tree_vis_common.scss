@@ -49,6 +49,11 @@
   transition: stroke 0.3s, stroke-width 0.3s, d 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.tree-edge.overlap-path {
+  stroke: #10b981;
+  stroke-width: 5;
+}
+
 .digit-bg {
   fill: #ffffff;
   stroke: #e2e8f0;

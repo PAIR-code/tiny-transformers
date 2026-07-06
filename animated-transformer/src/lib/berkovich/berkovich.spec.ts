@@ -853,6 +853,21 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     const valDiff = getValuation(subtract(result.outCenter, targetY), p);
     expect(valDiff.type).toBe('pos-infinity');
   });
+
+  it('should converge cube (x^3) to target 8', () => {
+    const p = 3n;
+    const targetY = parseToRational('8'); // 8
+    const startX = { center: parseToRational('1'), rho: 0.0 }; // x = 1
+
+    const result = runUnaryDescent(p, startX, 'cube', targetY);
+    if (!result.converged) {
+      expect.fail(result.trace.join('\n'));
+    }
+    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    // Assert that the output matches the target 8
+    const valDiff = getValuation(subtract(result.outCenter, targetY), p);
+    expect(valDiff.type).toBe('pos-infinity');
+  });
 });
 
 

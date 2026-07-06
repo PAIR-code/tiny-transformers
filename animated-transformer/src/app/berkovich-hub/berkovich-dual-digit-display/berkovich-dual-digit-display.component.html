@@ -1,0 +1,257 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<svg
+  [attr.width]="layout().totalWidth"
+  [attr.height]="svgHeight()"
+  class="dual-digit-svg"
+>
+  <defs>
+    <!-- Clip path for Row 1 to match the beveled outer border box -->
+    <clipPath id="row1Clip">
+      <rect
+        [attr.x]="MARGIN_LEFT - BOX_PADDING"
+        [attr.y]="row1Y - BOX_PADDING"
+        [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+        [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+        [attr.rx]="BOX_BORDER_RADIUS"
+        [attr.ry]="BOX_BORDER_RADIUS"
+      />
+    </clipPath>
+    <!-- Clip path for Row 2 to match the beveled outer border box -->
+    <clipPath id="row2Clip">
+      <rect
+        [attr.x]="MARGIN_LEFT - BOX_PADDING"
+        [attr.y]="row2Y - BOX_PADDING"
+        [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+        [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+        [attr.rx]="BOX_BORDER_RADIUS"
+        [attr.ry]="BOX_BORDER_RADIUS"
+      />
+    </clipPath>
+  </defs>
+
+  <!-- Row 1 Base Background Box (White) -->
+  <rect
+    [attr.x]="MARGIN_LEFT - BOX_PADDING"
+    [attr.y]="row1Y - BOX_PADDING"
+    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+    [attr.rx]="BOX_BORDER_RADIUS"
+    [attr.ry]="BOX_BORDER_RADIUS"
+    [style.fill]="COLOR_ROW_BG"
+    class="row-bg-box"
+  />
+
+  <!-- Row 2 Base Background Box (White) -->
+  <rect
+    [attr.x]="MARGIN_LEFT - BOX_PADDING"
+    [attr.y]="row2Y - BOX_PADDING"
+    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+    [attr.rx]="BOX_BORDER_RADIUS"
+    [attr.ry]="BOX_BORDER_RADIUS"
+    [style.fill]="COLOR_ROW_BG"
+    class="row-bg-box"
+  />
+
+  <!-- Grey background representing xRho (clipped to Row 1) -->
+  @if (xRhoBackgroundWidth() > 0) {
+    <rect
+      [attr.x]="MARGIN_LEFT - BOX_PADDING"
+      [attr.y]="row1Y - BOX_PADDING"
+      [attr.width]="xRhoBackgroundWidth()"
+      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [style.fill]="COLOR_RHO_SHADING"
+      [style.opacity]="OPACITY_RHO_SHADING"
+      clip-path="url(#row1Clip)"
+      class="x-rho-shading"
+    />
+  }
+
+  <!-- Grey background representing yRho (clipped to Row 2, if yRho is present) -->
+  @if (yRhoBackgroundWidth() > 0) {
+    <rect
+      [attr.x]="MARGIN_LEFT - BOX_PADDING"
+      [attr.y]="row2Y - BOX_PADDING"
+      [attr.width]="yRhoBackgroundWidth()"
+      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [style.fill]="COLOR_RHO_SHADING"
+      [style.opacity]="OPACITY_RHO_SHADING"
+      clip-path="url(#row2Clip)"
+      class="y-rho-shading"
+    />
+  }
+
+  <!-- Common matching digits background (green, clipped to outer borders) -->
+  @if (commonShadingRange(); as range) {
+    <!-- Green shading for Row 1 -->
+    <rect
+      [attr.x]="range.left"
+      [attr.y]="row1Y - BOX_PADDING"
+      [attr.width]="range.width"
+      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [style.fill]="COLOR_COMMON_SHADING"
+      [style.opacity]="OPACITY_COMMON_SHADING"
+      clip-path="url(#row1Clip)"
+      class="common-digit-shading"
+    />
+    <!-- Green shading for Row 2 -->
+    <rect
+      [attr.x]="range.left"
+      [attr.y]="row2Y - BOX_PADDING"
+      [attr.width]="range.width"
+      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [style.fill]="COLOR_COMMON_SHADING"
+      [style.opacity]="OPACITY_COMMON_SHADING"
+      clip-path="url(#row2Clip)"
+      class="common-digit-shading"
+    />
+  }
+
+  <!-- Decimal dot between 1 and 1/p (represented in layout by dotX) -->
+  @if (layout().dotX !== null) {
+    <circle
+      [attr.cx]="layout().dotX"
+      [attr.cy]="row1Y + CELL_HEIGHT - DOT_Y_OFFSET_FROM_BOTTOM"
+      [attr.r]="DOT_RADIUS"
+      [style.fill]="COLOR_DOT"
+      class="decimal-dot-mark"
+    />
+    <circle
+      [attr.cx]="layout().dotX"
+      [attr.cy]="row2Y + CELL_HEIGHT - DOT_Y_OFFSET_FROM_BOTTOM"
+      [attr.r]="DOT_RADIUS"
+      [style.fill]="COLOR_DOT"
+      class="decimal-dot-mark"
+    />
+  }
+
+  <!-- Digit boxes for Row 1 (x) -->
+  @for (col of layout().cellPositions; track col.power) {
+    <g class="digit-box-group row1-group">
+      <rect
+        [attr.x]="col.left + DIGIT_BOX_INSET"
+        [attr.y]="row1Y + DIGIT_BOX_INSET"
+        [attr.width]="CELL_WIDTH - 2 * DIGIT_BOX_INSET"
+        [attr.height]="CELL_HEIGHT - 2 * DIGIT_BOX_INSET"
+        rx="2"
+        ry="2"
+        class="digit-box-rect"
+      />
+      <text
+        [attr.x]="col.center"
+        [attr.y]="row1Y + CELL_HEIGHT / 2"
+        class="digit-text"
+      >
+        {{ getXDigitAtPower(col.power) }}
+      </text>
+    </g>
+  }
+
+  <!-- Digit boxes for Row 2 (y) -->
+  @for (col of layout().cellPositions; track col.power) {
+    <g class="digit-box-group row2-group">
+      <rect
+        [attr.x]="col.left + DIGIT_BOX_INSET"
+        [attr.y]="row2Y + DIGIT_BOX_INSET"
+        [attr.width]="CELL_WIDTH - 2 * DIGIT_BOX_INSET"
+        [attr.height]="CELL_HEIGHT - 2 * DIGIT_BOX_INSET"
+        rx="2"
+        ry="2"
+        class="digit-box-rect"
+      />
+      <text
+        [attr.x]="col.center"
+        [attr.y]="row2Y + CELL_HEIGHT / 2"
+        class="digit-text"
+      >
+        {{ getYDigitAtPower(col.power) }}
+      </text>
+    </g>
+  }
+
+  <!-- Border box around Row 1 (x) - Purple -->
+  <rect
+    [attr.x]="MARGIN_LEFT - BOX_PADDING"
+    [attr.y]="row1Y - BOX_PADDING"
+    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+    [attr.rx]="BOX_BORDER_RADIUS"
+    [attr.ry]="BOX_BORDER_RADIUS"
+    class="row-outer-box row1-outer-box"
+  />
+
+  <!-- Border box around Row 2 (y) - Yellow -->
+  <rect
+    [attr.x]="MARGIN_LEFT - BOX_PADDING"
+    [attr.y]="row2Y - BOX_PADDING"
+    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
+    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+    [attr.rx]="BOX_BORDER_RADIUS"
+    [attr.ry]="BOX_BORDER_RADIUS"
+    class="row-outer-box row2-outer-box"
+  />
+
+  <!-- Dotted guide lines & labels for x rho value -->
+  @if (xRhoBoundaryX() !== null) {
+    <line
+      [attr.x1]="xRhoBoundaryX()"
+      [attr.y1]="row1Y - BOX_PADDING"
+      [attr.x2]="xRhoBoundaryX()"
+      [attr.y2]="15"
+      class="rho-dotted-line"
+    />
+    <line
+      [attr.x1]="xRhoBoundaryX()"
+      [attr.y1]="15"
+      [attr.x2]="layout().totalWidth - MARGIN_RIGHT + 10"
+      [attr.y2]="15"
+      class="rho-dotted-line"
+    />
+    <text
+      [attr.x]="layout().totalWidth - MARGIN_RIGHT + 15"
+      y="18"
+      class="rho-label-text x-rho-label"
+    >
+      x_&rho; = {{ xRho().toFixed(2) }}
+    </text>
+  }
+
+  <!-- Dotted guide lines & labels for y rho value -->
+  @if (yRho() !== undefined && yRho() !== null && yRhoBoundaryX() !== null) {
+    <line
+      [attr.x1]="yRhoBoundaryX()"
+      [attr.y1]="row2Y + CELL_HEIGHT + BOX_PADDING"
+      [attr.x2]="yRhoBoundaryX()"
+      [attr.y2]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
+      class="rho-dotted-line"
+    />
+    <line
+      [attr.x1]="yRhoBoundaryX()"
+      [attr.y1]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
+      [attr.x2]="layout().totalWidth - MARGIN_RIGHT + 10"
+      [attr.y2]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
+      class="rho-dotted-line"
+    />
+    <text
+      [attr.x]="layout().totalWidth - MARGIN_RIGHT + 15"
+      [attr.y]="row2Y + CELL_HEIGHT + BOX_PADDING + 18"
+      class="rho-label-text y-rho-label"
+    >
+      y_&rho; = {{ yRho()!.toFixed(2) }}
+    </text>
+  }
+</svg>

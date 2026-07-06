@@ -1,16 +1,23 @@
 <mat-card class="visualizer-card">
   <mat-card-header>
-    <mat-card-title>
-      <mat-icon>account_tree</mat-icon>
-      Local Berkovich Subtree
+    <mat-card-title class="header-title-container">
+      <mat-icon>{{ currentVisMode() === 'tree' ? 'account_tree' : 'compare_arrows' }}</mat-icon>
+      <select [value]="currentVisMode()" (change)="onVisModeChange($event)" class="vis-mode-select">
+        <option value="tree">Local Berkovich Subtree</option>
+        <option value="dual-digit">Dual Digit Sequence</option>
+      </select>
     </mat-card-title>
     <mat-card-subtitle>
-      The <strong>yellow</strong> path indicates the target center <markdown [inline]="true" [katex]="true" [data]="'$y_c$'">
-      </markdown> (yellow circle).
-      The <strong>purple</strong> path is the parameter center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'">
-      </markdown>.
-      The glowing purple halo represents the current state.
-      The <strong>green</strong> path is the correct part of the current value from the root.
+      @if (currentVisMode() === 'tree') {
+        The <strong>yellow</strong> path indicates the target center <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown> (yellow circle).
+        The <strong>purple</strong> path is the parameter center <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown>.
+        The glowing purple halo represents the current state.
+        The <strong>green</strong> path is the correct part of the current value from the root.
+      } @else {
+        Comparing digit sequences: first row is parameter <markdown [inline]="true" [katex]="true" [data]="'$x_c$'"></markdown> (purple border), second row is target <markdown [inline]="true" [katex]="true" [data]="'$y_c$'"></markdown> (yellow border).
+        Shaded backgrounds show log-radius boundaries <markdown [inline]="true" [katex]="true" [data]="'$\\rho_x$'"></markdown> and <markdown [inline]="true" [katex]="true" [data]="'$\\rho_y$'"></markdown>.
+        Common right-most digits representing branching point <markdown [inline]="true" [katex]="true" [data]="'$d$'"></markdown> are shaded <strong class="green-text">green</strong>.
+      }
     </mat-card-subtitle>
   </mat-card-header>
 
@@ -36,309 +43,319 @@
       </div>
     </div>
 
-    @if (lcaCoord() !== null) {
-      <div class="lca-distance-explainer-anchor" [style.top.px]="lcaCoord()!.y">
-        <span class="lca-distance-text">d = {{ lcaDistanceVal() }}</span>
-        <app-berkovich-explainer 
-          title="Branching Distance (d)" 
-          [content]="distanceExplainerText"
-          [popupDirection]="lcaCoord()!.y < 230 ? 'down' : 'up'"
-        />
-      </div>
-    }
-    <svg
-      [attr.width]="svgWidth()"
-      [attr.height]="svgHeight"
-      [class.dragging-active]="isDraggingRho()"
-      class="tree-svg"
-      (pointermove)="onPointerMove($event)"
-      (pointerup)="onPointerUp($event)"
-      (pointerleave)="onPointerUp($event)"
-    >
-      <defs>
-        <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
-          <stop offset="30%" stop-color="#8b5cf6" stop-opacity="0.8" />
-          <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
-        </radialGradient>
-      </defs>
-
-      <!-- Shaded background for Berkovich Disk -->
-      @if (currentLogRadius() > rhoMin) {
-        <rect
-          [attr.x]="rhoLineRange().x1"
-          [attr.y]="rhoToY(currentLogRadius())"
-          [attr.width]="rhoLineRange().x2 - rhoLineRange().x1"
-          [attr.height]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
-          class="rho-disk-shading"
-        />
-      }
-
-      <!-- Shaded background for Target Berkovich Disk -->
-      @if (targetLogRadius() !== undefined && targetLogRadius()! > rhoMin) {
-        <rect
-          [attr.x]="targetRhoLineRange()!.x1"
-          [attr.y]="rhoToY(targetLogRadius()!)"
-          [attr.width]="targetRhoLineRange()!.x2 - targetRhoLineRange()!.x1"
-          [attr.height]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
-          class="target-disk-shading"
-        />
-      }
-
-      <!-- Decimal Place Divider Line -->
-      <line
-        [attr.x1]="0"
-        [attr.y1]="rhoToY(0)"
-        [attr.x2]="svgWidth()"
-        [attr.y2]="rhoToY(0)"
-        class="decimal-divider-line"
-      />
-
-      <!-- Draw Edges -->
-      @for (edge of treeVisuals().edges; track edge.id) {
-        <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
-          <path
-            [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
-            [class.target-path]="targetPathEdges().has(edge.id)"
-            [class.parameter-path]="parameterPathEdges().has(edge.id)"
-            [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
-            [class.inactive-stub]="!edge.isActive"
-            [class.candidate-branch]="junctionCandidates().edges.has(edge.id)"
-            class="tree-edge"
+    @if (currentVisMode() === 'tree') {
+      @if (lcaCoord() !== null) {
+        <div class="lca-distance-explainer-anchor" [style.top.px]="lcaCoord()!.y">
+          <span class="lca-distance-text">d = {{ lcaDistanceVal() }}</span>
+          <app-berkovich-explainer 
+            title="Branching Distance (d)" 
+            [content]="distanceExplainerText"
+            [popupDirection]="lcaCoord()!.y < 230 ? 'down' : 'up'"
           />
-          <!-- Branch Digit Labels -->
+        </div>
+      }
+      <svg
+        [attr.width]="svgWidth()"
+        [attr.height]="svgHeight"
+        [class.dragging-active]="isDraggingRho()"
+        class="tree-svg"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)"
+        (pointerleave)="onPointerUp($event)"
+      >
+        <defs>
+          <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="1" />
+            <stop offset="30%" stop-color="#8b5cf6" stop-opacity="0.8" />
+            <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+
+        <!-- Shaded background for Berkovich Disk -->
+        @if (currentLogRadius() > rhoMin) {
+          <rect
+            [attr.x]="rhoLineRange().x1"
+            [attr.y]="rhoToY(currentLogRadius())"
+            [attr.width]="rhoLineRange().x2 - rhoLineRange().x1"
+            [attr.height]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+            class="rho-disk-shading"
+          />
+        }
+
+        <!-- Shaded background for Target Berkovich Disk -->
+        @if (targetLogRadius() !== undefined && targetLogRadius()! > rhoMin) {
+          <rect
+            [attr.x]="targetRhoLineRange()!.x1"
+            [attr.y]="rhoToY(targetLogRadius()!)"
+            [attr.width]="targetRhoLineRange()!.x2 - targetRhoLineRange()!.x1"
+            [attr.height]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+            class="target-disk-shading"
+          />
+        }
+
+        <!-- Decimal Place Divider Line -->
+        <line
+          [attr.x1]="0"
+          [attr.y1]="rhoToY(0)"
+          [attr.x2]="svgWidth()"
+          [attr.y2]="rhoToY(0)"
+          class="decimal-divider-line"
+        />
+
+        <!-- Draw Edges -->
+        @for (edge of treeVisuals().edges; track edge.id) {
+          <g class="tree-edge-group" [class.candidate-edge-group]="junctionCandidates().edges.has(edge.id)">
+            <path
+              [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
+              [class.target-path]="targetPathEdges().has(edge.id)"
+              [class.parameter-path]="parameterPathEdges().has(edge.id)"
+              [class.overlap-path]="targetPathEdges().has(edge.id) && parameterPathEdges().has(edge.id)"
+              [class.inactive-stub]="!edge.isActive"
+              [class.candidate-branch]="junctionCandidates().edges.has(edge.id)"
+              class="tree-edge"
+            />
+            <!-- Branch Digit Labels -->
+            <g
+              class="digit-label-group"
+              [style.--start-x.px]="edge.startX ?? (edge.x1 + edge.x2) / 2"
+              [style.--start-y.px]="edge.startY ?? (edge.y1 + edge.y2) / 2"
+              [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+            >
+              <circle
+                cx="0"
+                cy="0"
+                r="9"
+                [class.inactive-stub]="!edge.isActive"
+                class="digit-bg"
+              />
+              <text
+                x="0"
+                y="0"
+                [class.inactive-stub]="!edge.isActive"
+                class="digit-label"
+              >
+                {{ edge.digitLabel }}
+              </text>
+            </g>
+          </g>
+        }
+
+        <!-- Draw Nodes -->
+        @for (node of treeVisuals().nodes; track node.id) {
           <g
-            class="digit-label-group"
-            [style.--start-x.px]="edge.startX ?? (edge.x1 + edge.x2) / 2"
-            [style.--start-y.px]="edge.startY ?? (edge.y1 + edge.y2) / 2"
-            [style.transform]="'translate(' + (edge.x1 + edge.x2) / 2 + 'px, ' + (edge.y1 + edge.y2) / 2 + 'px)'"
+            class="tree-node-group"
+            [style.--start-x.px]="node.startX ?? node.x"
+            [style.--start-y.px]="node.startY ?? node.y"
+            [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
           >
             <circle
               cx="0"
               cy="0"
-              r="9"
-              [class.inactive-stub]="!edge.isActive"
-              class="digit-bg"
+              [attr.r]="node.logRadius === rhoMin ? 4 : 5"
+              [class.leaf-node]="node.logRadius === rhoMin"
+              [class.vertex-node]="node.logRadius > rhoMin"
+              [class.inactive-stub]="!node.isActive"
+              [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
+              class="tree-node"
             />
-            <text
-              x="0"
-              y="0"
-              [class.inactive-stub]="!edge.isActive"
-              class="digit-label"
-            >
-              {{ edge.digitLabel }}
-            </text>
+            <!-- Removed root and leaf text labels -->
           </g>
-        </g>
-      }
+        }
 
-      <!-- Draw Nodes -->
-      @for (node of treeVisuals().nodes; track node.id) {
-        <g
-          class="tree-node-group"
-          [style.--start-x.px]="node.startX ?? node.x"
-          [style.--start-y.px]="node.startY ?? node.y"
-          [style.transform]="'translate(' + node.x + 'px, ' + node.y + 'px)'"
-        >
-          <circle
-            cx="0"
-            cy="0"
-            [attr.r]="node.logRadius === rhoMin ? 4 : 5"
-            [class.leaf-node]="node.logRadius === rhoMin"
-            [class.vertex-node]="node.logRadius > rhoMin"
-            [class.inactive-stub]="!node.isActive"
-            [class.candidate-node]="junctionCandidates().nodes.has(node.id)"
-            class="tree-node"
-          />
-          <!-- Removed root and leaf text labels -->
-        </g>
-      }
+        <!-- Target Indicator Flag -->
+        @if (targetLogRadius() !== undefined) {
+          <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()!) + 'px)'">
+            <!-- Target vertical guide lines down to leaf level -->
+            @if (targetLogRadius()! > rhoMin) {
+              <line
+                [attr.x1]="targetRhoLineRange()!.x1"
+                y1="0"
+                [attr.x2]="targetRhoLineRange()!.x1"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+                class="target-rho-guide-line"
+              />
+              <line
+                [attr.x1]="targetRhoLineRange()!.x2"
+                y1="0"
+                [attr.x2]="targetRhoLineRange()!.x2"
+                [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
+                class="target-rho-guide-line"
+              />
+            }
 
-      <!-- Target Indicator Flag -->
-      @if (targetLogRadius() !== undefined) {
-        <g class="target-rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(targetLogRadius()!) + 'px)'">
-          <!-- Target vertical guide lines down to leaf level -->
-          @if (targetLogRadius()! > rhoMin) {
             <line
               [attr.x1]="targetRhoLineRange()!.x1"
               y1="0"
-              [attr.x2]="targetRhoLineRange()!.x1"
-              [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
-              class="target-rho-guide-line"
-            />
-            <line
-              [attr.x1]="targetRhoLineRange()!.x2"
-              y1="0"
               [attr.x2]="targetRhoLineRange()!.x2"
-              [attr.y2]="rhoToY(rhoMin) - rhoToY(targetLogRadius()!)"
-              class="target-rho-guide-line"
+              y2="0"
+              class="target-rho-level-line"
             />
-          }
-
-          <line
-            [attr.x1]="targetRhoLineRange()!.x1"
-            y1="0"
-            [attr.x2]="targetRhoLineRange()!.x2"
-            y2="0"
-            class="target-rho-level-line"
-          />
-          <text
-            [attr.x]="targetRhoLineRange()!.x2 + 8"
-            y="4"
-            class="target-rho-level-text"
-          >
-            y_&rho; = {{ targetLogRadius()!.toFixed(2) }}
-          </text>
-        </g>
-        <g class="target-marker" [style.transform]="'translate(' + targetParameterCoord()!.x + 'px, ' + targetParameterCoord()!.y + 'px)'">
-          <circle r="12" class="target-outer" />
-          <circle r="4" class="target-inner" />
-        </g>
-      } @else {
-        @for (node of treeVisuals().nodes; track node.id) {
-          @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
-            <!-- Draw Target Marker -->
-            <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
-              <circle r="12" class="target-outer" />
-              <circle r="4" class="target-inner" />
-            </g>
+            <text
+              [attr.x]="targetRhoLineRange()!.x2 + 8"
+              y="4"
+              class="target-rho-level-text"
+            >
+              y_&rho; = {{ targetLogRadius()!.toFixed(2) }}
+            </text>
+          </g>
+          <g class="target-marker" [style.transform]="'translate(' + targetParameterCoord()!.x + 'px, ' + targetParameterCoord()!.y + 'px)'">
+            <circle r="12" class="target-outer" />
+            <circle r="4" class="target-inner" />
+          </g>
+        } @else {
+          @for (node of treeVisuals().nodes; track node.id) {
+            @if (node.logRadius === rhoMin && isNodeOnTargetPath(node)) {
+              <!-- Draw Target Marker -->
+              <g class="target-marker" [attr.transform]="'translate(' + node.x + ',' + node.y + ')'">
+                <circle r="12" class="target-outer" />
+                <circle r="4" class="target-inner" />
+              </g>
+            }
           }
         }
-      }
 
-      <!-- Distance path line (LCA to Right of SVG) -->
-      @if (lcaCoord() !== null) {
-        <g class="lca-path-group" [style.transform]="'translate(0px, ' + lcaCoord()!.y + 'px)'">
-          <line
-            [attr.x1]="lcaCoord()!.x"
-            y1="0"
-            [attr.x2]="svgWidth()"
-            y2="0"
-            class="lca-path-line"
-          />
-        </g>
-      }
+        <!-- Distance path line (LCA to Right of SVG) -->
+        @if (lcaCoord() !== null) {
+          <g class="lca-path-group" [style.transform]="'translate(0px, ' + lcaCoord()!.y + 'px)'">
+            <line
+              [attr.x1]="lcaCoord()!.x"
+              y1="0"
+              [attr.x2]="svgWidth()"
+              y2="0"
+              class="lca-path-line"
+            />
+          </g>
+        }
 
-      <!-- Candidate Losses at Nodes -->
-      @for (cand of cachedCandidates(); track cand.branch) {
-        <g 
-          [attr.transform]="'translate(' + getCandidateCoords(cand).x + ',' + getCandidateCoords(cand).y + ')'"
-          class="candidate-loss-group"
-          [class.visible]="showCandidates()"
-          [class.best-candidate-group]="cand.branch === cachedBestBranch()"
-          [class.fading-out]="fadingOutNonOptimal() && cand.branch !== cachedBestBranch()"
-        >
-          <rect x="-23" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === cachedBestBranch()" />
-          <text x="0" y="0" class="candidate-loss-label" [class.best-candidate]="cand.branch === cachedBestBranch()">
-            L={{ cand.lossVal.toFixed(2) }}
-          </text>
-        </g>
-      }
+        <!-- Candidate Losses at Nodes -->
+        @for (cand of cachedCandidates(); track cand.branch) {
+          <g 
+            [attr.transform]="'translate(' + getCandidateCoords(cand).x + ',' + getCandidateCoords(cand).y + ')'"
+            class="candidate-loss-group"
+            [class.visible]="showCandidates()"
+            [class.best-candidate-group]="cand.branch === cachedBestBranch()"
+            [class.fading-out]="fadingOutNonOptimal() && cand.branch !== cachedBestBranch()"
+          >
+            <rect x="-23" y="-7" width="46" height="14" rx="2" ry="2" class="candidate-loss-bg" [class.best-candidate-bg]="cand.branch === cachedBestBranch()" />
+            <text x="0" y="0" class="candidate-loss-label" [class.best-candidate]="cand.branch === cachedBestBranch()">
+              L={{ cand.lossVal.toFixed(2) }}
+            </text>
+          </g>
+        }
 
-      <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
-      <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
-        <!-- Dotted vertical guide lines down to leaf level -->
-        @if (currentLogRadius() > rhoMin) {
+        <!-- Continuous Log-Radius (Rho) Level Line Indicator Group -->
+        <g class="rho-level-group" [style.transform]="'translate(0px, ' + rhoToY(currentLogRadius()) + 'px)'">
+          <!-- Dotted vertical guide lines down to leaf level -->
+          @if (currentLogRadius() > rhoMin) {
+            <line
+              [attr.x1]="rhoLineRange().x1"
+              y1="0"
+              [attr.x2]="rhoLineRange().x1"
+              [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+              class="rho-guide-line"
+            />
+            <line
+              [attr.x1]="rhoLineRange().x2"
+              y1="0"
+              [attr.x2]="rhoLineRange().x2"
+              [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
+              class="rho-guide-line"
+            />
+          }
+
           <line
             [attr.x1]="rhoLineRange().x1"
             y1="0"
+            [attr.x2]="rhoLineRange().x2"
+            y2="0"
+            class="rho-level-line"
+          />
+          <!-- Left and right end cap ticks -->
+          <line
+            [attr.x1]="rhoLineRange().x1"
+            y1="-4"
             [attr.x2]="rhoLineRange().x1"
-            [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
-            class="rho-guide-line"
+            y2="4"
+            class="rho-level-cap"
           />
           <line
             [attr.x1]="rhoLineRange().x2"
+            y1="-4"
+            [attr.x2]="rhoLineRange().x2"
+            y2="4"
+            class="rho-level-cap"
+          />
+
+          <line
+            [attr.x1]="rhoLineRange().x1"
             y1="0"
             [attr.x2]="rhoLineRange().x2"
-            [attr.y2]="rhoToY(rhoMin) - rhoToY(currentLogRadius())"
-            class="rho-guide-line"
+            y2="0"
+            class="rho-drag-handle"
+            (pointerdown)="onPointerDown($event)"
+          />
+          <!-- Drag-able Label outline background box -->
+          <rect
+            [attr.x]="rhoLabelX()"
+            y="-9"
+            width="73"
+            height="18"
+            rx="3"
+            ry="3"
+            class="rho-label-bg"
+            (pointerdown)="onPointerDown($event)"
+          />
+          <text
+            [attr.x]="rhoLabelX() + 4"
+            y="1"
+            class="rho-level-text"
+          >
+            x_&rho; = {{ currentLogRadius().toFixed(2) }}
+          </text>
+          <!-- Up/Down Arrow for Gradient -->
+          @if (gradientBreakdown()?.gRho !== undefined) {
+            <text
+              [attr.x]="rhoLabelX() + 82"
+              y="2"
+              class="rho-gradient-arrow"
+              [class.gradient-up]="gradientBreakdown()!.gRho! > 0"
+              [class.gradient-down]="gradientBreakdown()!.gRho! < 0"
+            >
+              {{ gradientBreakdown()!.gRho! > 0 ? '↓' : '↑' }}
+            </text>
+          }
+        </g>
+
+        <!-- Dotted circles at step-points in history -->
+        @for (coord of historyCoords(); track $index) {
+          <circle
+            [attr.cx]="coord.x"
+            [attr.cy]="coord.y"
+            r="5"
+            class="history-dot"
+            [style.opacity]="coord.opacity"
           />
         }
 
-        <line
-          [attr.x1]="rhoLineRange().x1"
-          y1="0"
-          [attr.x2]="rhoLineRange().x2"
-          y2="0"
-          class="rho-level-line"
-        />
-        <!-- Left and right end cap ticks -->
-        <line
-          [attr.x1]="rhoLineRange().x1"
-          y1="-4"
-          [attr.x2]="rhoLineRange().x1"
-          y2="4"
-          class="rho-level-cap"
-        />
-        <line
-          [attr.x1]="rhoLineRange().x2"
-          y1="-4"
-          [attr.x2]="rhoLineRange().x2"
-          y2="4"
-          class="rho-level-cap"
-        />
-
-        <line
-          [attr.x1]="rhoLineRange().x1"
-          y1="0"
-          [attr.x2]="rhoLineRange().x2"
-          y2="0"
-          class="rho-drag-handle"
-          (pointerdown)="onPointerDown($event)"
-        />
-        <!-- Drag-able Label outline background box -->
-        <rect
-          [attr.x]="rhoLabelX()"
-          y="-9"
-          width="73"
-          height="18"
-          rx="3"
-          ry="3"
-          class="rho-label-bg"
-          (pointerdown)="onPointerDown($event)"
-        />
-        <text
-          [attr.x]="rhoLabelX() + 4"
-          y="1"
-          class="rho-level-text"
-        >
-          x_&rho; = {{ currentLogRadius().toFixed(2) }}
-        </text>
-        <!-- Up/Down Arrow for Gradient -->
-        @if (gradientBreakdown()?.gRho !== undefined) {
-          <text
-            [attr.x]="rhoLabelX() + 82"
-            y="2"
-            class="rho-gradient-arrow"
-            [class.gradient-up]="gradientBreakdown()!.gRho! > 0"
-            [class.gradient-down]="gradientBreakdown()!.gRho! < 0"
-          >
-            {{ gradientBreakdown()!.gRho! > 0 ? '↓' : '↑' }}
-          </text>
-        }
-      </g>
-
-      <!-- Dotted circles at step-points in history -->
-      @for (coord of historyCoords(); track $index) {
-        <circle
-          [attr.cx]="coord.x"
-          [attr.cy]="coord.y"
-          r="5"
-          class="history-dot"
-          [style.opacity]="coord.opacity"
-        />
-      }
-
-      <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
-      <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
-        <circle
-          cx="0"
-          cy="0"
-          r="12"
-          class="parameter-halo"
-        />
-      </g>
-    </svg>
+        <!-- Parameter Vertex Overlay Layer (Halo + Label) -->
+        <g class="parameter-overlay" [style.transform]="'translate(' + currentParameterCoord().x + 'px, ' + currentParameterCoord().y + 'px)'">
+          <circle
+            cx="0"
+            cy="0"
+            r="12"
+            class="parameter-halo"
+          />
+        </g>
+      </svg>
+    } @else {
+      <app-berkovich-dual-digit-display
+        [prime]="prime()"
+        [xCenter]="currentCenter()"
+        [xRho]="currentLogRadius()"
+        [yCenter]="targetRational()"
+        [yRho]="targetLogRadius()"
+      />
+    }
   </mat-card-content>
 
   <div class="visualizer-card-footer">

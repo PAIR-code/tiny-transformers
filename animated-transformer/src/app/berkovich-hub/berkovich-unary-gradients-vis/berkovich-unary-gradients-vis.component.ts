@@ -108,12 +108,15 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
   readonly history = signal<any[]>([]);
   readonly canUndo = computed(() => this.history().length > 0);
 
+  readonly playStepMs = signal<number>(1000);
+
   private playIntervalId: any = null;
 
   readonly subtitleMath = computed(() => {
     const op = this.operator();
     if (op === 'scale') return '$p \\cdot x \\to y$';
     if (op === 'square') return '$x^2 \\to y$';
+    if (op === 'cube') return '$x^3 \\to y$';
     return '$x + 1 \\to y$';
   });
 
@@ -147,6 +150,20 @@ Depending on which term dominates, the derivative (active degree) $\\partial (x^
 2. **Gradient on Radius ($\\partial L / \\partial \\rho_x$)**: The gradient flows back scaled by the active degree ($1.0$, $1.5$ or $2.0$).
       `;
     }
+    if (op === 'cube') {
+      return `
+This page demonstrates training the input $x$ of a cubic operation $x^3$ to match a target disk $y$.
+
+### The Cube Radius Formula
+The cubic operation propagates uncertainty as:
+$$(x^3)_\\rho = \\max(\\log_p |3x_c^2|_p + \\rho_x, \\quad \\log_p |3x_c|_p + 2\\rho_x, \\quad 3\\rho_x)$$
+Depending on which term dominates, the active degree is $1.0$, $2.0$, or $3.0$.
+
+### How Gradients Flow
+1. **Gradient on Center ($\\partial L / \\partial c_x$)**: The gradient w.r.t center propagates back using the derivative of cubing ($3x^2$).
+2. **Gradient on Radius ($\\partial L / \\partial \\rho_x$)**: The gradient flows back scaled by the active degree ($1.0$, $2.0$, or $3.0$).
+      `;
+    }
     return `
 This page demonstrates training the input $x$ of a shift operation $x + 1$ to match a target disk $y$.
 
@@ -178,56 +195,42 @@ $$(x + 1)_\\rho = \\rho_x$$
     const op = this.operator();
     const details = this.stepDetails();
     const p = BigInt(this.prime());
-    const labelOut = op === 'scale' ? '(px)_ρ' : op === 'square' ? '(x²)_ρ' : '(x+1)_ρ';
-    const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : 'X1';
+    const labelOut = op === 'scale' ? '(px)_ρ' : op === 'square' ? '(x²)_ρ' : op === 'cube' ? '(x³)_ρ' : '(x+1)_ρ';
+    const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : op === 'cube' ? 'X3' : 'X1';
 
-    let centerC: Rational;
-    let rhoC: number;
-    let labelC: string;
+    const nodes: TrackedNode[] = [
+      { id: 'X', center: this.centerX(), rho: this.rhoX(), color: '#60a5fa', label: 'x_ρ' }
+    ];
 
-    if (op === 'scale') {
-      centerC = simplify({ num: p, den: 1n });
-      rhoC = -2;
-      labelC = 'c = p';
-    } else if (op === 'square') {
-      centerC = this.centerX();
-      rhoC = this.rhoX();
-      labelC = 'x_ρ (copy)';
-    } else {
-      centerC = simplify({ num: 1n, den: 1n });
-      rhoC = -2;
-      labelC = 'c = 1';
+    if (op === 'scale' || op === 'shift') {
+      let centerC: Rational;
+      let rhoC: number;
+      let labelC: string;
+
+      if (op === 'scale') {
+        centerC = simplify({ num: p, den: 1n });
+        rhoC = -2;
+        labelC = 'c = p';
+      } else {
+        centerC = simplify({ num: 1n, den: 1n });
+        rhoC = -2;
+        labelC = 'c = 1';
+      }
+      nodes.push({ id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: labelC });
     }
 
-    return [
-      { id: 'X', center: this.centerX(), rho: this.rhoX(), color: '#60a5fa', label: 'x_ρ' },
-      { id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: labelC },
+    nodes.push(
       { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
       { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
-    ];
+    );
+    return nodes;
   });
 
   // Editable inputs for inline editing inside the tree vis
   readonly editableInputs = computed<EditableNodeInputs[]>(() => {
     const op = this.operator();
 
-    let centerCInput: string;
-    let rhoCInput: string | undefined = undefined;
-    let labelPrefixC: string;
-
-    if (op === 'scale') {
-      centerCInput = '10.';
-      labelPrefixC = 'c';
-    } else if (op === 'square') {
-      centerCInput = this.centerXInput();
-      rhoCInput = this.rhoXInput();
-      labelPrefixC = 'x';
-    } else {
-      centerCInput = '1';
-      labelPrefixC = 'c';
-    }
-
-    return [
+    const inputs: EditableNodeInputs[] = [
       {
         nodeId: 'X',
         trackedNodeId: 'X',
@@ -235,24 +238,30 @@ $$(x + 1)_\\rho = \\rho_x$$
         rhoInput: this.rhoXInput(),
         color: '#60a5fa',
         labelPrefix: 'x'
-      },
-      {
+      }
+    ];
+
+    if (op === 'scale' || op === 'shift') {
+      const centerCInput = op === 'scale' ? '10.' : '1';
+      inputs.push({
         nodeId: 'C',
         trackedNodeId: 'C',
         centerInput: centerCInput,
-        rhoInput: rhoCInput,
         color: '#94a3b8',
-        labelPrefix: labelPrefixC,
+        labelPrefix: 'c',
         readonly: true
-      },
-      {
-        nodeId: 'Y',
-        trackedNodeId: 'Y',
-        centerInput: this.centerYInput(),
-        color: '#eab308',
-        labelPrefix: 'y'
-      }
-    ];
+      });
+    }
+
+    inputs.push({
+      nodeId: 'Y',
+      trackedNodeId: 'Y',
+      centerInput: this.centerYInput(),
+      color: '#eab308',
+      labelPrefix: 'y'
+    });
+
+    return inputs;
   });
 
   // Handlers
@@ -267,6 +276,9 @@ $$(x + 1)_\\rho = \\rho_x$$
     } else if (op === 'square') {
       this.centerXInput.set('01.00'); // 1
       this.centerYInput.set('11.00'); // 4 (11_3)
+    } else if (op === 'cube') {
+      this.centerXInput.set('01.00'); // 1
+      this.centerYInput.set('22.00'); // 8 (22_3)
     } else {
       this.centerXInput.set('01.00'); // 1
       this.centerYInput.set('10.00'); // 3 (10_3)
@@ -393,6 +405,7 @@ $$(x + 1)_\\rho = \\rho_x$$
       this.stopPlaying();
     } else {
       this.isPlaying.set(true);
+      const interval = this.playStepMs();
       this.playIntervalId = setInterval(() => {
         const d = this.stepDetails();
         if (d.loss <= 1e-6) {
@@ -400,7 +413,7 @@ $$(x + 1)_\\rho = \\rho_x$$
           return;
         }
         this.onStep();
-      }, 150);
+      }, interval);
     }
   }
 

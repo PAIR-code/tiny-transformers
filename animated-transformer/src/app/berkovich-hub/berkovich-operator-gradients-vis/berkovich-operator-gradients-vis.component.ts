@@ -84,6 +84,8 @@ export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
   }[]>([]);
   readonly canUndo = computed(() => this.history().length > 0);
 
+  readonly playStepMs = signal<number>(1000);
+
   private playIntervalId: any = null;
 
   readonly subtitleMath = computed(() => {
@@ -502,13 +504,14 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
 
   private startPlaying() {
     this.isPlaying.set(true);
+    const interval = this.playStepMs();
     this.playIntervalId = setInterval(() => {
       if (this.loss() <= 1e-7) {
         this.stopPlaying();
         return;
       }
       this.onStep();
-    }, 500);
+    }, interval);
   }
 
   private stopPlaying() {

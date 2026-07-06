@@ -13,11 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, output, computed, signal, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, computed, signal, effect, untracked, ChangeDetectionStrategy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MarkdownComponent } from 'ngx-markdown';
 import katex from 'katex';
 // @ts-ignore
@@ -41,6 +42,7 @@ import {
   extValuationGe
 } from '../../../../lib/berkovich/berkovich';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 
 export interface VisualNode {
   id: string;
@@ -76,11 +78,28 @@ export interface VisualEdge {
     MatIconModule,
     MatButtonModule,
     MarkdownComponent,
-    BerkovichExplainerComponent
+    BerkovichExplainerComponent,
+    BerkovichDualDigitDisplayComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BerkovichTreeVisComponent {
+export class BerkovichTreeVisComponent implements OnInit {
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  // Vis mode
+  readonly currentVisMode = signal<'tree' | 'dual-digit'>('tree');
+
+  ngOnInit(): void {
+    // Sync from URL params on load / route changes
+    this.route.queryParams.subscribe(params => {
+      const mode = params['visMode'];
+      if ((mode === 'tree' || mode === 'dual-digit') && mode !== this.currentVisMode()) {
+        this.currentVisMode.set(mode);
+      }
+    });
+  }
+
   // Inputs
   readonly prime = input.required<number>();
   readonly targetRational = input.required<Rational>();
@@ -784,6 +803,21 @@ The distance $d = -\\nu_p(c - y)$ indicates the **height (log-radius)** of the L
   }
 
   constructor() {
+    effect(() => {
+      const mode = this.currentVisMode();
+      untracked(() => {
+        const currentParams = this.route.snapshot.queryParams;
+        if (currentParams['visMode'] !== mode) {
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { visMode: mode },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        }
+      });
+    });
+
     // Track previous node positions for slide-out animations
     effect(() => {
       const visuals = this.treeVisuals();
@@ -950,6 +984,12 @@ The distance $d = -\\nu_p(c - y)$ indicates the **height (log-radius)** of the L
       } catch {}
       this.manualLogRadiusAdjust.emit(this.currentLogRadius());
     }
+  }
+
+
+  onVisModeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.currentVisMode.set(select.value as 'tree' | 'dual-digit');
   }
 
   onLogRadiusInputChange(val: string): void {

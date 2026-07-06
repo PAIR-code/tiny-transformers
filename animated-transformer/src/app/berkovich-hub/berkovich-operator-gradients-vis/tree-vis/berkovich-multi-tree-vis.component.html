@@ -60,47 +60,49 @@ limitations under the License.
       }
       <!-- Per-tree input labels rendered above each tree root -->
       @for (label of treeInputLabels(); track label.trackedNodeId) {
-        @if (label.inp) {
+        @if (label.inputs.length > 0) {
           <foreignObject
             [attr.x]="label.editorX"
             [attr.y]="2"
-            width="110"
-            height="62"
+            width="125"
+            [attr.height]="label.inputs.length > 1 ? 95 : 62"
             class="tree-input-fo"
           >
             <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label">
-              @if (!label.inp.readonly) {
-                <div class="editor-row">
-                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
-                  <input
-                    class="mini-digit-input"
-                    [value]="label.inp.centerInput"
-                    (change)="onInputChange(label.inp.nodeId, 'center', $any($event.target).value)"
-                    (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'center' })"
-                  />
-                </div>
-                @if (label.inp.rhoInput !== undefined) {
+              @for (inp of label.inputs; track inp.nodeId) {
+                @if (!inp.readonly) {
                   <div class="editor-row">
-                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
+                    <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
                     <input
-                      class="mini-digit-input mini-rho-input"
-                      type="text"
-                      [value]="label.inp.rhoInput"
-                      (change)="onInputChange(label.inp.nodeId, 'rho', $any($event.target).value)"
-                      (blur)="inputBlur.emit({ nodeId: label.inp.nodeId, field: 'rho' })"
+                      class="mini-digit-input"
+                      [value]="inp.centerInput"
+                      (change)="onInputChange(inp.nodeId, 'center', $any($event.target).value)"
+                      (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'center' })"
                     />
                   </div>
-                }
-              } @else {
-                <div class="editor-row">
-                  <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>c</sub></span>
-                  <span class="mini-digit-display">{{ label.inp.centerInput }}</span>
-                </div>
-                @if (label.inp.rhoInput !== undefined) {
+                  @if (inp.rhoInput !== undefined) {
+                    <div class="editor-row">
+                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
+                      <input
+                        class="mini-digit-input mini-rho-input"
+                        type="text"
+                        [value]="inp.rhoInput"
+                        (change)="onInputChange(inp.nodeId, 'rho', $any($event.target).value)"
+                        (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'rho' })"
+                      />
+                    </div>
+                  }
+                } @else {
                   <div class="editor-row">
-                    <span class="editor-label" [style.color]="label.inp.color">{{ label.inp.labelPrefix }}<sub>ρ</sub></span>
-                    <span class="mini-digit-display">{{ label.inp.rhoInput }}</span>
+                    <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
+                    <span class="mini-digit-display">{{ inp.centerInput }}</span>
                   </div>
+                  @if (inp.rhoInput !== undefined) {
+                    <div class="editor-row">
+                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
+                      <span class="mini-digit-display">{{ inp.rhoInput }}</span>
+                    </div>
+                  }
                 }
               }
             </div>
@@ -135,8 +137,9 @@ limitations under the License.
           <path
             [attr.d]="'M ' + edge.x1 + ' ' + edge.y1 + ' L ' + edge.x2 + ' ' + edge.y2"
             [class.inactive-stub]="!edge.isActive"
+            [class.overlap-path]="edge.colors.length > 1"
             class="tree-edge"
-            [style.stroke]="edge.colors.length > 0 ? edge.colors[0] : ''"
+            [style.stroke]="edge.colors.length === 1 ? edge.colors[0] : (edge.colors.length > 1 ? '#10b981' : '')"
             [style.stroke-width]="edge.isActive ? 3.5 : 1.5"
           />
           <!-- Branch Digit Labels -->
@@ -248,6 +251,47 @@ limitations under the License.
 
   </mat-card-content>
 
+  @if (editableInputs() && showSettings()) {
+    <div class="vis-settings-pane">
+      <div class="settings-title">Spacing Parameters</div>
+      <div class="settings-row">
+        <div class="setting-item">
+          <label for="base-gap-field">Base Gap:</label>
+          <input 
+            id="base-gap-field"
+            type="number" 
+            [value]="baseGap()" 
+            (change)="onBaseGapChange($event)"
+            class="mini-digit-input spacing-input"
+          />
+        </div>
+        <div class="setting-item">
+          <label for="min-gap-field">Min Node Gap:</label>
+          <input 
+            id="min-gap-field"
+            type="number" 
+            [value]="minNodeGap()" 
+            (change)="onMinNodeGapChange($event)"
+            class="mini-digit-input spacing-input"
+          />
+        </div>
+        <div class="setting-item">
+          <label for="speed-field">Step Duration (ms):</label>
+          <input 
+            id="speed-field"
+            type="number" 
+            [value]="playStepMs()" 
+            (change)="onPlayStepMsChange($event)"
+            class="mini-digit-input spacing-input"
+            step="100"
+            min="100"
+            max="3000"
+          />
+        </div>
+      </div>
+    </div>
+  }
+
   @if (editableInputs()) {
     <div class="visualizer-card-footer">
       <div class="footer-control-left">
@@ -332,6 +376,15 @@ limitations under the License.
           class="diagram-action-btn"
         >
           <mat-icon>shuffle</mat-icon>
+        </button>
+        <button 
+          mat-icon-button 
+          (click)="toggleSettings()" 
+          title="Configure layout parameters"
+          class="diagram-action-btn"
+          [class.active-settings-btn]="showSettings()"
+        >
+          <mat-icon>settings</mat-icon>
         </button>
       </div>
     </div>

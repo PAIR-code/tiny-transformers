@@ -19,6 +19,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ngx-markdown';
 import { SecurityContext } from '@angular/core';
 import katex from 'katex';
+import { provideRouter } from '@angular/router';
 import { BerkovichTreeVisComponent } from './berkovich-tree-vis.component';
 import { parseToRational, formatRational } from '../../../../lib/berkovich/berkovich';
 
@@ -35,6 +36,7 @@ describe('BerkovichTreeVisComponent', () => {
       imports: [BerkovichTreeVisComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         provideMarkdown({
           sanitize: {
             provide: SANITIZE,

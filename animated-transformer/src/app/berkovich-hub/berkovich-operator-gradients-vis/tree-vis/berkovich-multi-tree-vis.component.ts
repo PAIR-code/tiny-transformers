@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,37 +30,8 @@ import {
   extValuationGe,
   VertexResolutionMethod,
 } from '../../../../lib/berkovich/berkovich';
-import { computeTreeLayout, LayoutNode } from '../../../../lib/berkovich/tree_layout';
+import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
 
-function computeSpaceOuter(p: number, baseGap: number = 40, minNodeGap: number = 50): number {
-  interface DummyNode extends LayoutNode {
-    children: DummyNode[];
-  }
-  const buildLeftmostTree = (depth: number): DummyNode => {
-    const node: DummyNode = {
-      isActive: true,
-      children: []
-    };
-    if (depth > 0) {
-      for (let i = 0; i < p; i++) {
-        if (i === 0) { // leftmost active
-          node.children.push(buildLeftmostTree(depth - 1));
-        } else {
-          node.children.push({
-            isActive: false,
-            children: []
-          });
-        }
-      }
-    }
-    return node;
-  };
-
-  const rootLeft = buildLeftmostTree(4);
-  const treeSpan = computeTreeLayout(rootLeft, baseGap, minNodeGap);
-  const rootX = rootLeft.x!;
-  return treeSpan - rootX;
-}
 
 export type BerkovichBinaryOperator = 'addition' | 'multiplication';
 
@@ -139,6 +110,37 @@ export class BerkovichMultiTreeVisComponent {
   readonly learningRateInputChange = output<string>();
   readonly learningRateBlur = output<void>();
   readonly undo = output<void>();
+  readonly playStepMs = input<number>(1000);
+  readonly playStepMsChange = output<number>();
+ 
+  readonly baseGap = signal<number>(DEFAULT_BASE_GAP);
+  readonly minNodeGap = signal<number>(DEFAULT_MIN_NODE_GAP);
+  readonly showSettings = signal<boolean>(false);
+
+  toggleSettings() {
+    this.showSettings.update(v => !v);
+  }
+
+  onPlayStepMsChange(event: Event) {
+    const val = Number((event.target as HTMLInputElement).value);
+    if (!isNaN(val) && val >= 100) {
+      this.playStepMsChange.emit(val);
+    }
+  }
+
+  onBaseGapChange(event: Event) {
+    const val = Number((event.target as HTMLInputElement).value);
+    if (!isNaN(val) && val > 0) {
+      this.baseGap.set(val);
+    }
+  }
+
+  onMinNodeGapChange(event: Event) {
+    const val = Number((event.target as HTMLInputElement).value);
+    if (!isNaN(val) && val > 0) {
+      this.minNodeGap.set(val);
+    }
+  }
 
   readonly treeGap = 32; // 2em gap between trees
   readonly sideMargin = 20;
@@ -155,31 +157,39 @@ export class BerkovichMultiTreeVisComponent {
     x: number;
     editorX: number;
     trackedNodeId: string;
-    inp: EditableNodeInputs | undefined;
+    inputs: EditableNodeInputs[];
   }[]>(() => {
     const visuals = this.treeVisuals();
     const editable = this.editableInputs();
     const svgW = visuals.width;
     return visuals.rootPositions.map(rp => {
-      const inp = editable?.find(e => e.trackedNodeId === rp.trackedNodeId);
-      // Clamp editor X coordinate to stay within SVG boundaries [2, svgWidth - 112]
+      const inputs: EditableNodeInputs[] = [];
+      const primaryInp = editable?.find(e => e.trackedNodeId === rp.trackedNodeId);
+      if (primaryInp) {
+        inputs.push(primaryInp);
+      }
+      // If this is the output tree, also add target 'Y'
+      const isOutputTree = rp.trackedNodeId !== 'X1' && rp.trackedNodeId !== 'X2';
+      if (isOutputTree) {
+        const targetInp = editable?.find(e => e.trackedNodeId === 'Y');
+        if (targetInp) {
+          inputs.push(targetInp);
+        }
+      }
       const editorX = Math.max(2, Math.min(svgW - 112, rp.x - 55));
-      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inp };
+      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs };
     });
   });
 
-  readonly spaceOuter = computed(() => {
-    return computeSpaceOuter(this.prime());
-  });
 
   readonly treeVisuals = computed(() => {
     const p = BigInt(this.prime());
     const pNum = Number(p);
     const tracked = this.trackedNodes();
+    if (tracked.length < 4) {
+      return { nodes: [], edges: [], titles: [], rootPositions: [], width: 400 };
+    }
     const stepY = this.activePathStepY;
-    const n = tracked.length;
-    const sOuter = this.spaceOuter();
-    const colWidth = 2 * sOuter;
     const colGap = this.treeGap;
     const sideMargin = this.sideMargin;
 
@@ -196,56 +206,87 @@ export class BerkovichMultiTreeVisComponent {
     const titles: { x: number; text: string; color: string }[] = [];
     const rootPositions: { trackedNodeId: string; x: number }[] = [];
 
-    // First pass: build all trees and measure their widths
-    const treeData: {
-      tn: TrackedNode;
-      rootNode: LayoutNodeWithData;
-      treeWidth: number;
-    }[] = [];
-
-    for (const tn of tracked) {
-      const buildNode = (c: Rational, rho: number): LayoutNodeWithData => {
-        const activeFor: string[] = [];
-        if (extValuationGe(getValuation(subtract(tn.center, c), p), -rho)) {
-          activeFor.push(tn.color);
-        }
-        const isActive = activeFor.length > 0;
-        const children: LayoutNodeWithData[] = [];
-        if (rho > this.rhoMin && isActive) {
-          for (let g = 0; g < pNum; g++) {
-            const childRho = rho - 1;
-            let shift: Rational;
-            const power = -rho;
-            if (power <= 0) {
-              shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-            } else {
-              shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-            }
-            const childCenter = add(c, shift);
-            children.push(buildNode(childCenter, childRho));
+    const buildNodeSingle = (c: Rational, rho: number, tn: TrackedNode): LayoutNodeWithData => {
+      const activeFor: string[] = [];
+      if (extValuationGe(getValuation(subtract(tn.center, c), p), -rho)) {
+        activeFor.push(tn.color);
+      }
+      const isActive = activeFor.length > 0;
+      const children: LayoutNodeWithData[] = [];
+      if (rho > this.rhoMin && isActive) {
+        for (let g = 0; g < pNum; g++) {
+          const childRho = rho - 1;
+          let shift: Rational;
+          const power = -rho;
+          if (power <= 0) {
+            shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+          } else {
+            shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
           }
+          const childCenter = add(c, shift);
+          children.push(buildNodeSingle(childCenter, childRho, tn));
         }
-        return {
-          id: `${tn.id}_${formatDigitSequence(c, p)}_${rho}`,
-          center: c, rho, isActive, activeFor, children
-        };
+      }
+      return {
+        id: `${tn.id}_${formatDigitSequence(c, p)}_${rho}`,
+        center: c, rho, isActive, activeFor, children
       };
+    };
 
-      const rootCenter = simplify({ num: 0n, den: 1n });
-      const rootNode = buildNode(rootCenter, this.rhoMax);
-      const treeWidth = computeTreeLayout(rootNode, 40, 50);
-      treeData.push({ tn, rootNode, treeWidth });
-    }
+    const buildNodeCombined = (c: Rational, rho: number): LayoutNodeWithData => {
+      const activeFor: string[] = [];
+      if (extValuationGe(getValuation(subtract(tracked[2].center, c), p), -rho)) {
+        activeFor.push(tracked[2].color);
+      }
+      if (extValuationGe(getValuation(subtract(tracked[3].center, c), p), -rho)) {
+        activeFor.push(tracked[3].color);
+      }
+      const isActive = activeFor.length > 0;
+      const children: LayoutNodeWithData[] = [];
+      if (rho > this.rhoMin && isActive) {
+        for (let g = 0; g < pNum; g++) {
+          const childRho = rho - 1;
+          let shift: Rational;
+          const power = -rho;
+          if (power <= 0) {
+            shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+          } else {
+            shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
+          }
+          const childCenter = add(c, shift);
+          children.push(buildNodeCombined(childCenter, childRho));
+        }
+      }
+      return {
+        id: `${tracked[2].id}_${formatDigitSequence(c, p)}_${rho}`,
+        center: c, rho, isActive, activeFor, children
+      };
+    };
 
-    // Second pass: position trees in their respective columns
-    for (let idx = 0; idx < n; idx++) {
-      const td = treeData[idx];
-      const colStart = sideMargin + idx * (colWidth + colGap);
-      const colCenter = colStart + colWidth / 2;
+    const baseGapVal = this.baseGap();
+    const minNodeGapVal = this.minNodeGap();
 
-      // Align rootNode.x exactly with the column center (colCenter)
-      // to guarantee spaceOuter on both sides.
-      const offset = colCenter - td.rootNode.x!;
+    const rootCenter = simplify({ num: 0n, den: 1n });
+    const rootNodeX1 = buildNodeSingle(rootCenter, this.rhoMax, tracked[0]);
+    const spanX1 = computeTreeLayout(rootNodeX1, baseGapVal, minNodeGapVal);
+
+    const rootNodeX2 = buildNodeSingle(rootCenter, this.rhoMax, tracked[1]);
+    const spanX2 = computeTreeLayout(rootNodeX2, baseGapVal, minNodeGapVal);
+
+    const rootNodeCombined = buildNodeCombined(rootCenter, this.rhoMax);
+    const spanCombined = computeTreeLayout(rootNodeCombined, baseGapVal, minNodeGapVal);
+
+    const cols = [
+      { tnId: tracked[0].id, color: tracked[0].color, rootNode: rootNodeX1, span: spanX1, title: tracked[0].id.toLowerCase() },
+      { tnId: tracked[1].id, color: tracked[1].color, rootNode: rootNodeX2, span: spanX2, title: tracked[1].id.toLowerCase() },
+      { tnId: tracked[2].id, color: tracked[2].color, rootNode: rootNodeCombined, span: spanCombined, title: tracked[2].id.toLowerCase() }
+    ];
+
+    let currentX = sideMargin;
+    for (let idx = 0; idx < 3; idx++) {
+      const col = cols[idx];
+      const colStart = currentX;
+      const offset = colStart;
 
       const positionNode = (node: LayoutNodeWithData, parentX?: number, parentY?: number, digitLabel?: string) => {
         const xCoord = node.x! + offset;
@@ -272,17 +313,16 @@ export class BerkovichMultiTreeVisComponent {
         }
       };
 
-      positionNode(td.rootNode);
+      positionNode(col.rootNode);
 
-      const rootX = td.rootNode.x! + offset; // which is exactly colCenter
-      rootPositions.push({ trackedNodeId: td.tn.id, x: rootX });
-      titles.push({ x: rootX, text: td.tn.id.toLowerCase(), color: td.tn.color });
+      const rootX = col.rootNode.x! + offset;
+      rootPositions.push({ trackedNodeId: col.tnId, x: rootX });
+      titles.push({ x: rootX, text: col.title, color: col.color });
+
+      currentX += col.span + colGap;
     }
 
-    const totalWidth = n > 0 
-      ? sideMargin * 2 + n * colWidth + (n - 1) * colGap 
-      : 400;
-
+    const totalWidth = currentX - colGap + sideMargin;
     return { nodes, edges, titles, rootPositions, width: totalWidth };
   });
 
@@ -304,7 +344,14 @@ export class BerkovichMultiTreeVisComponent {
     const p = BigInt(this.prime());
     const visuals = this.treeVisuals();
     const k = Math.floor(tn.rho);
-    const prefix = tn.id + '_';
+    const getTreePrefix = (tnId: string): string => {
+      if (tnId === 'Y') {
+        const outNode = this.trackedNodes().find(n => n.id !== 'X1' && n.id !== 'X2' && n.id !== 'Y');
+        return outNode ? outNode.id + '_' : 'Y_';
+      }
+      return tnId + '_';
+    };
+    const prefix = getTreePrefix(tn.id);
     const nodesInDisk = visuals.nodes.filter(n => {
       if (!n.id.startsWith(prefix)) return false;
       if (n.logRadius > Math.ceil(tn.rho)) return false;

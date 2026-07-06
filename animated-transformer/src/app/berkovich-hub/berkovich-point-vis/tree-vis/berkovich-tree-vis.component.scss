@@ -42,6 +42,34 @@ limitations under the License.
     }
   }
 
+  .vis-mode-select {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+
+    &:hover {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+    }
+
+    &:focus {
+      border-color: #8b5cf6;
+      background: #ffffff;
+    }
+  }
+
+  .green-text {
+    color: #16a34a;
+  }
+
   .visualizer-card-content {
     position: relative;
   }

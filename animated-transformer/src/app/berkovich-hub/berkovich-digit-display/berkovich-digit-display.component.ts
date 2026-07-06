@@ -24,31 +24,7 @@ export interface DigitDisplayCell {
 
 @Component({
   selector: 'app-berkovich-digit-display',
-  template: `
-    <div class="digit-display-wrapper">
-      <div class="digits-strip">
-        @for (cell of cells(); track cell.power) {
-          @if (cell.power === -1) {
-            <span class="decimal-dot">.</span>
-          }
-          <span 
-            class="digit-box"
-            [class.uncertain]="cell.uncertaintyRatio === 1"
-            [class.partially-uncertain]="cell.uncertaintyRatio > 0 && cell.uncertaintyRatio < 1"
-            [style.background]="getBackgroundStyle(cell.uncertaintyRatio)"
-            [style.border-color]="getBorderStyle(cell.uncertaintyRatio)"
-          >
-            {{ cell.digit }}
-          </span>
-        }
-      </div>
-      @if (showRho()) {
-        <div class="rho-label" [class.uncertain-outline]="hasUncertainty()">
-          ρ={{ rho().toFixed(2) }}
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './berkovich-digit-display.component.html',
   styleUrls: ['./berkovich-digit-display.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule]

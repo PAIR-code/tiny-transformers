@@ -59,6 +59,8 @@ limitations under the License.
         (togglePlay)="onRunToggle()"
         (learningRateInputChange)="learningRateInput.set($event)"
         (learningRateBlur)="onLearningRateBlur()"
+        [playStepMs]="playStepMs()"
+        (playStepMsChange)="playStepMs.set($event)"
         (undo)="onUndo()"
       ></app-berkovich-unary-tree-vis>
     </section>

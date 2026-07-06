@@ -1,3 +1,20 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+export const DEFAULT_BASE_GAP = 40;
+export const DEFAULT_MIN_NODE_GAP = 40;
+
 export interface LayoutNode {
   isActive: boolean;
   children: LayoutNode[];
@@ -6,36 +23,41 @@ export interface LayoutNode {
 
 export function computeTreeLayout<T extends LayoutNode>(
   root: T,
-  baseGap: number = 40,
-  minNodeGap: number = 40
+  baseGap: number = DEFAULT_BASE_GAP,
+  minNodeGap: number = DEFAULT_MIN_NODE_GAP
 ): number {
+  const shiftDescendants = (n: LayoutNode, dx: number) => {
+    for (const c of n.children) {
+      c.x! += dx;
+      shiftDescendants(c, dx);
+    }
+  };
+
   // Returns the contour [left, right] at each depth relative to node.x
   const layout = (node: T): { left: number[], right: number[] } => {
-    const activeChildren = node.children.filter(c => c.isActive);
+    const children = node.children;
     
-    if (activeChildren.length === 0) {
+    if (children.length === 0) {
       node.x = 0;
-      // Inactive stubs are spaced later
       return { left: [0], right: [0] };
     }
     
     const contours: { left: number[], right: number[] }[] = [];
-    
-    for (const child of activeChildren) {
+    for (const child of children) {
       contours.push(layout(child as T));
     }
     
     // Position children relative to the first child
-    activeChildren[0].x = 0;
+    children[0].x = 0;
     const currentLeft = [...contours[0].left];
     const currentRight = [...contours[0].right];
     
-    for (let i = 1; i < activeChildren.length; i++) {
-      const child = activeChildren[i];
+    for (let i = 1; i < children.length; i++) {
+      const child = children[i];
       const contour = contours[i];
       
       // Find shift needed to avoid overlap
-      let maxShift = baseGap;
+      let maxShift = children[i - 1].x! + baseGap;
       const depthLimit = Math.min(currentRight.length, contour.left.length);
       for (let d = 0; d < depthLimit; d++) {
         const shift = currentRight[d] - contour.left[d] + minNodeGap;
@@ -44,7 +66,8 @@ export function computeTreeLayout<T extends LayoutNode>(
         }
       }
       
-      child.x = activeChildren[i - 1].x! + maxShift;
+      child.x = maxShift;
+      shiftDescendants(child, child.x);
       
       // Update current contours
       for (let d = 0; d < contour.left.length; d++) {
@@ -59,21 +82,28 @@ export function computeTreeLayout<T extends LayoutNode>(
       }
     }
     
-    // Parent x is the average of first and last active child
-    const firstX = activeChildren[0].x!;
-    const lastX = activeChildren[activeChildren.length - 1].x!;
-    node.x = (firstX + lastX) / 2;
+    // Parent x: align with the active children if any exist, otherwise align with center of all children.
+    const activeChildren = children.filter(c => c.isActive);
+    if (activeChildren.length > 0) {
+      const firstX = activeChildren[0].x!;
+      const lastX = activeChildren[activeChildren.length - 1].x!;
+      node.x = (firstX + lastX) / 2;
+    } else {
+      const firstX = children[0].x!;
+      const lastX = children[children.length - 1].x!;
+      node.x = (firstX + lastX) / 2;
+    }
     
     // Shift all children so parent is at 0
     const shiftChildren = (n: LayoutNode, dx: number) => {
       n.x! += dx;
       for (const c of n.children) {
-        if (c.isActive) shiftChildren(c, dx);
+        shiftChildren(c, dx);
       }
     };
     
     const dx = -node.x;
-    for (const child of activeChildren) {
+    for (const child of children) {
       shiftChildren(child, dx);
     }
     
@@ -89,51 +119,6 @@ export function computeTreeLayout<T extends LayoutNode>(
   };
   
   layout(root);
-  
-  // Interpolate inactive stubs
-  const interpolateStubs = (node: T) => {
-    const activeIndices: number[] = [];
-    for (let i = 0; i < node.children.length; i++) {
-      if (node.children[i].isActive) {
-        activeIndices.push(i);
-        interpolateStubs(node.children[i] as T);
-      }
-    }
-    
-    if (activeIndices.length > 0) {
-      for (let i = 0; i < node.children.length; i++) {
-        const child = node.children[i];
-        if (!child.isActive) {
-          // Find left and right active siblings
-          let leftIdx = -1;
-          let rightIdx = -1;
-          for (const a of activeIndices) {
-            if (a < i) leftIdx = a;
-            if (a > i && rightIdx === -1) rightIdx = a;
-          }
-          
-          if (leftIdx !== -1 && rightIdx !== -1) {
-            const leftChild = node.children[leftIdx];
-            const rightChild = node.children[rightIdx];
-            const t = (i - leftIdx) / (rightIdx - leftIdx);
-            child.x = leftChild.x! + t * (rightChild.x! - leftChild.x!);
-          } else if (leftIdx !== -1) {
-            child.x = node.children[leftIdx].x! + (i - leftIdx) * (baseGap * 0.9);
-          } else if (rightIdx !== -1) {
-            child.x = node.children[rightIdx].x! - (rightIdx - i) * (baseGap * 0.9);
-          }
-        }
-      }
-    } else {
-      // No active children, just spread stubs around 0
-      const mid = (node.children.length - 1) / 2;
-      for (let i = 0; i < node.children.length; i++) {
-        node.children[i].x = (i - mid) * (baseGap * 0.8);
-      }
-    }
-  };
-  
-  interpolateStubs(root);
   
   // Find min/max bounds to center the tree
   let minX = Infinity;

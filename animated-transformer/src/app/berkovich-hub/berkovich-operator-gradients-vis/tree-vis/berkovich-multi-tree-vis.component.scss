@@ -363,3 +363,42 @@ limitations under the License.
     height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.vis-settings-pane {
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  font-size: 11px;
+  box-sizing: border-box;
+
+  .settings-title {
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  .settings-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .setting-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+    font-weight: 600;
+
+    .spacing-input {
+      width: 44px !important;
+    }
+  }
+}
+
+.diagram-action-btn {
+  &.active-settings-btn {
+    background-color: #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+}
+
