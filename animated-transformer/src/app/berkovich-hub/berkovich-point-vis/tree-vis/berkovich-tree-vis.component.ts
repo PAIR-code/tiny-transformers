@@ -158,6 +158,9 @@ export class BerkovichTreeVisComponent implements OnInit {
     const pNum = Number(p);
     const y = this.targetRational();
     const c_curr = this.currentCenter();
+    const rho_curr = this.currentLogRadius();
+    const y_rho_opt = this.targetLogRadius();
+    const rho_target = y_rho_opt !== undefined && y_rho_opt !== null ? y_rho_opt : this.rhoMin;
     const stepY = this.activePathStepY;
     
     interface LayoutNode {
@@ -173,9 +176,24 @@ export class BerkovichTreeVisComponent implements OnInit {
     // Pass 1: Build visual tree topology recursively while tracking ancestor lists
     const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
-      const nodeActive =
-        extValuationGe(getValuation(subtract(y, c), p), -rho) ||
-        extValuationGe(getValuation(subtract(c_curr, c), p), -rho);
+      
+      let activeForY = false;
+      if (rho >= rho_target) {
+        const valY = getValuation(subtract(y, c), p);
+        if (valY.type === 'pos-infinity' || (valY.type === 'finite' && valY.value >= -rho)) {
+          activeForY = true;
+        }
+      }
+      
+      let activeForC = false;
+      if (rho >= rho_curr) {
+        const valC = getValuation(subtract(c_curr, c), p);
+        if (valC.type === 'pos-infinity' || (valC.type === 'finite' && valC.value >= -rho)) {
+          activeForC = true;
+        }
+      }
+      
+      const nodeActive = activeForY || activeForC;
       
       const children: LayoutNode[] = [];
       const nextAncestors = [...ancestors, nodeId];
@@ -212,7 +230,7 @@ export class BerkovichTreeVisComponent implements OnInit {
     const treeWidth = Math.pow(pNum, this.rhoMax - this.rhoMin);
     const bottomLeaves: LayoutNode[] = [];
     const collectBottomLeaves = (node: LayoutNode) => {
-      if (node.rho === this.rhoMin) {
+      if (node.children.length === 0) {
         bottomLeaves.push(node);
       } else {
         for (const child of node.children) {

@@ -119,6 +119,7 @@ export function computeTreeLayout<T extends LayoutNode>(
   };
   
   layout(root);
+  root.x = 0;
   
   // Find min/max bounds to center the tree
   let minX = Infinity;

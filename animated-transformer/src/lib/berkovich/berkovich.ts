@@ -1775,7 +1775,8 @@ export function stepUnaryOperatorGradients(
     }
 
     nextCX = bestCX;
-    nextRhoX = bestRhoX;
+    const isParent = bestRhoX > intRhoX;
+    nextRhoX = Math.max(-2, Math.min(2, isParent ? intRhoX + eta : intRhoX - eta));
   }
 
   return {

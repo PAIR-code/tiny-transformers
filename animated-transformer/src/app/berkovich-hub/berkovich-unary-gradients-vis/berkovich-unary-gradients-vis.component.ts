@@ -74,8 +74,13 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
 
   readonly centerYInput = signal<string>('10.00'); // 3 in base 3 is 10, let's start with target 3 (10.) or 1.
 
-  // Parsed states
-  readonly centerX = computed<Rational>(() => {
+  // Simulation states
+  readonly currentCenterX = signal<Rational>({ num: 0n, den: 1n });
+  readonly currentRhoX = signal<number>(0.0);
+  readonly stepCount = signal<number>(0);
+
+  // Initial values parsed from inputs
+  readonly initCenterX = computed<Rational>(() => {
     const p = BigInt(this.prime());
     try {
       return truncateToTreeRange(parseDigitSequence(this.centerXInput(), p), p, -2, 1);
@@ -84,9 +89,24 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
     }
   });
 
-  readonly rhoX = computed<number>(() => {
+  readonly initRhoX = computed<number>(() => {
     const v = parseFloat(this.rhoXInput());
     return isNaN(v) ? 0.0 : Math.max(-2.0, Math.min(2.0, v));
+  });
+
+  // Active state during simulation
+  readonly centerX = computed<Rational>(() => {
+    if (this.stepCount() > 0) {
+      return this.currentCenterX();
+    }
+    return this.initCenterX();
+  });
+
+  readonly rhoX = computed<number>(() => {
+    if (this.stepCount() > 0) {
+      return this.currentRhoX();
+    }
+    return this.initRhoX();
   });
 
   readonly centerY = computed<Rational>(() => {
@@ -108,7 +128,7 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
   readonly history = signal<any[]>([]);
   readonly canUndo = computed(() => this.history().length > 0);
 
-  readonly playStepMs = signal<number>(1000);
+  readonly playStepMs = signal<number>(500);
 
   private playIntervalId: any = null;
 
@@ -229,13 +249,14 @@ $$(x + 1)_\\rho = \\rho_x$$
   // Editable inputs for inline editing inside the tree vis
   readonly editableInputs = computed<EditableNodeInputs[]>(() => {
     const op = this.operator();
+    const p = BigInt(this.prime());
 
     const inputs: EditableNodeInputs[] = [
       {
         nodeId: 'X',
         trackedNodeId: 'X',
-        centerInput: this.centerXInput(),
-        rhoInput: this.rhoXInput(),
+        centerInput: formatDigitSequence(this.centerX(), p),
+        rhoInput: this.rhoX().toFixed(2),
         color: '#60a5fa',
         labelPrefix: 'x'
       }
@@ -264,11 +285,17 @@ $$(x + 1)_\\rho = \\rho_x$$
     return inputs;
   });
 
+  reset() {
+    this.stopPlaying();
+    this.currentCenterX.set(this.initCenterX());
+    this.currentRhoX.set(this.initRhoX());
+    this.stepCount.set(0);
+    this.history.set([]);
+  }
+
   // Handlers
   onOperatorChange(op: BerkovichUnaryOperator) {
-    this.stopPlaying();
     this.operator.set(op);
-    this.history.set([]);
     // Reset inputs depending on operator
     if (op === 'scale') {
       this.centerXInput.set('00.10'); // 1/3
@@ -283,27 +310,23 @@ $$(x + 1)_\\rho = \\rho_x$$
       this.centerXInput.set('01.00'); // 1
       this.centerYInput.set('10.00'); // 3 (10_3)
     }
+    this.reset();
   }
 
   onPrimeChange(p: number) {
-    this.stopPlaying();
-    
-    // Get the current rational values using the current prime
     const currentX = this.centerX();
     const currentY = this.centerY();
     
     this.prime.set(p);
-    this.history.set([]);
     
     // Re-format the current rational values in the new prime
     const pBig = BigInt(p);
     this.centerXInput.set(formatDigitSequence(currentX, pBig));
     this.centerYInput.set(formatDigitSequence(currentY, pBig));
+    this.reset();
   }
 
   onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
-    this.stopPlaying();
-    this.history.set([]);
     switch (event.nodeId) {
       case 'Y':
         if (event.field === 'center') this.centerYInput.set(event.value);
@@ -313,6 +336,7 @@ $$(x + 1)_\\rho = \\rho_x$$
         else this.rhoXInput.set(event.value);
         break;
     }
+    this.reset();
   }
 
   onInputBlur(event: { nodeId: string; field: 'center' | 'rho' }) {
@@ -329,6 +353,7 @@ $$(x + 1)_\\rho = \\rho_x$$
         }
         break;
     }
+    this.reset();
   }
 
   onLearningRateBlur(): void {
@@ -342,8 +367,6 @@ $$(x + 1)_\\rho = \\rho_x$$
   }
 
   onRandomize() {
-    this.stopPlaying();
-    this.history.set([]);
     const p = this.prime();
     const randomDigits = () => {
       const d1 = Math.floor(Math.random() * p).toString();
@@ -357,35 +380,48 @@ $$(x + 1)_\\rho = \\rho_x$$
     this.centerXInput.set(randomDigits());
     this.rhoXInput.set(randomRho());
     this.centerYInput.set(randomDigits());
+    this.reset();
   }
 
   onStep() {
-    this.history.update(h => [
-      ...h,
-      {
-        operator: this.operator(),
-        centerXInput: this.centerXInput(),
-        rhoXInput: this.rhoXInput(),
-        centerYInput: this.centerYInput()
-      }
-    ]);
+    if (this.stepCount() === 0) {
+      this.currentCenterX.set(this.initCenterX());
+      this.currentRhoX.set(this.initRhoX());
+    }
 
+    const c = this.currentCenterX();
+    const rho = this.currentRhoX();
+    const y = this.centerY();
     const eta = this.learningRate();
     const op = this.operator();
     const p = BigInt(this.prime());
 
     const result = stepUnaryOperatorGradients(
-      this.centerX(),
-      this.rhoX(),
+      c,
+      rho,
       op,
-      this.centerY(),
+      y,
       p,
       eta,
       this.vertexMethod()
     );
 
-    this.centerXInput.set(formatDigitSequence(result.nextCenterX, p));
-    this.rhoXInput.set(result.nextRhoX.toFixed(2));
+    this.history.update(h => [
+      ...h,
+      {
+        centerX: c,
+        rhoX: rho,
+        stepCount: this.stepCount()
+      }
+    ]);
+
+    this.currentCenterX.set(result.nextCenterX);
+    this.currentRhoX.set(result.nextRhoX);
+    this.stepCount.update(s => s + 1);
+
+    if (result.loss <= 1e-7 || result.nextRhoX <= -2.0) {
+      this.stopPlaying();
+    }
   }
 
   onUndo() {
@@ -393,10 +429,9 @@ $$(x + 1)_\\rho = \\rho_x$$
     const h = this.history();
     if (h.length === 0) return;
     const last = h[h.length - 1];
-    this.centerXInput.set(last.centerXInput);
-    this.rhoXInput.set(last.rhoXInput);
-    this.centerYInput.set(last.centerYInput);
-    this.operator.set(last.operator);
+    this.currentCenterX.set(last.centerX);
+    this.currentRhoX.set(last.rhoX);
+    this.stepCount.set(last.stepCount);
     this.history.set(h.slice(0, -1));
   }
 

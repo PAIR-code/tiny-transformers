@@ -112,4 +112,42 @@ describe('BerkovichUnaryGradientsVisComponent', () => {
     expect(component.centerX()).toEqual({ num: 2n, den: 1n });
     expect(component.centerY()).toEqual({ num: 5n, den: 1n });
   });
+
+  it('should compute straight vertical layouts for single path trees (no kinks)', () => {
+    fixture.detectChanges();
+    const treeVisDebug = fixture.debugElement.query(
+      el => el.name === 'app-berkovich-unary-tree-vis'
+    );
+    expect(treeVisDebug).toBeTruthy();
+    const treeVisComponent = treeVisDebug.componentInstance;
+
+    const visuals = treeVisComponent.treeVisuals();
+    expect(visuals.nodes.length).toBeGreaterThan(0);
+
+    // Filter nodes belonging to the single path X tree
+    const xNodes = visuals.nodes.filter((n: any) => n.id.startsWith('X_'));
+    expect(xNodes.length).toBeGreaterThan(0);
+
+    // All active nodes along the single active path must share the exact same X coordinate
+    const activeXNodes = xNodes.filter((n: any) => n.isActive);
+    expect(activeXNodes.length).toBeGreaterThan(0);
+    const expectedX = activeXNodes[0].x;
+    for (const node of activeXNodes) {
+      expect(node.x).toBeCloseTo(expectedX, 1e-4);
+    }
+  });
+
+  it('should run a gradient step correctly and update simulation signals continuously by eta', () => {
+    expect(component.stepCount()).toBe(0);
+    const initialCenterX = component.centerX();
+    const initialRhoX = component.rhoX();
+
+    // Execute one optimization step
+    component.onStep();
+    expect(component.stepCount()).toBe(1);
+
+    // Verify coordinates updated to active simulation state and moved by eta (0.2)
+    expect(component.centerX()).toEqual(initialCenterX); // center stays same for continuous step
+    expect(component.rhoX()).toBeCloseTo(initialRhoX - 0.2, 1e-4);
+  });
 });

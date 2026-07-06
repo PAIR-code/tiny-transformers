@@ -110,7 +110,7 @@ export class BerkovichMultiTreeVisComponent {
   readonly learningRateInputChange = output<string>();
   readonly learningRateBlur = output<void>();
   readonly undo = output<void>();
-  readonly playStepMs = input<number>(1000);
+  readonly playStepMs = input<number>(500);
   readonly playStepMsChange = output<number>();
  
   readonly baseGap = signal<number>(DEFAULT_BASE_GAP);
