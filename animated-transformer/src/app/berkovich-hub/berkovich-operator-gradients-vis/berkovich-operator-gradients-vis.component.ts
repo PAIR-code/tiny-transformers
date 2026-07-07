@@ -86,7 +86,7 @@ export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
   }[]>([]);
   readonly canUndo = computed(() => this.history().length > 0);
 
-  readonly playStepMs = signal<number>(1000);
+  readonly playStepMs = signal<number>(500);
 
   private playIntervalId: any = null;
 

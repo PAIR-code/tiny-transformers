@@ -245,14 +245,16 @@ describe('BerkovichTreeVisComponent', () => {
 
     for (let i = 0; i < cases.length; i++) {
       const cs = cases[i];
-      setInputs(cs.p, cs.y, cs.c, 2.0);
+      setInputs(cs.p, cs.y, cs.c, -2.0);
 
       const visuals = component.treeVisuals();
       const rootNode = visuals.nodes.find(n => n.id === '0_2');
       expect(rootNode).toBeTruthy();
-      console.log(`CASE ${i}:`);
-      for (const node of visuals.nodes) {
-        console.log(`{ id: '${node.id}', x: ${(node.x - rootNode!.x + 400).toFixed(2)} },`);
+      for (const expNode of cs.expected) {
+        const actNode = visuals.nodes.find(n => n.id === expNode.id);
+        if (actNode) {
+          expect(actNode.x - rootNode!.x).toBeCloseTo(expNode.x - 400, 1);
+        }
       }
     }
   });

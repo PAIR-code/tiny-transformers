@@ -439,15 +439,23 @@ export class BerkovichDiskVisComponent implements OnInit, OnDestroy {
       this.stopAnimation();
     }
     const currentHist = this.history();
-    if (currentHist.length <= 1) {
+    if (currentHist.length === 0) {
+      return;
+    }
+    if (currentHist.length === 1 && currentHist[0].step === 0) {
       return;
     }
     const newHist = currentHist.slice(0, -1);
-    const prevStep = newHist[newHist.length - 1];
-
-    this.currentCenter.set(prevStep.center);
-    this.currentLogRadius.set(prevStep.logRadius);
-    this.stepCount.set(prevStep.step);
+    if (newHist.length === 0) {
+      this.currentCenter.set(this.initCenterRational());
+      this.currentLogRadius.set(this.initLogRadius());
+      this.stepCount.set(0);
+    } else {
+      const prevStep = newHist[newHist.length - 1];
+      this.currentCenter.set(prevStep.center);
+      this.currentLogRadius.set(prevStep.logRadius);
+      this.stepCount.set(prevStep.step);
+    }
     this.history.set(newHist);
   }
 

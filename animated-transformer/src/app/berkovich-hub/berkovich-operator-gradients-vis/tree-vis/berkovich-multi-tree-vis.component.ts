@@ -160,6 +160,8 @@ export class BerkovichMultiTreeVisComponent {
     editorX: number;
     trackedNodeId: string;
     inputs: EditableNodeInputs[];
+    width: number;
+    height: number;
   }[]>(() => {
     const visuals = this.treeVisuals();
     const editable = this.editableInputs();
@@ -178,8 +180,11 @@ export class BerkovichMultiTreeVisComponent {
           inputs.push(targetInp);
         }
       }
-      const editorX = Math.max(2, Math.min(svgW - 112, rp.x - 55));
-      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs };
+      const hasMulti = inputs.length > 1;
+      const width = hasMulti ? 230 : 125;
+      const height = hasMulti ? 68 : 62;
+      const editorX = Math.max(2, Math.min(svgW - width - 4, rp.x - (width / 2)));
+      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs, width, height };
     });
   });
 

@@ -64,46 +64,48 @@ limitations under the License.
           <foreignObject
             [attr.x]="label.editorX"
             [attr.y]="2"
-            width="125"
-            [attr.height]="label.inputs.length > 1 ? 95 : 62"
+            [attr.width]="label.width"
+            [attr.height]="label.height"
             class="tree-input-fo"
           >
-            <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="tree-input-label" [class.multi-inputs]="label.inputs.length > 1">
               @for (inp of label.inputs; track inp.nodeId) {
-                @if (!inp.readonly) {
-                  <div class="editor-row">
-                    <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
-                    <input
-                      class="mini-digit-input"
-                      [value]="inp.centerInput"
-                      (change)="onInputChange(inp.nodeId, 'center', $any($event.target).value)"
-                      (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'center' })"
-                    />
-                  </div>
-                  @if (inp.rhoInput !== undefined) {
+                <div class="input-block">
+                  @if (!inp.readonly) {
                     <div class="editor-row">
-                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
+                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
                       <input
-                        class="mini-digit-input mini-rho-input"
-                        type="text"
-                        [value]="inp.rhoInput"
-                        (change)="onInputChange(inp.nodeId, 'rho', $any($event.target).value)"
-                        (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'rho' })"
+                        class="mini-digit-input"
+                        [value]="inp.centerInput"
+                        (change)="onInputChange(inp.nodeId, 'center', $any($event.target).value)"
+                        (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'center' })"
                       />
                     </div>
-                  }
-                } @else {
-                  <div class="editor-row">
-                    <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
-                    <span class="mini-digit-display">{{ inp.centerInput }}</span>
-                  </div>
-                  @if (inp.rhoInput !== undefined) {
+                    @if (inp.rhoInput !== undefined) {
+                      <div class="editor-row">
+                        <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
+                        <input
+                          class="mini-digit-input mini-rho-input"
+                          type="text"
+                          [value]="inp.rhoInput"
+                          (change)="onInputChange(inp.nodeId, 'rho', $any($event.target).value)"
+                          (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'rho' })"
+                        />
+                      </div>
+                    }
+                  } @else {
                     <div class="editor-row">
-                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
-                      <span class="mini-digit-display">{{ inp.rhoInput }}</span>
+                      <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>c</sub></span>
+                      <span class="mini-digit-display">{{ inp.centerInput }}</span>
                     </div>
+                    @if (inp.rhoInput !== undefined) {
+                      <div class="editor-row">
+                        <span class="editor-label" [style.color]="inp.color">{{ inp.labelPrefix }}<sub>ρ</sub></span>
+                        <span class="mini-digit-display">{{ inp.rhoInput }}</span>
+                      </div>
+                    }
                   }
-                }
+                </div>
               }
             </div>
           </foreignObject>

@@ -158,6 +158,8 @@ export class BerkovichUnaryTreeVisComponent {
     editorX: number;
     trackedNodeId: string;
     inputs: EditableNodeInputs[];
+    width: number;
+    height: number;
   }[]>(() => {
     const visuals = this.treeVisuals();
     const editable = this.editableInputs();
@@ -176,8 +178,11 @@ export class BerkovichUnaryTreeVisComponent {
           inputs.push(targetInp);
         }
       }
-      const editorX = Math.max(2, Math.min(svgW - 112, rp.x - 55));
-      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs };
+      const hasMulti = inputs.length > 1;
+      const width = hasMulti ? 230 : 125;
+      const height = hasMulti ? 68 : 62;
+      const editorX = Math.max(2, Math.min(svgW - width - 4, rp.x - (width / 2)));
+      return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs, width, height };
     });
   });
 
@@ -382,8 +387,11 @@ export class BerkovichUnaryTreeVisComponent {
       if (node.x < minX) minX = node.x;
       if (node.x > maxX) maxX = node.x;
     }
-    const padding = 15;
-    return { x1: minX - padding, x2: maxX + padding, y: this.rhoToY(tn.rho) };
+
+    if (minX === maxX) {
+      return { x1: minX - 15, x2: minX + 15, y: this.rhoToY(tn.rho) };
+    }
+    return { x1: minX, x2: maxX, y: this.rhoToY(tn.rho) };
   }
 
   onInputChange(nodeId: string, field: 'center' | 'rho', value: string) {

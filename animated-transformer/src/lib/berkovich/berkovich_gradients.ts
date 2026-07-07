@@ -342,6 +342,569 @@ export type VertexResolutionMethod =
   | 'heuristic-joint'
   | 'exact-joint';
 
+
+/**
+ * Encapsulates a classical p-adic point (Type I point in Berkovich space) represented as a Rational.
+ */
+export class PadicPoint {
+  constructor(public readonly value: Rational) {}
+
+  toString(): string {
+    const simplified = simplify(this.value);
+    if (simplified.den === 1n) {
+      return simplified.num.toString();
+    }
+    return `${simplified.num}/${simplified.den}`;
+  }
+
+  toFormatString(p: bigint, precision: PrecisionBounds = DEFAULT_PRECISION): string {
+    return formatDigitSequence(this.value, p, precision);
+  }
+}
+
+/**
+ * Encapsulates a general point (or disk) in the Berkovich space, represented by (center, logRadius).
+ */
+export class BerkovichPoint {
+  constructor(
+    public readonly center: Rational,
+    public readonly rho: number
+  ) {}
+
+  isVertex(): boolean {
+    return Math.abs(this.rho - Math.round(this.rho)) < 1e-7;
+  }
+
+  truncate(p: bigint, precision: PrecisionBounds = DEFAULT_PRECISION): BerkovichPoint {
+    const truncatedCenter = truncateToTreeRange(this.center, p, precision.minPower, precision.maxPower);
+    return new BerkovichPoint(truncatedCenter, this.rho);
+  }
+
+  valuationDistanceTo(target: Rational, p: bigint): ExtendedNumber {
+    const diff = subtract(this.center, target);
+    return extNegate(getValuation(diff, p));
+  }
+}
+
+/**
+ * Abstract class representing a Unary Operator mapping a BerkovichPoint to another.
+ */
+export abstract class UnaryOperator {
+  abstract forward(x: BerkovichPoint, p: bigint): BerkovichPoint;
+  abstract computeActiveDegree(x: BerkovichPoint, p: bigint): number;
+
+  evaluateLoss(
+    x: BerkovichPoint,
+    targetY: Rational,
+    y_rho: number,
+    p: bigint,
+    precision: PrecisionBounds
+  ): number {
+    const out = this.forward(x, p);
+    const outCenterTrunc = truncateToTreeRange(out.center, p, precision.minPower, precision.maxPower);
+    const diff = subtract(outCenterTrunc, targetY);
+    const valDiff = getValuation(diff, p);
+    
+    return valDiff.type === 'pos-infinity' && out.rho <= y_rho
+      ? 0
+      : computePathLoss(out.rho, extNegate(valDiff), y_rho);
+  }
+
+  step(
+    x: BerkovichPoint,
+    targetY: Rational,
+    p: bigint,
+    eta: number,
+    method: VertexResolutionMethod = 'exact-per-coord',
+    precision: PrecisionBounds = DEFAULT_PRECISION
+  ): {
+    nextX: BerkovichPoint;
+    out: BerkovichPoint;
+    loss: number;
+    drhoOut_drhoX: number;
+    drOut: number;
+  } {
+    const y_rho = precision.minPower;
+    const pNum = Number(p);
+
+    // 1. Forward Pass
+    const out = this.forward(x, p);
+    const activeDegree = this.computeActiveDegree(x, p);
+
+    // Truncate outCenter to tree range
+    const outCenterTrunc = truncateToTreeRange(out.center, p, precision.minPower, precision.maxPower);
+
+    // 2. Loss & Distance
+    const diff = subtract(outCenterTrunc, targetY);
+    const valDiff = getValuation(diff, p);
+    const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+    const loss = valDiff.type === 'pos-infinity' && out.rho <= y_rho
+      ? 0
+      : computePathLoss(out.rho, extNegate(valDiff), y_rho);
+
+    // 3. Gradient w.r.t out.rho
+    let drOut = 0;
+    if (out.rho > d) drOut = 1;
+    else if (out.rho < d) drOut = -1;
+
+    // 4. Backward Pass & Resolution
+    let nextCX = x.center;
+    let nextRhoX = x.rho;
+
+    const isInteger = Math.abs(x.rho - Math.round(x.rho)) < 1e-9;
+
+    const rhoMin = precision.minPower;
+    const rhoMax = precision.maxPower + 1;
+
+    if (!isInteger) {
+      // Continuous update
+      const rawNextRhoX = x.rho - eta * drOut * activeDegree;
+      nextRhoX = Math.max(rhoMin, Math.min(rhoMax, rawNextRhoX));
+      nextCX = x.center;
+    } else {
+      // Vertex transition: evaluate parent and children
+      const intRhoX = Math.round(x.rho);
+      
+      // Candidate 1: Move up (parent)
+      const parentRhoX = Math.min(rhoMax, intRhoX + 1);
+      const parentLoss = this.evaluateLoss(new BerkovichPoint(x.center, parentRhoX), targetY, y_rho, p, precision);
+
+      let bestLoss = parentLoss;
+      let bestCX = x.center;
+      let bestRhoX = parentRhoX;
+
+      // Candidates 2..p+1: Move down to children
+      const childRhoX = Math.max(rhoMin, intRhoX - 1);
+      if (childRhoX >= rhoMin) {
+        const power = -intRhoX;
+        for (let g = 0; g < pNum; g++) {
+          let shift: Rational;
+          if (power <= 0) {
+            shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
+          } else {
+            shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
+          }
+          const childCX = add(x.center, shift);
+          const childLoss = this.evaluateLoss(new BerkovichPoint(childCX, childRhoX), targetY, y_rho, p, precision);
+
+          if (childLoss < bestLoss - 1e-9) {
+            bestLoss = childLoss;
+            bestCX = childCX;
+            bestRhoX = childRhoX;
+          }
+        }
+      }
+
+      nextCX = bestCX;
+      const isParent = bestRhoX > intRhoX;
+      nextRhoX = Math.max(rhoMin, Math.min(rhoMax, isParent ? intRhoX + eta : intRhoX - eta));
+    }
+
+    return {
+      nextX: new BerkovichPoint(nextCX, nextRhoX),
+      out: new BerkovichPoint(outCenterTrunc, out.rho),
+      loss,
+      drhoOut_drhoX: activeDegree,
+      drOut
+    };
+  }
+}
+
+/**
+ * Concrete Shift Operator: f(x) = x + b
+ */
+export class ShiftOperator extends UnaryOperator {
+  constructor(public readonly b: Rational = { num: 1n, den: 1n }) {
+    super();
+  }
+
+  forward(x: BerkovichPoint, p: bigint): BerkovichPoint {
+    return new BerkovichPoint(add(x.center, this.b), x.rho);
+  }
+
+  computeActiveDegree(x: BerkovichPoint, p: bigint): number {
+    return 1.0;
+  }
+}
+
+/**
+ * Concrete Scale Operator: f(x) = a * x
+ */
+export class ScaleOperator extends UnaryOperator {
+  constructor(public readonly a: Rational) {
+    super();
+  }
+
+  forward(x: BerkovichPoint, p: bigint): BerkovichPoint {
+    return new BerkovichPoint(multiply(this.a, x.center), -1.0 + x.rho);
+  }
+
+  computeActiveDegree(x: BerkovichPoint, p: bigint): number {
+    return 1.0;
+  }
+}
+
+/**
+ * Concrete Square Operator: f(x) = x^2
+ */
+export class SquareOperator extends UnaryOperator {
+  forward(x: BerkovichPoint, p: bigint): BerkovichPoint {
+    const outCenter = multiply(x.center, x.center);
+    const valC = getValuation(x.center, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const outRho = Math.max(logNormC + x.rho, 2.0 * x.rho);
+    return new BerkovichPoint(outCenter, outRho);
+  }
+
+  computeActiveDegree(x: BerkovichPoint, p: bigint): number {
+    const valC = getValuation(x.center, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const t1 = logNormC + x.rho;
+    const t2 = 2.0 * x.rho;
+    
+    if (Math.abs(t1 - t2) < 1e-9) {
+      return 1.5;
+    } else if (t1 > t2) {
+      return 1.0;
+    } else {
+      return 2.0;
+    }
+  }
+}
+
+/**
+ * Concrete Cube Operator: f(x) = x^3
+ */
+export class CubeOperator extends UnaryOperator {
+  forward(x: BerkovichPoint, p: bigint): BerkovichPoint {
+    const outCenter = multiply(x.center, multiply(x.center, x.center));
+    const valC = getValuation(x.center, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const log3 = (p === 3n) ? -1.0 : 0.0;
+    const outRho = Math.max(
+      log3 + 2.0 * logNormC + x.rho,
+      log3 + logNormC + 2.0 * x.rho,
+      3.0 * x.rho
+    );
+    return new BerkovichPoint(outCenter, outRho);
+  }
+
+  computeActiveDegree(x: BerkovichPoint, p: bigint): number {
+    const valC = getValuation(x.center, p);
+    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
+    const log3 = (p === 3n) ? -1.0 : 0.0;
+    const t1 = log3 + 2.0 * logNormC + x.rho;
+    const t2 = log3 + logNormC + 2.0 * x.rho;
+    const t3 = 3.0 * x.rho;
+    const maxVal = Math.max(t1, t2, t3);
+
+    let sumDegrees = 0;
+    let count = 0;
+    if (Math.abs(t1 - maxVal) < 1e-9) { sumDegrees += 1.0; count++; }
+    if (Math.abs(t2 - maxVal) < 1e-9) { sumDegrees += 2.0; count++; }
+    if (Math.abs(t3 - maxVal) < 1e-9) { sumDegrees += 3.0; count++; }
+    return sumDegrees / count;
+  }
+}
+
+/**
+ * Abstract class representing a Binary Operator mapping two BerkovichPoints to another.
+ */
+export abstract class BinaryOperator {
+  abstract forward(x1: BerkovichPoint, x2: BerkovichPoint, p: bigint): BerkovichPoint;
+  abstract computeActiveDegrees(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    p: bigint
+  ): { drhoOut_drhoX1: number; drhoOut_drhoX2: number };
+}
+
+/**
+ * Concrete Addition Operator: f(x1, x2) = x1 + x2
+ */
+export class AdditionOperator extends BinaryOperator {
+  forward(x1: BerkovichPoint, x2: BerkovichPoint, p: bigint): BerkovichPoint {
+    const sumCenter = add(x1.center, x2.center);
+    const sumRho = Math.max(x1.rho, x2.rho);
+    return new BerkovichPoint(sumCenter, sumRho);
+  }
+
+  computeActiveDegrees(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    p: bigint
+  ): { drhoOut_drhoX1: number; drhoOut_drhoX2: number } {
+    const degrees = computeActiveDegrees(x1.rho, x2.rho);
+    return {
+      drhoOut_drhoX1: degrees.drhoSum_drhoX1,
+      drhoOut_drhoX2: degrees.drhoSum_drhoX2
+    };
+  }
+
+  step(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    targetY: Rational,
+    p: bigint,
+    eta: number,
+    method: VertexResolutionMethod = 'exact-per-coord',
+    precision: PrecisionBounds = DEFAULT_PRECISION
+  ): AdditionGradientsStepResult {
+    const sumCenter = add(x1.center, x2.center);
+    const sumRho = Math.max(x1.rho, x2.rho);
+
+    // Distance between sum disk and target
+    const diff = subtract(sumCenter, targetY);
+    const valDiff = getValuation(diff, p);
+    const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+    // L1 loss is |sumRho - d| + d - y_rho
+    const y_rho = precision.minPower;
+    const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho
+      ? 0
+      : computePathLoss(sumRho, extNegate(valDiff), y_rho);
+
+    // Gradient of loss w.r.t sumRho
+    let drSum = 0;
+    if (sumRho > d) drSum = 1;
+    else if (sumRho < d) drSum = -1;
+
+    // Active degrees
+    const activeDegrees = computeActiveDegrees(x1.rho, x2.rho);
+
+    // Dispatch to the appropriate resolution method
+    let result: {
+      nextCX1: Rational;
+      nextRhoX1: number;
+      nextCX2: Rational;
+      nextRhoX2: number;
+    };
+
+    switch (method) {
+      case 'heuristic-joint':
+        result = stepHeuristicJoint(
+          x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, y_rho, activeDegrees, precision
+        );
+        break;
+      case 'exact-joint':
+        result = stepExactJoint(
+          x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, y_rho, activeDegrees, precision
+        );
+        break;
+      case 'exact-per-coord':
+      default:
+        result = stepExactPerCoord(
+          x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, y_rho, activeDegrees, precision
+        );
+        break;
+    }
+
+    return {
+      nextCenterX1: result.nextCX1,
+      nextRhoX1: result.nextRhoX1,
+      nextCenterX2: result.nextCX2,
+      nextRhoX2: result.nextRhoX2,
+      sumCenter,
+      sumRho,
+      loss,
+      drhoSum_drhoX1: activeDegrees.drhoSum_drhoX1,
+      drhoSum_drhoX2: activeDegrees.drhoSum_drhoX2,
+      drSum
+    };
+  }
+}
+
+/**
+ * Concrete Multiplication Operator: f(x1, x2) = x1 * x2
+ */
+export class MultiplicationOperator extends BinaryOperator {
+  forward(x1: BerkovichPoint, x2: BerkovichPoint, p: bigint): BerkovichPoint {
+    const prodCenter = multiply(x1.center, x2.center);
+    const val1 = getValuation(x1.center, p);
+    const val2 = getValuation(x2.center, p);
+    const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+    const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+    
+    const t1 = logNorm2 + x1.rho;
+    const t2 = logNorm1 + x2.rho;
+    const t3 = x1.rho + x2.rho;
+    const prodRho = Math.max(t1, t2, t3);
+    
+    return new BerkovichPoint(prodCenter, prodRho);
+  }
+
+  computeActiveDegrees(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    p: bigint
+  ): { drhoOut_drhoX1: number; drhoOut_drhoX2: number } {
+    const val1 = getValuation(x1.center, p);
+    const val2 = getValuation(x2.center, p);
+    const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+    const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+    
+    const t1 = logNorm2 + x1.rho;
+    const t2 = logNorm1 + x2.rho;
+    const t3 = x1.rho + x2.rho;
+    const prodRho = Math.max(t1, t2, t3);
+
+    let d1 = 0;
+    let d2 = 0;
+    if (Math.abs(t1 - prodRho) < 1e-9) d1 += 1;
+    if (Math.abs(t2 - prodRho) < 1e-9) d2 += 1;
+    if (Math.abs(t3 - prodRho) < 1e-9) {
+      d1 += 1;
+      d2 += 1;
+    }
+    const total = d1 + d2;
+    return {
+      drhoOut_drhoX1: total > 0 ? d1 / total : 0.5,
+      drhoOut_drhoX2: total > 0 ? d2 / total : 0.5
+    };
+  }
+
+  step(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    targetY: Rational,
+    p: bigint,
+    eta: number,
+    method: VertexResolutionMethod = 'exact-per-coord',
+    precision: PrecisionBounds = DEFAULT_PRECISION
+  ): MultiplicationGradientsStepResult {
+    const prodCenter = multiply(x1.center, x2.center);
+
+    const val1 = getValuation(x1.center, p);
+    const val2 = getValuation(x2.center, p);
+    const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
+    const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
+
+    const t1 = logNorm2 + x1.rho;
+    const t2 = logNorm1 + x2.rho;
+    const t3 = x1.rho + x2.rho;
+    const prodRho = Math.max(t1, t2, t3);
+
+    const diff = subtract(prodCenter, targetY);
+    const valDiff = getValuation(diff, p);
+    const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+
+    const y_rho = precision.minPower;
+    const loss = valDiff.type === 'pos-infinity' && prodRho <= y_rho
+      ? 0
+      : computePathLoss(prodRho, extNegate(valDiff), y_rho);
+
+    let drProd = 0;
+    if (prodRho > d) drProd = 1;
+    else if (prodRho < d) drProd = -1;
+
+    const activeDegrees = computeMultiplicationActiveDegrees(x1.center, x1.rho, x2.center, x2.rho, p);
+
+    let result: {
+      nextCX1: Rational;
+      nextRhoX1: number;
+      nextCX2: Rational;
+      nextRhoX2: number;
+    };
+
+    if (method === 'exact-joint') {
+      result = stepMultiplicationExactJoint(
+        x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, y_rho, activeDegrees, precision
+      );
+    } else {
+      result = stepMultiplicationExactPerCoord(
+        x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, y_rho, activeDegrees, precision
+      );
+    }
+
+    return {
+      nextCenterX1: result.nextCX1,
+      nextRhoX1: result.nextRhoX1,
+      nextCenterX2: result.nextCX2,
+      nextRhoX2: result.nextRhoX2,
+      prodCenter,
+      prodRho,
+      loss,
+      drhoProd_drhoX1: activeDegrees.drhoProd_drhoX1,
+      drhoProd_drhoX2: activeDegrees.drhoProd_drhoX2
+    };
+  }
+}
+
+/**
+ * Softmax Operator
+ */
+export class SoftmaxOperator {
+  constructor(public readonly beta: number = 1.0) {}
+
+  step(
+    x1: BerkovichPoint,
+    x2: BerkovichPoint,
+    targetY: Rational,
+    p: bigint,
+    eta: number,
+    method: VertexResolutionMethod = 'exact-per-coord',
+    precision: PrecisionBounds = DEFAULT_PRECISION
+  ): SoftmaxGradientsStepResult {
+    const d1Ext = getValuation(subtract(x1.center, targetY), p);
+    const d2Ext = getValuation(subtract(x2.center, targetY), p);
+
+    const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
+    const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
+
+    const M1 = 2 * Math.max(x1.rho, d1) - x1.rho;
+    const M2 = 2 * Math.max(x2.rho, d2) - x2.rho;
+
+    const D1 = -M1;
+    const D2 = -M2;
+
+    const maxD = Math.max(D1, D2);
+    const exp1 = Math.exp(this.beta * (D1 - maxD));
+    const exp2 = Math.exp(this.beta * (D2 - maxD));
+    const sumExp = exp1 + exp2;
+
+    const pi1 = exp1 / sumExp;
+    const pi2 = exp2 / sumExp;
+
+    const loss = -Math.log(pi1 + 1e-15);
+
+    let sgn1 = 0;
+    if (x1.rho > d1) sgn1 = 1;
+    else if (x1.rho < d1) sgn1 = -1;
+    const drho1 = this.beta * (1 - pi1) * sgn1;
+
+    let sgn2 = 0;
+    if (x2.rho > d2) sgn2 = 1;
+    else if (x2.rho < d2) sgn2 = -1;
+    const drho2 = x2.rho >= d2 ? -this.beta * pi2 * sgn2 : 0;
+
+    let result: {
+      nextCX1: Rational;
+      nextRhoX1: number;
+      nextCX2: Rational;
+      nextRhoX2: number;
+    };
+
+    if (method === 'exact-joint') {
+      result = stepSoftmaxExactJoint(x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, this.beta, precision);
+    } else {
+      result = stepSoftmaxExactPerCoord(x1.center, x1.rho, x2.center, x2.rho, targetY, p, eta, this.beta, precision);
+    }
+
+    return {
+      nextCenterX1: result.nextCX1,
+      nextRhoX1: result.nextRhoX1,
+      nextCenterX2: result.nextCX2,
+      nextRhoX2: result.nextRhoX2,
+      loss,
+      pi1,
+      pi2,
+      drho1,
+      drho2
+    };
+  }
+}
+
 /**
  * Compute the active degrees (partial derivatives of sumRho with respect
  * to each input rho). This determines how gradient flows backward through
@@ -690,67 +1253,15 @@ export function stepAdditionGradients(
   method: VertexResolutionMethod = 'exact-per-coord',
   precision: PrecisionBounds = DEFAULT_PRECISION
 ): AdditionGradientsStepResult {
-  const sumCenter = add(cX1, cX2);
-  const sumRho = Math.max(rhoX1, rhoX2);
-
-  // Distance between sum disk and target
-  const diff = subtract(sumCenter, targetY);
-  const valDiff = getValuation(diff, p);
-  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-
-  // L1 loss is |sumRho - d| + d - y_rho
-  const y_rho = precision.minPower;
-  const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho
-    ? 0
-    : computePathLoss(sumRho, extNegate(valDiff), y_rho);
-
-  // Gradient of loss w.r.t sumRho
-  let drSum = 0;
-  if (sumRho > d) drSum = 1;
-  else if (sumRho < d) drSum = -1;
-
-  // Active degrees
-  const activeDegrees = computeActiveDegrees(rhoX1, rhoX2);
-
-  // Dispatch to the appropriate resolution method
-  let result: {
-    nextCX1: Rational;
-    nextRhoX1: number;
-    nextCX2: Rational;
-    nextRhoX2: number;
-  };
-
-  switch (method) {
-    case 'heuristic-joint':
-      result = stepHeuristicJoint(
-        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees, precision
-      );
-      break;
-    case 'exact-joint':
-      result = stepExactJoint(
-        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees, precision
-      );
-      break;
-    case 'exact-per-coord':
-    default:
-      result = stepExactPerCoord(
-        cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees, precision
-      );
-      break;
-  }
-
-  return {
-    nextCenterX1: result.nextCX1,
-    nextRhoX1: result.nextRhoX1,
-    nextCenterX2: result.nextCX2,
-    nextRhoX2: result.nextRhoX2,
-    sumCenter,
-    sumRho,
-    loss,
-    drhoSum_drhoX1: activeDegrees.drhoSum_drhoX1,
-    drhoSum_drhoX2: activeDegrees.drhoSum_drhoX2,
-    drSum
-  };
+  return new AdditionOperator().step(
+    new BerkovichPoint(cX1, rhoX1),
+    new BerkovichPoint(cX2, rhoX2),
+    targetY,
+    p,
+    eta,
+    method,
+    precision
+  );
 }
 
 export interface MultiplicationGradientsStepResult {
@@ -1039,61 +1550,15 @@ export function stepMultiplicationGradients(
   method: VertexResolutionMethod = 'exact-per-coord',
   precision: PrecisionBounds = DEFAULT_PRECISION
 ): MultiplicationGradientsStepResult {
-  const prodCenter = multiply(cX1, cX2);
-
-  const val1 = getValuation(cX1, p);
-  const val2 = getValuation(cX2, p);
-  const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
-  const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
-
-  const t1 = logNorm2 + rhoX1;
-  const t2 = logNorm1 + rhoX2;
-  const t3 = rhoX1 + rhoX2;
-  const prodRho = Math.max(t1, t2, t3);
-
-  const diff = subtract(prodCenter, targetY);
-  const valDiff = getValuation(diff, p);
-  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-
-  const y_rho = precision.minPower;
-  const loss = valDiff.type === 'pos-infinity' && prodRho <= y_rho
-    ? 0
-    : computePathLoss(prodRho, extNegate(valDiff), y_rho);
-
-  let drProd = 0;
-  if (prodRho > d) drProd = 1;
-  else if (prodRho < d) drProd = -1;
-
-  const activeDegrees = computeMultiplicationActiveDegrees(cX1, rhoX1, cX2, rhoX2, p);
-
-  let result: {
-    nextCX1: Rational;
-    nextRhoX1: number;
-    nextCX2: Rational;
-    nextRhoX2: number;
-  };
-
-  if (method === 'exact-joint') {
-    result = stepMultiplicationExactJoint(
-      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees, precision
-    );
-  } else {
-    result = stepMultiplicationExactPerCoord(
-      cX1, rhoX1, cX2, rhoX2, targetY, p, eta, y_rho, activeDegrees, precision
-    );
-  }
-
-  return {
-    nextCenterX1: result.nextCX1,
-    nextRhoX1: result.nextRhoX1,
-    nextCenterX2: result.nextCX2,
-    nextRhoX2: result.nextRhoX2,
-    prodCenter,
-    prodRho,
-    loss,
-    drhoProd_drhoX1: activeDegrees.drhoProd_drhoX1,
-    drhoProd_drhoX2: activeDegrees.drhoProd_drhoX2
-  };
+  return new MultiplicationOperator().step(
+    new BerkovichPoint(cX1, rhoX1),
+    new BerkovichPoint(cX2, rhoX2),
+    targetY,
+    p,
+    eta,
+    method,
+    precision
+  );
 }
 
 export interface SoftmaxGradientsStepResult {
@@ -1322,62 +1787,15 @@ export function stepSoftmaxGradients(
   method: VertexResolutionMethod = 'exact-per-coord',
   precision: PrecisionBounds = DEFAULT_PRECISION
 ): SoftmaxGradientsStepResult {
-  const d1Ext = getValuation(subtract(cX1, targetY), p);
-  const d2Ext = getValuation(subtract(cX2, targetY), p);
-
-  const d1 = d1Ext.type === 'finite' ? -d1Ext.value : -Infinity;
-  const d2 = d2Ext.type === 'finite' ? -d2Ext.value : -Infinity;
-
-  const M1 = 2 * Math.max(rhoX1, d1) - rhoX1;
-  const M2 = 2 * Math.max(rhoX2, d2) - rhoX2;
-
-  const D1 = -M1;
-  const D2 = -M2;
-
-  const maxD = Math.max(D1, D2);
-  const exp1 = Math.exp(beta * (D1 - maxD));
-  const exp2 = Math.exp(beta * (D2 - maxD));
-  const sumExp = exp1 + exp2;
-
-  const pi1 = exp1 / sumExp;
-  const pi2 = exp2 / sumExp;
-
-  const loss = -Math.log(pi1 + 1e-15);
-
-  let sgn1 = 0;
-  if (rhoX1 > d1) sgn1 = 1;
-  else if (rhoX1 < d1) sgn1 = -1;
-  const drho1 = beta * (1 - pi1) * sgn1;
-
-  let sgn2 = 0;
-  if (rhoX2 > d2) sgn2 = 1;
-  else if (rhoX2 < d2) sgn2 = -1;
-  const drho2 = rhoX2 >= d2 ? -beta * pi2 * sgn2 : 0;
-
-  let result: {
-    nextCX1: Rational;
-    nextRhoX1: number;
-    nextCX2: Rational;
-    nextRhoX2: number;
-  };
-
-  if (method === 'exact-joint') {
-    result = stepSoftmaxExactJoint(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, beta, precision);
-  } else {
-    result = stepSoftmaxExactPerCoord(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, beta, precision);
-  }
-
-  return {
-    nextCenterX1: result.nextCX1,
-    nextRhoX1: result.nextRhoX1,
-    nextCenterX2: result.nextCX2,
-    nextRhoX2: result.nextRhoX2,
-    loss,
-    pi1,
-    pi2,
-    drho1,
-    drho2
-  };
+  return new SoftmaxOperator(beta).step(
+    new BerkovichPoint(cX1, rhoX1),
+    new BerkovichPoint(cX2, rhoX2),
+    targetY,
+    p,
+    eta,
+    method,
+    precision
+  );
 }
 
 export type BerkovichUnaryOperator = 'shift' | 'scale' | 'square' | 'cube';
@@ -1402,190 +1820,33 @@ export function stepUnaryOperatorGradients(
   method: VertexResolutionMethod = 'exact-per-coord',
   precision: PrecisionBounds = DEFAULT_PRECISION
 ): UnaryGradientsStepResult {
-  const y_rho = precision.minPower;
-  const pNum = Number(p);
-
-  // Constants
-  // Shift: b = 1
-  const b = simplify({ num: 1n, den: 1n });
-  // Scale: a = p
-  const a = simplify({ num: p, den: 1n });
-
-  // 1. Forward Pass
-  let outCenter: Rational;
-  let outRho: number;
-  let activeDegree = 1.0;
-
+  let operator: UnaryOperator;
   if (op === 'shift') {
-    outCenter = add(cX, b);
-    outRho = rhoX;
-    activeDegree = 1.0;
+    operator = new ShiftOperator();
   } else if (op === 'scale') {
-    outCenter = multiply(a, cX);
-    // log_p |p|_p = -1
-    outRho = -1.0 + rhoX;
-    activeDegree = 1.0;
+    operator = new ScaleOperator(simplify({ num: p, den: 1n }));
   } else if (op === 'square') {
-    // square: f(x) = x^2
-    outCenter = multiply(cX, cX);
-    const valC = getValuation(cX, p);
-    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
-    const t1 = logNormC + rhoX;
-    const t2 = 2.0 * rhoX;
-    outRho = Math.max(t1, t2);
-
-    if (Math.abs(t1 - t2) < 1e-9) {
-      activeDegree = 1.5;
-    } else if (t1 > t2) {
-      activeDegree = 1.0;
-    } else {
-      activeDegree = 2.0;
-    }
+    operator = new SquareOperator();
   } else {
-    // cube: f(x) = x^3
-    outCenter = multiply(cX, multiply(cX, cX));
-    const valC = getValuation(cX, p);
-    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
-    const log3 = (p === 3n) ? -1.0 : 0.0;
-    const t1 = log3 + 2.0 * logNormC + rhoX;
-    const t2 = log3 + logNormC + 2.0 * rhoX;
-    const t3 = 3.0 * rhoX;
-    outRho = Math.max(t1, t2, t3);
-
-    let maxVal = outRho;
-    let sumDegrees = 0;
-    let count = 0;
-    if (Math.abs(t1 - maxVal) < 1e-9) { sumDegrees += 1.0; count++; }
-    if (Math.abs(t2 - maxVal) < 1e-9) { sumDegrees += 2.0; count++; }
-    if (Math.abs(t3 - maxVal) < 1e-9) { sumDegrees += 3.0; count++; }
-    activeDegree = sumDegrees / count;
+    operator = new CubeOperator();
   }
 
-  // Truncate outCenter to tree range [minPower, maxPower] for visual and boundary consistency
-  const outCenterTrunc = truncateToTreeRange(outCenter, p, precision.minPower, precision.maxPower);
-
-  // 2. Loss & Distance
-  const diff = subtract(outCenterTrunc, targetY);
-  const valDiff = getValuation(diff, p);
-  const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-
-  const loss = valDiff.type === 'pos-infinity' && outRho <= y_rho
-    ? 0
-    : computePathLoss(outRho, extNegate(valDiff), y_rho);
-
-  // 3. Gradient w.r.t outRho
-  let drOut = 0;
-  if (outRho > d) drOut = 1;
-  else if (outRho < d) drOut = -1;
-
-  // 4. Backward Pass & Resolution
-  let nextCX = cX;
-  let nextRhoX = rhoX;
-
-  const isInteger = Math.abs(rhoX - Math.round(rhoX)) < 1e-9;
-
-  const rhoMin = precision.minPower;
-  const rhoMax = precision.maxPower + 1;
-
-  if (!isInteger) {
-    // Continuous update
-    const rawNextRhoX = rhoX - eta * drOut * activeDegree;
-    nextRhoX = Math.max(rhoMin, Math.min(rhoMax, rawNextRhoX));
-    nextCX = cX;
-  } else {
-    // Vertex transition: evaluate parent and children
-    const intRhoX = Math.round(rhoX);
-    
-    // Candidate 1: Move up (parent)
-    const parentRhoX = Math.min(rhoMax, intRhoX + 1);
-    const parentLoss = evaluateCandidateLoss(cX, parentRhoX, op, targetY, p, y_rho, a, b, precision);
-
-    let bestLoss = parentLoss;
-    let bestCX = cX;
-    let bestRhoX = parentRhoX;
-
-    // Candidates 2..p+1: Move down to children
-    const childRhoX = Math.max(rhoMin, intRhoX - 1);
-    if (childRhoX >= rhoMin) {
-      const power = -intRhoX;
-      for (let g = 0; g < pNum; g++) {
-        let shift: Rational;
-        if (power <= 0) {
-          shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-        } else {
-          shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-        }
-        const childCX = add(cX, shift);
-        const childLoss = evaluateCandidateLoss(childCX, childRhoX, op, targetY, p, y_rho, a, b, precision);
-
-        if (childLoss < bestLoss - 1e-9) {
-          bestLoss = childLoss;
-          bestCX = childCX;
-          bestRhoX = childRhoX;
-        }
-      }
-    }
-
-    nextCX = bestCX;
-    const isParent = bestRhoX > intRhoX;
-    nextRhoX = Math.max(rhoMin, Math.min(rhoMax, isParent ? intRhoX + eta : intRhoX - eta));
-  }
+  const res = operator.step(
+    new BerkovichPoint(cX, rhoX),
+    targetY,
+    p,
+    eta,
+    method,
+    precision
+  );
 
   return {
-    nextCenterX: nextCX,
-    nextRhoX,
-    outCenter: outCenterTrunc,
-    outRho,
-    loss,
-    drhoOut_drhoX: activeDegree,
-    drOut
+    nextCenterX: res.nextX.center,
+    nextRhoX: res.nextX.rho,
+    outCenter: res.out.center,
+    outRho: res.out.rho,
+    loss: res.loss,
+    drhoOut_drhoX: res.drhoOut_drhoX,
+    drOut: res.drOut
   };
-}
-
-function evaluateCandidateLoss(
-  cX: Rational,
-  rhoX: number,
-  op: BerkovichUnaryOperator,
-  targetY: Rational,
-  p: bigint,
-  y_rho: number,
-  a: Rational,
-  b: Rational,
-  precision: PrecisionBounds
-): number {
-  let outCenter: Rational;
-  let outRho: number;
-
-  if (op === 'shift') {
-    outCenter = add(cX, b);
-    outRho = rhoX;
-  } else if (op === 'scale') {
-    outCenter = multiply(a, cX);
-    outRho = -1.0 + rhoX;
-  } else if (op === 'square') {
-    // square
-    outCenter = multiply(cX, cX);
-    const valC = getValuation(cX, p);
-    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
-    outRho = Math.max(logNormC + rhoX, 2.0 * rhoX);
-  } else {
-    // cube
-    outCenter = multiply(cX, multiply(cX, cX));
-    const valC = getValuation(cX, p);
-    const logNormC = valC.type === 'finite' ? -valC.value : -Infinity;
-    const log3 = (p === 3n) ? -1.0 : 0.0;
-    outRho = Math.max(
-      log3 + 2.0 * logNormC + rhoX,
-      log3 + logNormC + 2.0 * rhoX,
-      3.0 * rhoX
-    );
-  }
-
-  const outCenterTrunc = truncateToTreeRange(outCenter, p, precision.minPower, precision.maxPower);
-  const diff = subtract(outCenterTrunc, targetY);
-  const valDiff = getValuation(diff, p);
-
-  return valDiff.type === 'pos-infinity' && outRho <= y_rho
-    ? 0
-    : computePathLoss(outRho, extNegate(valDiff), y_rho);
 }

@@ -179,21 +179,11 @@ export class BerkovichTreeVisComponent implements OnInit {
     const buildNode = (c: Rational, rho: number, ancestors: string[]): LayoutNode => {
       const nodeId = `${formatRational(c)}_${rho}`;
       
-      let activeForY = false;
-      if (rho >= rho_target) {
-        const valY = getValuation(subtract(y, c), p);
-        if (valY.type === 'pos-infinity' || (valY.type === 'finite' && valY.value >= -rho)) {
-          activeForY = true;
-        }
-      }
+      const valY = getValuation(subtract(y, c), p);
+      const activeForY = valY.type === 'pos-infinity' || (valY.type === 'finite' && valY.value >= -rho);
       
-      let activeForC = false;
-      if (rho >= rho_curr) {
-        const valC = getValuation(subtract(c_curr, c), p);
-        if (valC.type === 'pos-infinity' || (valC.type === 'finite' && valC.value >= -rho)) {
-          activeForC = true;
-        }
-      }
+      const valC = getValuation(subtract(c_curr, c), p);
+      const activeForC = valC.type === 'pos-infinity' || (valC.type === 'finite' && valC.value >= -rho);
       
       const nodeActive = activeForY || activeForC;
       
@@ -232,7 +222,8 @@ export class BerkovichTreeVisComponent implements OnInit {
     const treeWidth = Math.pow(pNum, this.rhoMax - this.rhoMin);
     const bottomLeaves: LayoutNode[] = [];
     const collectBottomLeaves = (node: LayoutNode) => {
-      if (node.children.length === 0) {
+      const activeChildren = node.children.filter(c => c.isActive);
+      if (node.rho === this.rhoMin || (node.isActive && activeChildren.length === 0)) {
         bottomLeaves.push(node);
       } else {
         for (const child of node.children) {
@@ -284,6 +275,16 @@ export class BerkovichTreeVisComponent implements OnInit {
     // between their nearest active siblings at parent level.
     const computeX = (node: LayoutNode): number => {
       if (node.x !== undefined) {
+        if (node.children.length > 0) {
+          const mid = (node.children.length - 1) / 2;
+          for (let g = 0; g < node.children.length; g++) {
+            const child = node.children[g];
+            if (child.x === undefined) {
+              child.x = node.x + (g - mid) * baseGap;
+              computeX(child);
+            }
+          }
+        }
         return node.x;
       }
       if (node.rho === this.rhoMin) {
@@ -294,7 +295,7 @@ export class BerkovichTreeVisComponent implements OnInit {
       const activeIndices: number[] = [];
       for (let g = 0; g < node.children.length; g++) {
         const child = node.children[g];
-        if (child.children.length > 0 || child.rho === this.rhoMin) {
+        if (child.x !== undefined || child.children.length > 0) {
           computeX(child);
           activeIndices.push(g);
         }

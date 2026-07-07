@@ -62,18 +62,18 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
-      title: 'Berkovich Operator Gradients',
-      description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
-      route: '/berkovich/operator-gradients',
-      icon: 'call_split',
-      colorClass: 'card-berkovich-operator',
-    },
-    {
-      title: 'Berkovich Unary Gradients',
+      title: 'Berkovich Unary Op Gradients',
       description: 'Visualize backward pass and gradient flow through unary operations (shift, scale, and squaring).',
       route: '/berkovich/unary-gradients',
       icon: 'looks_one',
       colorClass: 'card-berkovich-unary',
+    },
+    {
+      title: 'Berkovich Binary Op Gradients',
+      description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
+      route: '/berkovich/operator-gradients',
+      icon: 'call_split',
+      colorClass: 'card-berkovich-operator',
     },
     {
       title: 'Notation Glossary',
