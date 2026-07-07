@@ -34,6 +34,8 @@ import {
 } from '../../../../lib/berkovich/berkovich_gradients';
 import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
 
+/** Horizontal spacing (in pixels) between the individual subtrees in the SVG layout. */
+const TREE_COLUMN_GAP = 48;
 
 export type BerkovichBinaryOperator = 'addition' | 'multiplication';
 
@@ -144,9 +146,9 @@ export class BerkovichMultiTreeVisComponent {
     }
   }
 
-  readonly treeGap = 32; // 2em gap between trees
+  readonly treeGap = TREE_COLUMN_GAP; // gap between trees
   readonly sideMargin = 20;
-  readonly svgHeight = 440; // reduced height to avoid vertical scrolling
+  readonly svgHeight = 455; // increased slightly to accommodate Y input label at bottom
   readonly paddingY = 75; // extra room at top for input labels
   readonly rhoMax = 2;
   readonly rhoMin = -2;
@@ -172,20 +174,37 @@ export class BerkovichMultiTreeVisComponent {
       if (primaryInp) {
         inputs.push(primaryInp);
       }
-      // If this is the output tree, also add target 'Y'
-      const isOutputTree = rp.trackedNodeId !== 'X1' && rp.trackedNodeId !== 'X2';
-      if (isOutputTree) {
-        const targetInp = editable?.find(e => e.trackedNodeId === 'Y');
-        if (targetInp) {
-          inputs.push(targetInp);
-        }
-      }
-      const hasMulti = inputs.length > 1;
-      const width = hasMulti ? 230 : 125;
-      const height = hasMulti ? 68 : 62;
+      const width = 125;
+      const height = primaryInp?.rhoInput !== undefined ? 62 : 38;
       const editorX = Math.max(2, Math.min(svgW - width - 4, rp.x - (width / 2)));
       return { x: rp.x, editorX, trackedNodeId: rp.trackedNodeId, inputs, width, height };
     });
+  });
+
+  readonly targetYInputLabel = computed<{
+    editorX: number;
+    editorY: number;
+    input: EditableNodeInputs;
+    width: number;
+    height: number;
+  } | null>(() => {
+    const visuals = this.treeVisuals();
+    const editable = this.editableInputs();
+    if (!editable) return null;
+    const targetInp = editable.find(e => e.trackedNodeId === 'Y');
+    if (!targetInp) return null;
+
+    if (visuals.rootPositions.length === 0) return null;
+    const outRp = visuals.rootPositions[visuals.rootPositions.length - 1];
+    
+    const width = 125;
+    const height = 38;
+    const svgW = visuals.width;
+    
+    const editorX = Math.max(2, Math.min(svgW - width - 4, outRp.x - (width / 2)));
+    const editorY = 405;
+    
+    return { editorX, editorY, input: targetInp, width, height };
   });
 
 
