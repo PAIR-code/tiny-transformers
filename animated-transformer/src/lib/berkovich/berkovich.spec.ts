@@ -34,15 +34,20 @@ import {
   extValuationGe
 } from './berkovich';
 import {
+  BerkovichPoint,
+  AdditionOperator,
+  MultiplicationOperator,
+  SoftmaxOperator,
+  ShiftOperator,
+  ScaleOperator,
+  SquareOperator,
+  CubeOperator,
+  UnaryOperator,
   computeVertexCandidates,
   computeContinuousStep,
   computeGradientDetails,
-  stepAdditionGradients,
   computeActiveDegrees,
   VertexResolutionMethod,
-  stepMultiplicationGradients,
-  stepSoftmaxGradients,
-  stepUnaryOperatorGradients,
   BerkovichUnaryOperator
 } from './berkovich_gradients';
 
@@ -538,11 +543,16 @@ describe('Berkovich Addition - Vertex Resolution Methods', () => {
     const targetY = parseToRational('5/3');
 
     for (const method of methods) {
-      const result = stepAdditionGradients(
-        cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, method
+      const result = new AdditionOperator().step(
+        new BerkovichPoint(cX1, 0.0),
+        new BerkovichPoint(cX2, 0.0),
+        targetY,
+        p,
+        1 / 3,
+        method
       );
-      expect(result.sumCenter).toBeDefined();
-      expect(result.sumRho).toBeDefined();
+      expect(result.sum.center).toBeDefined();
+      expect(result.sum.rho).toBeDefined();
       expect(typeof result.loss).toBe('number');
       expect(typeof result.drhoSum_drhoX1).toBe('number');
       expect(typeof result.drhoSum_drhoX2).toBe('number');
@@ -557,12 +567,17 @@ describe('Berkovich Addition - Vertex Resolution Methods', () => {
     const cX2 = parseToRational('0');
     const targetY = parseToRational('5/3'); // = 01.20 in base 3
 
-    const result = stepAdditionGradients(
-      cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, 'exact-joint'
+    const result = new AdditionOperator().step(
+      new BerkovichPoint(cX1, 0.0),
+      new BerkovichPoint(cX2, 0.0),
+      targetY,
+      p,
+      1 / 3,
+      'exact-joint'
     );
 
     // After one step, the sum center should move closer to 5/3
-    const newSum = add(result.nextCenterX1, result.nextCenterX2);
+    const newSum = add(result.nextX1.center, result.nextX2.center);
     const oldDiff = subtract(add(cX1, cX2), targetY);
     const newDiff = subtract(newSum, targetY);
     const oldVal = getValuation(oldDiff, p);
@@ -580,16 +595,21 @@ describe('Berkovich Addition - Vertex Resolution Methods', () => {
     const cX2 = parseToRational('0');
     const targetY = parseToRational('5/3');
 
-    const result = stepAdditionGradients(
-      cX1, 0.0, cX2, 0.0, targetY, p, 1 / 3, 'heuristic-joint'
+    const result = new AdditionOperator().step(
+      new BerkovichPoint(cX1, 0.0),
+      new BerkovichPoint(cX2, 0.0),
+      targetY,
+      p,
+      1 / 3,
+      'heuristic-joint'
     );
 
     // Should produce a step (not stay in place)
     const moved =
-      formatRational(result.nextCenterX1) !== formatRational(cX1) ||
-      formatRational(result.nextCenterX2) !== formatRational(cX2) ||
-      result.nextRhoX1 !== 0.0 ||
-      result.nextRhoX2 !== 0.0;
+      formatRational(result.nextX1.center) !== formatRational(cX1) ||
+      formatRational(result.nextX2.center) !== formatRational(cX2) ||
+      result.nextX1.rho !== 0.0 ||
+      result.nextX2.rho !== 0.0;
     expect(moved).toBe(true);
   });
 
@@ -600,19 +620,34 @@ describe('Berkovich Addition - Vertex Resolution Methods', () => {
     const targetY = parseToRational('5/3');
 
     // X1 at vertex (0.0), X2 on edge (0.5)
-    const perCoord = stepAdditionGradients(
-      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'exact-per-coord'
+    const perCoord = new AdditionOperator().step(
+      new BerkovichPoint(cX1, 0.0),
+      new BerkovichPoint(cX2, 0.5),
+      targetY,
+      p,
+      1 / 3,
+      'exact-per-coord'
     );
-    const heuristic = stepAdditionGradients(
-      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'heuristic-joint'
+    const heuristic = new AdditionOperator().step(
+      new BerkovichPoint(cX1, 0.0),
+      new BerkovichPoint(cX2, 0.5),
+      targetY,
+      p,
+      1 / 3,
+      'heuristic-joint'
     );
-    const exact = stepAdditionGradients(
-      cX1, 0.0, cX2, 0.5, targetY, p, 1 / 3, 'exact-joint'
+    const exact = new AdditionOperator().step(
+      new BerkovichPoint(cX1, 0.0),
+      new BerkovichPoint(cX2, 0.5),
+      targetY,
+      p,
+      1 / 3,
+      'exact-joint'
     );
 
     // All should give same result since only one is at vertex
-    expect(heuristic.nextRhoX2).toBeCloseTo(perCoord.nextRhoX2);
-    expect(exact.nextRhoX2).toBeCloseTo(perCoord.nextRhoX2);
+    expect(heuristic.nextX2.rho).toBeCloseTo(perCoord.nextX2.rho);
+    expect(exact.nextX2.rho).toBeCloseTo(perCoord.nextX2.rho);
   });
 });
 
@@ -635,18 +670,25 @@ describe('Berkovich Addition Gradient Descent Convergence', () => {
     const trace: string[] = [];
 
     for (let i = 0; i < maxSteps; i++) {
-      const result = stepAdditionGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, method);
+      const result = new AdditionOperator().step(
+        new BerkovichPoint(cX1, rhoX1),
+        new BerkovichPoint(cX2, rhoX2),
+        targetY,
+        p,
+        eta,
+        method
+      );
       trace.push(
         `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
-        `sum=(${formatRational(result.sumCenter)}, ${result.sumRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+        `sum=(${formatRational(result.sum.center)}, ${result.sum.rho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
       );
       if (result.loss <= 1e-7) {
-        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, sumCenter: result.sumCenter, sumRho: result.sumRho, trace };
+        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, sumCenter: result.sum.center, sumRho: result.sum.rho, trace };
       }
-      cX1 = result.nextCenterX1;
-      rhoX1 = result.nextRhoX1;
-      cX2 = result.nextCenterX2;
-      rhoX2 = result.nextRhoX2;
+      cX1 = result.nextX1.center;
+      rhoX1 = result.nextX1.rho;
+      cX2 = result.nextX2.center;
+      rhoX2 = result.nextX2.rho;
     }
     return { converged: false, steps: maxSteps, cX1, rhoX1, cX2, rhoX2, sumCenter: add(cX1, cX2), sumRho: Math.max(rhoX1, rhoX2), trace };
   }
@@ -718,18 +760,25 @@ describe('Berkovich Multiplication Gradient Descent Convergence', () => {
     const trace: string[] = [];
 
     for (let i = 0; i < maxSteps; i++) {
-      const result = stepMultiplicationGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, method);
+      const result = new MultiplicationOperator().step(
+        new BerkovichPoint(cX1, rhoX1),
+        new BerkovichPoint(cX2, rhoX2),
+        targetY,
+        p,
+        eta,
+        method
+      );
       trace.push(
         `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
-        `prod=(${formatRational(result.prodCenter)}, ${result.prodRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+        `prod=(${formatRational(result.prod.center)}, ${result.prod.rho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
       );
       if (result.loss <= 1e-7) {
-        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, prodCenter: result.prodCenter, prodRho: result.prodRho, trace };
+        return { converged: true, steps: i, cX1, rhoX1, cX2, rhoX2, prodCenter: result.prod.center, prodRho: result.prod.rho, trace };
       }
-      cX1 = result.nextCenterX1;
-      rhoX1 = result.nextRhoX1;
-      cX2 = result.nextCenterX2;
-      rhoX2 = result.nextRhoX2;
+      cX1 = result.nextX1.center;
+      rhoX1 = result.nextX1.rho;
+      cX2 = result.nextX2.center;
+      rhoX2 = result.nextX2.rho;
     }
     return { converged: false, steps: maxSteps, cX1, rhoX1, cX2, rhoX2, prodCenter: multiply(cX1, cX2), prodRho: rhoMin, trace };
   }
@@ -773,7 +822,14 @@ describe('Berkovich Softmax Gradient Descent Convergence', () => {
     const trace: string[] = [];
     let converged = false;
     for (let i = 0; i < maxSteps; i++) {
-      const result = stepSoftmaxGradients(cX1, rhoX1, cX2, rhoX2, targetY, p, eta, 3.0, 'exact-per-coord');
+      const result = new SoftmaxOperator(3.0).step(
+        new BerkovichPoint(cX1, rhoX1),
+        new BerkovichPoint(cX2, rhoX2),
+        targetY,
+        p,
+        eta,
+        'exact-per-coord'
+      );
       trace.push(
         `step ${i}: x1=(${formatRational(cX1)}, ${rhoX1.toFixed(3)}) x2=(${formatRational(cX2)}, ${rhoX2.toFixed(3)}) ` +
         `pi1=${result.pi1.toFixed(4)} pi2=${result.pi2.toFixed(4)} loss=${result.loss.toFixed(4)}`
@@ -782,10 +838,10 @@ describe('Berkovich Softmax Gradient Descent Convergence', () => {
         converged = true;
         break;
       }
-      cX1 = result.nextCenterX1;
-      rhoX1 = result.nextRhoX1;
-      cX2 = result.nextCenterX2;
-      rhoX2 = result.nextRhoX2;
+      cX1 = result.nextX1.center;
+      rhoX1 = result.nextX1.rho;
+      cX2 = result.nextX2.center;
+      rhoX2 = result.nextX2.rho;
     }
 
     if (!converged) {
@@ -811,16 +867,27 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     const trace: string[] = [];
 
     for (let i = 0; i < maxSteps; i++) {
-      const result = stepUnaryOperatorGradients(cX, rhoX, op, targetY, p, eta);
+      let operator: UnaryOperator;
+      if (op === 'shift') {
+        operator = new ShiftOperator();
+      } else if (op === 'scale') {
+        operator = new ScaleOperator(simplify({ num: p, den: 1n }));
+      } else if (op === 'square') {
+        operator = new SquareOperator();
+      } else {
+        operator = new CubeOperator();
+      }
+
+      const result = operator.step(new BerkovichPoint(cX, rhoX), targetY, p, eta);
       trace.push(
         `step ${i}: x=(${formatRational(cX)}, ${rhoX.toFixed(3)}) ` +
-        `out=(${formatRational(result.outCenter)}, ${result.outRho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
+        `out=(${formatRational(result.out.center)}, ${result.out.rho.toFixed(3)}) loss=${result.loss.toFixed(4)}`
       );
       if (result.loss <= 1e-7) {
-        return { converged: true, steps: i, cX, rhoX, outCenter: result.outCenter, outRho: result.outRho, trace };
+        return { converged: true, steps: i, cX, rhoX, outCenter: result.out.center, outRho: result.out.rho, trace };
       }
-      cX = result.nextCenterX;
-      rhoX = result.nextRhoX;
+      cX = result.nextX.center;
+      rhoX = result.nextX.rho;
     }
     return { converged: false, steps: maxSteps, cX, rhoX, outCenter: startX.center, outRho: -2.0, trace };
   }

@@ -83,8 +83,8 @@ describe('Berkovich OOP Library', () => {
     const op = new AdditionOperator();
 
     const res = op.step(startX1, startX2, targetY, p, 0.2, 'exact-per-coord');
-    expect(res.nextCenterX1).toEqual(parseToRational('0'));
-    expect(res.nextRhoX1).toBeCloseTo(0.2);
+    expect(res.nextX1.center).toEqual(parseToRational('0'));
+    expect(res.nextX1.rho).toBeCloseTo(0.2);
   });
 
   it('should step Binary Operators using MultiplicationOperator', () => {
@@ -95,7 +95,7 @@ describe('Berkovich OOP Library', () => {
     const op = new MultiplicationOperator();
 
     const res = op.step(startX1, startX2, targetY, p, 0.2, 'exact-per-coord');
-    expect(res.nextCenterX1).toEqual(parseToRational('3'));
+    expect(res.nextX1.center).toEqual(parseToRational('3'));
   });
 
   it('should step SoftmaxOperator', () => {
@@ -106,6 +106,6 @@ describe('Berkovich OOP Library', () => {
     const op = new SoftmaxOperator(1.0);
 
     const res = op.step(startX1, startX2, targetY, p, 0.2);
-    expect(res.nextCenterX1).toBeDefined();
+    expect(res.nextX1.center).toBeDefined();
   });
 });

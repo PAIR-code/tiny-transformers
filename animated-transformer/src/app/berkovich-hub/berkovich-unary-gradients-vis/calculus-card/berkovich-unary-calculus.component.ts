@@ -137,17 +137,17 @@ $$(x + 1)_c = x_c + 1, \\quad (x + 1)_\\rho = \\rho_x$$
   readonly outRowMarkdown = computed(() => {
     const op = this.operator();
     const details = this.stepDetails();
-    const outCenterStr = details.outCenter ? formatRational(details.outCenter) : '?';
+    const outCenterStr = details.out?.center ? formatRational(details.out.center) : '?';
     if (op === 'scale') {
       return `$$f(x)_c = \\text{scale}(x_c) = ${outCenterStr}$$
-              $$f(x)_\\rho = \\rho_x - 1 = ${details.outRho !== undefined ? details.outRho.toFixed(2) : '?'}$$`;
+              $$f(x)_\\rho = \\rho_x - 1 = ${details.out?.rho !== undefined ? details.out.rho.toFixed(2) : '?'}$$`;
     }
     if (op === 'square') {
       return `$$f(x)_c = x_c^2 = ${outCenterStr}$$
-              $$f(x)_\\rho = \\max(\\log_p |x_c|_p + \\rho_x, 2\\rho_x) = ${details.outRho !== undefined ? details.outRho.toFixed(2) : '?'}$$`;
+              $$f(x)_\\rho = \\max(\\log_p |x_c|_p + \\rho_x, 2\\rho_x) = ${details.out?.rho !== undefined ? details.out.rho.toFixed(2) : '?'}$$`;
     }
     return `$$f(x)_c = x_c + 1 = ${outCenterStr}$$
-            $$f(x)_\\rho = \\rho_x = ${details.outRho !== undefined ? details.outRho.toFixed(2) : '?'}$$`;
+            $$f(x)_\\rho = \\rho_x = ${details.out?.rho !== undefined ? details.out.rho.toFixed(2) : '?'}$$`;
   });
 
   readonly drhoXMarkdown = computed(() => {

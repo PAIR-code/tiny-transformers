@@ -34,9 +34,9 @@ import {
   computePathLoss
 } from '../../../lib/berkovich/berkovich';
 import {
-  stepAdditionGradients,
-  stepMultiplicationGradients,
-  stepSoftmaxGradients,
+  BerkovichPoint,
+  AdditionOperator,
+  MultiplicationOperator,
   VertexResolutionMethod
 } from '../../../lib/berkovich/berkovich_gradients';
 
@@ -169,102 +169,54 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     }
   }
 
-  // Combined dynamics
   readonly stepDetails = computed(() => {
     const op = this.operator();
     const p = BigInt(this.prime());
-    const c1 = this.centerX1();
-    const r1 = this.rhoX1();
-    const c2 = this.centerX2();
-    const r2 = this.rhoX2();
+    const x1 = new BerkovichPoint(this.centerX1(), this.rhoX1());
+    const x2 = new BerkovichPoint(this.centerX2(), this.rhoX2());
     const targetY = this.centerY();
 
     if (op === 'multiplication') {
-      const prodCenter = truncateToTreeRange(multiply(c1, c2), p, -2, 1);
-      const val1 = getValuation(c1, p);
-      const val2 = getValuation(c2, p);
-      const logNorm1 = val1.type === 'finite' ? -val1.value : -Infinity;
-      const logNorm2 = val2.type === 'finite' ? -val2.value : -Infinity;
-      const prodRho = Math.max(logNorm2 + r1, logNorm1 + r2, r1 + r2);
-
-      const diff = subtract(prodCenter, targetY);
+      const res = new MultiplicationOperator().step(
+        x1,
+        x2,
+        targetY,
+        p,
+        this.learningRate(),
+        this.vertexMethod()
+      );
+      const diff = subtract(res.prod.center, targetY);
       const valDiff = getValuation(diff, p);
       const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-
-      const y_rho = -2;
-      const loss = valDiff.type === 'pos-infinity' && prodRho <= y_rho
-        ? 0
-        : computePathLoss(prodRho, extNegate(valDiff), y_rho);
-
-      let drProd = 0;
-      if (prodRho > d) drProd = 1;
-      else if (prodRho < d) drProd = -1;
-
-      // Active degrees w.r.t product:
-      let drhoProd_drhoX1 = 0.0;
-      let drhoProd_drhoX2 = 0.0;
-      const t1 = logNorm2 + r1;
-      const t2 = logNorm1 + r2;
-      const t3 = r1 + r2;
-      const m = Math.max(t1, t2, t3);
-      let count = 0;
-      if (Math.abs(t1 - m) < 1e-9) count++;
-      if (Math.abs(t2 - m) < 1e-9) count++;
-      if (Math.abs(t3 - m) < 1e-9) count++;
-
-      if (Math.abs(t1 - m) < 1e-9) drhoProd_drhoX1 += 1.0 / count;
-      if (Math.abs(t2 - m) < 1e-9) drhoProd_drhoX2 += 1.0 / count;
-      if (Math.abs(t3 - m) < 1e-9) {
-        drhoProd_drhoX1 += 1.0 / count;
-        drhoProd_drhoX2 += 1.0 / count;
-      }
-
       return {
-        outCenter: prodCenter,
-        outRho: prodRho,
-        loss,
-        drhoX1: drhoProd_drhoX1,
-        drhoX2: drhoProd_drhoX2,
-        drOut: drProd,
+        outCenter: truncateToTreeRange(res.prod.center, p, -2, 1),
+        outRho: res.prod.rho,
+        loss: res.loss,
+        drhoX1: res.drhoProd_drhoX1,
+        drhoX2: res.drhoProd_drhoX2,
+        drOut: res.drProd,
         dY1: d,
         dY2: d
       };
     } else {
-      // addition
-      const sumCenter = truncateToTreeRange(add(c1, c2), p, -2, 1);
-      const sumRho = Math.max(r1, r2);
-
-      const diff = subtract(sumCenter, targetY);
+      const res = new AdditionOperator().step(
+        x1,
+        x2,
+        targetY,
+        p,
+        this.learningRate(),
+        this.vertexMethod()
+      );
+      const diff = subtract(res.sum.center, targetY);
       const valDiff = getValuation(diff, p);
       const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-
-      const y_rho = -2;
-      const loss = valDiff.type === 'pos-infinity' && sumRho <= y_rho
-        ? 0
-        : computePathLoss(sumRho, extNegate(valDiff), y_rho);
-
-      let drSum = 0;
-      if (sumRho > d) drSum = 1;
-      else if (sumRho < d) drSum = -1;
-
-      let drhoSum_drhoX1 = 0.0;
-      let drhoSum_drhoX2 = 0.0;
-      if (r1 > r2) {
-        drhoSum_drhoX1 = 1.0;
-      } else if (r2 > r1) {
-        drhoSum_drhoX2 = 1.0;
-      } else {
-        drhoSum_drhoX1 = 0.5;
-        drhoSum_drhoX2 = 0.5;
-      }
-
       return {
-        outCenter: sumCenter,
-        outRho: sumRho,
-        loss,
-        drhoX1: drhoSum_drhoX1,
-        drhoX2: drhoSum_drhoX2,
-        drOut: drSum,
+        outCenter: truncateToTreeRange(res.sum.center, p, -2, 1),
+        outRho: res.sum.rho,
+        loss: res.loss,
+        drhoX1: res.drhoSum_drhoX1,
+        drhoX2: res.drhoSum_drhoX2,
+        drOut: res.drSum,
         dY1: d,
         dY2: d
       };
@@ -436,41 +388,41 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
     const op = this.operator();
     const p = BigInt(this.prime());
 
-    let result: {
-      nextCenterX1: Rational;
-      nextRhoX1: number;
-      nextCenterX2: Rational;
-      nextRhoX2: number;
-    };
+    let nextX1: BerkovichPoint;
+    let nextX2: BerkovichPoint;
+
+    const x1 = new BerkovichPoint(this.centerX1(), this.rhoX1());
+    const x2 = new BerkovichPoint(this.centerX2(), this.rhoX2());
+    const targetY = this.centerY();
 
     if (op === 'multiplication') {
-      result = stepMultiplicationGradients(
-        this.centerX1(),
-        this.rhoX1(),
-        this.centerX2(),
-        this.rhoX2(),
-        this.centerY(),
+      const res = new MultiplicationOperator().step(
+        x1,
+        x2,
+        targetY,
         p,
         eta,
         this.vertexMethod()
       );
+      nextX1 = res.nextX1;
+      nextX2 = res.nextX2;
     } else {
-      result = stepAdditionGradients(
-        this.centerX1(),
-        this.rhoX1(),
-        this.centerX2(),
-        this.rhoX2(),
-        this.centerY(),
+      const res = new AdditionOperator().step(
+        x1,
+        x2,
+        targetY,
         p,
         eta,
         this.vertexMethod()
       );
+      nextX1 = res.nextX1;
+      nextX2 = res.nextX2;
     }
 
-    this.centerX1Input.set(formatDigitSequence(result.nextCenterX1, p));
-    this.rhoX1Input.set(result.nextRhoX1.toFixed(2));
-    this.centerX2Input.set(formatDigitSequence(result.nextCenterX2, p));
-    this.rhoX2Input.set(result.nextRhoX2.toFixed(2));
+    this.centerX1Input.set(formatDigitSequence(nextX1.center, p));
+    this.rhoX1Input.set(nextX1.rho.toFixed(2));
+    this.centerX2Input.set(formatDigitSequence(nextX2.center, p));
+    this.rhoX2Input.set(nextX2.rho.toFixed(2));
   }
 
   onUndo() {

@@ -313,13 +313,10 @@ export function computeGradientDetails(
   }
 }
 
-export interface AdditionGradientsStepResult {
-  nextCenterX1: Rational;
-  nextRhoX1: number;
-  nextCenterX2: Rational;
-  nextRhoX2: number;
-  sumCenter: Rational;
-  sumRho: number;
+export interface AdditionStepResult {
+  nextX1: BerkovichPoint;
+  nextX2: BerkovichPoint;
+  sum: BerkovichPoint;
   loss: number;
   drhoSum_drhoX1: number;
   drhoSum_drhoX2: number;
@@ -386,6 +383,14 @@ export class BerkovichPoint {
   }
 }
 
+export interface UnaryStepResult {
+  nextX: BerkovichPoint;
+  out: BerkovichPoint;
+  loss: number;
+  drhoOut_drhoX: number;
+  drOut: number;
+}
+
 /**
  * Abstract class representing a Unary Operator mapping a BerkovichPoint to another.
  */
@@ -417,13 +422,7 @@ export abstract class UnaryOperator {
     eta: number,
     method: VertexResolutionMethod = 'exact-per-coord',
     precision: PrecisionBounds = DEFAULT_PRECISION
-  ): {
-    nextX: BerkovichPoint;
-    out: BerkovichPoint;
-    loss: number;
-    drhoOut_drhoX: number;
-    drOut: number;
-  } {
+  ): UnaryStepResult {
     const y_rho = precision.minPower;
     const pNum = Number(p);
 
@@ -650,7 +649,7 @@ export class AdditionOperator extends BinaryOperator {
     eta: number,
     method: VertexResolutionMethod = 'exact-per-coord',
     precision: PrecisionBounds = DEFAULT_PRECISION
-  ): AdditionGradientsStepResult {
+  ): AdditionStepResult {
     const sumCenter = add(x1.center, x2.center);
     const sumRho = Math.max(x1.rho, x2.rho);
 
@@ -701,12 +700,9 @@ export class AdditionOperator extends BinaryOperator {
     }
 
     return {
-      nextCenterX1: result.nextCX1,
-      nextRhoX1: result.nextRhoX1,
-      nextCenterX2: result.nextCX2,
-      nextRhoX2: result.nextRhoX2,
-      sumCenter,
-      sumRho,
+      nextX1: new BerkovichPoint(result.nextCX1, result.nextRhoX1),
+      nextX2: new BerkovichPoint(result.nextCX2, result.nextRhoX2),
+      sum: new BerkovichPoint(sumCenter, sumRho),
       loss,
       drhoSum_drhoX1: activeDegrees.drhoSum_drhoX1,
       drhoSum_drhoX2: activeDegrees.drhoSum_drhoX2,
@@ -772,7 +768,7 @@ export class MultiplicationOperator extends BinaryOperator {
     eta: number,
     method: VertexResolutionMethod = 'exact-per-coord',
     precision: PrecisionBounds = DEFAULT_PRECISION
-  ): MultiplicationGradientsStepResult {
+  ): MultiplicationStepResult {
     const prodCenter = multiply(x1.center, x2.center);
 
     const val1 = getValuation(x1.center, p);
@@ -818,15 +814,13 @@ export class MultiplicationOperator extends BinaryOperator {
     }
 
     return {
-      nextCenterX1: result.nextCX1,
-      nextRhoX1: result.nextRhoX1,
-      nextCenterX2: result.nextCX2,
-      nextRhoX2: result.nextRhoX2,
-      prodCenter,
-      prodRho,
+      nextX1: new BerkovichPoint(result.nextCX1, result.nextRhoX1),
+      nextX2: new BerkovichPoint(result.nextCX2, result.nextRhoX2),
+      prod: new BerkovichPoint(prodCenter, prodRho),
       loss,
       drhoProd_drhoX1: activeDegrees.drhoProd_drhoX1,
-      drhoProd_drhoX2: activeDegrees.drhoProd_drhoX2
+      drhoProd_drhoX2: activeDegrees.drhoProd_drhoX2,
+      drProd
     };
   }
 }
@@ -845,7 +839,7 @@ export class SoftmaxOperator {
     eta: number,
     method: VertexResolutionMethod = 'exact-per-coord',
     precision: PrecisionBounds = DEFAULT_PRECISION
-  ): SoftmaxGradientsStepResult {
+  ): SoftmaxStepResult {
     const d1Ext = getValuation(subtract(x1.center, targetY), p);
     const d2Ext = getValuation(subtract(x2.center, targetY), p);
 
@@ -892,10 +886,8 @@ export class SoftmaxOperator {
     }
 
     return {
-      nextCenterX1: result.nextCX1,
-      nextRhoX1: result.nextRhoX1,
-      nextCenterX2: result.nextCX2,
-      nextRhoX2: result.nextRhoX2,
+      nextX1: new BerkovichPoint(result.nextCX1, result.nextRhoX1),
+      nextX2: new BerkovichPoint(result.nextCX2, result.nextRhoX2),
       loss,
       pi1,
       pi2,
@@ -1242,38 +1234,15 @@ function computeJointLoss(
     : computePathLoss(clampedRho, dExt, y_rho);
 }
 
-export function stepAdditionGradients(
-  cX1: Rational,
-  rhoX1: number,
-  cX2: Rational,
-  rhoX2: number,
-  targetY: Rational,
-  p: bigint,
-  eta: number,
-  method: VertexResolutionMethod = 'exact-per-coord',
-  precision: PrecisionBounds = DEFAULT_PRECISION
-): AdditionGradientsStepResult {
-  return new AdditionOperator().step(
-    new BerkovichPoint(cX1, rhoX1),
-    new BerkovichPoint(cX2, rhoX2),
-    targetY,
-    p,
-    eta,
-    method,
-    precision
-  );
-}
 
-export interface MultiplicationGradientsStepResult {
-  nextCenterX1: Rational;
-  nextRhoX1: number;
-  nextCenterX2: Rational;
-  nextRhoX2: number;
-  prodCenter: Rational;
-  prodRho: number;
+export interface MultiplicationStepResult {
+  nextX1: BerkovichPoint;
+  nextX2: BerkovichPoint;
+  prod: BerkovichPoint;
   loss: number;
   drhoProd_drhoX1: number;
   drhoProd_drhoX2: number;
+  drProd: number;
 }
 
 export function computeMultiplicationActiveDegrees(
@@ -1539,33 +1508,10 @@ function stepMultiplicationExactJoint(
   };
 }
 
-export function stepMultiplicationGradients(
-  cX1: Rational,
-  rhoX1: number,
-  cX2: Rational,
-  rhoX2: number,
-  targetY: Rational,
-  p: bigint,
-  eta: number,
-  method: VertexResolutionMethod = 'exact-per-coord',
-  precision: PrecisionBounds = DEFAULT_PRECISION
-): MultiplicationGradientsStepResult {
-  return new MultiplicationOperator().step(
-    new BerkovichPoint(cX1, rhoX1),
-    new BerkovichPoint(cX2, rhoX2),
-    targetY,
-    p,
-    eta,
-    method,
-    precision
-  );
-}
 
-export interface SoftmaxGradientsStepResult {
-  nextCenterX1: Rational;
-  nextRhoX1: number;
-  nextCenterX2: Rational;
-  nextRhoX2: number;
+export interface SoftmaxStepResult {
+  nextX1: BerkovichPoint;
+  nextX2: BerkovichPoint;
   loss: number;
   pi1: number;
   pi2: number;
@@ -1775,78 +1721,4 @@ function stepSoftmaxExactJoint(
   };
 }
 
-export function stepSoftmaxGradients(
-  cX1: Rational,
-  rhoX1: number,
-  cX2: Rational,
-  rhoX2: number,
-  targetY: Rational,
-  p: bigint,
-  eta: number,
-  beta: number = 1.0,
-  method: VertexResolutionMethod = 'exact-per-coord',
-  precision: PrecisionBounds = DEFAULT_PRECISION
-): SoftmaxGradientsStepResult {
-  return new SoftmaxOperator(beta).step(
-    new BerkovichPoint(cX1, rhoX1),
-    new BerkovichPoint(cX2, rhoX2),
-    targetY,
-    p,
-    eta,
-    method,
-    precision
-  );
-}
-
 export type BerkovichUnaryOperator = 'shift' | 'scale' | 'square' | 'cube';
-
-export interface UnaryGradientsStepResult {
-  nextCenterX: Rational;
-  nextRhoX: number;
-  outCenter: Rational;
-  outRho: number;
-  loss: number;
-  drhoOut_drhoX: number;
-  drOut: number;
-}
-
-export function stepUnaryOperatorGradients(
-  cX: Rational,
-  rhoX: number,
-  op: BerkovichUnaryOperator,
-  targetY: Rational,
-  p: bigint,
-  eta: number,
-  method: VertexResolutionMethod = 'exact-per-coord',
-  precision: PrecisionBounds = DEFAULT_PRECISION
-): UnaryGradientsStepResult {
-  let operator: UnaryOperator;
-  if (op === 'shift') {
-    operator = new ShiftOperator();
-  } else if (op === 'scale') {
-    operator = new ScaleOperator(simplify({ num: p, den: 1n }));
-  } else if (op === 'square') {
-    operator = new SquareOperator();
-  } else {
-    operator = new CubeOperator();
-  }
-
-  const res = operator.step(
-    new BerkovichPoint(cX, rhoX),
-    targetY,
-    p,
-    eta,
-    method,
-    precision
-  );
-
-  return {
-    nextCenterX: res.nextX.center,
-    nextRhoX: res.nextX.rho,
-    outCenter: res.out.center,
-    outRho: res.out.rho,
-    loss: res.loss,
-    drhoOut_drhoX: res.drhoOut_drhoX,
-    drOut: res.drOut
-  };
-}

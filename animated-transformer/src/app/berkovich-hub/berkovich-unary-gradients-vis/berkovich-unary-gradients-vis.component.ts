@@ -35,7 +35,12 @@ import {
   computePathLoss
 } from '../../../lib/berkovich/berkovich';
 import {
-  stepUnaryOperatorGradients,
+  BerkovichPoint,
+  ShiftOperator,
+  ScaleOperator,
+  SquareOperator,
+  CubeOperator,
+  UnaryOperator,
   VertexResolutionMethod,
   BerkovichUnaryOperator
 } from '../../../lib/berkovich/berkovich_gradients';
@@ -203,11 +208,27 @@ $$(x + 1)_\\rho = \\rho_x$$
   readonly stepDetails = computed(() => {
     const op = this.operator();
     const p = BigInt(this.prime());
-    const cx = this.centerX();
-    const rx = this.rhoX();
+    const x = new BerkovichPoint(this.centerX(), this.rhoX());
     const targetY = this.centerY();
 
-    return stepUnaryOperatorGradients(cx, rx, op, targetY, p, this.learningRate(), this.vertexMethod());
+    let operator: UnaryOperator;
+    if (op === 'shift') {
+      operator = new ShiftOperator();
+    } else if (op === 'scale') {
+      operator = new ScaleOperator(simplify({ num: p, den: 1n }));
+    } else if (op === 'square') {
+      operator = new SquareOperator();
+    } else {
+      operator = new CubeOperator();
+    }
+
+    return operator.step(
+      x,
+      targetY,
+      p,
+      this.learningRate(),
+      this.vertexMethod()
+    );
   });
 
   readonly loss = computed(() => this.stepDetails().loss);
@@ -242,7 +263,7 @@ $$(x + 1)_\\rho = \\rho_x$$
     }
 
     nodes.push(
-      { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
+      { id: idOut, center: details.out.center, rho: details.out.rho, color: '#a78bfa', label: labelOut },
       { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
     );
     return nodes;
@@ -398,10 +419,19 @@ $$(x + 1)_\\rho = \\rho_x$$
     const op = this.operator();
     const p = BigInt(this.prime());
 
-    const result = stepUnaryOperatorGradients(
-      c,
-      rho,
-      op,
+    let operator: UnaryOperator;
+    if (op === 'shift') {
+      operator = new ShiftOperator();
+    } else if (op === 'scale') {
+      operator = new ScaleOperator(simplify({ num: p, den: 1n }));
+    } else if (op === 'square') {
+      operator = new SquareOperator();
+    } else {
+      operator = new CubeOperator();
+    }
+
+    const result = operator.step(
+      new BerkovichPoint(c, rho),
       y,
       p,
       eta,
@@ -417,11 +447,11 @@ $$(x + 1)_\\rho = \\rho_x$$
       }
     ]);
 
-    this.currentCenterX.set(result.nextCenterX);
-    this.currentRhoX.set(result.nextRhoX);
+    this.currentCenterX.set(result.nextX.center);
+    this.currentRhoX.set(result.nextX.rho);
     this.stepCount.update(s => s + 1);
 
-    if (result.loss <= 1e-7 || result.nextRhoX <= -2.0) {
+    if (result.loss <= 1e-7 || result.nextX.rho <= -2.0) {
       this.stopPlaying();
     }
   }
