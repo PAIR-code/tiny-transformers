@@ -8,10 +8,12 @@ import {
   subtract,
   getValuation,
   computePathLoss,
-  computeGradientDetails,
   extNegate,
   multiply
 } from '../../../../lib/berkovich/berkovich';
+import {
+  computeGradientDetails
+} from '../../../../lib/berkovich/berkovich_gradients';
 import { BerkovichDisk, BerkovichConfig } from './berkovich-char-learner';
 
 // ==============================================================================

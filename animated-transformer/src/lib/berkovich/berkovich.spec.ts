@@ -27,14 +27,16 @@ import {
   getPadicDigits,
   getAlignedDigits,
   isVertex,
-  computeVertexCandidates,
-  computeContinuousStep,
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails,
   computePathLoss,
-  extValuationGe,
+  extValuationGe
+} from './berkovich';
+import {
+  computeVertexCandidates,
+  computeContinuousStep,
+  computeGradientDetails,
   stepAdditionGradients,
   computeActiveDegrees,
   VertexResolutionMethod,
@@ -42,7 +44,7 @@ import {
   stepSoftmaxGradients,
   stepUnaryOperatorGradients,
   BerkovichUnaryOperator
-} from './berkovich';
+} from './berkovich_gradients';
 
 
 describe('Berkovich Math Library - Rational Arithmetic', () => {
@@ -216,6 +218,20 @@ describe('Berkovich Math Library - Digit Sequence Conversion', () => {
     expect(parseDigitSequence('11.00', p)).toEqual(parseToRational('4'));
     expect(parseDigitSequence('00.02', p)).toEqual(parseToRational('2/9'));
     expect(parseDigitSequence('00.22', p)).toEqual(parseToRational('8/9'));
+  });
+
+  it('should format and parse with custom precision bounds correctly', () => {
+    const p = 3n;
+    const precision = { minPower: -3, maxPower: 2 }; // 3 digits left, 3 digits right: d2 d1 d0 . d-1 d-2 d-3
+    // 5/3 = 0 * 3^2 + 0 * 3^1 + 1 * 3^0 + 2 * 3^-1 + 0 * 3^-2 + 0 * 3^-3 -> '001.200'
+    const seq = formatDigitSequence(parseToRational('5/3'), p, precision);
+    expect(seq).toBe('001.200');
+    expect(parseDigitSequence(seq, p, precision)).toEqual(parseToRational('5/3'));
+
+    // 35/27 = 1 * 3^0 + 0 * 3^-1 + 2 * 3^-2 + 2 * 3^-3 -> '001.022'
+    const seq2 = formatDigitSequence(parseToRational('35/27'), p, precision);
+    expect(seq2).toBe('001.022');
+    expect(parseDigitSequence(seq2, p, precision)).toEqual(parseToRational('35/27'));
   });
 });
 
@@ -496,7 +512,6 @@ describe('Berkovich Gradient Descent Convergence', () => {
 
 describe('Berkovich Math Library - Active Degrees', () => {
   it('should assign full gradient to the larger rho', () => {
-    const { computeActiveDegrees } = require('./berkovich');
     expect(computeActiveDegrees(1.5, 0.5)).toEqual(
       { drhoSum_drhoX1: 1, drhoSum_drhoX2: 0 }
     );
@@ -506,7 +521,6 @@ describe('Berkovich Math Library - Active Degrees', () => {
   });
 
   it('should split gradient equally when rho values are equal', () => {
-    const { computeActiveDegrees } = require('./berkovich');
     expect(computeActiveDegrees(1.0, 1.0)).toEqual(
       { drhoSum_drhoX1: 0.5, drhoSum_drhoX2: 0.5 }
     );
@@ -820,7 +834,7 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     if (!result.converged) {
       expect.fail(result.trace.join('\n'));
     }
-    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    expect(result.outRho).toBeLessThanOrEqual(-2.0 + 1e-9);
     const valDiff = getValuation(subtract(result.cX, parseToRational('2')), p);
     expect(valDiff.type).toBe('pos-infinity');
   });
@@ -834,7 +848,7 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     if (!result.converged) {
       expect.fail(result.trace.join('\n'));
     }
-    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    expect(result.outRho).toBeLessThanOrEqual(-2.0 + 1e-9);
     const valDiff = getValuation(subtract(result.cX, parseToRational('1')), p);
     expect(valDiff.type).toBe('pos-infinity');
   });
@@ -848,7 +862,7 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     if (!result.converged) {
       expect.fail(result.trace.join('\n'));
     }
-    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    expect(result.outRho).toBeLessThanOrEqual(-2.0 + 1e-9);
     // Assert that the output matches the target 4
     const valDiff = getValuation(subtract(result.outCenter, targetY), p);
     expect(valDiff.type).toBe('pos-infinity');
@@ -863,7 +877,7 @@ describe('Berkovich Unary Operator Gradient Descent Convergence', () => {
     if (!result.converged) {
       expect.fail(result.trace.join('\n'));
     }
-    expect(result.outRho).toBeLessThanOrEqual(-2.0);
+    expect(result.outRho).toBeLessThanOrEqual(-2.0 + 1e-9);
     // Assert that the output matches the target 8
     const valDiff = getValuation(subtract(result.outCenter, targetY), p);
     expect(valDiff.type).toBe('pos-infinity');

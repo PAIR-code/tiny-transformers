@@ -39,12 +39,14 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails,
-  GradientDetails,
   computePathLoss,
   ExtendedNumber,
   extNegate
 } from '../../../lib/berkovich/berkovich';
+import {
+  computeGradientDetails,
+  GradientDetails
+} from '../../../lib/berkovich/berkovich_gradients';
 
 import { BerkovichTreeVisComponent } from './tree-vis/berkovich-tree-vis.component';
 import { BerkovichDigitsComponent } from './digits-card/berkovich-digits.component';

@@ -36,11 +36,13 @@ import {
   formatRational,
   getValuation,
   getAlignedDigits,
-  GradientDetails,
   formatDigitSequence,
   ExtendedNumber,
   extValuationGe
 } from '../../../../lib/berkovich/berkovich';
+import {
+  GradientDetails
+} from '../../../../lib/berkovich/berkovich_gradients';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 

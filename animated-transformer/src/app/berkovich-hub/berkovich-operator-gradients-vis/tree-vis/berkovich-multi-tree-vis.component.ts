@@ -27,9 +27,11 @@ import {
   subtract,
   formatDigitSequence,
   getValuation,
-  extValuationGe,
-  VertexResolutionMethod,
+  extValuationGe
 } from '../../../../lib/berkovich/berkovich';
+import {
+  VertexResolutionMethod
+} from '../../../../lib/berkovich/berkovich_gradients';
 import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
 
 

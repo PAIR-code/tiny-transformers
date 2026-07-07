@@ -28,10 +28,12 @@ import {
   formatRational,
   formatDigitSequence,
   getValuation,
-  computeGradientDetails,
-  GradientDetails,
   ExtendedNumber
 } from '../../../lib/berkovich/berkovich';
+import {
+  computeGradientDetails,
+  GradientDetails
+} from '../../../lib/berkovich/berkovich_gradients';
 
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
 import { BerkovichBigramCharLearner, BerkovichNgramCharLearner, BerkovichCharLearnerBase, BerkovichDisk, BerkovichConfig } from './models/berkovich-char-learner';

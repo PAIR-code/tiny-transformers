@@ -39,11 +39,13 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
-  computeGradientDetails,
-  GradientDetails,
   ExtendedNumber,
   extNegate
 } from '../../../lib/berkovich/berkovich';
+import {
+  computeGradientDetails,
+  GradientDetails
+} from '../../../lib/berkovich/berkovich_gradients';
 
 
 

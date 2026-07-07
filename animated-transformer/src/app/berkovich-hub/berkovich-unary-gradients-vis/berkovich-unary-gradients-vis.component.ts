@@ -31,12 +31,14 @@ import {
   subtract,
   multiply,
   getValuation,
+  extNegate,
+  computePathLoss
+} from '../../../lib/berkovich/berkovich';
+import {
   stepUnaryOperatorGradients,
   VertexResolutionMethod,
-  extNegate,
-  computePathLoss,
   BerkovichUnaryOperator
-} from '../../../lib/berkovich/berkovich';
+} from '../../../lib/berkovich/berkovich_gradients';
 
 import { BerkovichUnaryCalculusComponent } from './calculus-card/berkovich-unary-calculus.component';
 import {

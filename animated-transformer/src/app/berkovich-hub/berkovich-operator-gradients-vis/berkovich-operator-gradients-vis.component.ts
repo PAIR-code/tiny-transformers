@@ -30,13 +30,15 @@ import {
   subtract,
   multiply,
   getValuation,
-  stepAdditionGradients,
-  stepMultiplicationGradients,
-  stepSoftmaxGradients,
-  VertexResolutionMethod,
   extNegate,
   computePathLoss
 } from '../../../lib/berkovich/berkovich';
+import {
+  stepAdditionGradients,
+  stepMultiplicationGradients,
+  stepSoftmaxGradients,
+  VertexResolutionMethod
+} from '../../../lib/berkovich/berkovich_gradients';
 
 import { BerkovichOperatorCalculusComponent } from './calculus-card/berkovich-operator-calculus.component';
 import {

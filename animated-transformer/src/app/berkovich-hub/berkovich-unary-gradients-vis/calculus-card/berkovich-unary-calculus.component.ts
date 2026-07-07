@@ -17,7 +17,8 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MarkdownComponent } from 'ngx-markdown';
-import { BerkovichUnaryOperator, formatRational } from '../../../../lib/berkovich/berkovich';
+import { formatRational } from '../../../../lib/berkovich/berkovich';
+import { BerkovichUnaryOperator } from '../../../../lib/berkovich/berkovich_gradients';
 
 @Component({
   selector: 'app-berkovich-unary-calculus',
