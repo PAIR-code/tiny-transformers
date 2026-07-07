@@ -259,16 +259,6 @@ limitations under the License.
               class="rho-level-cap"
               [style.stroke]="tn.color"
             />
-            <text
-              [attr.x]="getRhoLineForTrackedNode(tn).x2 + 8"
-              y="4"
-              class="rho-level-text"
-              [style.fill]="tn.color"
-            >
-              @for (seg of parseSubscripts(tn.label); track $index) {
-                <tspan [class.subscript-text]="seg.isSub">{{ seg.text }}</tspan>
-              }
-            </text>
           </g>
         }
       }
