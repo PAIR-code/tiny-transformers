@@ -146,7 +146,7 @@ export class BerkovichDigitDisplayComponent {
   });
 
   readonly rowY = computed(() => {
-    return this.derivedDimensions().marginTop;
+    return this.displayShowRho() ? this.derivedDimensions().marginTop : this.derivedDimensions().boxPadding;
   });
 
   readonly svgHeight = computed(() => {

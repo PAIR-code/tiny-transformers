@@ -22,6 +22,9 @@ import { WalkthroughContextComponent } from './shared/walkthrough-context.compon
 import { SoftmaxWalkthroughTableComponent } from './shared/softmax-walkthrough-table.component';
 import { PadicLinearLookupWalkthroughComponent } from './shared/padic-linear-lookup-walkthrough.component';
 import { PadicLinearDecoderWalkthroughComponent } from './shared/padic-linear-decoder-walkthrough.component';
+import { PadicLinearModelInspectorComponent } from '../inspector-components/padic-linear-model-inspector.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
+import { PadicLinearCharLearner } from '../models/padic-linear-char-learner';
 
 @Component({
   selector: 'app-padic-linear-walkthrough',
@@ -32,7 +35,9 @@ import { PadicLinearDecoderWalkthroughComponent } from './shared/padic-linear-de
     WalkthroughContextComponent, 
     SoftmaxWalkthroughTableComponent,
     PadicLinearLookupWalkthroughComponent,
-    PadicLinearDecoderWalkthroughComponent
+    PadicLinearDecoderWalkthroughComponent,
+    PadicLinearModelInspectorComponent,
+    BerkovichDualDigitDisplayComponent
   ],
   templateUrl: './padic-linear-walkthrough.component.html',
   styleUrl: './padic-linear-walkthrough.component.scss',
@@ -65,5 +70,25 @@ export class PadicLinearWalkthroughComponent {
     step2: string;
   }>();
 
+  // New inputs/outputs for parameters and gradients
+  model = input.required<PadicLinearCharLearner | null>();
+  dimensions = input.required<number[]>();
+  showM = input<boolean>(false);
+  showB = input<boolean>(false);
+  showSoftmax = input<boolean>(false);
+
+  showMChange = output<boolean>();
+  showBChange = output<boolean>();
+  showSoftmaxChange = output<boolean>();
+
+  gradients = input<any[] | null>(null);
+  targetChar = input<string>('');
+  targetCharChange = output<string>();
+
   walkthroughInputChange = output<string>();
+
+  onTargetCharChange(event: Event) {
+    const val = (event.target as HTMLSelectElement).value;
+    this.targetCharChange.emit(val);
+  }
 }

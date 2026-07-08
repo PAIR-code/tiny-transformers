@@ -22,6 +22,9 @@ import { WalkthroughContextComponent } from './shared/walkthrough-context.compon
 import { SoftmaxWalkthroughTableComponent } from './shared/softmax-walkthrough-table.component';
 import { BerkovichLookupWalkthroughComponent } from './shared/berkovich-lookup-walkthrough.component';
 import { BerkovichDecoderWalkthroughComponent } from './shared/berkovich-decoder-walkthrough.component';
+import { BerkovichModelInspectorComponent } from '../inspector-components/berkovich-model-inspector.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
+import { BerkovichCharLearnerBase } from '../models/berkovich-char-learner';
 
 @Component({
   selector: 'app-berkovich-bigram-walkthrough',
@@ -32,7 +35,9 @@ import { BerkovichDecoderWalkthroughComponent } from './shared/berkovich-decoder
     WalkthroughContextComponent, 
     SoftmaxWalkthroughTableComponent,
     BerkovichLookupWalkthroughComponent,
-    BerkovichDecoderWalkthroughComponent
+    BerkovichDecoderWalkthroughComponent,
+    BerkovichModelInspectorComponent,
+    BerkovichDualDigitDisplayComponent
   ],
   templateUrl: './berkovich-bigram-walkthrough.component.html',
   styleUrl: './berkovich-bigram-walkthrough.component.scss',
@@ -65,5 +70,25 @@ export class BerkovichBigramWalkthroughComponent {
     step2: string;
   }>();
 
+  // New inputs/outputs for parameters and gradients
+  model = input.required<BerkovichCharLearnerBase | null>();
+  dimensions = input.required<number[]>();
+  showE = input<boolean>(false);
+  showW = input<boolean>(false);
+  showSoftmax = input<boolean>(false);
+
+  showEChange = output<boolean>();
+  showWChange = output<boolean>();
+  showSoftmaxChange = output<boolean>();
+
+  gradients = input<any[] | null>(null);
+  targetChar = input<string>('');
+  targetCharChange = output<string>();
+
   walkthroughInputChange = output<string>();
+
+  onTargetCharChange(event: Event) {
+    const val = (event.target as HTMLSelectElement).value;
+    this.targetCharChange.emit(val);
+  }
 }

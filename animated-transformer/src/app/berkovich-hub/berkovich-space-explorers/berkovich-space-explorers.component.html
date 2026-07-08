@@ -346,46 +346,7 @@ limitations under the License.
       </section>
     </div>
 
-    <!-- ROW 4: Model Weights & Parameter Introspector -->
-    <div class="dashboard-row" style="width: 100%"
-      *ngIf="approach() === 'berkovich-bigram' || approach() === 'berkovich-ngram' || approach() === 'berkovich-bigram-bias' || approach() === 'berkovich-attention' || approach() === 'padic-linear'">
-      <!-- Model Weights & Parameter Introspector -->
-      <section class="card collapsible-card introspect-section-card">
-        <div class="card-header-row" style="display: flex; align-items: center; justify-content: space-between;">
-          <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-            <mat-icon style="color: #0f766e;">analytics</mat-icon>
-            <span>Model Weights &amp; Parameter Introspector</span>
-          </h3>
-          <button mat-icon-button (click)="isInspectExpanded.set(!isInspectExpanded())"
-            aria-label="Toggle parameter introspector">
-            <mat-icon style="color: #64748b;">{{ isInspectExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
-          </button>
-        </div>
-
-        @if (isInspectExpanded()) {
-          @if (berkovichModel(); as bModel) {
-            <app-berkovich-model-inspector
-              [model]="bModel"
-              [vocab]="vocab()"
-              [dimensions]="dimensions()"
-              [prime]="prime()"
-              [digitsLeft]="digitsLeft()"
-              [digitsRight]="digitsRight()"
-            ></app-berkovich-model-inspector>
-          } @else if (padicLinearModel(); as pModel) {
-            <app-padic-linear-model-inspector
-              [model]="pModel"
-              [dimensions]="dimensions()"
-              [prime]="prime()"
-              [digitsLeft]="digitsLeft()"
-              [digitsRight]="digitsRight()"
-            ></app-padic-linear-model-inspector>
-          }
-        }
-      </section>
-    </div>
-
-    <!-- ROW 5: Explainer ("How Model Inference Works?") -->
+    <!-- ROW 4: Explainer ("How Model Inference Works?") -->
     <div id="how-it-works" class="dashboard-row" style="width: 100%; margin-top: 16px; scroll-margin-top: 20px;">
       <section class="card explainer-card" style="width: 100%;">
         <h3><mat-icon>info</mat-icon> How Model Inference Works?</h3>
@@ -401,7 +362,18 @@ limitations under the License.
             [digitsLeft]="digitsLeft()"
             [digitsRight]="digitsRight()"
             [stepData]="stepData.bigram"
-            (walkthroughInputChange)="onWalkthroughInputChange($event)">
+            (walkthroughInputChange)="onWalkthroughInputChange($event)"
+            [model]="berkovichModel()"
+            [dimensions]="dimensions()"
+            [showE]="walkthroughShowE()"
+            [showW]="walkthroughShowW()"
+            [showSoftmax]="walkthroughShowSoftmax()"
+            (showEChange)="walkthroughShowE.set($event)"
+            (showWChange)="walkthroughShowW.set($event)"
+            (showSoftmaxChange)="walkthroughShowSoftmax.set($event)"
+            [gradients]="walkthroughGradients()"
+            [targetChar]="walkthroughTargetChar()"
+            (targetCharChange)="walkthroughTargetChar.set($event)">
           </app-berkovich-bigram-walkthrough>
         } @else if (approach() === 'berkovich-ngram') {
           <app-berkovich-ngram-walkthrough
@@ -416,7 +388,20 @@ limitations under the License.
             [digitsLeft]="digitsLeft()"
             [digitsRight]="digitsRight()"
             [stepData]="stepData.ngram"
-            (walkthroughInputChange)="onWalkthroughInputChange($event)">
+            (walkthroughInputChange)="onWalkthroughInputChange($event)"
+            [model]="berkovichModel()"
+            [dimensions]="dimensions()"
+            [showE]="walkthroughShowE()"
+            [showW]="walkthroughShowW()"
+            [showH]="walkthroughShowH()"
+            [showSoftmax]="walkthroughShowSoftmax()"
+            (showEChange)="walkthroughShowE.set($event)"
+            (showWChange)="walkthroughShowW.set($event)"
+            (showHChange)="walkthroughShowH.set($event)"
+            (showSoftmaxChange)="walkthroughShowSoftmax.set($event)"
+            [gradients]="walkthroughGradients()"
+            [targetChar]="walkthroughTargetChar()"
+            (targetCharChange)="walkthroughTargetChar.set($event)">
           </app-berkovich-ngram-walkthrough>
         } @else if (approach() === 'padic-linear') {
           <app-padic-linear-walkthrough
@@ -430,7 +415,18 @@ limitations under the License.
             [digitsLeft]="digitsLeft()"
             [digitsRight]="digitsRight()"
             [stepData]="stepData.padicLinear"
-            (walkthroughInputChange)="onWalkthroughInputChange($event)">
+            (walkthroughInputChange)="onWalkthroughInputChange($event)"
+            [model]="padicLinearModel()"
+            [dimensions]="dimensions()"
+            [showM]="walkthroughShowM()"
+            [showB]="walkthroughShowB()"
+            [showSoftmax]="walkthroughShowSoftmax()"
+            (showMChange)="walkthroughShowM.set($event)"
+            (showBChange)="walkthroughShowB.set($event)"
+            (showSoftmaxChange)="walkthroughShowSoftmax.set($event)"
+            [gradients]="walkthroughPadicLinearGradients()"
+            [targetChar]="walkthroughTargetChar()"
+            (targetCharChange)="walkthroughTargetChar.set($event)">
           </app-padic-linear-walkthrough>
         } @else {
           <app-euclidean-walkthrough

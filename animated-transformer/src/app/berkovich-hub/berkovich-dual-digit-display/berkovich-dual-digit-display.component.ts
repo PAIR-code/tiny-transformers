@@ -25,35 +25,9 @@ import { Rational, getAlignedDigits, subtract, getValuation } from '../../../lib
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BerkovichDualDigitDisplayComponent {
-  // ==========================================================================
-  // VISUAL LAYOUT & STYLING CONSTANTS
-  // Modify these values to adjust sizes, margins, gaps, and borders.
-  // ==========================================================================
-  /** Width of an individual digit cell box. */
-  readonly CELL_WIDTH = 20;
-  /** Height of an individual digit cell box. */
-  readonly CELL_HEIGHT = 24;
-  /** Horizontal gap between adjacent digit cell boxes. */
-  readonly CELL_GAP = 4;
-  /** Width allocated for the decimal dot separator. */
-  readonly DOT_WIDTH = 0;
-
-  /** Top margin of the SVG viewport (space above the first row). */
-  readonly MARGIN_TOP = 30;
-  /** Bottom margin of the SVG viewport (space below the second row). */
-  readonly MARGIN_BOTTOM = 30;
-  /** Left margin of the SVG viewport (leaves room for the editor overlay on the left). */
-  readonly MARGIN_LEFT = 140;
-  /** Right margin of the SVG viewport (leaves room for the rho value labels on the right). */
-  readonly MARGIN_RIGHT = 110;
-
-  /** Vertical gap between the first row (x) and the second row (y). */
-  readonly ROW_GAP = 20;
-
-  /** Padding around the digit sequence row to the outer beveled border. */
-  readonly BOX_PADDING = 4;
-  /** Bevel radius for the outer border corners. */
-  readonly BOX_BORDER_RADIUS = 6;
+  private static idCounter = 0;
+  readonly clipPathId1 = `row1Clip_${BerkovichDualDigitDisplayComponent.idCounter++}`;
+  readonly clipPathId2 = `row2Clip_${BerkovichDualDigitDisplayComponent.idCounter++}`;
 
   // ==========================================================================
   // COLOR, OPACITY, & INSET CONSTANTS
@@ -74,9 +48,6 @@ export class BerkovichDualDigitDisplayComponent {
   /** Inset padding of the inner white digit box within its cell slot. */
   readonly DIGIT_BOX_INSET = 1.5;
 
-  /** Distance of the decimal dot separator from the bottom of the digit row. */
-  readonly DOT_Y_OFFSET_FROM_BOTTOM = 10;
-
   /** Radius size of the decimal dot separator. */
   readonly DOT_RADIUS = 1.5;
   /** Color of the decimal dot separator (soft slate-400 grey). */
@@ -92,11 +63,98 @@ export class BerkovichDualDigitDisplayComponent {
   readonly digitsLeft = input<number>(2);
   readonly digitsRight = input<number>(2);
 
-  readonly row1Y = this.MARGIN_TOP;
-  readonly row2Y = this.MARGIN_TOP + this.CELL_HEIGHT + this.ROW_GAP;
+  // Configurable size category
+  readonly size = input<'small' | 'medium' | 'large'>('medium');
+
+  // Flexible layout & margin inputs (default to undefined to fall back to size category defaults)
+  readonly cellWidthInput = input<number | undefined>(undefined, { alias: 'cellWidth' });
+  readonly cellHeightInput = input<number | undefined>(undefined, { alias: 'cellHeight' });
+  readonly cellGapInput = input<number | undefined>(undefined, { alias: 'cellGap' });
+  readonly dotWidthInput = input<number | undefined>(undefined, { alias: 'dotWidth' });
+
+  readonly marginTopInput = input<number | undefined>(undefined, { alias: 'marginTop' });
+  readonly marginBottomInput = input<number | undefined>(undefined, { alias: 'marginBottom' });
+  readonly marginLeftInput = input<number | undefined>(undefined, { alias: 'marginLeft' });
+  readonly marginRightInput = input<number | undefined>(undefined, { alias: 'marginRight' });
+  readonly rowGapInput = input<number | undefined>(undefined, { alias: 'rowGap' });
+  readonly fontSizeInput = input<number | undefined>(undefined, { alias: 'fontSize' });
+
+  readonly derivedDimensions = computed(() => {
+    const sz = this.size();
+    
+    // Default dimensions per size
+    let cellWidth = 20;
+    let cellHeight = 24;
+    let cellGap = 4;
+    let dotWidth = 0;
+    let marginTop = 24;
+    let marginBottom = 10;
+    let marginLeft = 10;
+    let marginRight = 10;
+    let rowGap = 16;
+    let fontSize = 11;
+
+    let boxPadding = 3;
+    let boxBorderRadius = 4;
+    let dotYOffsetFromBottom = 8;
+
+    if (sz === 'small') {
+      cellWidth = 14;
+      cellHeight = 18;
+      cellGap = 2;
+      dotWidth = 0;
+      marginTop = 18;
+      marginBottom = 6;
+      marginLeft = 6;
+      marginRight = 6;
+      rowGap = 12;
+      fontSize = 9;
+      boxPadding = 1.5;
+      boxBorderRadius = 2.5;
+      dotYOffsetFromBottom = 5.5;
+    } else if (sz === 'large') {
+      cellWidth = 28;
+      cellHeight = 34;
+      cellGap = 6;
+      dotWidth = 0;
+      marginTop = 30;
+      marginBottom = 15;
+      marginLeft = 15;
+      marginRight = 15;
+      rowGap = 24;
+      fontSize = 14;
+      boxPadding = 4;
+      boxBorderRadius = 6;
+      dotYOffsetFromBottom = 11;
+    }
+
+    return {
+      cellWidth: this.cellWidthInput() ?? cellWidth,
+      cellHeight: this.cellHeightInput() ?? cellHeight,
+      cellGap: this.cellGapInput() ?? cellGap,
+      dotWidth: this.dotWidthInput() ?? dotWidth,
+      marginTop: this.marginTopInput() ?? marginTop,
+      marginBottom: this.marginBottomInput() ?? marginBottom,
+      marginLeft: this.marginLeftInput() ?? marginLeft,
+      marginRight: this.marginRightInput() ?? marginRight,
+      rowGap: this.rowGapInput() ?? rowGap,
+      fontSize: this.fontSizeInput() ?? fontSize,
+      boxPadding,
+      boxBorderRadius,
+      dotYOffsetFromBottom
+    };
+  });
+
+  readonly row1Y = computed(() => {
+    return this.derivedDimensions().marginTop;
+  });
+
+  readonly row2Y = computed(() => {
+    return this.row1Y() + this.derivedDimensions().cellHeight + this.derivedDimensions().rowGap;
+  });
 
   readonly svgHeight = computed(() => {
-    const baseHeight = this.row2Y + this.CELL_HEIGHT + this.MARGIN_BOTTOM;
+    const baseHeight = this.row2Y() + this.derivedDimensions().cellHeight + this.derivedDimensions().marginBottom;
     return this.yRho() !== undefined && this.yRho() !== null ? baseHeight + 15 : baseHeight;
   });
 
@@ -150,10 +208,11 @@ export class BerkovichDualDigitDisplayComponent {
   // Layout positions of cells
   readonly layout = computed(() => {
     const list = this.cells();
-    const leftMargin = this.MARGIN_LEFT;
-    const gap = this.CELL_GAP;
-    const w = this.CELL_WIDTH;
-    const dotW = this.DOT_WIDTH;
+    const dims = this.derivedDimensions();
+    const leftMargin = dims.marginLeft;
+    const gap = dims.cellGap;
+    const w = dims.cellWidth;
+    const dotW = dims.dotWidth;
 
     let currentX = leftMargin;
     const cellPositions: { left: number; right: number; center: number; power: number }[] = [];
@@ -182,7 +241,7 @@ export class BerkovichDualDigitDisplayComponent {
     }
 
     const rowWidth = currentX - leftMargin;
-    const totalWidth = currentX + this.MARGIN_RIGHT;
+    const totalWidth = currentX + dims.marginRight;
     return {
       cellPositions,
       dotX,
@@ -194,16 +253,17 @@ export class BerkovichDualDigitDisplayComponent {
   getXForIntegerPower(k: number): number {
     const lay = this.layout();
     const pos = lay.cellPositions;
-    if (pos.length === 0) return this.MARGIN_LEFT;
+    const dims = this.derivedDimensions();
+    if (pos.length === 0) return dims.marginLeft;
 
     const maxP = pos[0].power;
     const minP = pos[pos.length - 1].power;
 
     if (k >= maxP + 1) {
-      return this.MARGIN_LEFT - this.BOX_PADDING;
+      return dims.marginLeft - dims.boxPadding;
     }
     if (k <= minP - 1) {
-      return this.MARGIN_LEFT + lay.rowWidth + this.BOX_PADDING;
+      return dims.marginLeft + lay.rowWidth + dims.boxPadding;
     }
 
     if (k === 0 && lay.dotX !== null) {
@@ -212,11 +272,11 @@ export class BerkovichDualDigitDisplayComponent {
 
     const cellIdx = pos.findIndex(p => p.power === k);
     if (cellIdx === -1) {
-      return this.MARGIN_LEFT;
+      return dims.marginLeft;
     }
 
     if (k === minP) {
-      return this.MARGIN_LEFT + lay.rowWidth + this.BOX_PADDING;
+      return dims.marginLeft + lay.rowWidth + dims.boxPadding;
     }
 
     const currentRight = pos[cellIdx].right;
@@ -244,27 +304,30 @@ export class BerkovichDualDigitDisplayComponent {
 
   readonly xRhoBackgroundWidth = computed(() => {
     const boundaryX = this.xRhoBoundaryX();
-    return Math.max(0, boundaryX - (this.MARGIN_LEFT - this.BOX_PADDING));
+    const dims = this.derivedDimensions();
+    return Math.max(0, boundaryX - (dims.marginLeft - dims.boxPadding));
   });
 
   readonly yRhoBackgroundWidth = computed(() => {
     const boundaryX = this.yRhoBoundaryX();
     if (boundaryX === null) return 0;
-    return Math.max(0, boundaryX - (this.MARGIN_LEFT - this.BOX_PADDING));
+    const dims = this.derivedDimensions();
+    return Math.max(0, boundaryX - (dims.marginLeft - dims.boxPadding));
   });
 
   readonly commonShadingRange = computed(() => {
     const list = this.layout().cellPositions;
+    const dims = this.derivedDimensions();
     const commonCells = list.filter(pos => this.isCommonPower(pos.power));
     if (commonCells.length === 0) return null;
 
-    let leftX = Math.min(...commonCells.map(c => c.left)) - this.CELL_GAP / 2;
+    let leftX = Math.min(...commonCells.map(c => c.left)) - dims.cellGap / 2;
     // Snap to the beveled outer border edge if the left-most cell (index 0) is common
     if (list.length > 0 && this.isCommonPower(list[0].power)) {
-      leftX = this.MARGIN_LEFT - this.BOX_PADDING;
+      leftX = dims.marginLeft - dims.boxPadding;
     }
 
-    const rightX = this.MARGIN_LEFT + this.layout().rowWidth + this.BOX_PADDING;
+    const rightX = dims.marginLeft + this.layout().rowWidth + dims.boxPadding;
     return {
       left: leftX,
       width: rightX - leftX

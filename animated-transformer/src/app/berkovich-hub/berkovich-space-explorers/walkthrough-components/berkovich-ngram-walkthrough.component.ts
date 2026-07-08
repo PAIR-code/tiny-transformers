@@ -23,6 +23,9 @@ import { SoftmaxWalkthroughTableComponent } from './shared/softmax-walkthrough-t
 import { BerkovichLookupWalkthroughComponent } from './shared/berkovich-lookup-walkthrough.component';
 import { BerkovichDecoderWalkthroughComponent } from './shared/berkovich-decoder-walkthrough.component';
 import { BerkovichDigitDisplayComponent } from '../../berkovich-digit-display/berkovich-digit-display.component';
+import { BerkovichModelInspectorComponent } from '../inspector-components/berkovich-model-inspector.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
+import { BerkovichCharLearnerBase } from '../models/berkovich-char-learner';
 import { Rational, formatRational } from '../../../../lib/berkovich/berkovich';
 
 @Component({
@@ -35,7 +38,9 @@ import { Rational, formatRational } from '../../../../lib/berkovich/berkovich';
     SoftmaxWalkthroughTableComponent,
     BerkovichLookupWalkthroughComponent,
     BerkovichDecoderWalkthroughComponent,
-    BerkovichDigitDisplayComponent
+    BerkovichDigitDisplayComponent,
+    BerkovichModelInspectorComponent,
+    BerkovichDualDigitDisplayComponent
   ],
   templateUrl: './berkovich-ngram-walkthrough.component.html',
   styleUrl: './berkovich-ngram-walkthrough.component.scss',
@@ -71,10 +76,32 @@ export class BerkovichNgramWalkthroughComponent {
     step4: string;
   }>();
 
+  // New inputs/outputs for parameters and gradients
+  model = input.required<BerkovichCharLearnerBase | null>();
+  dimensions = input.required<number[]>();
+  showE = input<boolean>(false);
+  showW = input<boolean>(false);
+  showH = input<boolean>(false);
+  showSoftmax = input<boolean>(false);
+
+  showEChange = output<boolean>();
+  showWChange = output<boolean>();
+  showHChange = output<boolean>();
+  showSoftmaxChange = output<boolean>();
+
+  gradients = input<any[] | null>(null);
+  targetChar = input<string>('');
+  targetCharChange = output<string>();
+
   walkthroughInputChange = output<string>();
 
   formatRationalVal(r: any): string {
     if (!r) return '0';
     return formatRational(r);
+  }
+
+  onTargetCharChange(event: Event) {
+    const val = (event.target as HTMLSelectElement).value;
+    this.targetCharChange.emit(val);
   }
 }

@@ -102,8 +102,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     BerkovichNgramWalkthroughComponent,
     EuclideanWalkthroughComponent,
     PadicLinearWalkthroughComponent,
-    BerkovichModelInspectorComponent,
-    PadicLinearModelInspectorComponent,
     ModelConfigEditorComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -211,6 +209,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   readonly walkthroughInput = signal<string>('');
   readonly lastValidWalkthroughInput = signal<string>('');
   readonly walkthroughInputError = signal<string | null>(null);
+  readonly walkthroughTargetChar = signal<string>('');
 
   validateContext(input: string): string | null {
     if (!input || input.trim() === '') {
@@ -502,6 +501,323 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     return null;
   });
 
+  readonly walkthroughGradients = computed(() => {
+    const details = this.walkthroughDetails();
+    if (!details || details.type !== 'berkovich') return null;
+
+    const bModel = this.berkovichModel();
+    if (!bModel) return null;
+
+    const vocab = this.vocab();
+    const prime = this.prime();
+    const lr = this.learningRate();
+    const reg = this.regularizationTarget();
+    const regEmbed = this.regularizationEmbed();
+    const targetChar = this.walkthroughTargetChar();
+    const targetIdx = vocab.indexOf(targetChar);
+    if (targetIdx === -1) return null;
+
+    const input = this.lastValidWalkthroughInput();
+    const N = this.contextLength();
+    const contextText = input.slice(Math.max(0, input.length - N));
+    const paddedContext = contextText.padStart(N, vocab[0] || ' ');
+    const contextIndices = [...paddedContext].map(c => {
+      const idx = vocab.indexOf(c);
+      return idx === -1 ? 0 : idx;
+    });
+
+    const beta = this.beta();
+    const config = {
+      lr,
+      reg,
+      regEmbed,
+      aggMode: this.aggMode(),
+      beta,
+    };
+
+    // Forward pass
+    const fwd = bModel.forward(contextIndices, config as any);
+    const probs = fwd.probs;
+
+    // Logit gradients: g_k = beta * (pi_k - I[k == target])
+    const gLogits = probs.map((pi, k) => beta * (pi - (k === targetIdx ? 1 : 0)));
+
+    const list: {
+      name: string;
+      gk: number;
+      type: 'E' | 'W';
+      centerBefore: Rational;
+      rhoBefore: number;
+      centerAfter: Rational;
+      rhoAfter: number;
+      targetCenter?: Rational;
+      targetRho?: number;
+      stepType?: string;
+      explanation?: string;
+    }[] = [];
+
+    // 1. Decoder (W) constraints
+    for (let k = 0; k < vocab.length; k++) {
+      const gk = gLogits[k];
+      for (let d = 0; d < bModel.embDim; d++) {
+        const isDimActive = this.aggMode() === 'min' ? (d === fwd.activeDims[k]) : true;
+        if (!isDimActive) continue;
+
+        const weight = this.aggMode() === 'min' ? 1.0 : (1.0 / bModel.embDim);
+        const gk_dim = gk * weight;
+        if (Math.abs(gk_dim) < 1e-6) continue;
+
+        const W_kd = bModel.W[k][d];
+        let centerAfter = { ...W_kd.center };
+        let rhoAfter = W_kd.rho;
+        let stepType = 'No center update (gk > 0)';
+        let explanation = 'Gradient is positive, repelling constraint from context. Shrinks or expands rho without changing center.';
+
+        if (gk_dim < 0) {
+          const details = computeGradientDetails(W_kd.center, W_kd.rho, fwd.H[d].center, fwd.H[d].rho, BigInt(prime), lr * Math.abs(gk_dim));
+          centerAfter = details.nextCenter;
+          rhoAfter = details.nextLogRadius;
+          stepType = details.stepType;
+          explanation = details.explanation;
+        } else {
+          const valDiff = getValuation(subtract(W_kd.center, fwd.H[d].center), BigInt(prime));
+          const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+          const sgn = W_kd.rho >= dValuation ? 1 : -1;
+          rhoAfter = Math.max(-2, Math.min(2, W_kd.rho - lr * gk_dim * sgn));
+        }
+
+        // Apply regularization target shrinkage
+        const regShrink = lr * reg * Math.log(prime) * Math.exp(rhoAfter * Math.log(prime));
+        rhoAfter = Math.max(-2, Math.min(2, rhoAfter - regShrink));
+
+        list.push({
+          name: `Constraint W('${vocab[k]}', Dim ${d})`,
+          gk: gk_dim,
+          type: 'W',
+          centerBefore: { ...W_kd.center },
+          rhoBefore: W_kd.rho,
+          centerAfter,
+          rhoAfter,
+          targetCenter: { ...fwd.H[d].center },
+          targetRho: fwd.H[d].rho,
+          stepType,
+          explanation
+        });
+      }
+    }
+
+    // 2. Encoder (E) embeddings
+    for (let j = 1; j <= N; j++) {
+      const charIdx = contextIndices[j - 1];
+      const char = paddedContext[j - 1];
+
+      // Calculate otherSum in context embeddings aggregation
+      for (let d = 0; d < bModel.embDim; d++) {
+        let otherSum = { num: 0n, den: 1n };
+        for (let l = 1; l <= N; l++) {
+          if (l !== j) {
+            const otherEmb = bModel.E[contextIndices[l - 1]][d];
+            const term = simplify({
+              num: otherEmb.center.num,
+              den: otherEmb.center.den * (BigInt(prime) ** BigInt(l))
+            });
+            otherSum = add(otherSum, term);
+          }
+        }
+
+        for (let k = 0; k < vocab.length; k++) {
+          const gk = gLogits[k];
+          const isDimActive = this.aggMode() === 'min' ? (d === fwd.activeDims[k]) : true;
+          if (!isDimActive) continue;
+
+          const weight = this.aggMode() === 'min' ? 1.0 : (1.0 / bModel.embDim);
+          const gk_dim = gk * weight;
+          if (Math.abs(gk_dim) < 1e-6) continue;
+
+          // Scaled scaling coefficients w.r.t the context position
+          const diffCenter = subtract(bModel.W[k][d].center, otherSum);
+          const targetCenter = simplify({
+            num: diffCenter.num * (BigInt(prime) ** BigInt(j)),
+            den: diffCenter.den
+          });
+          const targetLogRadius = bModel.W[k][d].rho + j;
+
+          const emb = bModel.E[charIdx][d];
+          let centerAfter = { ...emb.center };
+          let rhoAfter = emb.rho;
+          let stepType = 'No center update (gk > 0)';
+          let explanation = 'Gradient is positive, repelling embedding from classification target. Shrinks or expands rho without changing center.';
+
+          if (gk_dim < 0) {
+            const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, BigInt(prime), lr * Math.abs(gk_dim));
+            centerAfter = details.nextCenter;
+            rhoAfter = details.nextLogRadius;
+            stepType = details.stepType;
+            explanation = details.explanation;
+          } else {
+            const valuationDiff = getValuation(subtract(emb.center, targetCenter), BigInt(prime));
+            const dValuation = valuationDiff.type === 'finite' ? -valuationDiff.value : -Infinity;
+            const sgn = emb.rho >= dValuation ? 1 : -1;
+            rhoAfter = Math.max(-2, Math.min(2, emb.rho - lr * gk_dim * sgn));
+          }
+
+          // Apply embedding log-radius shrinkage regularization
+          const regShrink = lr * regEmbed * Math.log(prime) * Math.exp(rhoAfter * Math.log(prime));
+          rhoAfter = Math.max(-2, Math.min(2, rhoAfter - regShrink));
+
+          list.push({
+            name: `Embedding E('${char}', Dim ${d}) [Position -${j}]`,
+            gk: gk_dim,
+            type: 'E',
+            centerBefore: { ...emb.center },
+            rhoBefore: emb.rho,
+            centerAfter,
+            rhoAfter,
+            targetCenter,
+            targetRho: targetLogRadius,
+            stepType,
+            explanation
+          });
+        }
+      }
+    }
+
+    return list;
+  });
+
+  readonly walkthroughPadicLinearGradients = computed(() => {
+    const details = this.walkthroughDetails();
+    if (!details || details.type !== 'padic-linear') return null;
+
+    const pModel = this.padicLinearModel();
+    if (!pModel) return null;
+
+    const vocab = this.vocab();
+    const prime = this.prime();
+    const lr = this.learningRate();
+    const reg = this.regularizationTarget();
+    const targetChar = this.walkthroughTargetChar();
+    const targetIdx = vocab.indexOf(targetChar);
+    if (targetIdx === -1) return null;
+
+    const input = this.lastValidWalkthroughInput();
+    const N = this.contextLength();
+    const contextText = input.slice(Math.max(0, input.length - N));
+    const paddedContext = contextText.padStart(N, vocab[0] || ' ');
+    const contextIndices = [...paddedContext].map(c => {
+      const idx = vocab.indexOf(c);
+      return idx === -1 ? 0 : idx;
+    });
+
+    const beta = this.beta();
+    const config = {
+      lr,
+      reg,
+      regEmbed: 0,
+      aggMode: this.aggMode(),
+      beta,
+    };
+
+    // Forward pass
+    const fwd = pModel.forward(contextIndices, config);
+    const probs = fwd.probs;
+
+    // Logit gradients
+    const gLogits = probs.map((pi, k) => beta * (pi - (k === targetIdx ? 1 : 0)));
+
+    const list: {
+      name: string;
+      gk: number;
+      type: 'M' | 'B';
+      centerBefore: Rational;
+      rhoBefore: number;
+      centerAfter: Rational;
+      rhoAfter: number;
+      targetCenter?: Rational;
+      targetRho?: number;
+      stepType?: string;
+      explanation?: string;
+    }[] = [];
+
+    // M and B updates
+    for (let k = 0; k < vocab.length; k++) {
+      const gk = gLogits[k];
+      for (let d = 0; d < pModel.embDim; d++) {
+        let gradD = 0;
+        if (this.aggMode() === 'average') {
+          gradD = gk / pModel.embDim;
+        } else {
+          const logitD = fwd.dists[k][d];
+          const minLogit = Math.min(...fwd.dists[k]);
+          if (Math.abs(logitD - minLogit) < 1e-6) {
+            gradD = gk;
+          }
+        }
+
+        if (Math.abs(gradD) < 1e-6) continue;
+
+        // B parameter
+        const B_d = pModel.B[d];
+        let bRhoAfter = B_d.rho - lr * (gradD * -1 + reg * B_d.rho);
+        bRhoAfter = Math.max(-2, Math.min(2, bRhoAfter));
+        let bCenterAfter = { ...B_d.center };
+        if (gradD < 0) {
+          bCenterAfter = { ...pModel.C[k][d] }; // force pulls center to target C[k][d]
+        }
+
+        list.push({
+          name: `Bias B(Dim ${d}) w.r.t Target '${vocab[k]}'`,
+          gk: gradD,
+          type: 'B',
+          centerBefore: { ...B_d.center },
+          rhoBefore: B_d.rho,
+          centerAfter: bCenterAfter,
+          rhoAfter: bRhoAfter,
+          targetCenter: { ...pModel.C[k][d] },
+          targetRho: -Infinity,
+          stepType: gradD < 0 ? 'Force applied (Center pulled to Target)' : 'Radius update only',
+          explanation: gradD < 0
+            ? `Gradient is negative (attraction). The bias center is pulled directly to the target point C_k=${formatRational(pModel.C[k][d])}.`
+            : `Gradient is positive (repulsion). Radius is updated, center remains unchanged.`
+        });
+
+        // M parameters
+        // Context vector X is the embedding of the input context character
+        const charIdx = contextIndices[N - 1]; // immediate context
+        const X = pModel.C[charIdx];
+        for (let i = 0; i < pModel.embDim; i++) {
+          if (X[i].num === 0n) continue; // zero context components have no gradient
+
+          const M_id = pModel.M[i][d];
+          let mRhoAfter = M_id.rho - lr * (gradD * -1 + reg * M_id.rho);
+          mRhoAfter = Math.max(-2, Math.min(2, mRhoAfter));
+          let mCenterAfter = { ...M_id.center };
+          if (gradD < 0) {
+            mCenterAfter = { ...pModel.C[k][d] }; // force pulls center to target C[k][d]
+          }
+
+          list.push({
+            name: `Matrix M(Dim ${i} → ${d}) w.r.t Target '${vocab[k]}'`,
+            gk: gradD,
+            type: 'M',
+            centerBefore: { ...M_id.center },
+            rhoBefore: M_id.rho,
+            centerAfter: mCenterAfter,
+            rhoAfter: mRhoAfter,
+            targetCenter: { ...pModel.C[k][d] },
+            targetRho: -Infinity,
+            stepType: gradD < 0 ? 'Force applied (Center pulled to Target)' : 'Radius update only',
+            explanation: gradD < 0
+              ? `Gradient is negative (attraction). The transformation center is pulled to the target point C_k=${formatRational(pModel.C[k][d])}.`
+              : `Gradient is positive (repulsion). Radius is updated, center remains unchanged.`
+          });
+        }
+      }
+    }
+
+    return list;
+  });
+
 
 
   readonly dimensions = computed(() => Array.from({ length: this.embDim() }, (_, i) => i));
@@ -713,6 +1029,12 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
   });
 
   readonly isInspectExpanded = signal<boolean>(false);
+  readonly walkthroughShowE = signal<boolean>(false);
+  readonly walkthroughShowW = signal<boolean>(false);
+  readonly walkthroughShowH = signal<boolean>(false);
+  readonly walkthroughShowM = signal<boolean>(false);
+  readonly walkthroughShowB = signal<boolean>(false);
+  readonly walkthroughShowSoftmax = signal<boolean>(false);
   readonly trainLossHistory = signal<number[]>([]);
   readonly trainAccuracyHistory = signal<number[]>([]);
   readonly valLossHistory = signal<number[]>([]);
@@ -841,11 +1163,19 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       });
     });
 
-    // Sync to URL parameters when approach or modelConfigValues changes
+    // Sync to URL parameters when approach, modelConfigValues, or walkthrough states change
     effect(() => {
       const approach = this.approach();
       const currentValues = this.modelConfigValues();
       const defs = this.configDefs();
+
+      const showE = this.walkthroughShowE();
+      const showW = this.walkthroughShowW();
+      const showH = this.walkthroughShowH();
+      const showM = this.walkthroughShowM();
+      const showB = this.walkthroughShowB();
+      const showSoftmax = this.walkthroughShowSoftmax();
+      const targetChar = this.walkthroughTargetChar();
       
       untracked(() => {
         const queryParams: Record<string, any> = {
@@ -860,6 +1190,14 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
             queryParams[def.key] = null;
           }
         }
+
+        queryParams['showE'] = showE ? 'true' : null;
+        queryParams['showW'] = showW ? 'true' : null;
+        queryParams['showH'] = showH ? 'true' : null;
+        queryParams['showM'] = showM ? 'true' : null;
+        queryParams['showB'] = showB ? 'true' : null;
+        queryParams['showSoftmax'] = showSoftmax ? 'true' : null;
+        queryParams['walkthroughTarget'] = targetChar || null;
 
         // Compare with current URL params to avoid redundant navigation
         const currentUrlParams = this.route.snapshot.queryParams;
@@ -953,6 +1291,16 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
       
       if (hasChanges) {
         this.modelConfigValues.set(newConfigValues);
+      }
+
+      this.walkthroughShowE.set(params['showE'] === 'true');
+      this.walkthroughShowW.set(params['showW'] === 'true');
+      this.walkthroughShowH.set(params['showH'] === 'true');
+      this.walkthroughShowM.set(params['showM'] === 'true');
+      this.walkthroughShowB.set(params['showB'] === 'true');
+      this.walkthroughShowSoftmax.set(params['showSoftmax'] === 'true');
+      if (params['walkthroughTarget']) {
+        this.walkthroughTargetChar.set(params['walkthroughTarget']);
       }
     });
 

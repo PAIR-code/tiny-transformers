@@ -16,53 +16,55 @@ limitations under the License.
 <svg
   [attr.width]="layout().totalWidth"
   [attr.height]="svgHeight()"
+  [style.width.px]="layout().totalWidth"
+  [style.height.px]="svgHeight()"
   class="dual-digit-svg"
 >
   <defs>
     <!-- Clip path for Row 1 to match the beveled outer border box -->
-    <clipPath id="row1Clip">
+    <clipPath [attr.id]="clipPathId1">
       <rect
-        [attr.x]="MARGIN_LEFT - BOX_PADDING"
-        [attr.y]="row1Y - BOX_PADDING"
-        [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-        [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-        [attr.rx]="BOX_BORDER_RADIUS"
-        [attr.ry]="BOX_BORDER_RADIUS"
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+        [attr.y]="row1Y() - derivedDimensions().boxPadding"
+        [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+        [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+        [attr.rx]="derivedDimensions().boxBorderRadius"
+        [attr.ry]="derivedDimensions().boxBorderRadius"
       />
     </clipPath>
     <!-- Clip path for Row 2 to match the beveled outer border box -->
-    <clipPath id="row2Clip">
+    <clipPath [attr.id]="clipPathId2">
       <rect
-        [attr.x]="MARGIN_LEFT - BOX_PADDING"
-        [attr.y]="row2Y - BOX_PADDING"
-        [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-        [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-        [attr.rx]="BOX_BORDER_RADIUS"
-        [attr.ry]="BOX_BORDER_RADIUS"
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+        [attr.y]="row2Y() - derivedDimensions().boxPadding"
+        [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+        [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+        [attr.rx]="derivedDimensions().boxBorderRadius"
+        [attr.ry]="derivedDimensions().boxBorderRadius"
       />
     </clipPath>
   </defs>
 
   <!-- Row 1 Base Background Box (White) -->
   <rect
-    [attr.x]="MARGIN_LEFT - BOX_PADDING"
-    [attr.y]="row1Y - BOX_PADDING"
-    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-    [attr.rx]="BOX_BORDER_RADIUS"
-    [attr.ry]="BOX_BORDER_RADIUS"
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="row1Y() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.fill]="COLOR_ROW_BG"
     class="row-bg-box"
   />
 
   <!-- Row 2 Base Background Box (White) -->
   <rect
-    [attr.x]="MARGIN_LEFT - BOX_PADDING"
-    [attr.y]="row2Y - BOX_PADDING"
-    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-    [attr.rx]="BOX_BORDER_RADIUS"
-    [attr.ry]="BOX_BORDER_RADIUS"
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="row2Y() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.fill]="COLOR_ROW_BG"
     class="row-bg-box"
   />
@@ -70,13 +72,13 @@ limitations under the License.
   <!-- Grey background representing xRho (clipped to Row 1) -->
   @if (xRhoBackgroundWidth() > 0) {
     <rect
-      [attr.x]="MARGIN_LEFT - BOX_PADDING"
-      [attr.y]="row1Y - BOX_PADDING"
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+      [attr.y]="row1Y() - derivedDimensions().boxPadding"
       [attr.width]="xRhoBackgroundWidth()"
-      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
       [style.fill]="COLOR_RHO_SHADING"
       [style.opacity]="OPACITY_RHO_SHADING"
-      clip-path="url(#row1Clip)"
+      [attr.clip-path]="'url(#' + clipPathId1 + ')'"
       class="x-rho-shading"
     />
   }
@@ -84,13 +86,13 @@ limitations under the License.
   <!-- Grey background representing yRho (clipped to Row 2, if yRho is present) -->
   @if (yRhoBackgroundWidth() > 0) {
     <rect
-      [attr.x]="MARGIN_LEFT - BOX_PADDING"
-      [attr.y]="row2Y - BOX_PADDING"
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+      [attr.y]="row2Y() - derivedDimensions().boxPadding"
       [attr.width]="yRhoBackgroundWidth()"
-      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
       [style.fill]="COLOR_RHO_SHADING"
       [style.opacity]="OPACITY_RHO_SHADING"
-      clip-path="url(#row2Clip)"
+      [attr.clip-path]="'url(#' + clipPathId2 + ')'"
       class="y-rho-shading"
     />
   }
@@ -100,23 +102,23 @@ limitations under the License.
     <!-- Green shading for Row 1 -->
     <rect
       [attr.x]="range.left"
-      [attr.y]="row1Y - BOX_PADDING"
+      [attr.y]="row1Y() - derivedDimensions().boxPadding"
       [attr.width]="range.width"
-      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
       [style.fill]="COLOR_COMMON_SHADING"
       [style.opacity]="OPACITY_COMMON_SHADING"
-      clip-path="url(#row1Clip)"
+      [attr.clip-path]="'url(#' + clipPathId1 + ')'"
       class="common-digit-shading"
     />
     <!-- Green shading for Row 2 -->
     <rect
       [attr.x]="range.left"
-      [attr.y]="row2Y - BOX_PADDING"
+      [attr.y]="row2Y() - derivedDimensions().boxPadding"
       [attr.width]="range.width"
-      [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
       [style.fill]="COLOR_COMMON_SHADING"
       [style.opacity]="OPACITY_COMMON_SHADING"
-      clip-path="url(#row2Clip)"
+      [attr.clip-path]="'url(#' + clipPathId2 + ')'"
       class="common-digit-shading"
     />
   }
@@ -125,14 +127,14 @@ limitations under the License.
   @if (layout().dotX !== null) {
     <circle
       [attr.cx]="layout().dotX"
-      [attr.cy]="row1Y + CELL_HEIGHT - DOT_Y_OFFSET_FROM_BOTTOM"
+      [attr.cy]="row1Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom"
       [attr.r]="DOT_RADIUS"
       [style.fill]="COLOR_DOT"
       class="decimal-dot-mark"
     />
     <circle
       [attr.cx]="layout().dotX"
-      [attr.cy]="row2Y + CELL_HEIGHT - DOT_Y_OFFSET_FROM_BOTTOM"
+      [attr.cy]="row2Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom"
       [attr.r]="DOT_RADIUS"
       [style.fill]="COLOR_DOT"
       class="decimal-dot-mark"
@@ -142,19 +144,11 @@ limitations under the License.
   <!-- Digit boxes for Row 1 (x) -->
   @for (col of layout().cellPositions; track col.power) {
     <g class="digit-box-group row1-group">
-      <rect
-        [attr.x]="col.left + DIGIT_BOX_INSET"
-        [attr.y]="row1Y + DIGIT_BOX_INSET"
-        [attr.width]="CELL_WIDTH - 2 * DIGIT_BOX_INSET"
-        [attr.height]="CELL_HEIGHT - 2 * DIGIT_BOX_INSET"
-        rx="2"
-        ry="2"
-        class="digit-box-rect"
-      />
       <text
         [attr.x]="col.center"
-        [attr.y]="row1Y + CELL_HEIGHT / 2"
+        [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
         class="digit-text"
+        [style.font-size.px]="derivedDimensions().fontSize"
       >
         {{ getXDigitAtPower(col.power) }}
       </text>
@@ -164,19 +158,11 @@ limitations under the License.
   <!-- Digit boxes for Row 2 (y) -->
   @for (col of layout().cellPositions; track col.power) {
     <g class="digit-box-group row2-group">
-      <rect
-        [attr.x]="col.left + DIGIT_BOX_INSET"
-        [attr.y]="row2Y + DIGIT_BOX_INSET"
-        [attr.width]="CELL_WIDTH - 2 * DIGIT_BOX_INSET"
-        [attr.height]="CELL_HEIGHT - 2 * DIGIT_BOX_INSET"
-        rx="2"
-        ry="2"
-        class="digit-box-rect"
-      />
       <text
         [attr.x]="col.center"
-        [attr.y]="row2Y + CELL_HEIGHT / 2"
+        [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
         class="digit-text"
+        [style.font-size.px]="derivedDimensions().fontSize"
       >
         {{ getYDigitAtPower(col.power) }}
       </text>
@@ -185,23 +171,23 @@ limitations under the License.
 
   <!-- Border box around Row 1 (x) - Purple -->
   <rect
-    [attr.x]="MARGIN_LEFT - BOX_PADDING"
-    [attr.y]="row1Y - BOX_PADDING"
-    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-    [attr.rx]="BOX_BORDER_RADIUS"
-    [attr.ry]="BOX_BORDER_RADIUS"
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="row1Y() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
     class="row-outer-box row1-outer-box"
   />
 
   <!-- Border box around Row 2 (y) - Yellow -->
   <rect
-    [attr.x]="MARGIN_LEFT - BOX_PADDING"
-    [attr.y]="row2Y - BOX_PADDING"
-    [attr.width]="layout().rowWidth + 2 * BOX_PADDING"
-    [attr.height]="CELL_HEIGHT + 2 * BOX_PADDING"
-    [attr.rx]="BOX_BORDER_RADIUS"
-    [attr.ry]="BOX_BORDER_RADIUS"
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="row2Y() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
     class="row-outer-box row2-outer-box"
   />
 
@@ -209,7 +195,7 @@ limitations under the License.
   @if (xRhoBoundaryX() !== null) {
     <line
       [attr.x1]="xRhoBoundaryX()"
-      [attr.y1]="row1Y - BOX_PADDING"
+      [attr.y1]="row1Y() - derivedDimensions().boxPadding"
       [attr.x2]="xRhoBoundaryX()"
       [attr.y2]="15"
       class="rho-dotted-line"
@@ -217,14 +203,15 @@ limitations under the License.
     <line
       [attr.x1]="xRhoBoundaryX()"
       [attr.y1]="15"
-      [attr.x2]="layout().totalWidth - MARGIN_RIGHT + 10"
+      [attr.x2]="layout().totalWidth - derivedDimensions().marginRight + 10"
       [attr.y2]="15"
       class="rho-dotted-line"
     />
     <text
-      [attr.x]="layout().totalWidth - MARGIN_RIGHT + 15"
+      [attr.x]="layout().totalWidth - derivedDimensions().marginRight + 15"
       y="18"
       class="rho-label-text x-rho-label"
+      [style.font-size.px]="derivedDimensions().fontSize - 1"
     >
       x_&rho; = {{ xRho().toFixed(2) }}
     </text>
@@ -234,22 +221,23 @@ limitations under the License.
   @if (yRho() !== undefined && yRho() !== null && yRhoBoundaryX() !== null) {
     <line
       [attr.x1]="yRhoBoundaryX()"
-      [attr.y1]="row2Y + CELL_HEIGHT + BOX_PADDING"
+      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding"
       [attr.x2]="yRhoBoundaryX()"
-      [attr.y2]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
       class="rho-dotted-line"
     />
     <line
       [attr.x1]="yRhoBoundaryX()"
-      [attr.y1]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
-      [attr.x2]="layout().totalWidth - MARGIN_RIGHT + 10"
-      [attr.y2]="row2Y + CELL_HEIGHT + BOX_PADDING + 15"
+      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
+      [attr.x2]="layout().totalWidth - derivedDimensions().marginRight + 10"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
       class="rho-dotted-line"
     />
     <text
-      [attr.x]="layout().totalWidth - MARGIN_RIGHT + 15"
-      [attr.y]="row2Y + CELL_HEIGHT + BOX_PADDING + 18"
+      [attr.x]="layout().totalWidth - derivedDimensions().marginRight + 15"
+      [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 18"
       class="rho-label-text y-rho-label"
+      [style.font-size.px]="derivedDimensions().fontSize - 1"
     >
       y_&rho; = {{ yRho()!.toFixed(2) }}
     </text>
