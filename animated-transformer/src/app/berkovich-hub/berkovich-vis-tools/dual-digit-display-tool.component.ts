@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -27,7 +27,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { BerkovichDualDigitDisplayComponent } from '../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
-import { Rational, parseToRational, formatRational } from '../../../lib/berkovich/berkovich';
+import { Rational, parseToRational, formatRational, formatDigitSequence, parseDigitSequence } from '../../../lib/berkovich/berkovich';
+import { stringifyState, parseState } from './url-serializer';
 
 @Component({
   selector: 'app-dual-digit-display-tool',
@@ -101,6 +102,9 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
                 [size]="size()"
+                [xOuterBoxColor]="xOuterBoxColor()"
+                [yOuterBoxColor]="yOuterBoxColor()"
+                [rhoLabelPosition]="rhoLabelPosition()"
               />
             }
           </div>
@@ -116,6 +120,9 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
   [digitsLeft]="{{ digitsLeft() }}"
   [digitsRight]="{{ digitsRight() }}"
   [size]="'{{ size() }}'"
+  [xOuterBoxColor]="'{{ xOuterBoxColor() }}'"
+  [yOuterBoxColor]="'{{ yOuterBoxColor() }}'"
+  [rhoLabelPosition]="'{{ rhoLabelPosition() }}'"
 /&gt;</pre>
           </div>
         </section>
@@ -156,8 +163,8 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
             <fieldset style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
               <legend style="font-size: 12px; font-weight: 700; color: #1e3a8a; padding: 0 4px;">X Parameter (Top Row)</legend>
               <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
-                <mat-label>X Center Rational (e.g. 5/3)</mat-label>
-                <input matInput [ngModel]="rawXCenter()" (ngModelChange)="rawXCenter.set($event)">
+                <mat-label>X Center Digit String (rational: {{ formatRational(parsedXCenter()) }})</mat-label>
+                <input matInput [ngModel]="xCenterDigits()" (ngModelChange)="xCenterDigits.set($event)">
               </mat-form-field>
               <div>
                 <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
@@ -174,8 +181,8 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
             <fieldset style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
               <legend style="font-size: 12px; font-weight: 700; color: #b91c1c; padding: 0 4px;">Y Parameter (Bottom Row)</legend>
               <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
-                <mat-label>Y Center Rational (e.g. 1/9)</mat-label>
-                <input matInput [ngModel]="rawYCenter()" (ngModelChange)="rawYCenter.set($event)">
+                <mat-label>Y Center Digit String (rational: {{ formatRational(parsedYCenter()) }})</mat-label>
+                <input matInput [ngModel]="yCenterDigits()" (ngModelChange)="yCenterDigits.set($event)">
               </mat-form-field>
               <mat-checkbox [checked]="hasYRho()" (change)="hasYRho.set($event.checked)" style="font-size: 13px;">
                 Specify Y Log-Radius (yRho)
@@ -208,6 +215,35 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
               </mat-form-field>
             </div>
 
+            <!-- Border Colors Config -->
+            <fieldset style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <legend style="font-size: 12px; font-weight: 700; color: #475569; padding: 0 4px;">Border Colors</legend>
+              <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
+                <mat-label>X Outer Border Color</mat-label>
+                <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                  <input matInput [ngModel]="xOuterBoxColor()" (ngModelChange)="xOuterBoxColor.set($event)" style="flex-grow: 1;">
+                  <input type="color" [ngModel]="xOuterBoxColor()" (ngModelChange)="xOuterBoxColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer;">
+                </div>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
+                <mat-label>Y Outer Border Color</mat-label>
+                <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                  <input matInput [ngModel]="yOuterBoxColor()" (ngModelChange)="yOuterBoxColor.set($event)" style="flex-grow: 1;">
+                  <input type="color" [ngModel]="yOuterBoxColor()" (ngModelChange)="yOuterBoxColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer;">
+                </div>
+              </mat-form-field>
+            </fieldset>
+
+            <!-- Rho Label Position -->
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Rho Label Position</mat-label>
+              <mat-select [value]="rhoLabelPosition()" (selectionChange)="rhoLabelPosition.set($event.value)">
+                <mat-option value="above-below">Above/Below (Default)</mat-option>
+                <mat-option value="left">Left (Aligned next to sequence)</mat-option>
+                <mat-option value="none">Not Shown</mat-option>
+              </mat-select>
+            </mat-form-field>
+
             <!-- Size Category -->
             <mat-form-field appearance="outline" style="width: 100%;">
               <mat-label>Size Category</mat-label>
@@ -225,10 +261,69 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
   styleUrls: ['../berkovich-point-vis/berkovich-point-vis.component.scss']
 })
 export class DualDigitDisplayToolComponent {
+  readonly formatRational = formatRational;
   readonly prime = signal<number>(3);
-  readonly rawXCenter = signal<string>('5/3');
+  readonly xCenterDigits = signal<string>('01.20');
+
+  readonly xOuterBoxColor = signal<string>('#a855f7');
+  readonly yOuterBoxColor = signal<string>('#eab308');
+  readonly rhoLabelPosition = signal<'above-below' | 'left' | 'none'>('above-below');
+
+  constructor() {
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
+
+    // Load initial state if present
+    const initialStateStr = route.snapshot.queryParams['state'];
+    if (initialStateStr) {
+      const state = parseState(initialStateStr);
+      if (state) {
+        if (state.prime !== undefined) this.prime.set(state.prime);
+        if (state.xCenterDigits !== undefined) this.xCenterDigits.set(state.xCenterDigits);
+        if (state.xRho !== undefined) this.xRho.set(state.xRho);
+        if (state.yCenterDigits !== undefined) this.yCenterDigits.set(state.yCenterDigits);
+        if (state.yRho !== undefined) this.yRho.set(state.yRho);
+        if (state.hasYRho !== undefined) this.hasYRho.set(state.hasYRho);
+        if (state.digitsLeft !== undefined) this.digitsLeft.set(state.digitsLeft);
+        if (state.digitsRight !== undefined) this.digitsRight.set(state.digitsRight);
+        if (state.size !== undefined) this.size.set(state.size);
+        if (state.xOuterBoxColor !== undefined) this.xOuterBoxColor.set(state.xOuterBoxColor);
+        if (state.yOuterBoxColor !== undefined) this.yOuterBoxColor.set(state.yOuterBoxColor);
+        if (state.rhoLabelPosition !== undefined) this.rhoLabelPosition.set(state.rhoLabelPosition);
+      }
+    }
+
+    // Update URL on changes
+    effect(() => {
+      const state = {
+        prime: this.prime(),
+        xCenterDigits: this.xCenterDigits(),
+        xRho: this.xRho(),
+        yCenterDigits: this.yCenterDigits(),
+        yRho: this.yRho(),
+        hasYRho: this.hasYRho(),
+        digitsLeft: this.digitsLeft(),
+        digitsRight: this.digitsRight(),
+        size: this.size(),
+        xOuterBoxColor: this.xOuterBoxColor(),
+        yOuterBoxColor: this.yOuterBoxColor(),
+        rhoLabelPosition: this.rhoLabelPosition()
+      };
+      const stateStr = stringifyState(state);
+      const currentUrlState = route.snapshot.queryParams['state'];
+      if (currentUrlState !== stateStr) {
+        untracked(() => {
+          router.navigate([], {
+            queryParams: { state: stateStr },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        });
+      }
+    });
+  }
   readonly xRho = signal<number>(0.0);
-  readonly rawYCenter = signal<string>('1/9');
+  readonly yCenterDigits = signal<string>('00.12');
   readonly yRho = signal<number>(-1.0);
   readonly hasYRho = signal<boolean>(true);
 
@@ -238,7 +333,10 @@ export class DualDigitDisplayToolComponent {
 
   readonly parsedXCenter = computed<Rational>(() => {
     try {
-      return parseToRational(this.rawXCenter());
+      return parseDigitSequence(this.xCenterDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -246,7 +344,10 @@ export class DualDigitDisplayToolComponent {
 
   readonly parsedYCenter = computed<Rational>(() => {
     try {
-      return parseToRational(this.rawYCenter());
+      return parseDigitSequence(this.yCenterDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -254,7 +355,10 @@ export class DualDigitDisplayToolComponent {
 
   readonly parsedXError = computed<string | null>(() => {
     try {
-      parseToRational(this.rawXCenter());
+      parseDigitSequence(this.xCenterDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
       return null;
     } catch (e: any) {
       return e.message ?? 'Invalid format';
@@ -263,7 +367,10 @@ export class DualDigitDisplayToolComponent {
 
   readonly parsedYError = computed<string | null>(() => {
     try {
-      parseToRational(this.rawYCenter());
+      parseDigitSequence(this.yCenterDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
       return null;
     } catch (e: any) {
       return e.message ?? 'Invalid format';
@@ -278,9 +385,29 @@ export class DualDigitDisplayToolComponent {
 
   applyPreset(preset: typeof this.presets[0]) {
     this.prime.set(preset.prime);
-    this.rawXCenter.set(preset.xCenter);
+    try {
+      const ratX = parseToRational(preset.xCenter);
+      const p = BigInt(preset.prime);
+      const seqX = formatDigitSequence(ratX, p, {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
+      this.xCenterDigits.set(seqX);
+    } catch {
+      this.xCenterDigits.set('');
+    }
+    try {
+      const ratY = parseToRational(preset.yCenter);
+      const p = BigInt(preset.prime);
+      const seqY = formatDigitSequence(ratY, p, {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
+      this.yCenterDigits.set(seqY);
+    } catch {
+      this.yCenterDigits.set('');
+    }
     this.xRho.set(preset.xRho);
-    this.rawYCenter.set(preset.yCenter);
     this.yRho.set(preset.yRho);
     this.hasYRho.set(preset.hasYRho);
   }

@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -43,6 +43,7 @@ import {
   getValuation,
   formatRational
 } from '../../../lib/berkovich/berkovich';
+import { stringifyState, parseState } from './url-serializer';
 import {
   BerkovichPoint,
   AdditionOperator,
@@ -160,7 +161,7 @@ import {
 
             <!-- Target Y -->
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Target Y Digit String (e.g. 00.00)</mat-label>
+              <mat-label>Target Y Digit String (rational: {{ formatRational(centerY()) }})</mat-label>
               <input matInput [ngModel]="rawCenterY()" (ngModelChange)="rawCenterY.set($event)">
             </mat-form-field>
 
@@ -168,7 +169,7 @@ import {
             <fieldset style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
               <legend style="font-size: 11px; font-weight: 700; color: #2563eb; padding: 0 4px;">Parameter x1</legend>
               <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
-                <mat-label>x1 Digit String (e.g. 12.20)</mat-label>
+                <mat-label>x1 Digit String (rational: {{ formatRational(centerX1()) }})</mat-label>
                 <input matInput [ngModel]="rawCenterX1()" (ngModelChange)="rawCenterX1.set($event)">
               </mat-form-field>
               <div>
@@ -186,7 +187,7 @@ import {
             <fieldset style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
               <legend style="font-size: 11px; font-weight: 700; color: #db2777; padding: 0 4px;">Parameter x2</legend>
               <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 0;">
-                <mat-label>x2 Digit String (e.g. 02.20)</mat-label>
+                <mat-label>x2 Digit String (rational: {{ formatRational(centerX2()) }})</mat-label>
                 <input matInput [ngModel]="rawCenterX2()" (ngModelChange)="rawCenterX2.set($event)">
               </mat-form-field>
               <div>
@@ -212,8 +213,57 @@ import {
   styleUrls: ['../berkovich-point-vis/berkovich-point-vis.component.scss']
 })
 export class OperatorTreeVisToolComponent {
+  readonly formatRational = formatRational;
   readonly prime = signal<number>(3);
   readonly operator = signal<BerkovichBinaryOperator>('addition');
+
+  constructor() {
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
+
+    // Load initial state if present
+    const initialStateStr = route.snapshot.queryParams['state'];
+    if (initialStateStr) {
+      const state = parseState(initialStateStr);
+      if (state) {
+        if (state.prime !== undefined) this.prime.set(state.prime);
+        if (state.operator !== undefined) this.operator.set(state.operator);
+        if (state.vertexMethod !== undefined) this.vertexMethod.set(state.vertexMethod);
+        if (state.learningRateInput !== undefined) this.learningRateInput.set(state.learningRateInput);
+        if (state.rawCenterY !== undefined) this.rawCenterY.set(state.rawCenterY);
+        if (state.rawCenterX1 !== undefined) this.rawCenterX1.set(state.rawCenterX1);
+        if (state.rhoX1 !== undefined) this.rhoX1.set(state.rhoX1);
+        if (state.rawCenterX2 !== undefined) this.rawCenterX2.set(state.rawCenterX2);
+        if (state.rhoX2 !== undefined) this.rhoX2.set(state.rhoX2);
+      }
+    }
+
+    // Update URL on changes
+    effect(() => {
+      const state = {
+        prime: this.prime(),
+        operator: this.operator(),
+        vertexMethod: this.vertexMethod(),
+        learningRateInput: this.learningRateInput(),
+        rawCenterY: this.rawCenterY(),
+        rawCenterX1: this.rawCenterX1(),
+        rhoX1: this.rhoX1(),
+        rawCenterX2: this.rawCenterX2(),
+        rhoX2: this.rhoX2()
+      };
+      const stateStr = stringifyState(state);
+      const currentUrlState = route.snapshot.queryParams['state'];
+      if (currentUrlState !== stateStr) {
+        untracked(() => {
+          router.navigate([], {
+            queryParams: { state: stateStr },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        });
+      }
+    });
+  }
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
   readonly learningRateInput = signal<string>('0.20');
 

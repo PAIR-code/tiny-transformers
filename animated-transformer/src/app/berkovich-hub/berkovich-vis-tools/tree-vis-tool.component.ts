@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, signal, computed, ChangeDetectionStrategy, effect, untracked } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, effect, untracked, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -38,6 +38,7 @@ import {
   parseDigitSequence
 } from '../../../lib/berkovich/berkovich';
 import { computeGradientDetails, GradientDetails } from '../../../lib/berkovich/berkovich_gradients';
+import { stringifyState, parseState } from './url-serializer';
 
 @Component({
   selector: 'app-tree-vis-tool',
@@ -160,8 +161,11 @@ import { computeGradientDetails, GradientDetails } from '../../../lib/berkovich/
 
             <!-- Target Center -->
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Target Center Rational (y_c)</mat-label>
-              <input matInput [ngModel]="rawTarget()" (ngModelChange)="rawTarget.set($event)">
+              <mat-label>Target Center Digit String (rational: {{ formatRational(parsedTarget()) }})</mat-label>
+              <input matInput [ngModel]="targetDigitsInput()" (ngModelChange)="targetDigitsInput.set($event)">
+              @if (parsedTargetError()) {
+                <mat-error>{{ parsedTargetError() }}</mat-error>
+              }
             </mat-form-field>
 
             <!-- Target Log Radius -->
@@ -185,8 +189,11 @@ import { computeGradientDetails, GradientDetails } from '../../../lib/berkovich/
 
             <!-- Current Center -->
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Current Center Parameter (x_c)</mat-label>
-              <input matInput [ngModel]="rawCenter()" (ngModelChange)="rawCenter.set($event)">
+              <mat-label>Current Center Digit String (rational: {{ formatRational(parsedCenter()) }})</mat-label>
+              <input matInput [ngModel]="centerDigitsInput()" (ngModelChange)="centerDigitsInput.set($event)">
+              @if (parsedCenterError()) {
+                <mat-error>{{ parsedCenterError() }}</mat-error>
+              }
             </mat-form-field>
 
             <!-- Current Rho -->
@@ -220,42 +227,68 @@ import { computeGradientDetails, GradientDetails } from '../../../lib/berkovich/
   styleUrls: ['../berkovich-point-vis/berkovich-point-vis.component.scss']
 })
 export class TreeVisToolComponent {
+  readonly formatRational = formatRational;
   readonly prime = signal<number>(3);
-  readonly rawTarget = signal<string>('5/3');
   readonly hasTargetLogRadius = signal<boolean>(false);
   readonly targetLogRadius = signal<number>(-1.0);
-  readonly rawCenter = signal<string>('3/5');
   readonly rho = signal<number>(0.5);
   readonly isDragging = signal<boolean>(false);
   readonly showNodeComputations = signal<boolean>(true);
   readonly learningRate = signal<number>(0.2);
 
-  // Derived digits display inputs
+  // Derived digits display inputs (now directly bound to form)
   readonly targetDigitsInput = signal<string>('01.20');
   readonly centerDigitsInput = signal<string>('00.12');
 
   constructor() {
-    // Keep digits inputs synchronized with parsed center/target rational inputs
-    effect(() => {
-      const p = BigInt(this.prime());
-      try {
-        const tgt = this.parsedTarget();
-        untracked(() => this.targetDigitsInput.set(formatDigitSequence(tgt, p)));
-      } catch {}
-    });
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
 
+    // Load initial state if present
+    const initialStateStr = route.snapshot.queryParams['state'];
+    if (initialStateStr) {
+      const state = parseState(initialStateStr);
+      if (state) {
+        if (state.prime !== undefined) this.prime.set(state.prime);
+        if (state.targetDigitsInput !== undefined) this.targetDigitsInput.set(state.targetDigitsInput);
+        if (state.hasTargetLogRadius !== undefined) this.hasTargetLogRadius.set(state.hasTargetLogRadius);
+        if (state.targetLogRadius !== undefined) this.targetLogRadius.set(state.targetLogRadius);
+        if (state.centerDigitsInput !== undefined) this.centerDigitsInput.set(state.centerDigitsInput);
+        if (state.rho !== undefined) this.rho.set(state.rho);
+        if (state.showNodeComputations !== undefined) this.showNodeComputations.set(state.showNodeComputations);
+        if (state.learningRate !== undefined) this.learningRate.set(state.learningRate);
+      }
+    }
+
+    // Update URL on changes
     effect(() => {
-      const p = BigInt(this.prime());
-      try {
-        const c = this.parsedCenter();
-        untracked(() => this.centerDigitsInput.set(formatDigitSequence(c, p)));
-      } catch {}
+      const state = {
+        prime: this.prime(),
+        targetDigitsInput: this.targetDigitsInput(),
+        hasTargetLogRadius: this.hasTargetLogRadius(),
+        targetLogRadius: this.targetLogRadius(),
+        centerDigitsInput: this.centerDigitsInput(),
+        rho: this.rho(),
+        showNodeComputations: this.showNodeComputations(),
+        learningRate: this.learningRate()
+      };
+      const stateStr = stringifyState(state);
+      const currentUrlState = route.snapshot.queryParams['state'];
+      if (currentUrlState !== stateStr) {
+        untracked(() => {
+          router.navigate([], {
+            queryParams: { state: stateStr },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        });
+      }
     });
   }
 
   readonly parsedTarget = computed<Rational>(() => {
     try {
-      return parseToRational(this.rawTarget());
+      return parseDigitSequence(this.targetDigitsInput(), BigInt(this.prime()), { minPower: -2, maxPower: 1 });
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -263,7 +296,7 @@ export class TreeVisToolComponent {
 
   readonly parsedCenter = computed<Rational>(() => {
     try {
-      return parseToRational(this.rawCenter());
+      return parseDigitSequence(this.centerDigitsInput(), BigInt(this.prime()), { minPower: -2, maxPower: 1 });
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -271,19 +304,19 @@ export class TreeVisToolComponent {
 
   readonly parsedTargetError = computed<string | null>(() => {
     try {
-      parseToRational(this.rawTarget());
+      parseDigitSequence(this.targetDigitsInput(), BigInt(this.prime()), { minPower: -2, maxPower: 1 });
       return null;
     } catch (e: any) {
-      return e.message ?? 'Invalid format';
+      return `Invalid target sequence: ${e.message ?? 'Unknown error'}`;
     }
   });
 
   readonly parsedCenterError = computed<string | null>(() => {
     try {
-      parseToRational(this.rawCenter());
+      parseDigitSequence(this.centerDigitsInput(), BigInt(this.prime()), { minPower: -2, maxPower: 1 });
       return null;
     } catch (e: any) {
-      return e.message ?? 'Invalid format';
+      return `Invalid center sequence: ${e.message ?? 'Unknown error'}`;
     }
   });
 
@@ -321,11 +354,9 @@ export class TreeVisToolComponent {
   onTargetDigitsBlur() {
     const p = BigInt(this.prime());
     try {
-      const parsed = parseDigitSequence(this.targetDigitsInput(), p);
-      this.rawTarget.set(formatRational(parsed));
-      this.targetDigitsInput.set(formatDigitSequence(parsed, p));
+      const parsed = parseDigitSequence(this.targetDigitsInput(), p, { minPower: -2, maxPower: 1 });
+      this.targetDigitsInput.set(formatDigitSequence(parsed, p, { minPower: -2, maxPower: 1 }));
     } catch {
-      this.rawTarget.set('0');
       this.targetDigitsInput.set('00.00');
     }
   }
@@ -333,18 +364,18 @@ export class TreeVisToolComponent {
   onCenterDigitsBlur() {
     const p = BigInt(this.prime());
     try {
-      const parsed = parseDigitSequence(this.centerDigitsInput(), p);
-      this.rawCenter.set(formatRational(parsed));
-      this.centerDigitsInput.set(formatDigitSequence(parsed, p));
+      const parsed = parseDigitSequence(this.centerDigitsInput(), p, { minPower: -2, maxPower: 1 });
+      this.centerDigitsInput.set(formatDigitSequence(parsed, p, { minPower: -2, maxPower: 1 }));
     } catch {
-      this.rawCenter.set('0');
       this.centerDigitsInput.set('00.00');
     }
   }
 
   stepSGD() {
     const details = this.gradientBreakdown();
-    this.rawCenter.set(formatRational(details.nextCenter));
+    const p = BigInt(this.prime());
+    const seq = formatDigitSequence(details.nextCenter, p, { minPower: -2, maxPower: 1 });
+    this.centerDigitsInput.set(seq);
     this.rho.set(details.nextLogRadius);
   }
 
@@ -356,8 +387,19 @@ export class TreeVisToolComponent {
 
   applyPreset(preset: typeof this.presets[0]) {
     this.prime.set(preset.prime);
-    this.rawTarget.set(preset.target);
-    this.rawCenter.set(preset.center);
+    const p = BigInt(preset.prime);
+    try {
+      const ratTgt = parseToRational(preset.target);
+      this.targetDigitsInput.set(formatDigitSequence(ratTgt, p, { minPower: -2, maxPower: 1 }));
+    } catch {
+      this.targetDigitsInput.set('00.00');
+    }
+    try {
+      const ratCtr = parseToRational(preset.center);
+      this.centerDigitsInput.set(formatDigitSequence(ratCtr, p, { minPower: -2, maxPower: 1 }));
+    } catch {
+      this.centerDigitsInput.set('00.00');
+    }
     this.rho.set(preset.rho);
     this.hasTargetLogRadius.set(preset.hasRadius);
     this.targetLogRadius.set(preset.radius);

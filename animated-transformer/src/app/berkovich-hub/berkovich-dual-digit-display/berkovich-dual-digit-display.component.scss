@@ -73,27 +73,29 @@ limitations under the License.
   stroke: #eab308; /* Yellow target outer box */
 }
 
-/* Dotted guide lines for rho values */
-.rho-dotted-line {
+/* Guide lines for rho values */
+.rho-guide-line {
   fill: none;
   stroke: #94a3b8;
   stroke-width: 1px;
-  stroke-dasharray: 2 2;
   transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease;
 }
 
-/* Text labels on the right */
+/* Text labels for rho values */
 .rho-label-text {
   font-family: monospace;
   font-size: 10px;
   font-weight: bold;
   dominant-baseline: central;
+  fill: #64748b; /* Default to grey */
   
-  &.x-rho-label {
-    fill: #7c3aed; /* Purple */
-  }
-  
-  &.y-rho-label {
-    fill: #ca8a04; /* Yellow/Gold */
+  &.colored-label {
+    &.x-rho-label {
+      fill: #7c3aed; /* Purple */
+    }
+    
+    &.y-rho-label {
+      fill: #ca8a04; /* Yellow/Gold */
+    }
   }
 }

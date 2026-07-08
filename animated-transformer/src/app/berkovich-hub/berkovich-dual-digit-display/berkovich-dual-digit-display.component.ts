@@ -66,6 +66,11 @@ export class BerkovichDualDigitDisplayComponent {
   // Configurable size category
   readonly size = input<'small' | 'medium' | 'large'>('medium');
 
+  // Configurable outline border colors
+  readonly xOuterBoxColor = input<string>('#a855f7');
+  readonly yOuterBoxColor = input<string>('#eab308');
+  readonly rhoLabelPosition = input<'above-below' | 'left' | 'none'>('above-below');
+
   // Flexible layout & margin inputs (default to undefined to fall back to size category defaults)
   readonly cellWidthInput = input<number | undefined>(undefined, { alias: 'cellWidth' });
   readonly cellHeightInput = input<number | undefined>(undefined, { alias: 'cellHeight' });
@@ -81,6 +86,7 @@ export class BerkovichDualDigitDisplayComponent {
 
   readonly derivedDimensions = computed(() => {
     const sz = this.size();
+    const isLeft = this.rhoLabelPosition() === 'left';
     
     // Default dimensions per size
     let cellWidth = 20;
@@ -89,7 +95,7 @@ export class BerkovichDualDigitDisplayComponent {
     let dotWidth = 0;
     let marginTop = 24;
     let marginBottom = 10;
-    let marginLeft = 10;
+    let marginLeft = isLeft ? 45 : 10;
     let marginRight = 10;
     let rowGap = 16;
     let fontSize = 11;
@@ -105,7 +111,7 @@ export class BerkovichDualDigitDisplayComponent {
       dotWidth = 0;
       marginTop = 18;
       marginBottom = 6;
-      marginLeft = 6;
+      marginLeft = isLeft ? 35 : 6;
       marginRight = 6;
       rowGap = 12;
       fontSize = 9;
@@ -119,7 +125,7 @@ export class BerkovichDualDigitDisplayComponent {
       dotWidth = 0;
       marginTop = 30;
       marginBottom = 15;
-      marginLeft = 15;
+      marginLeft = isLeft ? 55 : 15;
       marginRight = 15;
       rowGap = 24;
       fontSize = 14;

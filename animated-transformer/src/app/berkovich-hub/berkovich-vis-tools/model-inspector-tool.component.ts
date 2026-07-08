@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -26,8 +26,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { BerkovichModelInspectorComponent } from '../berkovich-space-explorers/inspector-components/berkovich-model-inspector.component';
-import { Rational, parseToRational, formatRational } from '../../../lib/berkovich/berkovich';
+import { Rational, parseToRational, formatRational, formatDigitSequence, parseDigitSequence } from '../../../lib/berkovich/berkovich';
 import { BerkovichCharLearnerBase, BerkovichDisk } from '../berkovich-space-explorers/models/berkovich-char-learner';
+import { stringifyState, parseState } from './url-serializer';
 
 @Component({
   selector: 'app-model-inspector-tool',
@@ -159,17 +160,19 @@ import { BerkovichCharLearnerBase, BerkovichDisk } from '../berkovich-space-expl
               <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
                 @for (vIdx of vocabIndices(); track vIdx) {
                   <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 8px;">
-                    <div style="font-weight: 700; font-size: 11px; color: #1e3a8a; margin-bottom: 6px;">Token: '{{ vocab()[vIdx] }}'</div>
-                    @for (d of dimensions(); track d) {
-                      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 11px;">
-                        <span style="font-weight: 600; min-width: 40px;">Dim {{ d }}:</span>
-                        <span style="color: #64748b;">E:</span>
-                        <input type="text" [ngModel]="getDiskCenterStr('E', vIdx, d)" (ngModelChange)="updateDiskCenter('E', vIdx, d, $event)" style="width: 50px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 4px;">
-                        
-                        <span style="color: #64748b;">W:</span>
-                        <input type="text" [ngModel]="getDiskCenterStr('W', vIdx, d)" (ngModelChange)="updateDiskCenter('W', vIdx, d, $event)" style="width: 50px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 4px;">
-                      </div>
-                    }
+                     <div style="font-weight: 700; font-size: 11px; color: #1e3a8a; margin-bottom: 6px;">Token: '{{ vocab()[vIdx] }}'</div>
+                     @for (d of dimensions(); track d) {
+                       <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 11px; flex-wrap: wrap;">
+                         <span style="font-weight: 600; min-width: 45px;">Dim {{ d }}:</span>
+                         <span style="color: #64748b;">E:</span>
+                         <input type="text" [ngModel]="getDiskCenterStr('E', vIdx, d)" (ngModelChange)="updateDiskCenter('E', vIdx, d, $event)" style="width: 55px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 4px;">
+                         <span style="color: #94a3b8; font-size: 10px; margin-right: 8px;">({{ formatRational(getDiskCenterRaw('E', vIdx, d)) }})</span>
+                         
+                         <span style="color: #64748b;">W:</span>
+                         <input type="text" [ngModel]="getDiskCenterStr('W', vIdx, d)" (ngModelChange)="updateDiskCenter('W', vIdx, d, $event)" style="width: 55px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 4px;">
+                         <span style="color: #94a3b8; font-size: 10px;">({{ formatRational(getDiskCenterRaw('W', vIdx, d)) }})</span>
+                       </div>
+                     }
                   </div>
                 }
               </div>
@@ -182,8 +185,55 @@ import { BerkovichCharLearnerBase, BerkovichDisk } from '../berkovich-space-expl
   styleUrls: ['../berkovich-point-vis/berkovich-point-vis.component.scss']
 })
 export class ModelInspectorToolComponent {
+  readonly formatRational = formatRational;
   readonly prime = signal<number>(5);
   readonly vocabRaw = signal<string>('a, b, c,  d');
+
+  constructor() {
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
+
+    // Load initial state if present
+    const initialStateStr = route.snapshot.queryParams['state'];
+    if (initialStateStr) {
+      const state = parseState(initialStateStr);
+      if (state) {
+        if (state.prime !== undefined) this.prime.set(state.prime);
+        if (state.vocabRaw !== undefined) this.vocabRaw.set(state.vocabRaw);
+        if (state.dimCount !== undefined) this.dimCount.set(state.dimCount);
+        if (state.mode !== undefined) this.mode.set(state.mode);
+        if (state.digitsLeft !== undefined) this.digitsLeft.set(state.digitsLeft);
+        if (state.digitsRight !== undefined) this.digitsRight.set(state.digitsRight);
+        if (state.EStore !== undefined) this.EStore.set(state.EStore);
+        if (state.WStore !== undefined) this.WStore.set(state.WStore);
+      }
+    }
+
+    // Update URL on changes
+    effect(() => {
+      const state = {
+        prime: this.prime(),
+        vocabRaw: this.vocabRaw(),
+        dimCount: this.dimCount(),
+        mode: this.mode(),
+        digitsLeft: this.digitsLeft(),
+        digitsRight: this.digitsRight(),
+        EStore: this.EStore(),
+        WStore: this.WStore()
+      };
+      const stateStr = stringifyState(state);
+      const currentUrlState = route.snapshot.queryParams['state'];
+      if (currentUrlState !== stateStr) {
+        untracked(() => {
+          router.navigate([], {
+            queryParams: { state: stateStr },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        });
+      }
+    });
+  }
   readonly dimCount = signal<number>(2);
   readonly mode = signal<'both' | 'E' | 'W'>('both');
   readonly digitsLeft = signal<number>(2);
@@ -261,17 +311,26 @@ export class ModelInspectorToolComponent {
     return { E, W } as any as BerkovichCharLearnerBase;
   });
 
+  getDiskCenterRaw(type: 'E' | 'W', vIdx: number, dIdx: number): Rational {
+    const key = `${vIdx}-${dIdx}`;
+    const map = type === 'E' ? this.EStore() : this.WStore();
+    return map[key] ?? { num: 0n, den: 1n };
+  }
+
   getDiskCenterStr(type: 'E' | 'W', vIdx: number, dIdx: number): string {
     const key = `${vIdx}-${dIdx}`;
     const map = type === 'E' ? this.EStore() : this.WStore();
     const r = map[key];
-    if (!r) return '0';
-    return formatRational(r);
+    if (!r) return formatDigitSequence({ num: 0n, den: 1n }, BigInt(this.prime()), { minPower: -this.digitsRight(), maxPower: this.digitsLeft() - 1 });
+    return formatDigitSequence(r, BigInt(this.prime()), { minPower: -this.digitsRight(), maxPower: this.digitsLeft() - 1 });
   }
 
   updateDiskCenter(type: 'E' | 'W', vIdx: number, dIdx: number, valStr: string) {
     try {
-      const r = parseToRational(valStr);
+      const r = parseDigitSequence(valStr, BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
       const key = `${vIdx}-${dIdx}`;
       if (type === 'E') {
         this.EStore.update(m => ({ ...m, [key]: r }));

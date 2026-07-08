@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -27,7 +27,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
-import { Rational, parseToRational, formatRational } from '../../../lib/berkovich/berkovich';
+import { Rational, parseToRational, formatRational, formatDigitSequence, parseDigitSequence } from '../../../lib/berkovich/berkovich';
+import { stringifyState, parseState } from './url-serializer';
 
 @Component({
   selector: 'app-digit-display-tool',
@@ -153,8 +154,8 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
 
             <!-- Center -->
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Center Rational value (e.g. 5/3, -1.25)</mat-label>
-              <input matInput [ngModel]="rawCenter()" (ngModelChange)="rawCenter.set($event)">
+              <mat-label>Center Digit String (rational: {{ formatRational(parsedCenter()) }})</mat-label>
+              <input matInput [ngModel]="centerDigits()" (ngModelChange)="centerDigits.set($event)">
               @if (parsedCenterError()) {
                 <mat-error>{{ parsedCenterError() }}</mat-error>
               }
@@ -249,8 +250,67 @@ import { Rational, parseToRational, formatRational } from '../../../lib/berkovic
   styleUrls: ['../berkovich-point-vis/berkovich-point-vis.component.scss']
 })
 export class DigitDisplayToolComponent {
+  readonly formatRational = formatRational;
   readonly prime = signal<number>(5);
-  readonly rawCenter = signal<string>('3/5');
+  readonly centerDigits = signal<string>('00.30');
+
+  constructor() {
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
+
+    // Load initial state if present
+    const initialStateStr = route.snapshot.queryParams['state'];
+    if (initialStateStr) {
+      const state = parseState(initialStateStr);
+      if (state) {
+        if (state.prime !== undefined) this.prime.set(state.prime);
+        if (state.centerDigits !== undefined) this.centerDigits.set(state.centerDigits);
+        if (state.rho !== undefined) this.rho.set(state.rho);
+        if (state.showRho !== undefined) this.showRho.set(state.showRho);
+        if (state.digitsLeft !== undefined) this.digitsLeft.set(state.digitsLeft);
+        if (state.digitsRight !== undefined) this.digitsRight.set(state.digitsRight);
+        if (state.size !== undefined) this.size.set(state.size);
+        if (state.outerBoxColor !== undefined) this.outerBoxColor.set(state.outerBoxColor);
+        if (state.customCellWidth !== undefined) this.customCellWidth.set(state.customCellWidth);
+        if (state.cellWidth !== undefined) this.cellWidth.set(state.cellWidth);
+        if (state.customCellHeight !== undefined) this.customCellHeight.set(state.customCellHeight);
+        if (state.cellHeight !== undefined) this.cellHeight.set(state.cellHeight);
+        if (state.customCellGap !== undefined) this.customCellGap.set(state.customCellGap);
+        if (state.cellGap !== undefined) this.cellGap.set(state.cellGap);
+      }
+    }
+
+    // Update URL on changes
+    effect(() => {
+      const state = {
+        prime: this.prime(),
+        centerDigits: this.centerDigits(),
+        rho: this.rho(),
+        showRho: this.showRho(),
+        digitsLeft: this.digitsLeft(),
+        digitsRight: this.digitsRight(),
+        size: this.size(),
+        outerBoxColor: this.outerBoxColor(),
+        customCellWidth: this.customCellWidth(),
+        cellWidth: this.cellWidth(),
+        customCellHeight: this.customCellHeight(),
+        cellHeight: this.cellHeight(),
+        customCellGap: this.customCellGap(),
+        cellGap: this.cellGap()
+      };
+      const stateStr = stringifyState(state);
+      const currentUrlState = route.snapshot.queryParams['state'];
+      if (currentUrlState !== stateStr) {
+        untracked(() => {
+          router.navigate([], {
+            queryParams: { state: stateStr },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        });
+      }
+    });
+  }
   readonly rho = signal<number>(0.5);
   readonly showRho = signal<boolean>(true);
   readonly digitsLeft = signal<number>(3);
@@ -268,7 +328,10 @@ export class DigitDisplayToolComponent {
 
   readonly parsedCenter = computed<Rational>(() => {
     try {
-      return parseToRational(this.rawCenter());
+      return parseDigitSequence(this.centerDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -276,10 +339,13 @@ export class DigitDisplayToolComponent {
 
   readonly parsedCenterError = computed<string | null>(() => {
     try {
-      parseToRational(this.rawCenter());
+      parseDigitSequence(this.centerDigits(), BigInt(this.prime()), {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
       return null;
     } catch (e: any) {
-      return `Invalid rational number format: ${e.message ?? 'Unknown error'}`;
+      return `Invalid digit sequence: ${e.message ?? 'Unknown error'}`;
     }
   });
 
@@ -293,7 +359,17 @@ export class DigitDisplayToolComponent {
 
   applyPreset(preset: typeof this.presets[0]) {
     this.prime.set(preset.prime);
-    this.rawCenter.set(preset.center);
+    try {
+      const rat = parseToRational(preset.center);
+      const p = BigInt(preset.prime);
+      const seq = formatDigitSequence(rat, p, {
+        minPower: -this.digitsRight(),
+        maxPower: this.digitsLeft() - 1
+      });
+      this.centerDigits.set(seq);
+    } catch {
+      this.centerDigits.set('');
+    }
     this.rho.set(preset.rho);
   }
 }

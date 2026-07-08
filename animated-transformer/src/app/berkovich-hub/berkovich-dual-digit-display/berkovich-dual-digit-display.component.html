@@ -169,7 +169,7 @@ limitations under the License.
     </g>
   }
 
-  <!-- Border box around Row 1 (x) - Purple -->
+  <!-- Border box around Row 1 (x) -->
   <rect
     [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
     [attr.y]="row1Y() - derivedDimensions().boxPadding"
@@ -177,10 +177,11 @@ limitations under the License.
     [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
     [attr.rx]="derivedDimensions().boxBorderRadius"
     [attr.ry]="derivedDimensions().boxBorderRadius"
-    class="row-outer-box row1-outer-box"
+    [style.stroke]="xOuterBoxColor()"
+    class="row-outer-box"
   />
 
-  <!-- Border box around Row 2 (y) - Yellow -->
+  <!-- Border box around Row 2 (y) -->
   <rect
     [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
     [attr.y]="row2Y() - derivedDimensions().boxPadding"
@@ -188,58 +189,85 @@ limitations under the License.
     [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
     [attr.rx]="derivedDimensions().boxBorderRadius"
     [attr.ry]="derivedDimensions().boxBorderRadius"
-    class="row-outer-box row2-outer-box"
+    [style.stroke]="yOuterBoxColor()"
+    class="row-outer-box"
   />
 
-  <!-- Dotted guide lines & labels for x rho value -->
-  @if (xRhoBoundaryX() !== null) {
+  <!-- Left-aligned rho numbers when position is 'left' -->
+  @if (rhoLabelPosition() === 'left') {
+    <text
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+      [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
+      class="rho-label-text x-rho-label"
+      style="text-anchor: end;"
+      [style.font-size.px]="derivedDimensions().fontSize"
+    >
+      {{ xRho().toFixed(2) }}
+    </text>
+    @if (yRho() !== undefined && yRho() !== null) {
+      <text
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+        [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
+        class="rho-label-text y-rho-label"
+        style="text-anchor: end;"
+        [style.font-size.px]="derivedDimensions().fontSize"
+      >
+        {{ yRho()!.toFixed(2) }}
+      </text>
+    }
+  }
+
+  <!-- Guide lines and labels for x rho value -->
+  @if (xRhoBoundaryX() !== null && rhoLabelPosition() === 'above-below') {
     <line
-      [attr.x1]="xRhoBoundaryX()"
-      [attr.y1]="row1Y() - derivedDimensions().boxPadding"
+      [attr.x1]="derivedDimensions().marginLeft"
+      [attr.y1]="15"
       [attr.x2]="xRhoBoundaryX()"
       [attr.y2]="15"
-      class="rho-dotted-line"
+      class="rho-guide-line"
     />
     <line
       [attr.x1]="xRhoBoundaryX()"
       [attr.y1]="15"
-      [attr.x2]="layout().totalWidth - derivedDimensions().marginRight + 10"
-      [attr.y2]="15"
-      class="rho-dotted-line"
+      [attr.x2]="xRhoBoundaryX()"
+      [attr.y2]="row1Y() - derivedDimensions().boxPadding"
+      class="rho-guide-line"
     />
     <text
-      [attr.x]="layout().totalWidth - derivedDimensions().marginRight + 15"
-      y="18"
+      [attr.x]="derivedDimensions().marginLeft"
+      y="10"
       class="rho-label-text x-rho-label"
+      style="text-anchor: start;"
       [style.font-size.px]="derivedDimensions().fontSize - 1"
     >
-      x_&rho; = {{ xRho().toFixed(2) }}
+      {{ xRho().toFixed(2) }}
     </text>
   }
 
-  <!-- Dotted guide lines & labels for y rho value -->
-  @if (yRho() !== undefined && yRho() !== null && yRhoBoundaryX() !== null) {
+  <!-- Guide lines and labels for y rho value -->
+  @if (yRho() !== undefined && yRho() !== null && yRhoBoundaryX() !== null && rhoLabelPosition() === 'above-below') {
+    <line
+      [attr.x1]="derivedDimensions().marginLeft"
+      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      [attr.x2]="yRhoBoundaryX()"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      class="rho-guide-line"
+    />
     <line
       [attr.x1]="yRhoBoundaryX()"
       [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding"
       [attr.x2]="yRhoBoundaryX()"
-      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
-      class="rho-dotted-line"
-    />
-    <line
-      [attr.x1]="yRhoBoundaryX()"
-      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
-      [attr.x2]="layout().totalWidth - derivedDimensions().marginRight + 10"
-      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 15"
-      class="rho-dotted-line"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      class="rho-guide-line"
     />
     <text
-      [attr.x]="layout().totalWidth - derivedDimensions().marginRight + 15"
+      [attr.x]="derivedDimensions().marginLeft"
       [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 18"
       class="rho-label-text y-rho-label"
+      style="text-anchor: start;"
       [style.font-size.px]="derivedDimensions().fontSize - 1"
     >
-      y_&rho; = {{ yRho()!.toFixed(2) }}
+      {{ yRho()!.toFixed(2) }}
     </text>
   }
 </svg>
