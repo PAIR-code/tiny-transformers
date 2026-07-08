@@ -12,11 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy, inject, effect, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MarkdownComponent } from 'ngx-markdown';
 import { MatCardModule } from '@angular/material/card';
@@ -66,15 +66,46 @@ import { BerkovichUnaryTreeVisComponent, TrackedNode, EditableNodeInputs } from 
     BerkovichUnaryTreeVisComponent
   ]
 })
-export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
+export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {
   formatRational(r: Rational): string {
     return formatRational(r);
   }
+
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  readonly visMode = signal<'tree' | 'digits'>('tree');
+  readonly constantLabel = signal<string>('k');
 
   readonly operator = signal<BerkovichUnaryOperator>('shift');
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
   readonly vertexMethod = signal<VertexResolutionMethod>('exact-per-coord');
+
+  constructor() {
+    effect(() => {
+      const mode = this.visMode();
+      const op = this.operator();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { mode, operator: op },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    });
+  }
+
+  ngOnInit() {
+    const params = this.route.snapshot.queryParamMap;
+    const modeParam = params.get('mode');
+    if (modeParam === 'tree' || modeParam === 'digits') {
+      this.visMode.set(modeParam);
+    }
+    const opParam = params.get('operator');
+    if (opParam === 'shift' || opParam === 'scale' || opParam === 'square' || opParam === 'cube') {
+      this.operator.set(opParam as BerkovichUnaryOperator);
+    }
+  }
 
   // Input states
   readonly centerXInput = signal<string>('00.10'); // 1/3 in base 3
@@ -239,7 +270,7 @@ $$(x + 1)_\\rho = \\rho_x$$
     const op = this.operator();
     const details = this.stepDetails();
     const p = BigInt(this.prime());
-    const labelOut = op === 'scale' ? '(px)_ρ' : op === 'square' ? '(x²)_ρ' : op === 'cube' ? '(x³)_ρ' : '(x+1)_ρ';
+    const labelOut = op === 'scale' ? `(${this.constantLabel()}x)_ρ` : op === 'square' ? '(x²)_ρ' : op === 'cube' ? '(x³)_ρ' : `(x+1)_ρ`;
     const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : op === 'cube' ? 'X3' : 'X1';
 
     const nodes: TrackedNode[] = [
@@ -254,13 +285,13 @@ $$(x + 1)_\\rho = \\rho_x$$
       if (op === 'scale') {
         centerC = simplify({ num: p, den: 1n });
         rhoC = -2;
-        labelC = 'c = p';
+        labelC = `${this.constantLabel()} = p`;
       } else {
         centerC = simplify({ num: 1n, den: 1n });
         rhoC = -2;
-        labelC = 'c = 1';
+        labelC = `${this.constantLabel()} = 1`;
       }
-      nodes.push({ id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: labelC });
+      nodes.push({ id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: `${this.constantLabel()} = ${op === 'scale' ? 'p' : '1'}` });
     }
 
     nodes.push(
@@ -293,7 +324,7 @@ $$(x + 1)_\\rho = \\rho_x$$
         trackedNodeId: 'C',
         centerInput: centerCInput,
         color: '#94a3b8',
-        labelPrefix: 'c',
+        labelPrefix: this.constantLabel(),
         readonly: true
       });
     }

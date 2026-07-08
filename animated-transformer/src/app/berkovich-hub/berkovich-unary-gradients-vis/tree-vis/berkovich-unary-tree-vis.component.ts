@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, output, computed, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, computed, signal, ChangeDetectionStrategy, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -98,9 +98,22 @@ export class BerkovichUnaryTreeVisComponent {
   readonly prime = input.required<number>();
   readonly trackedNodes = input.required<TrackedNode[]>();
   readonly stepDetails = input.required<any>();
+  readonly constantLabel = input<string>('k');
 
   // Visual mode state
-  readonly visMode = signal<'tree' | 'digits'>('tree');
+  readonly visMode = model<'tree' | 'digits'>('tree');
+
+  formatDigitSequenceHelper(r: Rational): string {
+    return formatDigitSequence(r, BigInt(this.prime()));
+  }
+
+  readonly intermediateLabel = computed(() => {
+    const op = this.operator();
+    if (op === 'shift') return 'x+1';
+    if (op === 'scale') return `${this.constantLabel()}·x`;
+    if (op === 'square') return 'x²';
+    return 'x³';
+  });
 
   // Computed properties to extract variables for dual digit display
   readonly centerX = computed(() => this.trackedNodes().find(n => n.id === 'X')?.center ?? { num: 0n, den: 1n });

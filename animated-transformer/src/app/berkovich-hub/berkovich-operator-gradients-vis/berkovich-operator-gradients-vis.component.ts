@@ -12,11 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy, inject, effect, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MarkdownComponent } from 'ngx-markdown';
 import { MatCardModule } from '@angular/material/card';
@@ -66,10 +66,16 @@ import {
     BerkovichMultiTreeVisComponent
   ]
 })
-export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
+export class BerkovichOperatorGradientsVisComponent implements OnDestroy, OnInit {
   formatRational(r: Rational): string {
     return formatRational(r);
   }
+
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  readonly visMode = signal<'tree' | 'digits'>('tree');
+  readonly targetLabel = signal<string>('y');
 
   readonly operator = signal<BerkovichBinaryOperator>('addition');
   readonly prime = signal<number>(3);
@@ -95,17 +101,44 @@ export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
 
   private playIntervalId: any = null;
 
+  constructor() {
+    effect(() => {
+      const mode = this.visMode();
+      const op = this.operator();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { mode, operator: op },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    });
+  }
+
+  ngOnInit() {
+    const params = this.route.snapshot.queryParamMap;
+    const modeParam = params.get('mode');
+    if (modeParam === 'tree' || modeParam === 'digits') {
+      this.visMode.set(modeParam);
+    }
+    const opParam = params.get('operator');
+    if (opParam === 'addition' || opParam === 'multiplication') {
+      this.operator.set(opParam);
+    }
+  }
+
   readonly subtitleMath = computed(() => {
     const op = this.operator();
-    if (op === 'multiplication') return '$x_1 \\cdot x_2 \\to y$';
-    return '$x_1 + x_2 \\to y$';
+    const y = this.targetLabel();
+    if (op === 'multiplication') return `$x_1 \\cdot x_2 \\to ${y}$`;
+    return `$x_1 + x_2 \\to ${y}$`;
   });
 
   readonly explainerMarkdown = computed(() => {
     const op = this.operator();
+    const y = this.targetLabel();
     if (op === 'multiplication') {
       return `
-This page demonstrates training the inputs $x_1$ and $x_2$ of a multiplication operation $x_1 \\cdot x_2$ to match a target disk $y$.
+This page demonstrates training the inputs $x_1$ and $x_2$ of a multiplication operation $x_1 \\cdot x_2$ to match a target disk $${y}$.
 
 ### The Product Radius Formula
 Under non-Archimedean multiplication, the product disk's log-radius is given by:
@@ -125,16 +158,16 @@ When you multiply a disk by such a number, its uncertainty is amplified:
       `;
     }
     return `
-In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x_1$ and $x_2$ of an addition operation $x_1+x_2$ to match a target disk $y$.
+In non-Archimedean machine learning, we optimize parameters inside Berkovich space using continuous gradient descent (SGD). This page demonstrates training the inputs $x_1$ and $x_2$ of an addition operation $x_1+x_2$ to match a target disk $${y}$.
 
 ### The Loss Function & Distance
-We define the loss function $L(x_1, x_2; y)$ as the branching distance between the sum disk $x_1+x_2$ and the target disk $y$:
-$$L(x_1, x_2; y) = \\text{dist}(x_1+x_2, y)$$
+We define the loss function $L(x_1, x_2; ${y})$ as the branching distance between the sum disk $x_1+x_2$ and the target disk $${y}$:
+$$L(x_1, x_2; ${y}) = \\text{dist}(x_1+x_2, ${y})$$
 In tree topology, this is the length of the path from the sum disk node up to the lowest common ancestor (LCA) junction with the target disk.
 
 ### How Gradients Flow
 Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius is $(x_1+x_2)_{\\rho} = \\max(x_{1,\\rho}, x_{2,\\rho})$:
-1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x_1$ and $x_2$. The gradient points toward the branch that leads closer to the target center $y_c$.
+1. **Gradient on Centers ($\\partial L / \\partial c$)**: The gradient on the sum center propagates back equally to the centers of $x_1$ and $x_2$. The gradient points toward the branch that leads closer to the target center $${y}_c$.
 2. **Gradient on Radii ($\\partial L / \\partial \\rho$)**: The loss is only sensitive to the radii of the inputs that dominate the sum's uncertainty. The gradient of the sum radius $\\partial L / \\partial (x_1+x_2)_{\\rho}$ flows back:
    * Entirely to $x_{1,\\rho}$ if $x_{1,\\rho} > x_{2,\\rho}$
    * Entirely to $x_{2,\\rho}$ if $x_{2,\\rho} > x_{1,\\rho}$
@@ -245,7 +278,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
       { id: 'X1', center: this.centerX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
       { id: 'X2', center: this.centerX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
       { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
-      { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
+      { id: 'Y', center: this.centerY(), rho: -2, color: '#eab308', label: `${this.targetLabel()}_c (Target)` }
     ];
   });
 
@@ -291,7 +324,7 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
         trackedNodeId: 'Y',
         centerInput: this.centerYInput(),
         color: '#eab308',
-        labelPrefix: 'y'
+        labelPrefix: this.targetLabel()
       }
     ];
   });

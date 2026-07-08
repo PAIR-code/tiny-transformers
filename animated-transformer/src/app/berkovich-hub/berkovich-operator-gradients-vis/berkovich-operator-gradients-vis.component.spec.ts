@@ -63,6 +63,8 @@ describe('BerkovichOperatorGradientsVisComponent', () => {
     expect(component.prime()).toBe(3);
     expect(component.learningRate()).toBe(0.20);
     expect(component.canUndo()).toBe(false);
+    expect(component.visMode()).toBe('tree');
+    expect(component.targetLabel()).toBe('y');
   });
 
   it('should take a step and update parameter history/canUndo', () => {

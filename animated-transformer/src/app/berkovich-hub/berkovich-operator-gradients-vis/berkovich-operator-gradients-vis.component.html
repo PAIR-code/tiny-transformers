@@ -28,6 +28,8 @@
     <!-- Left Column: Interactive Tree & Point Visualizer -->
     <section class="visualizer-card-container">
       <app-berkovich-multi-tree-vis
+        [(visMode)]="visMode"
+        [targetLabel]="targetLabel()"
         [operator]="operator()"
         [prime]="prime()"
         [learningRateInput]="learningRateInput()"

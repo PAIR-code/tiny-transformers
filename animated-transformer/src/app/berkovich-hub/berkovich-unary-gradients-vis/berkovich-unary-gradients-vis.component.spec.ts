@@ -58,8 +58,10 @@ describe('BerkovichUnaryGradientsVisComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create the unary component', () => {
+  it('should create the unary component and initialize defaults', () => {
     expect(component).toBeTruthy();
+    expect(component.visMode()).toBe('tree');
+    expect(component.constantLabel()).toBe('k');
   });
 
   it('should initialize inputs to valid 4-digit representations', () => {
