@@ -17,6 +17,46 @@ import { Component, input, computed, ChangeDetectionStrategy } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { Rational, getAlignedDigits, subtract, getValuation } from '../../../lib/berkovich/berkovich';
 
+// ==========================================================================
+// LAYOUT CONSTANTS
+// ==========================================================================
+
+/** Base cell width for medium sized digits display. */
+const BASE_CELL_WIDTH = 20;
+/** Base cell height for medium sized digits display. */
+const BASE_CELL_HEIGHT = 24;
+/** Base gap spacing between adjacent digit cells. */
+const BASE_CELL_GAP = 4;
+
+/** Base top margin for label guide lines above first row. */
+const BASE_MARGIN_TOP = 24;
+/** Base bottom margin for label guide lines below second row. */
+const BASE_MARGIN_BOTTOM = 10;
+/** Base left margin when labels are not left-aligned. */
+const BASE_MARGIN_LEFT = 10;
+/** Base left margin when labels are left-aligned (requires extra spacing). */
+const BASE_MARGIN_LEFT_WITH_LEFT_LABELS = 45;
+/** Base right margin spacing inside SVG box. */
+const BASE_MARGIN_RIGHT = 10;
+/** Base vertical gap spacing between the two digit rows. */
+const BASE_ROW_GAP = 16;
+/** Base font size for the digit characters. */
+const BASE_DIGIT_FONT_SIZE = 12;
+/** Base font size for the rho label text. */
+const BASE_RHO_FONT_SIZE = 11;
+
+/** Base padding of the outer border box from the digits sequence. */
+const BASE_BOX_PADDING = 3;
+/** Base border corner radius of the outer border box. */
+const BASE_BOX_BORDER_RADIUS = 4;
+/** Base vertical offset for decimal dot separator positioning. */
+const BASE_DOT_Y_OFFSET = 8;
+
+/** Base vertical distance from the outer border to the text label. */
+const BASE_LABEL_OFFSET = 18;
+/** Base spacing between text labels and their horizontal guide lines. */
+const BASE_LABEL_TO_LINE_SPACING = 8;
+
 @Component({
   selector: 'app-berkovich-dual-digit-display',
   templateUrl: './berkovich-dual-digit-display.component.html',
@@ -63,8 +103,8 @@ export class BerkovichDualDigitDisplayComponent {
   readonly digitsLeft = input<number>(2);
   readonly digitsRight = input<number>(2);
 
-  // Configurable size category
-  readonly size = input<'small' | 'medium' | 'large'>('medium');
+  // Configurable size scale factor (default 1.0)
+  readonly scale = input<number>(1.0);
 
   // Configurable outline border colors
   readonly xOuterBoxColor = input<string>('#a855f7');
@@ -76,7 +116,6 @@ export class BerkovichDualDigitDisplayComponent {
   readonly cellHeightInput = input<number | undefined>(undefined, { alias: 'cellHeight' });
   readonly cellGapInput = input<number | undefined>(undefined, { alias: 'cellGap' });
   readonly dotWidthInput = input<number | undefined>(undefined, { alias: 'dotWidth' });
-
   readonly marginTopInput = input<number | undefined>(undefined, { alias: 'marginTop' });
   readonly marginBottomInput = input<number | undefined>(undefined, { alias: 'marginBottom' });
   readonly marginLeftInput = input<number | undefined>(undefined, { alias: 'marginLeft' });
@@ -85,54 +124,30 @@ export class BerkovichDualDigitDisplayComponent {
   readonly fontSizeInput = input<number | undefined>(undefined, { alias: 'fontSize' });
 
   readonly derivedDimensions = computed(() => {
-    const sz = this.size();
     const isLeft = this.rhoLabelPosition() === 'left';
-    
-    // Default dimensions per size
-    let cellWidth = 20;
-    let cellHeight = 24;
-    let cellGap = 4;
-    let dotWidth = 0;
-    let marginTop = 24;
-    let marginBottom = 10;
-    let marginLeft = isLeft ? 45 : 10;
-    let marginRight = 10;
-    let rowGap = 16;
-    let fontSize = 11;
+    const S = this.scale();
 
-    let boxPadding = 3;
-    let boxBorderRadius = 4;
-    let dotYOffsetFromBottom = 8;
+    const cellWidth = Math.round(BASE_CELL_WIDTH * S);
+    const cellHeight = Math.round(BASE_CELL_HEIGHT * S);
+    const cellGap = Math.round(BASE_CELL_GAP * S);
+    const dotWidth = 0;
+    const marginTop = Math.round(BASE_MARGIN_TOP * S);
+    const marginBottom = Math.round(BASE_MARGIN_BOTTOM * S);
+    const marginLeft = isLeft
+      ? Math.round(BASE_MARGIN_LEFT_WITH_LEFT_LABELS * S)
+      : Math.round(BASE_MARGIN_LEFT * S);
+    const marginRight = Math.round(BASE_MARGIN_RIGHT * S);
+    const rowGap = Math.round(BASE_ROW_GAP * S);
+    const digitFontSize = Math.round(BASE_DIGIT_FONT_SIZE * S);
+    const rhoFontSize = Math.round(BASE_RHO_FONT_SIZE * S);
 
-    if (sz === 'small') {
-      cellWidth = 14;
-      cellHeight = 18;
-      cellGap = 2;
-      dotWidth = 0;
-      marginTop = 18;
-      marginBottom = 6;
-      marginLeft = isLeft ? 35 : 6;
-      marginRight = 6;
-      rowGap = 12;
-      fontSize = 9;
-      boxPadding = 1.5;
-      boxBorderRadius = 2.5;
-      dotYOffsetFromBottom = 5.5;
-    } else if (sz === 'large') {
-      cellWidth = 28;
-      cellHeight = 34;
-      cellGap = 6;
-      dotWidth = 0;
-      marginTop = 30;
-      marginBottom = 15;
-      marginLeft = isLeft ? 55 : 15;
-      marginRight = 15;
-      rowGap = 24;
-      fontSize = 14;
-      boxPadding = 4;
-      boxBorderRadius = 6;
-      dotYOffsetFromBottom = 11;
-    }
+    const boxPadding = Number((BASE_BOX_PADDING * S).toFixed(1));
+    const boxBorderRadius = Number((BASE_BOX_BORDER_RADIUS * S).toFixed(1));
+    const dotYOffsetFromBottom = Number((BASE_DOT_Y_OFFSET * S).toFixed(1));
+
+    const labelOffset = Math.round(BASE_LABEL_OFFSET * S);
+    const labelToLineSpacing = Math.round(BASE_LABEL_TO_LINE_SPACING * S);
+    const guideLineOffset = labelOffset - labelToLineSpacing;
 
     return {
       cellWidth: this.cellWidthInput() ?? cellWidth,
@@ -144,10 +159,13 @@ export class BerkovichDualDigitDisplayComponent {
       marginLeft: this.marginLeftInput() ?? marginLeft,
       marginRight: this.marginRightInput() ?? marginRight,
       rowGap: this.rowGapInput() ?? rowGap,
-      fontSize: this.fontSizeInput() ?? fontSize,
+      digitFontSize: this.fontSizeInput() ?? digitFontSize,
+      rhoFontSize,
       boxPadding,
       boxBorderRadius,
-      dotYOffsetFromBottom
+      dotYOffsetFromBottom,
+      guideLineOffset,
+      labelOffset
     };
   });
 
@@ -161,7 +179,7 @@ export class BerkovichDualDigitDisplayComponent {
 
   readonly svgHeight = computed(() => {
     const baseHeight = this.row2Y() + this.derivedDimensions().cellHeight + this.derivedDimensions().marginBottom;
-    return this.yRho() !== undefined && this.yRho() !== null ? baseHeight + 15 : baseHeight;
+    return this.yRho() !== undefined && this.yRho() !== null ? baseHeight + this.derivedDimensions().labelOffset : baseHeight;
   });
 
   // Calculate digit cells for alignment

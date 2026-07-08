@@ -33,10 +33,10 @@ import { BerkovichCharLearnerBase } from '../models/berkovich-char-learner';
                         [center]="model().E[idx][d].center"
                         [rho]="model().E[idx][d].rho"
                         [prime]="prime()"
-                        [showRho]="false"
                         [digitsLeft]="digitsLeft()"
                         [digitsRight]="digitsRight()"
                         [outerBoxColor]="'#cbd5e1'"
+                        [scale]="0.7"
                       ></app-berkovich-digit-display>
                     </div>
                   }
@@ -68,10 +68,10 @@ import { BerkovichCharLearnerBase } from '../models/berkovich-char-learner';
                         [center]="model().W[idx][d].center"
                         [rho]="model().W[idx][d].rho"
                         [prime]="prime()"
-                        [showRho]="false"
                         [digitsLeft]="digitsLeft()"
                         [digitsRight]="digitsRight()"
                         [outerBoxColor]="'#cbd5e1'"
+                        [scale]="0.7"
                       ></app-berkovich-digit-display>
                     </div>
                   }

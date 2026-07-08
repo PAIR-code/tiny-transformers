@@ -238,6 +238,15 @@ describe('Berkovich Math Library - Digit Sequence Conversion', () => {
     expect(seq2).toBe('001.022');
     expect(parseDigitSequence(seq2, p, precision)).toEqual(parseToRational('35/27'));
   });
+
+  it('should auto-pad missing digits with zeros instead of throwing formatting errors', () => {
+    const p = 3n;
+    const precision = { minPower: -3, maxPower: 2 };
+    expect(parseDigitSequence('1.2', p, precision)).toEqual(parseToRational('5/3'));
+    expect(parseDigitSequence('001.2', p, precision)).toEqual(parseToRational('5/3'));
+    expect(parseDigitSequence('1.200', p, precision)).toEqual(parseToRational('5/3'));
+    expect(parseDigitSequence('5', 7n, precision)).toEqual(parseToRational('5'));
+  });
 });
 
 describe('Berkovich Math Library - Shared Gradient Steps', () => {

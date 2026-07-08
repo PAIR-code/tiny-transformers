@@ -92,10 +92,11 @@ import { stringifyState, parseState } from './url-serializer';
                 [center]="parsedCenter()"
                 [rho]="rho()"
                 [prime]="prime()"
-                [showRho]="showRho()"
+                [rhoLabelPosition]="rhoLabelPosition()"
+                [clickRhoLabelPosition]="clickRhoLabelPosition()"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
-                [size]="size()"
+                [scale]="scale()"
                 [cellWidth]="customCellWidth() ? cellWidth() : undefined"
                 [cellHeight]="customCellHeight() ? cellHeight() : undefined"
                 [cellGap]="customCellGap() ? cellGap() : undefined"
@@ -110,10 +111,11 @@ import { stringifyState, parseState } from './url-serializer';
   [center]="&#123; num: {{ parsedCenter().num }}n, den: {{ parsedCenter().den }}n &#125;"
   [rho]="{{ rho() }}"
   [prime]="{{ prime() }}"
-  [showRho]="{{ showRho() }}"
   [digitsLeft]="{{ digitsLeft() }}"
   [digitsRight]="{{ digitsRight() }}"
-  [size]="'{{ size() }}'"
+  [scale]="{{ scale() }}"
+  [rhoLabelPosition]="'{{ rhoLabelPosition() }}'"
+  [clickRhoLabelPosition]="'{{ clickRhoLabelPosition() }}'"
   [outerBoxColor]="'{{ outerBoxColor() }}'"
 /&gt;</pre>
           </div>
@@ -187,15 +189,16 @@ import { stringifyState, parseState } from './url-serializer';
               </mat-form-field>
             </div>
 
-            <!-- Size Category -->
-            <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Size Category</mat-label>
-              <mat-select [value]="size()" (selectionChange)="size.set($event.value)">
-                <mat-option value="small">Small</mat-option>
-                <mat-option value="medium">Medium</mat-option>
-                <mat-option value="large">Large</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <!-- Visual Scale -->
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+                <span>Visual Scale</span>
+                <span style="font-weight: 700; color: #3b82f6;">{{ scale().toFixed(2) }}</span>
+              </div>
+              <mat-slider min="0.5" max="2.0" step="0.1" style="width: 100%;">
+                <input matSliderThumb [ngModel]="scale()" (ngModelChange)="scale.set($event)">
+              </mat-slider>
+            </div>
 
             <!-- Color picker -->
             <mat-form-field appearance="outline" style="width: 100%;">
@@ -206,10 +209,27 @@ import { stringifyState, parseState } from './url-serializer';
               </div>
             </mat-form-field>
 
-            <!-- Show Rho checkbox -->
-            <mat-checkbox [checked]="showRho()" (change)="showRho.set($event.checked)">
-              Show Rho (Interactive Uncertainty Overlay)
-            </mat-checkbox>
+            <!-- Rho Label Position -->
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Rho Label Position</mat-label>
+              <mat-select [value]="rhoLabelPosition()" (selectionChange)="rhoLabelPosition.set($event.value)">
+                <mat-option value="above">Above</mat-option>
+                <mat-option value="below">Below</mat-option>
+                <mat-option value="left">Left (Aligned next to sequence)</mat-option>
+                <mat-option value="none">Not Shown</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Click to Display Rho -->
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Click Action (Toggle Position)</mat-label>
+              <mat-select [value]="clickRhoLabelPosition()" (selectionChange)="clickRhoLabelPosition.set($event.value)">
+                <mat-option value="above">Toggle to Above</mat-option>
+                <mat-option value="below">Toggle to Below</mat-option>
+                <mat-option value="left">Toggle to Left</mat-option>
+                <mat-option value="none">No click action (Static)</mat-option>
+              </mat-select>
+            </mat-form-field>
 
             <!-- Custom Sizing Expander -->
             <details style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px;">
@@ -266,10 +286,22 @@ export class DigitDisplayToolComponent {
         if (state.prime !== undefined) this.prime.set(state.prime);
         if (state.centerDigits !== undefined) this.centerDigits.set(state.centerDigits);
         if (state.rho !== undefined) this.rho.set(state.rho);
-        if (state.showRho !== undefined) this.showRho.set(state.showRho);
+        if (state.rhoLabelPosition !== undefined) {
+          const pos = state.rhoLabelPosition;
+          this.rhoLabelPosition.set(pos === 'above-below' ? 'above' : (pos as any));
+        } else if (state.showRho !== undefined) {
+          this.rhoLabelPosition.set(state.showRho ? 'above' : 'none');
+        }
+        if (state.clickRhoLabelPosition !== undefined) {
+          this.clickRhoLabelPosition.set(state.clickRhoLabelPosition);
+        }
         if (state.digitsLeft !== undefined) this.digitsLeft.set(state.digitsLeft);
         if (state.digitsRight !== undefined) this.digitsRight.set(state.digitsRight);
-        if (state.size !== undefined) this.size.set(state.size);
+        if (state.scale !== undefined) {
+          this.scale.set(state.scale);
+        } else if (state.size !== undefined) {
+          this.scale.set(state.size === 'small' ? 0.7 : state.size === 'large' ? 1.4 : 1.0);
+        }
         if (state.outerBoxColor !== undefined) this.outerBoxColor.set(state.outerBoxColor);
         if (state.customCellWidth !== undefined) this.customCellWidth.set(state.customCellWidth);
         if (state.cellWidth !== undefined) this.cellWidth.set(state.cellWidth);
@@ -286,10 +318,11 @@ export class DigitDisplayToolComponent {
         prime: this.prime(),
         centerDigits: this.centerDigits(),
         rho: this.rho(),
-        showRho: this.showRho(),
+        rhoLabelPosition: this.rhoLabelPosition(),
+        clickRhoLabelPosition: this.clickRhoLabelPosition(),
         digitsLeft: this.digitsLeft(),
         digitsRight: this.digitsRight(),
-        size: this.size(),
+        scale: this.scale(),
         outerBoxColor: this.outerBoxColor(),
         customCellWidth: this.customCellWidth(),
         cellWidth: this.cellWidth(),
@@ -312,10 +345,11 @@ export class DigitDisplayToolComponent {
     });
   }
   readonly rho = signal<number>(0.5);
-  readonly showRho = signal<boolean>(true);
+  readonly rhoLabelPosition = signal<'above' | 'below' | 'left' | 'none'>('none');
+  readonly clickRhoLabelPosition = signal<'above' | 'below' | 'left' | 'none'>('none');
   readonly digitsLeft = signal<number>(3);
   readonly digitsRight = signal<number>(3);
-  readonly size = signal<'small' | 'medium' | 'large'>('medium');
+  readonly scale = signal<number>(1.0);
   readonly outerBoxColor = signal<string>('#3b82f6');
 
   // Overrides

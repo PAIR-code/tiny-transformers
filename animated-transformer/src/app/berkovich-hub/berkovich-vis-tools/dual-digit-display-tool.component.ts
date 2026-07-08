@@ -101,7 +101,7 @@ import { stringifyState, parseState } from './url-serializer';
                 [yRho]="hasYRho() ? yRho() : undefined"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
-                [size]="size()"
+                [scale]="scale()"
                 [xOuterBoxColor]="xOuterBoxColor()"
                 [yOuterBoxColor]="yOuterBoxColor()"
                 [rhoLabelPosition]="rhoLabelPosition()"
@@ -119,7 +119,7 @@ import { stringifyState, parseState } from './url-serializer';
   [yRho]="{{ hasYRho() ? yRho() : 'undefined' }}"
   [digitsLeft]="{{ digitsLeft() }}"
   [digitsRight]="{{ digitsRight() }}"
-  [size]="'{{ size() }}'"
+  [scale]="{{ scale() }}"
   [xOuterBoxColor]="'{{ xOuterBoxColor() }}'"
   [yOuterBoxColor]="'{{ yOuterBoxColor() }}'"
   [rhoLabelPosition]="'{{ rhoLabelPosition() }}'"
@@ -244,15 +244,16 @@ import { stringifyState, parseState } from './url-serializer';
               </mat-select>
             </mat-form-field>
 
-            <!-- Size Category -->
-            <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Size Category</mat-label>
-              <mat-select [value]="size()" (selectionChange)="size.set($event.value)">
-                <mat-option value="small">Small</mat-option>
-                <mat-option value="medium">Medium</mat-option>
-                <mat-option value="large">Large</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <!-- Visual Scale -->
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+                <span>Visual Scale</span>
+                <span style="font-weight: 700; color: #3b82f6;">{{ scale().toFixed(2) }}</span>
+              </div>
+              <mat-slider min="0.5" max="2.0" step="0.1" style="width: 100%;">
+                <input matSliderThumb [ngModel]="scale()" (ngModelChange)="scale.set($event)">
+              </mat-slider>
+            </div>
           </div>
         </aside>
       </div>
@@ -286,7 +287,11 @@ export class DualDigitDisplayToolComponent {
         if (state.hasYRho !== undefined) this.hasYRho.set(state.hasYRho);
         if (state.digitsLeft !== undefined) this.digitsLeft.set(state.digitsLeft);
         if (state.digitsRight !== undefined) this.digitsRight.set(state.digitsRight);
-        if (state.size !== undefined) this.size.set(state.size);
+        if (state.scale !== undefined) {
+          this.scale.set(state.scale);
+        } else if (state.size !== undefined) {
+          this.scale.set(state.size === 'small' ? 0.7 : state.size === 'large' ? 1.4 : 1.0);
+        }
         if (state.xOuterBoxColor !== undefined) this.xOuterBoxColor.set(state.xOuterBoxColor);
         if (state.yOuterBoxColor !== undefined) this.yOuterBoxColor.set(state.yOuterBoxColor);
         if (state.rhoLabelPosition !== undefined) this.rhoLabelPosition.set(state.rhoLabelPosition);
@@ -304,7 +309,7 @@ export class DualDigitDisplayToolComponent {
         hasYRho: this.hasYRho(),
         digitsLeft: this.digitsLeft(),
         digitsRight: this.digitsRight(),
-        size: this.size(),
+        scale: this.scale(),
         xOuterBoxColor: this.xOuterBoxColor(),
         yOuterBoxColor: this.yOuterBoxColor(),
         rhoLabelPosition: this.rhoLabelPosition()
@@ -327,9 +332,9 @@ export class DualDigitDisplayToolComponent {
   readonly yRho = signal<number>(-1.0);
   readonly hasYRho = signal<boolean>(true);
 
-  readonly digitsLeft = signal<number>(3);
-  readonly digitsRight = signal<number>(3);
-  readonly size = signal<'small' | 'medium' | 'large'>('medium');
+  readonly digitsLeft = signal<number>(2);
+  readonly digitsRight = signal<number>(2);
+  readonly scale = signal<number>(1.0);
 
   readonly parsedXCenter = computed<Rational>(() => {
     try {

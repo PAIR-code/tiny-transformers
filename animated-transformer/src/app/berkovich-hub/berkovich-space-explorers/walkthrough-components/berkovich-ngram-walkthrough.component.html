@@ -77,9 +77,9 @@
                         [center]="h.center"
                         [rho]="h.rho"
                         [prime]="prime()"
-                        [showRho]="false"
                         [digitsLeft]="digitsLeft()"
-                        [digitsRight]="digitsRight()">
+                        [digitsRight]="digitsRight()"
+                        [scale]="0.7">
                       </app-berkovich-digit-display>
                     }
                   </div>
@@ -173,7 +173,7 @@
                     [xRho]="g.rhoBefore"
                     [yCenter]="g.targetCenter!"
                     [yRho]="g.targetRho!"
-                    [size]="'small'"
+                    [scale]="0.7"
                     [digitsLeft]="digitsLeft()"
                     [digitsRight]="digitsRight()">
                   </app-berkovich-dual-digit-display>

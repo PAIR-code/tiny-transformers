@@ -312,16 +312,20 @@ export function parseDigitSequence(
   const expectedLeftLen = precision.maxPower + 1;
   const expectedRightLen = -precision.minPower;
   
-  if (leftStr.length !== expectedLeftLen || rightStr.length !== expectedRightLen) {
-    throw new Error(`Invalid digit sequence format for precision: ${seq}`);
-  }
+  const paddedLeft = leftStr.length > expectedLeftLen 
+    ? leftStr.slice(leftStr.length - expectedLeftLen)
+    : leftStr.padStart(expectedLeftLen, '0');
+    
+  const paddedRight = rightStr.length > expectedRightLen
+    ? rightStr.slice(0, expectedRightLen)
+    : rightStr.padEnd(expectedRightLen, '0');
   
   const pNum = Number(p);
   let sum = simplify({ num: 0n, den: 1n });
   
   // Left of decimal: powers from maxPower down to 0
-  for (let i = 0; i < leftStr.length; i++) {
-    const digit = Number(leftStr[i]);
+  for (let i = 0; i < paddedLeft.length; i++) {
+    const digit = Number(paddedLeft[i]);
     if (digit >= pNum) {
       throw new Error(`Digit ${digit} exceeds base ${p}`);
     }
@@ -331,8 +335,8 @@ export function parseDigitSequence(
   }
   
   // Right of decimal: powers from -1 down to minPower
-  for (let i = 0; i < rightStr.length; i++) {
-    const digit = Number(rightStr[i]);
+  for (let i = 0; i < paddedRight.length; i++) {
+    const digit = Number(paddedRight[i]);
     if (digit >= pNum) {
       throw new Error(`Digit ${digit} exceeds base ${p}`);
     }

@@ -71,7 +71,7 @@ import { BerkovichDigitDisplayComponent } from '../../../berkovich-digit-display
                 [prime]="prime()"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
-                [showRho]="false"
+                [scale]="0.7"
               ></app-berkovich-digit-display>
             </div>
           </div>
@@ -91,7 +91,7 @@ import { BerkovichDigitDisplayComponent } from '../../../berkovich-digit-display
                 [prime]="prime()"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
-                [showRho]="false"
+                [scale]="0.7"
               ></app-berkovich-digit-display>
             </div>
           </div>

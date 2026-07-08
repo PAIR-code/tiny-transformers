@@ -77,7 +77,7 @@ limitations under the License.
         [attr.x]="col.center"
         [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
         class="digit-text"
-        [style.font-size.px]="derivedDimensions().fontSize"
+        [style.font-size.px]="derivedDimensions().digitFontSize"
       >
         {{ getDigitAtPower(col.power) }}
       </text>
@@ -96,42 +96,46 @@ limitations under the License.
     class="row-outer-box"
   />
 
-  <!-- Dotted guide lines & labels for rho value (centered above the main digit sequence) -->
-  @if (displayShowRho() && rhoBoundaryX() !== null) {
-    <!-- Vertical line connecting boundary to rhoLineY level -->
+  <!-- Guide lines and labels for rho value (left aligned above/below the main digit sequence) -->
+  @if (rhoBoundaryX() !== null && (displayPosition() === 'above' || displayPosition() === 'below')) {
+    <!-- Horizontal guide line -->
     <line
-      [attr.x1]="rhoBoundaryX()"
-      [attr.y1]="rowY() - derivedDimensions().boxPadding"
+      [attr.x1]="derivedDimensions().marginLeft"
+      [attr.y1]="rhoLineY()"
       [attr.x2]="rhoBoundaryX()"
       [attr.y2]="rhoLineY()"
-      class="rho-dotted-line"
+      class="rho-guide-line"
     />
-    <!-- Horizontal line connecting boundary to center X under text -->
+    <!-- Vertical guide line connecting to border box -->
     <line
       [attr.x1]="rhoBoundaryX()"
       [attr.y1]="rhoLineY()"
-      [attr.x2]="layout().centerX"
-      [attr.y2]="rhoLineY()"
-      class="rho-dotted-line"
+      [attr.x2]="rhoBoundaryX()"
+      [attr.y2]="rhoVerticalLineStartY()"
+      class="rho-guide-line"
     />
-    <!-- Dotted underline helper directly under text -->
-    <line
-      [attr.x1]="layout().centerX - 22"
-      [attr.y1]="rhoLineY()"
-      [attr.x2]="layout().centerX + 22"
-      [attr.y2]="rhoLineY()"
-      class="rho-dotted-line"
-      style="stroke-width: 1.5px;"
-    />
-    <!-- Centered text above the digits -->
+    <!-- Left-aligned rho text label -->
     <text
-      [attr.x]="layout().centerX"
+      [attr.x]="derivedDimensions().marginLeft"
       [attr.y]="rhoTextY()"
-      class="rho-label-text centered-rho"
-      [style.fill]="outerBoxColor()"
-      [style.font-size.px]="derivedDimensions().fontSize - 1"
+      class="rho-label-text"
+      style="text-anchor: start;"
+      [style.font-size.px]="derivedDimensions().rhoFontSize"
     >
-      &rho; = {{ rho().toFixed(2) }}
+      {{ rho().toFixed(2) }}
+    </text>
+  }
+
+  <!-- Left-aligned rho number when position is 'left' -->
+  @if (displayPosition() === 'left') {
+    <text
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+      [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
+      class="rho-label-text centered-rho"
+      style="text-anchor: end;"
+      [style.font-size.px]="derivedDimensions().rhoFontSize"
+    >
+      {{ rho().toFixed(2) }}
     </text>
   }
 </svg>

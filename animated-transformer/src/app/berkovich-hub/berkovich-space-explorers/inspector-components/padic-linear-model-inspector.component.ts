@@ -33,10 +33,10 @@ import { PadicLinearCharLearner } from '../models/padic-linear-char-learner';
                         [center]="model().M[r][c].center"
                         [rho]="model().M[r][c].rho"
                         [prime]="prime()"
-                        [showRho]="false"
                         [digitsLeft]="digitsLeft()"
                         [digitsRight]="digitsRight()"
                         [outerBoxColor]="'#cbd5e1'"
+                        [scale]="0.7"
                       ></app-berkovich-digit-display>
                     </div>
                   }
@@ -56,10 +56,10 @@ import { PadicLinearCharLearner } from '../models/padic-linear-char-learner';
                       [center]="model().B[r].center"
                       [rho]="model().B[r].rho"
                       [prime]="prime()"
-                      [showRho]="false"
                       [digitsLeft]="digitsLeft()"
                       [digitsRight]="digitsRight()"
                       [outerBoxColor]="'#cbd5e1'"
+                      [scale]="0.7"
                     ></app-berkovich-digit-display>
                   </div>
                 }

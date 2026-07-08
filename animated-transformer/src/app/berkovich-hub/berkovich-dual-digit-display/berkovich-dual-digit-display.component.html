@@ -148,7 +148,7 @@ limitations under the License.
         [attr.x]="col.center"
         [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
         class="digit-text"
-        [style.font-size.px]="derivedDimensions().fontSize"
+        [style.font-size.px]="derivedDimensions().digitFontSize"
       >
         {{ getXDigitAtPower(col.power) }}
       </text>
@@ -162,7 +162,7 @@ limitations under the License.
         [attr.x]="col.center"
         [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
         class="digit-text"
-        [style.font-size.px]="derivedDimensions().fontSize"
+        [style.font-size.px]="derivedDimensions().digitFontSize"
       >
         {{ getYDigitAtPower(col.power) }}
       </text>
@@ -200,7 +200,7 @@ limitations under the License.
       [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
       class="rho-label-text x-rho-label"
       style="text-anchor: end;"
-      [style.font-size.px]="derivedDimensions().fontSize"
+      [style.font-size.px]="derivedDimensions().rhoFontSize"
     >
       {{ xRho().toFixed(2) }}
     </text>
@@ -210,7 +210,7 @@ limitations under the License.
         [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
         class="rho-label-text y-rho-label"
         style="text-anchor: end;"
-        [style.font-size.px]="derivedDimensions().fontSize"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
       >
         {{ yRho()!.toFixed(2) }}
       </text>
@@ -221,24 +221,24 @@ limitations under the License.
   @if (xRhoBoundaryX() !== null && rhoLabelPosition() === 'above-below') {
     <line
       [attr.x1]="derivedDimensions().marginLeft"
-      [attr.y1]="15"
+      [attr.y1]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().guideLineOffset"
       [attr.x2]="xRhoBoundaryX()"
-      [attr.y2]="15"
+      [attr.y2]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().guideLineOffset"
       class="rho-guide-line"
     />
     <line
       [attr.x1]="xRhoBoundaryX()"
-      [attr.y1]="15"
+      [attr.y1]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().guideLineOffset"
       [attr.x2]="xRhoBoundaryX()"
       [attr.y2]="row1Y() - derivedDimensions().boxPadding"
       class="rho-guide-line"
     />
     <text
       [attr.x]="derivedDimensions().marginLeft"
-      y="10"
+      [attr.y]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().labelOffset"
       class="rho-label-text x-rho-label"
       style="text-anchor: start;"
-      [style.font-size.px]="derivedDimensions().fontSize - 1"
+      [style.font-size.px]="derivedDimensions().rhoFontSize"
     >
       {{ xRho().toFixed(2) }}
     </text>
@@ -248,24 +248,24 @@ limitations under the License.
   @if (yRho() !== undefined && yRho() !== null && yRhoBoundaryX() !== null && rhoLabelPosition() === 'above-below') {
     <line
       [attr.x1]="derivedDimensions().marginLeft"
-      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().guideLineOffset"
       [attr.x2]="yRhoBoundaryX()"
-      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().guideLineOffset"
       class="rho-guide-line"
     />
     <line
       [attr.x1]="yRhoBoundaryX()"
       [attr.y1]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding"
       [attr.x2]="yRhoBoundaryX()"
-      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 5"
+      [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().guideLineOffset"
       class="rho-guide-line"
     />
     <text
       [attr.x]="derivedDimensions().marginLeft"
-      [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + 18"
+      [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().labelOffset"
       class="rho-label-text y-rho-label"
       style="text-anchor: start;"
-      [style.font-size.px]="derivedDimensions().fontSize - 1"
+      [style.font-size.px]="derivedDimensions().rhoFontSize"
     >
       {{ yRho()!.toFixed(2) }}
     </text>

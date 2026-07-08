@@ -12,9 +12,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Rational, getAlignedDigits } from '../../../lib/berkovich/berkovich';
+
+// ==========================================================================
+// LAYOUT CONSTANTS
+// ==========================================================================
+
+/** Base cell width for medium sized digits display. */
+const BASE_CELL_WIDTH = 20;
+/** Base cell height for medium sized digits display. */
+const BASE_CELL_HEIGHT = 24;
+/** Base gap spacing between adjacent digit cells. */
+const BASE_CELL_GAP = 4;
+
+/** Base top margin for label guide lines. */
+const BASE_MARGIN_TOP = 24;
+/** Base bottom margin spacing inside SVG box. */
+const BASE_MARGIN_BOTTOM = 10;
+/** Base left margin spacing inside SVG box. */
+const BASE_MARGIN_LEFT = 10;
+/** Base left margin when labels are left-aligned (requires extra spacing). */
+const BASE_MARGIN_LEFT_WITH_LEFT_LABELS = 45;
+/** Base right margin spacing inside SVG box. */
+const BASE_MARGIN_RIGHT = 10;
+/** Base font size for the digit characters. */
+const BASE_DIGIT_FONT_SIZE = 12;
+/** Base font size for the rho label text. */
+const BASE_RHO_FONT_SIZE = 11;
+
+/** Base padding of the outer border box from the digits sequence. */
+const BASE_BOX_PADDING = 3;
+/** Base border corner radius of the outer border box. */
+const BASE_BOX_BORDER_RADIUS = 4;
+/** Base vertical offset for decimal dot separator positioning. */
+const BASE_DOT_Y_OFFSET = 8;
+
+/** Base vertical distance from the outer border to the text label. */
+const BASE_LABEL_OFFSET = 18;
+/** Base spacing between text labels and their horizontal guide lines. */
+const BASE_LABEL_TO_LINE_SPACING = 6;
 
 export interface DigitDisplayCell {
   power: number;
@@ -29,7 +67,7 @@ export interface DigitDisplayCell {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],
   host: {
-    '[class.clickable]': 'showRho()',
+    '[class.clickable]': 'isClickable()',
     '(click)': 'toggleRho($event)'
   }
 })
@@ -37,19 +75,47 @@ export class BerkovichDigitDisplayComponent {
   private static idCounter = 0;
   readonly clipPathId = `rowClip_${BerkovichDigitDisplayComponent.idCounter++}`;
 
-  readonly isRhoToggled = signal<boolean>(false);
+  readonly activePosition = signal<'above' | 'below' | 'left' | 'none' | null>(null);
 
-  readonly displayShowRho = computed(() => {
-    return this.showRho() && this.isRhoToggled();
+  readonly displayPosition = computed(() => {
+    const active = this.activePosition();
+    if (active !== null) {
+      return active;
+    }
+    return this.rhoLabelPosition();
+  });
+
+  readonly isClickable = computed(() => {
+    return this.clickRhoLabelPosition() !== 'none';
   });
 
   toggleRho(event?: MouseEvent) {
     if (event) {
       event.stopPropagation();
     }
-    if (this.showRho()) {
-      this.isRhoToggled.set(!this.isRhoToggled());
+    if (!this.isClickable()) {
+      return;
     }
+    const current = this.displayPosition();
+    const initial = this.rhoLabelPosition();
+    const toggle = this.clickRhoLabelPosition();
+
+    if (current === toggle) {
+      this.activePosition.set(initial);
+    } else {
+      this.activePosition.set(toggle);
+    }
+  }
+
+  constructor() {
+    // Reset active toggled position when input configuration changes.
+    effect(() => {
+      this.rhoLabelPosition();
+      this.clickRhoLabelPosition();
+      untracked(() => {
+        this.activePosition.set(null);
+      });
+    });
   }
 
   // ==========================================================================
@@ -66,12 +132,13 @@ export class BerkovichDigitDisplayComponent {
   readonly center = input.required<Rational>();
   readonly rho = input.required<number>();
   readonly prime = input.required<number>();
-  readonly showRho = input<boolean>(true);
+  readonly rhoLabelPosition = input<'above' | 'below' | 'left' | 'none'>('none');
+  readonly clickRhoLabelPosition = input<'above' | 'below' | 'left' | 'none'>('none');
   readonly digitsLeft = input<number>(2);
   readonly digitsRight = input<number>(2);
 
-  // Configurable size category
-  readonly size = input<'small' | 'medium' | 'large'>('small');
+  // Configurable size scale factor (default 1.0)
+  readonly scale = input<number>(1.0);
 
   // Flexible layout & margin inputs (default to undefined to fall back to size category defaults)
   readonly cellWidthInput = input<number | undefined>(undefined, { alias: 'cellWidth' });
@@ -88,47 +155,28 @@ export class BerkovichDigitDisplayComponent {
   readonly outerBoxColor = input<string>('#a855f7'); // default: purple
 
   readonly derivedDimensions = computed(() => {
-    const sz = this.size();
-    
-    // Default dimensions per size
-    let cellWidth = 20;
-    let cellHeight = 24;
-    let cellGap = 4;
-    let marginTop = 24;
-    let marginBottom = 10;
-    let marginLeft = 10;
-    let marginRight = 10;
-    let fontSize = 11;
+    const S = this.scale();
 
-    let boxPadding = 3;
-    let boxBorderRadius = 4;
-    let dotYOffsetFromBottom = 8;
+    const isLeft = this.displayPosition() === 'left';
+    const cellWidth = Math.round(BASE_CELL_WIDTH * S);
+    const cellHeight = Math.round(BASE_CELL_HEIGHT * S);
+    const cellGap = Math.round(BASE_CELL_GAP * S);
+    const marginTop = Math.round(BASE_MARGIN_TOP * S);
+    const marginBottom = Math.round(BASE_MARGIN_BOTTOM * S);
+    const marginLeft = isLeft
+      ? Math.round(BASE_MARGIN_LEFT_WITH_LEFT_LABELS * S)
+      : Math.round(BASE_MARGIN_LEFT * S);
+    const marginRight = Math.round(BASE_MARGIN_RIGHT * S);
+    const digitFontSize = Math.round(BASE_DIGIT_FONT_SIZE * S);
+    const rhoFontSize = Math.round(BASE_RHO_FONT_SIZE * S);
 
-    if (sz === 'small') {
-      cellWidth = 14;
-      cellHeight = 18;
-      cellGap = 2;
-      marginTop = 18;
-      marginBottom = 6;
-      marginLeft = 6;
-      marginRight = 6;
-      fontSize = 9;
-      boxPadding = 1.5;
-      boxBorderRadius = 2.5;
-      dotYOffsetFromBottom = 5.5;
-    } else if (sz === 'large') {
-      cellWidth = 28;
-      cellHeight = 34;
-      cellGap = 6;
-      marginTop = 30;
-      marginBottom = 15;
-      marginLeft = 15;
-      marginRight = 15;
-      fontSize = 14;
-      boxPadding = 4;
-      boxBorderRadius = 6;
-      dotYOffsetFromBottom = 11;
-    }
+    const boxPadding = Number((BASE_BOX_PADDING * S).toFixed(1));
+    const boxBorderRadius = Number((BASE_BOX_BORDER_RADIUS * S).toFixed(1));
+    const dotYOffsetFromBottom = Number((BASE_DOT_Y_OFFSET * S).toFixed(1));
+
+    const labelOffset = Math.round(BASE_LABEL_OFFSET * S);
+    const labelToLineSpacing = Math.round(BASE_LABEL_TO_LINE_SPACING * S);
+    const guideLineOffset = labelOffset - labelToLineSpacing;
 
     return {
       cellWidth: this.cellWidthInput() ?? cellWidth,
@@ -138,27 +186,61 @@ export class BerkovichDigitDisplayComponent {
       marginBottom: this.marginBottomInput() ?? marginBottom,
       marginLeft: this.marginLeftInput() ?? marginLeft,
       marginRight: this.marginRightInput() ?? marginRight,
-      fontSize: this.fontSizeInput() ?? fontSize,
+      digitFontSize: this.fontSizeInput() ?? digitFontSize,
+      rhoFontSize,
       boxPadding,
       boxBorderRadius,
-      dotYOffsetFromBottom
+      dotYOffsetFromBottom,
+      guideLineOffset,
+      labelOffset
     };
   });
 
   readonly rowY = computed(() => {
-    return this.displayShowRho() ? this.derivedDimensions().marginTop : this.derivedDimensions().boxPadding;
+    return this.displayPosition() === 'above'
+      ? this.derivedDimensions().marginTop
+      : this.derivedDimensions().boxPadding;
   });
 
   readonly svgHeight = computed(() => {
-    return this.rowY() + this.derivedDimensions().cellHeight + this.derivedDimensions().marginBottom;
+    const dims = this.derivedDimensions();
+    const pos = this.displayPosition();
+    const baseHeight = this.rowY() + dims.cellHeight + dims.marginBottom;
+    
+    if (pos === 'below') {
+      return this.rowY() + dims.cellHeight + dims.boxPadding + dims.labelOffset + dims.marginBottom;
+    }
+    return baseHeight;
   });
 
   readonly rhoLineY = computed(() => {
-    return this.rowY() - this.derivedDimensions().boxPadding - 6;
+    const pos = this.displayPosition();
+    const dims = this.derivedDimensions();
+    if (pos === 'above') {
+      return this.rowY() - dims.boxPadding - dims.guideLineOffset;
+    } else {
+      return this.rowY() + dims.cellHeight + dims.boxPadding + dims.guideLineOffset;
+    }
   });
 
   readonly rhoTextY = computed(() => {
-    return this.rhoLineY() - 5;
+    const pos = this.displayPosition();
+    const dims = this.derivedDimensions();
+    if (pos === 'above') {
+      return this.rowY() - dims.boxPadding - dims.labelOffset;
+    } else {
+      return this.rowY() + dims.cellHeight + dims.boxPadding + dims.labelOffset;
+    }
+  });
+
+  readonly rhoVerticalLineStartY = computed(() => {
+    const pos = this.displayPosition();
+    const dims = this.derivedDimensions();
+    if (pos === 'above') {
+      return this.rowY() - dims.boxPadding;
+    } else {
+      return this.rowY() + dims.cellHeight + dims.boxPadding;
+    }
   });
 
   readonly cells = computed<DigitDisplayCell[]>(() => {
