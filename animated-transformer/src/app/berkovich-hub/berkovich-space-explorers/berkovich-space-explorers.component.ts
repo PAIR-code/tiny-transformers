@@ -1634,28 +1634,7 @@ export class BerkovichSpaceExplorersComponent implements OnInit, OnDestroy {
     this.lastStepTargets.set({ ...targets });
   }
 
-  // Handle tree-drag interactions to manually adjust weights
-  onBerkovichLogRadiusChange(event: {newRho: number, type: 'embedding' | 'constraint', charIdx: number, dim: number}) {
-    const model = this.berkovichModel();
-    if (!model) return;
-    if (event.type === 'embedding') {
-      model.E[event.charIdx][event.dim].rho = event.newRho;
-    } else {
-      model.W[event.charIdx][event.dim].rho = event.newRho;
-    }
-    this.berkovichModel.set(model);
-  }
 
-  onPadicLinearLogRadiusChange(event: {newRho: number, type: 'M' | 'B', row: number, col?: number}) {
-    const model = this.padicLinearModel();
-    if (!model) return;
-    if (event.type === 'M' && event.col !== undefined) {
-      model.M[event.row][event.col].rho = event.newRho;
-    } else {
-      model.B[event.row].rho = event.newRho;
-    }
-    this.padicLinearModel.set(model);
-  }
 
   // Continuous loop training
   startTraining() {

@@ -347,15 +347,17 @@ limitations under the License.
     </div>
 
     <!-- ROW 4: Model Weights & Parameter Introspector -->
-    <div class="dashboard-row" style="width: 100%; margin-top: 16px;" *ngIf="approach() === 'berkovich-bigram' || approach() === 'berkovich-ngram' || approach() === 'berkovich-bigram-bias' || approach() === 'berkovich-attention' || approach() === 'padic-linear'">
+    <div class="dashboard-row" style="width: 100%"
+      *ngIf="approach() === 'berkovich-bigram' || approach() === 'berkovich-ngram' || approach() === 'berkovich-bigram-bias' || approach() === 'berkovich-attention' || approach() === 'padic-linear'">
       <!-- Model Weights & Parameter Introspector -->
       <section class="card collapsible-card introspect-section-card">
-        <div class="collapsible-header" (click)="isInspectExpanded.set(!isInspectExpanded())" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; padding: 4px 0;">
-          <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">
+        <div class="card-header-row" style="display: flex; align-items: center; justify-content: space-between;">
+          <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
             <mat-icon style="color: #0f766e;">analytics</mat-icon>
             <span>Model Weights &amp; Parameter Introspector</span>
           </h3>
-          <button mat-icon-button class="toggle-btn" aria-label="Toggle parameter introspector">
+          <button mat-icon-button (click)="isInspectExpanded.set(!isInspectExpanded())"
+            aria-label="Toggle parameter introspector">
             <mat-icon style="color: #64748b;">{{ isInspectExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
           </button>
         </div>
@@ -369,8 +371,6 @@ limitations under the License.
               [prime]="prime()"
               [digitsLeft]="digitsLeft()"
               [digitsRight]="digitsRight()"
-              [lastStepTargets]="lastStepTargets()"
-              (logRadiusChange)="onBerkovichLogRadiusChange($event)"
             ></app-berkovich-model-inspector>
           } @else if (padicLinearModel(); as pModel) {
             <app-padic-linear-model-inspector
@@ -379,7 +379,6 @@ limitations under the License.
               [prime]="prime()"
               [digitsLeft]="digitsLeft()"
               [digitsRight]="digitsRight()"
-              (logRadiusChange)="onPadicLinearLogRadiusChange($event)"
             ></app-padic-linear-model-inspector>
           }
         }

@@ -1,23 +1,137 @@
-<div class="digit-display-wrapper">
-  <div class="digits-strip">
-    @for (cell of cells(); track cell.power) {
-      @if (cell.power === -1) {
-        <span class="decimal-dot">.</span>
-      }
-      <span 
-        class="digit-box"
-        [class.uncertain]="cell.uncertaintyRatio === 1"
-        [class.partially-uncertain]="cell.uncertaintyRatio > 0 && cell.uncertaintyRatio < 1"
-        [style.background]="getBackgroundStyle(cell.uncertaintyRatio)"
-        [style.border-color]="getBorderStyle(cell.uncertaintyRatio)"
-      >
-        {{ cell.digit }}
-      </span>
-    }
-  </div>
-  @if (showRho()) {
-    <div class="rho-label" [class.uncertain-outline]="hasUncertainty()">
-      ρ={{ rho().toFixed(2) }}
-    </div>
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<svg
+  [attr.width]="layout().totalWidth"
+  [attr.height]="svgHeight()"
+  class="digit-display-svg"
+>
+  <defs>
+    <!-- Clip path for Row to match the beveled outer border box -->
+    <clipPath [attr.id]="clipPathId">
+      <rect
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+        [attr.y]="rowY() - derivedDimensions().boxPadding"
+        [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+        [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+        [attr.rx]="derivedDimensions().boxBorderRadius"
+        [attr.ry]="derivedDimensions().boxBorderRadius"
+      />
+    </clipPath>
+  </defs>
+
+  <!-- Row Base Background Box (White) -->
+  <rect
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="rowY() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
+    [style.fill]="COLOR_ROW_BG"
+    class="row-bg-box"
+  />
+
+  <!-- Grey background representing rho (clipped to Row Clip) -->
+  @if (rhoBackgroundWidth() > 0) {
+    <rect
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+      [attr.y]="rowY() - derivedDimensions().boxPadding"
+      [attr.width]="rhoBackgroundWidth()"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+      [style.fill]="COLOR_RHO_SHADING"
+      [style.opacity]="OPACITY_RHO_SHADING"
+      [attr.clip-path]="'url(#' + clipPathId + ')'"
+      class="rho-shading"
+    />
   }
-</div>
+
+  <!-- Decimal dot between 1 and 1/p (represented in layout by dotX) -->
+  @if (layout().dotX !== null) {
+    <circle
+      [attr.cx]="layout().dotX"
+      [attr.cy]="rowY() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom"
+      [attr.r]="DOT_RADIUS"
+      [style.fill]="COLOR_DOT"
+      class="decimal-dot-mark"
+    />
+  }
+
+  <!-- Digit boxes for Row -->
+  @for (col of layout().cellPositions; track col.power) {
+    <g class="digit-box-group">
+      <text
+        [attr.x]="col.center"
+        [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
+        class="digit-text"
+        [style.font-size.px]="derivedDimensions().fontSize"
+      >
+        {{ getDigitAtPower(col.power) }}
+      </text>
+    </g>
+  }
+
+  <!-- Border box around Row - customizable border color -->
+  <rect
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="rowY() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
+    [style.stroke]="outerBoxColor()"
+    class="row-outer-box"
+  />
+
+  <!-- Dotted guide lines & labels for rho value (centered above the main digit sequence) -->
+  @if (displayShowRho() && rhoBoundaryX() !== null) {
+    <!-- Vertical line connecting boundary to rhoLineY level -->
+    <line
+      [attr.x1]="rhoBoundaryX()"
+      [attr.y1]="rowY() - derivedDimensions().boxPadding"
+      [attr.x2]="rhoBoundaryX()"
+      [attr.y2]="rhoLineY()"
+      class="rho-dotted-line"
+    />
+    <!-- Horizontal line connecting boundary to center X under text -->
+    <line
+      [attr.x1]="rhoBoundaryX()"
+      [attr.y1]="rhoLineY()"
+      [attr.x2]="layout().centerX"
+      [attr.y2]="rhoLineY()"
+      class="rho-dotted-line"
+    />
+    <!-- Dotted underline helper directly under text -->
+    <line
+      [attr.x1]="layout().centerX - 22"
+      [attr.y1]="rhoLineY()"
+      [attr.x2]="layout().centerX + 22"
+      [attr.y2]="rhoLineY()"
+      class="rho-dotted-line"
+      style="stroke-width: 1.5px;"
+    />
+    <!-- Centered text above the digits -->
+    <text
+      [attr.x]="layout().centerX"
+      [attr.y]="rhoTextY()"
+      class="rho-label-text centered-rho"
+      [style.fill]="outerBoxColor()"
+      [style.font-size.px]="derivedDimensions().fontSize - 1"
+    >
+      &rho; = {{ rho().toFixed(2) }}
+    </text>
+  }
+</svg>
+
+

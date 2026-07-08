@@ -12,78 +12,72 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-.digit-display-wrapper {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+:host {
+  display: inline-block;
   vertical-align: middle;
+
+  &.clickable {
+    cursor: pointer;
+  }
 }
 
-.digits-strip {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
+.digit-display-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Base style for row background container box */
+.row-bg-box {
+  stroke: none;
+}
+
+/* Background shading regions (clipped to beveled row box) */
+.rho-shading {
+  pointer-events: none;
+  transition: width 0.3s ease, x 0.3s ease;
+}
+
+
+
+.digit-text {
   font-family: 'Roboto Mono', monospace;
-  font-size: 11.5px;
-  height: 20px;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
-  // box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  font-size: 11px;
+  font-weight: 700;
+  fill: #334155;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
 
-  .decimal-dot {
-    font-weight: 700;
-    color: #475569;
-    // padding: 0 -5px;
-    user-select: none;
-    align-self: flex-end;
-    margin-bottom: 2px;
-    margin-left: -3px;
-    margin-right: -3px;
-  }
+/* Decimal dot representation (placed at baseline height) */
+.decimal-dot-mark {
+  fill: #334155;
+}
 
-  .digit-box {
-    width: 16px;
-    height: 18px;
-    text-align: center;
-    box-sizing: border-box;
-    font-weight: 600;
-    color: #334155;
-    background: #ffffff;
-    // border: 1px solid #cbd5e1;
-    // border-radius: 4px;
-    // box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
+/* Outer boundary border boxes */
+.row-outer-box {
+  fill: none;
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
 
-    &.uncertain {
-      background: rgba(168, 85, 247, 0.12);
-      color: #7c3aed;
-      border-color: #c084fc;
-    }
+/* Dotted guide lines for rho values */
+.rho-dotted-line {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+  transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease;
+}
 
-    &.partially-uncertain {
-      color: #7c3aed;
-    }
+/* Text labels on the right */
+.rho-label-text {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: bold;
+  dominant-baseline: central;
+
+  &.centered-rho {
+    text-anchor: middle;
   }
 }
 
-.rho-label {
-  font-size: 9px;
-  color: #64748b;
-  padding: 0 5px;
-  border-radius: 3px;
-  border: 1px solid transparent;
-  line-height: 11px;
-  margin-top: 0px;
-  box-sizing: border-box;
-
-  &.uncertain-outline {
-    border-color: #c084fc;
-    background: rgba(243, 232, 255, 0.5);
-    color: #7c3aed;
-    font-weight: 600;
-  }
-}
