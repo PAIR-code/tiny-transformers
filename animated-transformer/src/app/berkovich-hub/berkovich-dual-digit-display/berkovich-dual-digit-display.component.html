@@ -125,28 +125,41 @@ limitations under the License.
 
   <!-- Decimal dot between 1 and 1/p (represented in layout by dotX) -->
   @if (layout().dotX !== null) {
-    <circle
-      [attr.cx]="layout().dotX"
-      [attr.cy]="row1Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom"
-      [attr.r]="DOT_RADIUS"
-      [style.fill]="COLOR_DOT"
-      class="decimal-dot-mark"
-    />
-    <circle
-      [attr.cx]="layout().dotX"
-      [attr.cy]="row2Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom"
-      [attr.r]="DOT_RADIUS"
-      [style.fill]="COLOR_DOT"
-      class="decimal-dot-mark"
-    />
+    <g
+      [style.transform]="'translate(' + layout().dotX + 'px, ' + (row1Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom) + 'px)'"
+      class="decimal-dot-group"
+    >
+      <circle
+        cx="0"
+        cy="0"
+        [attr.r]="DOT_RADIUS"
+        [style.fill]="COLOR_DOT"
+        class="decimal-dot-mark"
+      />
+    </g>
+    <g
+      [style.transform]="'translate(' + layout().dotX + 'px, ' + (row2Y() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom) + 'px)'"
+      class="decimal-dot-group"
+    >
+      <circle
+        cx="0"
+        cy="0"
+        [attr.r]="DOT_RADIUS"
+        [style.fill]="COLOR_DOT"
+        class="decimal-dot-mark"
+      />
+    </g>
   }
 
   <!-- Digit boxes for Row 1 (x) -->
   @for (col of layout().cellPositions; track col.power) {
-    <g class="digit-box-group row1-group">
+    <g
+      [style.transform]="'translate(' + col.center + 'px, ' + (row1Y() + derivedDimensions().cellHeight / 2) + 'px)'"
+      class="digit-box-group row1-group"
+    >
       <text
-        [attr.x]="col.center"
-        [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
+        x="0"
+        y="0"
         class="digit-text"
         [style.font-size.px]="derivedDimensions().digitFontSize"
       >
@@ -157,10 +170,13 @@ limitations under the License.
 
   <!-- Digit boxes for Row 2 (y) -->
   @for (col of layout().cellPositions; track col.power) {
-    <g class="digit-box-group row2-group">
+    <g
+      [style.transform]="'translate(' + col.center + 'px, ' + (row2Y() + derivedDimensions().cellHeight / 2) + 'px)'"
+      class="digit-box-group row2-group"
+    >
       <text
-        [attr.x]="col.center"
-        [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
+        x="0"
+        y="0"
         class="digit-text"
         [style.font-size.px]="derivedDimensions().digitFontSize"
       >

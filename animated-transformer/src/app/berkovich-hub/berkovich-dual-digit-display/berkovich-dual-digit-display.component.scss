@@ -20,29 +20,43 @@ limitations under the License.
 .dual-digit-svg {
   display: block;
   overflow: visible;
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+/* Clip path rectangle smooth coordinate transitions */
+clipPath rect {
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 /* Base style for row background container box */
 .row-bg-box {
   stroke: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 /* Background shading regions (clipped to beveled row box) */
 .x-rho-shading {
   pointer-events: none;
-  transition: width 0.3s ease, x 0.3s ease;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 .y-rho-shading {
   pointer-events: none;
-  transition: width 0.3s ease, x 0.3s ease;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 .common-digit-shading {
   pointer-events: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
+.digit-box-group {
+  transition: transform 0.3s ease;
+}
 
+.decimal-dot-group {
+  transition: transform 0.3s ease;
+}
 
 .digit-text {
   font-family: 'Roboto Mono', monospace;
@@ -51,11 +65,13 @@ limitations under the License.
   fill: #334155;
   text-anchor: middle;
   dominant-baseline: central;
+  transition: font-size 0.3s ease;
 }
 
 /* Decimal dot representation (placed at baseline height) */
 .decimal-dot-mark {
   fill: #334155;
+  transition: cx 0.3s ease, cy 0.3s ease;
 }
 
 /* Outer boundary border boxes */
@@ -63,6 +79,7 @@ limitations under the License.
   fill: none;
   stroke-width: 1.5px;
   pointer-events: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
 .row1-outer-box {
@@ -88,6 +105,7 @@ limitations under the License.
   font-weight: bold;
   dominant-baseline: central;
   fill: #64748b; /* Default to grey */
+  transition: x 0.3s ease, y 0.3s ease;
   
   &.colored-label {
     &.x-rho-label {

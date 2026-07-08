@@ -44,6 +44,14 @@ clipPath rect {
   transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
+.digit-box-group {
+  transition: transform 0.3s ease;
+}
+
+.decimal-dot-group {
+  transition: transform 0.3s ease;
+}
+
 .digit-text {
   font-family: 'Roboto Mono', monospace;
   font-size: 11px;
@@ -51,7 +59,7 @@ clipPath rect {
   fill: #334155;
   text-anchor: middle;
   dominant-baseline: central;
-  transition: x 0.3s ease, y 0.3s ease, font-size 0.3s ease;
+  transition: font-size 0.3s ease;
 }
 
 /* Decimal dot representation (placed at baseline height) */
