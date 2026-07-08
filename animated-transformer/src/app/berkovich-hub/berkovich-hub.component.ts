@@ -82,5 +82,12 @@ export class BerkovichHubComponent {
       icon: 'menu_book',
       colorClass: 'card-berkovich-glossary',
     },
+    {
+      title: 'Berkovich Vis Tools',
+      description: 'Play with standalone visualization components and custom parameter parameters interactively.',
+      route: '/berkovich/vis-tools',
+      icon: 'construction',
+      colorClass: 'card-berkovich-vis-tools',
+    },
   ];
 }

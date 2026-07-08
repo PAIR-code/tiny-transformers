@@ -34,6 +34,7 @@ limitations under the License.
       <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
       <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
       <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+      <a routerLink="/berkovich/vis-tools" routerLinkActive="active-nav">Vis Tools</a>
     </nav>
   </header>
 
@@ -49,6 +50,7 @@ limitations under the License.
         [editableInputs]="editableInputs()"
         [isPlaying]="isPlaying()"
         [canUndo]="canUndo()"
+        [stepDetails]="stepDetails()"
         (operatorChange)="onOperatorChange($event)"
         (primeChange)="onPrimeChange($event)"
         (vertexMethodChange)="vertexMethod.set($event)"
@@ -64,7 +66,7 @@ limitations under the License.
         (undo)="onUndo()"
       ></app-berkovich-unary-tree-vis>
     </section>
-
+ 
     <!-- Right Column: Calculus -->
     <aside class="control-panel">
       <app-berkovich-unary-calculus

@@ -32,7 +32,8 @@ import {
   multiply,
   getValuation,
   extNegate,
-  computePathLoss
+  computePathLoss,
+  formatRational
 } from '../../../lib/berkovich/berkovich';
 import {
   BerkovichPoint,
@@ -46,11 +47,7 @@ import {
 } from '../../../lib/berkovich/berkovich_gradients';
 
 import { BerkovichUnaryCalculusComponent } from './calculus-card/berkovich-unary-calculus.component';
-import {
-  BerkovichUnaryTreeVisComponent,
-  TrackedNode,
-  EditableNodeInputs
-} from './tree-vis/berkovich-unary-tree-vis.component';
+import { BerkovichUnaryTreeVisComponent, TrackedNode, EditableNodeInputs } from './tree-vis/berkovich-unary-tree-vis.component';
 
 @Component({
   selector: 'app-berkovich-unary-gradients-vis',
@@ -70,6 +67,10 @@ import {
   ]
 })
 export class BerkovichUnaryGradientsVisComponent implements OnDestroy {
+  formatRational(r: Rational): string {
+    return formatRational(r);
+  }
+
   readonly operator = signal<BerkovichUnaryOperator>('shift');
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);

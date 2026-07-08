@@ -27,12 +27,14 @@ import {
   subtract,
   formatDigitSequence,
   getValuation,
-  extValuationGe
+  extValuationGe,
+  formatRational
 } from '../../../../lib/berkovich/berkovich';
 import {
   VertexResolutionMethod
 } from '../../../../lib/berkovich/berkovich_gradients';
 import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 
 /** Horizontal spacing (in pixels) between the individual subtrees in the SVG layout. */
 const TREE_COLUMN_GAP = 48;
@@ -86,13 +88,26 @@ export interface MultiVisualEdge {
   styleUrls: ['./berkovich-multi-tree-vis.component.scss'],
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatSelectModule, MatFormFieldModule, FormsModule
+    MatSelectModule, MatFormFieldModule, FormsModule, BerkovichDualDigitDisplayComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BerkovichMultiTreeVisComponent {
+  formatRational = formatRational;
+
   readonly prime = input.required<number>();
   readonly trackedNodes = input.required<TrackedNode[]>();
+  readonly stepDetails = input.required<any>();
+
+  // Visual mode state
+  readonly visMode = signal<'tree' | 'digits'>('tree');
+
+  // Computed properties to extract variables for dual digit display
+  readonly centerX1 = computed(() => this.trackedNodes().find(n => n.id === 'X1')?.center ?? { num: 0n, den: 1n });
+  readonly rhoX1 = computed(() => this.trackedNodes().find(n => n.id === 'X1')?.rho ?? 0.0);
+  readonly centerX2 = computed(() => this.trackedNodes().find(n => n.id === 'X2')?.center ?? { num: 0n, den: 1n });
+  readonly rhoX2 = computed(() => this.trackedNodes().find(n => n.id === 'X2')?.rho ?? 0.0);
+  readonly centerY = computed(() => this.trackedNodes().find(n => n.id === 'Y')?.center ?? { num: 0n, den: 1n });
 
   // Optional inline editing inputs
   readonly editableInputs = input<EditableNodeInputs[]>();

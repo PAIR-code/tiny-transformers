@@ -16,29 +16,47 @@ limitations under the License.
   <mat-card-header class="visualizer-card-header">
     <mat-card-title class="visualizer-title-left">
       <mat-icon>account_tree</mat-icon>
-      <span>{{ operator() | titlecase }} Tree Topology</span>
+      <span>{{ operator() | titlecase }} Visualization</span>
     </mat-card-title>
-    <div class="header-operator-select-wrapper">
-      <label for="header-operator-select">Operator:</label>
-      <select 
-        id="header-operator-select" 
-        [ngModel]="operator()" 
-        (ngModelChange)="operatorChange.emit($event)"
-        class="header-operator-select"
-        aria-label="Binary operator selection"
-      >
-        <option value="addition">Addition</option>
-        <option value="multiplication">Multiplication</option>
-      </select>
+    <div class="header-operator-select-wrapper" style="display: flex; gap: 16px; align-items: center;">
+      <!-- Mode select dropdown -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label for="header-vis-mode-select">Mode:</label>
+        <select 
+          id="header-vis-mode-select" 
+          [ngModel]="visMode()" 
+          (ngModelChange)="visMode.set($event)"
+          class="header-operator-select"
+          style="min-width: 90px;"
+        >
+          <option value="tree">Tree Vis</option>
+          <option value="digits">Digit Seq Vis</option>
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label for="header-operator-select">Operator:</label>
+        <select 
+          id="header-operator-select" 
+          [ngModel]="operator()" 
+          (ngModelChange)="operatorChange.emit($event)"
+          class="header-operator-select"
+          aria-label="Binary operator selection"
+        >
+          <option value="addition">Addition</option>
+          <option value="multiplication">Multiplication</option>
+        </select>
+      </div>
     </div>
   </mat-card-header>
 
   <mat-card-content class="svg-container" style="position: relative;">
-    <svg
-      [attr.width]="svgWidth()"
-      [attr.height]="svgHeight"
-      class="tree-svg"
-    >
+    @if (visMode() === 'tree') {
+      <svg
+        [attr.width]="svgWidth()"
+        [attr.height]="svgHeight"
+        class="tree-svg"
+      >
       <defs>
         <clipPath id="guide-clip">
           <rect x="0" y="0" [attr.width]="svgWidth()" [attr.height]="rhoToY(rhoMin)"></rect>
@@ -261,7 +279,127 @@ limitations under the License.
         }
       }
     </svg>
+  } @else {
+      <!-- Digit Seq Vis Mode Content -->
+      <div class="digit-seq-vis-container" style="display: flex; flex-direction: column; gap: 20px; padding: 20px; width: 100%; box-sizing: border-box; min-height: 450px; background: #fafafa; border-radius: 8px;">
+        
+        <!-- Editable inputs section -->
+        <div class="inputs-editor-grid" style="display: flex; flex-wrap: wrap; gap: 16px; background: #ffffff; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; justify-content: center; width: 100%; box-sizing: border-box;">
+          @for (inp of editableInputs(); track inp.nodeId) {
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; min-width: 170px; box-sizing: border-box; flex: 1; max-width: 250px;">
+              <div style="font-weight: 700; font-size: 13px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                <span [style.background]="inp.color" style="height: 8px; width: 8px; border-radius: 50%; display: inline-block;"></span>
+                <span>{{ inp.nodeId === 'X1' ? 'Input parameter (x1)' : inp.nodeId === 'X2' ? 'Input parameter (x2)' : 'Target parameter (y)' }}</span>
+              </div>
+              
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <!-- Center Input -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                  <span style="color: #64748b;">Center:</span>
+                  @if (!inp.readonly) {
+                    <input
+                      class="mini-digit-input"
+                      style="width: 80px; text-align: left; font-family: monospace; font-size: 11.5px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
+                      [value]="inp.centerInput"
+                      (change)="inputChange.emit({ nodeId: inp.nodeId, field: 'center', value: $any($event.target).value })"
+                      (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'center' })"
+                    />
+                  } @else {
+                    <span style="font-family: monospace; font-weight: bold;">{{ inp.centerInput }}</span>
+                  }
+                </div>
 
+                <!-- Rho Input -->
+                @if (inp.rhoInput !== undefined) {
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <span style="color: #64748b;">Log-Radius ρ:</span>
+                    @if (!inp.readonly) {
+                      <input
+                        class="mini-digit-input"
+                        style="width: 80px; text-align: left; font-family: monospace; font-size: 11.5px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
+                        type="text"
+                        [value]="inp.rhoInput"
+                        (change)="inputChange.emit({ nodeId: inp.nodeId, field: 'rho', value: $any($event.target).value })"
+                        (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'rho' })"
+                      />
+                    } @else {
+                      <span style="font-family: monospace; font-weight: bold;">{{ inp.rhoInput }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Displays section -->
+        <div style="display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 480px; margin: 0 auto; background: #ffffff; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box;">
+          <!-- Input x1 update -->
+          <div>
+            <div style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              <span style="height: 6px; width: 6px; border-radius: 50%; background: #60a5fa; display: inline-block;"></span>
+              <span>Input x<sub>1</sub> Update (x<sub>1,before</sub> → x<sub>1,after</sub>)</span>
+            </div>
+            <app-berkovich-dual-digit-display
+              [prime]="prime()"
+              [xCenter]="centerX1()"
+              [xRho]="rhoX1()"
+              [yCenter]="stepDetails().nextX1.center"
+              [yRho]="stepDetails().nextX1.rho"
+              [size]="'small'"
+            ></app-berkovich-dual-digit-display>
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
+              c<sub>x1</sub>: {{ formatRational(centerX1()) }} → {{ formatRational(stepDetails().nextX1.center) }}
+              <br>
+              ρ<sub>x1</sub>: {{ rhoX1().toFixed(3) }} → {{ stepDetails().nextX1.rho.toFixed(3) }}
+            </div>
+          </div>
+
+          <!-- Input x2 update -->
+          <div>
+            <div style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              <span style="height: 6px; width: 6px; border-radius: 50%; background: #f472b6; display: inline-block;"></span>
+              <span>Input x<sub>2</sub> Update (x<sub>2,before</sub> → x<sub>2,after</sub>)</span>
+            </div>
+            <app-berkovich-dual-digit-display
+              [prime]="prime()"
+              [xCenter]="centerX2()"
+              [xRho]="rhoX2()"
+              [yCenter]="stepDetails().nextX2.center"
+              [yRho]="stepDetails().nextX2.rho"
+              [size]="'small'"
+            ></app-berkovich-dual-digit-display>
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
+              c<sub>x2</sub>: {{ formatRational(centerX2()) }} → {{ formatRational(stepDetails().nextX2.center) }}
+              <br>
+              ρ<sub>x2</sub>: {{ rhoX2().toFixed(3) }} → {{ stepDetails().nextX2.rho.toFixed(3) }}
+            </div>
+          </div>
+
+          <!-- Output vs Target -->
+          <div>
+            <div style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              <span style="height: 6px; width: 6px; border-radius: 50%; background: #a78bfa; display: inline-block;"></span>
+              <span>Output vs Target (out → y<sub>target</sub>)</span>
+            </div>
+            <app-berkovich-dual-digit-display
+              [prime]="prime()"
+              [xCenter]="stepDetails().outCenter"
+              [xRho]="stepDetails().outRho"
+              [yCenter]="centerY()"
+              [yRho]="-2"
+              [size]="'small'"
+            ></app-berkovich-dual-digit-display>
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
+              out: {{ formatRational(stepDetails().outCenter) }} (ρ={{ stepDetails().outRho.toFixed(2) }})
+              <br>
+              target: {{ formatRational(centerY()) }} (ρ=-2.00)
+            </div>
+          </div>
+        </div>
+
+      </div>
+    }
   </mat-card-content>
 
   @if (editableInputs() && showSettings()) {

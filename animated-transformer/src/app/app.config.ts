@@ -80,7 +80,40 @@ export const routes: Routes = [
       { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
       { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
       { path: 'space-explorers', component: BerkovichSpaceExplorersComponent },
-      { path: 'glossary', component: BerkovichGlossaryComponent }
+      { path: 'glossary', component: BerkovichGlossaryComponent },
+      {
+        path: 'vis-tools',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/berkovich-vis-tools-hub.component').then(m => m.BerkovichVisToolsHubComponent)
+          },
+          {
+            path: 'digit-display',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/digit-display-tool.component').then(m => m.DigitDisplayToolComponent)
+          },
+          {
+            path: 'dual-digit-display',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/dual-digit-display-tool.component').then(m => m.DualDigitDisplayToolComponent)
+          },
+          {
+            path: 'tree-vis',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/tree-vis-tool.component').then(m => m.TreeVisToolComponent)
+          },
+          {
+            path: 'operator-tree-vis',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/operator-tree-vis-tool.component').then(m => m.OperatorTreeVisToolComponent)
+          },
+          {
+            path: 'model-inspector',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/model-inspector-tool.component').then(m => m.ModelInspectorToolComponent)
+          },
+          {
+            path: 'padic-linear-model-inspector',
+            loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/padic-linear-model-inspector-tool.component').then(m => m.PadicLinearModelInspectorToolComponent)
+          }
+        ]
+      }
     ]
   },
 ];

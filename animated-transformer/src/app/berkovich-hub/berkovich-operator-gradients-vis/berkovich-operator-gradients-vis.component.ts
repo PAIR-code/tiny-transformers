@@ -31,7 +31,8 @@ import {
   multiply,
   getValuation,
   extNegate,
-  computePathLoss
+  computePathLoss,
+  formatRational
 } from '../../../lib/berkovich/berkovich';
 import {
   BerkovichPoint,
@@ -66,6 +67,10 @@ import {
   ]
 })
 export class BerkovichOperatorGradientsVisComponent implements OnDestroy {
+  formatRational(r: Rational): string {
+    return formatRational(r);
+  }
+
   readonly operator = signal<BerkovichBinaryOperator>('addition');
   readonly prime = signal<number>(3);
   readonly isExplainerExpanded = signal<boolean>(true);
@@ -189,6 +194,8 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
       const valDiff = getValuation(diff, p);
       const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
       return {
+        nextX1: res.nextX1,
+        nextX2: res.nextX2,
         outCenter: truncateToTreeRange(res.prod.center, p, -2, 1),
         outRho: res.prod.rho,
         loss: res.loss,
@@ -211,6 +218,8 @@ Since the sum disk's center is $(x_1+x_2)_c = x_{1,c} + x_{2,c}$ and its radius 
       const valDiff = getValuation(diff, p);
       const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
       return {
+        nextX1: res.nextX1,
+        nextX2: res.nextX2,
         outCenter: truncateToTreeRange(res.sum.center, p, -2, 1),
         outRho: res.sum.rho,
         loss: res.loss,

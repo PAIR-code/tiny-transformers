@@ -19,30 +19,32 @@
       <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
       <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
       <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+      <a routerLink="/berkovich/vis-tools" routerLinkActive="active-nav">Vis Tools</a>
     </nav>
   </header>
 
 
   <div class="dashboard-grid">
-    <!-- Left Column: Tree Visualizer with inline inputs -->
+    <!-- Left Column: Interactive Tree & Point Visualizer -->
     <section class="visualizer-card-container">
       <app-berkovich-multi-tree-vis
         [operator]="operator()"
         [prime]="prime()"
+        [learningRateInput]="learningRateInput()"
+        [vertexMethod]="vertexMethod()"
         [trackedNodes]="trackedNodes()"
         [editableInputs]="editableInputs()"
-        [vertexMethod]="vertexMethod()"
         [isPlaying]="isPlaying()"
-        [learningRateInput]="learningRateInput()"
         [canUndo]="canUndo()"
+        [stepDetails]="stepDetails()"
         (operatorChange)="onOperatorChange($event)"
+        (primeChange)="onPrimeChange($event)"
+        (vertexMethodChange)="vertexMethod.set($event)"
         (inputChange)="onInputChange($event)"
         (inputBlur)="onInputBlur($event)"
         (step)="onStep()"
         (randomize)="onRandomize()"
         (togglePlay)="onTogglePlay()"
-        (vertexMethodChange)="onVertexMethodChange($event)"
-        (primeChange)="onPrimeChange($event)"
         (learningRateInputChange)="learningRateInput.set($event)"
         (learningRateBlur)="onLearningRateBlur()"
         [playStepMs]="playStepMs()"

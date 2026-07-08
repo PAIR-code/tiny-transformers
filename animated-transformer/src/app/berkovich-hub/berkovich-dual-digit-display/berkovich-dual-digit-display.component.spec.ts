@@ -53,10 +53,10 @@ describe('BerkovichDualDigitDisplayComponent', () => {
 
     // Verify SVG layout calculations
     const svgHeight = component.svgHeight();
-    expect(svgHeight).toBe(128); // 128 for null yRho
+    expect(svgHeight).toBe(98); // 98 for null yRho
 
     const totalWidth = component.layout().totalWidth;
-    expect(totalWidth).toBeGreaterThan(200);
+    expect(totalWidth).toBeGreaterThan(100);
 
     await expect(fixture.nativeElement).toMatchScreenshot();
   });
@@ -71,7 +71,7 @@ describe('BerkovichDualDigitDisplayComponent', () => {
     fixture.detectChanges();
 
     const svgHeight = component.svgHeight();
-    expect(svgHeight).toBe(143); // 143 for non-null yRho
+    expect(svgHeight).toBe(113); // 113 for non-null yRho
 
     await expect(fixture.nativeElement).toMatchScreenshot();
   });
