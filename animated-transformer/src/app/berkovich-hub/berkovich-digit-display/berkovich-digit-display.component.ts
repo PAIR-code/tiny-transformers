@@ -164,7 +164,7 @@ export class BerkovichDigitDisplayComponent {
   readonly updatedLineStyle = input<'dotted' | 'dashed' | 'solid'>('dotted');
   readonly updatedLineExtension = input<number | undefined>(undefined);
   readonly updatedLineExtensionSide = input<'above' | 'below' | undefined>(undefined);
-  readonly showGradientArrow = input<boolean>(true);
+  readonly showGradientArrow = input<boolean>(false);
 
   readonly derivedDimensions = computed(() => {
     const S = this.scale();

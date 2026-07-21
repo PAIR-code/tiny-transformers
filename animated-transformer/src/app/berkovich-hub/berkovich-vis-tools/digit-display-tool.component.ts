@@ -79,7 +79,7 @@ export class DigitDisplayToolComponent {
   readonly updatedLineStyle = signal<'dotted' | 'dashed' | 'solid'>('dotted');
   readonly updatedLineExtension = signal<number>(12);
   readonly updatedLineExtensionSide = signal<'above' | 'below'>('above');
-  readonly showGradientArrow = signal<boolean>(true);
+  readonly showGradientArrow = signal<boolean>(false);
   readonly gradientArrowPosition = signal<'top' | 'bottom'>('top');
 
   constructor() {
