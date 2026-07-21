@@ -100,14 +100,15 @@ import { BerkovichUnaryOperator } from '../../../../lib/berkovich/berkovich_grad
 })
 export class BerkovichUnaryCalculusComponent {
   readonly operator = input<BerkovichUnaryOperator>('shift');
+  readonly constantLabel = input<string>('k');
   readonly rhoX = input.required<number>();
   readonly stepDetails = input.required<any>();
 
   readonly subtitle = computed(() => {
     const op = this.operator();
-    if (op === 'scale') return 'Scaling operator f(x) = p * x';
+    if (op === 'scale') return `Scaling operator f(x) = ${this.constantLabel()} * x`;
     if (op === 'square') return 'Squaring operator f(x) = x²';
-    return 'Shift operator f(x) = x + 1';
+    return `Shift operator f(x) = x + ${this.constantLabel()}`;
   });
 
   readonly explainerMarkdown = computed(() => {
@@ -127,10 +128,11 @@ $$(x^2)_c = x_c^2, \\quad (x^2)_\\rho = \\max(\\log_p |x_c|_p + \\rho_x, \\quad 
 The active degree w.r.t $\\rho_x$ is $1.0$ if the first term dominates, and $2.0$ if the second term dominates.
       `;
     }
+    const lbl = this.constantLabel();
     return `
-The **shift operator** $f(x) = x + 1$ translates the center by $1$ and leaves the uncertainty radius unchanged.
+The **shift operator** $f(x) = x + ${lbl}$ translates the center by $k$ and leaves the uncertainty radius unchanged.
 In p-adic metrics:
-$$(x + 1)_c = x_c + 1, \\quad (x + 1)_\\rho = \\rho_x$$
+$$(x + ${lbl})_c = x_c + ${lbl}, \\quad (x + ${lbl})_\\rho = \\rho_x$$
       `;
   });
 
@@ -146,7 +148,8 @@ $$(x + 1)_c = x_c + 1, \\quad (x + 1)_\\rho = \\rho_x$$
       return `$$f(x)_c = x_c^2 = ${outCenterStr}$$
               $$f(x)_\\rho = \\max(\\log_p |x_c|_p + \\rho_x, 2\\rho_x) = ${details.out?.rho !== undefined ? details.out.rho.toFixed(2) : '?'}$$`;
     }
-    return `$$f(x)_c = x_c + 1 = ${outCenterStr}$$
+    const lbl = this.constantLabel();
+    return `$$f(x)_c = x_c + ${lbl} = ${outCenterStr}$$
             $$f(x)_\\rho = \\rho_x = ${details.out?.rho !== undefined ? details.out.rho.toFixed(2) : '?'}$$`;
   });
 

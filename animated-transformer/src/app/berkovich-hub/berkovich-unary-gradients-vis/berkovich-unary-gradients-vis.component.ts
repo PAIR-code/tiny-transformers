@@ -344,7 +344,7 @@ $$(x + k)_\\rho = \\rho_x$$
       inputs.push({
         nodeId: 'C',
         trackedNodeId: 'C',
-        centerInput: formatDigitSequence(this.constantK(), p),
+        centerInput: this.constantKInput(),
         color: '#94a3b8',
         labelPrefix: this.constantLabel(),
         readonly: false
@@ -484,7 +484,7 @@ $$(x + k)_\\rho = \\rho_x$$
 
     let operator: UnaryOperator;
     if (op === 'shift') {
-      operator = new ShiftOperator();
+      operator = new ShiftOperator(this.constantK());
     } else if (op === 'scale') {
       operator = new ScaleOperator(simplify({ num: p, den: 1n }));
     } else if (op === 'square') {

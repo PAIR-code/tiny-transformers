@@ -111,7 +111,7 @@ export class BerkovichUnaryTreeVisComponent {
 
   readonly intermediateLabel = computed(() => {
     const op = this.operator();
-    if (op === 'shift') return 'x+1';
+    if (op === 'shift') return `x+${this.constantLabel()}`;
     if (op === 'scale') return `${this.constantLabel()}·x`;
     if (op === 'square') return 'x²';
     return 'x³';
