@@ -53,7 +53,7 @@ describe('BerkovichDualDigitDisplayComponent', () => {
 
     // Verify SVG layout calculations
     const svgHeight = component.svgHeight();
-    expect(svgHeight).toBe(98); // 98 for null yRho
+    expect(svgHeight).toBe(112); // 112 for null yRho
 
     const totalWidth = component.layout().totalWidth;
     expect(totalWidth).toBeGreaterThan(100);
@@ -71,7 +71,7 @@ describe('BerkovichDualDigitDisplayComponent', () => {
     fixture.detectChanges();
 
     const svgHeight = component.svgHeight();
-    expect(svgHeight).toBe(116); // 116 for non-null yRho with medium size dynamic labelOffset
+    expect(svgHeight).toBe(130); // 130 for non-null yRho with medium size dynamic labelOffset
 
     await expect(fixture.nativeElement).toMatchScreenshot();
   });

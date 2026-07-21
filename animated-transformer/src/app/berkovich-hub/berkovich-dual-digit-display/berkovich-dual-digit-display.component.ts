@@ -29,7 +29,7 @@ const BASE_CELL_HEIGHT = 24;
 const BASE_CELL_GAP = 4;
 
 /** Base top margin for label guide lines above first row. */
-const BASE_MARGIN_TOP = 24;
+const BASE_MARGIN_TOP = 38;
 /** Base bottom margin for label guide lines below second row. */
 const BASE_MARGIN_BOTTOM = 10;
 /** Base left margin when labels are not left-aligned. */

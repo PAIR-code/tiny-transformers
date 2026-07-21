@@ -29,7 +29,7 @@ const BASE_CELL_HEIGHT = 24;
 const BASE_CELL_GAP = 4;
 
 /** Base top margin for label guide lines. */
-const BASE_MARGIN_TOP = 32;
+const BASE_MARGIN_TOP = 38;
 
 /** Base bottom margin spacing inside SVG box. */
 const BASE_MARGIN_BOTTOM = 10;
