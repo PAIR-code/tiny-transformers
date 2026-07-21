@@ -130,3 +130,30 @@ clipPath rect {
   dominant-baseline: central;
   transition: x 0.3s ease, y 0.3s ease, fill 0.3s ease;
 }
+
+/* Digit change circular bubble styling */
+.digit-bubble-group {
+  transition: transform 0.3s ease;
+
+  .bubble-circle {
+    fill: #eff6ff;
+    stroke: #3b82f6;
+    stroke-width: 1.5px;
+    transition: r 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+  }
+
+  .bubble-text {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    fill: #1d4ed8;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .bubble-guide-line {
+    stroke: #93c5fd;
+    stroke-width: 1px;
+    stroke-dasharray: 2 2;
+  }
+}

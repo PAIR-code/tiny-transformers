@@ -29,14 +29,28 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
   BerkovichMultiTreeVisComponent,
   BerkovichBinaryOperator,
-  TrackedNode
+  TrackedNode,
+  EditableNodeInputs
 } from '../berkovich-operator-gradients-vis/tree-vis/berkovich-multi-tree-vis.component';
 
-import { Rational, parseToRational, formatRational, parseDigitSequence } from '../../../lib/berkovich/berkovich';
 import {
+  Rational,
+  parseToRational,
+  formatRational,
+  parseDigitSequence,
+  truncateToTreeRange,
+  formatDigitSequence,
+  subtract,
+  getValuation
+} from '../../../lib/berkovich/berkovich';
+import {
+  BerkovichPoint,
+  AdditionOperator,
+  MultiplicationOperator,
   VertexResolutionMethod
 } from '../../../lib/berkovich/berkovich_gradients';
 import { stringifyState, parseState } from './url-serializer';
+import { MatOptionModule } from '@angular/material/core';
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 
 @Component({
@@ -52,6 +66,7 @@ import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.c
     MatCardModule,
     MatSliderModule,
     MatSelectModule,
+    MatOptionModule,
     MatFormFieldModule,
     MatInputModule,
     MatCheckboxModule,
@@ -60,34 +75,26 @@ import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.c
   ]
 })
 export class OperatorTreeVisToolComponent {
-  readonly prime = signal<number>(5);
+  readonly prime = signal<number>(3);
   readonly operator = signal<BerkovichBinaryOperator>('addition');
 
-  readonly centerX1Digits = signal<string>('00.30');
-  readonly rhoX1 = signal<number>(0.5);
+  readonly centerX1Digits = signal<string>('12.20');
+  readonly rhoX1 = signal<number>(0.0);
 
-  readonly centerX2Digits = signal<string>('00.12');
-  readonly rhoX2 = signal<number>(0.5);
+  readonly centerX2Digits = signal<string>('02.20');
+  readonly rhoX2 = signal<number>(-1.0);
 
-  readonly targetCenterYDigits = signal<string>('00.42');
-  readonly targetRhoY = signal<number>(0.5);
+  readonly targetCenterYDigits = signal<string>('00.00');
+  readonly targetRhoY = signal<number>(-2.0);
 
-  readonly lr = signal<number>(0.1);
+  readonly lr = signal<number>(0.2);
   readonly vertexResolution = signal<VertexResolutionMethod>('exact-per-coord');
 
   readonly digitsLeft = signal<number>(3);
   readonly digitsRight = signal<number>(3);
 
-  readonly trackedNodes = computed<TrackedNode[]>(() => [
-    { id: 'X1', center: this.parsedCenterX1(), rho: this.rhoX1(), color: '#2563eb', label: 'x₁' },
-    { id: 'X2', center: this.parsedCenterX2(), rho: this.rhoX2(), color: '#db2777', label: 'x₂' },
-    { id: 'Y', center: this.parsedTargetCenterY(), rho: this.targetRhoY(), color: '#059669', label: 'y' }
-  ]);
-
-  readonly stepDetails = computed(() => ({
-    nextX1: { center: this.parsedCenterX1(), rho: this.rhoX1() + 0.1 },
-    nextX2: { center: this.parsedCenterX2(), rho: this.rhoX2() + 0.1 }
-  }));
+  readonly isPlaying = signal<boolean>(false);
+  readonly canUndo = signal<boolean>(false);
 
   constructor() {
     const router = inject(Router);
@@ -133,56 +140,177 @@ export class OperatorTreeVisToolComponent {
     });
   }
 
-  readonly parsedCenterX1 = computed<Rational>(() => {
-    try {
-      return parseDigitSequence(this.centerX1Digits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
-    } catch {
-      return { num: 0n, den: 1n };
-    }
-  });
+  readonly parsedCenterX1 = computed<Rational>(() => this.parseParam(this.centerX1Digits()));
+  readonly parsedCenterX2 = computed<Rational>(() => this.parseParam(this.centerX2Digits()));
+  readonly parsedTargetCenterY = computed<Rational>(() => this.parseParam(this.targetCenterYDigits()));
 
-  readonly parsedCenterX2 = computed<Rational>(() => {
+  private parseParam(s: string): Rational {
     try {
-      return parseDigitSequence(this.centerX2Digits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      return truncateToTreeRange(
+        parseDigitSequence(s, BigInt(this.prime())),
+        BigInt(this.prime()), -2, 1
+      );
     } catch {
       return { num: 0n, den: 1n };
     }
-  });
-
-  readonly parsedTargetCenterY = computed<Rational>(() => {
-    try {
-      return parseDigitSequence(this.targetCenterYDigits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
-    } catch {
-      return { num: 0n, den: 1n };
-    }
-  });
+  }
 
   readonly parsedError = computed<string | null>(() => {
     try {
-      parseDigitSequence(this.centerX1Digits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
-      parseDigitSequence(this.centerX2Digits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
-      parseDigitSequence(this.targetCenterYDigits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      parseDigitSequence(this.centerX1Digits(), BigInt(this.prime()));
+      parseDigitSequence(this.centerX2Digits(), BigInt(this.prime()));
+      parseDigitSequence(this.targetCenterYDigits(), BigInt(this.prime()));
       return null;
     } catch (e: any) {
       return `Invalid digit sequence: ${e.message ?? 'Unknown error'}`;
     }
   });
+
+  readonly stepDetails = computed(() => {
+    const op = this.operator();
+    const p = BigInt(this.prime());
+    const x1 = new BerkovichPoint(this.parsedCenterX1(), this.rhoX1());
+    const x2 = new BerkovichPoint(this.parsedCenterX2(), this.rhoX2());
+    const targetY = this.parsedTargetCenterY();
+
+    if (op === 'multiplication') {
+      const res = new MultiplicationOperator().step(
+        x1,
+        x2,
+        targetY,
+        p,
+        this.lr(),
+        this.vertexResolution()
+      );
+      const diff = subtract(res.prod.center, targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+      return {
+        nextX1: res.nextX1,
+        nextX2: res.nextX2,
+        outCenter: truncateToTreeRange(res.prod.center, p, -2, 1),
+        outRho: res.prod.rho,
+        loss: res.loss,
+        drhoX1: res.drhoProd_drhoX1,
+        drhoX2: res.drhoProd_drhoX2,
+        drOut: res.drProd,
+        dY1: d,
+        dY2: d
+      };
+    } else {
+      const res = new AdditionOperator().step(
+        x1,
+        x2,
+        targetY,
+        p,
+        this.lr(),
+        this.vertexResolution()
+      );
+      const diff = subtract(res.sum.center, targetY);
+      const valDiff = getValuation(diff, p);
+      const d = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+      return {
+        nextX1: res.nextX1,
+        nextX2: res.nextX2,
+        outCenter: truncateToTreeRange(res.sum.center, p, -2, 1),
+        outRho: res.sum.rho,
+        loss: res.loss,
+        drhoX1: res.drhoSum_drhoX1,
+        drhoX2: res.drhoSum_drhoX2,
+        drOut: res.drSum,
+        dY1: d,
+        dY2: d
+      };
+    }
+  });
+
+  readonly trackedNodes = computed<TrackedNode[]>(() => {
+    const op = this.operator();
+    const details = this.stepDetails();
+
+    const labelOut = op === 'multiplication' ? '(x1*x2)_ρ' : '(x1+x2)_ρ';
+    const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
+    return [
+      { id: 'X1', center: this.parsedCenterX1(), rho: this.rhoX1(), color: '#60a5fa', label: 'x1_ρ' },
+      { id: 'X2', center: this.parsedCenterX2(), rho: this.rhoX2(), color: '#f472b6', label: 'x2_ρ' },
+      { id: idOut, center: details.outCenter, rho: details.outRho, color: '#a78bfa', label: labelOut },
+      { id: 'Y', center: this.parsedTargetCenterY(), rho: -2, color: '#eab308', label: 'y_c (Target)' }
+    ];
+  });
+
+  readonly editableInputs = computed<EditableNodeInputs[]>(() => {
+    const op = this.operator();
+    const details = this.stepDetails();
+    const idOut = op === 'multiplication' ? 'X1*X2' : 'X1+X2';
+    const labelOut = op === 'multiplication' ? 'x₁·x₂' : 'x₁+x₂';
+
+    return [
+      {
+        nodeId: 'X1',
+        trackedNodeId: 'X1',
+        centerInput: this.centerX1Digits(),
+        rhoInput: this.rhoX1().toFixed(1),
+        color: '#2563eb',
+        labelPrefix: 'x₁'
+      },
+      {
+        nodeId: 'X2',
+        trackedNodeId: 'X2',
+        centerInput: this.centerX2Digits(),
+        rhoInput: this.rhoX2().toFixed(1),
+        color: '#db2777',
+        labelPrefix: 'x₂'
+      },
+      {
+        nodeId: idOut,
+        trackedNodeId: idOut,
+        centerInput: formatDigitSequence(details.outCenter, BigInt(this.prime())),
+        rhoInput: details.outRho.toFixed(1),
+        color: '#7c3aed',
+        labelPrefix: labelOut,
+        readonly: true
+      },
+      {
+        nodeId: 'Y',
+        trackedNodeId: 'Y',
+        centerInput: this.targetCenterYDigits(),
+        color: '#d97706',
+        labelPrefix: 'y'
+      }
+    ];
+  });
+
+  onInputChange(event: { nodeId: string; field: 'center' | 'rho'; value: string }) {
+    const { nodeId, field, value } = event;
+    if (nodeId === 'X1') {
+      if (field === 'center') this.centerX1Digits.set(value);
+      else if (field === 'rho') this.rhoX1.set(parseFloat(value) || 0);
+    } else if (nodeId === 'X2') {
+      if (field === 'center') this.centerX2Digits.set(value);
+      else if (field === 'rho') this.rhoX2.set(parseFloat(value) || 0);
+    } else if (nodeId === 'Y') {
+      if (field === 'center') this.targetCenterYDigits.set(value);
+    }
+  }
+
+  onStep() {
+    const details = this.stepDetails();
+    const p = BigInt(this.prime());
+    this.centerX1Digits.set(formatDigitSequence(details.nextX1.center, p));
+    this.rhoX1.set(details.nextX1.rho);
+    this.centerX2Digits.set(formatDigitSequence(details.nextX2.center, p));
+    this.rhoX2.set(details.nextX2.rho);
+  }
+
+  onRandomize() {
+    const p = BigInt(this.prime());
+    const r1 = { num: BigInt(Math.floor(Math.random() * 5)), den: 1n };
+    const r2 = { num: BigInt(Math.floor(Math.random() * 5)), den: 1n };
+    const ry = { num: BigInt(Math.floor(Math.random() * 5)), den: 1n };
+    this.centerX1Digits.set(formatDigitSequence(r1, p));
+    this.centerX2Digits.set(formatDigitSequence(r2, p));
+    this.targetCenterYDigits.set(formatDigitSequence(ry, p));
+    this.rhoX1.set(parseFloat((Math.random() * 2 - 1).toFixed(1)));
+    this.rhoX2.set(parseFloat((Math.random() * 2 - 1).toFixed(1)));
+  }
 }

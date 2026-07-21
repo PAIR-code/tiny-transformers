@@ -326,7 +326,7 @@ export function parseDigitSequence(
   // Left of decimal: powers from maxPower down to 0
   for (let i = 0; i < paddedLeft.length; i++) {
     const digit = Number(paddedLeft[i]);
-    if (digit >= pNum) {
+    if (isNaN(digit) || digit >= pNum) {
       throw new Error(`Digit ${digit} exceeds base ${p}`);
     }
     const power = precision.maxPower - i;
@@ -337,7 +337,7 @@ export function parseDigitSequence(
   // Right of decimal: powers from -1 down to minPower
   for (let i = 0; i < paddedRight.length; i++) {
     const digit = Number(paddedRight[i]);
-    if (digit >= pNum) {
+    if (isNaN(digit) || digit >= pNum) {
       throw new Error(`Digit ${digit} exceeds base ${p}`);
     }
     const power = -1 - i;
@@ -346,4 +346,37 @@ export function parseDigitSequence(
   }
   
   return simplify(sum);
+}
+
+/**
+ * Helper to parse either a p-adic digit sequence (e.g. '101.00', '00.30') or a standard rational input (e.g. '3/5', '-1.25').
+ */
+export function parsePadicOrRationalInput(
+  input: string,
+  p: bigint,
+  precision?: PrecisionBounds
+): Rational {
+  const cleaned = input.trim();
+  if (cleaned.includes('/') || cleaned.startsWith('-')) {
+    return parseToRational(cleaned);
+  }
+
+  let effectivePrecision: PrecisionBounds;
+  if (precision) {
+    effectivePrecision = precision;
+  } else {
+    const parts = cleaned.split('.');
+    const leftLen = parts[0] ? parts[0].length : 1;
+    const rightLen = parts[1] ? parts[1].length : 0;
+    effectivePrecision = {
+      minPower: -Math.max(2, rightLen),
+      maxPower: Math.max(1, leftLen - 1)
+    };
+  }
+
+  try {
+    return parseDigitSequence(cleaned, p, effectivePrecision);
+  } catch {
+    return parseToRational(cleaned);
+  }
 }

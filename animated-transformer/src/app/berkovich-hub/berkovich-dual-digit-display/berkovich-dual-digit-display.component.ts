@@ -62,7 +62,11 @@ const BASE_LABEL_TO_LINE_SPACING = 8;
   templateUrl: './berkovich-dual-digit-display.component.html',
   styleUrls: ['./berkovich-dual-digit-display.component.scss'],
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    'style': 'display: inline-block; vertical-align: middle;',
+    '[style.height.px]': 'svgHeight()'
+  }
 })
 export class BerkovichDualDigitDisplayComponent {
   private static idCounter = 0;

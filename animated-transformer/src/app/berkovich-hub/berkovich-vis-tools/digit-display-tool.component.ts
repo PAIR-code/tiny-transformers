@@ -28,8 +28,23 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
-import { Rational, parseToRational, formatRational, formatDigitSequence, parseDigitSequence } from '../../../lib/berkovich/berkovich';
+import {
+  Rational,
+  formatRational,
+  formatDigitSequence,
+  parsePadicOrRationalInput
+} from '../../../lib/berkovich/berkovich';
 import { stringifyState, parseState } from './url-serializer';
+
+export interface DigitDisplayPreset {
+  name: string;
+  prime: number;
+  center: string;
+  rho: number;
+  showUpdated: boolean;
+  updatedRho: number;
+  updatedCenter: string;
+}
 
 @Component({
   selector: 'app-digit-display-tool',
@@ -172,12 +187,14 @@ export class DigitDisplayToolComponent {
   readonly customCellGap = signal<boolean>(false);
   readonly cellGap = signal<number>(6);
 
+  readonly currentPrecision = computed(() => ({
+    minPower: -this.digitsRight(),
+    maxPower: this.digitsLeft() - 1
+  }));
+
   readonly parsedCenter = computed<Rational>(() => {
     try {
-      return parseDigitSequence(this.centerDigits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      return parsePadicOrRationalInput(this.centerDigits(), BigInt(this.prime()), this.currentPrecision());
     } catch {
       return { num: 0n, den: 1n };
     }
@@ -186,10 +203,7 @@ export class DigitDisplayToolComponent {
   readonly parsedUpdatedCenter = computed<Rational | undefined>(() => {
     if (!this.updatedCenterDigits()) return undefined;
     try {
-      return parseDigitSequence(this.updatedCenterDigits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      return parsePadicOrRationalInput(this.updatedCenterDigits(), BigInt(this.prime()), this.currentPrecision());
     } catch {
       return undefined;
     }
@@ -197,40 +211,61 @@ export class DigitDisplayToolComponent {
 
   readonly parsedCenterError = computed<string | null>(() => {
     try {
-      parseDigitSequence(this.centerDigits(), BigInt(this.prime()), {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      parsePadicOrRationalInput(this.centerDigits(), BigInt(this.prime()), this.currentPrecision());
       return null;
     } catch (e: any) {
       return `Invalid digit sequence: ${e.message ?? 'Unknown error'}`;
     }
   });
 
-  readonly presets = [
+  readonly presets: DigitDisplayPreset[] = [
     { name: '3/5 (p=5)', prime: 5, center: '3/5', rho: 0.5, showUpdated: false, updatedRho: 1.2, updatedCenter: '3/5' },
     { name: 'SGD Step Update', prime: 5, center: '00.30', rho: 0.3, showUpdated: true, updatedRho: 1.1, updatedCenter: '00.31' },
+    { name: 'Digit Change (Same Rho)', prime: 3, center: '101.00', rho: 0.0, showUpdated: true, updatedRho: 0.0, updatedCenter: '102.00' },
     { name: '12 (p=3)', prime: 3, center: '12', rho: -1.0, showUpdated: false, updatedRho: 0.0, updatedCenter: '12' },
     { name: '-1.25 (p=2)', prime: 2, center: '-1.25', rho: 0.0, showUpdated: false, updatedRho: 0.8, updatedCenter: '-1.25' },
     { name: '5/7 (p=7)', prime: 7, center: '5/7', rho: 1.2, showUpdated: true, updatedRho: 0.4, updatedCenter: '5/7' },
   ];
 
-  applyPreset(preset: typeof this.presets[0]) {
+  applyPreset(preset: DigitDisplayPreset) {
     this.prime.set(preset.prime);
+    const p = BigInt(preset.prime);
+
+    // Auto-adjust digitsLeft / digitsRight if the preset string has more digit columns
+    const centerParts = preset.center.split('.');
+    if (centerParts[0] && !preset.center.includes('/')) {
+      const neededLeft = centerParts[0].length;
+      if (neededLeft > this.digitsLeft()) {
+        this.digitsLeft.set(neededLeft);
+      }
+    }
+    if (centerParts[1] && !preset.center.includes('/')) {
+      const neededRight = centerParts[1].length;
+      if (neededRight > this.digitsRight()) {
+        this.digitsRight.set(neededRight);
+      }
+    }
+
+    const precision = this.currentPrecision();
+
     try {
-      const rat = parseToRational(preset.center);
-      const p = BigInt(preset.prime);
-      const seq = formatDigitSequence(rat, p, {
-        minPower: -this.digitsRight(),
-        maxPower: this.digitsLeft() - 1
-      });
+      const rat = parsePadicOrRationalInput(preset.center, p, precision);
+      const seq = formatDigitSequence(rat, p, precision);
       this.centerDigits.set(seq);
     } catch {
-      this.centerDigits.set('');
+      this.centerDigits.set(preset.center);
     }
+
     this.rho.set(preset.rho);
     this.showUpdatedLocation.set(preset.showUpdated);
     this.updatedRho.set(preset.updatedRho);
-    this.updatedCenterDigits.set(preset.updatedCenter);
+
+    try {
+      const updatedRat = parsePadicOrRationalInput(preset.updatedCenter, p, precision);
+      const updatedSeq = formatDigitSequence(updatedRat, p, precision);
+      this.updatedCenterDigits.set(updatedSeq);
+    } catch {
+      this.updatedCenterDigits.set(preset.updatedCenter);
+    }
   }
 }

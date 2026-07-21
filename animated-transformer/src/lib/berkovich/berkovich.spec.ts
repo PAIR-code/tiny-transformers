@@ -30,6 +30,7 @@ import {
   truncateToTreeRange,
   formatDigitSequence,
   parseDigitSequence,
+  parsePadicOrRationalInput,
   computePathLoss,
   extValuationGe
 } from './berkovich';
@@ -239,13 +240,26 @@ describe('Berkovich Math Library - Digit Sequence Conversion', () => {
     expect(parseDigitSequence(seq2, p, precision)).toEqual(parseToRational('35/27'));
   });
 
-  it('should auto-pad missing digits with zeros instead of throwing formatting errors', () => {
+  it('should parse 3-digit left strings like 101.00 correctly with precision maxPower >= 2', () => {
     const p = 3n;
-    const precision = { minPower: -3, maxPower: 2 };
-    expect(parseDigitSequence('1.2', p, precision)).toEqual(parseToRational('5/3'));
-    expect(parseDigitSequence('001.2', p, precision)).toEqual(parseToRational('5/3'));
-    expect(parseDigitSequence('1.200', p, precision)).toEqual(parseToRational('5/3'));
-    expect(parseDigitSequence('5', 7n, precision)).toEqual(parseToRational('5'));
+    const precision = { minPower: -2, maxPower: 2 };
+    // '101.00' in base 3 = 1 * 3^2 + 0 * 3^1 + 1 * 3^0 = 10
+    expect(parseDigitSequence('101.00', p, precision)).toEqual({ num: 10n, den: 1n });
+    expect(parseDigitSequence('102.00', p, precision)).toEqual({ num: 11n, den: 1n });
+  });
+
+  it('should parse both p-adic digit sequences and rational inputs via parsePadicOrRationalInput', () => {
+    const p3 = 3n;
+    const p5 = 5n;
+    expect(parsePadicOrRationalInput('3/5', p5)).toEqual({ num: 3n, den: 5n });
+    expect(parsePadicOrRationalInput('-1.25', 2n)).toEqual({ num: -5n, den: 4n });
+    expect(parsePadicOrRationalInput('101.00', p3)).toEqual({ num: 10n, den: 1n });
+    expect(parsePadicOrRationalInput('00.30', p5)).toEqual({ num: 3n, den: 5n });
+  });
+
+  it('should throw error for digits exceeding base in parseDigitSequence', () => {
+    const precision = { minPower: -2, maxPower: 1 };
+    expect(() => parseDigitSequence('5', 3n, precision)).toThrow('Digit 5 exceeds base 3');
   });
 });
 

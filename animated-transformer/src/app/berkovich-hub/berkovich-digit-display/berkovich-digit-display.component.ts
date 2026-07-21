@@ -29,7 +29,8 @@ const BASE_CELL_HEIGHT = 24;
 const BASE_CELL_GAP = 4;
 
 /** Base top margin for label guide lines. */
-const BASE_MARGIN_TOP = 24;
+const BASE_MARGIN_TOP = 32;
+
 /** Base bottom margin spacing inside SVG box. */
 const BASE_MARGIN_BOTTOM = 10;
 /** Base left margin spacing inside SVG box. */
@@ -69,7 +70,8 @@ export interface DigitDisplayCell {
   imports: [CommonModule],
   host: {
     '[class.clickable]': 'isClickable()',
-    '(click)': 'toggleRho($event)'
+    '(click)': 'toggleRho($event)',
+    '[style.height.px]': 'svgHeight()'
   }
 })
 export class BerkovichDigitDisplayComponent {
@@ -225,6 +227,65 @@ export class BerkovichDigitDisplayComponent {
     return this.derivedDimensions().guideLineOffset;
   });
 
+  readonly updatedCells = computed(() => {
+    const uc = this.updatedCenter();
+    if (!uc) return [];
+    const p = BigInt(this.prime());
+    const left = this.digitsLeft();
+    const right = this.digitsRight();
+
+    const minPower = -right;
+    const maxPower = left - 1;
+
+    const aligned = getAlignedDigits(uc, p, minPower, maxPower);
+    return [...aligned].reverse();
+  });
+
+  getUpdatedDigitAtPower(power: number): number | null {
+    const uc = this.updatedCenter();
+    if (!uc) return null;
+    const cell = this.updatedCells().find(c => c.power === power);
+    return cell ? cell.digit : 0;
+  }
+
+  readonly isRhoUnchanged = computed(() => {
+    const ur = this.updatedRho();
+    if (ur === undefined) return true;
+    return Math.abs(ur - this.rho()) < 1e-6;
+  });
+
+  readonly digitBubbles = computed(() => {
+    if (!this.updatedCenter() && !this.showUpdatedLocation()) return [];
+    if (!this.isRhoUnchanged()) return [];
+
+    const lay = this.layout();
+    const result: { power: number; cx: number; newDigit: number; oldDigit: number }[] = [];
+
+    for (const col of lay.cellPositions) {
+      const oldD = this.getDigitAtPower(col.power);
+      const newD = this.getUpdatedDigitAtPower(col.power);
+      if (newD !== null && newD !== oldD) {
+        result.push({
+          power: col.power,
+          cx: col.center,
+          newDigit: newD,
+          oldDigit: oldD
+        });
+      }
+    }
+    return result;
+  });
+
+  readonly bubbleCy = computed(() => {
+    const dims = this.derivedDimensions();
+    const side = this.effectiveExtensionSide();
+    if (side === 'below') {
+      return this.rowY() + dims.cellHeight + dims.boxPadding;
+    } else {
+      return this.rowY() - dims.boxPadding;
+    }
+  });
+
   readonly rowY = computed(() => {
     const pos = this.displayPosition();
     const dims = this.derivedDimensions();
@@ -232,6 +293,9 @@ export class BerkovichDigitDisplayComponent {
     if ((this.updatedRho() !== undefined || this.showUpdatedLocation()) && this.effectiveExtensionSide() === 'above') {
       const ext = this.effectiveExtension();
       top = Math.max(top, dims.boxPadding + ext + 4);
+    }
+    if (this.digitBubbles().length > 0 && this.effectiveExtensionSide() === 'above') {
+      top = Math.max(top, dims.boxPadding + 10);
     }
     return top;
   });
@@ -247,6 +311,9 @@ export class BerkovichDigitDisplayComponent {
     if ((this.updatedRho() !== undefined || this.showUpdatedLocation()) && this.effectiveExtensionSide() === 'below') {
       const ext = this.effectiveExtension();
       baseHeight = Math.max(baseHeight, this.rowY() + dims.cellHeight + dims.boxPadding + ext + dims.marginBottom + 4);
+    }
+    if (this.digitBubbles().length > 0 && this.effectiveExtensionSide() === 'below') {
+      baseHeight = Math.max(baseHeight, this.rowY() + dims.cellHeight + dims.boxPadding + 10 + dims.marginBottom);
     }
     return baseHeight;
   });
