@@ -15,9 +15,10 @@ limitations under the License.
 
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 
 interface VisToolCard {
   title: string;
@@ -29,67 +30,16 @@ interface VisToolCard {
 
 @Component({
   selector: 'app-berkovich-vis-tools-hub',
+  templateUrl: './berkovich-vis-tools-hub.component.html',
+  styleUrls: ['./berkovich-vis-tools-hub.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterLink,
-    RouterLinkActive,
     MatIconModule,
     MatButtonModule,
-  ],
-  template: `
-    <div class="landing-container">
-      <!-- Header Banner -->
-      <header class="landing-header">
-        <div class="header-content">
-          <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
-            <mat-icon>arrow_back</mat-icon>
-          </button>
-          <div>
-            <h1>Berkovich Visualization Sandbox</h1>
-            <p class="subtitle">
-              Play with individual p-adic and Berkovich space visualizers with customized inputs and configurations.
-            </p>
-          </div>
-        </div>
-        <nav class="header-nav">
-          <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
-          <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-          <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Op Gradients</a>
-          <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
-          <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
-          <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
-          <a routerLink="/berkovich/vis-tools" routerLinkActive="active-nav" [routerLinkActiveOptions]="{ exact: true }">Vis Tools</a>
-        </nav>
-      </header>
-
-      <main class="landing-main">
-        <section class="section-group">
-          <div class="cards-grid">
-            @for (card of tools; track card.route) {
-              <div class="card" [class]="card.colorClass" [routerLink]="card.route">
-                <div class="card-glow"></div>
-                <div class="card-content">
-                  <div class="card-icon-container">
-                    <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
-                  </div>
-                  <h3>{{ card.title }}</h3>
-                  <p>{{ card.description }}</p>
-                  <div class="card-actions">
-                    <span class="explore-btn">
-                      Open Sandbox
-                      <mat-icon>arrow_forward</mat-icon>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        </section>
-      </main>
-    </div>
-  `,
-  styleUrls: ['../berkovich-hub.component.scss']
+    BerkovichHeaderComponent,
+  ]
 })
 export class BerkovichVisToolsHubComponent {
   readonly tools: VisToolCard[] = [

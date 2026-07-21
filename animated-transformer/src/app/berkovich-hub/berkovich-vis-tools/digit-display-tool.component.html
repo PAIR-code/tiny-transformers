@@ -1,0 +1,303 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Single Digit Display Sandbox"
+    subtitle="Configure and test the single-digit $p$-adic expansion visualizer component."
+    [isVisTool]="true"
+  ></app-berkovich-header>
+
+  <div class="dashboard-grid">
+    <!-- Preview Panel -->
+    <section class="visualizer-card-container" style="display: flex; flex-direction: column; gap: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #3b82f6;">visibility</mat-icon>
+        Component Live Preview
+      </h2>
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 250px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px;">
+        @if (parsedCenterError()) {
+          <div style="color: #ef4444; font-size: 14px; text-align: center;">
+            <mat-icon style="font-size: 48px; width: 48px; height: 48px; margin-bottom: 8px;">error_outline</mat-icon>
+            <div>{{ parsedCenterError() }}</div>
+          </div>
+        } @else {
+          <app-berkovich-digit-display
+            [center]="parsedCenter()"
+            [rho]="rho()"
+            [prime]="prime()"
+            [rhoLabelPosition]="rhoLabelPosition()"
+            [clickRhoLabelPosition]="clickRhoLabelPosition()"
+            [digitsLeft]="digitsLeft()"
+            [digitsRight]="digitsRight()"
+            [scale]="scale()"
+            [cellWidth]="customCellWidth() ? cellWidth() : undefined"
+            [cellHeight]="customCellHeight() ? cellHeight() : undefined"
+            [cellGap]="customCellGap() ? cellGap() : undefined"
+            [outerBoxColor]="outerBoxColor()"
+            [updatedRho]="showUpdatedLocation() ? updatedRho() : undefined"
+            [updatedCenter]="showUpdatedLocation() ? parsedUpdatedCenter() : undefined"
+            [updatedLineColor]="updatedLineColor()"
+            [updatedLineStyle]="updatedLineStyle()"
+            [updatedLineExtension]="updatedLineExtension()"
+            [updatedLineExtensionSide]="updatedLineExtensionSide()"
+            [showGradientArrow]="showGradientArrow()"
+          />
+        }
+      </div>
+
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 13px; color: #334155;">
+        <div><strong>Component Tag:</strong></div>
+        <pre style="margin: 4px 0 0 0; white-space: pre-wrap; font-size: 12px; color: #0f766e;">&lt;app-berkovich-digit-display
+  [center]="&#123; num: {{ parsedCenter().num }}n, den: {{ parsedCenter().den }}n &#125;"
+  [rho]="{{ rho() }}"
+  [prime]="{{ prime() }}"
+  [digitsLeft]="{{ digitsLeft() }}"
+  [digitsRight]="{{ digitsRight() }}"
+  [scale]="{{ scale() }}"
+  [rhoLabelPosition]="'{{ rhoLabelPosition() }}'"
+  [clickRhoLabelPosition]="'{{ clickRhoLabelPosition() }}'"
+  [outerBoxColor]="'{{ outerBoxColor() }}'"@if (showUpdatedLocation()) {
+  [updatedRho]="{{ updatedRho() }}"
+  [updatedLineColor]="'{{ updatedLineColor() }}'"
+  [updatedLineStyle]="'{{ updatedLineStyle() }}'"
+  [updatedLineExtension]="{{ updatedLineExtension() }}"
+  [showGradientArrow]="{{ showGradientArrow() }}"
+  [gradientArrowPosition]="'{{ gradientArrowPosition() }}'"}
+/&gt;</pre>
+      </div>
+    </section>
+
+    <!-- Controls Sidepanel -->
+    <aside class="control-panel" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #6366f1;">settings</mat-icon>
+        Configuration
+      </h2>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Presets -->
+        <div>
+          <label style="font-weight: 600; font-size: 12px; color: #475569; display: block; margin-bottom: 6px;">Presets</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            @for (preset of presets; track preset.name) {
+              <button mat-stroked-button (click)="applyPreset(preset)" style="font-size: 12px; height: 32px; padding: 0 10px;">
+                {{ preset.name }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Prime -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Base Prime (p)</mat-label>
+          <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+            <mat-option [value]="2">2</mat-option>
+            <mat-option [value]="3">3</mat-option>
+            <mat-option [value]="5">5</mat-option>
+            <mat-option [value]="7">7</mat-option>
+            <mat-option [value]="11">11</mat-option>
+            <mat-option [value]="13">13</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Center -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Center Digit String (rational: {{ formatRational(parsedCenter()) }})</mat-label>
+          <input matInput [ngModel]="centerDigits()" (ngModelChange)="centerDigits.set($event)">
+          @if (parsedCenterError()) {
+            <mat-error>{{ parsedCenterError() }}</mat-error>
+          }
+        </mat-form-field>
+
+        <!-- Rho -->
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+            <span>Log-Radius (rho)</span>
+            <span style="font-weight: 700; color: #3b82f6;">{{ rho().toFixed(2) }}</span>
+          </div>
+          <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+            <input matSliderThumb [ngModel]="rho()" (ngModelChange)="rho.set($event)">
+          </mat-slider>
+        </div>
+
+        <!-- Gradient / Updated Location Controls -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 600; font-size: 13px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+              <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #64748b;">trending_up</mat-icon>
+              Gradient Update Location
+            </span>
+            <mat-checkbox [checked]="showUpdatedLocation()" (change)="showUpdatedLocation.set($event.checked)">
+              Enable
+            </mat-checkbox>
+          </div>
+
+          @if (showUpdatedLocation()) {
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+              <!-- Updated Rho Slider -->
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+                  <span>Updated Log-Radius (rho_next)</span>
+                  <span style="font-weight: 700; color: #64748b;">{{ updatedRho().toFixed(2) }}</span>
+                </div>
+                <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+                  <input matSliderThumb [ngModel]="updatedRho()" (ngModelChange)="updatedRho.set($event)">
+                </mat-slider>
+              </div>
+
+              <!-- Updated Center Input -->
+              <mat-form-field appearance="outline" style="width: 100%;">
+                <mat-label>Updated Center Digits (optional)</mat-label>
+                <input matInput [ngModel]="updatedCenterDigits()" (ngModelChange)="updatedCenterDigits.set($event)">
+              </mat-form-field>
+
+              <!-- Updated Line Color & Style -->
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <mat-form-field appearance="outline" style="flex: 1;">
+                  <mat-label>Dotted Line Color</mat-label>
+                  <input matInput [ngModel]="updatedLineColor()" (ngModelChange)="updatedLineColor.set($event)">
+                </mat-form-field>
+                <input type="color" [ngModel]="updatedLineColor()" (ngModelChange)="updatedLineColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer; margin-top: -16px;">
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <mat-form-field appearance="outline" style="flex: 1;">
+                  <mat-label>Line Style</mat-label>
+                  <mat-select [value]="updatedLineStyle()" (selectionChange)="updatedLineStyle.set($event.value)">
+                    <mat-option value="dotted">Dotted</mat-option>
+                    <mat-option value="dashed">Dashed</mat-option>
+                    <mat-option value="solid">Solid</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" style="flex: 1;">
+                  <mat-label>Extension (px)</mat-label>
+                  <input matInput type="number" [ngModel]="updatedLineExtension()" (ngModelChange)="updatedLineExtension.set($event)">
+                </mat-form-field>
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <mat-form-field appearance="outline" style="flex: 1;">
+                  <mat-label>Extension Side</mat-label>
+                  <mat-select [value]="updatedLineExtensionSide()" (selectionChange)="updatedLineExtensionSide.set($event.value)">
+                    <mat-option value="above">Above (Top)</mat-option>
+                    <mat-option value="below">Below (Bottom)</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <mat-checkbox [checked]="showGradientArrow()" (change)="showGradientArrow.set($event.checked)">
+                  Show Gradient Arrow Line
+                </mat-checkbox>
+              </div>
+            </div>
+          }
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 4px 0;">
+
+        <!-- Formatting -->
+        <div style="display: flex; gap: 12px;">
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Digits Left</mat-label>
+            <input matInput type="number" [ngModel]="digitsLeft()" (ngModelChange)="digitsLeft.set($event)">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Digits Right</mat-label>
+            <input matInput type="number" [ngModel]="digitsRight()" (ngModelChange)="digitsRight.set($event)">
+          </mat-form-field>
+        </div>
+
+        <!-- Visual Scale -->
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+            <span>Visual Scale</span>
+            <span style="font-weight: 700; color: #3b82f6;">{{ scale().toFixed(2) }}</span>
+          </div>
+          <mat-slider min="0.5" max="2.0" step="0.1" style="width: 100%;">
+            <input matSliderThumb [ngModel]="scale()" (ngModelChange)="scale.set($event)">
+          </mat-slider>
+        </div>
+
+        <!-- Color picker -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Outer Box Border Color</mat-label>
+          <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+            <input matInput [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="flex-grow: 1;">
+            <input type="color" [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer;">
+          </div>
+        </mat-form-field>
+
+        <!-- Rho Label Position -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Rho Label Position</mat-label>
+          <mat-select [value]="rhoLabelPosition()" (selectionChange)="rhoLabelPosition.set($event.value)">
+            <mat-option value="above">Above</mat-option>
+            <mat-option value="below">Below</mat-option>
+            <mat-option value="left">Left (Aligned next to sequence)</mat-option>
+            <mat-option value="none">Not Shown</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Click to Display Rho -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Click Action (Toggle Position)</mat-label>
+          <mat-select [value]="clickRhoLabelPosition()" (selectionChange)="clickRhoLabelPosition.set($event.value)">
+            <mat-option value="above">Toggle to Above</mat-option>
+            <mat-option value="below">Toggle to Below</mat-option>
+            <mat-option value="left">Toggle to Left</mat-option>
+            <mat-option value="none">No click action (Static)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Custom Sizing Expander -->
+        <details style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px;">
+          <summary style="font-size: 13px; font-weight: 600; cursor: pointer; color: #475569; user-select: none;">
+            Advanced Layout & Margins overrides
+          </summary>
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <mat-checkbox [checked]="customCellWidth()" (change)="customCellWidth.set($event.checked)"></mat-checkbox>
+              <mat-form-field appearance="outline" style="flex-grow: 1; margin-bottom: 0;">
+                <mat-label>Cell Width (px)</mat-label>
+                <input matInput type="number" [disabled]="!customCellWidth()" [ngModel]="cellWidth()" (ngModelChange)="cellWidth.set($event)">
+              </mat-form-field>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <mat-checkbox [checked]="customCellHeight()" (change)="customCellHeight.set($event.checked)"></mat-checkbox>
+              <mat-form-field appearance="outline" style="flex-grow: 1; margin-bottom: 0;">
+                <mat-label>Cell Height (px)</mat-label>
+                <input matInput type="number" [disabled]="!customCellHeight()" [ngModel]="cellHeight()" (ngModelChange)="cellHeight.set($event)">
+              </mat-form-field>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <mat-checkbox [checked]="customCellGap()" (change)="customCellGap.set($event.checked)"></mat-checkbox>
+              <mat-form-field appearance="outline" style="flex-grow: 1; margin-bottom: 0;">
+                <mat-label>Cell Gap (px)</mat-label>
+                <input matInput type="number" [disabled]="!customCellGap()" [ngModel]="cellGap()" (ngModelChange)="cellGap.set($event)">
+              </mat-form-field>
+            </div>
+          </div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</div>

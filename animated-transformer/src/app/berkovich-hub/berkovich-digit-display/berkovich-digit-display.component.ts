@@ -1,4 +1,5 @@
 /* Copyright 2026 Google LLC. All Rights Reserved.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -108,7 +109,6 @@ export class BerkovichDigitDisplayComponent {
   }
 
   constructor() {
-    // Reset active toggled position when input configuration changes.
     effect(() => {
       this.rhoLabelPosition();
       this.clickRhoLabelPosition();
@@ -119,10 +119,10 @@ export class BerkovichDigitDisplayComponent {
   }
 
   // ==========================================================================
-  // COLOR & VISUAL CONSTANTS (matching berkovich-dual-digit-display)
+  // COLOR & VISUAL CONSTANTS
   // ==========================================================================
   readonly COLOR_ROW_BG = '#ffffff';
-  readonly COLOR_RHO_SHADING = '#7d8288ff'; 
+  readonly COLOR_RHO_SHADING = '#7d8288ff';
   readonly OPACITY_RHO_SHADING = 0.3;
   readonly DIGIT_BOX_INSET = 1.5;
   readonly DOT_RADIUS = 1.5;
@@ -140,7 +140,7 @@ export class BerkovichDigitDisplayComponent {
   // Configurable size scale factor (default 1.0)
   readonly scale = input<number>(1.0);
 
-  // Flexible layout & margin inputs (default to undefined to fall back to size category defaults)
+  // Flexible layout & margin inputs
   readonly cellWidthInput = input<number | undefined>(undefined, { alias: 'cellWidth' });
   readonly cellHeightInput = input<number | undefined>(undefined, { alias: 'cellHeight' });
   readonly cellGapInput = input<number | undefined>(undefined, { alias: 'cellGap' });
@@ -153,6 +153,16 @@ export class BerkovichDigitDisplayComponent {
   readonly fontSizeInput = input<number | undefined>(undefined, { alias: 'fontSize' });
 
   readonly outerBoxColor = input<string>('#a855f7'); // default: purple
+
+  // Gradient / Updated Location Inputs
+  readonly updatedCenter = input<Rational | undefined>(undefined);
+  readonly updatedRho = input<number | undefined>(undefined);
+  readonly showUpdatedLocation = input<boolean>(false);
+  readonly updatedLineColor = input<string>('#64748b'); // default: grey
+  readonly updatedLineStyle = input<'dotted' | 'dashed' | 'solid'>('dotted');
+  readonly updatedLineExtension = input<number | undefined>(undefined);
+  readonly updatedLineExtensionSide = input<'above' | 'below' | undefined>(undefined);
+  readonly showGradientArrow = input<boolean>(true);
 
   readonly derivedDimensions = computed(() => {
     const S = this.scale();
@@ -196,19 +206,47 @@ export class BerkovichDigitDisplayComponent {
     };
   });
 
+  readonly effectiveExtensionSide = computed<'above' | 'below'>(() => {
+    const side = this.updatedLineExtensionSide();
+    if (side === 'above' || side === 'below') {
+      return side;
+    }
+    if (this.displayPosition() === 'below') {
+      return 'below';
+    }
+    return 'above';
+  });
+
+  readonly effectiveExtension = computed<number>(() => {
+    const ext = this.updatedLineExtension();
+    if (ext !== undefined) {
+      return ext;
+    }
+    return this.derivedDimensions().guideLineOffset;
+  });
+
   readonly rowY = computed(() => {
-    return this.displayPosition() === 'above'
-      ? this.derivedDimensions().marginTop
-      : this.derivedDimensions().boxPadding;
+    const pos = this.displayPosition();
+    const dims = this.derivedDimensions();
+    let top = pos === 'above' ? dims.marginTop : dims.boxPadding;
+    if ((this.updatedRho() !== undefined || this.showUpdatedLocation()) && this.effectiveExtensionSide() === 'above') {
+      const ext = this.effectiveExtension();
+      top = Math.max(top, dims.boxPadding + ext + 4);
+    }
+    return top;
   });
 
   readonly svgHeight = computed(() => {
     const dims = this.derivedDimensions();
     const pos = this.displayPosition();
-    const baseHeight = this.rowY() + dims.cellHeight + dims.marginBottom;
-    
+    let baseHeight = this.rowY() + dims.cellHeight + dims.marginBottom;
+
     if (pos === 'below') {
-      return this.rowY() + dims.cellHeight + dims.boxPadding + dims.labelOffset + dims.marginBottom;
+      baseHeight = this.rowY() + dims.cellHeight + dims.boxPadding + dims.labelOffset + dims.marginBottom;
+    }
+    if ((this.updatedRho() !== undefined || this.showUpdatedLocation()) && this.effectiveExtensionSide() === 'below') {
+      const ext = this.effectiveExtension();
+      baseHeight = Math.max(baseHeight, this.rowY() + dims.cellHeight + dims.boxPadding + ext + dims.marginBottom + 4);
     }
     return baseHeight;
   });
@@ -243,6 +281,56 @@ export class BerkovichDigitDisplayComponent {
     }
   });
 
+  readonly updatedRhoBoundaryX = computed(() => {
+    const r = this.updatedRho();
+    if (r === undefined) return null;
+    return this.getXForValuation(-r);
+  });
+
+  readonly updatedRhoLineY1 = computed(() => {
+    const dims = this.derivedDimensions();
+    const side = this.effectiveExtensionSide();
+    const ext = this.effectiveExtension();
+    if (side === 'above') {
+      return this.rowY() - dims.boxPadding - ext;
+    } else {
+      return this.rowY() - dims.boxPadding;
+    }
+  });
+
+  readonly updatedRhoLineY2 = computed(() => {
+    const dims = this.derivedDimensions();
+    const side = this.effectiveExtensionSide();
+    const ext = this.effectiveExtension();
+    if (side === 'below') {
+      return this.rowY() + dims.cellHeight + dims.boxPadding + ext;
+    } else {
+      return this.rowY() + dims.cellHeight + dims.boxPadding;
+    }
+  });
+
+  readonly gradientArrowY = computed(() => {
+    const side = this.effectiveExtensionSide();
+    if (side === 'below') {
+      return this.updatedRhoLineY2();
+    } else {
+      return this.updatedRhoLineY1();
+    }
+  });
+
+  getArrowPolygonPoints(y: number): string {
+    const currX = this.rhoBoundaryX();
+    const nextX = this.updatedRhoBoundaryX();
+    if (currX === null || nextX === null) return '';
+    const size = 4;
+
+    if (nextX >= currX) {
+      return `${nextX},${y} ${nextX - size},${y - size} ${nextX - size},${y + size}`;
+    } else {
+      return `${nextX},${y} ${nextX + size},${y - size} ${nextX + size},${y + size}`;
+    }
+  }
+
   readonly cells = computed<DigitDisplayCell[]>(() => {
     const r = this.center();
     const p = BigInt(this.prime());
@@ -254,14 +342,13 @@ export class BerkovichDigitDisplayComponent {
     const maxPower = left - 1;
 
     const aligned = getAlignedDigits(r, p, minPower, maxPower);
-    // Reverse: highest power left, lowest power right
     const reversed = [...aligned].reverse();
-    
+
     const val = -valRho;
-    
+
     return reversed.map(item => {
       let uncertaintyRatio = 0.0;
-      
+
       if (item.power >= val) {
         uncertaintyRatio = 1.0;
       } else if (item.power + 1 <= val) {
@@ -384,4 +471,3 @@ export class BerkovichDigitDisplayComponent {
     return cell ? cell.digit : 0;
   }
 }
-

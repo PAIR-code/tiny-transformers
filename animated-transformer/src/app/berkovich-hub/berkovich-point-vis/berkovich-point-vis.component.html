@@ -1,27 +1,9 @@
 <div class="berkovich-explorer">
   <!-- Header Banner -->
-  <header class="explorer-header">
-    <div class="header-content">
-      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-      <div>
-        <h1>Berkovich Non-Archimedean ML Explorer</h1>
-        <p class="subtitle">
-          Visualizing continuous gradient descent and branch selection on <markdown [inline]="true" [katex]="true" [data]="'$p$'"></markdown>-adic Berkovich trees (<markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{A}^1(\\mathbb{Q}_p)$'"></markdown>)
-        </p>
-      </div>
-    </div>
-    <nav class="header-nav">
-      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
-      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Op Gradients</a>
-      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
-      <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
-      <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
-      <a routerLink="/berkovich/vis-tools" routerLinkActive="active-nav">Vis Tools</a>
-    </nav>
-  </header>
+  <app-berkovich-header
+    title="Berkovich Non-Archimedean ML Explorer"
+    subtitle="Visualizing continuous gradient descent and branch selection on $p$-adic Berkovich trees ($\mathbb{A}^1(\mathbb{Q}_p)$)"
+  ></app-berkovich-header>
 
   <div class="dashboard-grid">
     <!-- Left Column: Interactive Tree & Point Visualizer -->

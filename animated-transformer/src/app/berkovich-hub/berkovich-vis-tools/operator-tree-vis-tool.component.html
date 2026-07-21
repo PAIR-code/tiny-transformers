@@ -1,0 +1,147 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Operator Tree Vis Sandbox"
+    subtitle="Configure binary operator visualizers to see parallel trees for $x_1$, $x_2$ operations, and target $y$."
+    [isVisTool]="true"
+  ></app-berkovich-header>
+
+  <div class="dashboard-grid">
+    <!-- Preview Panel -->
+    <section class="visualizer-card-container" style="display: flex; flex-direction: column; gap: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #8b5cf6;">call_split</mat-icon>
+        Parallel Operator Trees Preview
+      </h2>
+
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 480px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; overflow: auto;">
+        @if (parsedError()) {
+          <div style="color: #ef4444; font-size: 14px; text-align: center;">
+            <mat-icon style="font-size: 48px; width: 48px; height: 48px; margin-bottom: 8px;">error_outline</mat-icon>
+            <div>{{ parsedError() }}</div>
+          </div>
+        } @else {
+          <app-berkovich-multi-tree-vis
+            [prime]="prime()"
+            [operator]="operator()"
+            [trackedNodes]="trackedNodes()"
+            [stepDetails]="stepDetails()"
+            [vertexMethod]="vertexResolution()"
+          />
+        }
+      </div>
+
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 13px; color: #334155;">
+        <div><strong>Component Tag:</strong></div>
+        <pre style="margin: 4px 0 0 0; white-space: pre-wrap; font-size: 12px; color: #0f766e;">&lt;app-berkovich-multi-tree-vis
+  [prime]="{{ prime() }}"
+  [operator]="'{{ operator() }}'"
+  [centerX1]="&#123; num: {{ parsedCenterX1().num }}n, den: {{ parsedCenterX1().den }}n &#125;"
+  [rhoX1]="{{ rhoX1() }}"
+  [centerX2]="&#123; num: {{ parsedCenterX2().num }}n, den: {{ parsedCenterX2().den }}n &#125;"
+  [rhoX2]="{{ rhoX2() }}"
+  [targetCenterY]="&#123; num: {{ parsedTargetCenterY().num }}n, den: {{ parsedTargetCenterY().den }}n &#125;"
+  [targetRhoY]="{{ targetRhoY() }}"
+/&gt;</pre>
+      </div>
+    </section>
+
+    <!-- Controls Sidepanel -->
+    <aside class="control-panel" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #6366f1;">settings</mat-icon>
+        Operator Configuration
+      </h2>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Operator Type -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Binary Operator</mat-label>
+          <mat-select [value]="operator()" (selectionChange)="operator.set($event.value)">
+            <mat-option value="addition">Addition (+)</mat-option>
+            <mat-option value="multiplication">Multiplication (×)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Prime -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Base Prime (p)</mat-label>
+          <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+            <mat-option [value]="2">2</mat-option>
+            <mat-option [value]="3">3</mat-option>
+            <mat-option [value]="5">5</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Input x1 -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+          <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; color: #2563eb;">Input x1 Settings</h3>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Center x1 Digits</mat-label>
+            <input matInput [ngModel]="centerX1Digits()" (ngModelChange)="centerX1Digits.set($event)">
+          </mat-form-field>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+              <span>Rho x1</span>
+              <span style="font-weight: 700; color: #2563eb;">{{ rhoX1().toFixed(2) }}</span>
+            </div>
+            <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+              <input matSliderThumb [ngModel]="rhoX1()" (ngModelChange)="rhoX1.set($event)">
+            </mat-slider>
+          </div>
+        </div>
+
+        <!-- Input x2 -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+          <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; color: #db2777;">Input x2 Settings</h3>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Center x2 Digits</mat-label>
+            <input matInput [ngModel]="centerX2Digits()" (ngModelChange)="centerX2Digits.set($event)">
+          </mat-form-field>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+              <span>Rho x2</span>
+              <span style="font-weight: 700; color: #db2777;">{{ rhoX2().toFixed(2) }}</span>
+            </div>
+            <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+              <input matSliderThumb [ngModel]="rhoX2()" (ngModelChange)="rhoX2.set($event)">
+            </mat-slider>
+          </div>
+        </div>
+
+        <!-- Target y -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+          <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; color: #059669;">Target y Settings</h3>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Target y Digits</mat-label>
+            <input matInput [ngModel]="targetCenterYDigits()" (ngModelChange)="targetCenterYDigits.set($event)">
+          </mat-form-field>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+              <span>Target Rho y</span>
+              <span style="font-weight: 700; color: #059669;">{{ targetRhoY().toFixed(2) }}</span>
+            </div>
+            <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+              <input matSliderThumb [ngModel]="targetRhoY()" (ngModelChange)="targetRhoY.set($event)">
+            </mat-slider>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

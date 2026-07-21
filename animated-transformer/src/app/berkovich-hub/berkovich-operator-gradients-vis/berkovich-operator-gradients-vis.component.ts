@@ -48,6 +48,7 @@ import {
   EditableNodeInputs,
   BerkovichBinaryOperator
 } from './tree-vis/berkovich-multi-tree-vis.component';
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 
 @Component({
   selector: 'app-berkovich-operator-gradients-vis',
@@ -63,7 +64,8 @@ import {
     RouterModule,
     MarkdownComponent,
     BerkovichOperatorCalculusComponent,
-    BerkovichMultiTreeVisComponent
+    BerkovichMultiTreeVisComponent,
+    BerkovichHeaderComponent
   ]
 })
 export class BerkovichOperatorGradientsVisComponent implements OnDestroy, OnInit {

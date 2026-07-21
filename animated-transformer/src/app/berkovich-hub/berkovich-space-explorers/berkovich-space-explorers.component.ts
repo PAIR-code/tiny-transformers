@@ -18,6 +18,7 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfigFieldDef, ConfigFieldType } from './models/char-learner';
 
 import {
@@ -85,7 +86,7 @@ function formatDisplayString(str: string): string {
   return str.replace(/ /g, '␣').replace(/\n/g, '\\n');
 }
 
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 
 @Component({
   selector: 'app-berkovich-space-explorers',
@@ -102,7 +103,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     BerkovichNgramWalkthroughComponent,
     EuclideanWalkthroughComponent,
     PadicLinearWalkthroughComponent,
-    ModelConfigEditorComponent
+    ModelConfigEditorComponent,
+    BerkovichHeaderComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:click)': 'activePopup.set(null)' }

@@ -53,6 +53,7 @@ import { BerkovichDigitsComponent } from '../berkovich-point-vis/digits-card/ber
 import { BerkovichDiskCalculusComponent } from './calculus-card/berkovich-disk-calculus.component';
 import { BerkovichHistoryComponent } from '../berkovich-point-vis/history-card/berkovich-history.component';
 import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berkovich-tree-vis.component';
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 
 @Component({
   selector: 'app-berkovich-disk-vis',
@@ -64,10 +65,11 @@ import { BerkovichTreeVisComponent } from '../berkovich-point-vis/tree-vis/berko
     MatIconModule,
     RouterModule,
     MarkdownComponent,
+    BerkovichTreeVisComponent,
     BerkovichDigitsComponent,
     BerkovichDiskCalculusComponent,
     BerkovichHistoryComponent,
-    BerkovichTreeVisComponent
+    BerkovichHeaderComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -1,0 +1,133 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<header class="explorer-header">
+  <div class="header-content">
+    <button
+      mat-icon-button
+      [routerLink]="effectiveBackRoute()"
+      class="back-btn"
+      [attr.aria-label]="isVisTool() ? 'Go back to vis tools hub' : 'Go back to hub'"
+    >
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1>{{ title() }}</h1>
+      @if (subtitle()) {
+        <p class="subtitle" [innerHTML]="subtitle()"></p>
+      }
+    </div>
+  </div>
+
+  <nav class="header-nav">
+    @if (!isVisTool()) {
+      <!-- Main Visualizations Primary Links -->
+      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
+      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
+      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Op Gradients</a>
+      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
+      <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
+      <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+
+      <!-- Dots Menu for Vis Tools -->
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="visToolsMenu"
+        class="nav-dots-btn"
+        aria-label="Vis Tools menu"
+        title="Vis Tools Explorer"
+      >
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #visToolsMenu="matMenu" class="berkovich-nav-menu">
+        <div class="menu-header-label">Vis Tools Explorer</div>
+        <button mat-menu-item routerLink="/berkovich/vis-tools" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active-menu-item">
+          <mat-icon>construction</mat-icon>
+          <span>Vis Tools Sandbox Hub</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/digit-display" routerLinkActive="active-menu-item">
+          <mat-icon>looks_one</mat-icon>
+          <span>Single Digit Display</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/dual-digit-display" routerLinkActive="active-menu-item">
+          <mat-icon>looks_two</mat-icon>
+          <span>Dual Digit Display</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/tree-vis" routerLinkActive="active-menu-item">
+          <mat-icon>account_tree</mat-icon>
+          <span>Berkovich Tree Vis</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/operator-tree-vis" routerLinkActive="active-menu-item">
+          <mat-icon>call_split</mat-icon>
+          <span>Operator Tree Vis</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/model-inspector" routerLinkActive="active-menu-item">
+          <mat-icon>grid_on</mat-icon>
+          <span>Character Parameters</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/vis-tools/padic-linear-model-inspector" routerLinkActive="active-menu-item">
+          <mat-icon>widgets</mat-icon>
+          <span>Linear Model Parameters</span>
+        </button>
+      </mat-menu>
+    } @else {
+      <!-- Vis Tools Primary Links -->
+      <a routerLink="/berkovich/vis-tools/digit-display" routerLinkActive="active-nav">Single Digit</a>
+      <a routerLink="/berkovich/vis-tools/dual-digit-display" routerLinkActive="active-nav">Dual Digit</a>
+      <a routerLink="/berkovich/vis-tools/tree-vis" routerLinkActive="active-nav">Tree Vis</a>
+      <a routerLink="/berkovich/vis-tools/operator-tree-vis" routerLinkActive="active-nav">Operator Tree</a>
+      <a routerLink="/berkovich/vis-tools/model-inspector" routerLinkActive="active-nav">Character Params</a>
+      <a routerLink="/berkovich/vis-tools/padic-linear-model-inspector" routerLinkActive="active-nav">Linear Params</a>
+
+      <!-- Dots Menu for Main Visualizations -->
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="mainVisMenu"
+        class="nav-dots-btn"
+        aria-label="Main Visualizations menu"
+        title="Main Visualizations"
+      >
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #mainVisMenu="matMenu" class="berkovich-nav-menu">
+        <div class="menu-header-label">Main Visualizations</div>
+        <button mat-menu-item routerLink="/berkovich/point" routerLinkActive="active-menu-item">
+          <mat-icon>blur_linear</mat-icon>
+          <span>Point SGD</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/disk" routerLinkActive="active-menu-item">
+          <mat-icon>adjust</mat-icon>
+          <span>Disk SGD</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/unary-gradients" routerLinkActive="active-menu-item">
+          <mat-icon>looks_one</mat-icon>
+          <span>Unary Op Gradients</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/operator-gradients" routerLinkActive="active-menu-item">
+          <mat-icon>call_split</mat-icon>
+          <span>Binary Op Gradients</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/space-explorers" routerLinkActive="active-menu-item">
+          <mat-icon>explore</mat-icon>
+          <span>Shakespeare Predictor</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/glossary" routerLinkActive="active-menu-item">
+          <mat-icon>menu_book</mat-icon>
+          <span>Glossary</span>
+        </button>
+      </mat-menu>
+    }
+  </nav>
+</header>

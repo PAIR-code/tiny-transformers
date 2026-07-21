@@ -13,26 +13,11 @@ limitations under the License.
 ==============================================================================-->
 <div class="space-explorers-container" lang="en">
   <!-- Top Navigation & Header -->
-  <header class="explorer-header" style="margin-bottom: 24px;">
-    <div class="header-content">
-      <button mat-icon-button routerLink="/berkovich" class="back-btn" aria-label="Go back to hub">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-      <div>
-        <h1>Shakespeare next-character predictor</h1>
-        <p class="subtitle">Introspective Browser-based Next-Character Learner in Berkovich & p-adic Spaces</p>
-      </div>
-    </div>
-    <nav class="header-nav">
-      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
-      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Op Gradients</a>
-      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
-      <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
-      <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
-      <a routerLink="/berkovich/vis-tools" routerLinkActive="active-nav">Vis Tools</a>
-    </nav>
-  </header>
+  <app-berkovich-header
+    title="Shakespeare next-character predictor"
+    subtitle="Introspective Browser-based Next-Character Learner in Berkovich & p-adic Spaces"
+    style="margin-bottom: 24px;"
+  ></app-berkovich-header>
 
   <div class="dashboard-rows">
     <!-- ROW 1: Dataset Snippet & Model Config -->

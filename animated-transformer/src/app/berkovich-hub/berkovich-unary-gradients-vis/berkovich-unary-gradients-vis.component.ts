@@ -49,6 +49,8 @@ import {
 import { BerkovichUnaryCalculusComponent } from './calculus-card/berkovich-unary-calculus.component';
 import { BerkovichUnaryTreeVisComponent, TrackedNode, EditableNodeInputs } from './tree-vis/berkovich-unary-tree-vis.component';
 
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+
 @Component({
   selector: 'app-berkovich-unary-gradients-vis',
   templateUrl: './berkovich-unary-gradients-vis.component.html',
@@ -63,7 +65,8 @@ import { BerkovichUnaryTreeVisComponent, TrackedNode, EditableNodeInputs } from 
     RouterModule,
     MarkdownComponent,
     BerkovichUnaryCalculusComponent,
-    BerkovichUnaryTreeVisComponent
+    BerkovichUnaryTreeVisComponent,
+    BerkovichHeaderComponent
   ]
 })
 export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {

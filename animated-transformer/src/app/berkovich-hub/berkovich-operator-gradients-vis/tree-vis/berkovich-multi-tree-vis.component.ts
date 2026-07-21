@@ -34,6 +34,7 @@ import {
   VertexResolutionMethod
 } from '../../../../lib/berkovich/berkovich_gradients';
 import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
+import { BerkovichDigitDisplayComponent } from '../../berkovich-digit-display/berkovich-digit-display.component';
 import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 
 /** Horizontal spacing (in pixels) between the individual subtrees in the SVG layout. */
@@ -88,7 +89,8 @@ export interface MultiVisualEdge {
   styleUrls: ['./berkovich-multi-tree-vis.component.scss'],
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatSelectModule, MatFormFieldModule, FormsModule, BerkovichDualDigitDisplayComponent
+    MatSelectModule, MatFormFieldModule, FormsModule,
+    BerkovichDigitDisplayComponent, BerkovichDualDigitDisplayComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

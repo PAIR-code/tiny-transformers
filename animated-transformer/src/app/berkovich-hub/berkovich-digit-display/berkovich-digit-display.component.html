@@ -104,6 +104,38 @@ limitations under the License.
     class="row-outer-box"
   />
 
+  <!-- Vertical dotted/dashed line for updated location (gradient update) -->
+  @if (updatedRhoBoundaryX() !== null) {
+    <line
+      [attr.x1]="updatedRhoBoundaryX()"
+      [attr.y1]="updatedRhoLineY1()"
+      [attr.x2]="updatedRhoBoundaryX()"
+      [attr.y2]="updatedRhoLineY2()"
+      [style.stroke]="updatedLineColor()"
+      [style.stroke-dasharray]="updatedLineStyle() === 'dotted' ? '2 2' : updatedLineStyle() === 'dashed' ? '5 3' : 'none'"
+      stroke-width="2"
+      class="updated-rho-line"
+    />
+
+    <!-- Horizontal solid gradient arrow line connecting current rho to updated rho -->
+    @if (showGradientArrow() && rhoBoundaryX() !== null && updatedRhoBoundaryX() !== null && updatedRhoBoundaryX() !== rhoBoundaryX()) {
+      <g class="gradient-arrow-group">
+        <line
+          [attr.x1]="rhoBoundaryX()"
+          [attr.y1]="gradientArrowY()"
+          [attr.x2]="updatedRhoBoundaryX()"
+          [attr.y2]="gradientArrowY()"
+          [style.stroke]="updatedLineColor()"
+          stroke-width="1.5"
+        />
+        <polygon
+          [attr.points]="getArrowPolygonPoints(gradientArrowY())"
+          [style.fill]="updatedLineColor()"
+        />
+      </g>
+    }
+  }
+
   <!-- Guide lines and labels for rho value (left aligned above/below the main digit sequence) -->
   @if (rhoBoundaryX() !== null && (displayPosition() === 'above' || displayPosition() === 'below')) {
     <!-- Horizontal guide line -->
@@ -147,5 +179,3 @@ limitations under the License.
     </text>
   }
 </svg>
-
-

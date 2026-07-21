@@ -53,6 +53,8 @@ import { BerkovichDigitsComponent } from './digits-card/berkovich-digits.compone
 import { BerkovichCalculusComponent } from './calculus-card/berkovich-calculus.component';
 import { BerkovichHistoryComponent } from './history-card/berkovich-history.component';
 
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+
 @Component({
   selector: 'app-berkovich-point-vis',
   templateUrl: './berkovich-point-vis.component.html',
@@ -66,7 +68,8 @@ import { BerkovichHistoryComponent } from './history-card/berkovich-history.comp
     BerkovichTreeVisComponent,
     BerkovichDigitsComponent,
     BerkovichCalculusComponent,
-    BerkovichHistoryComponent
+    BerkovichHistoryComponent,
+    BerkovichHeaderComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

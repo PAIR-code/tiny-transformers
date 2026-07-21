@@ -59,7 +59,12 @@ clipPath rect {
   fill: #334155;
   text-anchor: middle;
   dominant-baseline: central;
-  transition: font-size 0.3s ease;
+  transition: font-size 0.3s ease, fill 0.3s ease;
+
+  &.changed-digit {
+    fill: #059669;
+    font-weight: 800;
+  }
 }
 
 /* Decimal dot representation (placed at baseline height) */
@@ -105,4 +110,23 @@ clipPath rect {
   &.centered-rho {
     text-anchor: middle;
   }
+}
+
+/* Updated location vertical line (gradient update) */
+.updated-rho-line {
+  transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease, stroke 0.3s ease;
+}
+
+.gradient-arrow-group {
+  line, polygon {
+    transition: all 0.3s ease;
+  }
+}
+
+.updated-rho-label {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  dominant-baseline: central;
+  transition: x 0.3s ease, y 0.3s ease, fill 0.3s ease;
 }
