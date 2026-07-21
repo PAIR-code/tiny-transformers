@@ -97,29 +97,15 @@ limitations under the License.
     />
   }
 
-  <!-- Common matching digits background (green, clipped to outer borders) -->
-  @if (commonShadingRange(); as range) {
-    <!-- Green shading for Row 1 -->
-    <rect
-      [attr.x]="range.left"
-      [attr.y]="row1Y() - derivedDimensions().boxPadding"
-      [attr.width]="range.width"
-      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
-      [style.fill]="COLOR_COMMON_SHADING"
-      [style.opacity]="OPACITY_COMMON_SHADING"
-      [attr.clip-path]="'url(#' + clipPathId1 + ')'"
-      class="common-digit-shading"
-    />
-    <!-- Green shading for Row 2 -->
-    <rect
-      [attr.x]="range.left"
-      [attr.y]="row2Y() - derivedDimensions().boxPadding"
-      [attr.width]="range.width"
-      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
-      [style.fill]="COLOR_COMMON_SHADING"
-      [style.opacity]="OPACITY_COMMON_SHADING"
-      [attr.clip-path]="'url(#' + clipPathId2 + ')'"
-      class="common-digit-shading"
+  <!-- Squiggly red line under the first (right-most) incorrect digit -->
+  @if (firstMismatchColumn(); as col) {
+    <path
+      [attr.d]="squigglyPathD()"
+      stroke="#ef4444"
+      stroke-width="2"
+      fill="none"
+      stroke-linecap="round"
+      class="mismatch-squiggly-line"
     />
   }
 

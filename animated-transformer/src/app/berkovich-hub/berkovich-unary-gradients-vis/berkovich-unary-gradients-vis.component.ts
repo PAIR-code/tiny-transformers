@@ -25,6 +25,7 @@ import {
   Rational,
   simplify,
   parseDigitSequence,
+  parsePadicOrRationalInput,
   truncateToTreeRange,
   formatDigitSequence,
   add,
@@ -113,13 +114,23 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {
   // Input states
   readonly centerXInput = signal<string>('00.10'); // 1/3 in base 3
   readonly rhoXInput = signal<string>('0.0');
+  readonly constantKInput = signal<string>('01.00'); // 1 in base 3
 
-  readonly centerYInput = signal<string>('10.00'); // 3 in base 3 is 10, let's start with target 3 (10.) or 1.
+  readonly centerYInput = signal<string>('10.00'); // 3 in base 3 is 10
 
   // Simulation states
   readonly currentCenterX = signal<Rational>({ num: 0n, den: 1n });
   readonly currentRhoX = signal<number>(0.0);
   readonly stepCount = signal<number>(0);
+
+  readonly constantK = computed<Rational>(() => {
+    const p = BigInt(this.prime());
+    try {
+      return parsePadicOrRationalInput(this.constantKInput(), p);
+    } catch {
+      return { num: 1n, den: 1n };
+    }
+  });
 
   // Initial values parsed from inputs
   readonly initCenterX = computed<Rational>(() => {
@@ -179,7 +190,7 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {
     if (op === 'scale') return '$p \\cdot x \\to y$';
     if (op === 'square') return '$x^2 \\to y$';
     if (op === 'cube') return '$x^3 \\to y$';
-    return '$x + 1 \\to y$';
+    return '$x + k \\to y$';
   });
 
   readonly explainerMarkdown = computed(() => {
@@ -227,11 +238,11 @@ Depending on which term dominates, the active degree is $1.0$, $2.0$, or $3.0$.
       `;
     }
     return `
-This page demonstrates training the input $x$ of a shift operation $x + 1$ to match a target disk $y$.
+This page demonstrates training the input $x$ of a shift operation $x + k$ to match a target disk $y$.
 
 ### The Shift Radius Formula
 Translating a disk by a constant does not change its radius:
-$$(x + 1)_\\rho = \\rho_x$$
+$$(x + k)_\\rho = \\rho_x$$
 
 ### How Gradients Flow
 1. **Gradient on Center ($\\partial L / \\partial c_x$)**: The gradient w.r.t center propagates back directly.
@@ -248,7 +259,7 @@ $$(x + 1)_\\rho = \\rho_x$$
 
     let operator: UnaryOperator;
     if (op === 'shift') {
-      operator = new ShiftOperator();
+      operator = new ShiftOperator(this.constantK());
     } else if (op === 'scale') {
       operator = new ScaleOperator(simplify({ num: p, den: 1n }));
     } else if (op === 'square') {
@@ -273,7 +284,7 @@ $$(x + 1)_\\rho = \\rho_x$$
     const op = this.operator();
     const details = this.stepDetails();
     const p = BigInt(this.prime());
-    const labelOut = op === 'scale' ? `(${this.constantLabel()}x)_ρ` : op === 'square' ? '(x²)_ρ' : op === 'cube' ? '(x³)_ρ' : `(x+1)_ρ`;
+    const labelOut = op === 'scale' ? `(${this.constantLabel()}x)_ρ` : op === 'square' ? '(x²)_ρ' : op === 'cube' ? '(x³)_ρ' : `(x+k)_ρ`;
     const idOut = op === 'scale' ? 'PX' : op === 'square' ? 'X2' : op === 'cube' ? 'X3' : 'X1';
 
     const nodes: TrackedNode[] = [
@@ -290,11 +301,11 @@ $$(x + 1)_\\rho = \\rho_x$$
         rhoC = -2;
         labelC = `${this.constantLabel()} = p`;
       } else {
-        centerC = simplify({ num: 1n, den: 1n });
+        centerC = this.constantK();
         rhoC = -2;
-        labelC = `${this.constantLabel()} = 1`;
+        labelC = `${this.constantLabel()} = ${formatDigitSequence(this.constantK(), p)}`;
       }
-      nodes.push({ id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: `${this.constantLabel()} = ${op === 'scale' ? 'p' : '1'}` });
+      nodes.push({ id: 'C', center: centerC, rho: rhoC, color: '#94a3b8', label: labelC });
     }
 
     nodes.push(
@@ -320,15 +331,23 @@ $$(x + 1)_\\rho = \\rho_x$$
       }
     ];
 
-    if (op === 'scale' || op === 'shift') {
-      const centerCInput = op === 'scale' ? '10.' : '1';
+    if (op === 'scale') {
       inputs.push({
         nodeId: 'C',
         trackedNodeId: 'C',
-        centerInput: centerCInput,
+        centerInput: '10.',
         color: '#94a3b8',
         labelPrefix: this.constantLabel(),
         readonly: true
+      });
+    } else if (op === 'shift') {
+      inputs.push({
+        nodeId: 'C',
+        trackedNodeId: 'C',
+        centerInput: formatDigitSequence(this.constantK(), p),
+        color: '#94a3b8',
+        labelPrefix: this.constantLabel(),
+        readonly: false
       });
     }
 
@@ -366,6 +385,7 @@ $$(x + 1)_\\rho = \\rho_x$$
       this.centerYInput.set('22.00'); // 8 (22_3)
     } else {
       this.centerXInput.set('01.00'); // 1
+      this.constantKInput.set('01.00'); // 1
       this.centerYInput.set('10.00'); // 3 (10_3)
     }
     this.reset();
@@ -374,6 +394,7 @@ $$(x + 1)_\\rho = \\rho_x$$
   onPrimeChange(p: number) {
     const currentX = this.centerX();
     const currentY = this.centerY();
+    const currentK = this.constantK();
     
     this.prime.set(p);
     
@@ -381,6 +402,7 @@ $$(x + 1)_\\rho = \\rho_x$$
     const pBig = BigInt(p);
     this.centerXInput.set(formatDigitSequence(currentX, pBig));
     this.centerYInput.set(formatDigitSequence(currentY, pBig));
+    this.constantKInput.set(formatDigitSequence(currentK, pBig));
     this.reset();
   }
 
@@ -392,6 +414,9 @@ $$(x + 1)_\\rho = \\rho_x$$
       case 'X':
         if (event.field === 'center') this.centerXInput.set(event.value);
         else this.rhoXInput.set(event.value);
+        break;
+      case 'C':
+        if (event.field === 'center') this.constantKInput.set(event.value);
         break;
     }
     this.reset();
@@ -409,6 +434,9 @@ $$(x + 1)_\\rho = \\rho_x$$
         } else {
           this.rhoXInput.set(this.rhoX().toFixed(1));
         }
+        break;
+      case 'C':
+        this.constantKInput.set(formatDigitSequence(this.constantK(), p));
         break;
     }
     this.reset();

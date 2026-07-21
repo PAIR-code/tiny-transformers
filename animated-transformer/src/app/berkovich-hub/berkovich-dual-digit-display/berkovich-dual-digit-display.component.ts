@@ -343,6 +343,42 @@ export class BerkovichDualDigitDisplayComponent {
     return Math.max(0, boundaryX - (dims.marginLeft - dims.boxPadding));
   });
 
+  readonly firstMismatchColumn = computed(() => {
+    const list = this.cells();
+    const layoutPositions = this.layout().cellPositions;
+
+    let lowestMismatchPower: number | null = null;
+    for (const cell of list) {
+      if (cell.xDigit !== cell.yDigit) {
+        if (lowestMismatchPower === null || cell.power < lowestMismatchPower) {
+          lowestMismatchPower = cell.power;
+        }
+      }
+    }
+
+    if (lowestMismatchPower === null) return null;
+    return layoutPositions.find(p => p.power === lowestMismatchPower) ?? null;
+  });
+
+  readonly squigglyPathD = computed(() => {
+    const col = this.firstMismatchColumn();
+    if (!col) return '';
+    const dims = this.derivedDimensions();
+    const S = this.scale();
+    // Position halfway between bottom of digit text and bottom outline border
+    const digitBottom = this.row1Y() + dims.cellHeight / 2 + dims.digitFontSize * 0.4;
+    const borderBottom = this.row1Y() + dims.cellHeight + dims.boxPadding;
+    const y = (digitBottom + borderBottom) / 2;
+
+    const x1 = col.left + 2 * S;
+    const x2 = col.right - 2 * S;
+    const w = x2 - x1;
+    const mid = (x1 + x2) / 2;
+    const q1 = x1 + w * 0.25;
+    const amp = 1.8 * S;
+    return `M ${x1} ${y} Q ${q1} ${y - amp}, ${mid} ${y} T ${x2} ${y}`;
+  });
+
   readonly commonShadingRange = computed(() => {
     const list = this.layout().cellPositions;
     const dims = this.derivedDimensions();
