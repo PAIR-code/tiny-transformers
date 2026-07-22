@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Rational, getAlignedDigits } from '../../../lib/berkovich/berkovich';
+import { Rational, getAlignedDigits, parseDigitSequence } from '../../../lib/berkovich/berkovich';
 
 // ==========================================================================
 // LAYOUT CONSTANTS
@@ -69,8 +69,13 @@ export interface DigitDisplayCell {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],
   host: {
-    '[class.clickable]': 'isClickable()',
-    '(click)': 'toggleRho($event)',
+    '[class.editable-center]': 'isCenterEditable()',
+    '[class.clickable]': 'isClickable() || isRhoEditable()',
+    '[attr.tabindex]': '(isCenterEditable() || isRhoEditable()) ? 0 : null',
+    '(focus)': 'onFocus()',
+    '(blur)': 'onBlur()',
+    '(click)': 'onHostClick($event)',
+    '(keydown)': 'onKeyDown($event)',
     '[style.height.px]': 'svgHeight()'
   }
 })
@@ -79,6 +84,13 @@ export class BerkovichDigitDisplayComponent {
   readonly clipPathId = `rowClip_${BerkovichDigitDisplayComponent.idCounter++}`;
 
   readonly activePosition = signal<'above' | 'below' | 'left' | 'none' | null>(null);
+
+  // Focus & Editable signals
+  readonly isFocused = signal<boolean>(false);
+  readonly activeDigitPower = signal<number | null>(null);
+  readonly cursorSide = signal<'before' | 'after'>('after');
+  readonly isEditingRho = signal<boolean>(false);
+  readonly rhoInputString = signal<string>('');
 
   readonly displayPosition = computed(() => {
     const active = this.activePosition();
@@ -138,6 +150,19 @@ export class BerkovichDigitDisplayComponent {
   readonly clickRhoLabelPosition = input<'above' | 'below' | 'left' | 'none'>('none');
   readonly digitsLeft = input<number>(2);
   readonly digitsRight = input<number>(2);
+
+  // Editing Inputs & Outputs
+  readonly editable = input<boolean>(false);
+  readonly editableCenter = input<boolean>(false);
+  readonly editableRho = input<boolean>(false);
+
+  readonly isCenterEditable = computed(() => this.editable() || this.editableCenter());
+  readonly isRhoEditable = computed(() => this.editable() || this.editableRho());
+
+  readonly centerChange = output<Rational>();
+  readonly centerInputChange = output<string>();
+  readonly rhoChange = output<number>();
+  readonly rhoInputChange = output<string>();
 
   // Configurable size scale factor (default 1.0)
   readonly scale = input<number>(1.0);
@@ -537,4 +562,258 @@ export class BerkovichDigitDisplayComponent {
     const cell = this.cells().find(c => c.power === power);
     return cell ? cell.digit : 0;
   }
+
+  // ==========================================================================
+  // EDITING INTERACTION HANDLERS
+  // ==========================================================================
+
+  onFocus() {
+    this.isFocused.set(true);
+  }
+
+  onBlur() {
+    if (!this.isEditingRho()) {
+      this.isFocused.set(false);
+    }
+  }
+
+  onHostClick(event: MouseEvent) {
+    if (!this.isCenterEditable() && !this.isRhoEditable()) {
+      this.toggleRho(event);
+    }
+  }
+
+  findClosestDigitCursor(clickSvgX: number, cellPositions: { power: number; center: number }[]): { power: number; side: 'before' | 'after' } {
+    if (cellPositions.length === 0) {
+      return { power: 0, side: 'after' };
+    }
+
+    let closestCol = cellPositions[0];
+    let minDistance = Math.abs(clickSvgX - closestCol.center);
+
+    for (let i = 1; i < cellPositions.length; i++) {
+      const dist = Math.abs(clickSvgX - cellPositions[i].center);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestCol = cellPositions[i];
+      }
+    }
+
+    const side: 'before' | 'after' = clickSvgX < closestCol.center ? 'before' : 'after';
+    return { power: closestCol.power, side };
+  }
+
+  onRowClick(event: MouseEvent, targetCol?: { power: number; center: number }) {
+    if (!this.isCenterEditable()) {
+      return;
+    }
+    event.stopPropagation();
+    this.isFocused.set(true);
+    this.isEditingRho.set(false);
+
+    const targetEl = event.currentTarget as HTMLElement | SVGElement | null;
+    const svgTarget = targetEl && typeof targetEl.closest === 'function' ? targetEl.closest('svg') : null;
+    const measureEl = svgTarget || (targetEl && typeof targetEl.getBoundingClientRect === 'function' ? targetEl : null);
+
+    if (measureEl && typeof measureEl.getBoundingClientRect === 'function') {
+      const rect = measureEl.getBoundingClientRect();
+      const totalW = this.layout().totalWidth;
+      let svgX: number;
+
+      if (svgTarget && rect.width > 0 && totalW > 0) {
+        const svgScale = rect.width / totalW;
+        svgX = (event.clientX - rect.left) / svgScale;
+      } else {
+        const clickX = event.clientX - rect.left;
+        const colCenter = targetCol ? targetCol.center : (this.layout().cellPositions[0]?.center ?? 0);
+        svgX = clickX < rect.width / 2 ? colCenter - 1 : colCenter + 1;
+      }
+      const result = this.findClosestDigitCursor(svgX, this.layout().cellPositions);
+      this.activeDigitPower.set(result.power);
+      this.cursorSide.set(result.side);
+    } else {
+      const fallbackPower = targetCol?.power ?? this.layout().cellPositions[0]?.power ?? 0;
+      this.activeDigitPower.set(fallbackPower);
+      this.cursorSide.set('after');
+    }
+  }
+
+  onDigitClick(event: MouseEvent, col: { left: number; right: number; center: number; power: number }) {
+    this.onRowClick(event, col);
+  }
+
+  onRhoLabelClick(event: MouseEvent) {
+    if (!this.isRhoEditable()) {
+      this.toggleRho(event);
+      return;
+    }
+    event.stopPropagation();
+    this.isFocused.set(true);
+    this.activeDigitPower.set(null);
+    this.rhoInputString.set(this.rho().toFixed(2));
+    this.isEditingRho.set(true);
+
+    const targetEl = event.currentTarget as HTMLElement | null;
+    setTimeout(() => {
+      const hostEl = targetEl?.closest('app-berkovich-digit-display');
+      const inputEl = hostEl?.querySelector('.rho-inline-editor') as HTMLInputElement;
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.select();
+      }
+    }, 0);
+  }
+
+  commitRhoEdit() {
+    if (!this.isEditingRho()) return;
+    const val = parseFloat(this.rhoInputString());
+    if (!isNaN(val)) {
+      const clamped = Math.max(-2, Math.min(2, val));
+      this.rhoChange.emit(clamped);
+      this.rhoInputChange.emit(clamped.toString());
+    }
+    this.isEditingRho.set(false);
+    this.isFocused.set(false);
+  }
+
+  cancelRhoEdit() {
+    this.isEditingRho.set(false);
+    this.isFocused.set(false);
+  }
+
+  onKeyDown(event: KeyboardEvent) {
+    if (!this.isFocused()) return;
+
+    const activePower = this.activeDigitPower();
+    if (activePower !== null && this.isCenterEditable()) {
+      const positions = this.layout().cellPositions;
+      const powers = positions.map(c => c.power);
+      const currentIndex = powers.indexOf(activePower);
+      const currentSide = this.cursorSide();
+
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        if (currentIndex !== -1) {
+          let nextIndex: number;
+          if (event.shiftKey) {
+            nextIndex = (currentIndex - 1 + powers.length) % powers.length;
+          } else {
+            nextIndex = (currentIndex + 1) % powers.length;
+          }
+          this.activeDigitPower.set(powers[nextIndex]);
+          this.cursorSide.set('after');
+        }
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        if (currentSide === 'before') {
+          this.cursorSide.set('after');
+        } else if (currentIndex < powers.length - 1) {
+          this.activeDigitPower.set(powers[currentIndex + 1]);
+          this.cursorSide.set('after');
+        }
+        return;
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        if (currentSide === 'after') {
+          this.cursorSide.set('before');
+        } else if (currentIndex > 0) {
+          this.activeDigitPower.set(powers[currentIndex - 1]);
+          this.cursorSide.set('before');
+        }
+        return;
+      }
+
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        if (currentSide === 'after') {
+          this.replaceDigitAtPower(activePower, 0);
+          this.cursorSide.set('before');
+        } else {
+          // Cursor is at start of digit ('before'): jump to previous digit
+          if (currentIndex > 0) {
+            this.activeDigitPower.set(powers[currentIndex - 1]);
+            this.cursorSide.set('after');
+          }
+        }
+        return;
+      }
+
+      if (event.key === 'Delete') {
+        event.preventDefault();
+        if (currentSide === 'before') {
+          this.replaceDigitAtPower(activePower, 0);
+        } else if (currentIndex < powers.length - 1) {
+          const nextPower = powers[currentIndex + 1];
+          this.replaceDigitAtPower(nextPower, 0);
+          this.activeDigitPower.set(nextPower);
+          this.cursorSide.set('before');
+        }
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        this.activeDigitPower.set(null);
+        this.isFocused.set(false);
+        return;
+      }
+
+      if (/^\d$/.test(event.key)) {
+        const digitVal = parseInt(event.key, 10);
+        const p = this.prime();
+        if (digitVal < p) {
+          this.replaceDigitAtPower(activePower, digitVal);
+          if (currentSide === 'before') {
+            this.cursorSide.set('after');
+          } else if (currentIndex < powers.length - 1) {
+            this.activeDigitPower.set(powers[currentIndex + 1]);
+            this.cursorSide.set('after');
+          }
+        }
+        return;
+      }
+    }
+
+    if (this.isEditingRho()) {
+      if (event.key === 'Enter') {
+        this.commitRhoEdit();
+      } else if (event.key === 'Escape') {
+        this.cancelRhoEdit();
+      }
+    }
+  }
+
+  replaceDigitAtPower(targetPower: number, newDigit: number) {
+    const p = BigInt(this.prime());
+    const left = this.digitsLeft();
+    const right = this.digitsRight();
+    const aligned = getAlignedDigits(this.center(), p, -right, left - 1);
+
+    let leftStr = '';
+    for (let pow = left - 1; pow >= 0; pow--) {
+      const d = pow === targetPower ? newDigit : (aligned.find(item => item.power === pow)?.digit ?? 0);
+      leftStr += d.toString();
+    }
+
+    let rightStr = '';
+    for (let pow = -1; pow >= -right; pow--) {
+      const d = pow === targetPower ? newDigit : (aligned.find(item => item.power === pow)?.digit ?? 0);
+      rightStr += d.toString();
+    }
+
+    const formattedStr = rightStr.length > 0 ? `${leftStr}.${rightStr}` : leftStr;
+    try {
+      const newCenter = parseDigitSequence(formattedStr, p, { minPower: -right, maxPower: left - 1 });
+      this.centerChange.emit(newCenter);
+      this.centerInputChange.emit(formattedStr);
+    } catch (e) {
+      console.error('Failed to parse updated digit sequence:', e);
+    }
+  }
 }
+
+

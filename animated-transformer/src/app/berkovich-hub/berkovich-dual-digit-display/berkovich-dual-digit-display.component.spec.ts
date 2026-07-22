@@ -75,4 +75,63 @@ describe('BerkovichDualDigitDisplayComponent', () => {
 
     await expect(fixture.nativeElement).toMatchScreenshot();
   });
+
+  it('should allow editing row y digits when yEditableCenter is true, preserving x non-editable', () => {
+    fixture.componentRef.setInput('prime', 3);
+    fixture.componentRef.setInput('xCenter', { num: 0n, den: 1n });
+    fixture.componentRef.setInput('xRho', 0.0);
+    fixture.componentRef.setInput('yCenter', { num: 0n, den: 1n });
+    fixture.componentRef.setInput('yRho', -2.0);
+    fixture.componentRef.setInput('xEditableCenter', false);
+    fixture.componentRef.setInput('yEditableCenter', true);
+
+    let emittedYCenter: any = null;
+    component.yCenterChange.subscribe(c => emittedYCenter = c);
+
+    fixture.detectChanges();
+
+    const col = component.layout().cellPositions[0]; // power 1
+
+    // Clicking row x should NOT activate digit
+    component.onDigitClick({ stopPropagation: () => {} } as any, 'x', col);
+    expect(component.activeDigit()).toBeNull();
+
+    // Clicking row y SHOULD activate digit
+    component.onDigitClick({ stopPropagation: () => {} } as any, 'y', col);
+    expect(component.activeDigit()).toEqual({ row: 'y', power: 1 });
+
+    component.isFocused.set(true);
+    // Press digit '2'
+    const keyEvent = new KeyboardEvent('keydown', { key: '2' });
+    component.onKeyDown(keyEvent);
+
+    expect(emittedYCenter).toEqual({ num: 6n, den: 1n }); // 2 * 3^1
+  });
+
+  it('should navigate digits with Tab across row x and row y when both are editable', () => {
+    fixture.componentRef.setInput('prime', 3);
+    fixture.componentRef.setInput('xCenter', { num: 0n, den: 1n });
+    fixture.componentRef.setInput('xRho', 0.0);
+    fixture.componentRef.setInput('yCenter', { num: 0n, den: 1n });
+    fixture.componentRef.setInput('yRho', 0.0);
+    fixture.componentRef.setInput('xEditableCenter', true);
+    fixture.componentRef.setInput('yEditableCenter', true);
+
+    fixture.detectChanges();
+
+    component.isFocused.set(true);
+    const powers = component.layout().cellPositions.map(c => c.power); // [1, 0, -1, -2]
+    const lastPower = powers[powers.length - 1]; // -2
+
+    // Set active digit to last power of row x
+    component.activeDigit.set({ row: 'x', power: lastPower });
+
+    // Tab key should transition to first power of row y!
+    const tabEvent = new KeyboardEvent('keydown', { key: 'Tab' });
+    component.onKeyDown(tabEvent);
+
+    expect(component.activeDigit()).toEqual({ row: 'y', power: powers[0] });
+  });
 });
+
+

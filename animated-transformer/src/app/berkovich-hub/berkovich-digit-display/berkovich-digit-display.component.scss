@@ -15,9 +15,21 @@ limitations under the License.
 :host {
   display: inline-block;
   vertical-align: middle;
+  cursor: default;
+  outline: none;
+
+  &:focus,
+  &:focus-visible,
+  &:focus-within {
+    outline: none;
+  }
 
   &.clickable {
     cursor: pointer;
+  }
+
+  &.editable-center {
+    cursor: text;
   }
 }
 
@@ -157,3 +169,55 @@ clipPath rect {
     stroke-dasharray: 2 2;
   }
 }
+
+.row-bg-box.editable-row,
+.row-outer-box.editable-row,
+.digit-box-group.editable-digit {
+  cursor: text;
+
+  &:hover .digit-text {
+    fill: #1d4ed8;
+  }
+}
+
+.active-digit-box {
+  fill: #3b82f6;
+  fill-opacity: 0.15;
+  stroke: #2563eb;
+  stroke-width: 1.5px;
+}
+
+.cursor-marker-line {
+  stroke: #2563eb;
+  stroke-width: 2px;
+  animation: cursor-marker-blink 1s ease-in-out infinite;
+}
+
+@keyframes cursor-marker-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.editable-rho {
+  cursor: pointer;
+  &:hover {
+    fill: #2563eb;
+    text-decoration: underline;
+  }
+}
+
+.rho-inline-editor {
+  width: 55px;
+  height: 20px;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 0 4px;
+  border: 1px solid #3b82f6;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1e293b;
+  box-sizing: border-box;
+  outline: none;
+}
+

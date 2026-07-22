@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Rational, getAlignedDigits, subtract, getValuation } from '../../../lib/berkovich/berkovich';
+import { Rational, getAlignedDigits, parseDigitSequence, subtract, getValuation } from '../../../lib/berkovich/berkovich';
 
 // ==========================================================================
 // LAYOUT CONSTANTS
@@ -65,6 +65,11 @@ const BASE_LABEL_TO_LINE_SPACING = 8;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'style': 'display: inline-block; vertical-align: middle;',
+    '[class.editable-center]': 'isAnyEditable()',
+    '[attr.tabindex]': 'isAnyEditable() ? 0 : null',
+    '(focus)': 'onFocus()',
+    '(blur)': 'onBlur()',
+    '(keydown)': 'onKeyDown($event)',
     '[style.height.px]': 'svgHeight()'
   }
 })
@@ -72,6 +77,13 @@ export class BerkovichDualDigitDisplayComponent {
   private static idCounter = 0;
   readonly clipPathId1 = `row1Clip_${BerkovichDualDigitDisplayComponent.idCounter++}`;
   readonly clipPathId2 = `row2Clip_${BerkovichDualDigitDisplayComponent.idCounter++}`;
+
+  // Focus & Editable signals
+  readonly isFocused = signal<boolean>(false);
+  readonly activeDigit = signal<{ row: 'x' | 'y'; power: number } | null>(null);
+  readonly cursorSide = signal<'before' | 'after'>('after');
+  readonly editingRhoRow = signal<'x' | 'y' | null>(null);
+  readonly rhoInputString = signal<string>('');
 
   // ==========================================================================
   // COLOR, OPACITY, & INSET CONSTANTS
@@ -106,6 +118,31 @@ export class BerkovichDualDigitDisplayComponent {
 
   readonly digitsLeft = input<number>(2);
   readonly digitsRight = input<number>(2);
+
+  // Editing Inputs & Outputs
+  readonly xEditableCenter = input<boolean>(false);
+  readonly xEditableRho = input<boolean>(false);
+  readonly yEditableCenter = input<boolean>(false);
+  readonly yEditableRho = input<boolean>(false);
+  readonly editable = input<boolean>(false);
+
+  readonly isXCenterEditable = computed(() => this.editable() || this.xEditableCenter());
+  readonly isXRhoEditable = computed(() => this.editable() || this.xEditableRho());
+  readonly isYCenterEditable = computed(() => this.editable() || this.yEditableCenter());
+  readonly isYRhoEditable = computed(() => this.editable() || this.yEditableRho());
+
+  readonly isAnyEditable = computed(() =>
+    this.isXCenterEditable() || this.isXRhoEditable() || this.isYCenterEditable() || this.isYRhoEditable()
+  );
+
+  readonly xCenterChange = output<Rational>();
+  readonly xCenterInputChange = output<string>();
+  readonly xRhoChange = output<number>();
+  readonly xRhoInputChange = output<string>();
+  readonly yCenterChange = output<Rational>();
+  readonly yCenterInputChange = output<string>();
+  readonly yRhoChange = output<number>();
+  readonly yRhoInputChange = output<string>();
 
   // Configurable size scale factor (default 1.0)
   readonly scale = input<number>(1.0);
@@ -412,4 +449,303 @@ export class BerkovichDualDigitDisplayComponent {
     const cell = this.cells().find(c => c.power === power);
     return cell ? cell.yDigit : 0;
   }
+
+  // ==========================================================================
+  // EDITING INTERACTION HANDLERS
+  // ==========================================================================
+
+  onFocus() {
+    this.isFocused.set(true);
+  }
+
+  onBlur() {
+    if (this.editingRhoRow() === null) {
+      this.isFocused.set(false);
+    }
+  }
+
+  onRhoLabelClick(event: MouseEvent, row: 'x' | 'y') {
+    const isEditable = row === 'x' ? this.isXRhoEditable() : this.isYRhoEditable();
+    if (!isEditable) {
+      return;
+    }
+    event.stopPropagation();
+    this.isFocused.set(true);
+    this.activeDigit.set(null);
+    const currentRho = row === 'x' ? this.xRho() : (this.yRho() ?? 0);
+    this.rhoInputString.set(currentRho.toFixed(2));
+    this.editingRhoRow.set(row);
+
+    const targetEl = event.currentTarget as HTMLElement | null;
+    setTimeout(() => {
+      const hostEl = targetEl?.closest('app-berkovich-dual-digit-display');
+      const inputEl = hostEl?.querySelector('.rho-inline-editor') as HTMLInputElement;
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.select();
+      }
+    }, 0);
+  }
+
+  commitRhoEdit() {
+    const row = this.editingRhoRow();
+    if (!row) return;
+    const val = parseFloat(this.rhoInputString());
+    if (!isNaN(val)) {
+      const clamped = Math.max(-2, Math.min(2, val));
+      if (row === 'x') {
+        this.xRhoChange.emit(clamped);
+        this.xRhoInputChange.emit(clamped.toString());
+      } else {
+        this.yRhoChange.emit(clamped);
+        this.yRhoInputChange.emit(clamped.toString());
+      }
+    }
+    this.editingRhoRow.set(null);
+    this.isFocused.set(false);
+  }
+
+  cancelRhoEdit() {
+    this.editingRhoRow.set(null);
+    this.isFocused.set(false);
+  }
+
+  findClosestDigitCursor(clickSvgX: number, cellPositions: { power: number; center: number }[]): { power: number; side: 'before' | 'after' } {
+    if (cellPositions.length === 0) {
+      return { power: 0, side: 'after' };
+    }
+
+    let closestCol = cellPositions[0];
+    let minDistance = Math.abs(clickSvgX - closestCol.center);
+
+    for (let i = 1; i < cellPositions.length; i++) {
+      const dist = Math.abs(clickSvgX - cellPositions[i].center);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestCol = cellPositions[i];
+      }
+    }
+
+    const side: 'before' | 'after' = clickSvgX < closestCol.center ? 'before' : 'after';
+    return { power: closestCol.power, side };
+  }
+
+  onRowClick(event: MouseEvent, row: 'x' | 'y', targetCol?: { power: number; center: number }) {
+    const isEditable = row === 'x' ? this.isXCenterEditable() : this.isYCenterEditable();
+    if (!isEditable) {
+      return;
+    }
+    event.stopPropagation();
+    this.isFocused.set(true);
+    this.editingRhoRow.set(null);
+
+    const targetEl = event.currentTarget as HTMLElement | SVGElement | null;
+    const svgTarget = targetEl && typeof targetEl.closest === 'function' ? targetEl.closest('svg') : null;
+    const measureEl = svgTarget || (targetEl && typeof targetEl.getBoundingClientRect === 'function' ? targetEl : null);
+
+    if (measureEl && typeof measureEl.getBoundingClientRect === 'function') {
+      const rect = measureEl.getBoundingClientRect();
+      const totalW = this.layout().totalWidth;
+      let svgX: number;
+
+      if (svgTarget && rect.width > 0 && totalW > 0) {
+        const svgScale = rect.width / totalW;
+        svgX = (event.clientX - rect.left) / svgScale;
+      } else {
+        const clickX = event.clientX - rect.left;
+        const colCenter = targetCol ? targetCol.center : (this.layout().cellPositions[0]?.center ?? 0);
+        svgX = clickX < rect.width / 2 ? colCenter - 1 : colCenter + 1;
+      }
+      const result = this.findClosestDigitCursor(svgX, this.layout().cellPositions);
+      this.activeDigit.set({ row, power: result.power });
+      this.cursorSide.set(result.side);
+    } else {
+      const fallbackPower = targetCol?.power ?? this.layout().cellPositions[0]?.power ?? 0;
+      this.activeDigit.set({ row, power: fallbackPower });
+      this.cursorSide.set('after');
+    }
+  }
+
+  onDigitClick(event: MouseEvent, row: 'x' | 'y', col: { left: number; right: number; center: number; power: number }) {
+    this.onRowClick(event, row, col);
+  }
+
+  onKeyDown(event: KeyboardEvent) {
+    if (!this.isFocused()) return;
+
+    const active = this.activeDigit();
+    if (active !== null) {
+      const isEditable = active.row === 'x' ? this.isXCenterEditable() : this.isYCenterEditable();
+      if (isEditable) {
+        const positions = this.layout().cellPositions;
+        const powers = positions.map(c => c.power);
+        const currentIndex = powers.indexOf(active.power);
+        const currentSide = this.cursorSide();
+
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          if (currentIndex !== -1) {
+            if (!event.shiftKey) {
+              if (currentIndex < powers.length - 1) {
+                this.activeDigit.set({ row: active.row, power: powers[currentIndex + 1] });
+              } else if (active.row === 'x' && this.isYCenterEditable()) {
+                this.activeDigit.set({ row: 'y', power: powers[0] });
+              } else {
+                this.activeDigit.set({ row: active.row, power: powers[0] });
+              }
+            } else {
+              if (currentIndex > 0) {
+                this.activeDigit.set({ row: active.row, power: powers[currentIndex - 1] });
+              } else if (active.row === 'y' && this.isXCenterEditable()) {
+                this.activeDigit.set({ row: 'x', power: powers[powers.length - 1] });
+              } else {
+                this.activeDigit.set({ row: active.row, power: powers[powers.length - 1] });
+              }
+            }
+            this.cursorSide.set('after');
+          }
+          return;
+        }
+
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          if (currentSide === 'before') {
+            this.cursorSide.set('after');
+          } else if (currentIndex < powers.length - 1) {
+            this.activeDigit.set({ row: active.row, power: powers[currentIndex + 1] });
+            this.cursorSide.set('after');
+          } else if (active.row === 'x' && this.isYCenterEditable()) {
+            this.activeDigit.set({ row: 'y', power: powers[0] });
+            this.cursorSide.set('after');
+          }
+          return;
+        }
+
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          if (currentSide === 'after') {
+            this.cursorSide.set('before');
+          } else if (currentIndex > 0) {
+            this.activeDigit.set({ row: active.row, power: powers[currentIndex - 1] });
+            this.cursorSide.set('before');
+          } else if (active.row === 'y' && this.isXCenterEditable()) {
+            this.activeDigit.set({ row: 'x', power: powers[powers.length - 1] });
+            this.cursorSide.set('before');
+          }
+          return;
+        }
+
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          if (currentSide === 'after') {
+            this.replaceDigitAtPower(active.row, active.power, 0);
+            this.cursorSide.set('before');
+          } else {
+            // Cursor is at start of digit ('before'): jump to previous digit
+            if (currentIndex > 0) {
+              this.activeDigit.set({ row: active.row, power: powers[currentIndex - 1] });
+              this.cursorSide.set('after');
+            } else if (active.row === 'y' && this.isXCenterEditable()) {
+              this.activeDigit.set({ row: 'x', power: powers[powers.length - 1] });
+              this.cursorSide.set('after');
+            }
+          }
+          return;
+        }
+
+        if (event.key === 'Delete') {
+          event.preventDefault();
+          if (currentSide === 'before') {
+            this.replaceDigitAtPower(active.row, active.power, 0);
+          } else if (currentIndex < powers.length - 1) {
+            const nextPower = powers[currentIndex + 1];
+            this.replaceDigitAtPower(active.row, nextPower, 0);
+            this.activeDigit.set({ row: active.row, power: nextPower });
+            this.cursorSide.set('before');
+          }
+          return;
+        }
+
+        if (event.key === 'ArrowDown' && active.row === 'x' && this.isYCenterEditable()) {
+          event.preventDefault();
+          this.activeDigit.set({ row: 'y', power: active.power });
+          return;
+        }
+
+        if (event.key === 'ArrowUp' && active.row === 'y' && this.isXCenterEditable()) {
+          event.preventDefault();
+          this.activeDigit.set({ row: 'x', power: active.power });
+          return;
+        }
+
+        if (event.key === 'Escape') {
+          this.activeDigit.set(null);
+          this.isFocused.set(false);
+          return;
+        }
+
+        if (/^\d$/.test(event.key)) {
+          const digitVal = parseInt(event.key, 10);
+          const p = this.prime();
+          if (digitVal < p) {
+            this.replaceDigitAtPower(active.row, active.power, digitVal);
+            if (currentSide === 'before') {
+              this.cursorSide.set('after');
+            } else if (currentIndex < powers.length - 1) {
+              this.activeDigit.set({ row: active.row, power: powers[currentIndex + 1] });
+              this.cursorSide.set('after');
+            } else if (active.row === 'x' && this.isYCenterEditable()) {
+              this.activeDigit.set({ row: 'y', power: powers[0] });
+              this.cursorSide.set('after');
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    if (this.editingRhoRow() !== null) {
+      if (event.key === 'Enter') {
+        this.commitRhoEdit();
+      } else if (event.key === 'Escape') {
+        this.cancelRhoEdit();
+      }
+    }
+  }
+
+  replaceDigitAtPower(row: 'x' | 'y', targetPower: number, newDigit: number) {
+    const p = BigInt(this.prime());
+    const left = this.digitsLeft();
+    const right = this.digitsRight();
+    const centerVal = row === 'x' ? this.xCenter() : this.yCenter();
+    const aligned = getAlignedDigits(centerVal, p, -right, left - 1);
+
+    let leftStr = '';
+    for (let pow = left - 1; pow >= 0; pow--) {
+      const d = pow === targetPower ? newDigit : (aligned.find(item => item.power === pow)?.digit ?? 0);
+      leftStr += d.toString();
+    }
+
+    let rightStr = '';
+    for (let pow = -1; pow >= -right; pow--) {
+      const d = pow === targetPower ? newDigit : (aligned.find(item => item.power === pow)?.digit ?? 0);
+      rightStr += d.toString();
+    }
+
+    const formattedStr = rightStr.length > 0 ? `${leftStr}.${rightStr}` : leftStr;
+    try {
+      const newCenter = parseDigitSequence(formattedStr, p, { minPower: -right, maxPower: left - 1 });
+      if (row === 'x') {
+        this.xCenterChange.emit(newCenter);
+        this.xCenterInputChange.emit(formattedStr);
+      } else {
+        this.yCenterChange.emit(newCenter);
+        this.yCenterInputChange.emit(formattedStr);
+      }
+    } catch (e) {
+      console.error('Failed to parse updated digit sequence:', e);
+    }
+  }
 }
+
+

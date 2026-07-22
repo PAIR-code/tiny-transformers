@@ -55,6 +55,8 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.fill]="COLOR_ROW_BG"
     class="row-bg-box"
+    [class.editable-row]="isXCenterEditable()"
+    (click)="onRowClick($event, 'x')"
   />
 
   <!-- Row 2 Base Background Box (White) -->
@@ -67,6 +69,8 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.fill]="COLOR_ROW_BG"
     class="row-bg-box"
+    [class.editable-row]="isYCenterEditable()"
+    (click)="onRowClick($event, 'y')"
   />
 
   <!-- Grey background representing xRho (clipped to Row 1) -->
@@ -142,6 +146,9 @@ limitations under the License.
     <g
       [style.transform]="'translate(' + col.center + 'px, ' + (row1Y() + derivedDimensions().cellHeight / 2) + 'px)'"
       class="digit-box-group row1-group"
+      [class.editable-digit]="isXCenterEditable()"
+      [class.active-digit]="isFocused() && activeDigit()?.row === 'x' && activeDigit()?.power === col.power"
+      (click)="onDigitClick($event, 'x', col)"
     >
       <text
         x="0"
@@ -151,6 +158,16 @@ limitations under the License.
       >
         {{ getXDigitAtPower(col.power) }}
       </text>
+
+      @if (isFocused() && activeDigit()?.row === 'x' && activeDigit()?.power === col.power) {
+        <line
+          [attr.x1]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y1]="-derivedDimensions().cellHeight / 2 + 2"
+          [attr.x2]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y2]="derivedDimensions().cellHeight / 2 - 2"
+          class="cursor-marker-line"
+        />
+      }
     </g>
   }
 
@@ -159,6 +176,9 @@ limitations under the License.
     <g
       [style.transform]="'translate(' + col.center + 'px, ' + (row2Y() + derivedDimensions().cellHeight / 2) + 'px)'"
       class="digit-box-group row2-group"
+      [class.editable-digit]="isYCenterEditable()"
+      [class.active-digit]="isFocused() && activeDigit()?.row === 'y' && activeDigit()?.power === col.power"
+      (click)="onDigitClick($event, 'y', col)"
     >
       <text
         x="0"
@@ -168,6 +188,16 @@ limitations under the License.
       >
         {{ getYDigitAtPower(col.power) }}
       </text>
+
+      @if (isFocused() && activeDigit()?.row === 'y' && activeDigit()?.power === col.power) {
+        <line
+          [attr.x1]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y1]="-derivedDimensions().cellHeight / 2 + 2"
+          [attr.x2]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y2]="derivedDimensions().cellHeight / 2 - 2"
+          class="cursor-marker-line"
+        />
+      }
     </g>
   }
 
@@ -181,6 +211,8 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.stroke]="xOuterBoxColor()"
     class="row-outer-box"
+    [class.editable-row]="isXCenterEditable()"
+    (click)="onRowClick($event, 'x')"
   />
 
   <!-- Border box around Row 2 (y) -->
@@ -193,29 +225,76 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.stroke]="yOuterBoxColor()"
     class="row-outer-box"
+    [class.editable-row]="isYCenterEditable()"
+    (click)="onRowClick($event, 'y')"
   />
 
   <!-- Left-aligned rho numbers when position is 'left' -->
   @if (rhoLabelPosition() === 'left') {
-    <text
-      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
-      [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
-      class="rho-label-text x-rho-label"
-      style="text-anchor: end;"
-      [style.font-size.px]="derivedDimensions().rhoFontSize"
-    >
-      {{ xRho().toFixed(2) }}
-    </text>
-    @if (yRho() !== undefined && yRho() !== null) {
+    @if (editingRhoRow() !== 'x') {
       <text
         [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
-        [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
-        class="rho-label-text y-rho-label"
+        [attr.y]="row1Y() + derivedDimensions().cellHeight / 2"
+        class="rho-label-text x-rho-label"
+        [class.editable-rho]="isXRhoEditable()"
+        (click)="onRhoLabelClick($event, 'x')"
         style="text-anchor: end;"
         [style.font-size.px]="derivedDimensions().rhoFontSize"
       >
-        {{ yRho()!.toFixed(2) }}
+        {{ xRho().toFixed(2) }}
       </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 65"
+        [attr.y]="row1Y() + derivedDimensions().cellHeight / 2 - 12"
+        width="55"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInpXLeft
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="rhoInputString.set($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
+
+    @if (yRho() !== undefined && yRho() !== null) {
+      @if (editingRhoRow() !== 'y') {
+        <text
+          [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+          [attr.y]="row2Y() + derivedDimensions().cellHeight / 2"
+          class="rho-label-text y-rho-label"
+          [class.editable-rho]="isYRhoEditable()"
+          (click)="onRhoLabelClick($event, 'y')"
+          style="text-anchor: end;"
+          [style.font-size.px]="derivedDimensions().rhoFontSize"
+        >
+          {{ yRho()!.toFixed(2) }}
+        </text>
+      } @else {
+        <foreignObject
+          [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 65"
+          [attr.y]="row2Y() + derivedDimensions().cellHeight / 2 - 12"
+          width="55"
+          height="24"
+        >
+          <div xmlns="http://www.w3.org/1999/xhtml">
+            <input
+              #rhoInpYLeft
+              type="text"
+              class="rho-inline-editor"
+              [value]="rhoInputString()"
+              (input)="rhoInputString.set($any($event.target).value)"
+              (blur)="commitRhoEdit()"
+            />
+          </div>
+        </foreignObject>
+      }
     }
   }
 
@@ -235,15 +314,37 @@ limitations under the License.
       [attr.y2]="row1Y() - derivedDimensions().boxPadding"
       class="rho-guide-line"
     />
-    <text
-      [attr.x]="derivedDimensions().marginLeft"
-      [attr.y]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().labelOffset"
-      class="rho-label-text x-rho-label"
-      style="text-anchor: start;"
-      [style.font-size.px]="derivedDimensions().rhoFontSize"
-    >
-      {{ xRho().toFixed(2) }}
-    </text>
+    @if (editingRhoRow() !== 'x') {
+      <text
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().labelOffset"
+        class="rho-label-text x-rho-label"
+        [class.editable-rho]="isXRhoEditable()"
+        (click)="onRhoLabelClick($event, 'x')"
+        style="text-anchor: start;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ xRho().toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="row1Y() - derivedDimensions().boxPadding - derivedDimensions().labelOffset - 12"
+        width="65"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInpX
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="rhoInputString.set($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
   }
 
   <!-- Guide lines and labels for y rho value -->
@@ -262,14 +363,36 @@ limitations under the License.
       [attr.y2]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().guideLineOffset"
       class="rho-guide-line"
     />
-    <text
-      [attr.x]="derivedDimensions().marginLeft"
-      [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().labelOffset"
-      class="rho-label-text y-rho-label"
-      style="text-anchor: start;"
-      [style.font-size.px]="derivedDimensions().rhoFontSize"
-    >
-      {{ yRho()!.toFixed(2) }}
-    </text>
+    @if (editingRhoRow() !== 'y') {
+      <text
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().labelOffset"
+        class="rho-label-text y-rho-label"
+        [class.editable-rho]="isYRhoEditable()"
+        (click)="onRhoLabelClick($event, 'y')"
+        style="text-anchor: start;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ yRho()!.toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="row2Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding + derivedDimensions().labelOffset - 10"
+        width="65"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInpY
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="rhoInputString.set($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
   }
 </svg>

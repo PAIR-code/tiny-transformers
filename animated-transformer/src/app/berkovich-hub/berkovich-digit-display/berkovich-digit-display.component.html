@@ -43,6 +43,8 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.fill]="COLOR_ROW_BG"
     class="row-bg-box"
+    [class.editable-row]="isCenterEditable()"
+    (click)="onRowClick($event)"
   />
 
   <!-- Grey background representing rho (clipped to Row Clip) -->
@@ -80,6 +82,9 @@ limitations under the License.
     <g
       [style.transform]="'translate(' + col.center + 'px, ' + (rowY() + derivedDimensions().cellHeight / 2) + 'px)'"
       class="digit-box-group"
+      [class.editable-digit]="isCenterEditable()"
+      [class.active-digit]="isFocused() && activeDigitPower() === col.power"
+      (click)="onDigitClick($event, col)"
     >
       <text
         x="0"
@@ -89,6 +94,16 @@ limitations under the License.
       >
         {{ getDigitAtPower(col.power) }}
       </text>
+
+      @if (isFocused() && activeDigitPower() === col.power) {
+        <line
+          [attr.x1]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y1]="-derivedDimensions().cellHeight / 2 + 2"
+          [attr.x2]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y2]="derivedDimensions().cellHeight / 2 - 2"
+          class="cursor-marker-line"
+        />
+      }
     </g>
   }
 
@@ -102,6 +117,8 @@ limitations under the License.
     [attr.ry]="derivedDimensions().boxBorderRadius"
     [style.stroke]="outerBoxColor()"
     class="row-outer-box"
+    [class.editable-row]="isCenterEditable()"
+    (click)="onRowClick($event)"
   />
 
   <!-- Circular bubbles for changed digits when rho is unchanged -->
@@ -174,27 +191,71 @@ limitations under the License.
       class="rho-guide-line"
     />
     <!-- Left-aligned rho text label -->
-    <text
-      [attr.x]="derivedDimensions().marginLeft"
-      [attr.y]="rhoTextY()"
-      class="rho-label-text"
-      style="text-anchor: start;"
-      [style.font-size.px]="derivedDimensions().rhoFontSize"
-    >
-      {{ rho().toFixed(2) }}
-    </text>
+    @if (!isEditingRho()) {
+      <text
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="rhoTextY()"
+        class="rho-label-text"
+        [class.editable-rho]="isRhoEditable()"
+        (click)="onRhoLabelClick($event)"
+        style="text-anchor: start;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ rho().toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="rhoTextY() - derivedDimensions().rhoFontSize - 2"
+        width="65"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInp
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="rhoInputString.set($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
   }
 
   <!-- Left-aligned rho number when position is 'left' -->
   @if (displayPosition() === 'left') {
-    <text
-      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
-      [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
-      class="rho-label-text centered-rho"
-      style="text-anchor: end;"
-      [style.font-size.px]="derivedDimensions().rhoFontSize"
-    >
-      {{ rho().toFixed(2) }}
-    </text>
+    @if (!isEditingRho()) {
+      <text
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+        [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
+        class="rho-label-text centered-rho"
+        [class.editable-rho]="isRhoEditable()"
+        (click)="onRhoLabelClick($event)"
+        style="text-anchor: end;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ rho().toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 65"
+        [attr.y]="rowY() + derivedDimensions().cellHeight / 2 - 12"
+        width="55"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInpLeft
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="rhoInputString.set($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
   }
 </svg>
