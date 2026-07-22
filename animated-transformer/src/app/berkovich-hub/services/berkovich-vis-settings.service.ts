@@ -17,6 +17,12 @@ import { Injectable, signal, effect } from '@angular/core';
 
 export type VisStyle = 'tree' | 'digits';
 
+/**
+ * Standard digit display scale factor across Berkovich hub visualizations
+ * ("Point SGD", "Disk SGD", "Unary Op Gradients", and "Binary Op Gradients").
+ */
+export const BERKOVICH_DIGIT_DISPLAY_SCALE = 0.85;
+
 const STORAGE_KEY = 'berkovich_vis_style';
 
 @Injectable({

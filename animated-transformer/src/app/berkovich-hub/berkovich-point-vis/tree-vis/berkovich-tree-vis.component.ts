@@ -52,7 +52,7 @@ import {
 } from '../../../../lib/berkovich/berkovich_tree_layout';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
-import { BerkovichVisSettingsService } from '../../services/berkovich-vis-settings.service';
+import { BerkovichVisSettingsService, BERKOVICH_DIGIT_DISPLAY_SCALE } from '../../services/berkovich-vis-settings.service';
 
 @Component({
   selector: 'app-berkovich-tree-vis',
@@ -73,6 +73,8 @@ export class BerkovichTreeVisComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly visSettingsService = inject(BerkovichVisSettingsService);
+
+  readonly digitDisplayScale = BERKOVICH_DIGIT_DISPLAY_SCALE;
 
   // Vis mode bound to sticky global settings
   readonly currentVisMode = computed<'tree' | 'dual-digit'>(() => {

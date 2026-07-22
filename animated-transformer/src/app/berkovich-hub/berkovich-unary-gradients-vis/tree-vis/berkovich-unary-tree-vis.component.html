@@ -291,15 +291,10 @@ limitations under the License.
               [showUpdatedLocation]="true"
               [updatedCenter]="stepDetails().nextX.center"
               [updatedRho]="stepDetails().nextX.rho"
-              [scale]="0.7"
+              [scale]="digitDisplayScale"
               [outerBoxColor]="'#2563eb'"
               [updatedLineColor]="'#64748b'"
             ></app-berkovich-digit-display>
-            <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
-              c_x: {{ formatDigitSequenceHelper(centerX()) }} → {{ formatDigitSequenceHelper(stepDetails().nextX.center) }}
-              <br>
-              ρ_x: {{ rhoX().toFixed(3) }} → {{ stepDetails().nextX.rho.toFixed(3) }}
-            </div>
           </div>
 
           <!-- Constant update (middle if present) -->
@@ -318,14 +313,9 @@ limitations under the License.
                 [editableRho]="constantNode()!.rho !== -2"
                 (centerChange)="inputChange.emit({ nodeId: 'C', field: 'center', value: formatDigitSequenceHelper($event) })"
                 (rhoChange)="inputChange.emit({ nodeId: 'C', field: 'rho', value: $event.toString() })"
-                [scale]="0.7"
+                [scale]="digitDisplayScale"
                 [outerBoxColor]="'#059669'"
               ></app-berkovich-digit-display>
-              <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
-                c: {{ formatDigitSequenceHelper(constantNode()!.center) }}
-                <br>
-                ρ: {{ constantNode()!.rho.toFixed(3) }}
-              </div>
             </div>
           }
 
@@ -347,15 +337,10 @@ limitations under the License.
               [yEditableCenter]="true"
               [yEditableRho]="false"
               (yCenterChange)="inputChange.emit({ nodeId: 'Y', field: 'center', value: formatDigitSequenceHelper($event) })"
-              [scale]="0.7"
+              [scale]="digitDisplayScale"
               [xOuterBoxColor]="'#7c3aed'"
               [yOuterBoxColor]="'#eab308'"
             ></app-berkovich-dual-digit-display>
-            <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace; line-height: 1.3;">
-              {{ intermediateLabel() }}: {{ formatDigitSequenceHelper(stepDetails().out.center) }} (ρ={{ stepDetails().out.rho.toFixed(2) }})
-              <br>
-              y: {{ formatDigitSequenceHelper(centerY()) }} (ρ=-2.00)
-            </div>
           </div>
         </div>
 

@@ -37,6 +37,7 @@ import {
 import { computeTreeLayout, LayoutNode, DEFAULT_BASE_GAP, DEFAULT_MIN_NODE_GAP } from '../../../../lib/berkovich/tree_layout';
 import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 import { BerkovichDigitDisplayComponent } from '../../berkovich-digit-display/berkovich-digit-display.component';
+import { BERKOVICH_DIGIT_DISPLAY_SCALE } from '../../services/berkovich-vis-settings.service';
 
 /** Horizontal spacing (in pixels) between the individual subtrees in the SVG layout. */
 const TREE_COLUMN_GAP = 48;
@@ -96,6 +97,7 @@ export interface MultiVisualEdge {
 })
 export class BerkovichUnaryTreeVisComponent {
   formatRational = formatRational;
+  readonly digitDisplayScale = BERKOVICH_DIGIT_DISPLAY_SCALE;
 
   readonly prime = input.required<number>();
   readonly trackedNodes = input.required<TrackedNode[]>();
