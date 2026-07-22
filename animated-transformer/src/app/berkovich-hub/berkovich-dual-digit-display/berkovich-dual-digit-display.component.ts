@@ -152,6 +152,13 @@ export class BerkovichDualDigitDisplayComponent {
   readonly yOuterBoxColor = input<string>('#eab308');
   readonly rhoLabelPosition = input<'above-below' | 'left' | 'none'>('above-below');
 
+  // Gradient / Updated Location Inputs
+  readonly xUpdatedCenter = input<Rational | undefined>(undefined);
+  readonly xUpdatedRho = input<number | undefined>(undefined);
+  readonly showUpdatedLocation = input<boolean>(false);
+  readonly updatedLineColor = input<string>('#64748b');
+  readonly updatedLineStyle = input<'dotted' | 'dashed' | 'solid'>('dotted');
+
   // Flexible layout & margin inputs (default to undefined to fall back to size category defaults)
   readonly cellWidthInput = input<number | undefined>(undefined, { alias: 'cellWidth' });
   readonly cellHeightInput = input<number | undefined>(undefined, { alias: 'cellHeight' });
@@ -365,6 +372,61 @@ export class BerkovichDualDigitDisplayComponent {
     const yrho = this.yRho();
     if (yrho === undefined || yrho === null) return null;
     return this.getXForValuation(-yrho);
+  });
+
+  readonly xUpdatedCells = computed(() => {
+    const uc = this.xUpdatedCenter();
+    if (!uc) return [];
+    const p = BigInt(this.prime());
+    const left = this.digitsLeft();
+    const right = this.digitsRight();
+
+    const minPower = -right;
+    const maxPower = left - 1;
+
+    const aligned = getAlignedDigits(uc, p, minPower, maxPower);
+    return [...aligned].reverse();
+  });
+
+  getXUpdatedDigitAtPower(power: number): number | null {
+    const uc = this.xUpdatedCenter();
+    if (!uc) return null;
+    const cell = this.xUpdatedCells().find(c => c.power === power);
+    return cell ? cell.digit : 0;
+  }
+
+  readonly isXRhoUnchanged = computed(() => {
+    const ur = this.xUpdatedRho();
+    if (ur === undefined) return true;
+    return Math.abs(ur - this.xRho()) < 1e-6;
+  });
+
+  readonly xDigitBubbles = computed(() => {
+    if (!this.xUpdatedCenter() && !this.showUpdatedLocation()) return [];
+    if (!this.isXRhoUnchanged()) return [];
+
+    const lay = this.layout();
+    const result: { power: number; cx: number; newDigit: number; oldDigit: number }[] = [];
+
+    for (const col of lay.cellPositions) {
+      const oldD = this.getXDigitAtPower(col.power);
+      const newD = this.getXUpdatedDigitAtPower(col.power);
+      if (newD !== null && newD !== oldD) {
+        result.push({
+          power: col.power,
+          cx: col.center,
+          newDigit: newD,
+          oldDigit: oldD
+        });
+      }
+    }
+    return result;
+  });
+
+  readonly xUpdatedRhoBoundaryX = computed(() => {
+    const r = this.xUpdatedRho();
+    if (r === undefined) return null;
+    return this.getXForValuation(-r);
   });
 
   readonly xRhoBackgroundWidth = computed(() => {

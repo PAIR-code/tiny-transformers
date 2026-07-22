@@ -54,7 +54,6 @@ limitations under the License.
             [updatedLineStyle]="updatedLineStyle()"
             [updatedLineExtension]="updatedLineExtension()"
             [updatedLineExtensionSide]="updatedLineExtensionSide()"
-            [showGradientArrow]="showGradientArrow()"
           />
         }
       </div>
@@ -74,9 +73,7 @@ limitations under the License.
   [updatedRho]="{{ updatedRho() }}"
   [updatedLineColor]="'{{ updatedLineColor() }}'"
   [updatedLineStyle]="'{{ updatedLineStyle() }}'"
-  [updatedLineExtension]="{{ updatedLineExtension() }}"
-  [showGradientArrow]="{{ showGradientArrow() }}"
-  [gradientArrowPosition]="'{{ gradientArrowPosition() }}'"}
+  [updatedLineExtension]="{{ updatedLineExtension() }}"}
 /&gt;</pre>
       </div>
     </section>
@@ -198,12 +195,6 @@ limitations under the License.
                     <mat-option value="below">Below (Bottom)</mat-option>
                   </mat-select>
                 </mat-form-field>
-              </div>
-
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <mat-checkbox [checked]="showGradientArrow()" (change)="showGradientArrow.set($event.checked)">
-                  Show Gradient Arrow Line
-                </mat-checkbox>
               </div>
             </div>
           }

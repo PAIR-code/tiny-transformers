@@ -355,6 +355,8 @@
         [xEditableRho]="true"
         [yEditableCenter]="true"
         [yEditableRho]="targetLogRadius() !== undefined"
+        [xUpdatedCenter]="gradientBreakdown()?.nextCenter"
+        [xUpdatedRho]="gradientBreakdown()?.nextLogRadius"
         (xCenterChange)="onXCenterDisplayChange($event)"
         (xRhoChange)="onXRhoDisplayChange($event)"
         (yCenterChange)="onYCenterDisplayChange($event)"

@@ -152,24 +152,6 @@ limitations under the License.
       stroke-width="2"
       class="updated-rho-line"
     />
-
-    <!-- Horizontal solid gradient arrow line connecting current rho to updated rho -->
-    @if (showGradientArrow() && rhoBoundaryX() !== null && updatedRhoBoundaryX() !== null && updatedRhoBoundaryX() !== rhoBoundaryX()) {
-      <g class="gradient-arrow-group">
-        <line
-          [attr.x1]="rhoBoundaryX()"
-          [attr.y1]="gradientArrowY()"
-          [attr.x2]="updatedRhoBoundaryX()"
-          [attr.y2]="gradientArrowY()"
-          [style.stroke]="updatedLineColor()"
-          stroke-width="1.5"
-        />
-        <polygon
-          [attr.points]="getArrowPolygonPoints(gradientArrowY())"
-          [style.fill]="updatedLineColor()"
-        />
-      </g>
-    }
   }
 
   <!-- Guide lines and labels for rho value (left aligned above/below the main digit sequence) -->

@@ -79,8 +79,6 @@ export class DigitDisplayToolComponent {
   readonly updatedLineStyle = signal<'dotted' | 'dashed' | 'solid'>('dotted');
   readonly updatedLineExtension = signal<number>(12);
   readonly updatedLineExtensionSide = signal<'above' | 'below'>('above');
-  readonly showGradientArrow = signal<boolean>(false);
-  readonly gradientArrowPosition = signal<'top' | 'bottom'>('top');
 
   constructor() {
     const router = inject(Router);
@@ -124,8 +122,6 @@ export class DigitDisplayToolComponent {
         if (state.updatedLineColor !== undefined) this.updatedLineColor.set(state.updatedLineColor);
         if (state.updatedLineStyle !== undefined) this.updatedLineStyle.set(state.updatedLineStyle);
         if (state.updatedLineExtension !== undefined) this.updatedLineExtension.set(state.updatedLineExtension);
-        if (state.showGradientArrow !== undefined) this.showGradientArrow.set(state.showGradientArrow);
-        if (state.gradientArrowPosition !== undefined) this.gradientArrowPosition.set(state.gradientArrowPosition);
       }
     }
 
@@ -153,9 +149,7 @@ export class DigitDisplayToolComponent {
         updatedCenterDigits: this.updatedCenterDigits(),
         updatedLineColor: this.updatedLineColor(),
         updatedLineStyle: this.updatedLineStyle(),
-        updatedLineExtension: this.updatedLineExtension(),
-        showGradientArrow: this.showGradientArrow(),
-        gradientArrowPosition: this.gradientArrowPosition()
+        updatedLineExtension: this.updatedLineExtension()
       };
       const stateStr = stringifyState(state);
       const currentUrlState = route.snapshot.queryParams['state'];

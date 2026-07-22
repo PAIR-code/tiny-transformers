@@ -229,6 +229,39 @@ limitations under the License.
     (click)="onRowClick($event, 'y')"
   />
 
+  <!-- Circular bubbles for changed digits when xRho is unchanged -->
+  @for (bubble of xDigitBubbles(); track bubble.power) {
+    <g class="digit-bubble-group">
+      <circle
+        [attr.cx]="bubble.cx"
+        [attr.cy]="row1Y() - derivedDimensions().boxPadding"
+        r="9"
+        class="bubble-circle"
+      />
+      <text
+        [attr.x]="bubble.cx"
+        [attr.y]="row1Y() - derivedDimensions().boxPadding"
+        class="bubble-text"
+      >
+        {{ bubble.newDigit }}
+      </text>
+    </g>
+  }
+
+  <!-- Vertical dotted/dashed line for updated location (gradient update on row 1) -->
+  @if (xUpdatedRhoBoundaryX() !== null) {
+    <line
+      [attr.x1]="xUpdatedRhoBoundaryX()"
+      [attr.y1]="row1Y() - derivedDimensions().boxPadding - 14"
+      [attr.x2]="xUpdatedRhoBoundaryX()"
+      [attr.y2]="row1Y() + derivedDimensions().cellHeight + derivedDimensions().boxPadding"
+      [style.stroke]="updatedLineColor()"
+      [style.stroke-dasharray]="updatedLineStyle() === 'dotted' ? '2 2' : updatedLineStyle() === 'dashed' ? '5 3' : 'none'"
+      stroke-width="2"
+      class="updated-rho-line"
+    />
+  }
+
   <!-- Left-aligned rho numbers when position is 'left' -->
   @if (rhoLabelPosition() === 'left') {
     @if (editingRhoRow() !== 'x') {

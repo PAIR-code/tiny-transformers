@@ -189,7 +189,6 @@ export class BerkovichDigitDisplayComponent {
   readonly updatedLineStyle = input<'dotted' | 'dashed' | 'solid'>('dotted');
   readonly updatedLineExtension = input<number | undefined>(undefined);
   readonly updatedLineExtensionSide = input<'above' | 'below' | undefined>(undefined);
-  readonly showGradientArrow = input<boolean>(false);
 
   readonly derivedDimensions = computed(() => {
     const S = this.scale();
@@ -400,28 +399,6 @@ export class BerkovichDigitDisplayComponent {
       return this.rowY() + dims.cellHeight + dims.boxPadding;
     }
   });
-
-  readonly gradientArrowY = computed(() => {
-    const side = this.effectiveExtensionSide();
-    if (side === 'below') {
-      return this.updatedRhoLineY2();
-    } else {
-      return this.updatedRhoLineY1();
-    }
-  });
-
-  getArrowPolygonPoints(y: number): string {
-    const currX = this.rhoBoundaryX();
-    const nextX = this.updatedRhoBoundaryX();
-    if (currX === null || nextX === null) return '';
-    const size = 4;
-
-    if (nextX >= currX) {
-      return `${nextX},${y} ${nextX - size},${y - size} ${nextX - size},${y + size}`;
-    } else {
-      return `${nextX},${y} ${nextX + size},${y - size} ${nextX + size},${y + size}`;
-    }
-  }
 
   readonly cells = computed<DigitDisplayCell[]>(() => {
     const r = this.center();
