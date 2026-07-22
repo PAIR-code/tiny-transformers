@@ -54,6 +54,6 @@ export class BerkovichHeaderComponent {
   readonly effectiveBackRoute = computed(() => {
     const route = this.backRoute();
     if (route) return route;
-    return this.isVisTool() ? '/berkovich/vis-tools' : '/berkovich';
+    return this.isVisTool() ? '/vis-tools' : '/berkovich';
   });
 }

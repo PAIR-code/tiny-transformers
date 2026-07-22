@@ -121,6 +121,7 @@ export class BerkovichUnaryTreeVisComponent {
   readonly centerX = computed(() => this.trackedNodes().find(n => n.id === 'X')?.center ?? { num: 0n, den: 1n });
   readonly rhoX = computed(() => this.trackedNodes().find(n => n.id === 'X')?.rho ?? 0.0);
   readonly centerY = computed(() => this.trackedNodes().find(n => n.id === 'Y')?.center ?? { num: 0n, den: 1n });
+  readonly constantNode = computed(() => this.trackedNodes().find(n => n.id === 'C'));
 
   // Optional inline editing inputs
   readonly editableInputs = input<EditableNodeInputs[]>();

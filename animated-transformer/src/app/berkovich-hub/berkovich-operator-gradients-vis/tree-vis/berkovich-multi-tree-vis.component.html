@@ -361,55 +361,6 @@ limitations under the License.
 
         </div>
 
-        <!-- 2. Editable inputs section (Inputs below visualization) -->
-        <div class="inputs-editor-grid" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; background: #ffffff; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; justify-content: center; width: fit-content; max-width: 100%; box-sizing: border-box;">
-          @for (inp of editableInputs(); track inp.nodeId) {
-            <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; width: 200px; box-sizing: border-box; flex: 0 0 auto;">
-              <div style="font-weight: 700; font-size: 13px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                <span [style.background]="inp.color" style="height: 8px; width: 8px; border-radius: 50%; display: inline-block;"></span>
-                <span>{{ inp.nodeId === 'X1' ? 'x1' : inp.nodeId === 'X2' ? 'x2' : inp.nodeId === 'Y' ? 'Target (' + targetLabel() + ')' : 'Computed (' + intermediateLabel() + ')' }}</span>
-              </div>
-              
-              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
-                <!-- Center Input -->
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                  <span style="color: #64748b;">Center:</span>
-                  @if (!inp.readonly) {
-                    <input
-                      class="mini-digit-input"
-                      style="width: 80px; text-align: left; font-family: monospace; font-size: 11.5px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
-                      [value]="inp.centerInput"
-                      (change)="inputChange.emit({ nodeId: inp.nodeId, field: 'center', value: $any($event.target).value })"
-                      (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'center' })"
-                    />
-                  } @else {
-                    <span style="font-family: monospace; font-weight: bold;">{{ inp.centerInput }}</span>
-                  }
-                </div>
-
-                <!-- Rho Input -->
-                @if (inp.rhoInput !== undefined) {
-                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                    <span style="color: #64748b;">Log-Radius ρ:</span>
-                    @if (!inp.readonly) {
-                      <input
-                        class="mini-digit-input"
-                        style="width: 80px; text-align: left; font-family: monospace; font-size: 11.5px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
-                        type="text"
-                        [value]="inp.rhoInput"
-                        (change)="inputChange.emit({ nodeId: inp.nodeId, field: 'rho', value: $any($event.target).value })"
-                        (blur)="inputBlur.emit({ nodeId: inp.nodeId, field: 'rho' })"
-                      />
-                    } @else {
-                      <span style="font-family: monospace; font-weight: bold;">{{ inp.rhoInput }}</span>
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-
       </div>
     }
   </mat-card-content>

@@ -677,4 +677,26 @@ The distance $d = -\\nu_p(c - y)$ indicates the **height (log-radius)** of the L
       this.primeChange.emit(value);
     }
   }
+
+  onXCenterDisplayChange(r: Rational): void {
+    const p = BigInt(this.prime());
+    this.centerDigitsInputChange.emit(formatDigitSequence(r, p));
+    this.centerDigitsBlur.emit();
+  }
+
+  onXRhoDisplayChange(rho: number): void {
+    this.logRadiusChange.emit(rho);
+  }
+
+  onYCenterDisplayChange(r: Rational): void {
+    const p = BigInt(this.prime());
+    this.targetDigitsInputChange.emit(formatDigitSequence(r, p));
+    this.targetDigitsBlur.emit();
+  }
+
+  onYRhoDisplayChange(rho: number): void {
+    if (this.targetLogRadius() !== undefined) {
+      this.targetLogRadiusChange.emit(rho);
+    }
+  }
 }

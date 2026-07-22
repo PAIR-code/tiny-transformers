@@ -19,28 +19,28 @@
   </mat-card-header>
 
   <mat-card-content class="svg-container" style="position: relative;">
-    <div class="digit-editor-overlay">
-      <div class="editor-row">
-        <span class="editor-label yellow-text">y_c:</span>
-        <input class="mini-digit-input" [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(tInput.value)" (blur)="targetDigitsBlur.emit()" #tInput />
-      </div>
-      @if (targetLogRadius() !== undefined) {
-        <div class="editor-row">
-          <span class="editor-label yellow-text">y_&rho;:</span>
-          <input class="mini-digit-input mini-rho-input" type="text" [value]="targetLogRadius()!.toFixed(2)" (change)="onTargetLogRadiusInputChange(tyInput.value)" #tyInput />
-        </div>
-      }
-      <div class="editor-row">
-        <span class="editor-label purple-text">x_c:</span>
-        <input class="mini-digit-input" [value]="centerDigitsInput()" (change)="centerDigitsInputChange.emit(cInput.value)" (blur)="centerDigitsBlur.emit()" #cInput />
-      </div>
-      <div class="editor-row">
-        <span class="editor-label purple-text">x_&rho;:</span>
-        <input class="mini-digit-input mini-rho-input" type="text" [value]="currentLogRadius().toFixed(2)" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
-      </div>
-    </div>
-
     @if (currentVisMode() === 'tree') {
+      <div class="digit-editor-overlay">
+        <div class="editor-row">
+          <span class="editor-label yellow-text">y_c:</span>
+          <input class="mini-digit-input" [value]="targetDigitsInput()" (change)="targetDigitsInputChange.emit(tInput.value)" (blur)="targetDigitsBlur.emit()" #tInput />
+        </div>
+        @if (targetLogRadius() !== undefined) {
+          <div class="editor-row">
+            <span class="editor-label yellow-text">y_&rho;:</span>
+            <input class="mini-digit-input mini-rho-input" type="text" [value]="targetLogRadius()!.toFixed(2)" (change)="onTargetLogRadiusInputChange(tyInput.value)" #tyInput />
+          </div>
+        }
+        <div class="editor-row">
+          <span class="editor-label purple-text">x_c:</span>
+          <input class="mini-digit-input" [value]="centerDigitsInput()" (change)="centerDigitsInputChange.emit(cInput.value)" (blur)="centerDigitsBlur.emit()" #cInput />
+        </div>
+        <div class="editor-row">
+          <span class="editor-label purple-text">x_&rho;:</span>
+          <input class="mini-digit-input mini-rho-input" type="text" [value]="currentLogRadius().toFixed(2)" (change)="onLogRadiusInputChange(xRhoInput.value)" #xRhoInput />
+        </div>
+      </div>
+
       @if (lcaCoord() !== null) {
         <div class="lca-distance-explainer-anchor" [style.top.px]="lcaCoord()!.y">
           <span class="lca-distance-text">d = {{ lcaDistanceVal() }}</span>
@@ -351,6 +351,14 @@
         [xRho]="currentLogRadius()"
         [yCenter]="targetRational()"
         [yRho]="targetLogRadius()"
+        [xEditableCenter]="true"
+        [xEditableRho]="true"
+        [yEditableCenter]="true"
+        [yEditableRho]="targetLogRadius() !== undefined"
+        (xCenterChange)="onXCenterDisplayChange($event)"
+        (xRhoChange)="onXRhoDisplayChange($event)"
+        (yCenterChange)="onYCenterDisplayChange($event)"
+        (yRhoChange)="onYRhoDisplayChange($event)"
       />
     }
   </mat-card-content>

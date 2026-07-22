@@ -85,7 +85,7 @@ export class BerkovichHubComponent {
     {
       title: 'Berkovich Vis Tools',
       description: 'Play with standalone visualization components and custom parameter parameters interactively.',
-      route: '/berkovich/vis-tools',
+      route: '/vis-tools',
       icon: 'construction',
       colorClass: 'card-berkovich-vis-tools',
     },
