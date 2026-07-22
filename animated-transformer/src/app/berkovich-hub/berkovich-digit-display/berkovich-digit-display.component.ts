@@ -179,7 +179,18 @@ export class BerkovichDigitDisplayComponent {
   readonly marginRightInput = input<number | undefined>(undefined, { alias: 'marginRight' });
   readonly fontSizeInput = input<number | undefined>(undefined, { alias: 'fontSize' });
 
-  readonly outerBoxColor = input<string>('#a855f7'); // default: purple
+  readonly outerBoxColorInput = input<string | undefined>(undefined, { alias: 'outerBoxColor' });
+
+  readonly outerBoxColor = computed(() => {
+    const custom = this.outerBoxColorInput();
+    if (custom !== undefined) {
+      return custom;
+    }
+    if (!this.isCenterEditable() && !this.isRhoEditable()) {
+      return '#64748b';
+    }
+    return '#a855f7';
+  });
 
   // Gradient / Updated Location Inputs
   readonly updatedCenter = input<Rational | undefined>(undefined);

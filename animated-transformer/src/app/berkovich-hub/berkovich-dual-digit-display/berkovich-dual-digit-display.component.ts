@@ -148,8 +148,30 @@ export class BerkovichDualDigitDisplayComponent {
   readonly scale = input<number>(1.0);
 
   // Configurable outline border colors
-  readonly xOuterBoxColor = input<string>('#a855f7');
-  readonly yOuterBoxColor = input<string>('#eab308');
+  readonly xOuterBoxColorInput = input<string | undefined>(undefined, { alias: 'xOuterBoxColor' });
+  readonly yOuterBoxColorInput = input<string | undefined>(undefined, { alias: 'yOuterBoxColor' });
+
+  readonly xOuterBoxColor = computed(() => {
+    const custom = this.xOuterBoxColorInput();
+    if (custom !== undefined) {
+      return custom;
+    }
+    if (!this.isXCenterEditable() && !this.isXRhoEditable()) {
+      return '#64748b';
+    }
+    return '#a855f7';
+  });
+
+  readonly yOuterBoxColor = computed(() => {
+    const custom = this.yOuterBoxColorInput();
+    if (custom !== undefined) {
+      return custom;
+    }
+    if (!this.isYCenterEditable() && !this.isYRhoEditable()) {
+      return '#64748b';
+    }
+    return '#eab308';
+  });
   readonly rhoLabelPosition = input<'above-below' | 'left' | 'none'>('above-below');
 
   // Gradient / Updated Location Inputs

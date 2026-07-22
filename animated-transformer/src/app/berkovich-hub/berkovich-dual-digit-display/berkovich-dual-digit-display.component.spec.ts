@@ -44,6 +44,9 @@ describe('BerkovichDualDigitDisplayComponent', () => {
     fixture.componentRef.setInput('xRho', 0.0);
     fixture.componentRef.setInput('yCenter', { num: 5n, den: 3n }); // 1.20 in base 3
     fixture.componentRef.setInput('yRho', null);
+    fixture.componentRef.setInput('xEditableCenter', true);
+    fixture.componentRef.setInput('xEditableRho', true);
+    fixture.componentRef.setInput('yEditableCenter', true);
 
     fixture.detectChanges();
 
@@ -67,6 +70,10 @@ describe('BerkovichDualDigitDisplayComponent', () => {
     fixture.componentRef.setInput('xRho', 0.5);
     fixture.componentRef.setInput('yCenter', { num: 5n, den: 3n });
     fixture.componentRef.setInput('yRho', -1.0);
+    fixture.componentRef.setInput('xEditableCenter', true);
+    fixture.componentRef.setInput('xEditableRho', true);
+    fixture.componentRef.setInput('yEditableCenter', true);
+    fixture.componentRef.setInput('yEditableRho', true);
 
     fixture.detectChanges();
 

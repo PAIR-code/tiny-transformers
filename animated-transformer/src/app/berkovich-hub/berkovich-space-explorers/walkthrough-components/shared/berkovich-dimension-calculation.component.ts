@@ -71,6 +71,7 @@ import { BerkovichDigitDisplayComponent } from '../../../berkovich-digit-display
                 [prime]="prime()"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
+                [outerBoxColor]="'#64748b'"
                 [scale]="0.7"
               ></app-berkovich-digit-display>
             </div>
@@ -91,6 +92,7 @@ import { BerkovichDigitDisplayComponent } from '../../../berkovich-digit-display
                 [prime]="prime()"
                 [digitsLeft]="digitsLeft()"
                 [digitsRight]="digitsRight()"
+                [outerBoxColor]="'#64748b'"
                 [scale]="0.7"
               ></app-berkovich-digit-display>
             </div>

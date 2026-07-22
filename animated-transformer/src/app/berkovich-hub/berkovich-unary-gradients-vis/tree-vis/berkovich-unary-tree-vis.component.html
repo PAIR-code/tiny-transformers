@@ -301,7 +301,7 @@ limitations under the License.
           @if (constantNode()) {
             <div style="flex: 0 0 auto; width: fit-content;">
               <div style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                <span style="height: 6px; width: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                <span style="height: 6px; width: 6px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
                 <span>Constant ({{ constantLabel() }})</span>
               </div>
               <app-berkovich-digit-display
@@ -314,7 +314,7 @@ limitations under the License.
                 (centerChange)="inputChange.emit({ nodeId: 'C', field: 'center', value: formatDigitSequenceHelper($event) })"
                 (rhoChange)="inputChange.emit({ nodeId: 'C', field: 'rho', value: $event.toString() })"
                 [scale]="digitDisplayScale"
-                [outerBoxColor]="'#059669'"
+                [outerBoxColor]="'#64748b'"
               ></app-berkovich-digit-display>
             </div>
           }
@@ -322,7 +322,7 @@ limitations under the License.
           <!-- Output vs Target (right) -->
           <div style="flex: 0 0 auto; width: fit-content;">
             <div style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-              <span style="height: 6px; width: 6px; border-radius: 50%; background: #a78bfa; display: inline-block;"></span>
+              <span style="height: 6px; width: 6px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
               <span>Computation vs Target ({{ intermediateLabel() }} vs y)</span>
             </div>
             <app-berkovich-dual-digit-display
@@ -338,7 +338,7 @@ limitations under the License.
               [yEditableRho]="false"
               (yCenterChange)="inputChange.emit({ nodeId: 'Y', field: 'center', value: formatDigitSequenceHelper($event) })"
               [scale]="digitDisplayScale"
-              [xOuterBoxColor]="'#7c3aed'"
+              [xOuterBoxColor]="'#64748b'"
               [yOuterBoxColor]="'#eab308'"
             ></app-berkovich-dual-digit-display>
           </div>
