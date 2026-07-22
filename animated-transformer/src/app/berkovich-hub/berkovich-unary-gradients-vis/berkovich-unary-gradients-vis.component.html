@@ -23,7 +23,7 @@ limitations under the License.
     <!-- Left Column: Interactive Tree & Point Visualizer -->
     <section class="visualizer-card-container">
       <app-berkovich-unary-tree-vis
-        [(visMode)]="visMode"
+        [visMode]="visMode()"
         [constantLabel]="constantLabel()"
         [operator]="operator()"
         [prime]="prime()"

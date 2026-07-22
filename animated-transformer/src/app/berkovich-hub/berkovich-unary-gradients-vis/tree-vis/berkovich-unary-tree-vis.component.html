@@ -19,20 +19,6 @@ limitations under the License.
       <span>{{ operator() | titlecase }} Visualization</span>
     </mat-card-title>
     <div class="header-operator-select-wrapper" style="display: flex; gap: 16px; align-items: center;">
-      <!-- Mode select dropdown -->
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <label for="header-vis-mode-select">Mode:</label>
-        <select 
-          id="header-vis-mode-select" 
-          [ngModel]="visMode()" 
-          (ngModelChange)="visMode.set($event)"
-          class="header-operator-select"
-          style="min-width: 90px;"
-        >
-          <option value="tree">Tree Vis</option>
-          <option value="digits">Digit Seq Vis</option>
-        </select>
-      </div>
 
       <div style="display: flex; align-items: center; gap: 6px;">
         <label for="header-operator-select">Operator:</label>

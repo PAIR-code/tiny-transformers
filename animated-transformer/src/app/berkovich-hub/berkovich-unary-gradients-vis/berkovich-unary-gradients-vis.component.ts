@@ -49,8 +49,8 @@ import {
 
 import { BerkovichUnaryCalculusComponent } from './calculus-card/berkovich-unary-calculus.component';
 import { BerkovichUnaryTreeVisComponent, TrackedNode, EditableNodeInputs } from './tree-vis/berkovich-unary-tree-vis.component';
-
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+import { BerkovichVisSettingsService } from '../services/berkovich-vis-settings.service';
 
 @Component({
   selector: 'app-berkovich-unary-gradients-vis',
@@ -59,26 +59,27 @@ import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.c
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MatIconModule,
-    MatButtonModule,
     MatCardModule,
+    MatButtonModule,
+    MatIconModule,
     FormsModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichUnaryCalculusComponent,
+    BerkovichHeaderComponent,
     BerkovichUnaryTreeVisComponent,
-    BerkovichHeaderComponent
+    BerkovichUnaryCalculusComponent,
   ]
 })
-export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {
+export class BerkovichUnaryGradientsVisComponent implements OnInit, OnDestroy {
   formatRational(r: Rational): string {
     return formatRational(r);
   }
 
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly visSettingsService = inject(BerkovichVisSettingsService);
 
-  readonly visMode = signal<'tree' | 'digits'>('tree');
+  readonly visMode = this.visSettingsService.visStyle;
   readonly constantLabel = signal<string>('k');
 
   readonly operator = signal<BerkovichUnaryOperator>('shift');
@@ -103,7 +104,7 @@ export class BerkovichUnaryGradientsVisComponent implements OnDestroy, OnInit {
     const params = this.route.snapshot.queryParamMap;
     const modeParam = params.get('mode');
     if (modeParam === 'tree' || modeParam === 'digits') {
-      this.visMode.set(modeParam);
+      this.visSettingsService.setVisStyle(modeParam);
     }
     const opParam = params.get('operator');
     if (opParam === 'shift' || opParam === 'scale' || opParam === 'square' || opParam === 'cube') {

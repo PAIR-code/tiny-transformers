@@ -94,6 +94,43 @@ limitations under the License.
       }
     }
 
+    .vis-style-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-left: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        color: #3b82f6;
+      }
+
+      .dropdown-arrow {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        color: #64748b;
+      }
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+    }
+
     .nav-dots-btn {
       color: #64748b;
       background: transparent;

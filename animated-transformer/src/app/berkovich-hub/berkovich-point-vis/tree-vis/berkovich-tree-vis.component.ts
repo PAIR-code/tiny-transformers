@@ -52,11 +52,13 @@ import {
 } from '../../../../lib/berkovich/berkovich_tree_layout';
 import { BerkovichExplainerComponent } from '../explainer/berkovich-explainer.component';
 import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
+import { BerkovichVisSettingsService } from '../../services/berkovich-vis-settings.service';
 
 @Component({
   selector: 'app-berkovich-tree-vis',
   templateUrl: './berkovich-tree-vis.component.html',
   styleUrls: ['./berkovich-tree-vis.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     MatCardModule,
@@ -64,23 +66,25 @@ import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-d
     MatButtonModule,
     MarkdownComponent,
     BerkovichExplainerComponent,
-    BerkovichDualDigitDisplayComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    BerkovichDualDigitDisplayComponent,
+  ]
 })
 export class BerkovichTreeVisComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly visSettingsService = inject(BerkovichVisSettingsService);
 
-  // Vis mode
-  readonly currentVisMode = signal<'tree' | 'dual-digit'>('tree');
+  // Vis mode bound to sticky global settings
+  readonly currentVisMode = computed<'tree' | 'dual-digit'>(() => {
+    return this.visSettingsService.visStyle() === 'digits' ? 'dual-digit' : 'tree';
+  });
 
   ngOnInit(): void {
     // Sync from URL params on load / route changes
     this.route.queryParams.subscribe(params => {
       const mode = params['visMode'];
-      if ((mode === 'tree' || mode === 'dual-digit') && mode !== this.currentVisMode()) {
-        this.currentVisMode.set(mode);
+      if (mode === 'tree' || mode === 'digits' || mode === 'dual-digit') {
+        this.visSettingsService.setVisStyle(mode === 'tree' ? 'tree' : 'digits');
       }
     });
   }
@@ -635,7 +639,7 @@ The distance $d = -\\nu_p(c - y)$ indicates the **height (log-radius)** of the L
 
   onVisModeChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
-    this.currentVisMode.set(select.value as 'tree' | 'dual-digit');
+    this.visSettingsService.setVisStyle(select.value === 'dual-digit' ? 'digits' : 'tree');
   }
 
   onLogRadiusInputChange(val: string): void {

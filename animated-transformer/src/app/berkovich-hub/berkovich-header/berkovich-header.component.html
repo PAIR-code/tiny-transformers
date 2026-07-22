@@ -24,9 +24,9 @@ limitations under the License.
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div>
-      <h1>{{ title() }}</h1>
+      <h1><markdown [inline]="true" [katex]="true" [data]="title()"></markdown></h1>
       @if (subtitle()) {
-        <p class="subtitle" [innerHTML]="subtitle()"></p>
+        <p class="subtitle"><markdown [inline]="true" [katex]="true" [data]="subtitle()"></markdown></p>
       }
     </div>
   </div>
@@ -40,6 +40,29 @@ limitations under the License.
       <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
       <a routerLink="/berkovich/space-explorers" routerLinkActive="active-nav">Shakespeare Predictor</a>
       <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
+
+      <!-- Vis Style Selector Menu -->
+      <button
+        mat-button
+        [matMenuTriggerFor]="visStyleMenu"
+        class="vis-style-btn"
+        title="Change Visualization Style"
+      >
+        <mat-icon>{{ visStyle() === 'tree' ? 'account_tree' : 'view_week' }}</mat-icon>
+        <span>{{ visStyle() === 'tree' ? 'Tree Vis' : 'Digit Sequence' }}</span>
+        <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #visStyleMenu="matMenu" class="berkovich-nav-menu">
+        <div class="menu-header-label">Visualization Style</div>
+        <button mat-menu-item (click)="setVisStyle('tree')" [class.active-menu-item]="visStyle() === 'tree'">
+          <mat-icon>account_tree</mat-icon>
+          <span>Local Berkovich Subtree</span>
+        </button>
+        <button mat-menu-item (click)="setVisStyle('digits')" [class.active-menu-item]="visStyle() === 'digits'">
+          <mat-icon>view_week</mat-icon>
+          <span>Digit Sequence Display</span>
+        </button>
+      </mat-menu>
 
       <!-- Dots Menu for Vis Tools -->
       <button

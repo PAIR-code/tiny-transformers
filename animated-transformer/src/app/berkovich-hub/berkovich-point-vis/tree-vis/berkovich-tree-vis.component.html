@@ -1,11 +1,8 @@
 <mat-card class="visualizer-card">
   <mat-card-header>
     <mat-card-title class="header-title-container">
-      <mat-icon>{{ currentVisMode() === 'tree' ? 'account_tree' : 'compare_arrows' }}</mat-icon>
-      <select [value]="currentVisMode()" (change)="onVisModeChange($event)" class="vis-mode-select">
-        <option value="tree">Local Berkovich Subtree</option>
-        <option value="dual-digit">Dual Digit Sequence</option>
-      </select>
+      <mat-icon>{{ currentVisMode() === 'tree' ? 'account_tree' : 'view_week' }}</mat-icon>
+      <span>{{ currentVisMode() === 'tree' ? 'Local Berkovich Subtree' : 'Dual Digit Sequence' }}</span>
     </mat-card-title>
     <mat-card-subtitle>
       @if (currentVisMode() === 'tree') {

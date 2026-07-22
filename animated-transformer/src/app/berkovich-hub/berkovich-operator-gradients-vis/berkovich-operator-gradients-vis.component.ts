@@ -49,6 +49,7 @@ import {
   BerkovichBinaryOperator
 } from './tree-vis/berkovich-multi-tree-vis.component';
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+import { BerkovichVisSettingsService } from '../services/berkovich-vis-settings.service';
 
 @Component({
   selector: 'app-berkovich-operator-gradients-vis',
@@ -57,26 +58,27 @@ import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.c
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MatIconModule,
-    MatButtonModule,
     MatCardModule,
+    MatButtonModule,
+    MatIconModule,
     FormsModule,
     RouterModule,
     MarkdownComponent,
-    BerkovichOperatorCalculusComponent,
+    BerkovichHeaderComponent,
     BerkovichMultiTreeVisComponent,
-    BerkovichHeaderComponent
+    BerkovichOperatorCalculusComponent
   ]
 })
-export class BerkovichOperatorGradientsVisComponent implements OnDestroy, OnInit {
+export class BerkovichOperatorGradientsVisComponent implements OnInit, OnDestroy {
   formatRational(r: Rational): string {
     return formatRational(r);
   }
 
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly visSettingsService = inject(BerkovichVisSettingsService);
 
-  readonly visMode = signal<'tree' | 'digits'>('tree');
+  readonly visMode = this.visSettingsService.visStyle;
   readonly targetLabel = signal<string>('y');
 
   readonly operator = signal<BerkovichBinaryOperator>('addition');
@@ -120,7 +122,7 @@ export class BerkovichOperatorGradientsVisComponent implements OnDestroy, OnInit
     const params = this.route.snapshot.queryParamMap;
     const modeParam = params.get('mode');
     if (modeParam === 'tree' || modeParam === 'digits') {
-      this.visMode.set(modeParam);
+      this.visSettingsService.setVisStyle(modeParam);
     }
     const opParam = params.get('operator');
     if (opParam === 'addition' || opParam === 'multiplication') {
