@@ -1,8 +1,8 @@
 <mat-card class="visualizer-card">
   <mat-card-header>
     <mat-card-title class="header-title-container">
-      <mat-icon>{{ currentVisMode() === 'tree' ? 'account_tree' : 'view_week' }}</mat-icon>
-      <span>{{ currentVisMode() === 'tree' ? 'Local Berkovich Subtree' : 'Dual Digit Sequence' }}</span>
+      <mat-icon>{{ icon() }}</mat-icon>
+      <span>{{ title() }}</span>
     </mat-card-title>
     <mat-card-subtitle>
       @if (currentVisMode() === 'tree') {

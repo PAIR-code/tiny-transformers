@@ -93,6 +93,8 @@ export class BerkovichTreeVisComponent implements OnInit {
   readonly prime = input.required<number>();
   readonly targetRational = input.required<Rational>();
   readonly targetLogRadius = input<number>(); // Optional: If provided, shows disk target features
+  readonly title = input<string>('Berkovich Parameter State');
+  readonly icon = input<string>('hub');
   readonly targetDigitsInput = input.required<string>();
   readonly currentCenter = input.required<Rational>();
   readonly centerDigitsInput = input.required<string>();

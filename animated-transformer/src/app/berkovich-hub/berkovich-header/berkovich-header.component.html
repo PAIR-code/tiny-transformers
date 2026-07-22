@@ -48,19 +48,18 @@ limitations under the License.
         class="vis-style-btn"
         title="Change Visualization Style"
       >
-        <mat-icon>{{ visStyle() === 'tree' ? 'account_tree' : 'view_week' }}</mat-icon>
-        <span>{{ visStyle() === 'tree' ? 'Tree Vis' : 'Digit Sequence' }}</span>
+        <span>{{ visStyle() === 'tree' ? 'Tree Vis' : 'Digit Vis' }}</span>
         <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
       </button>
       <mat-menu #visStyleMenu="matMenu" class="berkovich-nav-menu">
         <div class="menu-header-label">Visualization Style</div>
         <button mat-menu-item (click)="setVisStyle('tree')" [class.active-menu-item]="visStyle() === 'tree'">
           <mat-icon>account_tree</mat-icon>
-          <span>Local Berkovich Subtree</span>
+          <span>Tree Vis</span>
         </button>
         <button mat-menu-item (click)="setVisStyle('digits')" [class.active-menu-item]="visStyle() === 'digits'">
           <mat-icon>view_week</mat-icon>
-          <span>Digit Sequence Display</span>
+          <span>Digit Vis</span>
         </button>
       </mat-menu>
 
