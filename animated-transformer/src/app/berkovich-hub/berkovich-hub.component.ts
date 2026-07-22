@@ -57,8 +57,15 @@ export class BerkovichHubComponent {
     {
       title: 'Shakespeare next-character predictor',
       description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
-      route: '/berkovich/space-explorers',
+      route: '/berkovich/shakespeare',
       icon: 'explore',
+      colorClass: 'card-berkovich',
+    },
+    {
+      title: 'MNIST Digit Classifier',
+      description: 'Classify 28x28 handwritten digits in Berkovich spaces using affinoid domain constraints, spatial trees, and p-adic metric bounds.',
+      route: '/berkovich/mnist',
+      icon: 'grid_on',
       colorClass: 'card-berkovich',
     },
     {

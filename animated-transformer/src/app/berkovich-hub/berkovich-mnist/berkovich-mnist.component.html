@@ -1,0 +1,211 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Berkovich MNIST Digit Classifier"
+    subtitle="Classify handwritten digits in non-Archimedean Berkovich space using affinoid domain constraints and radius margin regularization."
+  ></app-berkovich-header>
+
+  <div class="mnist-layout">
+    <!-- Left Column: Controls, Drawing Canvas & Prediction Bar -->
+    <div class="left-panel">
+      <!-- Approach Selector Card -->
+      <div class="card selector-card">
+        <h3>Select Classification Approach</h3>
+        <div class="approach-buttons">
+          <button
+            mat-flat-button
+            [color]="approach() === 'berkovich-affinoid' ? 'primary' : undefined"
+            (click)="onApproachChange('berkovich-affinoid')"
+          >
+            Berkovich Affinoid
+          </button>
+          <button
+            mat-flat-button
+            [color]="approach() === 'padic-linear' ? 'primary' : undefined"
+            (click)="onApproachChange('padic-linear')"
+          >
+            p-adic Linear
+          </button>
+          <button
+            mat-flat-button
+            [color]="approach() === 'euclidean-linear' ? 'primary' : undefined"
+            (click)="onApproachChange('euclidean-linear')"
+          >
+            Euclidean Baseline
+          </button>
+        </div>
+      </div>
+
+      <!-- Dataset Source Selector Card -->
+      <div class="card dataset-source-card">
+        <h3>Training Dataset Source</h3>
+        <div class="dataset-buttons">
+          <button
+            mat-stroked-button
+            [class.active-source]="datasetSource() === 'synthetic'"
+            (click)="selectDatasetSource('synthetic')"
+          >
+            <mat-icon>text_fields</mat-icon>
+            <span>Synthetic Fonts & Adjustments</span>
+          </button>
+          <button
+            mat-stroked-button
+            [class.active-source]="datasetSource() === 'real'"
+            (click)="selectDatasetSource('real')"
+            [disabled]="isLoadingRealMnist()"
+          >
+            <mat-icon>cloud_download</mat-icon>
+            <span>{{ isLoadingRealMnist() ? 'Loading Real MNIST...' : 'Real MNIST (Web)' }}</span>
+          </button>
+        </div>
+
+        <div class="dataset-status-row">
+          <span class="status-badge">
+            {{ datasetSource() === 'real' ? 'Real MNIST Web Dataset (200 samples)' : 'Synthetic Font Variations (100 samples)' }}
+          </span>
+          <button mat-button class="sample-btn" (click)="loadRandomSampleFromDataset()">
+            <mat-icon>shuffle</mat-icon>
+            <span>Random Sample</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas & Preset Toolbar -->
+      <div class="card canvas-card">
+        <h3><markdown [data]="canvasTitleMarkdown" [inline]="true" [katex]="true"></markdown></h3>
+        <app-mnist-canvas
+          [pixels]="currentPixels()"
+          [selectedDigit]="selectedDigit()"
+          (pixelsChange)="onPixelsChange($event)"
+          (selectedDigitChange)="onDigitPresetChange($event)"
+        ></app-mnist-canvas>
+      </div>
+
+      <!-- Real-Time Prediction Box -->
+      @if (currentPrediction(); as pred) {
+        <div class="card prediction-card">
+          <div class="pred-header">
+            <span class="pred-label">Model Prediction:</span>
+            <span class="pred-digit" [class.match]="pred.predDigit === selectedDigit()">
+              Digit {{ pred.predDigit }}
+            </span>
+            <span class="confidence">
+              ({{ (pred.probs[pred.predDigit] * 100) | number:'1.1-1' }}% Confidence)
+            </span>
+          </div>
+
+          <div class="probabilities-bars">
+            <div class="bars-header"><markdown [data]="probHeaderMarkdown" [inline]="true" [katex]="true"></markdown></div>
+            @for (k of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; track k) {
+              <div class="prob-row">
+                <span class="digit-tag" [class.highlight]="k === pred.predDigit">Digit {{ k }}:</span>
+                <div class="bar-track">
+                  <div
+                    class="bar-fill"
+                    [style.width.%]="pred.probs[k] * 100"
+                    [class.top-prob]="k === pred.predDigit"
+                  ></div>
+                </div>
+                <span class="prob-val">{{ (pred.probs[k] * 100) | number:'1.1-1' }}%</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Right Column: Training Controls, Loss Charts & Walkthrough -->
+    <div class="right-panel">
+      <!-- Training Toolbar -->
+      <div class="card training-card">
+        <div class="training-header">
+          <h3>Training Controls</h3>
+          <div class="step-metrics">
+            <span>Steps: <strong>{{ stepCount() }}</strong></span>
+            <span>Epochs: <strong>{{ epochCount() }}</strong></span>
+          </div>
+        </div>
+
+        <div class="training-actions">
+          <button mat-raised-button color="primary" (click)="stepTrain()" [disabled]="isAutoTraining()">
+            <mat-icon>play_arrow</mat-icon>
+            <span>Step Train</span>
+          </button>
+          <button mat-raised-button color="accent" (click)="trainEpochs(5)" [disabled]="isAutoTraining()">
+            <mat-icon>fast_forward</mat-icon>
+            <span>Train 5 Steps</span>
+          </button>
+          <button mat-stroked-button (click)="toggleAutoTrain()">
+            <mat-icon>{{ isAutoTraining() ? 'pause' : 'autorenew' }}</mat-icon>
+            <span>{{ isAutoTraining() ? 'Pause' : 'Auto Train' }}</span>
+          </button>
+          <button mat-button (click)="resetModel()">
+            <mat-icon>refresh</mat-icon>
+            <span>Reset Weights</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Training Trajectory Line Charts -->
+      <div class="card chart-card">
+        <h3>Training Trajectory (Loss & Accuracy)</h3>
+        <div class="charts-row">
+          <div class="chart-box">
+            <div class="chart-title">Batch Cross-Entropy Loss</div>
+            <app-d3-line-chart
+              [dataPoints]="trainLossHistory()"
+              [inChartConfig]="lossChartConfig"
+            ></app-d3-line-chart>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">Batch Accuracy</div>
+            <app-d3-line-chart
+              [dataPoints]="trainAccHistory()"
+              [inChartConfig]="accChartConfig"
+            ></app-d3-line-chart>
+          </div>
+        </div>
+      </div>
+
+      <!-- Walkthrough Section -->
+      <div class="card walkthrough-card">
+        <app-berkovich-mnist-walkthrough
+          [details]="walkthroughDetails()"
+          [selectedDigit]="selectedDigit()"
+          [beta]="beta()"
+          [prime]="prime()"
+          [numConstraints]="numConstraints()"
+          [aggMode]="aggMode()"
+          [digitsLeft]="digitsLeft()"
+          [digitsRight]="digitsRight()"
+        ></app-berkovich-mnist-walkthrough>
+      </div>
+
+      <!-- Parameter Inspector Section -->
+      @if (approach() === 'berkovich-affinoid') {
+        <div class="card inspector-card">
+          <app-berkovich-mnist-inspector
+            [model]="berkovichModel()"
+            [prime]="prime()"
+            [digitsLeft]="digitsLeft()"
+            [digitsRight]="digitsRight()"
+          ></app-berkovich-mnist-inspector>
+        </div>
+      }
+    </div>
+  </div>
+</div>

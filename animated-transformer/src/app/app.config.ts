@@ -37,6 +37,7 @@ import { BerkovichUnaryGradientsVisComponent } from './berkovich-hub/berkovich-u
 import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
 import { BerkovichSpaceExplorersComponent } from './berkovich-hub/berkovich-space-explorers/berkovich-space-explorers.component';
+import { BerkovichMnistComponent } from './berkovich-hub/berkovich-mnist/berkovich-mnist.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -79,7 +80,9 @@ export const routes: Routes = [
       { path: 'disk', component: BerkovichDiskVisComponent },
       { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
       { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
-      { path: 'space-explorers', component: BerkovichSpaceExplorersComponent },
+      { path: 'shakespeare', component: BerkovichSpaceExplorersComponent },
+      { path: 'space-explorers', redirectTo: 'shakespeare', pathMatch: 'full' },
+      { path: 'mnist', component: BerkovichMnistComponent },
       { path: 'glossary', component: BerkovichGlossaryComponent },
     ]
   },

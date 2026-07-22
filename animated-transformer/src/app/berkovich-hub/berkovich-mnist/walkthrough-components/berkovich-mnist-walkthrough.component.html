@@ -1,0 +1,109 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+@if (details(); as d) {
+  <div class="walkthrough-container">
+    <!-- Header / Overview Card -->
+    <div class="step-card overview-card">
+      <div class="card-header">
+        <mat-icon class="icon-berkovich">grid_on</mat-icon>
+        <h2>MNIST Berkovich Affinoid Model Walkthrough</h2>
+      </div>
+      <p class="description"><markdown [data]="descriptionMarkdown" [katex]="true"></markdown></p>
+
+      <div class="explanation-box">
+        <markdown [data]="explanationMarkdown" [katex]="true"></markdown>
+      </div>
+    </div>
+
+    <!-- Step 1: Spatial Patch Extraction -->
+    <div class="step-card">
+      <div class="step-badge">Step 1</div>
+      <h3>Spatial Patch Feature Extraction</h3>
+      <div class="step-desc"><markdown [data]="step1Markdown" [katex]="true"></markdown></div>
+
+      <div class="patch-grid-preview">
+        <div class="grid-header">Extracted Patch Intensities (4x4 Grid):</div>
+        <div class="patch-cells">
+          @for (val of d.patchMeans; track $index) {
+            <div
+              class="patch-cell"
+              [style.background-color]="'rgba(66, 133, 244, ' + val + ')'"
+              [title]="'Patch ' + $index + ': ' + (val | number:'1.2-2')"
+            >
+              {{ val | number:'1.2-2' }}
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Context Tree Aggregation -->
+    <div class="step-card">
+      <div class="step-badge">Step 2</div>
+      <h3>Tree Positional Aggregation</h3>
+      <div class="step-desc"><markdown [data]="step2Markdown" [katex]="true"></markdown></div>
+
+      <div class="aggregated-disks-container">
+        @for (item of d.aggregated; track item.dim) {
+          <div class="disk-item">
+            <span class="dim-label">Dim {{ item.dim }}:</span>
+            @if (item.center !== undefined) {
+              <app-berkovich-digit-display
+                [center]="item.center"
+                [rho]="item.rho!"
+                [prime]="prime()"
+                [digitsLeft]="digitsLeft()"
+                [digitsRight]="digitsRight()"
+              ></app-berkovich-digit-display>
+            } @else {
+              <span class="euclidean-val">val = {{ item.val | number:'1.3-3' }}</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Step 3: Affinoid Domain Projections -->
+    <div class="step-card">
+      <div class="step-badge">Step 3</div>
+      <h3>Affinoid Constraint Projections & Path Losses</h3>
+      <div class="step-desc"><markdown [data]="step3Markdown" [katex]="true"></markdown></div>
+
+      <div class="class-scores-grid">
+        @for (scoreItem of d.scores; track scoreItem.digit) {
+          <div class="class-score-card" [class.selected-digit]="scoreItem.digit === selectedDigit()">
+            <div class="score-digit">Digit {{ scoreItem.digit }}</div>
+            <div class="score-value">Score = {{ scoreItem.finalScore | number:'1.3-3' }}</div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Step 4: Softmax & Margin Separation -->
+    <div class="step-card">
+      <div class="step-badge">Step 4</div>
+      <h3>Affinoid Softmax & Probabilities</h3>
+      <div class="step-desc"><markdown [data]="step4Markdown" [katex]="true"></markdown></div>
+
+      <app-softmax-walkthrough-table
+        [predictions]="d.predictions"
+        [denominatorSum]="d.sumExp"
+        [beta]="beta()"
+        [guideData]="softmaxGuide"
+      ></app-softmax-walkthrough-table>
+    </div>
+  </div>
+}

@@ -1,0 +1,268 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+:host {
+  display: block;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.berkovich-page-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  color: #1e293b;
+}
+
+.mnist-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  margin-top: 20px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.left-panel,
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+}
+
+.approach-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  button {
+    text-align: left;
+    justify-content: flex-start;
+  }
+}
+
+.dataset-source-card {
+  .dataset-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    button {
+      text-align: left;
+      justify-content: flex-start;
+      border-color: #cbd5e1;
+      color: #1e293b;
+
+      mat-icon {
+        color: #64748b;
+        margin-right: 6px;
+      }
+
+      &.active-source {
+        background-color: #eff6ff;
+        border-color: #2563eb;
+        color: #1d4ed8;
+
+        mat-icon {
+          color: #2563eb;
+        }
+      }
+    }
+  }
+
+  .dataset-status-row {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .status-badge {
+      font-size: 0.8rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .sample-btn {
+      align-self: flex-start;
+      font-size: 0.8rem;
+      color: #2563eb;
+      padding: 0;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+}
+
+.prediction-card {
+  .pred-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .pred-label {
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+
+    .pred-digit {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #dc2626;
+
+      &.match {
+        color: #16a34a;
+      }
+    }
+
+    .confidence {
+      font-size: 0.85rem;
+      color: #2563eb;
+      font-weight: 500;
+    }
+  }
+
+  .probabilities-bars {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .bars-header {
+      font-size: 0.85rem;
+      color: #475569;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .prob-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+
+      .digit-tag {
+        min-width: 54px;
+        color: #475569;
+
+        &.highlight {
+          color: #2563eb;
+          font-weight: bold;
+        }
+      }
+
+      .bar-track {
+        flex: 1;
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 6px;
+        overflow: hidden;
+
+        .bar-fill {
+          height: 100%;
+          background: #94a3b8;
+          transition: width 0.2s ease;
+
+          &.top-prob {
+            background: #2563eb;
+          }
+        }
+      }
+
+      .prob-val {
+        min-width: 42px;
+        text-align: right;
+        color: #0f172a;
+        font-family: monospace;
+      }
+    }
+  }
+}
+
+.training-card {
+  .training-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    h3 {
+      margin: 0;
+    }
+
+    .step-metrics {
+      display: flex;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: #2563eb;
+    }
+  }
+
+  .training-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+.chart-card {
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+
+      .chart-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 8px;
+      }
+    }
+  }
+}
