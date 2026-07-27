@@ -32,3 +32,8 @@ Refer to [berkovich.tex](file:///Users/ldixon/code/tiny-transformers/animated-tr
 - **Gradient Descent Steps**:
   - **Type III Edges**: Continuous gradient flow (updating $\rho$ coordinate).
   - **Type II Vertices**: Branch transitions (evaluating candidates in $\mathbb{F}_p \cup \{\infty\}$ and taking the argmin of the loss).
+
+## 3. Naming Conventions & File Prefixes
+
+- **File & Module Prefix `bk-`**: Use `bk-` as a standard short prefix for "Berkovich" in library filenames, utilities, and helper modules (e.g., `bk-bounded-real-encoding.ts`, `bk-bounded-real-encoding.spec.ts`).
+

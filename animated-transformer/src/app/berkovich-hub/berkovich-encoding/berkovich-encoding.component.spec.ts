@@ -91,9 +91,9 @@ describe('BerkovichEncodingComponent', () => {
     component.onDigitDisplayRhoChange(1);
     expect(component.decodedBiasedReal()).toBe(0.6875);
 
-    // Rho = 0 (4 bits certainty: exact leaf midpoint) -> 0.71875
+    // Rho = 0 (4 bits certainty: exact leaf midpoint 11/16) -> 0.6875
     component.onDigitDisplayRhoChange(0);
-    expect(component.decodedBiasedReal()).toBe(0.71875);
+    expect(component.decodedBiasedReal()).toBe(0.6875);
     expect(component.decodedBiasedReal()).toBe(component.decodedExactReal());
 
     // Continuous interpolation (rho = 3.5 -> m = 0.5 -> midway between 0.5 and 0.75)
@@ -121,9 +121,9 @@ describe('BerkovichEncodingComponent', () => {
     component.onDigitDisplayRhoChange(1);
     expect(component.decodedBiasedReal()).toBe(0.1875);
 
-    // Rho = 0 -> exact leaf midpoint 0.21875
+    // Rho = 0 -> exact leaf midpoint 3/16 = 0.1875
     component.onDigitDisplayRhoChange(0);
-    expect(component.decodedBiasedReal()).toBe(0.21875);
+    expect(component.decodedBiasedReal()).toBe(0.1875);
     expect(component.decodedBiasedReal()).toBe(component.decodedExactReal());
   });
 

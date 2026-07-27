@@ -28,19 +28,15 @@ import { MarkdownComponent } from 'ngx-markdown';
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import { BerkovichEncodingTreeVisComponent } from './berkovich-encoding-tree-vis.component';
-import { Rational, simplify, formatRational } from '../../../lib/berkovich/berkovich';
+import { Rational, formatRational } from '../../../lib/berkovich/berkovich';
+import {
+  BkBinarySearchStep as BinarySearchStep,
+  computeBkBinarySearchSteps,
+  decodeBkExactReal,
+  decodeBkBiasedReal
+} from '../../../lib/berkovich/bk-bounded-real-encoding';
 
-export interface BinarySearchStep {
-  step: number;
-  lower: number;
-  upper: number;
-  midpoint: number;
-  rationalCenter: Rational;
-  bit: number; // 1 for higher (>= mid), 0 for lower (< mid)
-  direction: 'higher' | 'lower';
-  rho: number;
-  diskRadius: number;
-}
+export type { BinarySearchStep };
 
 @Component({
   selector: 'app-berkovich-encoding',
@@ -86,58 +82,9 @@ export class BerkovichEncodingComponent {
     { label: '0.850', value: 0.85 }
   ];
 
-  // Binary search steps reactive to realTarget and depth (2 * K steps total)
+  // Binary search steps reactive to realTarget and depth
   readonly steps = computed<BinarySearchStep[]>(() => {
-    const x = this.realTarget();
-    const K = this.depth();
-    const totalSteps = K * 2; // K digits right + K digits left
-    const p = this.prime();
-    const result: BinarySearchStep[] = [];
-
-    let lower = 0;
-    let upper = 1;
-    let num = 1n;
-    let den = 2n;
-
-    for (let k = 0; k < totalSteps; k++) {
-      const mid = (lower + upper) / 2;
-      const bit = x >= mid ? 1 : 0;
-      const direction = bit === 1 ? 'higher' : 'lower';
-
-      let nextLower = lower;
-      let nextUpper = upper;
-      const nextDen = den * 2n;
-      let nextNum = num;
-      if (bit === 1) {
-        nextLower = mid;
-        nextNum = num * 2n + 1n;
-      } else {
-        nextUpper = mid;
-        nextNum = num * 2n - 1n;
-      }
-
-      const rationalCenter = simplify({ num: nextNum, den: nextDen });
-      const nextMid = (nextLower + nextUpper) / 2;
-
-      result.push({
-        step: k + 1,
-        lower: nextLower,
-        upper: nextUpper,
-        midpoint: nextMid,
-        rationalCenter,
-        bit,
-        direction,
-        rho: -(k + 1),
-        diskRadius: Math.pow(p, -(k + 1))
-      });
-
-      lower = nextLower;
-      upper = nextUpper;
-      num = nextNum;
-      den = nextDen;
-    }
-
-    return result;
+    return computeBkBinarySearchSteps(this.realTarget(), this.depth(), this.prime());
   });
 
   readonly finalStep = computed<BinarySearchStep | null>(() => {
@@ -162,42 +109,15 @@ export class BerkovichEncodingComponent {
 
   // Decoded Exact Real Value from Rational Center
   readonly decodedExactReal = computed<number>(() => {
-    const r = this.currentRationalCenter();
-    const den = Number(r.den);
-    return den === 0 ? 0.5 : Number(r.num) / den;
+    return decodeBkExactReal(this.steps());
   });
 
   // Controls whether rho normalization / regularization is enabled in Reverse Decoding
   readonly useRhoNormalization = signal<boolean>(true);
 
-  // Biased / Regularized Real Value:
-  // - useRhoNormalization = false -> returns exact p-adic leaf midpoint
-  // - max large rho (rho = N = 2K) -> 0 bits of certainty -> exactly 0.5
-  // - rho = N - 1 -> 1 bit of certainty -> 0.25 or 0.75 depending on rightmost digit b_{-1}
-  // - rho = 0 -> N bits of certainty -> exact leaf midpoint
-  // - continuous rho -> linear interpolation between interval midpoints at levels floor(m) and ceil(m), where m = N - rho
+  // Biased / Regularized Real Value
   readonly decodedBiasedReal = computed<number>(() => {
-    if (!this.useRhoNormalization()) {
-      return this.decodedExactReal();
-    }
-    const stepsList = this.steps();
-    const N = stepsList.length;
-    if (N === 0) {
-      return 0.5;
-    }
-    const rhoVal = this.padicRho();
-    const m = Math.max(0, Math.min(N, N - rhoVal));
-    if (m <= 0) {
-      return 0.5;
-    }
-    if (m >= N) {
-      return stepsList[N - 1].midpoint;
-    }
-    const k = Math.floor(m);
-    const t = m - k;
-    const mK = k === 0 ? 0.5 : stepsList[k - 1].midpoint;
-    const mKNext = stepsList[k].midpoint;
-    return (1 - t) * mK + t * mKNext;
+    return decodeBkBiasedReal(this.steps(), this.padicRho(), this.useRhoNormalization());
   });
 
   readonly forwardExplanationMarkdown =
