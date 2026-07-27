@@ -28,27 +28,42 @@ limitations under the License.
   </header>
 
   <main class="landing-main">
-    <section class="section-group">
-      <div class="cards-grid">
-        @for (card of activeCards; track card.route) {
-          <div class="card" [class]="card.colorClass" [routerLink]="card.route">
-            <div class="card-glow"></div>
-            <div class="card-content">
-              <div class="card-icon-container">
-                <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
-              </div>
-              <h3>{{ card.title }}</h3>
-              <p>{{ card.description }}</p>
-              <div class="card-actions">
-                <span class="explore-btn">
-                  Explore
-                  <mat-icon>arrow_forward</mat-icon>
-                </span>
+    @for (group of cardGroups; track group.title; let isLast = $last) {
+      <section class="section-group">
+        <div class="group-header">
+          <div class="group-title-row">
+            <mat-icon class="group-icon">{{ group.icon }}</mat-icon>
+            <h2>{{ group.title }}</h2>
+            <span class="group-badge">{{ group.badge }}</span>
+          </div>
+          <p class="group-subtitle">{{ group.subtitle }}</p>
+        </div>
+
+        <div class="cards-grid">
+          @for (card of group.cards; track card.route) {
+            <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <div class="card-icon-container">
+                  <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+                </div>
+                <h3>{{ card.title }}</h3>
+                <p>{{ card.description }}</p>
+                <div class="card-actions">
+                  <span class="explore-btn">
+                    Explore
+                    <mat-icon>arrow_forward</mat-icon>
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        }
-      </div>
-    </section>
+          }
+        </div>
+      </section>
+
+      @if (!isLast) {
+        <hr class="section-divider" />
+      }
+    }
   </main>
 </div>

@@ -33,11 +33,36 @@ limitations under the License.
 
   <nav class="header-nav">
     @if (!isVisTool()) {
-      <!-- Main Visualizations Primary Links -->
-      <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
-      <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Gradients</a>
-      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Gradients</a>
+      <!-- Gradient Visualizations Sub-Menu -->
+      <button
+        [matMenuTriggerFor]="gradientsMenu"
+        class="nav-menu-btn"
+        title="Gradient Visualizations"
+        [class.active-nav]="isGradientsActive()"
+      >
+        <span>Gradients</span>
+        <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #gradientsMenu="matMenu" class="berkovich-nav-menu">
+        <div class="menu-header-label">Gradient Visualizations</div>
+        <button mat-menu-item routerLink="/berkovich/point" routerLinkActive="active-menu-item">
+          <mat-icon>blur_linear</mat-icon>
+          <span>Point SGD</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/disk" routerLinkActive="active-menu-item">
+          <mat-icon>adjust</mat-icon>
+          <span>Disk SGD</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/unary-gradients" routerLinkActive="active-menu-item">
+          <mat-icon>looks_one</mat-icon>
+          <span>Unary Op Gradients</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/operator-gradients" routerLinkActive="active-menu-item">
+          <mat-icon>call_split</mat-icon>
+          <span>Binary Op Gradients</span>
+        </button>
+      </mat-menu>
+
       <a routerLink="/berkovich/encoding" routerLinkActive="active-nav">Encoding</a>
 
       <!-- Applications Dropdown Menu -->
@@ -74,7 +99,7 @@ limitations under the License.
         class="vis-style-btn"
         title="Change Visualization Style"
       >
-        <span>{{ visStyle() === 'tree' ? 'Tree Vis' : 'Digit Vis' }}</span>
+        <span>Vis Style</span>
         <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
       </button>
       <mat-menu #visStyleMenu="matMenu" class="berkovich-nav-menu">

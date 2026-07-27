@@ -26,6 +26,14 @@ interface SubpageCard {
   colorClass: string;
 }
 
+export interface CardGroup {
+  title: string;
+  subtitle: string;
+  badge: string;
+  icon: string;
+  cards: SubpageCard[];
+}
+
 @Component({
   selector: 'app-berkovich-hub',
   templateUrl: './berkovich-hub.component.html',
@@ -39,76 +47,100 @@ interface SubpageCard {
   ],
 })
 export class BerkovichHubComponent {
-  readonly activeCards: SubpageCard[] = [
+  readonly cardGroups: CardGroup[] = [
     {
-      title: 'Berkovich Point Explorer',
-      description: 'Explore the continuous optimization landscapes of non-Archimedean p-adic models in Berkovich spaces.',
-      route: '/berkovich/point',
-      icon: 'blur_linear',
-      colorClass: 'card-berkovich',
+      title: 'Basic Gradient Visualizations',
+      subtitle: 'Core non-Archimedean SGD optimization landscapes and tree gradient descent steps',
+      badge: 'Basic Gradients',
+      icon: 'insights',
+      cards: [
+        {
+          title: 'Berkovich Point Explorer',
+          description: 'Explore the continuous optimization landscapes of non-Archimedean p-adic models in Berkovich spaces.',
+          route: '/berkovich/point',
+          icon: 'blur_linear',
+          colorClass: 'card-berkovich',
+        },
+        {
+          title: 'Berkovich Target Disk Explorer',
+          description: 'Explore optimization landscapes learning both center and log-radius targets.',
+          route: '/berkovich/disk',
+          icon: 'adjust',
+          colorClass: 'card-berkovich',
+        },
+        {
+          title: 'Berkovich Unary Op Gradients',
+          description: 'Visualize backward pass and gradient flow through unary operations (shift, scale, and squaring).',
+          route: '/berkovich/unary-gradients',
+          icon: 'looks_one',
+          colorClass: 'card-berkovich-unary',
+        },
+        {
+          title: 'Berkovich Binary Op Gradients',
+          description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
+          route: '/berkovich/operator-gradients',
+          icon: 'call_split',
+          colorClass: 'card-berkovich-operator',
+        },
+      ]
     },
     {
-      title: 'Berkovich Target Disk Explorer',
-      description: 'Explore optimization landscapes learning both center and log-radius targets.',
-      route: '/berkovich/disk',
-      icon: 'adjust',
-      colorClass: 'card-berkovich',
+      title: 'Applications',
+      subtitle: 'Machine learning applications using learned Berkovich embeddings and affinoid domain constraints',
+      badge: 'ML Applications',
+      icon: 'auto_awesome',
+      cards: [
+        {
+          title: 'Shakespeare Next-Character Predictor',
+          description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
+          route: '/berkovich/shakespeare',
+          icon: 'explore',
+          colorClass: 'card-berkovich',
+        },
+        {
+          title: 'MNIST Digit Classifier',
+          description: 'Classify 28x28 handwritten digits in Berkovich spaces using affinoid domain constraints, spatial trees, and p-adic metric bounds.',
+          route: '/berkovich/mnist',
+          icon: 'grid_on',
+          colorClass: 'card-berkovich',
+        },
+        {
+          title: 'Boolean Function & DNF Explorer',
+          description: 'Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools and 2-adic binary search encodings.',
+          route: '/berkovich/boolean',
+          icon: 'alt_route',
+          colorClass: 'card-berkovich',
+        },
+      ]
     },
     {
-      title: '2-adic Binary Search Encoding',
-      description: 'Encode bounded real values in [0, 1] into Berkovich tree points using interval halving binary search.',
-      route: '/berkovich/encoding',
-      icon: 'sync_alt',
-      colorClass: 'card-berkovich',
-    },
-    {
-      title: 'Shakespeare next-character predictor',
-      description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
-      route: '/berkovich/shakespeare',
-      icon: 'explore',
-      colorClass: 'card-berkovich',
-    },
-    {
-      title: 'MNIST Digit Classifier',
-      description: 'Classify 28x28 handwritten digits in Berkovich spaces using affinoid domain constraints, spatial trees, and p-adic metric bounds.',
-      route: '/berkovich/mnist',
-      icon: 'grid_on',
-      colorClass: 'card-berkovich',
-    },
-    {
-      title: 'Boolean Function & DNF Explorer',
-      description: 'Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools and 2-adic binary search encodings.',
-      route: '/berkovich/boolean',
-      icon: 'alt_route',
-      colorClass: 'card-berkovich',
-    },
-    {
-      title: 'Berkovich Unary Op Gradients',
-      description: 'Visualize backward pass and gradient flow through unary operations (shift, scale, and squaring).',
-      route: '/berkovich/unary-gradients',
-      icon: 'looks_one',
-      colorClass: 'card-berkovich-unary',
-    },
-    {
-      title: 'Berkovich Binary Op Gradients',
-      description: 'Visualize backward pass and gradient flow through binary operations (addition, multiplication, and softmax).',
-      route: '/berkovich/operator-gradients',
-      icon: 'call_split',
-      colorClass: 'card-berkovich-operator',
-    },
-    {
-      title: 'Notation Glossary',
-      description: 'Reference guide for mathematical definitions, symbols, and non-Archimedean terminology.',
-      route: '/berkovich/glossary',
-      icon: 'menu_book',
-      colorClass: 'card-berkovich-glossary',
-    },
-    {
-      title: 'Berkovich Vis Tools',
-      description: 'Play with standalone visualization components and custom parameter parameters interactively.',
-      route: '/vis-tools',
-      icon: 'construction',
-      colorClass: 'card-berkovich-vis-tools',
-    },
+      title: 'Encoding, Reference & Vis Tools',
+      subtitle: 'Binary search tree encodings, interactive component playgrounds, and notation reference',
+      badge: 'Tools & Reference',
+      icon: 'build_circle',
+      cards: [
+        {
+          title: '2-adic Binary Search Encoding',
+          description: 'Encode bounded real values in [0, 1] into Berkovich tree points using interval halving binary search.',
+          route: '/berkovich/encoding',
+          icon: 'sync_alt',
+          colorClass: 'card-berkovich',
+        },
+        {
+          title: 'Notation Glossary',
+          description: 'Reference guide for mathematical definitions, symbols, and non-Archimedean terminology.',
+          route: '/berkovich/glossary',
+          icon: 'menu_book',
+          colorClass: 'card-berkovich-glossary',
+        },
+        {
+          title: 'Berkovich Vis Tools',
+          description: 'Play with standalone visualization components and custom parameters interactively.',
+          route: '/vis-tools',
+          icon: 'construction',
+          colorClass: 'card-berkovich-vis-tools',
+        },
+      ]
+    }
   ];
 }

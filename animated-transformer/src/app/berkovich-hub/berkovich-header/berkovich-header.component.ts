@@ -67,6 +67,16 @@ export class BerkovichHeaderComponent {
     );
   });
 
+  readonly isGradientsActive = computed(() => {
+    const url = this.currentUrl();
+    return (
+      url.includes('/berkovich/point') ||
+      url.includes('/berkovich/disk') ||
+      url.includes('/berkovich/unary-gradients') ||
+      url.includes('/berkovich/operator-gradients')
+    );
+  });
+
   setVisStyle(style: VisStyle) {
     this.visSettingsService.setVisStyle(style);
   }
