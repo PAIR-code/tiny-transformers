@@ -41,7 +41,7 @@ export interface BerkovichBooleanConfig {
   poolInitMode: 'separated-branches' | 'random';
   repulsionReg: number;
   updateTargetCenters?: boolean;
-  targetCenterMode?: 'fixed' | 'dynamic' | 'softmax-repulsion';
+  targetCenterMode?: 'fixed' | 'gradient' | 'repulsion' | 'combined' | 'dynamic' | 'softmax-repulsion';
 }
 
 export interface BerkovichBooleanForwardResult {
@@ -268,39 +268,45 @@ export class BerkovichBooleanLearner {
         const x_d = inputDisks[d];
 
         if (gk < 0) {
-          const mode = config.targetCenterMode || (config.updateTargetCenters ? 'dynamic' : 'fixed');
-          const shouldUpdateCenter = mode === 'dynamic' || mode === 'softmax-repulsion' || config.targetInitMode === 'random';
+          const mode = config.targetCenterMode || (config.updateTargetCenters ? 'combined' : 'fixed');
+          const doGradient = mode === 'gradient' || mode === 'combined' || mode === 'dynamic' || config.targetInitMode === 'random';
+          const doRepulsion = mode === 'repulsion' || mode === 'combined' || mode === 'softmax-repulsion';
 
-          if (shouldUpdateCenter) {
+          let nextC = W.center;
+          let nextRho = W.rho;
+
+          if (doGradient) {
             const details = computeGradientDetails(W.center, W.rho, H.center, H.rho, p, lr * Math.abs(gk));
-            let nextC = details.nextCenter;
-
-            if (mode === 'softmax-repulsion') {
-              // Apply Softmax Repulsion Normalization pushing W.center away from other pool targets
-              let totalWeight = 0;
-              for (let mOther = 0; mOther < numPools; mOther++) {
-                if (mOther !== activeM) {
-                  const W_other = this.W[k][mOther][d];
-                  const distVal = getValuation(subtract(W.center, W_other.center), p);
-                  const dVal = distVal.type === 'finite' ? distVal.value : 4;
-                  totalWeight += Math.exp(-dVal);
-                }
-              }
-              if (totalWeight > 0) {
-                const repShift = Math.min(1, Math.round(totalWeight * 2));
-                const shiftDen = p ** BigInt(Math.max(1, Math.abs(Math.round(W.rho))));
-                nextC = add(nextC, simplify({ num: BigInt(repShift), den: shiftDen }));
-              }
-            }
-
-            W.center = nextC;
-            W.rho = details.nextLogRadius;
+            nextC = details.nextCenter;
+            nextRho = details.nextLogRadius;
           } else {
             const dVal = getValuation(subtract(W.center, H.center), p);
             const val = dVal.type === 'finite' ? -dVal.value : -Infinity;
             const sgn = W.rho >= val ? 1 : -1;
-            W.rho = Math.max(-3, Math.min(3, W.rho - lr * Math.abs(gk) * sgn));
+            nextRho = Math.max(-3, Math.min(3, W.rho - lr * Math.abs(gk) * sgn));
           }
+
+          if (doRepulsion && repulsionReg > 0) {
+            let totalWeight = 0;
+            for (let mOther = 0; mOther < numPools; mOther++) {
+              if (mOther !== activeM) {
+                const W_other = this.W[k][mOther][d];
+                const distVal = getValuation(subtract(W.center, W_other.center), p);
+                const dVal = distVal.type === 'finite' ? distVal.value : 4;
+                totalWeight += Math.exp(-dVal);
+              }
+            }
+            if (totalWeight > 0) {
+              const repShift = Math.min(1, Math.round(totalWeight * repulsionReg * 50));
+              if (repShift > 0) {
+                const shiftDen = p ** BigInt(Math.max(1, Math.abs(Math.round(W.rho))));
+                nextC = add(nextC, simplify({ num: BigInt(repShift), den: shiftDen }));
+              }
+            }
+          }
+
+          W.center = nextC;
+          W.rho = nextRho;
 
           // Target center for pw is W.center - x_d.center
           const targetPwCenter = simplify(subtract(W.center, x_d.center));

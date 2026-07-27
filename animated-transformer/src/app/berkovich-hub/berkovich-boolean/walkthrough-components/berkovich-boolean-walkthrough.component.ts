@@ -68,7 +68,7 @@ export class BerkovichBooleanWalkthroughComponent {
   // Parameter Change Outputs
   readonly targetInitModeChange = output<'pre-fixed-leaves' | 'random'>();
   readonly poolInitModeChange = output<'separated-branches' | 'random'>();
-  readonly targetCenterModeChange = output<'fixed' | 'dynamic' | 'softmax-repulsion'>();
+  readonly targetCenterModeChange = output<'fixed' | 'gradient' | 'repulsion' | 'combined'>();
   readonly numPoolsChange = output<number>();
   readonly learningRateChange = output<number>();
   readonly regularizationChange = output<number>();
@@ -88,24 +88,26 @@ export class BerkovichBooleanWalkthroughComponent {
 
   readonly targetModeExplainerMarkdown = computed(() => {
     const cfg = this.config();
-    const mode = cfg.targetCenterMode || (cfg.updateTargetCenters ? 'dynamic' : 'fixed');
+    const mode = cfg.targetCenterMode || (cfg.updateTargetCenters ? 'combined' : 'fixed');
     const initMode = cfg.targetInitMode;
     const poolMode = cfg.poolInitMode;
 
     let targetExpl = '';
     if (mode === 'fixed') {
-      targetExpl = '**Fixed Target Centers**: Target constraint centers W₀,m and W₁,m stay fixed at canonical leaves (0 and 1/p). Gradient descent updates pool weight shifts PW_{m,d} so X_d + PW_{m,d} → W_{1,m,d}.';
-    } else if (mode === 'dynamic') {
-      targetExpl = '**Dynamic Gradient Updates**: Target constraint centers W₀,m and W₁,m update dynamically toward active pooled disks H_{m,d} during training.';
+      targetExpl = '**Fixed Target Centers**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ stay fixed at canonical leaves ($c_0=0, c_1=1/p$). Gradient descent updates pool weight shifts $PW_{m,d}$ so $X_d \\oplus PW_{m,d} \\to W_{1,m,d}$.';
+    } else if (mode === 'gradient' || mode === 'dynamic') {
+      targetExpl = '**Dynamic Gradient Updates**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ update dynamically toward active pooled disks $H_{m,d}$ during training.';
+    } else if (mode === 'repulsion') {
+      targetExpl = '**Softmax Repulsion Only**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ move purely via softmax-normalized repulsion forces pushing pool/class target centers apart across distinct branches of the 2-adic tree.';
     } else {
-      targetExpl = '**Softmax Repulsion Normalized**: Target centers W₀,m and W₁,m update via gradient descent while applying a softmax-normalized repulsion force that pushes target constraint centers apart across distinct branches of the 2-adic tree.';
+      targetExpl = '**Combined (Gradient + Repulsion)**: Target centers update via gradient descent toward pooled centers $H_{m,d}$ AND apply a weighted softmax repulsion force ($\\lambda_{\\text{repulsion}} = ' + cfg.repulsionReg + ') pushing target centers apart simultaneously.';
     }
 
     let initExpl = '';
     if (initMode === 'random') {
-      initExpl = 'Target centers W are **randomly initialized** across 2-adic tree depth 4.';
+      initExpl = 'Target centers $W$ are **randomly initialized** across 2-adic tree depth 4.';
     } else {
-      initExpl = 'Target centers W are initialized at **canonical p-adic leaves** (0 and 1/p).';
+      initExpl = 'Target centers $W$ are initialized at **canonical $p$-adic leaves** ($c_0=0, c_1=1/p$).';
     }
 
     let poolExpl = '';
@@ -124,16 +126,16 @@ export class BerkovichBooleanWalkthroughComponent {
     const poolMode = cfg.poolInitMode;
 
     const poolDesc = poolMode === 'separated-branches'
-      ? '**Programmatic Minterm Corners**: Initialized at PW_{m,d} = bit_d ? 3/4 : 1/4. Guarantees 100% initial coverage of all 2^D hypercube minterms for universal circuit learning.'
-      : '**Random Tree Centers**: Initialized to random depth-4 2-adic rational centers num/16. Evaluates standard unguided neural initialization.';
+      ? '**Programmatic Minterm Corners**: Initialized at $PW_{m,d} = \\text{bit}_d \\,?\\, 3/4 : 1/4$. Guarantees $100\\%$ initial coverage of all $2^D$ hypercube minterms for universal circuit learning.'
+      : '**Random Tree Centers**: Initialized to random depth-4 2-adic rational centers $\\frac{n}{16}$ ($n \\in \\{0..15\\}$). Evaluates standard unguided neural initialization.';
 
     const targetDesc = targetMode === 'pre-fixed-leaves'
-      ? '**Programmatic Canonical Leaves**: Class 0 at 0, Class 1 at 1/p. Rooted in p-adic spectral leaf topology where distinct leaves represent distinct boolean values.'
-      : '**Random Learned Disks**: Target centers W are sampled randomly across depth-4 tree fractions num/16. Evaluates soft boundary adaptation.';
+      ? '**Programmatic Canonical Leaves**: Class 0 at $c_0 = 0$, Class 1 at $c_1 = 1/p$. Rooted in $p$-adic spectral leaf topology where distinct leaves represent distinct boolean values.'
+      : '**Random Learned Disks**: Target centers $W$ are sampled randomly across depth-4 tree fractions $\\frac{n}{16}$. Evaluates soft boundary adaptation.';
 
     return `### Initialization Strategy: Programmatic vs. Random
-- **Pool Translation Weights (PW)**: ${poolDesc}
-- **Target Constraint Disks (W)**: ${targetDesc}`;
+- **Pool Translation Weights ($PW$)**: ${poolDesc}
+- **Target Constraint Disks ($W$)**: ${targetDesc}`;
   });
 
   readonly lossBreakdownMarkdown = computed(() => {
@@ -155,7 +157,7 @@ $$\\mathcal{L}_{\\text{total}} = \\mathcal{L}_{\\text{CE}} + \\lambda_{\\text{re
   }
 
   onTargetCenterModeChange(val: string) {
-    this.targetCenterModeChange.emit(val as 'fixed' | 'dynamic' | 'softmax-repulsion');
+    this.targetCenterModeChange.emit(val as 'fixed' | 'gradient' | 'repulsion' | 'combined');
   }
 
   onNumPoolsChange(val: string) {

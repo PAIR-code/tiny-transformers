@@ -149,8 +149,9 @@ limitations under the License.
             </div>
             <select id="target-center-mode" [value]="targetCenterMode()" (change)="targetCenterMode.set($any($event.target).value)">
               <option value="fixed" [selected]="targetCenterMode() === 'fixed'">Fixed Target Centers (Canonical Leaves)</option>
-              <option value="dynamic" [selected]="targetCenterMode() === 'dynamic'">Dynamic Gradient Updates (W.center &rarr; H.center)</option>
-              <option value="softmax-repulsion" [selected]="targetCenterMode() === 'softmax-repulsion'">Softmax Repulsion Normalized</option>
+              <option value="gradient" [selected]="targetCenterMode() === 'gradient'">Dynamic Gradient Updates (W.center &rarr; H.center)</option>
+              <option value="repulsion" [selected]="targetCenterMode() === 'repulsion'">Softmax Repulsion Only</option>
+              <option value="combined" [selected]="targetCenterMode() === 'combined'">Combined: Gradient + Softmax Repulsion</option>
             </select>
           </div>
 

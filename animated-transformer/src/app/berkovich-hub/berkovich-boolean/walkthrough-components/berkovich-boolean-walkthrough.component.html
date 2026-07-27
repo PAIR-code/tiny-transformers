@@ -53,10 +53,11 @@ limitations under the License.
 
       <div class="ctrl-group">
         <label for="wt-target-center" style="font-weight: 600; color: #334155; margin-right: 6px;">Target Update:</label>
-        <select id="wt-target-center" [value]="config().targetCenterMode || (config().updateTargetCenters ? 'dynamic' : 'fixed')" (change)="onTargetCenterModeChange($any($event.target).value)" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+        <select id="wt-target-center" [value]="config().targetCenterMode || (config().updateTargetCenters ? 'combined' : 'fixed')" (change)="onTargetCenterModeChange($any($event.target).value)" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
           <option value="fixed">Fixed Target Centers</option>
-          <option value="dynamic">Dynamic Gradient Updates</option>
-          <option value="softmax-repulsion">Softmax Repulsion Normalized</option>
+          <option value="gradient">Dynamic Gradient Updates</option>
+          <option value="repulsion">Softmax Repulsion Only</option>
+          <option value="combined">Combined: Gradient + Softmax Repulsion</option>
         </select>
       </div>
     </div>
