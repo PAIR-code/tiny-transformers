@@ -28,26 +28,30 @@ limitations under the License.
   </header>
 
   <main class="landing-main">
-    @for (group of cardGroups; track group.title; let isLast = $last) {
-      <section class="section-group">
+    @for (group of cardGroups; track group.title) {
+      <section class="section-group" [class]="group.themeClass">
         <div class="group-header">
-          <div class="group-title-row">
-            <mat-icon class="group-icon">{{ group.icon }}</mat-icon>
-            <h2>{{ group.title }}</h2>
-            <span class="group-badge">{{ group.badge }}</span>
+          <div class="group-header-banner">
+            <div class="group-title-row">
+              <mat-icon class="group-icon">{{ group.icon }}</mat-icon>
+              <h2>{{ group.title }}</h2>
+              <span class="group-badge">{{ group.badge }}</span>
+            </div>
+            <p class="group-subtitle">{{ group.subtitle }}</p>
           </div>
-          <p class="group-subtitle">{{ group.subtitle }}</p>
         </div>
 
         <div class="cards-grid">
           @for (card of group.cards; track card.route) {
-            <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+            <div class="card" [routerLink]="card.route">
               <div class="card-glow"></div>
               <div class="card-content">
-                <div class="card-icon-container">
-                  <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+                <div class="card-header-row">
+                  <div class="card-icon-container">
+                    <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+                  </div>
+                  <h3>{{ card.title }}</h3>
                 </div>
-                <h3>{{ card.title }}</h3>
                 <p>{{ card.description }}</p>
                 <div class="card-actions">
                   <span class="explore-btn">
@@ -60,10 +64,6 @@ limitations under the License.
           }
         </div>
       </section>
-
-      @if (!isLast) {
-        <hr class="section-divider" />
-      }
     }
   </main>
 </div>
