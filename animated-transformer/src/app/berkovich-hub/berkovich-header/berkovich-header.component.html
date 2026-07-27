@@ -36,10 +36,36 @@ limitations under the License.
       <!-- Main Visualizations Primary Links -->
       <a routerLink="/berkovich/point" routerLinkActive="active-nav">Point SGD</a>
       <a routerLink="/berkovich/disk" routerLinkActive="active-nav">Disk SGD</a>
-      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Op Gradients</a>
-      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Op Gradients</a>
-      <a routerLink="/berkovich/shakespeare" routerLinkActive="active-nav">Shakespeare Predictor</a>
-      <a routerLink="/berkovich/mnist" routerLinkActive="active-nav">MNIST Classifier</a>
+      <a routerLink="/berkovich/unary-gradients" routerLinkActive="active-nav">Unary Gradients</a>
+      <a routerLink="/berkovich/operator-gradients" routerLinkActive="active-nav">Binary Gradients</a>
+      <a routerLink="/berkovich/encoding" routerLinkActive="active-nav">Encoding</a>
+
+      <!-- Applications Dropdown Menu -->
+      <button
+        mat-button
+        [matMenuTriggerFor]="appsMenu"
+        class="apps-btn"
+        title="Applications"
+      >
+        <span>Applications</span>
+        <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #appsMenu="matMenu" class="berkovich-nav-menu">
+        <div class="menu-header-label">Applications</div>
+        <button mat-menu-item routerLink="/berkovich/mnist" routerLinkActive="active-menu-item">
+          <mat-icon>grid_on</mat-icon>
+          <span>MNIST Classifier</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/shakespeare" routerLinkActive="active-menu-item">
+          <mat-icon>explore</mat-icon>
+          <span>Shakespeare Predictor</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
+          <mat-icon>alt_route</mat-icon>
+          <span>Boolean Circuits</span>
+        </button>
+      </mat-menu>
+
       <a routerLink="/berkovich/glossary" routerLinkActive="active-nav">Glossary</a>
 
       <!-- Vis Style Selector Menu -->

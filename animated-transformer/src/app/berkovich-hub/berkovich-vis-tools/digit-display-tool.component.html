@@ -37,8 +37,12 @@ limitations under the License.
         } @else {
           <app-berkovich-digit-display
             [center]="parsedCenter()"
+            (centerChange)="onCenterChange($event)"
             [rho]="rho()"
+            (rhoChange)="rho.set($event)"
             [prime]="prime()"
+            [editableRho]="editableRho()"
+            [editableCenter]="editableCenter()"
             [rhoLabelPosition]="rhoLabelPosition()"
             [clickRhoLabelPosition]="clickRhoLabelPosition()"
             [digitsLeft]="digitsLeft()"
@@ -64,6 +68,8 @@ limitations under the License.
   [center]="&#123; num: {{ parsedCenter().num }}n, den: {{ parsedCenter().den }}n &#125;"
   [rho]="{{ rho() }}"
   [prime]="{{ prime() }}"
+  [editableRho]="{{ editableRho() }}"
+  [editableCenter]="{{ editableCenter() }}"
   [digitsLeft]="{{ digitsLeft() }}"
   [digitsRight]="{{ digitsRight() }}"
   [scale]="{{ scale() }}"
@@ -99,36 +105,153 @@ limitations under the License.
         </div>
 
         <!-- Prime -->
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Base Prime (p)</mat-label>
-          <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
-            <mat-option [value]="2">2</mat-option>
-            <mat-option [value]="3">3</mat-option>
-            <mat-option [value]="5">5</mat-option>
-            <mat-option [value]="7">7</mat-option>
-            <mat-option [value]="11">11</mat-option>
-            <mat-option [value]="13">13</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div>
+          <div class="label-with-info">
+            <span>Base Prime (p)</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="The prime base p for the p-adic number field Q_p. Digits in each column range from 0 to p-1."
+              matTooltipPosition="above"
+              aria-label="Explainer for Base Prime"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+          </div>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+              <mat-option [value]="2">2</mat-option>
+              <mat-option [value]="3">3</mat-option>
+              <mat-option [value]="5">5</mat-option>
+              <mat-option [value]="7">7</mat-option>
+              <mat-option [value]="11">11</mat-option>
+              <mat-option [value]="13">13</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
         <!-- Center -->
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Center Digit String (rational: {{ formatRational(parsedCenter()) }})</mat-label>
-          <input matInput [ngModel]="centerDigits()" (ngModelChange)="centerDigits.set($event)">
-          @if (parsedCenterError()) {
-            <mat-error>{{ parsedCenterError() }}</mat-error>
-          }
-        </mat-form-field>
+        <div>
+          <div class="label-with-info">
+            <span>Center Digit String</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="The p-adic digit representation of the disk center point c in Q_p. Accepts digit expansions like '00.30' or fractions like '3/5'."
+              matTooltipPosition="above"
+              aria-label="Explainer for Center Digit String"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+          </div>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Rational: {{ formatRational(parsedCenter()) }}</mat-label>
+            <input matInput [ngModel]="centerDigits()" (ngModelChange)="centerDigits.set($event)">
+            @if (parsedCenterError()) {
+              <mat-error>{{ parsedCenterError() }}</mat-error>
+            }
+          </mat-form-field>
+        </div>
 
         <!-- Rho -->
         <div>
-          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
-            <span>Log-Radius (rho)</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+            <div class="label-with-info" style="margin-bottom: 0;">
+              <span>Log-Radius (rho)</span>
+              <button
+                type="button"
+                class="info-icon-btn"
+                matTooltip="The logarithmic radius rho = log_p(r) of the Berkovich disk E(c, r). Shaded region illustrates digit uncertainty up to valuation v = -rho."
+                matTooltipPosition="above"
+                aria-label="Explainer for Log-Radius"
+              >
+                <mat-icon>info_outline</mat-icon>
+              </button>
+            </div>
             <span style="font-weight: 700; color: #3b82f6;">{{ rho().toFixed(2) }}</span>
           </div>
           <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
             <input matSliderThumb [ngModel]="rho()" (ngModelChange)="rho.set($event)">
           </mat-slider>
+        </div>
+
+        <!-- Rho Label Position -->
+        <div>
+          <div class="label-with-info">
+            <span>Rho Label Position</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="Controls where the numerical rho value and guide lines are rendered relative to the digit row (above, below, left, or none)."
+              matTooltipPosition="above"
+              aria-label="Explainer for Rho Label Position"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+          </div>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-select [value]="rhoLabelPosition()" (selectionChange)="rhoLabelPosition.set($event.value)">
+              <mat-option value="above">Above</mat-option>
+              <mat-option value="below">Below</mat-option>
+              <mat-option value="left">Left (Aligned next to sequence)</mat-option>
+              <mat-option value="none">Not Shown</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Click to Display Rho (only when Rho Label Position is Not Shown) -->
+        @if (rhoLabelPosition() === 'none') {
+          <div>
+            <div class="label-with-info">
+              <span>Click Action (Toggle Position)</span>
+              <button
+                type="button"
+                class="info-icon-btn"
+                matTooltip="Only applies when Rho Label Position is set to 'Not Shown'. Configures the position that the rho label toggles to when clicking the display."
+                matTooltipPosition="above"
+                aria-label="Explainer for Click Action"
+              >
+                <mat-icon>info_outline</mat-icon>
+              </button>
+            </div>
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-select [value]="clickRhoLabelPosition()" (selectionChange)="clickRhoLabelPosition.set($event.value)">
+                <mat-option value="above">Toggle to Above</mat-option>
+                <mat-option value="below">Toggle to Below</mat-option>
+                <mat-option value="left">Toggle to Left</mat-option>
+                <mat-option value="none">No click action (Static)</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        }
+
+        <!-- Interactive Editing Configuration Options -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; display: flex; flex-direction: column; gap: 8px;">
+          <div class="label-with-info" style="font-size: 13px; color: #0f172a;">
+            <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #8b5cf6;">touch_app</mat-icon>
+            <span>Interactive Editing Options</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="Enable interactive direct-manipulation on the live preview component. Dragging rho on the preview moves the boundary and syncs with the rho configuration slider."
+              matTooltipPosition="above"
+              aria-label="Explainer for Interactive Editing Options"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            @if (rhoLabelPosition() !== 'none') {
+              <mat-checkbox [checked]="editableRho()" (change)="editableRho.set($event.checked)">
+                <span style="font-size: 13px;">Editable Rho (Drag left/right on display or click label)</span>
+              </mat-checkbox>
+            }
+
+            <mat-checkbox [checked]="editableCenter()" (change)="editableCenter.set($event.checked)">
+              <span style="font-size: 13px;">Editable Center Digits (Click/keyboard digit edit)</span>
+            </mat-checkbox>
+          </div>
         </div>
 
         <!-- Gradient / Updated Location Controls -->
@@ -137,6 +260,15 @@ limitations under the License.
             <span style="font-weight: 600; font-size: 13px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
               <mat-icon style="font-size: 18px; width: 18px; height: 18px; color: #64748b;">trending_up</mat-icon>
               Gradient Update Location
+              <button
+                type="button"
+                class="info-icon-btn"
+                matTooltip="Displays a secondary dotted/dashed marker line for an updated location (c_next, rho_next), illustrating optimization steps or SGD parameter updates."
+                matTooltipPosition="above"
+                aria-label="Explainer for Gradient Update Location"
+              >
+                <mat-icon>info_outline</mat-icon>
+              </button>
             </span>
             <mat-checkbox [checked]="showUpdatedLocation()" (change)="showUpdatedLocation.set($event.checked)">
               Enable
@@ -203,22 +335,47 @@ limitations under the License.
         <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 4px 0;">
 
         <!-- Formatting -->
-        <div style="display: flex; gap: 12px;">
-          <mat-form-field appearance="outline" style="flex: 1;">
-            <mat-label>Digits Left</mat-label>
-            <input matInput type="number" [ngModel]="digitsLeft()" (ngModelChange)="digitsLeft.set($event)">
-          </mat-form-field>
+        <div>
+          <div class="label-with-info">
+            <span>Digit Display Precision</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="Sets the number of displayed digit columns for non-negative powers (p^0, p^1, ...) and negative powers (p^-1, p^-2, ...)."
+              matTooltipPosition="above"
+              aria-label="Explainer for Digit Display Precision"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <mat-form-field appearance="outline" style="flex: 1;">
+              <mat-label>Digits Left</mat-label>
+              <input matInput type="number" [ngModel]="digitsLeft()" (ngModelChange)="digitsLeft.set($event)">
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" style="flex: 1;">
-            <mat-label>Digits Right</mat-label>
-            <input matInput type="number" [ngModel]="digitsRight()" (ngModelChange)="digitsRight.set($event)">
-          </mat-form-field>
+            <mat-form-field appearance="outline" style="flex: 1;">
+              <mat-label>Digits Right</mat-label>
+              <input matInput type="number" [ngModel]="digitsRight()" (ngModelChange)="digitsRight.set($event)">
+            </mat-form-field>
+          </div>
         </div>
 
         <!-- Visual Scale -->
         <div>
-          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
-            <span>Visual Scale</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; margin-bottom: 4px;">
+            <div class="label-with-info" style="margin-bottom: 0;">
+              <span>Visual Scale</span>
+              <button
+                type="button"
+                class="info-icon-btn"
+                matTooltip="Scales the overall component dimensions, font sizes, and cell gap spacing."
+                matTooltipPosition="above"
+                aria-label="Explainer for Visual Scale"
+              >
+                <mat-icon>info_outline</mat-icon>
+              </button>
+            </div>
             <span style="font-weight: 700; color: #3b82f6;">{{ scale().toFixed(2) }}</span>
           </div>
           <mat-slider min="0.5" max="2.0" step="0.1" style="width: 100%;">
@@ -227,35 +384,28 @@ limitations under the License.
         </div>
 
         <!-- Color picker -->
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Outer Box Border Color</mat-label>
-          <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
-            <input matInput [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="flex-grow: 1;">
-            <input type="color" [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer;">
+        <div>
+          <div class="label-with-info">
+            <span>Outer Box Border Color</span>
+            <button
+              type="button"
+              class="info-icon-btn"
+              matTooltip="Customizes the stroke color of the outer bounding box for the digit display."
+              matTooltipPosition="above"
+              aria-label="Explainer for Outer Box Border Color"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
           </div>
-        </mat-form-field>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+              <input matInput [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="flex-grow: 1;">
+              <input type="color" [ngModel]="outerBoxColor()" (ngModelChange)="outerBoxColor.set($event)" style="width: 36px; height: 36px; border: 1px solid #ccc; border-radius: 4px; padding: 0; cursor: pointer;">
+            </div>
+          </mat-form-field>
+        </div>
 
-        <!-- Rho Label Position -->
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Rho Label Position</mat-label>
-          <mat-select [value]="rhoLabelPosition()" (selectionChange)="rhoLabelPosition.set($event.value)">
-            <mat-option value="above">Above</mat-option>
-            <mat-option value="below">Below</mat-option>
-            <mat-option value="left">Left (Aligned next to sequence)</mat-option>
-            <mat-option value="none">Not Shown</mat-option>
-          </mat-select>
-        </mat-form-field>
 
-        <!-- Click to Display Rho -->
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Click Action (Toggle Position)</mat-label>
-          <mat-select [value]="clickRhoLabelPosition()" (selectionChange)="clickRhoLabelPosition.set($event.value)">
-            <mat-option value="above">Toggle to Above</mat-option>
-            <mat-option value="below">Toggle to Below</mat-option>
-            <mat-option value="left">Toggle to Left</mat-option>
-            <mat-option value="none">No click action (Static)</mat-option>
-          </mat-select>
-        </mat-form-field>
 
         <!-- Custom Sizing Expander -->
         <details style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px;">
@@ -292,3 +442,4 @@ limitations under the License.
     </aside>
   </div>
 </div>
+

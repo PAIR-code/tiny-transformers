@@ -38,6 +38,8 @@ import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
 import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
 import { BerkovichSpaceExplorersComponent } from './berkovich-hub/berkovich-space-explorers/berkovich-space-explorers.component';
 import { BerkovichMnistComponent } from './berkovich-hub/berkovich-mnist/berkovich-mnist.component';
+import { BerkovichBooleanComponent } from './berkovich-hub/berkovich-boolean/berkovich-boolean.component';
+import { BerkovichEncodingComponent } from './berkovich-hub/berkovich-encoding/berkovich-encoding.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -80,9 +82,11 @@ export const routes: Routes = [
       { path: 'disk', component: BerkovichDiskVisComponent },
       { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
       { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
+      { path: 'encoding', component: BerkovichEncodingComponent },
       { path: 'shakespeare', component: BerkovichSpaceExplorersComponent },
       { path: 'space-explorers', redirectTo: 'shakespeare', pathMatch: 'full' },
       { path: 'mnist', component: BerkovichMnistComponent },
+      { path: 'boolean', component: BerkovichBooleanComponent },
       { path: 'glossary', component: BerkovichGlossaryComponent },
     ]
   },

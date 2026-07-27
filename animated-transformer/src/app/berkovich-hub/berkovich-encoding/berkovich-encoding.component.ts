@@ -1,0 +1,218 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+import {
+  Component,
+  signal,
+  computed,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MarkdownComponent } from 'ngx-markdown';
+
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
+import { BerkovichEncodingTreeVisComponent } from './berkovich-encoding-tree-vis.component';
+import { Rational, simplify, formatRational } from '../../../lib/berkovich/berkovich';
+
+export interface BinarySearchStep {
+  step: number;
+  lower: number;
+  upper: number;
+  midpoint: number;
+  rationalCenter: Rational;
+  bit: number; // 1 for higher (>= mid), 0 for lower (< mid)
+  direction: 'higher' | 'lower';
+  rho: number;
+  diskRadius: number;
+}
+
+@Component({
+  selector: 'app-berkovich-encoding',
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MarkdownComponent,
+    BerkovichHeaderComponent,
+    BerkovichDigitDisplayComponent,
+    BerkovichEncodingTreeVisComponent
+  ],
+  templateUrl: './berkovich-encoding.component.html',
+  styleUrls: ['./berkovich-encoding.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class BerkovichEncodingComponent {
+  readonly Math = Math;
+
+  // Unified Real Target Value x in [0, 1]
+  readonly realTarget = signal<number>(0.6875);
+
+  // Decoded Real Value in Reverse Decoding (Qp -> R)
+  readonly reverseReal = signal<number>(0.6875);
+
+  // Log-Radius rho in [-K, 0] (editable directly inside digit-display)
+  readonly padicRho = signal<number>(-4);
+
+  readonly prime = signal<number>(2);
+
+  // Precision Depth (K = 2 bits by default: options 1, 2, 3, 4)
+  readonly depth = signal<number>(2);
+
+  readonly activeStepIndex = signal<number>(2);
+
+  readonly presets = [
+    { label: '0.50 (1/2)', value: 0.5 },
+    { label: '0.75 (3/4)', value: 0.75 },
+    { label: '0.625 (5/8)', value: 0.625 },
+    { label: '0.6875 (11/16)', value: 0.6875 },
+    { label: '0.3333 (1/3)', value: 1 / 3 },
+    { label: '0.850', value: 0.85 }
+  ];
+
+  // Binary search steps reactive to realTarget and depth (2 * K steps total)
+  readonly steps = computed<BinarySearchStep[]>(() => {
+    const x = this.realTarget();
+    const K = this.depth();
+    const totalSteps = K * 2; // K digits right + K digits left
+    const p = this.prime();
+    const result: BinarySearchStep[] = [];
+
+    let lower = 0;
+    let upper = 1;
+    let num = 1n;
+    let den = 2n;
+
+    for (let k = 0; k < totalSteps; k++) {
+      const mid = (lower + upper) / 2;
+      const bit = x >= mid ? 1 : 0;
+      const direction = bit === 1 ? 'higher' : 'lower';
+
+      const rationalCenter = simplify({ num, den });
+      const currentMid = Number(num) / Number(den);
+
+      let nextLower = lower;
+      let nextUpper = upper;
+      const nextDen = den * 2n;
+      if (bit === 1) {
+        nextLower = mid;
+        num = num * 2n + 1n;
+      } else {
+        nextUpper = mid;
+        num = num * 2n - 1n;
+      }
+      den = nextDen;
+
+      result.push({
+        step: k + 1,
+        lower: nextLower,
+        upper: nextUpper,
+        midpoint: currentMid,
+        rationalCenter,
+        bit,
+        direction,
+        rho: -(k + 1),
+        diskRadius: Math.pow(p, -(k + 1))
+      });
+
+      lower = nextLower;
+      upper = nextUpper;
+    }
+
+    return result;
+  });
+
+  readonly finalStep = computed<BinarySearchStep | null>(() => {
+    const list = this.steps();
+    return list.length > 0 ? list[list.length - 1] : null;
+  });
+
+  // Current Rational Center at selected precision depth K
+  readonly currentRationalCenter = computed<Rational>(() => {
+    const final = this.finalStep();
+    return final ? final.rationalCenter : { num: 11n, den: 16n };
+  });
+
+  readonly binaryString = computed<string>(() => {
+    return this.steps().map((s) => s.bit).join('');
+  });
+
+  // Berkovich Disk Radius: r = p^rho
+  readonly diskRadius = computed<number>(() => {
+    return Math.pow(this.prime(), this.padicRho());
+  });
+
+  // Decoded Exact Real Value from Rational Center
+  readonly decodedExactReal = computed<number>(() => {
+    const r = this.currentRationalCenter();
+    const den = Number(r.den);
+    return den === 0 ? 0.5 : Number(r.num) / den;
+  });
+
+  // Biased Real Value: rho = 0 (r = 1.0) -> biased to 0.5; rho = -K (r -> 0) -> exact leaf value
+  readonly decodedBiasedReal = computed<number>(() => {
+    const exact = this.decodedExactReal();
+    const bias = Math.min(1.0, Math.max(0.0, this.diskRadius()));
+    return (1.0 - bias) * exact + bias * 0.5;
+  });
+
+  readonly forwardExplanationMarkdown =
+    '### Forward Encoding: Real to p-adic\nGiven x in [0, 1], binary search halving determines bits b_k in {0, 1}. The resulting Berkovich disk (c_K, rho_K) is the tightest fitting cover around real value x.';
+
+  readonly reverseExplanationMarkdown =
+    '### Reverse Decoding: p-adic to Real & Berkovich Disk Bias\nGiven p-adic digits, we decode the continuous real value. The Berkovich log-radius rho in [-K, 0] (editable directly above inside the digit display) acts as a **bias toward the parent root center (0.5)**: at largest radius rho = 0 (r = 1.0), the value is biased to 0.5 regardless of digits; as rho -> -K, it narrows tightly to exact leaf x.';
+
+  setRealTarget(val: number) {
+    const clamped = Math.max(0, Math.min(1, val));
+    this.realTarget.set(clamped);
+    this.reverseReal.set(clamped);
+  }
+
+  setReverseReal(val: number) {
+    const clamped = Math.max(0, Math.min(1, val));
+    this.reverseReal.set(clamped);
+    this.realTarget.set(clamped);
+  }
+
+  onDepthChange(newDepth: number) {
+    this.depth.set(newDepth);
+    // Automatically keep padicRho bounded by depth
+    if (this.padicRho() < -newDepth * 2) {
+      this.padicRho.set(-newDepth * 2);
+    }
+  }
+
+  // Reactive updates when user edits digits directly in BerkovichDigitDisplayComponent
+  onDigitDisplayCenterChange(newRational: Rational) {
+    const den = Number(newRational.den);
+    if (den > 0) {
+      const newX = Math.max(0, Math.min(1, Number(newRational.num) / den));
+      this.reverseReal.set(newX);
+      this.realTarget.set(newX);
+    }
+  }
+
+  onDigitDisplayRhoChange(newRho: number) {
+    this.padicRho.set(newRho);
+  }
+
+  formatRationalVal(r: Rational): string {
+    return formatRational(r);
+  }
+}

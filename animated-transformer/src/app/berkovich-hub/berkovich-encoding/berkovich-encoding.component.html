@@ -1,0 +1,124 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Bi-Directional 2-adic Real Encoding & Berkovich Disk Bias"
+    subtitle="Encoding continuous real values x in [0, 1] into p-adic tree nodes (R -> Q_p) and decoding p-adic digits back to real intervals (Q_p -> R)."
+  ></app-berkovich-header>
+
+  <div class="encoding-layout">
+    <!-- Left Column: Controls & Result Details -->
+    <div class="left-panel">
+      <!-- Input Controls Card for R -> Q_p -->
+      <div class="card controls-card">
+        <h3>Forward Encoding: Real Target Input (x &in; [0, 1])</h3>
+
+        <div class="slider-row">
+          <label>Target Real x = <strong>{{ realTarget() | number:'1.4-4' }}</strong></label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.001"
+            [value]="realTarget()"
+            (input)="setRealTarget(+$any($event.target).value)"
+            class="range-slider"
+          />
+        </div>
+
+        <div class="presets-row">
+          <span class="preset-label">Quick Presets:</span>
+          <div class="preset-buttons">
+            @for (preset of presets; track preset.label) {
+              <button
+                mat-stroked-button
+                [class.active-preset]="Math.abs(realTarget() - preset.value) < 1e-4"
+                (click)="setRealTarget(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="depth-row">
+          <label>Precision Depth (K = {{ depth() }} bits):</label>
+          <select [value]="depth().toString()" (change)="onDepthChange(+$any($event.target).value)">
+            <option value="1">1 bit (1/2 precision)</option>
+            <option value="2">2 bits (1/4 precision)</option>
+            <option value="3">3 bits (1/8 precision)</option>
+            <option value="4">4 bits (1/16 precision)</option>
+          </select>
+        </div>
+      </div>
+
+
+
+      <!-- Reverse Decoding Controls & Digit Display Card -->
+      <div class="card reverse-card">
+        <h3>Reverse Decoding: p-adic Digits to Real Value (Q<sub>p</sub> &rarr; R)</h3>
+        <p class="reverse-desc">
+          Click digits or the &rho; label below to edit digits or log-radius directly:
+        </p>
+
+        <!-- Interactive Berkovich Digit Display with Inline Editable Rho -->
+        <div class="digit-editor-box">
+          <app-berkovich-digit-display
+            [center]="currentRationalCenter()"
+            [rho]="padicRho()"
+            [prime]="prime()"
+            [digitsLeft]="0"
+            [digitsRight]="depth() * 2"
+            [rhoLabelPosition]="'above'"
+            [editableCenter]="true"
+            [editableRho]="true"
+            (centerChange)="onDigitDisplayCenterChange($event)"
+            (rhoChange)="onDigitDisplayRhoChange($event)"
+          ></app-berkovich-digit-display>
+        </div>
+
+        <div class="bias-results-grid">
+          <div class="bias-item">
+            <span class="item-title">Exact Leaf Midpoint (x<sub>exact</sub>):</span>
+            <span class="item-val">{{ decodedExactReal() | number:'1.6-6' }}</span>
+          </div>
+          <div class="bias-item highlight-bias">
+            <span class="item-title">Parent Center Biased Value (&rho; = {{ padicRho() }}, r = {{ diskRadius() | number:'1.4-4' }}):</span>
+            <span class="item-val">{{ decodedBiasedReal() | number:'1.6-6' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Combined Tree & 1D Sub-Interval Map + Explanation -->
+    <div class="right-panel">
+      <!-- D3 2-adic Tree Traversal Map with Integrated 1D Number Line Underneath -->
+      <app-berkovich-encoding-tree-vis
+        [steps]="steps()"
+        [targetValue]="realTarget()"
+        [depth]="depth()"
+      ></app-berkovich-encoding-tree-vis>
+
+      <!-- Explanation Card -->
+      <div class="card explanation-card">
+        <h3>Mathematical Equivalence & Berkovich Disk Bias</h3>
+        <p class="description">
+          <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

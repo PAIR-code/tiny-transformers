@@ -1,0 +1,183 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Berkovich Boolean Function & DNF Affinoid Explorer"
+    subtitle="Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools and 2-adic binary search encodings."
+  ></app-berkovich-header>
+
+  <div class="boolean-layout">
+    <!-- Left Panel: Preset Function Selectors, Custom Truth Table & Controls -->
+    <div class="left-panel">
+      <!-- Preset Function Selector Card -->
+      <div class="card preset-card">
+        <h3>Preset Boolean Functions</h3>
+        <div class="preset-buttons">
+          @for (preset of presets; track preset.name; let idx = $index) {
+            <button
+              mat-stroked-button
+              [class.active-preset]="selectedPresetIndex() === idx"
+              (click)="selectPreset(idx)"
+            >
+              {{ preset.name }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Custom Truth Table Editor Card -->
+      <div class="card truth-table-card">
+        <h3>Interactive Truth Table Editor</h3>
+        <p class="table-desc">Click any output bit to toggle target between 0 and 1:</p>
+
+        <div class="truth-table-grid">
+          @for (sample of dataset(); track sample.label; let i = $index) {
+            <div class="truth-row">
+              <span class="input-label">({{ sample.inputs.join(', ') }}):</span>
+              <button
+                class="bit-toggle-btn"
+                [class.bit-one]="truthTable()[i] === 1"
+                (click)="toggleTruthTableBit(i)"
+              >
+                {{ truthTable()[i] }}
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Model Architecture & Hyper-Parameters Card -->
+      <div class="card config-card">
+        <h3>Dynamic Berkovich Pools & Options</h3>
+
+        <div class="param-row">
+          <label>Number of Pools (M):</label>
+          <select [value]="numPools()" (change)="numPools.set(+$any($event.target).value); resetModel()">
+            <option [value]="1">1 Pool</option>
+            <option [value]="2">2 Pools (Standard DNF)</option>
+            <option [value]="3">3 Pools</option>
+            <option [value]="4">4 Pools</option>
+            <option [value]="6">6 Pools</option>
+          </select>
+        </div>
+
+        <div class="param-row">
+          <label>Target Init Mode:</label>
+          <select [value]="targetInitMode()" (change)="targetInitMode.set($any($event.target).value); resetModel()">
+            <option value="pre-fixed-leaves">Pre-fixed p-adic Leaves</option>
+            <option value="random">Random Learned Disks</option>
+          </select>
+        </div>
+
+        <div class="param-row">
+          <label>Pool Initialization:</label>
+          <select [value]="poolInitMode()" (change)="poolInitMode.set($any($event.target).value); resetModel()">
+            <option value="separated-branches">Pre-separated Tree Branches</option>
+            <option value="random">Random Centers</option>
+          </select>
+        </div>
+
+        <div class="param-row">
+          <label>Pool Repulsion (&lambda;<sub>rep</sub>):</label>
+          <select [value]="repulsionReg()" (change)="repulsionReg.set(+$any($event.target).value)">
+            <option [value]="0.00">0.00 (Off)</option>
+            <option [value]="0.02">0.02 (Standard)</option>
+            <option [value]="0.05">0.05 (High)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Predictions Table Card -->
+      <div class="card predictions-card">
+        <h3>Live Truth Table Evaluation</h3>
+        <div class="pred-rows">
+          @for (pred of currentPredictions(); track pred.label) {
+            <div class="pred-row" [class.is-correct]="pred.pred === pred.target">
+              <span class="row-inputs">({{ pred.inputs.join(', ') }})</span>
+              <span class="row-arrow">&rarr;</span>
+              <span class="row-target">Target: {{ pred.target }}</span>
+              <span class="row-pred">Pred: {{ pred.pred }}</span>
+              <span class="row-prob">({{ (pred.prob1 * 100) | number:'1.0-0' }}%)</span>
+              <mat-icon class="status-icon">{{ pred.pred === pred.target ? 'check_circle' : 'cancel' }}</mat-icon>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: DNF Affinoid Map, Training Controls & Charts -->
+    <div class="right-panel">
+      <!-- Training Controls Toolbar -->
+      <div class="card training-card">
+        <div class="training-header">
+          <h3>Training Controls</h3>
+          <div class="step-metrics">
+            <span>Steps: <strong>{{ stepCount() }}</strong></span>
+            <span>Epochs: <strong>{{ epochCount() }}</strong></span>
+          </div>
+        </div>
+
+        <div class="training-actions">
+          <button mat-raised-button color="primary" (click)="stepTrain()" [disabled]="isAutoTraining()">
+            <mat-icon>play_arrow</mat-icon>
+            <span>Step Train</span>
+          </button>
+          <button mat-raised-button color="accent" (click)="trainSteps(5)" [disabled]="isAutoTraining()">
+            <mat-icon>fast_forward</mat-icon>
+            <span>Train 5 Steps</span>
+          </button>
+          <button mat-stroked-button (click)="toggleAutoTrain()">
+            <mat-icon>{{ isAutoTraining() ? 'pause' : 'autorenew' }}</mat-icon>
+            <span>{{ isAutoTraining() ? 'Pause' : 'Auto Train' }}</span>
+          </button>
+          <button mat-button (click)="resetModel()">
+            <mat-icon>refresh</mat-icon>
+            <span>Reset Model</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- DNF Structure & 2D Embedding Map -->
+      <app-dnf-vis-card
+        [learner]="learner()"
+        [samples]="dataset()"
+        [numPools]="numPools()"
+        [numVars]="numVars()"
+      ></app-dnf-vis-card>
+
+      <!-- Training Trajectory Line Charts -->
+      <div class="card chart-card">
+        <h3>Training Trajectory</h3>
+        <div class="charts-row">
+          <div class="chart-box">
+            <div class="chart-title">Cross-Entropy Loss</div>
+            <app-d3-line-chart
+              [dataPoints]="trainLossHistory()"
+              [inChartConfig]="lossChartConfig"
+            ></app-d3-line-chart>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">Accuracy</div>
+            <app-d3-line-chart
+              [dataPoints]="trainAccHistory()"
+              [inChartConfig]="accChartConfig"
+            ></app-d3-line-chart>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

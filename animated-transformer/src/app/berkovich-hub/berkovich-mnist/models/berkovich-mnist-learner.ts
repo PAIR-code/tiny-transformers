@@ -34,22 +34,70 @@ export interface BerkovichMnistConfig {
   prime: number;
   embDim: number;
   numConstraints: number;
-  gridSize: number; // 4x4 patches (16) or 7x7 patches (49)
+  gridSize: number;
   lr: number;
   reg: number;
   regEmbed: number;
   beta: number;
   aggMode: 'min' | 'average';
+  encodingMode?: '2adic-binary-search' | 'continuous-intensity';
+  encodingDepth?: number;
+  poolingMode?: '3x3-local-pooled' | 'grid-patches';
+  targetInitMode?: 'pre-fixed-leaves' | 'random';
+  repulsionReg?: number;
 }
 
 export interface BerkovichMnistForwardResult {
   probs: number[];
   logits: number[];
-  activeConstraints: number[]; // [10] index of constraint achieving max loss for each class
-  activeDims: number[][]; // [10, M] active dimension per constraint
-  H: BerkovichDisk[]; // [embDim] aggregated hidden representation disk
-  pathLosses: number[][][]; // [10, M, embDim]
-  patchDisks: BerkovichDisk[][]; // [numPatches, embDim] patch embedding disks
+  activeConstraints: number[];
+  activeDims: number[][];
+  H: BerkovichDisk[];
+  pathLosses: number[][][];
+  patchDisks: BerkovichDisk[][];
+}
+
+/**
+ * Encodes a binary string (read right to left) into a 2-adic binary search rational point.
+ * Start at 0.5. Bit 1 -> go higher (+step), Bit 0 -> go lower (-step).
+ */
+export function encodeBinarySearch2Adic(bits: number[], depth: number = 6): BerkovichDisk {
+  let num = 1n;
+  let den = 2n;
+
+  for (let i = 0; i < Math.min(bits.length, depth); i++) {
+    const bit = bits[i];
+    const nextDen = den * 2n;
+    if (bit === 1) {
+      num = num * 2n + 1n;
+    } else {
+      num = num * 2n - 1n;
+    }
+    den = nextDen;
+  }
+
+  const center = simplify({ num, den });
+  const rho = -Math.min(bits.length, depth);
+  return { center, rho };
+}
+
+/**
+ * Converts a floating intensity in [0, 1] into a bit sequence of length `depth`
+ * and performs 2-adic binary search encoding.
+ */
+export function intensityTo2AdicBinarySearch(val: number, depth: number = 6): BerkovichDisk {
+  const bits: number[] = [];
+  let current = val;
+  for (let i = 0; i < depth; i++) {
+    if (current >= 0.5) {
+      bits.push(1);
+      current = (current - 0.5) * 2;
+    } else {
+      bits.push(0);
+      current = current * 2;
+    }
+  }
+  return encodeBinarySearch2Adic(bits, depth);
 }
 
 export class BerkovichAffinoidMnistLearner {
@@ -61,17 +109,15 @@ export class BerkovichAffinoidMnistLearner {
   gridSize: number;
   numPatches: number;
 
-  // Patch embeddings lookup per intensity level (quantized into 5 levels: 0.0, 0.25, 0.5, 0.75, 1.0) x patch position
-  // E[patchIdx][intensityLevel][dim]
   E: BerkovichDisk[][][];
-  // Target class affinoid constraints W[classK][constraintM][dim]
   W: BerkovichDisk[][][];
 
   constructor(
     embDim: number = 5,
-    prime: number = 3,
+    prime: number = 2,
     numConstraints: number = 3,
-    gridSize: number = 4
+    gridSize: number = 4,
+    targetInitMode: 'pre-fixed-leaves' | 'random' = 'random'
   ) {
     this.embDim = embDim;
     this.prime = BigInt(prime);
@@ -96,13 +142,20 @@ export class BerkovichAffinoidMnistLearner {
       this.E.push(patchLevels);
     }
 
-    // Initialize multi-constraint class target disks
+    // Initialize multi-constraint class target disks (random or pre-fixed leaves)
     for (let k = 0; k < this.V; k++) {
       const classConstraints: BerkovichDisk[][] = [];
       for (let m = 0; m < numConstraints; m++) {
         const row: BerkovichDisk[] = [];
         for (let d = 0; d < this.embDim; d++) {
-          row.push(this.randomDisk());
+          if (targetInitMode === 'pre-fixed-leaves') {
+            // Spread target centers equally across p-adic tree leaves
+            const leafNum = BigInt(k % Number(this.prime));
+            const center = simplify({ num: leafNum, den: this.prime });
+            row.push({ center, rho: -1.0 });
+          } else {
+            row.push(this.randomDisk());
+          }
         }
         classConstraints.push(row);
       }
@@ -119,27 +172,36 @@ export class BerkovichAffinoidMnistLearner {
     return { center, rho };
   }
 
-  /**
-   * Forward pass given a 784-length pixel array.
-   */
   forward(pixels: number[], config: BerkovichMnistConfig): BerkovichMnistForwardResult {
     const p = this.prime;
-    const { aggMode, beta, numConstraints, gridSize } = config;
+    const { aggMode, beta, numConstraints, gridSize, encodingMode, encodingDepth = 6 } = config;
     const patchMeans = extractPatches(pixels, gridSize);
     const numP = patchMeans.length;
 
-    // Map patch means to quantized intensity levels (0..4)
-    const patchLevelIndices = patchMeans.map((m) => Math.min(4, Math.floor(m * 5)));
-
-    // 1. Context patch embedding aggregation (Tree aggregation with p^(-j) positional shift)
-    const H: BerkovichDisk[] = [];
     const patchDisks: BerkovichDisk[][] = [];
 
-    for (let pIdx = 0; pIdx < numP; pIdx++) {
-      const lvl = patchLevelIndices[pIdx];
-      patchDisks.push(this.E[pIdx][lvl]);
+    if (encodingMode === '2adic-binary-search') {
+      // 2-adic Binary Search Pixel Encoding
+      for (let pIdx = 0; pIdx < numP; pIdx++) {
+        const row: BerkovichDisk[] = [];
+        for (let d = 0; d < this.embDim; d++) {
+          const val = patchMeans[pIdx];
+          const disk = intensityTo2AdicBinarySearch(val, encodingDepth);
+          row.push(disk);
+        }
+        patchDisks.push(row);
+      }
+    } else {
+      // Quantized patch embeddings lookup
+      const patchLevelIndices = patchMeans.map((m) => Math.min(4, Math.floor(m * 5)));
+      for (let pIdx = 0; pIdx < numP; pIdx++) {
+        const lvl = patchLevelIndices[pIdx];
+        patchDisks.push(this.E[pIdx][lvl]);
+      }
     }
 
+    // 1. Hierarchical Pooling into Root Hidden Disks H
+    const H: BerkovichDisk[] = [];
     for (let d = 0; d < this.embDim; d++) {
       let cSum = { num: 0n, den: 1n };
       let maxRho = -Infinity;
@@ -155,15 +217,15 @@ export class BerkovichAffinoidMnistLearner {
         }
       }
 
-      maxRho = Math.max(-2, Math.min(2, maxRho));
+      maxRho = Math.max(-3, Math.min(3, maxRho));
       H.push({ center: cSum, rho: maxRho });
     }
 
-    // 2. Class distance evaluation across M constraints
+    // 2. Class distance evaluation across M constraints (DNF OR-of-ANDs: min_m( max_d PathLoss ))
     const logits: number[] = [];
     const activeConstraints: number[] = [];
     const activeDims: number[][] = [];
-    const pathLosses: number[][][] = []; // [V, M, embDim]
+    const pathLosses: number[][][] = [];
 
     for (let k = 0; k < this.V; k++) {
       const classLosses: number[][] = [];
@@ -213,17 +275,17 @@ export class BerkovichAffinoidMnistLearner {
       pathLosses.push(classLosses);
       activeDims.push(classActiveDims);
 
-      // Logit score is -MAXIMUM loss across constraints (logical AND affinoid domain)
-      let maxLoss = -1;
+      // Logit score is -MINIMUM loss across DNF constraints (OR of AND affinoid domains)
+      let minLoss = constraintScores[0];
       let activeM = 0;
-      for (let m = 0; m < numConstraints; m++) {
-        if (constraintScores[m] > maxLoss) {
-          maxLoss = constraintScores[m];
+      for (let m = 1; m < numConstraints; m++) {
+        if (constraintScores[m] < minLoss) {
+          minLoss = constraintScores[m];
           activeM = m;
         }
       }
 
-      logits.push(-maxLoss);
+      logits.push(-minLoss);
       activeConstraints.push(activeM);
     }
 
@@ -236,16 +298,13 @@ export class BerkovichAffinoidMnistLearner {
     return { probs, logits, activeConstraints, activeDims, H, pathLosses, patchDisks };
   }
 
-  /**
-   * Train step on a single MNIST sample.
-   */
   trainStep(
     pixels: number[],
     targetDigit: number,
     config: BerkovichMnistConfig
   ): { loss: number; predDigit: number; forwardResult: BerkovichMnistForwardResult } {
     const p = this.prime;
-    const { lr, reg, regEmbed, aggMode, beta, numConstraints, gridSize } = config;
+    const { lr, reg, regEmbed, aggMode, beta, numConstraints, gridSize, repulsionReg = 0.01 } = config;
     const patchMeans = extractPatches(pixels, gridSize);
     const numP = patchMeans.length;
     const patchLevelIndices = patchMeans.map((m) => Math.min(4, Math.floor(m * 5)));
@@ -255,21 +314,35 @@ export class BerkovichAffinoidMnistLearner {
     const loss = -Math.log(fwd.probs[targetDigit] + 1e-15);
     const predDigit = fwd.probs.indexOf(Math.max(...fwd.probs));
 
-    // 2. Logit gradient: dL / dLogit_k = beta * (pi_k - I[k == targetDigit])
+    // 2. Logit gradient
     const gLogits = fwd.probs.map((pi, k) => beta * (pi - (k === targetDigit ? 1 : 0)));
 
-    // 3. Geodesic & Subgradient updates
+    // 3. Updates with inter-pool repulsion normalization
     for (let k = 0; k < this.V; k++) {
       const gk = gLogits[k];
       const activeM = fwd.activeConstraints[k];
 
-      // Regularize ALL target constraints' radii p^rho (shrinkage)
+      // Radius regularization & inter-pool repulsion penalty
       for (let m = 0; m < numConstraints; m++) {
         for (let d = 0; d < this.embDim; d++) {
           const W = this.W[k][m][d];
+          let repulsionGrad = 0;
+
+          if (repulsionReg > 0) {
+            // Push pool constraint centers/radii away from other constraints of same class
+            for (let mOther = 0; mOther < numConstraints; mOther++) {
+              if (mOther !== m) {
+                const W_other = this.W[k][mOther][d];
+                const distVal = getValuation(subtract(W.center, W_other.center), p);
+                const dVal = distVal.type === 'finite' ? distVal.value : 5;
+                repulsionGrad += Math.exp(-dVal);
+              }
+            }
+          }
+
           W.rho = Math.max(
-            -2,
-            Math.min(2, W.rho - lr * reg * Math.log(Number(p)) * Math.exp(W.rho * Math.log(Number(p))))
+            -3,
+            Math.min(3, W.rho - lr * (reg + repulsionReg * repulsionGrad) * Math.log(Number(p)) * Math.exp(W.rho * Math.log(Number(p))))
           );
         }
       }
@@ -282,7 +355,6 @@ export class BerkovichAffinoidMnistLearner {
         const weight = aggMode === 'min' ? 1.0 : 1.0 / this.embDim;
         const gk_dim = gk * weight;
 
-        // Skip negative class targets if sample is already outside domain
         if (k !== targetDigit && fwd.pathLosses[k][activeM][d] > 0) {
           continue;
         }
@@ -298,53 +370,55 @@ export class BerkovichAffinoidMnistLearner {
           const valDiff = getValuation(subtract(W.center, H.center), p);
           const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
           const sgn = W.rho >= dValuation ? 1 : -1;
-          W.rho = Math.max(-2, Math.min(2, W.rho - lr * gk_dim * sgn));
+          W.rho = Math.max(-3, Math.min(3, W.rho - lr * gk_dim * sgn));
         }
 
-        // Update patch embeddings contributing to active constraint
-        for (let j = 1; j <= numP; j++) {
-          const pIdx = j - 1;
-          const lvl = patchLevelIndices[pIdx];
-          const emb = this.E[pIdx][lvl][d];
+        // Update trainable patch embeddings
+        if (config.encodingMode !== '2adic-binary-search') {
+          for (let j = 1; j <= numP; j++) {
+            const pIdx = j - 1;
+            const lvl = patchLevelIndices[pIdx];
+            const emb = this.E[pIdx][lvl][d];
 
-          const isEmbActive = Math.abs(emb.rho - j - H.rho) < 1e-7;
-          if (!isEmbActive) continue;
+            const isEmbActive = Math.abs(emb.rho - j - H.rho) < 1e-7;
+            if (!isEmbActive) continue;
 
-          let otherSum = { num: 0n, den: 1n };
-          for (let l = 1; l <= numP; l++) {
-            if (l !== j) {
-              const otherLvl = patchLevelIndices[l - 1];
-              const otherEmb = this.E[l - 1][otherLvl][d];
-              const term = simplify({
-                num: otherEmb.center.num,
-                den: otherEmb.center.den * (p ** BigInt(l)),
-              });
-              otherSum = add(otherSum, term);
+            let otherSum = { num: 0n, den: 1n };
+            for (let l = 1; l <= numP; l++) {
+              if (l !== j) {
+                const otherLvl = patchLevelIndices[l - 1];
+                const otherEmb = this.E[l - 1][otherLvl][d];
+                const term = simplify({
+                  num: otherEmb.center.num,
+                  den: otherEmb.center.den * (p ** BigInt(l)),
+                });
+                otherSum = add(otherSum, term);
+              }
             }
+
+            const diffCenter = subtract(W.center, otherSum);
+            const targetCenter = simplify({
+              num: diffCenter.num * (p ** BigInt(j)),
+              den: diffCenter.den,
+            });
+            const targetLogRadius = W.rho + j;
+
+            if (gk_dim < 0) {
+              const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, p, lr * Math.abs(gk_dim));
+              emb.center = details.nextCenter;
+              emb.rho = details.nextLogRadius;
+            } else if (gk_dim > 0) {
+              const valDiff = getValuation(subtract(emb.center, targetCenter), p);
+              const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+              const sgn = emb.rho >= dValuation ? 1 : -1;
+              emb.rho = Math.max(-3, Math.min(3, emb.rho - lr * gk_dim * sgn));
+            }
+
+            emb.rho = Math.max(
+              -3,
+              Math.min(3, emb.rho - lr * regEmbed * Math.log(Number(p)) * Math.exp(emb.rho * Math.log(Number(p))))
+            );
           }
-
-          const diffCenter = subtract(W.center, otherSum);
-          const targetCenter = simplify({
-            num: diffCenter.num * (p ** BigInt(j)),
-            den: diffCenter.den,
-          });
-          const targetLogRadius = W.rho + j;
-
-          if (gk_dim < 0) {
-            const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, p, lr * Math.abs(gk_dim));
-            emb.center = details.nextCenter;
-            emb.rho = details.nextLogRadius;
-          } else if (gk_dim > 0) {
-            const valDiff = getValuation(subtract(emb.center, targetCenter), p);
-            const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-            const sgn = emb.rho >= dValuation ? 1 : -1;
-            emb.rho = Math.max(-2, Math.min(2, emb.rho - lr * gk_dim * sgn));
-          }
-
-          emb.rho = Math.max(
-            -2,
-            Math.min(2, emb.rho - lr * regEmbed * Math.log(Number(p)) * Math.exp(emb.rho * Math.log(Number(p))))
-          );
         }
       }
     }

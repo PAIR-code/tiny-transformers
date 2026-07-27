@@ -13,6 +13,7 @@ limitations under the License.
 ==============================================================================*/
 
 import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { BerkovichDigitDisplayComponent } from './berkovich-digit-display.component';
 
 describe('BerkovichDigitDisplayComponent', () => {
@@ -184,7 +185,59 @@ describe('BerkovichDigitDisplayComponent', () => {
     expect(emittedRho).toBe(-1.25);
     expect(component.isEditingRho()).toBe(false);
   });
+
+  it('should update rho when dragging mouse left/right bounded by [-digitsLeft, digitsRight]', () => {
+    fixture.componentRef.setInput('center', { num: 0n, den: 1n });
+    fixture.componentRef.setInput('rho', 0.0);
+    fixture.componentRef.setInput('prime', 5);
+    fixture.componentRef.setInput('digitsLeft', 2);
+    fixture.componentRef.setInput('digitsRight', 2);
+    fixture.componentRef.setInput('editableRho', true);
+
+    const emittedRhos: number[] = [];
+    component.rhoChange.subscribe(r => emittedRhos.push(r));
+
+    fixture.detectChanges();
+
+    // Mock SVG getBoundingClientRect
+    const svgEl = fixture.nativeElement.querySelector('svg');
+    vi.spyOn(svgEl, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 200,
+      top: 0,
+      height: 100,
+      right: 200,
+      bottom: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    });
+
+    const mousedownEvent = new MouseEvent('mousedown', { clientX: 100, clientY: 20 });
+    component.startRhoDrag(mousedownEvent);
+
+    expect(component.isDraggingRho()).toBe(true);
+
+    // Simulate drag right (clientX: 180)
+    const mousemoveEventRight = new MouseEvent('mousemove', { clientX: 180, clientY: 20 });
+    window.dispatchEvent(mousemoveEventRight);
+
+    // Simulate drag left past limit (clientX: -50 -> clamped to -digitsLeft = -2)
+    const mousemoveEventLeft = new MouseEvent('mousemove', { clientX: -50, clientY: 20 });
+    window.dispatchEvent(mousemoveEventLeft);
+
+    const mouseupEvent = new MouseEvent('mouseup');
+    window.dispatchEvent(mouseupEvent);
+
+    expect(component.isDraggingRho()).toBe(false);
+
+    // Verify emitted rhos contain expected bounded values
+    expect(emittedRhos.length).toBeGreaterThan(0);
+    const lastEmitted = emittedRhos[emittedRhos.length - 1];
+    expect(lastEmitted).toBe(-2); // clamped to -digitsLeft
+  });
 });
+
 
 
 

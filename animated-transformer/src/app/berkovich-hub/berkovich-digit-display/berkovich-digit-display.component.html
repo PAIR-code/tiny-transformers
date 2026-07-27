@@ -154,7 +154,7 @@ limitations under the License.
     />
   }
 
-  <!-- Guide lines and labels for rho value (left aligned above/below the main digit sequence) -->
+  <!-- Guide lines and labels for rho value -->
   @if (rhoBoundaryX() !== null && (displayPosition() === 'above' || displayPosition() === 'below')) {
     <!-- Horizontal guide line -->
     <line
@@ -170,8 +170,25 @@ limitations under the License.
       [attr.y1]="rhoLineY()"
       [attr.x2]="rhoBoundaryX()"
       [attr.y2]="rhoVerticalLineStartY()"
-      class="rho-guide-line"
+      class="rho-guide-line rho-vertical-line"
+      [class.editable-rho]="isRhoEditable()"
     />
+
+    <!-- Wide invisible hit target line over vertical line for easy mouse dragging (only on bit above/below main outline) -->
+    @if (isRhoEditable()) {
+      <line
+        [attr.x1]="rhoBoundaryX()"
+        [attr.y1]="rhoLineY()"
+        [attr.x2]="rhoBoundaryX()"
+        [attr.y2]="rhoVerticalLineStartY()"
+        stroke="transparent"
+        stroke-width="16"
+        style="cursor: col-resize; pointer-events: stroke;"
+        class="rho-drag-hit-target"
+        (mousedown)="startRhoDrag($event)"
+      />
+    }
+
     <!-- Left-aligned rho text label -->
     @if (!isEditingRho()) {
       <text
@@ -198,7 +215,7 @@ limitations under the License.
             type="text"
             class="rho-inline-editor"
             [value]="rhoInputString()"
-            (input)="rhoInputString.set($any($event.target).value)"
+            (input)="onRhoInputChange($any($event.target).value)"
             (blur)="commitRhoEdit()"
           />
         </div>
@@ -233,7 +250,7 @@ limitations under the License.
             type="text"
             class="rho-inline-editor"
             [value]="rhoInputString()"
-            (input)="rhoInputString.set($any($event.target).value)"
+            (input)="onRhoInputChange($any($event.target).value)"
             (blur)="commitRhoEdit()"
           />
         </div>

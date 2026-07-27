@@ -25,6 +25,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
@@ -62,6 +63,7 @@ export interface DigitDisplayPreset {
     MatFormFieldModule,
     MatInputModule,
     MatCheckboxModule,
+    MatTooltipModule,
     BerkovichDigitDisplayComponent,
     BerkovichHeaderComponent
   ]
@@ -98,6 +100,8 @@ export class DigitDisplayToolComponent {
         } else if (state.showRho !== undefined) {
           this.rhoLabelPosition.set(state.showRho ? 'above' : 'none');
         }
+        if (state.editableRho !== undefined) this.editableRho.set(state.editableRho);
+        if (state.editableCenter !== undefined) this.editableCenter.set(state.editableCenter);
         if (state.clickRhoLabelPosition !== undefined) {
           this.clickRhoLabelPosition.set(state.clickRhoLabelPosition);
         }
@@ -131,6 +135,8 @@ export class DigitDisplayToolComponent {
         prime: this.prime(),
         centerDigits: this.centerDigits(),
         rho: this.rho(),
+        editableRho: this.editableRho(),
+        editableCenter: this.editableCenter(),
         rhoLabelPosition: this.rhoLabelPosition(),
         clickRhoLabelPosition: this.clickRhoLabelPosition(),
         digitsLeft: this.digitsLeft(),
@@ -166,7 +172,14 @@ export class DigitDisplayToolComponent {
   }
 
   readonly rho = signal<number>(0.5);
+  readonly editableRho = signal<boolean>(true);
+  readonly editableCenter = signal<boolean>(false);
   readonly rhoLabelPosition = signal<'above' | 'below' | 'left' | 'none'>('above');
+
+  onCenterChange(newCenter: Rational) {
+    const seq = formatDigitSequence(newCenter, BigInt(this.prime()), this.currentPrecision());
+    this.centerDigits.set(seq);
+  }
   readonly clickRhoLabelPosition = signal<'above' | 'below' | 'left' | 'none'>('none');
   readonly digitsLeft = signal<number>(3);
   readonly digitsRight = signal<number>(3);

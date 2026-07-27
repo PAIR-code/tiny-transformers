@@ -79,8 +79,8 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
   readonly canvasTitleMarkdown = 'Handwritten Digit Input ($28 \\times 28$)';
   readonly probHeaderMarkdown = 'Class Probabilities ($\\pi_k$):';
 
-  // Model parameters
-  readonly prime = signal<number>(3);
+  // Model & Encoding Hyper-parameters
+  readonly prime = signal<number>(2);
   readonly embDim = signal<number>(5);
   readonly numConstraints = signal<number>(3);
   readonly gridSize = signal<number>(4);
@@ -89,6 +89,12 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
   readonly regularizationEmbed = signal<number>(0.02);
   readonly beta = signal<number>(1.0);
   readonly aggMode = signal<'min' | 'average'>('min');
+
+  readonly encodingMode = signal<'2adic-binary-search' | 'continuous-intensity'>('2adic-binary-search');
+  readonly encodingDepth = signal<number>(6);
+  readonly poolingMode = signal<'3x3-local-pooled' | 'grid-patches'>('3x3-local-pooled');
+  readonly targetInitMode = signal<'pre-fixed-leaves' | 'random'>('random');
+  readonly repulsionReg = signal<number>(0.02);
 
   readonly digitsLeft = signal<number>(2);
   readonly digitsRight = signal<number>(2);
@@ -145,7 +151,15 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
 
     const app = this.approach();
     if (app === 'berkovich-affinoid') {
-      this.berkovichModel.set(new BerkovichAffinoidMnistLearner(this.embDim(), this.prime(), this.numConstraints(), this.gridSize()));
+      this.berkovichModel.set(
+        new BerkovichAffinoidMnistLearner(
+          this.embDim(),
+          this.prime(),
+          this.numConstraints(),
+          this.gridSize(),
+          this.targetInitMode()
+        )
+      );
       this.padicLinearModel.set(null);
       this.euclideanModel.set(null);
     } else if (app === 'padic-linear') {
@@ -198,14 +212,8 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
     this.selectedDigit.set(digit);
   }
 
-  readonly currentPrediction = computed(() => {
-    const pixels = this.currentPixels();
-    const app = this.approach();
-    const bModel = this.berkovichModel();
-    const pModel = this.padicLinearModel();
-    const eModel = this.euclideanModel();
-
-    const config: BerkovichMnistConfig = {
+  getConfig(): BerkovichMnistConfig {
+    return {
       prime: this.prime(),
       embDim: this.embDim(),
       numConstraints: this.numConstraints(),
@@ -214,8 +222,22 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
       reg: this.regularizationTarget(),
       regEmbed: this.regularizationEmbed(),
       beta: this.beta(),
-      aggMode: this.aggMode()
+      aggMode: this.aggMode(),
+      encodingMode: this.encodingMode(),
+      encodingDepth: this.encodingDepth(),
+      poolingMode: this.poolingMode(),
+      targetInitMode: this.targetInitMode(),
+      repulsionReg: this.repulsionReg()
     };
+  }
+
+  readonly currentPrediction = computed(() => {
+    const pixels = this.currentPixels();
+    const app = this.approach();
+    const bModel = this.berkovichModel();
+    const pModel = this.padicLinearModel();
+    const eModel = this.euclideanModel();
+    const config = this.getConfig();
 
     if (app === 'berkovich-affinoid' && bModel) {
       const fwd = bModel.forward(pixels, config);
@@ -282,18 +304,7 @@ export class BerkovichMnistComponent implements OnInit, OnDestroy {
     const bModel = this.berkovichModel();
     const pModel = this.padicLinearModel();
     const eModel = this.euclideanModel();
-
-    const config: BerkovichMnistConfig = {
-      prime: this.prime(),
-      embDim: this.embDim(),
-      numConstraints: this.numConstraints(),
-      gridSize: this.gridSize(),
-      lr: this.learningRate(),
-      reg: this.regularizationTarget(),
-      regEmbed: this.regularizationEmbed(),
-      beta: this.beta(),
-      aggMode: this.aggMode()
-    };
+    const config = this.getConfig();
 
     const batch = data.map(s => ({ pixels: s.pixels, digit: s.digit }));
     let res = { loss: 0, accuracy: 0 };

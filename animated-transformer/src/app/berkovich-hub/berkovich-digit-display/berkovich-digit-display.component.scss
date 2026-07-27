@@ -31,6 +31,17 @@ limitations under the License.
   &.editable-center {
     cursor: text;
   }
+
+  &.dragging-rho {
+    cursor: ew-resize !important;
+    cursor: col-resize !important;
+
+    .rho-shading,
+    .rho-guide-line,
+    clipPath rect {
+      transition: none !important;
+    }
+  }
 }
 
 .digit-display-svg {
@@ -108,6 +119,21 @@ clipPath rect {
   stroke: #94a3b8;
   stroke-width: 1px;
   transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease;
+}
+
+.rho-vertical-line.editable-rho {
+  cursor: ew-resize;
+  cursor: col-resize;
+  &:hover {
+    stroke: #2563eb;
+    stroke-width: 2.5px;
+  }
+}
+
+.rho-drag-hit-target {
+  cursor: ew-resize;
+  cursor: col-resize;
+  pointer-events: stroke;
 }
 
 /* Text labels for rho values */
@@ -220,4 +246,3 @@ clipPath rect {
   box-sizing: border-box;
   outline: none;
 }
-

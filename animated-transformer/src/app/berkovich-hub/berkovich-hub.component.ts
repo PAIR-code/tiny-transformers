@@ -55,6 +55,13 @@ export class BerkovichHubComponent {
       colorClass: 'card-berkovich',
     },
     {
+      title: '2-adic Binary Search Encoding',
+      description: 'Encode bounded real values in [0, 1] into Berkovich tree points using interval halving binary search.',
+      route: '/berkovich/encoding',
+      icon: 'sync_alt',
+      colorClass: 'card-berkovich',
+    },
+    {
       title: 'Shakespeare next-character predictor',
       description: 'Train a character-level model on Shakespeare in the browser, using learned Berkovich embeddings and affinoid constraints.',
       route: '/berkovich/shakespeare',
@@ -66,6 +73,13 @@ export class BerkovichHubComponent {
       description: 'Classify 28x28 handwritten digits in Berkovich spaces using affinoid domain constraints, spatial trees, and p-adic metric bounds.',
       route: '/berkovich/mnist',
       icon: 'grid_on',
+      colorClass: 'card-berkovich',
+    },
+    {
+      title: 'Boolean Function & DNF Explorer',
+      description: 'Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools and 2-adic binary search encodings.',
+      route: '/berkovich/boolean',
+      icon: 'alt_route',
       colorClass: 'card-berkovich',
     },
     {

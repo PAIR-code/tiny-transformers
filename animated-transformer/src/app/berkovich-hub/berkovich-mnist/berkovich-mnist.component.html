@@ -22,7 +22,7 @@ limitations under the License.
   <div class="mnist-layout">
     <!-- Left Column: Controls, Drawing Canvas & Prediction Bar -->
     <div class="left-panel">
-      <!-- Approach Selector Card -->
+      <!-- Approach & Hyper-Parameter Selector Card -->
       <div class="card selector-card">
         <h3>Select Classification Approach</h3>
         <div class="approach-buttons">
@@ -31,7 +31,7 @@ limitations under the License.
             [color]="approach() === 'berkovich-affinoid' ? 'primary' : undefined"
             (click)="onApproachChange('berkovich-affinoid')"
           >
-            Berkovich Affinoid
+            Berkovich DNF Affinoid
           </button>
           <button
             mat-flat-button
@@ -48,6 +48,37 @@ limitations under the License.
             Euclidean Baseline
           </button>
         </div>
+
+        @if (approach() === 'berkovich-affinoid') {
+          <div class="hyperparams-section">
+            <h4>2-adic Encoding & DNF Pooling</h4>
+
+            <div class="param-row">
+              <label>Pixel Encoding:</label>
+              <select [value]="encodingMode()" (change)="encodingMode.set($any($event.target).value); resetModel()">
+                <option value="2adic-binary-search">2-adic Binary Search</option>
+                <option value="continuous-intensity">Continuous Intensity</option>
+              </select>
+            </div>
+
+            <div class="param-row">
+              <label>Target Init Mode:</label>
+              <select [value]="targetInitMode()" (change)="targetInitMode.set($any($event.target).value); resetModel()">
+                <option value="random">Random Disks</option>
+                <option value="pre-fixed-leaves">Pre-fixed Tree Leaves</option>
+              </select>
+            </div>
+
+            <div class="param-row">
+              <label>Pool Repulsion (&lambda;<sub>rep</sub>):</label>
+              <select [value]="repulsionReg()" (change)="repulsionReg.set(+$any($event.target).value)">
+                <option [value]="0.00">0.00 (Off)</option>
+                <option [value]="0.02">0.02 (Standard)</option>
+                <option [value]="0.05">0.05 (High)</option>
+              </select>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Dataset Source Selector Card -->

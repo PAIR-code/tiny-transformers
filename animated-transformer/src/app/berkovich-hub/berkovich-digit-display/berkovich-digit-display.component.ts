@@ -13,7 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, output, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  input,
+  output,
+  signal,
+  computed,
+  effect,
+  untracked,
+  ChangeDetectionStrategy,
+  ElementRef,
+  inject
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Rational, getAlignedDigits, parseDigitSequence } from '../../../lib/berkovich/berkovich';
 
@@ -71,26 +82,33 @@ export interface DigitDisplayCell {
   host: {
     '[class.editable-center]': 'isCenterEditable()',
     '[class.clickable]': 'isClickable() || isRhoEditable()',
+    '[class.dragging-rho]': 'isDraggingRho()',
     '[attr.tabindex]': '(isCenterEditable() || isRhoEditable()) ? 0 : null',
     '(focus)': 'onFocus()',
     '(blur)': 'onBlur()',
     '(click)': 'onHostClick($event)',
+    '(document:click)': 'onDocumentClick($event)',
     '(keydown)': 'onKeyDown($event)',
     '[style.height.px]': 'svgHeight()'
   }
 })
 export class BerkovichDigitDisplayComponent {
+  private readonly elementRef = inject(ElementRef);
   private static idCounter = 0;
   readonly clipPathId = `rowClip_${BerkovichDigitDisplayComponent.idCounter++}`;
 
   readonly activePosition = signal<'above' | 'below' | 'left' | 'none' | null>(null);
 
-  // Focus & Editable signals
+  // Focus, Editable & Dragging signals
   readonly isFocused = signal<boolean>(false);
   readonly activeDigitPower = signal<number | null>(null);
   readonly cursorSide = signal<'before' | 'after'>('after');
   readonly isEditingRho = signal<boolean>(false);
+  readonly isDraggingRho = signal<boolean>(false);
   readonly rhoInputString = signal<string>('');
+
+  private dragMoveListener: ((e: MouseEvent) => void) | null = null;
+  private dragUpListener: ((e: MouseEvent) => void) | null = null;
 
   readonly displayPosition = computed(() => {
     const active = this.activePosition();
@@ -537,6 +555,21 @@ export class BerkovichDigitDisplayComponent {
     return xK + t * (xKPlus1 - xK);
   }
 
+  getValuationForX(svgX: number): number {
+    const dims = this.derivedDimensions();
+    const lay = this.layout();
+    const xMin = dims.marginLeft - dims.boxPadding;
+    const xMax = dims.marginLeft + lay.rowWidth + dims.boxPadding;
+
+    if (xMax <= xMin) return 0;
+    const t = Math.max(0, Math.min(1, (svgX - xMin) / (xMax - xMin)));
+
+    const maxVal = this.digitsLeft();
+    const minVal = -this.digitsRight();
+
+    return maxVal - t * (maxVal - minVal);
+  }
+
   readonly rhoBoundaryX = computed(() => {
     return this.getXForValuation(-this.rho());
   });
@@ -552,7 +585,7 @@ export class BerkovichDigitDisplayComponent {
   }
 
   // ==========================================================================
-  // EDITING INTERACTION HANDLERS
+  // EDITING & DRAGGING INTERACTION HANDLERS
   // ==========================================================================
 
   onFocus() {
@@ -560,7 +593,7 @@ export class BerkovichDigitDisplayComponent {
   }
 
   onBlur() {
-    if (!this.isEditingRho()) {
+    if (!this.isEditingRho() && !this.isDraggingRho()) {
       this.isFocused.set(false);
     }
   }
@@ -569,6 +602,79 @@ export class BerkovichDigitDisplayComponent {
     if (!this.isCenterEditable() && !this.isRhoEditable()) {
       this.toggleRho(event);
     }
+  }
+
+  onDocumentClick(event: MouseEvent) {
+    if (!this.isEditingRho()) return;
+    const target = event.target as HTMLElement | SVGElement | null;
+    if (target && !target.closest('.rho-inline-editor') && !target.closest('.rho-label-text')) {
+      this.commitRhoEdit();
+    }
+  }
+
+  onSvgMouseDown(event: MouseEvent) {
+    if (!this.isRhoEditable()) return;
+    const target = event.target as HTMLElement | SVGElement | null;
+    if (target && (target.closest('.rho-inline-editor') || target.tagName.toLowerCase() === 'input')) {
+      return;
+    }
+    this.startRhoDrag(event);
+  }
+
+  startRhoDrag(event: MouseEvent) {
+    if (!this.isRhoEditable()) return;
+    event.stopPropagation();
+    event.preventDefault();
+
+    this.isDraggingRho.set(true);
+    this.isFocused.set(true);
+
+    const updateRhoFromMouse = (moveEvent: MouseEvent) => {
+      const svgEl = (this.elementRef.nativeElement as HTMLElement).querySelector('svg');
+      if (!svgEl) return;
+
+      const rect = svgEl.getBoundingClientRect();
+      const totalW = this.layout().totalWidth;
+      if (rect.width <= 0 || totalW <= 0) return;
+
+      const svgScale = rect.width / totalW;
+      const svgX = (moveEvent.clientX - rect.left) / svgScale;
+
+      const val = this.getValuationForX(svgX);
+      const newRho = Math.round(-val * 100) / 100;
+      const minRho = -this.digitsLeft();
+      const maxRho = this.digitsRight();
+      const clampedRho = Number(Math.max(minRho, Math.min(maxRho, newRho)).toFixed(2));
+
+      this.rhoChange.emit(clampedRho);
+      this.rhoInputChange.emit(clampedRho.toString());
+      this.rhoInputString.set(clampedRho.toFixed(2));
+    };
+
+    updateRhoFromMouse(event);
+
+    if (this.dragMoveListener) {
+      window.removeEventListener('mousemove', this.dragMoveListener);
+    }
+    if (this.dragUpListener) {
+      window.removeEventListener('mouseup', this.dragUpListener);
+    }
+
+    this.dragMoveListener = (e: MouseEvent) => updateRhoFromMouse(e);
+    this.dragUpListener = () => {
+      this.isDraggingRho.set(false);
+      if (this.dragMoveListener) {
+        window.removeEventListener('mousemove', this.dragMoveListener);
+        this.dragMoveListener = null;
+      }
+      if (this.dragUpListener) {
+        window.removeEventListener('mouseup', this.dragUpListener);
+        this.dragUpListener = null;
+      }
+    };
+
+    window.addEventListener('mousemove', this.dragMoveListener);
+    window.addEventListener('mouseup', this.dragUpListener);
   }
 
   findClosestDigitCursor(clickSvgX: number, cellPositions: { power: number; center: number }[]): { power: number; side: 'before' | 'after' } {
@@ -652,11 +758,25 @@ export class BerkovichDigitDisplayComponent {
     }, 0);
   }
 
+  onRhoInputChange(valStr: string) {
+    this.rhoInputString.set(valStr);
+    const val = parseFloat(valStr);
+    if (!isNaN(val)) {
+      const minRho = -this.digitsLeft();
+      const maxRho = this.digitsRight();
+      const clamped = Math.max(minRho, Math.min(maxRho, val));
+      this.rhoChange.emit(clamped);
+      this.rhoInputChange.emit(clamped.toString());
+    }
+  }
+
   commitRhoEdit() {
     if (!this.isEditingRho()) return;
     const val = parseFloat(this.rhoInputString());
     if (!isNaN(val)) {
-      const clamped = Math.max(-2, Math.min(2, val));
+      const minRho = -this.digitsLeft();
+      const maxRho = this.digitsRight();
+      const clamped = Math.max(minRho, Math.min(maxRho, val));
       this.rhoChange.emit(clamped);
       this.rhoInputChange.emit(clamped.toString());
     }
@@ -722,7 +842,6 @@ export class BerkovichDigitDisplayComponent {
           this.replaceDigitAtPower(activePower, 0);
           this.cursorSide.set('before');
         } else {
-          // Cursor is at start of digit ('before'): jump to previous digit
           if (currentIndex > 0) {
             this.activeDigitPower.set(powers[currentIndex - 1]);
             this.cursorSide.set('after');
@@ -798,10 +917,8 @@ export class BerkovichDigitDisplayComponent {
       const newCenter = parseDigitSequence(formattedStr, p, { minPower: -right, maxPower: left - 1 });
       this.centerChange.emit(newCenter);
       this.centerInputChange.emit(formattedStr);
-    } catch (e) {
-      console.error('Failed to parse updated digit sequence:', e);
+    } catch {
+      // Ignore invalid digit sequence parsing error
     }
   }
 }
-
-

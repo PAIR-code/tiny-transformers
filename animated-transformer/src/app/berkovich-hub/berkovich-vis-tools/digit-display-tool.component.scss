@@ -18,3 +18,43 @@ limitations under the License.
 :host {
   display: block;
 }
+
+.label-with-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.info-icon-btn {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #64748b;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: help;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  &:hover, &:focus-visible {
+    color: #2563eb;
+    background-color: #eff6ff;
+    outline: none;
+  }
+
+  .mat-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+  }
+}
+
