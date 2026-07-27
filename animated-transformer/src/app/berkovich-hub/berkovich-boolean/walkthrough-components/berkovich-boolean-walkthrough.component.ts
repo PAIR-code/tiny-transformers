@@ -61,6 +61,7 @@ export class BerkovichBooleanWalkthroughComponent {
   numVars = input.required<number>();
   prime = input.required<number>();
   config = input.required<BerkovichBooleanConfig>();
+  tick = input<number>(0);
 
   digitsLeft = input<number>(2);
   digitsRight = input<number>(2);
@@ -207,6 +208,7 @@ $$\\mathcal{L}_{\\text{total}} = \\mathcal{L}_{\\text{CE}} + \\lambda_{\\text{re
   });
 
   readonly forwardResult = computed(() => {
+    this.tick();
     const l = this.learner();
     const sample = this.currentSample();
     const cfg = this.config();

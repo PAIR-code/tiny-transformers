@@ -58,4 +58,63 @@ describe('Universal Boolean Circuit Learning Verification', () => {
       expect(finalAcc).toBeGreaterThanOrEqual(0.9999);
     });
   }
+
+  it('verifies 2D Unit Square Embedding Map heatmap shading is NOT all-blue or all-red when 100% accuracy is reached on XOR', () => {
+    const numPools = 4;
+    const xorPreset = PRESET_BOOLEAN_FUNCTIONS[0]; // XOR
+    const dataset = buildBooleanDataset(xorPreset.truthTable, xorPreset.numVars);
+
+    const learner = new BerkovichBooleanLearner(
+      xorPreset.numVars,
+      numPools,
+      2,
+      'pre-fixed-leaves',
+      'separated-branches'
+    );
+
+    const config: BerkovichBooleanConfig = {
+      prime: 2,
+      numPools,
+      lr: 0.05,
+      reg: 0.01,
+      beta: 2.0,
+      targetInitMode: 'pre-fixed-leaves',
+      poolInitMode: 'separated-branches',
+      repulsionReg: 0.02,
+      updateTargetCenters: false
+    };
+
+    for (let epoch = 0; epoch < 100; epoch++) {
+      const res = learner.trainBatch(dataset, config);
+      if (res.accuracy >= 0.9999) break;
+    }
+
+    // Evaluate predictions across the 4 quadrants of [0, 1] x [0, 1]
+    const prob00 = learner.forward([0.1, 0.1], config).probs[1]; // (0,0) -> 0 (Red)
+    const prob01 = learner.forward([0.1, 0.9], config).probs[1]; // (0,1) -> 1 (Blue)
+    const prob10 = learner.forward([0.9, 0.1], config).probs[1]; // (1,0) -> 1 (Blue)
+    const prob11 = learner.forward([0.9, 0.9], config).probs[1]; // (1,1) -> 0 (Red)
+
+    expect(prob00).toBeLessThan(0.5); // Red
+    expect(prob01).toBeGreaterThan(0.5); // Blue
+    expect(prob10).toBeGreaterThan(0.5); // Blue
+    expect(prob11).toBeLessThan(0.5); // Red
+
+    // Verify heatmap grid across 16x16 sampling points contains both blue (>0.5) and red (<0.5) regions
+    let blueCount = 0;
+    let redCount = 0;
+    for (let i = 0; i < 16; i++) {
+      const x1 = (i + 0.5) / 16;
+      for (let j = 0; j < 16; j++) {
+        const x2 = (j + 0.5) / 16;
+        const p1 = learner.forward([x1, x2], config).probs[1];
+        if (p1 >= 0.5) blueCount++;
+        else redCount++;
+      }
+    }
+
+    expect(blueCount).toBeGreaterThan(0);
+    expect(redCount).toBeGreaterThan(0);
+    expect(blueCount + redCount).toBe(256);
+  });
 });

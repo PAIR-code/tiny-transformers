@@ -23,7 +23,11 @@ import {
   extNegate
 } from '../../../../lib/berkovich/berkovich';
 import { computeGradientDetails } from '../../../../lib/berkovich/berkovich_gradients';
-import { encodeBinarySearch2Adic, BerkovichDisk } from '../../berkovich-mnist/models/berkovich-mnist-learner';
+import {
+  encodeBinarySearch2Adic,
+  intensityTo2AdicBinarySearch,
+  BerkovichDisk
+} from '../../berkovich-mnist/models/berkovich-mnist-learner';
 
 export interface BooleanSample {
   inputs: number[]; // e.g. [0, 1]
@@ -136,7 +140,13 @@ export class BerkovichBooleanLearner {
    * Encodes binary input vector (e.g. [0, 1]) into 2-adic Berkovich points.
    */
   encodeInputs(inputs: number[]): BerkovichDisk[] {
-    return inputs.map((b) => encodeBinarySearch2Adic([b], 4));
+    return inputs.map((val) => {
+      const bit = val >= 0.5 ? 1 : 0;
+      const num = bit === 0 ? 1n : 3n;
+      const center = simplify({ num, den: 4n });
+      const rho = -1.0;
+      return { center, rho };
+    });
   }
 
   forward(inputs: number[], config: BerkovichBooleanConfig): BerkovichBooleanForwardResult {

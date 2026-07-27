@@ -149,6 +149,8 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
     this.resetModel();
   }
 
+  readonly trainTick = signal<number>(0);
+
   resetModel() {
     this.stopAutoTrain();
     this.stepCount.set(0);
@@ -164,6 +166,7 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
       this.poolInitMode()
     );
     this.learner.set(model);
+    this.trainTick.update((n) => n + 1);
   }
 
   closePopup() {
@@ -223,6 +226,12 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
     });
   });
 
+  readonly currentAccuracy = computed(() => {
+    const history = this.trainAccHistory();
+    if (history.length === 0) return 0;
+    return history[history.length - 1].y;
+  });
+
   stepTrain() {
     const l = this.learner();
     const data = this.dataset();
@@ -237,11 +246,21 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
 
     this.trainLossHistory.update((h) => [...h, { x: nextStep, y: res.loss, name: 'Train Loss' }]);
     this.trainAccHistory.update((h) => [...h, { x: nextStep, y: res.accuracy, name: 'Train Accuracy' }]);
+    this.trainTick.update((n) => n + 1);
+
+    // Stop auto-training automatically once 100% accuracy is reached
+    if (res.accuracy >= 0.9999 && this.isAutoTraining()) {
+      this.stopAutoTrain();
+    }
   }
 
   trainSteps(count: number = 5) {
     for (let i = 0; i < count; i++) {
       this.stepTrain();
+      const lastAcc = this.trainAccHistory();
+      if (lastAcc.length > 0 && lastAcc[lastAcc.length - 1].y >= 0.9999) {
+        break;
+      }
     }
   }
 

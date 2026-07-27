@@ -317,6 +317,11 @@ limitations under the License.
           <div class="step-metrics">
             <span>Steps: <strong>{{ stepCount() }}</strong></span>
             <span>Epochs: <strong>{{ epochCount() }}</strong></span>
+            @if (currentAccuracy() >= 0.9999) {
+              <span class="converged-chip" style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid #86efac; margin-left: 8px;">
+                🎉 100% Target Met (Stopped)
+              </span>
+            }
           </div>
         </div>
 
@@ -346,6 +351,8 @@ limitations under the License.
         [samples]="dataset()"
         [numPools]="numPools()"
         [numVars]="numVars()"
+        [config]="modelConfig()"
+        [tick]="trainTick()"
       ></app-dnf-vis-card>
 
       <!-- How Model Inference & Berkovich Matrix Operations Work Walkthrough Card -->
@@ -357,6 +364,7 @@ limitations under the License.
           [numVars]="numVars()"
           [prime]="prime()"
           [config]="modelConfig()"
+          [tick]="trainTick()"
           (targetInitModeChange)="targetInitMode.set($event); resetModel()"
           (poolInitModeChange)="poolInitMode.set($event); resetModel()"
           (targetCenterModeChange)="targetCenterMode.set($event)"
