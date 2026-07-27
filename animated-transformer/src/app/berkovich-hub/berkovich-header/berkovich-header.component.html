@@ -42,10 +42,10 @@ limitations under the License.
 
       <!-- Applications Dropdown Menu -->
       <button
-        mat-button
         [matMenuTriggerFor]="appsMenu"
-        class="apps-btn"
+        class="nav-menu-btn"
         title="Applications"
+        [class.active-nav]="isAppsActive()"
       >
         <span>Applications</span>
         <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
@@ -70,7 +70,6 @@ limitations under the License.
 
       <!-- Vis Style Selector Menu -->
       <button
-        mat-button
         [matMenuTriggerFor]="visStyleMenu"
         class="vis-style-btn"
         title="Change Visualization Style"
@@ -168,6 +167,10 @@ limitations under the License.
           <mat-icon>call_split</mat-icon>
           <span>Binary Op Gradients</span>
         </button>
+        <button mat-menu-item routerLink="/berkovich/encoding" routerLinkActive="active-menu-item">
+          <mat-icon>sync_alt</mat-icon>
+          <span>Encoding</span>
+        </button>
         <button mat-menu-item routerLink="/berkovich/shakespeare" routerLinkActive="active-menu-item">
           <mat-icon>explore</mat-icon>
           <span>Shakespeare Predictor</span>
@@ -175,6 +178,10 @@ limitations under the License.
         <button mat-menu-item routerLink="/berkovich/mnist" routerLinkActive="active-menu-item">
           <mat-icon>grid_on</mat-icon>
           <span>MNIST Classifier</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
+          <mat-icon>alt_route</mat-icon>
+          <span>Boolean Circuits</span>
         </button>
         <button mat-menu-item routerLink="/berkovich/glossary" routerLinkActive="active-menu-item">
           <mat-icon>menu_book</mat-icon>

@@ -73,7 +73,8 @@ limitations under the License.
     border-top: 1px solid #f1f5f9;
     padding-top: 12px;
 
-    a {
+    a,
+    .nav-menu-btn {
       font-size: 13px;
       font-weight: 500;
       color: #64748b;
@@ -81,6 +82,15 @@ limitations under the License.
       padding: 6px 12px;
       border-radius: 6px;
       transition: all 0.2s ease;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: normal;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      outline: none;
 
       &:hover {
         color: #0f172a;
@@ -91,13 +101,33 @@ limitations under the License.
         color: #3b82f6;
         background: #eff6ff;
         font-weight: 600;
+
+        .dropdown-arrow {
+          color: #3b82f6;
+        }
+      }
+
+      span {
+        order: 1;
+      }
+
+      .dropdown-arrow {
+        order: 2;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        color: #64748b;
+        margin-left: 2px;
+        margin-right: -4px;
+        transition: transform 0.2s ease;
       }
     }
 
     .vis-style-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       font-size: 13px;
       font-weight: 600;
       color: #1e293b;
@@ -108,6 +138,11 @@ limitations under the License.
       margin-left: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
+      font-family: inherit;
+
+      span {
+        order: 1;
+      }
 
       mat-icon {
         font-size: 18px;
@@ -118,11 +153,13 @@ limitations under the License.
       }
 
       .dropdown-arrow {
+        order: 2;
         font-size: 18px;
         width: 18px;
         height: 18px;
         line-height: 18px;
         color: #64748b;
+        margin-left: 2px;
       }
 
       &:hover {

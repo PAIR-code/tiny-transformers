@@ -76,6 +76,19 @@ describe('BerkovichEncodingComponent', () => {
     expect(component.decodedBiasedReal()).toBe(0.5);
 
     component.onDigitDisplayRhoChange(-4);
-    expect(component.decodedBiasedReal()).toBeCloseTo(0.67578, 4);
+    expect(component.decodedBiasedReal()).toBeCloseTo(0.70508, 4);
+  });
+
+  it('should correctly encode x = 0.4160 to 0110 binary digits and 13/32 rational center', () => {
+    component.setRealTarget(0.4160);
+    expect(component.binaryString()).toBe('0110');
+    expect(component.currentRationalCenter()).toEqual({ num: 13n, den: 32n });
+    const steps = component.steps();
+    expect(steps.length).toBe(4);
+    expect(steps[0].bit).toBe(0);
+    expect(steps[1].bit).toBe(1);
+    expect(steps[2].bit).toBe(1);
+    expect(steps[3].bit).toBe(0);
+    expect(steps[3].rationalCenter).toEqual({ num: 13n, den: 32n });
   });
 });

@@ -104,26 +104,26 @@ export class BerkovichEncodingComponent {
       const bit = x >= mid ? 1 : 0;
       const direction = bit === 1 ? 'higher' : 'lower';
 
-      const rationalCenter = simplify({ num, den });
-      const currentMid = Number(num) / Number(den);
-
       let nextLower = lower;
       let nextUpper = upper;
       const nextDen = den * 2n;
+      let nextNum = num;
       if (bit === 1) {
         nextLower = mid;
-        num = num * 2n + 1n;
+        nextNum = num * 2n + 1n;
       } else {
         nextUpper = mid;
-        num = num * 2n - 1n;
+        nextNum = num * 2n - 1n;
       }
-      den = nextDen;
+
+      const rationalCenter = simplify({ num: nextNum, den: nextDen });
+      const nextMid = (nextLower + nextUpper) / 2;
 
       result.push({
         step: k + 1,
         lower: nextLower,
         upper: nextUpper,
-        midpoint: currentMid,
+        midpoint: nextMid,
         rationalCenter,
         bit,
         direction,
@@ -133,6 +133,8 @@ export class BerkovichEncodingComponent {
 
       lower = nextLower;
       upper = nextUpper;
+      num = nextNum;
+      den = nextDen;
     }
 
     return result;
