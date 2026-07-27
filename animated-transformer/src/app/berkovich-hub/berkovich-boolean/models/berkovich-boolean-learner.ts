@@ -78,9 +78,21 @@ export class BerkovichBooleanLearner {
       const poolRow: BerkovichDisk[] = [];
       for (let d = 0; d < numVars; d++) {
         if (poolInitMode === 'separated-branches') {
-          // Pre-initialize pools on separated branches of p-adic tree
-          const center = simplify({ num: BigInt(m % Number(this.prime)), den: this.prime });
-          poolRow.push({ center, rho: 0.0 });
+          // Pre-initialize pools on hypercube minterm branches of 2-adic tree
+          let bit = (m >> d) & 1;
+          if (numVars === 3 && numPools === 4) {
+            // Balanced corner spread for 4 pools in 3D
+            const corners = [
+              [0, 0, 0],
+              [0, 1, 1],
+              [1, 0, 1],
+              [1, 1, 0]
+            ];
+            bit = corners[m % 4][d];
+          }
+          const num = bit === 0 ? 1n : 3n;
+          const center = simplify({ num, den: 4n });
+          poolRow.push({ center, rho: -1.0 });
         } else {
           poolRow.push(this.randomDisk());
         }
@@ -242,6 +254,7 @@ export class BerkovichBooleanLearner {
       }
 
       // Update active pool & target constraint
+      const inputDisks = this.encodeInputs(inputs);
       for (let d = 0; d < this.numVars; d++) {
         if (k !== target && fwd.pathLosses[k][activeM][d] > 0) {
           continue;
@@ -249,24 +262,31 @@ export class BerkovichBooleanLearner {
 
         const W = this.W[k][activeM][d];
         const H = fwd.pools[activeM][d];
+        const x_d = inputDisks[d];
 
         if (gk < 0) {
-          const details = computeGradientDetails(W.center, W.rho, H.center, H.rho, p, lr * Math.abs(gk));
-          W.center = details.nextCenter;
-          W.rho = details.nextLogRadius;
+          if (config.targetInitMode === 'random') {
+            const details = computeGradientDetails(W.center, W.rho, H.center, H.rho, p, lr * Math.abs(gk));
+            W.center = details.nextCenter;
+            W.rho = details.nextLogRadius;
+          } else {
+            const dVal = getValuation(subtract(W.center, H.center), p);
+            const val = dVal.type === 'finite' ? -dVal.value : -Infinity;
+            const sgn = W.rho >= val ? 1 : -1;
+            W.rho = Math.max(-3, Math.min(3, W.rho - lr * Math.abs(gk) * sgn));
+          }
+
+          // Target center for pw is W.center - x_d.center
+          const targetPwCenter = simplify(subtract(W.center, x_d.center));
+          const pw = this.poolWeights[activeM][d];
+          const pwDetails = computeGradientDetails(pw.center, pw.rho, targetPwCenter, W.rho, p, lr * Math.abs(gk));
+          pw.center = pwDetails.nextCenter;
+          pw.rho = pwDetails.nextLogRadius;
         } else if (gk > 0) {
           const valDiff = getValuation(subtract(W.center, H.center), p);
           const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
           const sgn = W.rho >= dValuation ? 1 : -1;
           W.rho = Math.max(-3, Math.min(3, W.rho - lr * gk * sgn));
-        }
-
-        // Update pool weights
-        const pw = this.poolWeights[activeM][d];
-        if (gk < 0) {
-          const details = computeGradientDetails(pw.center, pw.rho, W.center, W.rho, p, lr * Math.abs(gk));
-          pw.center = details.nextCenter;
-          pw.rho = details.nextLogRadius;
         }
       }
     }

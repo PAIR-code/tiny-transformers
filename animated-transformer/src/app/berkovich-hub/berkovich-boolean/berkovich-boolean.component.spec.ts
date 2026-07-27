@@ -107,7 +107,7 @@ describe('BerkovichBooleanComponent', () => {
 
   it('should compute modelConfig for walkthrough component', () => {
     const cfg = component.modelConfig();
-    expect(cfg.numPools).toBe(2);
+    expect(cfg.numPools).toBe(4);
     expect(cfg.prime).toBe(2);
   });
 });

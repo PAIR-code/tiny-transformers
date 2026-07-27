@@ -74,10 +74,10 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
   // Hyper-parameters
   readonly numVars = signal<number>(2);
   readonly prime = signal<number>(2);
-  readonly numPools = signal<number>(2); // M = 1..8
-  readonly learningRate = signal<number>(0.04);
-  readonly regularization = signal<number>(0.02);
-  readonly beta = signal<number>(1.0);
+  readonly numPools = signal<number>(4); // M = 4 pools default for universal circuit coverage
+  readonly learningRate = signal<number>(0.05);
+  readonly regularization = signal<number>(0.01);
+  readonly beta = signal<number>(2.0);
   readonly targetInitMode = signal<'pre-fixed-leaves' | 'random'>('pre-fixed-leaves');
   readonly poolInitMode = signal<'separated-branches' | 'random'>('separated-branches');
   readonly repulsionReg = signal<number>(0.02);
@@ -133,10 +133,8 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
     const preset = this.presets[index];
     this.numVars.set(preset.numVars);
     this.truthTable.set([...preset.truthTable]);
-    if (preset.numVars === 3 && this.numPools() < 4) {
+    if (this.numPools() < 4) {
       this.numPools.set(4);
-    } else if (preset.numVars === 2 && this.numPools() > 4) {
-      this.numPools.set(2);
     }
     this.resetModel();
   }
