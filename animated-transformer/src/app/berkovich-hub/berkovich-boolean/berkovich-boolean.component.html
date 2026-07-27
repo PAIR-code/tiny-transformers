@@ -356,6 +356,14 @@ limitations under the License.
           [numVars]="numVars()"
           [prime]="prime()"
           [config]="modelConfig()"
+          (targetInitModeChange)="targetInitMode.set($event); resetModel()"
+          (poolInitModeChange)="poolInitMode.set($event); resetModel()"
+          (targetCenterModeChange)="targetCenterMode.set($event)"
+          (numPoolsChange)="numPools.set($event); resetModel()"
+          (learningRateChange)="learningRate.set($event)"
+          (regularizationChange)="regularization.set($event)"
+          (repulsionRegChange)="repulsionReg.set($event)"
+          (betaChange)="beta.set($event)"
         ></app-berkovich-boolean-walkthrough>
       </div>
     </div>

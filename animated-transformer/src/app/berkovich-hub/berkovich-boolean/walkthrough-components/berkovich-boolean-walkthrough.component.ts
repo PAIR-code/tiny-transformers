@@ -16,6 +16,7 @@ limitations under the License.
 import {
   Component,
   input,
+  output,
   signal,
   computed,
   ChangeDetectionStrategy
@@ -64,6 +65,16 @@ export class BerkovichBooleanWalkthroughComponent {
   digitsLeft = input<number>(2);
   digitsRight = input<number>(2);
 
+  // Parameter Change Outputs
+  readonly targetInitModeChange = output<'pre-fixed-leaves' | 'random'>();
+  readonly poolInitModeChange = output<'separated-branches' | 'random'>();
+  readonly targetCenterModeChange = output<'fixed' | 'dynamic' | 'softmax-repulsion'>();
+  readonly numPoolsChange = output<number>();
+  readonly learningRateChange = output<number>();
+  readonly regularizationChange = output<number>();
+  readonly repulsionRegChange = output<number>();
+  readonly betaChange = output<number>();
+
   readonly selectedSampleIndex = signal<number>(0);
   readonly activePopup = signal<string | null>(null);
 
@@ -106,6 +117,81 @@ export class BerkovichBooleanWalkthroughComponent {
 
     return `💡 **Active Architecture & Dynamics:** ${targetExpl} ${initExpl} ${poolExpl}`;
   });
+
+  readonly initStrategyMarkdown = computed(() => {
+    const cfg = this.config();
+    const targetMode = cfg.targetInitMode;
+    const poolMode = cfg.poolInitMode;
+
+    const poolDesc = poolMode === 'separated-branches'
+      ? '**Programmatic Minterm Corners**: Initialized at PW_{m,d} = bit_d ? 3/4 : 1/4. Guarantees 100% initial coverage of all 2^D hypercube minterms for universal circuit learning.'
+      : '**Random Tree Centers**: Initialized to random depth-4 2-adic rational centers num/16. Evaluates standard unguided neural initialization.';
+
+    const targetDesc = targetMode === 'pre-fixed-leaves'
+      ? '**Programmatic Canonical Leaves**: Class 0 at 0, Class 1 at 1/p. Rooted in p-adic spectral leaf topology where distinct leaves represent distinct boolean values.'
+      : '**Random Learned Disks**: Target centers W are sampled randomly across depth-4 tree fractions num/16. Evaluates soft boundary adaptation.';
+
+    return `### Initialization Strategy: Programmatic vs. Random
+- **Pool Translation Weights (PW)**: ${poolDesc}
+- **Target Constraint Disks (W)**: ${targetDesc}`;
+  });
+
+  readonly lossBreakdownMarkdown = computed(() => {
+    const cfg = this.config();
+    return `### Loss Function & Parameter Breakdown
+$$\\mathcal{L}_{\\text{total}} = \\mathcal{L}_{\\text{CE}} + \\lambda_{\\text{reg}} \\mathcal{L}_{\\text{radius}} + \\lambda_{\\text{repulsion}} \\mathcal{L}_{\\text{repulsion}}$$
+
+- **Cross-Entropy Loss ($\\mathcal{L}_{\\text{CE}}$)**: $-\\log P(y_i \\mid \\mathbf{x}_i)$ where $P(y=k) = \\frac{e^{\\beta S_k}}{\\sum e^{\\beta S_{k'}}}$ and score $S_k = -\\min_m \\max_d \\text{Loss}(H_{m,d}, W_{k,m,d})$. Optimizes input pool alignment.
+- **Radius Regularization ($\\mathcal{L}_{\\text{radius}}$)**: $\\sum_{k,m,d} e^{\\rho_{W,k,m,d} \\ln p}$. Shrinks disk log-radii ($\\rho \\to -\\infty$) with weight $\\lambda_{\\text{reg}} = ${cfg.reg} to sharpen DNF decision boundaries into crisp Boolean regions.
+- **Softmax Repulsion Penalty ($\\mathcal{L}_{\\text{repulsion}}$)**: $\\sum_{m \\neq m'} e^{-v_p(c_{W,m} - c_{W,m'})}$. Applies a repulsion penalty with weight $\\lambda_{\\text{repulsion}} = ${cfg.repulsionReg} pushing pool/class target centers to distinct branches of the 2-adic tree.`;
+  });
+
+  onTargetInitChange(val: string) {
+    this.targetInitModeChange.emit(val as 'pre-fixed-leaves' | 'random');
+  }
+
+  onPoolInitChange(val: string) {
+    this.poolInitModeChange.emit(val as 'separated-branches' | 'random');
+  }
+
+  onTargetCenterModeChange(val: string) {
+    this.targetCenterModeChange.emit(val as 'fixed' | 'dynamic' | 'softmax-repulsion');
+  }
+
+  onNumPoolsChange(val: string) {
+    const parsed = parseInt(val, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 8) {
+      this.numPoolsChange.emit(parsed);
+    }
+  }
+
+  onLrChange(val: string) {
+    const parsed = parseFloat(val.replace(',', '.'));
+    if (!isNaN(parsed) && parsed > 0) {
+      this.learningRateChange.emit(parsed);
+    }
+  }
+
+  onRegChange(val: string) {
+    const parsed = parseFloat(val.replace(',', '.'));
+    if (!isNaN(parsed) && parsed >= 0) {
+      this.regularizationChange.emit(parsed);
+    }
+  }
+
+  onRepulsionRegChange(val: string) {
+    const parsed = parseFloat(val.replace(',', '.'));
+    if (!isNaN(parsed) && parsed >= 0) {
+      this.repulsionRegChange.emit(parsed);
+    }
+  }
+
+  onBetaChange(val: string) {
+    const parsed = parseFloat(val.replace(',', '.'));
+    if (!isNaN(parsed) && parsed > 0) {
+      this.betaChange.emit(parsed);
+    }
+  }
 
   readonly explanationMarkdown = `- **Inputs ($X$)**: Each binary input bit $x_d \\in \\{0, 1\\}$ is mapped to a 2-adic Berkovich leaf disk $X_d \\in \\mathcal{B}$.
 - **Matrix Operations ($H = X \\oplus PW$)**: Input vector $X \\in \\mathcal{B}^{1 \\times D}$ is translated by learned pool weight matrix $PW \\in \\mathcal{B}^{M \\times D}$ using disk addition in $\\mathbb{Q}_p$: center $c_H = c_X + c_{PW}$, log-radius $\\rho_H = \\max(\\rho_X, \\rho_{PW})$.

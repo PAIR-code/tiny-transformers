@@ -27,6 +27,102 @@ limitations under the License.
     </div>
   </div>
 
+  <!-- SECTION: Initialization Strategy (Programmatic vs Random & Inline Selectors) -->
+  <div class="step-card init-card" style="margin-top: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+    <div class="desc-markdown">
+      <markdown [katex]="true" [data]="initStrategyMarkdown()"></markdown>
+    </div>
+
+    <!-- Inline Walkthrough Controls for Initialization Signals -->
+    <div class="walkthrough-inline-controls" style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1; font-size: 0.85rem;">
+      <div class="ctrl-group">
+        <label for="wt-pool-init" style="font-weight: 600; color: #334155; margin-right: 6px;">Pool Init (PW):</label>
+        <select id="wt-pool-init" [value]="config().poolInitMode" (change)="onPoolInitChange($any($event.target).value)" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+          <option value="separated-branches">Pre-separated Tree Branches</option>
+          <option value="random">Random Centers</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <label for="wt-target-init" style="font-weight: 600; color: #334155; margin-right: 6px;">Target Init (W):</label>
+        <select id="wt-target-init" [value]="config().targetInitMode" (change)="onTargetInitChange($any($event.target).value)" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+          <option value="pre-fixed-leaves">Pre-fixed p-adic Leaves</option>
+          <option value="random">Random Learned Disks</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <label for="wt-target-center" style="font-weight: 600; color: #334155; margin-right: 6px;">Target Update:</label>
+        <select id="wt-target-center" [value]="config().targetCenterMode || (config().updateTargetCenters ? 'dynamic' : 'fixed')" (change)="onTargetCenterModeChange($any($event.target).value)" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+          <option value="fixed">Fixed Target Centers</option>
+          <option value="dynamic">Dynamic Gradient Updates</option>
+          <option value="softmax-repulsion">Softmax Repulsion Normalized</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Loss Function Breakdown & Hyper-Parameters -->
+  <div class="step-card loss-card" style="margin-top: 16px; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 16px;">
+    <div class="desc-markdown">
+      <markdown [katex]="true" [data]="lossBreakdownMarkdown()"></markdown>
+    </div>
+
+    <!-- Parameter Classification Breakdown Grid -->
+    <div class="params-classification-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; font-size: 0.85rem;">
+      <!-- Fixed Hyper-Parameters -->
+      <div class="param-box" style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+        <h6 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #475569; display: flex; align-items: center; gap: 4px;">
+          <mat-icon style="font-size: 16px; height: 16px; width: 16px;">lock</mat-icon> Fixed Hyper-Parameters
+        </h6>
+        <ul style="margin: 0; padding-left: 18px; color: #334155;">
+          <li><strong>Input Dim (D)</strong>: {{ numVars() }}</li>
+          <li><strong>Prime Base (p)</strong>: {{ prime() }}</li>
+          <li>
+            <strong>DNF Pools (M)</strong>:
+            <select [value]="numPools()" (change)="onNumPoolsChange($any($event.target).value)" style="margin-left: 4px; padding: 2px 4px; border-radius: 4px;">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+              <option value="8">8</option>
+            </select>
+          </li>
+          <li>
+            <strong>Learning Rate (&eta;)</strong>:
+            <input type="text" [value]="config().lr" (change)="onLrChange($any($event.target).value)" style="width: 50px; padding: 2px 4px; border-radius: 4px; border: 1px solid #cbd5e1; margin-left: 4px;"/>
+          </li>
+          <li>
+            <strong>Softmax Temp (&beta;)</strong>:
+            <input type="text" [value]="config().beta" (change)="onBetaChange($any($event.target).value)" style="width: 50px; padding: 2px 4px; border-radius: 4px; border: 1px solid #cbd5e1; margin-left: 4px;"/>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Updatable Parameters -->
+      <div class="param-box" style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+        <h6 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #7e22ce; display: flex; align-items: center; gap: 4px;">
+          <mat-icon style="font-size: 16px; height: 16px; width: 16px;">autorenew</mat-icon> Updatable Parameters
+        </h6>
+        <ul style="margin: 0; padding-left: 18px; color: #334155;">
+          <li>
+            <strong>Pool Weights (PW<sub>m,d</sub>)</strong>: Translated input pool centers & log-radii (<code>c<sub>PW</sub>, &rho;<sub>PW</sub></code>).
+          </li>
+          <li>
+            <strong>Target Constraints (W<sub>k,m,d</sub>)</strong>: Target class affinoid centers & log-radii (<code>c<sub>W</sub>, &rho;<sub>W</sub></code>).
+          </li>
+          <li>
+            <strong>Radius Reg Weight (&lambda;<sub>reg</sub>)</strong>:
+            <input type="text" [value]="config().reg" (change)="onRegChange($any($event.target).value)" style="width: 50px; padding: 2px 4px; border-radius: 4px; border: 1px solid #cbd5e1; margin-left: 4px;"/>
+          </li>
+          <li>
+            <strong>Repulsion Reg Weight (&lambda;<sub>repulsion</sub>)</strong>:
+            <input type="text" [value]="config().repulsionReg" (change)="onRepulsionRegChange($any($event.target).value)" style="width: 50px; padding: 2px 4px; border-radius: 4px; border: 1px solid #cbd5e1; margin-left: 4px;"/>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- Worked Example Input Selector -->
   <div class="sample-selector-card">
     <div class="selector-title">Select Worked Example Input Vector (<b>x</b>):</div>
