@@ -75,6 +75,38 @@ export class BerkovichBooleanWalkthroughComponent {
   readonly descriptionMarkdown =
     'This walkthrough traces the live forward inference step-by-step for a selected Boolean input vector. It shows **2-adic input encoding**, **Berkovich pool matrix multiplication ($H = X \\oplus PW$)**, **DNF affinoid path losses**, and **softmax class probabilities**.';
 
+  readonly targetModeExplainerMarkdown = computed(() => {
+    const cfg = this.config();
+    const mode = cfg.targetCenterMode || (cfg.updateTargetCenters ? 'dynamic' : 'fixed');
+    const initMode = cfg.targetInitMode;
+    const poolMode = cfg.poolInitMode;
+
+    let targetExpl = '';
+    if (mode === 'fixed') {
+      targetExpl = '**Fixed Target Centers**: Target constraint centers W₀,m and W₁,m stay fixed at canonical leaves (0 and 1/p). Gradient descent updates pool weight shifts PW_{m,d} so X_d + PW_{m,d} → W_{1,m,d}.';
+    } else if (mode === 'dynamic') {
+      targetExpl = '**Dynamic Gradient Updates**: Target constraint centers W₀,m and W₁,m update dynamically toward active pooled disks H_{m,d} during training.';
+    } else {
+      targetExpl = '**Softmax Repulsion Normalized**: Target centers W₀,m and W₁,m update via gradient descent while applying a softmax-normalized repulsion force that pushes target constraint centers apart across distinct branches of the 2-adic tree.';
+    }
+
+    let initExpl = '';
+    if (initMode === 'random') {
+      initExpl = 'Target centers W are **randomly initialized** across 2-adic tree depth 4.';
+    } else {
+      initExpl = 'Target centers W are initialized at **canonical p-adic leaves** (0 and 1/p).';
+    }
+
+    let poolExpl = '';
+    if (poolMode === 'random') {
+      poolExpl = 'Pool weights $PW$ are initialized to **random 2-adic centers** across depth 4.';
+    } else {
+      poolExpl = 'Pool weights $PW$ are initialized across **hypercube minterm branches** ($1/4$ vs $3/4$).';
+    }
+
+    return `💡 **Active Architecture & Dynamics:** ${targetExpl} ${initExpl} ${poolExpl}`;
+  });
+
   readonly explanationMarkdown = `- **Inputs ($X$)**: Each binary input bit $x_d \\in \\{0, 1\\}$ is mapped to a 2-adic Berkovich leaf disk $X_d \\in \\mathcal{B}$.
 - **Matrix Operations ($H = X \\oplus PW$)**: Input vector $X \\in \\mathcal{B}^{1 \\times D}$ is translated by learned pool weight matrix $PW \\in \\mathcal{B}^{M \\times D}$ using disk addition in $\\mathbb{Q}_p$: center $c_H = c_X + c_{PW}$, log-radius $\\rho_H = \\max(\\rho_X, \\rho_{PW})$.
 - **DNF Affinoid Logic**: Logical AND across dimensions selects maximum path loss; logical OR across pools selects minimum path loss ($m^* = \\text{argmin}_m \\max_d \\text{Loss}$).`;

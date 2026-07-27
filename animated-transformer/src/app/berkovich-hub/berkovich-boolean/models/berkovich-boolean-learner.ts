@@ -40,6 +40,8 @@ export interface BerkovichBooleanConfig {
   targetInitMode: 'pre-fixed-leaves' | 'random';
   poolInitMode: 'separated-branches' | 'random';
   repulsionReg: number;
+  updateTargetCenters?: boolean;
+  targetCenterMode?: 'fixed' | 'dynamic' | 'softmax-repulsion';
 }
 
 export interface BerkovichBooleanForwardResult {
@@ -121,11 +123,12 @@ export class BerkovichBooleanLearner {
     }
   }
 
-  private randomDisk(): BerkovichDisk {
-    const p = this.prime;
-    const d0 = BigInt(Math.floor(Math.random() * Number(p)));
-    const center = simplify({ num: d0, den: p });
-    const rho = (Math.random() - 0.5) * 1.0;
+  private randomDisk(depth: number = 4): BerkovichDisk {
+    const p = Number(this.prime);
+    const maxDen = Math.pow(p, depth);
+    const num = BigInt(Math.floor(Math.random() * maxDen));
+    const center = simplify({ num, den: BigInt(maxDen) });
+    const rho = -1.0 + (Math.random() - 0.5) * 1.5;
     return { center, rho };
   }
 
@@ -265,9 +268,32 @@ export class BerkovichBooleanLearner {
         const x_d = inputDisks[d];
 
         if (gk < 0) {
-          if (config.targetInitMode === 'random') {
+          const mode = config.targetCenterMode || (config.updateTargetCenters ? 'dynamic' : 'fixed');
+          const shouldUpdateCenter = mode === 'dynamic' || mode === 'softmax-repulsion' || config.targetInitMode === 'random';
+
+          if (shouldUpdateCenter) {
             const details = computeGradientDetails(W.center, W.rho, H.center, H.rho, p, lr * Math.abs(gk));
-            W.center = details.nextCenter;
+            let nextC = details.nextCenter;
+
+            if (mode === 'softmax-repulsion') {
+              // Apply Softmax Repulsion Normalization pushing W.center away from other pool targets
+              let totalWeight = 0;
+              for (let mOther = 0; mOther < numPools; mOther++) {
+                if (mOther !== activeM) {
+                  const W_other = this.W[k][mOther][d];
+                  const distVal = getValuation(subtract(W.center, W_other.center), p);
+                  const dVal = distVal.type === 'finite' ? distVal.value : 4;
+                  totalWeight += Math.exp(-dVal);
+                }
+              }
+              if (totalWeight > 0) {
+                const repShift = Math.min(1, Math.round(totalWeight * 2));
+                const shiftDen = p ** BigInt(Math.max(1, Math.abs(Math.round(W.rho))));
+                nextC = add(nextC, simplify({ num: BigInt(repShift), den: shiftDen }));
+              }
+            }
+
+            W.center = nextC;
             W.rho = details.nextLogRadius;
           } else {
             const dVal = getValuation(subtract(W.center, H.center), p);

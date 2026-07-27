@@ -132,6 +132,28 @@ limitations under the License.
             </select>
           </div>
 
+          <!-- Target Center Update Mode (Multi-Choice Select Menu) -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="target-center-mode">Target Center Update:</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('updatetargets', $event)"
+                [class.icon-pressed]="activePopup() === 'updatetargets'"
+              >{{ activePopup() === 'updatetargets' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'updatetargets') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Controls how target constraint centers (W.center) update during training: Fixed at leaves, Dynamic via gradient descent, or Softmax Repulsion Normalized to push target centers apart.
+                </div>
+              }
+            </div>
+            <select id="target-center-mode" [value]="targetCenterMode()" (change)="targetCenterMode.set($any($event.target).value)">
+              <option value="fixed" [selected]="targetCenterMode() === 'fixed'">Fixed Target Centers (Canonical Leaves)</option>
+              <option value="dynamic" [selected]="targetCenterMode() === 'dynamic'">Dynamic Gradient Updates (W.center &rarr; H.center)</option>
+              <option value="softmax-repulsion" [selected]="targetCenterMode() === 'softmax-repulsion'">Softmax Repulsion Normalized</option>
+            </select>
+          </div>
+
           <!-- Pool Initialization -->
           <div class="param-row">
             <div class="param-label-row">

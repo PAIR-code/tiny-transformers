@@ -81,6 +81,7 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
   readonly targetInitMode = signal<'pre-fixed-leaves' | 'random'>('pre-fixed-leaves');
   readonly poolInitMode = signal<'separated-branches' | 'random'>('separated-branches');
   readonly repulsionReg = signal<number>(0.02);
+  readonly targetCenterMode = signal<'fixed' | 'dynamic' | 'softmax-repulsion'>('fixed');
 
   // Learner & Dataset
   readonly learner = signal<BerkovichBooleanLearner | null>(null);
@@ -194,7 +195,9 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
       beta: this.beta(),
       targetInitMode: this.targetInitMode(),
       poolInitMode: this.poolInitMode(),
-      repulsionReg: this.repulsionReg()
+      repulsionReg: this.repulsionReg(),
+      targetCenterMode: this.targetCenterMode(),
+      updateTargetCenters: this.targetCenterMode() !== 'fixed'
     };
   }
 

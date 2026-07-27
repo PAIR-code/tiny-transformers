@@ -43,7 +43,8 @@ describe('Universal Boolean Circuit Learning Verification', () => {
         beta: 2.0,
         targetInitMode: 'pre-fixed-leaves',
         poolInitMode: 'separated-branches',
-        repulsionReg: 0.02
+        repulsionReg: 0.02,
+        updateTargetCenters: false
       };
 
       let finalAcc = 0;

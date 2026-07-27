@@ -65,29 +65,81 @@ import { formatRational, simplify, subtract } from '../../../lib/berkovich/berko
               <text x="150" y="295" text-anchor="middle" font-size="11" fill="#64748b">x₁ (2-adic position)</text>
               <text x="10" y="150" text-anchor="middle" font-size="11" fill="#64748b" transform="rotate(-90 10 150)">x₂ (2-adic position)</text>
 
-              <!-- Affinoid Pool Disks Overlay for Class 1 (True) -->
+              <!-- Target Constraint Disks & Markers for Class 0 (False) and Class 1 (True) -->
               @if (learner(); as l) {
-                @for (m of getPoolIndices(); track m) {
+                <!-- Class 0 Target Disks W0 -->
+                @for (m of getPoolIndices(); track 'w0-' + m) {
+                  <g class="target-w0-group">
+                    <circle
+                      [attr.cx]="getTargetCx(l, 0, m)"
+                      [attr.cy]="getTargetCy(l, 0, m)"
+                      [attr.r]="getTargetRadius(l, 0, m)"
+                      fill="rgba(239, 68, 68, 0.08)"
+                      stroke="#ef4444"
+                      stroke-width="1"
+                      stroke-dasharray="2 2"
+                    />
+                    <circle
+                      [attr.cx]="getTargetCx(l, 0, m)"
+                      [attr.cy]="getTargetCy(l, 0, m)"
+                      r="4"
+                      fill="#ef4444"
+                    />
+                    <text
+                      [attr.x]="getTargetCx(l, 0, m)"
+                      [attr.y]="getTargetCy(l, 0, m) - 8"
+                      text-anchor="middle"
+                      font-size="9"
+                      font-weight="bold"
+                      fill="#dc2626"
+                    >
+                      W₀,{{ m + 1 }}
+                    </text>
+                  </g>
+                }
+
+                <!-- Class 1 Target Disks W1 -->
+                @for (m of getPoolIndices(); track 'w1-' + m) {
+                  <g class="target-w1-group">
+                    <circle
+                      [attr.cx]="getTargetCx(l, 1, m)"
+                      [attr.cy]="getTargetCy(l, 1, m)"
+                      [attr.r]="getTargetRadius(l, 1, m)"
+                      fill="rgba(37, 99, 235, 0.12)"
+                      stroke="#2563eb"
+                      stroke-width="1"
+                      stroke-dasharray="2 2"
+                    />
+                    <circle
+                      [attr.cx]="getTargetCx(l, 1, m)"
+                      [attr.cy]="getTargetCy(l, 1, m)"
+                      r="4"
+                      fill="#2563eb"
+                    />
+                    <text
+                      [attr.x]="getTargetCx(l, 1, m)"
+                      [attr.y]="getTargetCy(l, 1, m) + 14"
+                      text-anchor="middle"
+                      font-size="9"
+                      font-weight="bold"
+                      fill="#1d4ed8"
+                    >
+                      W₁,{{ m + 1 }}
+                    </text>
+                  </g>
+                }
+
+                <!-- Affinoid Pool Disks Overlay (Pool H_m) -->
+                @for (m of getPoolIndices(); track 'pool-' + m) {
                   <circle
                     [attr.cx]="getPoolCx(l, m)"
                     [attr.cy]="getPoolCy(l, m)"
                     [attr.r]="getPoolRadius(l, m)"
-                    fill="rgba(37, 99, 235, 0.15)"
-                    stroke="#2563eb"
-                    stroke-width="1.5"
-                    stroke-dasharray="3 3"
+                    fill="none"
+                    stroke="#0284c7"
+                    stroke-width="2"
+                    stroke-dasharray="4 2"
                   />
-                  <text
-                    [attr.x]="getPoolCx(l, m)"
-                    [attr.y]="getPoolCy(l, m)"
-                    text-anchor="middle"
-                    dominant-baseline="central"
-                    font-size="10"
-                    font-weight="bold"
-                    fill="#1d4ed8"
-                  >
-                    W₁,{{ m + 1 }}
-                  </text>
                 }
               }
 
@@ -121,6 +173,19 @@ import { formatRational, simplify, subtract } from '../../../lib/berkovich/berko
                 </g>
               }
             </svg>
+          </div>
+
+          <!-- 2D Map Legend -->
+          <div class="map-legend" style="display: flex; justify-content: center; gap: 16px; font-size: 0.78rem; color: #475569; margin-top: 8px;">
+            <span style="display: flex; align-items: center; gap: 4px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #2563eb; display: inline-block;"></span> W₁ Target Center
+            </span>
+            <span style="display: flex; align-items: center; gap: 4px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> W₀ Target Center
+            </span>
+            <span style="display: flex; align-items: center; gap: 4px;">
+              <span style="width: 12px; height: 0; border-top: 2px dashed #0284c7; display: inline-block;"></span> Pool H Coverage
+            </span>
           </div>
         </div>
       }
@@ -293,6 +358,25 @@ export class DnfVisCardComponent {
     const effectiveRho = Math.min(rhoW, rhoPW);
     const r = Math.exp(effectiveRho * Math.log(Number(l.prime))) * 60;
     return Math.max(15, Math.min(80, r));
+  }
+
+  getTargetCx(l: BerkovichBooleanLearner, classK: number, m: number): number {
+    const W0 = l.W[classK][m][0];
+    const ratio = this.rationalToMod1Ratio(W0.center);
+    return 30 + Math.max(0, Math.min(1, ratio)) * 240;
+  }
+
+  getTargetCy(l: BerkovichBooleanLearner, classK: number, m: number): number {
+    const d1 = 1 % l.numVars;
+    const W1 = l.W[classK][m][d1];
+    const ratio = this.rationalToMod1Ratio(W1.center);
+    return 270 - Math.max(0, Math.min(1, ratio)) * 240;
+  }
+
+  getTargetRadius(l: BerkovichBooleanLearner, classK: number, m: number): number {
+    const rhoW = l.W[classK][m][0].rho;
+    const r = Math.exp(rhoW * Math.log(Number(l.prime))) * 50;
+    return Math.max(10, Math.min(60, r));
   }
 
   private rationalToMod1Ratio(r: { num: bigint; den: bigint }): number {

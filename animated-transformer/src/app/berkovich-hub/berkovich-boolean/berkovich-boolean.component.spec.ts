@@ -37,7 +37,8 @@ describe('BerkovichBooleanLearner', () => {
       beta: 1.0,
       targetInitMode: 'pre-fixed-leaves',
       poolInitMode: 'separated-branches',
-      repulsionReg: 0.02
+      repulsionReg: 0.02,
+      updateTargetCenters: false
     });
 
     expect(fwd.probs.length).toBe(2);
@@ -55,7 +56,8 @@ describe('BerkovichBooleanLearner', () => {
       beta: 1.0,
       targetInitMode: 'pre-fixed-leaves',
       poolInitMode: 'separated-branches',
-      repulsionReg: 0.02
+      repulsionReg: 0.02,
+      updateTargetCenters: false
     });
 
     expect(res.loss).toBeGreaterThan(0);
