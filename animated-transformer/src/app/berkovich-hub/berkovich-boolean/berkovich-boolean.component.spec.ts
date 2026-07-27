@@ -95,4 +95,20 @@ describe('BerkovichBooleanComponent', () => {
     expect(component.truthTable()[0]).toBe(1);
     expect(component.stepCount()).toBe(0);
   });
+
+  it('should toggle info popups correctly', () => {
+    const dummyEvent = new MouseEvent('click');
+    component.togglePopup('numpools', dummyEvent);
+    expect(component.activePopup()).toBe('numpools');
+
+    component.closePopup();
+    expect(component.activePopup()).toBeNull();
+  });
+
+  it('should compute modelConfig for walkthrough component', () => {
+    const cfg = component.modelConfig();
+    expect(cfg.numPools).toBe(2);
+    expect(cfg.prime).toBe(2);
+  });
 });
+

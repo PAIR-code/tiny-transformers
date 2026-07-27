@@ -13,14 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MarkdownComponent } from 'ngx-markdown';
 import { BerkovichBooleanLearner, BooleanSample } from './models/berkovich-boolean-learner';
 import { formatRational } from '../../../lib/berkovich/berkovich';
 
 @Component({
   selector: 'app-dnf-vis-card',
-  imports: [CommonModule],
+  imports: [CommonModule, MarkdownComponent],
   template: `
     <div class="dnf-vis-container">
       <div class="card-header">
@@ -28,24 +29,23 @@ import { formatRational } from '../../../lib/berkovich/berkovich';
         <span class="pool-badge">{{ numPools() }} Berkovich Pools</span>
       </div>
 
-      <p class="description">
-        The boolean function f(<b>x</b>) is learned as a Disjunctive Normal Form (DNF) affinoid domain:
-        &bigvee;<sub>m=1</sub><sup>{{ numPools() }}</sup> (&bigwedge;<sub>d=1</sub><sup>{{ numVars() }}</sup> X<sub>d</sub> &in; W<sub>1,m,d</sub>).
-      </p>
+      <div class="description-markdown">
+        <markdown [katex]="true" [data]="descriptionMarkdown()"></markdown>
+      </div>
 
       <!-- Symbolic DNF Logic Formula Box -->
       <div class="formula-box">
         <div class="formula-title">Symbolic Affinoid Formula:</div>
-        <div class="formula-body">
-          <span class="func-name">f(x<sub>1</sub>, x<sub>2</sub>) = </span>
-          @for (m of getPoolIndices(); track m; let isLast = $last) {
-            <span class="pool-clause">
-              (Disk<sub>m={{ m + 1 }}</sub>)
-            </span>
-            @if (!isLast) {
-              <span class="op-or"> &nbsp;&amp;#8744;&nbsp; </span>
-            }
-          }
+        <div class="formula-markdown">
+          <markdown [katex]="true" [data]="formulaMarkdown()"></markdown>
+        </div>
+      </div>
+
+      <!-- DNF Circuit Expressiveness & Pool Count Note -->
+      <div class="circuit-note-box">
+        <div class="note-title">⚡ Boolean Circuit Expressiveness & Pool Complexity</div>
+        <div class="note-markdown">
+          <markdown [katex]="true" [data]="circuitNoteMarkdown()"></markdown>
         </div>
       </div>
 
@@ -139,7 +139,7 @@ import { formatRational } from '../../../lib/berkovich/berkovich';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
 
       h3 {
         margin: 0;
@@ -159,11 +159,11 @@ import { formatRational } from '../../../lib/berkovich/berkovich';
       }
     }
 
-    .description {
+    .description-markdown {
       color: #475569;
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       line-height: 1.5;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .formula-box {
@@ -171,7 +171,7 @@ import { formatRational } from '../../../lib/berkovich/berkovich';
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       padding: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
 
       .formula-title {
         font-size: 0.8rem;
@@ -180,31 +180,30 @@ import { formatRational } from '../../../lib/berkovich/berkovich';
         margin-bottom: 6px;
       }
 
-      .formula-body {
-        font-family: monospace;
+      .formula-markdown {
         font-size: 0.95rem;
         color: #0f172a;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
+      }
+    }
 
-        .func-name {
-          font-weight: bold;
-          color: #2563eb;
-        }
+    .circuit-note-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
 
-        .pool-clause {
-          background: #eff6ff;
-          color: #1d4ed8;
-          padding: 2px 6px;
-          border-radius: 4px;
-          border: 1px solid #dbeafe;
-        }
+      .note-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #15803d;
+        margin-bottom: 6px;
+      }
 
-        .op-or {
-          font-weight: bold;
-          color: #dc2626;
-        }
+      .note-markdown {
+        font-size: 0.85rem;
+        color: #166534;
+        line-height: 1.45;
       }
     }
 
@@ -235,6 +234,29 @@ export class DnfVisCardComponent {
   samples = input.required<BooleanSample[]>();
   numPools = input.required<number>();
   numVars = input.required<number>();
+
+  readonly descriptionMarkdown = computed(() => {
+    const pools = this.numPools();
+    const vars = this.numVars();
+    return `The boolean function $f(\\mathbf{x})$ is learned as a Disjunctive Normal Form (DNF) affinoid domain: $\\bigvee_{m=1}^{${pools}} \\left( \\bigwedge_{d=1}^{${vars}} X_d \\in W_{1,m,d} \\right)$.`;
+  });
+
+  readonly formulaMarkdown = computed(() => {
+    const pools = this.numPools();
+    const clauses: string[] = [];
+    for (let m = 1; m <= pools; m++) {
+      clauses.push(`\\text{Disk}_{m=${m}}`);
+    }
+    const joined = clauses.join(' \\lor ');
+    return `$f(x_1, x_2) = ${joined}$`;
+  });
+
+  readonly circuitNoteMarkdown = computed(() => {
+    const pools = this.numPools();
+    const vars = this.numVars();
+    const requiredPools = 1 << (vars - 1);
+    return `Any D-variable Boolean function requires at most $M = 2^{D-1}$ DNF pools in the worst case (e.g. $M=${requiredPools}$ for $D = ${vars}$ input functions like XOR/Parity). With $M=${pools}$ pools configured, this model can represent ${pools >= requiredPools ? '**any arbitrary ' + vars + '-variable Boolean function**.' : 'a subset of ' + vars + '-variable Boolean functions (increase pools to $M \\ge ' + requiredPools + '$ for universal coverage).'}`;
+  });
 
   getPoolIndices(): number[] {
     return Array.from({ length: this.numPools() }, (_, i) => i);

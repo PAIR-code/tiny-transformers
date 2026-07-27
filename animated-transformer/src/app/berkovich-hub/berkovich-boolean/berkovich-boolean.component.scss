@@ -135,27 +135,69 @@ limitations under the License.
 .config-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+
+  .param-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
   .param-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
     font-size: 0.82rem;
     color: #475569;
 
-    label {
-      font-weight: 500;
+    .param-label-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+
+      label {
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .info-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+        color: #64748b;
+        cursor: pointer;
+
+        &.icon-pressed {
+          color: #2563eb;
+        }
+      }
+
+      .custom-popup {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 100;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        width: 240px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        line-height: 1.4;
+      }
     }
 
-    select {
-      padding: 4px 8px;
+    select, input {
+      width: 100%;
+      padding: 6px 10px;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
       font-size: 0.8rem;
       background: #ffffff;
       color: #0f172a;
       outline: none;
+      box-sizing: border-box;
 
       &:focus {
         border-color: #2563eb;

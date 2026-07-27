@@ -127,9 +127,9 @@ export class BerkovichEncodingComponent {
 
 When **use rho normalization** is enabled, the Berkovich radius parameter $\\rho \\in [0, 2K]$ acts as a continuous **regularization towards the level of certainty**:
 
-- **Maximum radius** ($\\rho = 2K, m = 0$): The target value is regularized to exact center $x = 0.5$.
-- **Intermediate radius** ($\\rho = 2K - 1, m = 1$): The target value regularizes to $0.25$ or $0.75$ depending on digit $b_{-1}$.
-- **Minimum radius** ($\\rho = 0, m = 2K$): The value narrows tightly to the exact leaf midpoint $x_{\\text{exact}}$.`;
+- **Maximum radius** (\\rho = 2K, m = 0): The target value is regularized to exact center x = 0.5.
+- **Intermediate radius** (\\rho = 2K - 1, m = 1): The target value regularizes to 0.25 or 0.75 depending on digit b_1.
+- **Minimum radius** (\\rho = 0, m = 2K): The value narrows tightly to the exact leaf midpoint x_exact.`;
 
   setUseRhoNormalization(val: boolean) {
     this.useRhoNormalization.set(val);

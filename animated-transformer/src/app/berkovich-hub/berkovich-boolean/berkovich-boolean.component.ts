@@ -37,6 +37,7 @@ import {
   BooleanSample
 } from './models/berkovich-boolean-learner';
 import { DnfVisCardComponent } from './dnf-vis-card.component';
+import { BerkovichBooleanWalkthroughComponent } from './walkthrough-components/berkovich-boolean-walkthrough.component';
 import {
   D3LineChartComponent,
   ChartConfig,
@@ -55,15 +56,20 @@ import {
     MarkdownComponent,
     BerkovichHeaderComponent,
     DnfVisCardComponent,
+    BerkovichBooleanWalkthroughComponent,
     D3LineChartComponent
   ],
   templateUrl: './berkovich-boolean.component.html',
   styleUrls: ['./berkovich-boolean.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:click)': 'closePopup()' }
 })
 export class BerkovichBooleanComponent implements OnInit, OnDestroy {
   readonly presets = PRESET_BOOLEAN_FUNCTIONS;
   readonly selectedPresetIndex = signal<number>(0);
+
+  // Active popup for hyper-parameter info popups
+  readonly activePopup = signal<string | null>(null);
 
   // Hyper-parameters
   readonly numVars = signal<number>(2);
@@ -90,19 +96,26 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
   readonly trainLossHistory = signal<NamedChartPoint[]>([]);
   readonly trainAccHistory = signal<NamedChartPoint[]>([]);
 
-  readonly lossChartConfig: ChartConfig = {
-    ...defaultChartConfig(),
-    height: 180,
-    xLabel: 'Steps',
-    yLabel: 'Loss'
-  };
+  readonly chartPoints = computed<NamedChartPoint[]>(() => {
+    return [...this.trainLossHistory(), ...this.trainAccHistory()];
+  });
 
-  readonly accChartConfig: ChartConfig = {
-    ...defaultChartConfig(),
-    height: 180,
-    xLabel: 'Steps',
-    yLabel: 'Accuracy'
-  };
+  readonly chartConfig = computed<ChartConfig>(() => {
+    const defaultConfig = defaultChartConfig();
+    return {
+      ...defaultConfig,
+      height: 220,
+      xLabel: 'Steps',
+      yLabel: 'Loss',
+      yTickFormat: '.2f',
+      xTickFormat: 'd',
+      legendX: 280,
+      legendY: 10,
+      rightYLabel: 'Accuracy',
+      rightYLineNames: ['Train Accuracy'],
+      rightYDomain: [0.0, 1.0]
+    };
+  });
 
   readonly descriptionMarkdown =
     'This visualizer demonstrates learning arbitrary **Boolean Functions** ($f(x_1, x_2) \\to \\{0, 1\\}$) in Berkovich space using **DNF Affinoid Domain Pools** and **2-adic Binary Search Encodings**.';
@@ -120,6 +133,11 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
     const preset = this.presets[index];
     this.numVars.set(preset.numVars);
     this.truthTable.set([...preset.truthTable]);
+    if (preset.numVars === 3 && this.numPools() < 4) {
+      this.numPools.set(4);
+    } else if (preset.numVars === 2 && this.numPools() > 4) {
+      this.numPools.set(2);
+    }
     this.resetModel();
   }
 
@@ -149,6 +167,26 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
     this.learner.set(model);
   }
 
+  closePopup() {
+    this.activePopup.set(null);
+  }
+
+  togglePopup(id: string, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.activePopup() === id) {
+      this.activePopup.set(null);
+    } else {
+      this.activePopup.set(id);
+    }
+  }
+
+  parseNumberInput(val: string): number {
+    const normalized = (val || '').replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
   getConfig(): BerkovichBooleanConfig {
     return {
       prime: this.prime(),
@@ -161,6 +199,8 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
       repulsionReg: this.repulsionReg()
     };
   }
+
+  readonly modelConfig = computed<BerkovichBooleanConfig>(() => this.getConfig());
 
   readonly currentPredictions = computed(() => {
     const l = this.learner();

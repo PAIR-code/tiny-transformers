@@ -1,0 +1,385 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+.walkthrough-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.explainer-header {
+  .title-row {
+    h4 {
+      margin: 0 0 6px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .icon {
+        color: #2563eb;
+      }
+    }
+  }
+
+  .desc-markdown {
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+}
+
+.sample-selector-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+
+  .selector-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+
+  .sample-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .sample-pill-btn {
+      font-size: 0.82rem;
+      border-radius: 20px;
+      padding: 0 12px;
+      height: 32px;
+      line-height: 30px;
+
+      &.active-sample {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #2563eb;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.step-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+
+    .step-badge {
+      background: #3b82f6;
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+
+    .step-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+  }
+
+  .step-desc {
+    color: #475569;
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+  }
+
+  .step-markdown {
+    color: #334155;
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+  }
+}
+
+.matrix-table-wrapper {
+  overflow-x: auto;
+}
+
+.walkthrough-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th, td {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+  }
+
+  th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .pool-col {
+    background: #f1f5f9;
+    vertical-align: middle;
+    text-align: center;
+  }
+
+  .bit-badge {
+    background: #0284c7;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+
+  .rational-val {
+    font-family: monospace;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .digit-seq {
+    font-family: monospace;
+    color: #6366f1;
+  }
+
+  .digit-seq-sm {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #6366f1;
+  }
+
+  .disk-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 4px 8px;
+    border-radius: 6px;
+
+    &.pw-chip {
+      background: #fefce8;
+      border-color: #fef08a;
+    }
+
+    &.h-chip {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
+    .rho-chip {
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 0.75rem;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+  }
+
+  &.softmax-table {
+    tr.is-predicted {
+      background: #f0fdf4;
+
+      td {
+        border-color: #bbf7d0;
+      }
+    }
+
+    .status-chip {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+
+      &.status-correct {
+        color: #16a34a;
+      }
+    }
+  }
+}
+
+.class-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+
+  .class-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f8fafc;
+
+    &.is-winner {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6;
+    }
+
+    .class-title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #cbd5e1;
+
+      .class-name {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #0f172a;
+      }
+
+      .active-badge {
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .score-badge {
+        font-family: monospace;
+        font-size: 0.8rem;
+        font-weight: bold;
+        color: #059669;
+      }
+    }
+
+    .pool-losses-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .pool-loss-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 10px;
+
+        &.is-active-pool {
+          border-color: #3b82f6;
+          border-left-width: 4px;
+        }
+
+        .pool-loss-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+          margin-bottom: 6px;
+
+          .max-loss-val {
+            color: #dc2626;
+            font-family: monospace;
+          }
+        }
+
+        .dim-calc-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+      }
+    }
+  }
+}
+
+.inspectors-section {
+  margin-top: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+
+  .inspectors-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+
+    h5 {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .inspector-buttons {
+      display: flex;
+      gap: 8px;
+
+      button {
+        font-size: 0.78rem;
+
+        &.active-btn {
+          background: #eff6ff;
+          color: #2563eb;
+          border-color: #2563eb;
+        }
+      }
+    }
+  }
+
+  .inspector-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+
+    h6 {
+      margin: 0 0 8px 0;
+      font-size: 0.85rem;
+      color: #0f172a;
+    }
+
+    .inspector-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+
+      th, td {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+      }
+
+      th {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      .digit-seq {
+        font-family: monospace;
+        color: #6366f1;
+      }
+    }
+  }
+}
