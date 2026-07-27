@@ -71,12 +71,23 @@ describe('BerkovichEncodingComponent', () => {
     expect(component.binaryString()).toBe('1100');
   });
 
-  it('should compute Berkovich disk bias toward 0.5 when rho changes', () => {
-    component.onDigitDisplayRhoChange(0); // r = 1.0 (biased to 0.5)
+  it('should compute Berkovich disk regularization toward level of certainty when rho changes', () => {
+    // For 0.6875 (binary digits 1011):
+    // Max large rho = 0 -> exactly 0.5
+    component.onDigitDisplayRhoChange(0);
     expect(component.decodedBiasedReal()).toBe(0.5);
 
-    component.onDigitDisplayRhoChange(-4);
-    expect(component.decodedBiasedReal()).toBeCloseTo(0.70508, 4);
+    // Rho = -1 (1 less) -> 0.75 (since first bit b_{-1} is 1)
+    component.onDigitDisplayRhoChange(-1);
+    expect(component.decodedBiasedReal()).toBe(0.75);
+
+    // Change target so b_{-1} is 0 (e.g. 0.20)
+    component.setRealTarget(0.20);
+    expect(component.decodedBiasedReal()).toBe(0.25);
+
+    // When useRhoNormalization is disabled, decodedBiasedReal returns exact leaf midpoint
+    component.setUseRhoNormalization(false);
+    expect(component.decodedBiasedReal()).toBe(component.decodedExactReal());
   });
 
   it('should correctly encode x = 0.4160 to 0110 binary digits and 13/32 rational center', () => {

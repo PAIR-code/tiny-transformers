@@ -137,7 +137,28 @@ limitations under the License.
   .reverse-desc {
     font-size: 0.85rem;
     color: #475569;
-    margin: -8px 0 16px 0;
+    margin: -8px 0 12px 0;
+  }
+
+  .checkbox-row {
+    margin-bottom: 12px;
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #0f172a;
+      cursor: pointer;
+
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #2563eb;
+        cursor: pointer;
+      }
+    }
   }
 
   .digit-editor-box {

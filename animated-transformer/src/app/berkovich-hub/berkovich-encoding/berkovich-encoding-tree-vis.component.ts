@@ -126,7 +126,7 @@ export interface EncodingTreeEdge {
       .tree-svg {
         width: 100%;
         max-width: 740px;
-        height: 435px;
+        height: 370px;
       }
     }
   `],
@@ -188,7 +188,7 @@ export class BerkovichEncodingTreeVisComponent {
     svgElement.selectAll('*').remove();
 
     const width = 740;
-    const height = 435;
+    const height = 370;
     const margin = { top: 35, right: 40, bottom: 40, left: 65 };
 
     svgElement.attr('viewBox', `0 0 ${width} ${height}`);
@@ -447,20 +447,10 @@ export class BerkovichEncodingTreeVisComponent {
     // -------------------------------------------------------------------
     // Integrated 1D Sub-Interval Halving Bar ([0, 1]) directly under leaves
     // -------------------------------------------------------------------
-    const barY = 334;
+    const barY = 295;
     const barHeight = 20;
 
     const numLineGroup = g.append('g').attr('class', 'integrated-number-line');
-
-    // Section Title
-    numLineGroup
-      .append('text')
-      .attr('x', 5)
-      .attr('y', barY - 18)
-      .attr('font-size', '11px')
-      .attr('font-weight', '600')
-      .attr('fill', '#475569')
-      .text('1D Sub-Interval Halving ([0, 1]):');
 
     // Full [0, 1] bar background
     numLineGroup

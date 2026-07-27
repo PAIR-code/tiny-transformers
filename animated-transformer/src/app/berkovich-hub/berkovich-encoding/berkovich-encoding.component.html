@@ -74,6 +74,17 @@ limitations under the License.
           Click digits or the &rho; label below to edit digits or log-radius directly:
         </p>
 
+        <div class="checkbox-row">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="useRhoNormalization()"
+              (change)="setUseRhoNormalization($any($event.target).checked)"
+            />
+            <span>use rho normalization</span>
+          </label>
+        </div>
+
         <!-- Interactive Berkovich Digit Display with Inline Editable Rho -->
         <div class="digit-editor-box">
           <app-berkovich-digit-display
@@ -82,9 +93,9 @@ limitations under the License.
             [prime]="prime()"
             [digitsLeft]="0"
             [digitsRight]="depth() * 2"
-            [rhoLabelPosition]="'above'"
+            [rhoLabelPosition]="useRhoNormalization() ? 'above' : 'none'"
             [editableCenter]="true"
-            [editableRho]="true"
+            [editableRho]="useRhoNormalization()"
             (centerChange)="onDigitDisplayCenterChange($event)"
             (rhoChange)="onDigitDisplayRhoChange($event)"
           ></app-berkovich-digit-display>
@@ -95,10 +106,12 @@ limitations under the License.
             <span class="item-title">Exact Leaf Midpoint (x<sub>exact</sub>):</span>
             <span class="item-val">{{ decodedExactReal() | number:'1.6-6' }}</span>
           </div>
-          <div class="bias-item highlight-bias">
-            <span class="item-title">Parent Center Biased Value (&rho; = {{ padicRho() }}, r = {{ diskRadius() | number:'1.4-4' }}):</span>
-            <span class="item-val">{{ decodedBiasedReal() | number:'1.6-6' }}</span>
-          </div>
+          @if (useRhoNormalization()) {
+            <div class="bias-item highlight-bias">
+              <span class="item-title">Parent Center Biased Value (&rho; = {{ padicRho() }}, r = {{ diskRadius() | number:'1.4-4' }}):</span>
+              <span class="item-val">{{ decodedBiasedReal() | number:'1.6-6' }}</span>
+            </div>
+          }
         </div>
       </div>
     </div>

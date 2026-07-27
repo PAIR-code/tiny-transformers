@@ -167,18 +167,44 @@ export class BerkovichEncodingComponent {
     return den === 0 ? 0.5 : Number(r.num) / den;
   });
 
-  // Biased Real Value: rho = 0 (r = 1.0) -> biased to 0.5; rho = -K (r -> 0) -> exact leaf value
+  // Controls whether rho normalization / regularization is enabled in Reverse Decoding
+  readonly useRhoNormalization = signal<boolean>(true);
+
+  // Biased / Regularized Real Value:
+  // - useRhoNormalization = false -> returns exact leaf midpoint
+  // - max large rho (rho = 0) -> exactly 0.5 (level 0)
+  // - rho = -1 -> 0.25 or 0.75 depending on bit b_{-1}
+  // - continuous rho -> linear interpolation between interval midpoints at levels floor(-rho) and ceil(-rho)
   readonly decodedBiasedReal = computed<number>(() => {
-    const exact = this.decodedExactReal();
-    const bias = Math.min(1.0, Math.max(0.0, this.diskRadius()));
-    return (1.0 - bias) * exact + bias * 0.5;
+    if (!this.useRhoNormalization()) {
+      return this.decodedExactReal();
+    }
+    const rhoVal = this.padicRho();
+    const m = Math.max(0, -rhoVal);
+    const stepsList = this.steps();
+    const N = stepsList.length;
+    if (N === 0 || m <= 0) {
+      return 0.5;
+    }
+    if (m >= N) {
+      return stepsList[N - 1].midpoint;
+    }
+    const k = Math.floor(m);
+    const t = m - k;
+    const mK = k === 0 ? 0.5 : stepsList[k - 1].midpoint;
+    const mKNext = stepsList[k].midpoint;
+    return (1 - t) * mK + t * mKNext;
   });
 
   readonly forwardExplanationMarkdown =
     '### Forward Encoding: Real to p-adic\nGiven x in [0, 1], binary search halving determines bits b_k in {0, 1}. The resulting Berkovich disk (c_K, rho_K) is the tightest fitting cover around real value x.';
 
   readonly reverseExplanationMarkdown =
-    '### Reverse Decoding: p-adic to Real & Berkovich Disk Bias\nGiven p-adic digits, we decode the continuous real value. The Berkovich log-radius rho in [-K, 0] (editable directly above inside the digit display) acts as a **bias toward the parent root center (0.5)**: at largest radius rho = 0 (r = 1.0), the value is biased to 0.5 regardless of digits; as rho -> -K, it narrows tightly to exact leaf x.';
+    '### Reverse Decoding: p-adic to Real & Berkovich Disk Bias\nGiven p-adic digits, we decode the continuous real value. When **rho normalization** is enabled, the Berkovich log-radius \\rho \\in [-2K, 0] acts as a **regularization towards level of certainty**: at max large radius \\rho = 0, the value is regularized to 0.5; at \\rho = -1, it regularizes to 0.25 or 0.75 depending on b_{-1}; as \\rho \\to -2K, it narrows tightly to the exact leaf midpoint x_{exact}.';
+
+  setUseRhoNormalization(val: boolean) {
+    this.useRhoNormalization.set(val);
+  }
 
   setRealTarget(val: number) {
     const clamped = Math.max(0, Math.min(1, val));
