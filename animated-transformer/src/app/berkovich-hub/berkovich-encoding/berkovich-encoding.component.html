@@ -53,23 +53,13 @@ limitations under the License.
             }
           </div>
         </div>
-
-        <div class="depth-row">
-          <label>Precision Depth (K = {{ depth() }} bits):</label>
-          <select [value]="depth().toString()" (change)="onDepthChange(+$any($event.target).value)">
-            <option value="1">1 bit (1/2 precision)</option>
-            <option value="2">2 bits (1/4 precision)</option>
-            <option value="3">3 bits (1/8 precision)</option>
-            <option value="4">4 bits (1/16 precision)</option>
-          </select>
-        </div>
       </div>
 
 
 
       <!-- Reverse Decoding Controls & Digit Display Card -->
       <div class="card reverse-card">
-        <h3>Reverse Decoding: p-adic Digits to Real Value (Q<sub>p</sub> &rarr; R)</h3>
+        <h3>Reverse Decoding & Berkovich Disk Regularization</h3>
         <p class="reverse-desc">
           Click digits or the &rho; label below to edit digits or log-radius directly:
         </p>
@@ -122,15 +112,16 @@ limitations under the License.
       <app-berkovich-encoding-tree-vis
         [steps]="steps()"
         [targetValue]="realTarget()"
+        [biasedValue]="decodedBiasedReal()"
         [depth]="depth()"
+        [useRhoNormalization]="useRhoNormalization()"
+        [padicRho]="padicRho()"
       ></app-berkovich-encoding-tree-vis>
 
       <!-- Explanation Card -->
       <div class="card explanation-card">
-        <h3>Mathematical Equivalence & Berkovich Disk Bias</h3>
-        <p class="description">
-          <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
-        </p>
+        <h3>Reverse Decoding & Berkovich Disk Regularization</h3>
+        <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
       </div>
     </div>
   </div>

@@ -60,9 +60,6 @@ export interface EncodingTreeEdge {
     <div class="tree-vis-card">
       <div class="card-header">
         <h3>2-adic Tree Traversal Map & 1D Sub-Interval Halving</h3>
-        <span class="active-path-badge">
-          Active Path: {{ activePathString() }}
-        </span>
       </div>
 
       <p class="description">
@@ -97,17 +94,6 @@ export interface EncodingTreeEdge {
         font-weight: 600;
         color: #0f172a;
       }
-
-      .active-path-badge {
-        background: #eff6ff;
-        color: #2563eb;
-        border: 1px solid #dbeafe;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        font-family: monospace;
-      }
     }
 
     .description {
@@ -125,8 +111,8 @@ export interface EncodingTreeEdge {
 
       .tree-svg {
         width: 100%;
-        max-width: 740px;
-        height: 370px;
+        max-width: 770px;
+        height: 385px;
       }
     }
   `],
@@ -135,7 +121,10 @@ export interface EncodingTreeEdge {
 export class BerkovichEncodingTreeVisComponent {
   steps = input.required<BinarySearchStep[]>();
   targetValue = input.required<number>();
+  biasedValue = input<number | undefined>(undefined);
   depth = input.required<number>();
+  useRhoNormalization = input<boolean>(false);
+  padicRho = input<number>(0);
 
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
 
@@ -143,13 +132,15 @@ export class BerkovichEncodingTreeVisComponent {
     effect(() => {
       const stepsList = this.steps();
       const targetVal = this.targetValue();
+      const biasedVal = this.biasedValue() ?? targetVal;
+      const useRhoNorm = this.useRhoNormalization();
+      const rhoVal = this.padicRho();
+      const depthVal = this.depth();
 
-      // Total digit levels: 2 * depth() (equal digits right & left of decimal point).
-      // Cap max tree rendering depth at 4 for crisp SVG layout (16 leaf nodes).
-      const maxDepth = Math.min(this.depth() * 2, 4);
+      const maxDepth = Math.min(depthVal * 2, 4);
 
       untracked(() => {
-        this.renderD3Tree(stepsList, targetVal, maxDepth);
+        this.renderD3Tree(stepsList, targetVal, biasedVal, useRhoNorm, rhoVal, maxDepth);
       });
     });
   }
@@ -163,6 +154,24 @@ export class BerkovichEncodingTreeVisComponent {
     if (!s || s.length === 0) return { lower: 0, upper: 1, mid: 0.5 };
     const last = s[s.length - 1];
     return { lower: last.lower, upper: last.upper, mid: last.midpoint };
+  }
+
+  certaintyInterval(m: number): { lower: number; upper: number; mid: number } {
+    const s = this.steps();
+    if (!s || s.length === 0 || m <= 0) {
+      return { lower: 0, upper: 1, mid: 0.5 };
+    }
+    const N = s.length;
+    if (m >= N) {
+      const last = s[N - 1];
+      return { lower: last.lower, upper: last.upper, mid: last.midpoint };
+    }
+    const k = Math.min(Math.floor(m), N - 1);
+    if (k === 0) {
+      return { lower: 0, upper: 1, mid: 0.5 };
+    }
+    const step = s[k - 1];
+    return { lower: step.lower, upper: step.upper, mid: step.midpoint };
   }
 
   activePathString(): string {
@@ -181,15 +190,22 @@ export class BerkovichEncodingTreeVisComponent {
     );
   }
 
-  private renderD3Tree(steps: BinarySearchStep[], targetVal: number, maxDepth: number) {
+  private renderD3Tree(
+    steps: BinarySearchStep[],
+    targetVal: number,
+    biasedVal: number,
+    useRhoNorm: boolean,
+    rhoVal: number,
+    maxDepth: number
+  ) {
     if (!this.svgRef || typeof window === 'undefined') return;
 
     const svgElement = d3.select(this.svgRef.nativeElement);
     svgElement.selectAll('*').remove();
 
-    const width = 740;
-    const height = 370;
-    const margin = { top: 35, right: 40, bottom: 40, left: 65 };
+    const width = 770;
+    const height = 385;
+    const margin = { top: 35, right: 65, bottom: 40, left: 65 };
 
     svgElement.attr('viewBox', `0 0 ${width} ${height}`);
 
@@ -444,12 +460,55 @@ export class BerkovichEncodingTreeVisComponent {
         return `${digitStr}₂`;
       });
 
-    // -------------------------------------------------------------------
-    // Integrated 1D Sub-Interval Halving Bar ([0, 1]) directly under leaves
-    // -------------------------------------------------------------------
     const barY = 295;
     const barHeight = 20;
 
+    // -------------------------------------------------------------------
+    // Rho Cutoff Line and Grey Overlay on Tree
+    // -------------------------------------------------------------------
+    const N = this.depth() * 2;
+    const m = Math.max(0, Math.min(N, N - rhoVal));
+    const rDepth = m / N;
+    const yRho = margin.top + rDepth * treeHeight;
+
+    if (useRhoNorm) {
+      const overlayHeight = Math.max(0, barY - yRho - 14);
+      if (overlayHeight > 0) {
+        g.append('rect')
+          .attr('class', 'rho-grey-overlay')
+          .attr('x', xMin - 4)
+          .attr('y', yRho)
+          .attr('width', xSpan + 8)
+          .attr('height', overlayHeight)
+          .attr('fill', '#475569')
+          .attr('opacity', 0.18)
+          .attr('rx', 4)
+          .attr('pointer-events', 'none');
+      }
+
+      g.append('line')
+        .attr('class', 'rho-cutoff-line')
+        .attr('x1', xMin - 4)
+        .attr('y1', yRho)
+        .attr('x2', xMax + 4)
+        .attr('y2', yRho)
+        .attr('stroke', '#64748b')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '4 4');
+
+      g.append('text')
+        .attr('x', xMax + 8)
+        .attr('y', yRho + 4)
+        .attr('text-anchor', 'start')
+        .attr('font-size', '10px')
+        .attr('font-weight', 'bold')
+        .attr('fill', '#64748b')
+        .text(`ρ = ${rhoVal.toFixed(1)}`);
+    }
+
+    // -------------------------------------------------------------------
+    // Integrated 1D Sub-Interval Halving Bar ([0, 1]) directly under leaves
+    // -------------------------------------------------------------------
     const numLineGroup = g.append('g').attr('class', 'integrated-number-line');
 
     // Full [0, 1] bar background
@@ -481,8 +540,8 @@ export class BerkovichEncodingTreeVisComponent {
         .text(t.label);
     });
 
-    // Active Step Sub-interval highlight
-    const interval = this.activeInterval();
+    // Certainty Sub-interval highlight
+    const interval = useRhoNorm ? this.certaintyInterval(m) : this.activeInterval();
     if (interval) {
       const iLeft = xVal(interval.lower);
       const iWidth = (interval.upper - interval.lower) * xSpan;
@@ -509,39 +568,73 @@ export class BerkovichEncodingTreeVisComponent {
         .attr('stroke-dasharray', '3 3');
     }
 
-    // Target x Red Pin
-    const targetX = xVal(targetVal);
+    // Target Pin (x_biased blue when rho is enabled, red x when disabled)
+    const activePinVal = useRhoNorm ? biasedVal : targetVal;
+    const targetX = xVal(activePinVal);
     const pinGroup = numLineGroup.append('g').attr('transform', `translate(${targetX}, ${barY})`);
+    const primaryColor = useRhoNorm ? '#2563eb' : '#ef4444';
 
-    // Pin line
     pinGroup
       .append('line')
       .attr('x1', 0)
-      .attr('y1', -14)
+      .attr('y1', -6)
       .attr('x2', 0)
-      .attr('y2', barHeight + 6)
-      .attr('stroke', '#ef4444')
+      .attr('y2', barHeight + 18)
+      .attr('stroke', primaryColor)
       .attr('stroke-width', 2);
 
-    // Pin head circle
     pinGroup
       .append('circle')
       .attr('cx', 0)
       .attr('cy', barHeight / 2)
       .attr('r', 5)
-      .attr('fill', '#ef4444')
+      .attr('fill', primaryColor)
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 1.5);
 
-    // Target value label above pin
     pinGroup
       .append('text')
       .attr('x', 0)
-      .attr('y', -18)
+      .attr('y', barHeight + 30)
       .attr('text-anchor', 'middle')
       .attr('font-size', '11px')
       .attr('font-weight', 'bold')
-      .attr('fill', '#ef4444')
-      .text(`x = ${targetVal.toFixed(4)}`);
+      .attr('fill', primaryColor)
+      .text(useRhoNorm ? `x_biased = ${activePinVal.toFixed(4)}` : `x = ${activePinVal.toFixed(4)}`);
+
+    // Red Dashed Ghost Pin for exact target x when rho is enabled and shifted
+    if (useRhoNorm && Math.abs(activePinVal - targetVal) > 0.005) {
+      const exactX = xVal(targetVal);
+      const ghostGroup = numLineGroup.append('g').attr('transform', `translate(${exactX}, ${barY})`);
+
+      ghostGroup
+        .append('line')
+        .attr('x1', 0)
+        .attr('y1', -6)
+        .attr('x2', 0)
+        .attr('y2', barHeight + 18)
+        .attr('stroke', '#ef4444')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '2 2');
+
+      ghostGroup
+        .append('circle')
+        .attr('cx', 0)
+        .attr('cy', barHeight / 2)
+        .attr('r', 4)
+        .attr('fill', '#ef4444')
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 1);
+
+      ghostGroup
+        .append('text')
+        .attr('x', 0)
+        .attr('y', barHeight + 44)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '10px')
+        .attr('font-weight', '600')
+        .attr('fill', '#ef4444')
+        .text(`x_exact = ${targetVal.toFixed(4)}`);
+    }
   }
 }

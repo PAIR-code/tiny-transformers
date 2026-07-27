@@ -71,23 +71,93 @@ describe('BerkovichEncodingComponent', () => {
     expect(component.binaryString()).toBe('1100');
   });
 
-  it('should compute Berkovich disk regularization toward level of certainty when rho changes', () => {
-    // For 0.6875 (binary digits 1011):
-    // Max large rho = 0 -> exactly 0.5
-    component.onDigitDisplayRhoChange(0);
+  it('should compute correct rho normalization values for x = 0.6875 (1011_2)', () => {
+    component.setRealTarget(0.6875);
+    component.setUseRhoNormalization(true);
+
+    // Max large rho = 4 (0 bits certainty) -> 0.5
+    component.onDigitDisplayRhoChange(4);
     expect(component.decodedBiasedReal()).toBe(0.5);
 
-    // Rho = -1 (1 less) -> 0.75 (since first bit b_{-1} is 1)
-    component.onDigitDisplayRhoChange(-1);
+    // Rho = 3 (1 bit certainty: b_{-1}=1) -> 0.75
+    component.onDigitDisplayRhoChange(3);
     expect(component.decodedBiasedReal()).toBe(0.75);
 
-    // Change target so b_{-1} is 0 (e.g. 0.20)
+    // Rho = 2 (2 bits certainty: b_{-1}b_{-2}=10) -> 0.625
+    component.onDigitDisplayRhoChange(2);
+    expect(component.decodedBiasedReal()).toBe(0.625);
+
+    // Rho = 1 (3 bits certainty: b_{-1}b_{-2}b_{-3}=101) -> 0.6875
+    component.onDigitDisplayRhoChange(1);
+    expect(component.decodedBiasedReal()).toBe(0.6875);
+
+    // Rho = 0 (4 bits certainty: exact leaf midpoint) -> 0.71875
+    component.onDigitDisplayRhoChange(0);
+    expect(component.decodedBiasedReal()).toBe(0.71875);
+    expect(component.decodedBiasedReal()).toBe(component.decodedExactReal());
+
+    // Continuous interpolation (rho = 3.5 -> m = 0.5 -> midway between 0.5 and 0.75)
+    component.onDigitDisplayRhoChange(3.5);
+    expect(component.decodedBiasedReal()).toBe(0.625);
+  });
+
+  it('should compute correct rho normalization values for x = 0.20 (0011_2)', () => {
     component.setRealTarget(0.20);
+    component.setUseRhoNormalization(true);
+
+    // Max large rho = 4 -> 0.5
+    component.onDigitDisplayRhoChange(4);
+    expect(component.decodedBiasedReal()).toBe(0.5);
+
+    // Rho = 3 (1 bit certainty: b_{-1}=0) -> 0.25
+    component.onDigitDisplayRhoChange(3);
     expect(component.decodedBiasedReal()).toBe(0.25);
 
-    // When useRhoNormalization is disabled, decodedBiasedReal returns exact leaf midpoint
-    component.setUseRhoNormalization(false);
+    // Rho = 2 (2 bits certainty: b_{-1}b_{-2}=00) -> 0.125
+    component.onDigitDisplayRhoChange(2);
+    expect(component.decodedBiasedReal()).toBe(0.125);
+
+    // Rho = 1 (3 bits certainty: b_{-1}b_{-2}b_{-3}=001) -> 0.1875
+    component.onDigitDisplayRhoChange(1);
+    expect(component.decodedBiasedReal()).toBe(0.1875);
+
+    // Rho = 0 -> exact leaf midpoint 0.21875
+    component.onDigitDisplayRhoChange(0);
+    expect(component.decodedBiasedReal()).toBe(0.21875);
     expect(component.decodedBiasedReal()).toBe(component.decodedExactReal());
+  });
+
+  it('should compute correct rho normalization values for x = 0.50 and x = 0.75', () => {
+    // x = 0.50 (1000_2)
+    component.setRealTarget(0.50);
+    component.setUseRhoNormalization(true);
+    component.onDigitDisplayRhoChange(4);
+    expect(component.decodedBiasedReal()).toBe(0.5);
+    component.onDigitDisplayRhoChange(3);
+    expect(component.decodedBiasedReal()).toBe(0.75);
+    component.onDigitDisplayRhoChange(2);
+    expect(component.decodedBiasedReal()).toBe(0.625);
+
+    // x = 0.75 (1100_2)
+    component.setRealTarget(0.75);
+    component.onDigitDisplayRhoChange(4);
+    expect(component.decodedBiasedReal()).toBe(0.5);
+    component.onDigitDisplayRhoChange(3);
+    expect(component.decodedBiasedReal()).toBe(0.75);
+    component.onDigitDisplayRhoChange(2);
+    expect(component.decodedBiasedReal()).toBe(0.875);
+  });
+
+  it('should decode exact p-adic leaf value for all rho values when rho normalization is disabled', () => {
+    component.setRealTarget(0.6875);
+    component.setUseRhoNormalization(false);
+
+    const exactVal = component.decodedExactReal();
+
+    for (let r = 0; r <= 4; r++) {
+      component.onDigitDisplayRhoChange(r);
+      expect(component.decodedBiasedReal()).toBe(exactVal);
+    }
   });
 
   it('should correctly encode x = 0.4160 to 0110 binary digits and 13/32 rational center', () => {

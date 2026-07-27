@@ -51,4 +51,15 @@ describe('BerkovichEncodingTreeVisComponent', () => {
     expect(svgEl).toBeTruthy();
     expect(svgEl.querySelectorAll('.tree-node').length).toBeGreaterThan(0);
   });
+
+  it('should render rho cutoff line and grey overlay when useRhoNormalization is true', () => {
+    fixture.componentRef.setInput('useRhoNormalization', true);
+    fixture.componentRef.setInput('padicRho', 3);
+    fixture.componentRef.setInput('biasedValue', 0.75);
+    fixture.detectChanges();
+
+    const svgEl: SVGSVGElement = fixture.nativeElement.querySelector('svg');
+    expect(svgEl.querySelector('.rho-cutoff-line')).toBeTruthy();
+    expect(svgEl.querySelector('.rho-grey-overlay')).toBeTruthy();
+  });
 });
