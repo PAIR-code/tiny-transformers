@@ -106,10 +106,10 @@ limitations under the License.
         </h6>
         <ul style="margin: 0; padding-left: 18px; color: #334155;">
           <li>
-            <strong>Pool Weights (PW<sub>m,d</sub>)</strong>: Translated input pool centers & log-radii (<code>c<sub>PW</sub>, &rho;<sub>PW</sub></code>).
+            <strong>Pool Weights (<markdown [inline]="true" [katex]="true" [data]="'$PW_{m,d}$'"></markdown>)</strong>: Translated input pool centers &amp; log-radii (<markdown [inline]="true" [katex]="true" [data]="'$c_{\\text{PW}}, \\rho_{\\text{PW}}$'"></markdown>).
           </li>
           <li>
-            <strong>Target Constraints (W<sub>k,m,d</sub>)</strong>: Target class affinoid centers & log-radii (<code>c<sub>W</sub>, &rho;<sub>W</sub></code>).
+            <strong>Target Constraints (<markdown [inline]="true" [katex]="true" [data]="'$W_{k,m,d}$'"></markdown>)</strong>: Target class affinoid centers &amp; log-radii (<markdown [inline]="true" [katex]="true" [data]="'$c_W, \\rho_W$'"></markdown>).
           </li>
           <li>
             <strong>Radius Reg Weight (&lambda;<sub>reg</sub>)</strong>:
@@ -159,9 +159,7 @@ limitations under the License.
             <tr>
               <th>Dimension (d)</th>
               <th>Input Bit (x<sub>d</sub>)</th>
-              <th>Center (c<sub>X</sub>)</th>
-              <th>Log-Radius (&rho;<sub>X</sub>)</th>
-              <th>2-adic Digit Sequence</th>
+              <th>2-adic Leaf Disk (X<sub>d</sub>)</th>
             </tr>
           </thead>
           <tbody>
@@ -169,9 +167,17 @@ limitations under the License.
               <tr>
                 <td><strong>Dim {{ d + 1 }}</strong></td>
                 <td><span class="bit-badge">{{ res.sample.inputs[d] }}</span></td>
-                <td><span class="rational-val">{{ formatRationalVal(res.inputDisks[d].center) }}</span></td>
-                <td><code>&rho; = {{ res.inputDisks[d].rho.toFixed(2) }}</code></td>
-                <td><span class="digit-seq">{{ formatDigitSeqVal(res.inputDisks[d].center) }}</span></td>
+                <td>
+                  <app-berkovich-digit-display
+                    [center]="res.inputDisks[d].center"
+                    [rho]="res.inputDisks[d].rho"
+                    [prime]="prime()"
+                    [digitsLeft]="digitsLeft()"
+                    [digitsRight]="digitsRight()"
+                    [scale]="0.85"
+                    rhoLabelPosition="above"
+                  ></app-berkovich-digit-display>
+                </td>
               </tr>
             }
           </tbody>
@@ -199,7 +205,7 @@ limitations under the License.
             <tr>
               <th>Pool (m)</th>
               <th>Dim (d)</th>
-              <th>Input (X<sub>d</sub>)</th>
+              <th>Input Disk (X<sub>d</sub>)</th>
               <th>Pool Weight (PW<sub>m,d</sub>)</th>
               <th>Pooled Hidden Disk (H<sub>m,d</sub>)</th>
             </tr>
@@ -215,26 +221,40 @@ limitations under the License.
                   }
                   <td>Dim {{ d + 1 }}</td>
                   <td>
-                    <div class="disk-chip">
-                      <span>c={{ formatRationalVal(res.inputDisks[d].center) }}</span>
-                      <span class="rho-chip">&rho;={{ res.inputDisks[d].rho.toFixed(1) }}</span>
-                    </div>
+                    <app-berkovich-digit-display
+                      [center]="res.inputDisks[d].center"
+                      [rho]="res.inputDisks[d].rho"
+                      [prime]="prime()"
+                      [digitsLeft]="digitsLeft()"
+                      [digitsRight]="digitsRight()"
+                      [scale]="0.75"
+                      rhoLabelPosition="above"
+                    ></app-berkovich-digit-display>
                   </td>
                   <td>
                     @if (getPWDisk(m, d); as pw) {
-                      <div class="disk-chip pw-chip">
-                        <span>c={{ formatRationalVal(pw.center) }}</span>
-                        <span class="rho-chip">&rho;={{ pw.rho.toFixed(1) }}</span>
-                      </div>
+                      <app-berkovich-digit-display
+                        [center]="pw.center"
+                        [rho]="pw.rho"
+                        [prime]="prime()"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()"
+                        [scale]="0.75"
+                        rhoLabelPosition="above"
+                      ></app-berkovich-digit-display>
                     }
                   </td>
                   <td>
                     @if (res.pools[m][d]; as h) {
-                      <div class="disk-chip h-chip">
-                        <strong>c={{ formatRationalVal(h.center) }}</strong>
-                        <span class="rho-chip">&rho;={{ h.rho.toFixed(1) }}</span>
-                        <span class="digit-seq-sm">{{ formatDigitSeqVal(h.center) }}</span>
-                      </div>
+                      <app-berkovich-digit-display
+                        [center]="h.center"
+                        [rho]="h.rho"
+                        [prime]="prime()"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()"
+                        [scale]="0.75"
+                        rhoLabelPosition="above"
+                      ></app-berkovich-digit-display>
                     }
                   </td>
                 </tr>

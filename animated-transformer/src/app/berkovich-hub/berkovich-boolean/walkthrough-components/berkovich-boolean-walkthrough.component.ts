@@ -37,6 +37,7 @@ import {
 } from '../../../../lib/berkovich/berkovich';
 import { BerkovichDisk } from '../../berkovich-mnist/models/berkovich-mnist-learner';
 import { BerkovichDimensionCalculationComponent } from '../../berkovich-space-explorers/walkthrough-components/shared/berkovich-dimension-calculation.component';
+import { BerkovichDigitDisplayComponent } from '../../berkovich-digit-display/berkovich-digit-display.component';
 
 @Component({
   selector: 'app-berkovich-boolean-walkthrough',
@@ -45,7 +46,8 @@ import { BerkovichDimensionCalculationComponent } from '../../berkovich-space-ex
     MatButtonModule,
     MatIconModule,
     MarkdownComponent,
-    BerkovichDimensionCalculationComponent
+    BerkovichDimensionCalculationComponent,
+    BerkovichDigitDisplayComponent
   ],
   templateUrl: './berkovich-boolean-walkthrough.component.html',
   styleUrls: ['./berkovich-boolean-walkthrough.component.scss'],

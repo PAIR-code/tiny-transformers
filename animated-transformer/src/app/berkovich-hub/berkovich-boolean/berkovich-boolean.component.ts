@@ -207,6 +207,7 @@ export class BerkovichBooleanComponent implements OnInit, OnDestroy {
   readonly modelConfig = computed<BerkovichBooleanConfig>(() => this.getConfig());
 
   readonly currentPredictions = computed(() => {
+    this.trainTick();
     const l = this.learner();
     const data = this.dataset();
     if (!l) return [];
