@@ -19,6 +19,7 @@ import { provideZonelessChangeDetection, SecurityContext } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ngx-markdown';
 import { BerkovichMnistComponent } from './berkovich-mnist.component';
+import { encodeRealToPadic, BerkovichAffinoidMnistLearner } from './models/berkovich-mnist-learner';
 
 describe('BerkovichMnistComponent', () => {
   let component: BerkovichMnistComponent;
@@ -96,5 +97,26 @@ describe('BerkovichMnistComponent', () => {
     expect(component.stepCount()).toBe(1);
     expect(component.trainLossHistory().length).toBe(1);
     expect(component.trainAccHistory().length).toBe(1);
+  });
+
+  it('should encode real values in [0, 1] into p-adic numbers using interval-halving binary search', () => {
+    const disk = encodeRealToPadic(0.6875, 2, 2);
+    expect(disk.center).toEqual({ num: 11n, den: 16n });
+    expect(disk.rho).toBe(-2);
+  });
+
+  it('should compute forward and backward passes for 2-layer Berkovich network in 2adic-binary-search mode', () => {
+    const learner = new BerkovichAffinoidMnistLearner(5, 2, 3, 4, 'random');
+    expect(learner.P.length).toBe(16); // 4x4 patches
+    expect(learner.P[0].length).toBe(5); // embDim
+
+    const pixels = new Array(28 * 28).fill(0.5);
+    const config = component.getConfig();
+    const fwd = learner.forward(pixels, { ...config, encodingMode: '2adic-binary-search' });
+    expect(fwd.probs.length).toBe(10);
+    expect(fwd.patchDisks.length).toBe(16);
+
+    const stepRes = learner.trainStep(pixels, 3, { ...config, encodingMode: '2adic-binary-search' });
+    expect(stepRes.loss).toBeGreaterThan(0);
   });
 });

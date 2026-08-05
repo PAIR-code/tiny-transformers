@@ -23,6 +23,7 @@ import {
   extNegate
 } from '../../../../lib/berkovich/berkovich';
 import { computeGradientDetails } from '../../../../lib/berkovich/berkovich_gradients';
+import { computeBkBinarySearchSteps } from '../../../../lib/berkovich/bk-bounded-real-encoding';
 import { extractPatches } from './mnist-data';
 
 export interface BerkovichDisk {
@@ -82,22 +83,35 @@ export function encodeBinarySearch2Adic(bits: number[], depth: number = 6): Berk
 }
 
 /**
- * Converts a floating intensity in [0, 1] into a bit sequence of length `depth`
- * and performs 2-adic binary search encoding.
+ * Encodes a real target value x in [0, 1] into a p-adic Berkovich point
+ * using interval-halving binary search (from /berkovich/encoding).
  */
-export function intensityTo2AdicBinarySearch(val: number, depth: number = 6): BerkovichDisk {
-  const bits: number[] = [];
-  let current = val;
-  for (let i = 0; i < depth; i++) {
-    if (current >= 0.5) {
-      bits.push(1);
-      current = (current - 0.5) * 2;
-    } else {
-      bits.push(0);
-      current = current * 2;
-    }
+export function encodeRealToPadic(
+  val: number,
+  depth: number = 6,
+  prime: number = 2
+): BerkovichDisk {
+  const steps = computeBkBinarySearchSteps(val, depth, prime);
+  if (steps.length > 0) {
+    const last = steps[steps.length - 1];
+    return {
+      center: last.rationalCenter,
+      rho: last.rho
+    };
   }
-  return encodeBinarySearch2Adic(bits, depth);
+  return { center: { num: 1n, den: 2n }, rho: 0 };
+}
+
+/**
+ * Converts a floating intensity in [0, 1] into a p-adic Berkovich point
+ * using the interval-halving binary search from /berkovich/encoding.
+ */
+export function intensityTo2AdicBinarySearch(
+  val: number,
+  depth: number = 6,
+  prime: number = 2
+): BerkovichDisk {
+  return encodeRealToPadic(val, depth, prime);
 }
 
 export class BerkovichAffinoidMnistLearner {
@@ -111,6 +125,7 @@ export class BerkovichAffinoidMnistLearner {
 
   E: BerkovichDisk[][][];
   W: BerkovichDisk[][][];
+  P: BerkovichDisk[][]; // [numPatches, embDim] first-layer learnable weights for 2-layer Berkovich network
 
   constructor(
     embDim: number = 5,
@@ -127,6 +142,16 @@ export class BerkovichAffinoidMnistLearner {
 
     this.E = [];
     this.W = [];
+    this.P = [];
+
+    // Initialize first-layer learnable weights P[pIdx][d] for 2-layer Berkovich network
+    for (let pIdx = 0; pIdx < this.numPatches; pIdx++) {
+      const row: BerkovichDisk[] = [];
+      for (let d = 0; d < this.embDim; d++) {
+        row.push(this.randomDisk());
+      }
+      this.P.push(row);
+    }
 
     // Initialize patch embeddings
     const intensityLevels = 5;
@@ -181,13 +206,17 @@ export class BerkovichAffinoidMnistLearner {
     const patchDisks: BerkovichDisk[][] = [];
 
     if (encodingMode === '2adic-binary-search') {
-      // 2-adic Binary Search Pixel Encoding
+      // 2-Layer Berkovich Network:
+      // Layer 1 inputs: each patch mean is encoded as a p-adic number using interval-halving binary search from /berkovich/encoding.
+      // Layer 1 weights: P[pIdx][d] combines with input p-adic number x_j via Berkovich affine addition in Gamma_p.
       for (let pIdx = 0; pIdx < numP; pIdx++) {
         const row: BerkovichDisk[] = [];
+        const x_j = encodeRealToPadic(patchMeans[pIdx], encodingDepth, Number(p));
         for (let d = 0; d < this.embDim; d++) {
-          const val = patchMeans[pIdx];
-          const disk = intensityTo2AdicBinarySearch(val, encodingDepth);
-          row.push(disk);
+          const w = this.P[pIdx][d];
+          const center = add(x_j.center, w.center);
+          const rho = Math.max(x_j.rho, w.rho);
+          row.push({ center, rho });
         }
         patchDisks.push(row);
       }
@@ -373,52 +402,49 @@ export class BerkovichAffinoidMnistLearner {
           W.rho = Math.max(-3, Math.min(3, W.rho - lr * gk_dim * sgn));
         }
 
-        // Update trainable patch embeddings
-        if (config.encodingMode !== '2adic-binary-search') {
-          for (let j = 1; j <= numP; j++) {
-            const pIdx = j - 1;
-            const lvl = patchLevelIndices[pIdx];
-            const emb = this.E[pIdx][lvl][d];
+        // Update trainable first-layer weights (P for 2-layer Berkovich network, E for continuous intensity lookup)
+        for (let j = 1; j <= numP; j++) {
+          const pIdx = j - 1;
+          const is2Adic = config.encodingMode === '2adic-binary-search';
+          const emb = is2Adic ? this.P[pIdx][d] : this.E[pIdx][patchLevelIndices[pIdx]][d];
 
-            const isEmbActive = Math.abs(emb.rho - j - H.rho) < 1e-7;
-            if (!isEmbActive) continue;
+          const isEmbActive = Math.abs((is2Adic ? fwd.patchDisks[pIdx][d].rho : emb.rho) - j - H.rho) < 1e-7;
+          if (!isEmbActive) continue;
 
-            let otherSum = { num: 0n, den: 1n };
-            for (let l = 1; l <= numP; l++) {
-              if (l !== j) {
-                const otherLvl = patchLevelIndices[l - 1];
-                const otherEmb = this.E[l - 1][otherLvl][d];
-                const term = simplify({
-                  num: otherEmb.center.num,
-                  den: otherEmb.center.den * (p ** BigInt(l)),
-                });
-                otherSum = add(otherSum, term);
-              }
+          let otherSum = { num: 0n, den: 1n };
+          for (let l = 1; l <= numP; l++) {
+            if (l !== j) {
+              const otherEmb = fwd.patchDisks[l - 1][d];
+              const term = simplify({
+                num: otherEmb.center.num,
+                den: otherEmb.center.den * (p ** BigInt(l)),
+              });
+              otherSum = add(otherSum, term);
             }
-
-            const diffCenter = subtract(W.center, otherSum);
-            const targetCenter = simplify({
-              num: diffCenter.num * (p ** BigInt(j)),
-              den: diffCenter.den,
-            });
-            const targetLogRadius = W.rho + j;
-
-            if (gk_dim < 0) {
-              const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, p, lr * Math.abs(gk_dim));
-              emb.center = details.nextCenter;
-              emb.rho = details.nextLogRadius;
-            } else if (gk_dim > 0) {
-              const valDiff = getValuation(subtract(emb.center, targetCenter), p);
-              const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
-              const sgn = emb.rho >= dValuation ? 1 : -1;
-              emb.rho = Math.max(-3, Math.min(3, emb.rho - lr * gk_dim * sgn));
-            }
-
-            emb.rho = Math.max(
-              -3,
-              Math.min(3, emb.rho - lr * regEmbed * Math.log(Number(p)) * Math.exp(emb.rho * Math.log(Number(p))))
-            );
           }
+
+          const diffCenter = subtract(W.center, otherSum);
+          const targetCenter = simplify({
+            num: diffCenter.num * (p ** BigInt(j)),
+            den: diffCenter.den,
+          });
+          const targetLogRadius = W.rho + j;
+
+          if (gk_dim < 0) {
+            const details = computeGradientDetails(emb.center, emb.rho, targetCenter, targetLogRadius, p, lr * Math.abs(gk_dim));
+            emb.center = details.nextCenter;
+            emb.rho = details.nextLogRadius;
+          } else if (gk_dim > 0) {
+            const valDiff = getValuation(subtract(emb.center, targetCenter), p);
+            const dValuation = valDiff.type === 'finite' ? -valDiff.value : -Infinity;
+            const sgn = emb.rho >= dValuation ? 1 : -1;
+            emb.rho = Math.max(-3, Math.min(3, emb.rho - lr * gk_dim * sgn));
+          }
+
+          emb.rho = Math.max(
+            -3,
+            Math.min(3, emb.rho - lr * regEmbed * Math.log(Number(p)) * Math.exp(emb.rho * Math.log(Number(p))))
+          );
         }
       }
     }
