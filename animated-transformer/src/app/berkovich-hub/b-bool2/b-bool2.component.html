@@ -257,19 +257,36 @@ limitations under the License.
       <!-- Training Controls Toolbar -->
       <div class="card training-card">
         <div class="training-actions">
-          <button mat-raised-button color="primary" (click)="stepTrain()" [disabled]="isAutoTraining()">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="stepActiveSample()"
+            [disabled]="isAutoTraining()"
+            matTooltip="Take 1 gradient descent step specifically on active sample (x1, x2)"
+          >
             <mat-icon>play_arrow</mat-icon>
-            <span>Step Train</span>
+            <span>Step Active ({{ activeSample()[0] }}, {{ activeSample()[1] }})</span>
           </button>
-          <button mat-raised-button color="accent" (click)="trainSteps(5)" [disabled]="isAutoTraining()">
+          <button
+            mat-stroked-button
+            (click)="stepTrain()"
+            [disabled]="isAutoTraining()"
+            matTooltip="Take 1 epoch step across all 4 truth table samples"
+          >
             <mat-icon>fast_forward</mat-icon>
-            <span>Train 5 Steps</span>
+            <span>Step Epoch (All 4)</span>
           </button>
-          <button mat-stroked-button (click)="toggleAutoTrain()">
+          <button
+            mat-stroked-button
+            (click)="toggleAutoTrain()"
+          >
             <mat-icon>{{ isAutoTraining() ? 'pause' : 'autorenew' }}</mat-icon>
             <span>{{ isAutoTraining() ? 'Pause' : 'Auto Train' }}</span>
           </button>
-          <button mat-button (click)="resetModel()">
+          <button
+            mat-button
+            (click)="resetModel()"
+          >
             <mat-icon>refresh</mat-icon>
             <span>Reset</span>
           </button>

@@ -95,6 +95,6 @@ describe('BBool2TreeComponent', () => {
     expect(component.nodes.filter(n => n.id === 'b').length).toBe(1);
 
     const multNodes = component.nodes.filter(n => n.category === 'multiplication');
-    expect(multNodes.length).toBe(4); // t1, t2, p12, t3
+    expect(multNodes.length).toBe(3); // t1, t2, t3
   });
 });

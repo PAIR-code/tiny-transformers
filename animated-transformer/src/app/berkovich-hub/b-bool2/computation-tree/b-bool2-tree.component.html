@@ -86,7 +86,7 @@ limitations under the License.
 
   <!-- Main Tree SVG Area -->
   <div class="svg-viewport">
-    <svg viewBox="0 0 1120 720" class="tree-svg" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="0 0 980 670" class="tree-svg" preserveAspectRatio="xMidYMid meet">
       <defs>
         <!-- Gradients -->
         <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -158,7 +158,7 @@ limitations under the License.
               <!-- Node Body: Digit Display or Loss Content -->
               @if (node.id === 'target_loss') {
                 <div class="node-loss-content">
-                  <div class="loss-target-chip">Target $y = {{ target() }}$</div>
+                  <div class="loss-target-chip">Target $y = {{ target() }}</div>
                   <div class="loss-prob-stat">
                     <span>$P(y=1)$: <strong>{{ ((currentForward()?.probs?.[1] ?? 0) * 100) | number:'1.0-0' }}%</strong></span>
                   </div>
@@ -174,26 +174,19 @@ limitations under the License.
                     [prime]="config().prime"
                     [digitsLeft]="config().digitsLeft"
                     [digitsRight]="config().digitsRight"
-                    [scale]="0.72"
+                    [scale]="0.75"
                     rhoLabelPosition="above"
                     [editableCenter]="isParamNode(node.id) || isInputNode(node.id)"
                     [editableRho]="isParamNode(node.id)"
+                    [showUpdatedLocation]="isParamNode(node.id) && showBackprop() && getWeightGradientDetails($any(node.id)).active"
+                    [updatedCenter]="isParamNode(node.id) ? getWeightGradientDetails($any(node.id)).nextCenter : undefined"
+                    [updatedRho]="isParamNode(node.id) ? getWeightGradientDetails($any(node.id)).nextRho : undefined"
+                    updatedLineColor="#ec4899"
+                    updatedLineStyle="dashed"
                     (centerChange)="onNodeCenterChange(node.id, $event)"
                     (rhoChange)="onNodeRhoChange(node.id, $event)"
                   ></app-berkovich-digit-display>
                 </div>
-
-                <!-- Weight Gradient Backprop Indicator -->
-                @if (isParamNode(node.id) && showBackprop()) {
-                  @let grad = getWeightGradientInfo($any(node.id));
-                  <div class="node-grad-badge" [class.active-grad]="grad.active">
-                    @if (grad.active) {
-                      <span>∇ $y_{{ node.id }} \to {{ grad.targetStr }}$</span>
-                    } @else {
-                      <span class="inactive-text">∇ Inactive</span>
-                    }
-                  </div>
-                }
               }
             </div>
           </foreignObject>
@@ -215,7 +208,6 @@ limitations under the License.
               @case ('w1') { tune }
               @case ('w2') { tune }
               @case ('w3') { tune }
-              @case ('p12') { close }
               @case ('t1') { close }
               @case ('t2') { close }
               @case ('t3') { close }
@@ -258,6 +250,11 @@ limitations under the License.
               rhoLabelPosition="above"
               [editableCenter]="isParamNode(selId) || isInputNode(selId)"
               [editableRho]="isParamNode(selId)"
+              [showUpdatedLocation]="isParamNode(selId) && showBackprop() && getWeightGradientDetails($any(selId)).active"
+              [updatedCenter]="isParamNode(selId) ? getWeightGradientDetails($any(selId)).nextCenter : undefined"
+              [updatedRho]="isParamNode(selId) ? getWeightGradientDetails($any(selId)).nextRho : undefined"
+              updatedLineColor="#ec4899"
+              updatedLineStyle="dashed"
               (centerChange)="onNodeCenterChange(selId, $event)"
               (rhoChange)="onNodeRhoChange(selId, $event)"
             ></app-berkovich-digit-display>

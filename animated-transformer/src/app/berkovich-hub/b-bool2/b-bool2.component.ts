@@ -386,6 +386,26 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     this.trainTick.update((n) => n + 1);
   }
 
+  stepActiveSample() {
+    const l = this.learner();
+    const cfg = this.modelConfig();
+    if (!l) return;
+    const [x1, x2] = this.activeSample();
+    const target = this.truthTable()[(x1 * 2 + x2)];
+    l.trainStep([x1, x2], target, cfg);
+    const nextStep = this.stepCount() + 1;
+    this.stepCount.set(nextStep);
+
+    const allFwd = this.currentPredictions();
+    const totalLoss = allFwd.reduce((sum, p) => sum + p.prob1, 0) / (allFwd.length || 1);
+    const correctCount = allFwd.filter((p) => p.isCorrect).length;
+    const acc = correctCount / (allFwd.length || 1);
+
+    this.trainLossHistory.update((h) => [...h, { x: nextStep, y: totalLoss, name: 'Train Loss' }]);
+    this.trainAccHistory.update((h) => [...h, { x: nextStep, y: acc, name: 'Train Accuracy' }]);
+    this.trainTick.update((n) => n + 1);
+  }
+
   stepTrain() {
     const l = this.learner();
     const data = this.dataset();

@@ -53,7 +53,6 @@ export type TreeNodeId =
   | 'w1'
   | 'w2'
   | 'w3'
-  | 'p12'
   | 't1'
   | 't2'
   | 't3'
@@ -117,7 +116,7 @@ export class BBool2TreeComponent {
   readonly showBackprop = signal<boolean>(true);
 
   readonly nodes: TreeNode[] = [
-    // Column 1: Trainable Bias & Inputs & Weights (x = 95, width = 150, height = 96)
+    // Column 1: Trainable Bias & Inputs & Weights (x = 95, width = 150, height = 92)
     {
       id: 'b',
       label: 'Bias b',
@@ -125,9 +124,9 @@ export class BBool2TreeComponent {
       formula: 'b \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 60,
+      y: 55,
       width: 150,
-      height: 96
+      height: 92
     },
     {
       id: 'x1',
@@ -136,9 +135,9 @@ export class BBool2TreeComponent {
       formula: 'x_1 \\in \\{0, 1\\}',
       category: 'input',
       x: 95,
-      y: 175,
+      y: 165,
       width: 150,
-      height: 96
+      height: 92
     },
     {
       id: 'w1',
@@ -147,9 +146,9 @@ export class BBool2TreeComponent {
       formula: 'w_1 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 290,
+      y: 275,
       width: 150,
-      height: 96
+      height: 92
     },
     {
       id: 'x2',
@@ -158,9 +157,9 @@ export class BBool2TreeComponent {
       formula: 'x_2 \\in \\{0, 1\\}',
       category: 'input',
       x: 95,
-      y: 405,
+      y: 385,
       width: 150,
-      height: 96
+      height: 92
     },
     {
       id: 'w2',
@@ -169,9 +168,9 @@ export class BBool2TreeComponent {
       formula: 'w_2 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 520,
+      y: 495,
       width: 150,
-      height: 96
+      height: 92
     },
     {
       id: 'w3',
@@ -180,106 +179,94 @@ export class BBool2TreeComponent {
       formula: 'w_3 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 635,
+      y: 605,
       width: 150,
-      height: 96
+      height: 92
     },
 
-    // Column 2: Multiplications (Terms & Input Product) (x = 370, width = 150, height = 96)
+    // Column 2: 3 Multiplication Terms (x = 410, width = 155, height = 92)
     {
       id: 't1',
       label: 'T₁ = w₁·x₁',
-      sublabel: 'Multiplication term',
+      sublabel: 'Linear term 1',
       formula: 'T_1 = w_1 \\cdot x_1',
       category: 'multiplication',
-      x: 370,
-      y: 232,
-      width: 150,
-      height: 96
+      x: 410,
+      y: 220,
+      width: 155,
+      height: 92
     },
     {
       id: 't2',
       label: 'T₂ = w₂·x₂',
-      sublabel: 'Multiplication term',
+      sublabel: 'Linear term 2',
       formula: 'T_2 = w_2 \\cdot x_2',
       category: 'multiplication',
-      x: 370,
-      y: 462,
-      width: 150,
-      height: 96
-    },
-    {
-      id: 'p12',
-      label: 'P₁₂ = x₁·x₂',
-      sublabel: 'Input product',
-      formula: 'P_{12} = x_1 \\cdot x_2',
-      category: 'multiplication',
-      x: 370,
-      y: 635,
-      width: 150,
-      height: 96
+      x: 410,
+      y: 440,
+      width: 155,
+      height: 92
     },
     {
       id: 't3',
-      label: 'T₃ = w₃·P₁₂',
-      sublabel: 'Interaction term',
-      formula: 'T_3 = w_3 \\cdot P_{12}',
+      label: 'T₃ = w₃·x₁·x₂',
+      sublabel: 'Interaction term (3-way product)',
+      formula: 'T_3 = w_3 \\cdot x_1 \\cdot x_2',
       category: 'multiplication',
-      x: 610,
-      y: 635,
-      width: 150,
-      height: 96
+      x: 410,
+      y: 605,
+      width: 155,
+      height: 92
     },
 
-    // Column 3: Single Addition Node (b + T1 + T2 + T3) (x = 845, width = 165, height = 100)
+    // Column 3: Single Addition Node (b + T1 + T2 + T3) (x = 710, width = 165, height = 96)
     {
       id: 'f_out',
       label: '∑ f(x₁, x₂)',
       sublabel: 'Single sum of all terms',
       formula: 'f(x_1, x_2) = b + T_1 + T_2 + T_3',
       category: 'addition',
-      x: 845,
+      x: 710,
       y: 330,
       width: 165,
-      height: 100
+      height: 96
     },
 
-    // Column 4: Loss & Target Evaluation (x = 1040, width = 140, height = 96)
+    // Column 4: Loss & Target Evaluation (x = 900, width = 140, height = 92)
     {
       id: 'target_loss',
       label: 'Target & Loss',
       sublabel: 'Cross-entropy evaluation',
       formula: '\\mathcal{L}(f, y)',
       category: 'loss',
-      x: 1040,
+      x: 900,
       y: 330,
       width: 140,
-      height: 96
+      height: 92
     }
   ];
 
   readonly edges: TreeEdge[] = [
     // Inputs & Weights to Multiplications
-    this.createEdge('x1', 't1', 170, 175, 295, 218),
-    this.createEdge('w1', 't1', 170, 290, 295, 246),
+    this.createEdge('x1', 't1', 170, 165, 332, 206),
+    this.createEdge('w1', 't1', 170, 275, 332, 234),
 
-    this.createEdge('x2', 't2', 170, 405, 295, 448),
-    this.createEdge('w2', 't2', 170, 520, 295, 476),
+    this.createEdge('x2', 't2', 170, 385, 332, 426),
+    this.createEdge('w2', 't2', 170, 495, 332, 454),
 
-    this.createEdge('x1', 'p12', 170, 185, 295, 621),
-    this.createEdge('x2', 'p12', 170, 415, 295, 649),
-
-    this.createEdge('w3', 't3', 170, 635, 535, 649),
-    this.createEdge('p12', 't3', 445, 635, 535, 621),
+    // 3 Inputs directly to T3: x1, x2, w3
+    this.createEdge('x1', 't3', 170, 175, 332, 585),
+    this.createEdge('x2', 't3', 170, 395, 332, 605),
+    this.createEdge('w3', 't3', 170, 605, 332, 625),
 
     // Terms directly entering Single Addition Node: b, T1, T2, T3 -> f_out
-    this.createEdge('b', 'f_out', 170, 60, 762, 300),
-    this.createEdge('t1', 'f_out', 445, 232, 762, 320),
-    this.createEdge('t2', 'f_out', 445, 462, 762, 340),
-    this.createEdge('t3', 'f_out', 685, 635, 762, 360),
+    this.createEdge('b', 'f_out', 170, 55, 627, 300),
+    this.createEdge('t1', 'f_out', 487, 220, 627, 320),
+    this.createEdge('t2', 'f_out', 487, 440, 627, 340),
+    this.createEdge('t3', 'f_out', 487, 605, 627, 360),
 
     // Addition Output to Target & Loss
-    this.createEdge('f_out', 'target_loss', 927, 330, 970, 330)
+    this.createEdge('f_out', 'target_loss', 792, 330, 830, 330)
   ];
 
   private createEdge(
@@ -359,8 +346,6 @@ export class BBool2TreeComponent {
         return tree.w2;
       case 'w3':
         return tree.w3;
-      case 'p12':
-        return tree.p12_x1x2;
       case 't1':
         return tree.t1_w1x1;
       case 't2':
@@ -457,14 +442,18 @@ export class BBool2TreeComponent {
     }
   }
 
-  getWeightGradientInfo(param: 'b' | 'w1' | 'w2' | 'w3'): {
+  getWeightGradientDetails(param: 'b' | 'w1' | 'w2' | 'w3'): {
     active: boolean;
-    targetStr: string;
-    dStr: string;
-    explanation: string;
+    nextCenter?: Rational;
+    nextRho?: number;
+    targetRational: Rational;
+    loss: number;
+    stepType: string;
   } {
     const l = this.learner();
-    if (!l) return { active: false, targetStr: '-', dStr: '-', explanation: '' };
+    if (!l) {
+      return { active: false, targetRational: { num: 0n, den: 1n }, loss: 0, stepType: '' };
+    }
 
     const [x1, x2] = this.activeSample();
     const target = this.target();
@@ -476,29 +465,30 @@ export class BBool2TreeComponent {
     let targetParam: Rational = { num: 0n, den: 1n };
 
     if (param === 'b') {
-      active = x1 === 0 && x2 === 0;
+      active = (x1 === 0 && x2 === 0);
       targetParam = targetRational;
     } else if (param === 'w1') {
-      active = x1 === 1 && x2 === 0;
+      active = (x1 === 1 && x2 === 0);
       targetParam = subtract(targetRational, l.b.center);
     } else if (param === 'w2') {
-      active = x1 === 0 && x2 === 1;
+      active = (x1 === 0 && x2 === 1);
       targetParam = subtract(targetRational, l.b.center);
     } else if (param === 'w3') {
-      active = x1 === 1 && x2 === 1;
+      active = (x1 === 1 && x2 === 1);
       const sumLinear = add(add(l.b.center, l.w1.center), l.w2.center);
       targetParam = subtract(targetRational, sumLinear);
     }
 
     const disk = l[param];
     const details = computeGradientDetails(disk.center, disk.rho, targetParam, -2, p, lr);
-    const dStr = details.d.type === 'finite' ? details.d.value.toFixed(1) : (details.d.type === 'neg-infinity' ? '-∞' : '+∞');
 
     return {
       active,
-      targetStr: formatRational(targetParam),
-      dStr,
-      explanation: details.stepType
+      nextCenter: (active && this.showBackprop()) ? details.nextCenter : undefined,
+      nextRho: (active && this.showBackprop()) ? details.nextLogRadius : undefined,
+      targetRational: targetParam,
+      loss: details.loss,
+      stepType: details.stepType
     };
   }
 
