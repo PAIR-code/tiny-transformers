@@ -46,7 +46,7 @@ limitations under the License.
         <mat-icon class="title-icon">science</mat-icon>
         <span>Live Calculation Walkthrough: DNF Affinoid Domain Structure</span>
       </div>
-      <span class="latex-ref-badge">berkovich.tex §6 (Eq. 219)</span>
+      <span class="latex-ref-badge">p-adic Affinoid Geometry</span>
     </div>
     <p class="walkthrough-subtitle">
       Trace how the Disjunctive Normal Form (DNF) affinoid formula evaluates step-by-step for a selected preset sample or an edited custom input vector (<b>x</b>):
@@ -110,6 +110,18 @@ limitations under the License.
       </div>
     </div>
 
+    <!-- INTERACTIVE D3/SVG DNF AFFINOID CIRCUIT COMPUTATION GRAPH -->
+    <app-dnf-computation-graph
+      [learner]="learner()"
+      [inputs]="currentInputVector()"
+      [numVars]="numVars()"
+      [numPools]="numPools()"
+      [prime]="prime()"
+      [config]="config()"
+      [tick]="tick()"
+      (toggleBit)="toggleInputBit($event)"
+    ></app-dnf-computation-graph>
+
     @if (currentFwdResult(); as res) {
       <!-- STEP A: 2-adic Input Encoding & Pool Translation -->
       <div class="calc-step-card">
@@ -118,7 +130,7 @@ limitations under the License.
           <span class="step-name">Input Encoding (<markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown>) &amp; Pool Translation (<markdown [inline]="true" [katex]="true" [data]="'$H_{m,d} = X_d \\oplus PW_{m,d}$'"></markdown>)</span>
         </div>
         <p class="calc-step-desc">
-          Per <code>berkovich.tex</code> §6, input bits <markdown [inline]="true" [katex]="true" [data]="'$x_d \\in \\{0, 1\\}$'"></markdown> embed into the Berkovich line as 2-adic leaf disks <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown>. Each DNF pool <markdown [inline]="true" [katex]="true" [data]="'$m$'"></markdown> translates <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown> via Berkovich Hsia addition in <markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{Q}_p$'"></markdown>, shifting to pooled hidden disk <markdown [inline]="true" [katex]="true" [data]="'$c_{H} = c_X + c_{PW}, \\rho_H = \\max(\\rho_X, \\rho_{PW})$'"></markdown>:
+          In non-Archimedean spectral geometry, input bits <markdown [inline]="true" [katex]="true" [data]="'$x_d \\in \\{0, 1\\}$'"></markdown> embed into the Berkovich line as 2-adic leaf disks <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown>. Each DNF pool <markdown [inline]="true" [katex]="true" [data]="'$m$'"></markdown> translates <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown> via Berkovich Hsia addition in <markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{Q}_p$'"></markdown>, shifting to pooled hidden disk <markdown [inline]="true" [katex]="true" [data]="'$c_{H} = c_X + c_{PW}, \\rho_H = \\max(\\rho_X, \\rho_{PW})$'"></markdown>:
         </p>
 
         <div class="matrix-table-wrapper">
@@ -198,7 +210,7 @@ limitations under the License.
           <span class="step-name">Affinoid Domain AND Clauses (<markdown [inline]="true" [katex]="true" [data]="'$\\bigwedge_{d=1}^D X_d \\oplus PW_{m,d} \\in W_{1,m,d}$'"></markdown> via Supremum Norm <markdown [inline]="true" [katex]="true" [data]="'$\\max_d$'"></markdown>)</span>
         </div>
         <p class="calc-step-desc">
-          Per <code>berkovich.tex</code> §6, an affinoid domain is a poly-disk formed by the intersection of <markdown [inline]="true" [katex]="true" [data]="'$D$'"></markdown> constraints via the supremum norm <markdown [inline]="true" [katex]="true" [data]="'$\\|\\mathbf{W}_k \\mathbf{x} + \\mathbf{B}_k\\|_\\infty \\le 1$'"></markdown>. In our Hsia kernel path metric, logical AND (<markdown [inline]="true" [katex]="true" [data]="'$\\bigwedge_{d=1}^D$'"></markdown>) evaluates as the <strong>maximum</strong> loss across dimensions:
+          An affinoid domain is a poly-disk formed by the intersection of <markdown [inline]="true" [katex]="true" [data]="'$D$'"></markdown> constraints via the supremum norm <markdown [inline]="true" [katex]="true" [data]="'$\\|\\mathbf{W}_k \\mathbf{x} + \\mathbf{B}_k\\|_\\infty \\le 1$'"></markdown>. In our Hsia kernel path metric, logical AND (<markdown [inline]="true" [katex]="true" [data]="'$\\bigwedge_{d=1}^D$'"></markdown>) evaluates as the <strong>maximum</strong> loss across dimensions:
           <markdown [inline]="true" [katex]="true" [data]="'$$\\text{AND Clause Loss for Pool } m = \\max_{d=1}^D \\text{Loss}(H_{m,d}, W_{1,m,d})$$'"></markdown>
         </p>
 
@@ -250,7 +262,7 @@ limitations under the License.
           <span class="step-name">DNF Union OR Clause (<markdown [inline]="true" [katex]="true" [data]="'$\\bigvee_{m=1}^M$'"></markdown> via Minimum Loss <markdown [inline]="true" [katex]="true" [data]="'$\\min_m$'"></markdown>) &amp; Affinoid Softmax (<markdown [inline]="true" [katex]="true" [data]="'$\\pi_k$'"></markdown>)</span>
         </div>
         <p class="calc-step-desc">
-          Per <code>berkovich.tex</code> Eq. 219, logical OR across pools requires at least one pool clause to hold, which evaluates as the <strong>minimum</strong> loss across pools:
+          To combine the <markdown [inline]="true" [katex]="true" [data]="'$M$'"></markdown> affinoid pools into a Disjunctive Normal Form (DNF) union, logical OR (<markdown [inline]="true" [katex]="true" [data]="'$\\bigvee_{m=1}^M$'"></markdown>) requires at least one pool clause to hold. In our min-max logic, this evaluates as the <strong>minimum</strong> loss across pools:
           <markdown [inline]="true" [katex]="true" [data]="'$$D_k = \\min_{m} (-M_{k,m}), \\quad \\pi_k = \\frac{\\exp(\\beta D_k)}{\\sum_{j=0}^1 \\exp(\\beta D_j)}$$'"></markdown>
         </p>
 

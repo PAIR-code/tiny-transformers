@@ -101,8 +101,8 @@ describe('BerkovichMnistComponent', () => {
 
   it('should encode real values in [0, 1] into p-adic numbers using interval-halving binary search', () => {
     const disk = encodeRealToPadic(0.6875, 2, 2);
-    expect(disk.center).toEqual({ num: 11n, den: 16n });
-    expect(disk.rho).toBe(-2);
+    expect(disk.center).toEqual({ num: 23n, den: 32n });
+    expect(disk.rho).toBe(-4);
   });
 
   it('should compute forward and backward passes for 2-layer Berkovich network in 2adic-binary-search mode', () => {

@@ -40,6 +40,7 @@ import {
 import { BerkovichDisk } from '../berkovich-mnist/models/berkovich-mnist-learner';
 import { BerkovichDimensionCalculationComponent } from '../berkovich-space-explorers/walkthrough-components/shared/berkovich-dimension-calculation.component';
 import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
+import { DnfComputationGraphComponent } from './dnf-computation-graph/dnf-computation-graph.component';
 
 @Component({
   selector: 'app-dnf-vis-card',
@@ -50,7 +51,8 @@ import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berko
     MatTooltipModule,
     MarkdownComponent,
     BerkovichDimensionCalculationComponent,
-    BerkovichDigitDisplayComponent
+    BerkovichDigitDisplayComponent,
+    DnfComputationGraphComponent
   ],
   templateUrl: './dnf-vis-card.component.html',
   styleUrls: ['./dnf-vis-card.component.scss'],
@@ -139,7 +141,7 @@ export class DnfVisCardComponent {
   readonly descriptionMarkdown = computed(() => {
     const pools = this.numPools();
     const vars = this.numVars();
-    return `Per **Section 6 of berkovich.tex (p-adic Classification & Affinoid Domains)**, an **affinoid domain** is a non-Archimedean 'poly-disk' formed by the intersection of multiple p-adic disks. The condition that an input $\\mathbf{x}$ satisfies an affinoid constraint across all $D=${vars}$ dimensions simultaneously is implemented via the supremum norm $\\|\\mathbf{W}_k \\mathbf{x} + \\mathbf{B}_k\\|_\\infty \\le 1$. In our Hsia kernel path metric, this supremum norm corresponds to taking the **maximum** loss across dimensions: $\\text{AND Clause Loss for Pool } m = \\max_{d=1}^{${vars}} \\text{Loss}(H_{m,d}, W_{1,m,d})$.\n\nTo represent arbitrary Boolean circuits (XOR, Parity, and others), the boolean function $f(\\mathbf{x})$ is learned as a **Disjunctive Normal Form (DNF)** union across $M=${pools}$ affinoid pools:\n$$\\bigvee_{m=1}^{${pools}} \\left( \\bigwedge_{d=1}^{${vars}} X_d \\oplus PW_{m,d} \\in W_{1,m,d} \\right)$$\nIn Berkovich min-max logic, logical OR across pools corresponds to taking the **minimum** path loss across pools: $D_k = \\min_m (-M_{k,m})$ (Eq. 219 of berkovich.tex).`;
+    return `In non-Archimedean spectral geometry, an **affinoid domain** is a 'poly-disk' formed by the intersection of multiple p-adic disks. Just as polyhedra in Euclidean space are defined by intersecting half-spaces, we define each region by stacking linear constraints into a weight matrix $\\mathbf{W}_k$ and bias vector $\\mathbf{B}_k$. The condition that an input $\\mathbf{x}$ satisfies an affinoid constraint across all $D=${vars}$ dimensions simultaneously is implemented via the supremum norm $\\|\\mathbf{W}_k \\mathbf{x} + \\mathbf{B}_k\\|_\\infty \\le 1$. In our Hsia kernel path metric, this supremum norm corresponds to taking the **maximum** loss across dimensions: $\\text{AND Clause Loss for Pool } m = \\max_{d=1}^{${vars}} \\text{Loss}(H_{m,d}, W_{1,m,d})$.\n\nTo represent arbitrary Boolean circuits (XOR, Parity, and others), the boolean function $f(\\mathbf{x})$ is learned as a **Disjunctive Normal Form (DNF)** union across $M=${pools}$ affinoid pools:\n$$\\bigvee_{m=1}^{${pools}} \\left( \\bigwedge_{d=1}^{${vars}} X_d \\oplus PW_{m,d} \\in W_{1,m,d} \\right)$$\nIn Berkovich min-max logic, logical OR across pools requires at least one pool clause to hold, which evaluates as the **minimum** path loss across pools: $D_k = \\min_m (-M_{k,m})$.`;
   });
 
   readonly formulaMarkdown = computed(() => {
