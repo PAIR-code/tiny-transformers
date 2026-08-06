@@ -156,7 +156,7 @@ export class DnfVisCardComponent {
 
   readonly circuitNoteMarkdown = computed(() => {
     const vars = this.numVars();
-    return `**Theorem (Universal Circuit Learning via Affinoid DNF):** Any D-variable Boolean function requires at most $M = 2^{D-1}$ DNF pools. Initializing $M = 4$ pools on distinct hypercube minterm branches ($PW_{m,d} = \\text{bit}_d \\,?\\, 3/4 : 1/4$) guarantees complete affinoid coverage of all $2^D$ input minterm regions, allowing continuous Berkovich gradient descent to rapidly learn **any arbitrary Boolean circuit** with 100% accuracy.`;
+    return `**Theorem (Universal Circuit Learning via Affinoid DNF):** Any D-variable Boolean function requires at most $M = 2^{D-1}$ DNF pools. Initializing $M = 4$ pools on distinct hypercube minterm branches with translation centers $PW_{m,d} \\in \\{1/4, 3/4\\}$ guarantees complete affinoid coverage of all $2^D$ input minterm regions, allowing continuous Berkovich gradient descent to rapidly learn **any arbitrary Boolean circuit** with 100% accuracy.`;
   });
 
   readonly currentFwdResult = computed(() => {

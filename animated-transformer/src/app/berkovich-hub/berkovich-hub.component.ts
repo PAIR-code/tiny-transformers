@@ -106,6 +106,12 @@ export class BerkovichHubComponent {
           route: '/berkovich/boolean',
           icon: 'alt_route',
         },
+        {
+          title: '16-Circuit Multilinear Explorer',
+          description: 'Explore all 16 two-variable Boolean circuits using multilinear formulation f(x₁, x₂) = b + w₁x₁ + w₂x₂ + w₃x₁x₂ in Berkovich space.',
+          route: '/berkovich/bool2',
+          icon: 'account_tree',
+        },
       ]
     },
     {

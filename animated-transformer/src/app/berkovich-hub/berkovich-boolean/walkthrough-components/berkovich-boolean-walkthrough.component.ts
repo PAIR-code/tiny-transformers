@@ -129,7 +129,7 @@ export class BerkovichBooleanWalkthroughComponent {
     const poolMode = cfg.poolInitMode;
 
     const poolDesc = poolMode === 'separated-branches'
-      ? '**Programmatic Minterm Corners**: Initialized at $PW_{m,d} = \\text{bit}_d \\,?\\, 3/4 : 1/4$. Guarantees $100\\%$ initial coverage of all $2^D$ hypercube minterms for universal circuit learning.'
+      ? '**Programmatic Minterm Corners**: Initialized at $PW_{m,d} \\in \\{1/4, 3/4\\}$. Guarantees $100\\%$ initial coverage of all $2^D$ hypercube minterms for universal circuit learning.'
       : '**Random Tree Centers**: Initialized to random depth-4 2-adic rational centers $\\frac{n}{16}$ ($n \\in \\{0..15\\}$). Evaluates standard unguided neural initialization.';
 
     const targetDesc = targetMode === 'pre-fixed-leaves'

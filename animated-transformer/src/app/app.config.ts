@@ -39,6 +39,7 @@ import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.c
 import { BerkovichSpaceExplorersComponent } from './berkovich-hub/berkovich-space-explorers/berkovich-space-explorers.component';
 import { BerkovichMnistComponent } from './berkovich-hub/berkovich-mnist/berkovich-mnist.component';
 import { BerkovichBooleanComponent } from './berkovich-hub/berkovich-boolean/berkovich-boolean.component';
+import { BBool2Component } from './berkovich-hub/b-bool2/b-bool2.component';
 import { BerkovichEncodingComponent } from './berkovich-hub/berkovich-encoding/berkovich-encoding.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
@@ -87,6 +88,8 @@ export const routes: Routes = [
       { path: 'space-explorers', redirectTo: 'shakespeare', pathMatch: 'full' },
       { path: 'mnist', component: BerkovichMnistComponent },
       { path: 'boolean', component: BerkovichBooleanComponent },
+      { path: 'bool2', component: BBool2Component },
+      { path: 'b-bool2', redirectTo: 'bool2', pathMatch: 'full' },
       { path: 'glossary', component: BerkovichGlossaryComponent },
     ]
   },

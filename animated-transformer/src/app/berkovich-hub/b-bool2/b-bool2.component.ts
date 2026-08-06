@@ -1,0 +1,460 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  signal,
+  computed,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterModule } from '@angular/router';
+import { MarkdownComponent } from 'ngx-markdown';
+
+import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
+import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
+import {
+  D3LineChartComponent,
+  ChartConfig,
+  defaultChartConfig,
+  NamedChartPoint
+} from '../../d3-line-chart/d3-line-chart.component';
+
+import {
+  BBool2Learner,
+  BBool2Config,
+  ALL_16_BOOLEAN_FUNCTIONS,
+  BBool2FunctionInfo,
+  buildDatasetFromTruthTable,
+  BooleanSample,
+  computeExactCoefficients
+} from './models/b-bool2-learner';
+import { BBool2TreeComponent } from './computation-tree/b-bool2-tree.component';
+import { Rational, parsePadicOrRationalInput, simplify, formatRational } from '../../../lib/berkovich/berkovich';
+
+export interface HeatmapPoint {
+  x: number;
+  y: number;
+  prob1: number;
+}
+
+@Component({
+  selector: 'app-b-bool2',
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MatTooltipModule,
+    RouterModule,
+    MarkdownComponent,
+    BerkovichHeaderComponent,
+    D3LineChartComponent,
+    BBool2TreeComponent
+  ],
+  templateUrl: './b-bool2.component.html',
+  styleUrls: ['./b-bool2.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:click)': 'closePopup()' }
+})
+export class BBool2Component implements OnInit, OnDestroy {
+  readonly formatCenter = formatRational;
+  readonly all16Functions = ALL_16_BOOLEAN_FUNCTIONS;
+  readonly selectedFunctionIndex = signal<number>(6); // Default: XOR (index 6)
+
+  readonly truthTable = signal<[number, number, number, number]>([0, 1, 1, 0]);
+  readonly dataset = computed<BooleanSample[]>(() => buildDatasetFromTruthTable(this.truthTable()));
+
+  // Active popup for hyper-parameter info
+  readonly activePopup = signal<string | null>(null);
+
+  // Hyper-parameters
+  readonly prime = signal<number>(2);
+  readonly learningRate = signal<number>(0.1);
+  readonly regularization = signal<number>(0.01);
+  readonly beta = signal<number>(2.5);
+  readonly digitsLeft = signal<number>(3);
+  readonly digitsRight = signal<number>(2);
+  readonly trainingMode = signal<'berkovich' | 'padic'>('berkovich');
+  readonly updateCenters = signal<boolean>(true);
+  readonly updateRadii = signal<boolean>(true);
+
+  // Selected sample for DAG walkthrough
+  readonly activeSample = signal<[number, number]>([1, 1]);
+
+  // Model & State
+  readonly learner = signal<BBool2Learner | null>(null);
+  readonly stepCount = signal<number>(0);
+  readonly isAutoTraining = signal<boolean>(false);
+  private autoTrainInterval: any = null;
+
+  readonly trainLossHistory = signal<NamedChartPoint[]>([]);
+  readonly trainAccHistory = signal<NamedChartPoint[]>([]);
+  readonly trainTick = signal<number>(0);
+
+  readonly chartPoints = computed<NamedChartPoint[]>(() => {
+    return [...this.trainLossHistory(), ...this.trainAccHistory()];
+  });
+
+  readonly chartConfig = computed<ChartConfig>(() => {
+    const defaultConfig = defaultChartConfig();
+    return {
+      ...defaultConfig,
+      height: 200,
+      xLabel: 'Steps',
+      yLabel: 'Loss',
+      yTickFormat: '.2f',
+      xTickFormat: 'd',
+      legendX: 260,
+      legendY: 10,
+      rightYLabel: 'Accuracy',
+      rightYLineNames: ['Train Accuracy'],
+      rightYDomain: [0.0, 1.0]
+    };
+  });
+
+  readonly modelConfig = computed<BBool2Config>(() => {
+    return {
+      prime: this.prime(),
+      lr: this.learningRate(),
+      reg: this.regularization(),
+      beta: this.beta(),
+      digitsLeft: this.digitsLeft(),
+      digitsRight: this.digitsRight(),
+      mode: this.trainingMode(),
+      updateCenters: this.updateCenters(),
+      updateRadii: this.trainingMode() === 'berkovich' && this.updateRadii()
+    };
+  });
+
+  readonly currentFunctionInfo = computed<BBool2FunctionInfo>(() => {
+    const idx = this.selectedFunctionIndex();
+    return this.all16Functions[idx] || this.all16Functions[6];
+  });
+
+  readonly currentPredictions = computed(() => {
+    this.trainTick();
+    const l = this.learner();
+    const data = this.dataset();
+    const cfg = this.modelConfig();
+    if (!l) return [];
+
+    return data.map((sample) => {
+      const fwd = l.forward(sample.inputs, cfg, sample.target);
+      return {
+        inputs: sample.inputs,
+        target: sample.target,
+        label: sample.label,
+        pred: fwd.pred,
+        prob1: fwd.probs[1],
+        loss: fwd.loss,
+        isCorrect: fwd.pred === sample.target,
+        fwd
+      };
+    });
+  });
+
+  readonly currentAccuracy = computed(() => {
+    const preds = this.currentPredictions();
+    if (preds.length === 0) return 0;
+    const correct = preds.filter((p) => p.isCorrect).length;
+    return correct / preds.length;
+  });
+
+  readonly currentLoss = computed(() => {
+    const preds = this.currentPredictions();
+    if (preds.length === 0) return 0;
+    const sum = preds.reduce((acc, p) => acc + p.loss, 0);
+    return sum / preds.length;
+  });
+
+  readonly currentExactCoefficients = computed(() => {
+    return computeExactCoefficients(this.truthTable());
+  });
+
+  // 2D Continuous Activation Heatmap Grid (16x16 sampling across [0, 1] x [0, 1])
+  readonly heatmapGrid = computed<HeatmapPoint[]>(() => {
+    this.trainTick();
+    const l = this.learner();
+    const cfg = this.modelConfig();
+    if (!l) return [];
+
+    const resolution = 16;
+    const points: HeatmapPoint[] = [];
+
+    for (let j = 0; j < resolution; j++) {
+      const yVal = (resolution - 1 - j) / (resolution - 1); // y from 1 down to 0
+      for (let i = 0; i < resolution; i++) {
+        const xVal = i / (resolution - 1); // x from 0 to 1
+        const fwd = l.forward([xVal, yVal], cfg, 0);
+        points.push({
+          x: xVal,
+          y: yVal,
+          prob1: fwd.probs[1]
+        });
+      }
+    }
+    return points;
+  });
+
+  getHeatmapCellColor(prob1: number): string {
+    // Pure Black (0) to Pure White (1) grayscale:
+    const v = Math.max(0, Math.min(255, Math.round(prob1 * 255)));
+    return `rgb(${v}, ${v}, ${v})`;
+  }
+
+  readonly explainerMarkdown = `
+### Multilinear Formulation in Berkovich Space: $f(x_1, x_2) = b + w_1 x_1 + w_2 x_2 + w_3 x_1 x_2$
+
+Every two-variable Boolean function $g: \\{0, 1\\}^2 \\to \\{0, 1\\}$ can be represented as an exact **multilinear polynomial** (also called the Fourier or Walsh-Hadamard expansion over $\\mathbb{R}$ or $\\mathbb{Q}_p$):
+
+$$f(x_1, x_2) = b + w_1 x_1 + w_2 x_2 + w_3 x_1 x_2$$
+
+---
+
+#### 1. Exact Multilinear Solutions for the 16 Circuits
+Evaluating the system of 4 linear equations at the corners yields unique integer solutions:
+
+* $g(0, 0) = b \\implies \\mathbf{b = g(0, 0)}$
+* $g(1, 0) = b + w_1 \\implies \\mathbf{w_1 = g(1, 0) - g(0, 0)}$
+* $g(0, 1) = b + w_2 \\implies \\mathbf{w_2 = g(0, 1) - g(0, 0)}$
+* $g(1, 1) = b + w_1 + w_2 + w_3 \\implies \\mathbf{w_3 = g(1, 1) - g(1, 0) - g(0, 1) + g(0, 0)}$
+
+**Key Examples:**
+* **AND ($x_1 \\land x_2$):** $b=0, w_1=0, w_2=0, w_3=1 \\implies f(x) = x_1 x_2$
+* **OR ($x_1 \\lor x_2$):** $b=0, w_1=1, w_2=1, w_3=-1 \\implies f(x) = x_1 + x_2 - x_1 x_2$
+* **XOR ($x_1 \\oplus x_2$):** $b=0, w_1=1, w_2=1, w_3=-2 \\implies f(x) = x_1 + x_2 - 2 x_1 x_2$
+* **XNOR ($\\neg(x_1 \\oplus x_2)$):** $b=1, w_1=-1, w_2=-1, w_3=2 \\implies f(x) = 1 - x_1 - x_2 + 2 x_1 x_2$
+
+---
+
+#### 2. Why $p$-adic Digits & Berkovich Disks? (Addressing Q1)
+In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
+* Negative numbers have infinite digit representations:
+  * $-1 = \\dots 111_2 = \\sum_{k=0}^\\infty 2^k$
+  * $-2 = \\dots 1110_2 = \\sum_{k=1}^\\infty 2^k$
+* **Single Digit ($\\mathbb{F}_2$) vs Multi-Digit ($\\mathbb{Z}_2$):**
+  * In a 1-digit field $\\mathbb{F}_2 = \\mathbb{Z}/2\\mathbb{Z}$, arithmetic is modulo 2 where $1 + 1 = 0 \\pmod 2$. In $\\mathbb{F}_2$, XOR is simply $x_1 + x_2$, but $-1 \\equiv 1 \\pmod 2$, conflating OR and XOR.
+  * In $\\mathbb{Q}_2$ with 3–4 digits of precision (mod $2^3=8$ or $2^4=16$), $-1 \\equiv 7 \\pmod 8$ and $-2 \\equiv 6 \\pmod 8$, giving exact distinct values!
+* **Berkovich Radius ($\\rho$):**
+  * A Berkovich disk $(c, \\rho)$ represents a ball $\\bar{D}(c, p^\\rho)$.
+  * When $\\rho$ is large (e.g. $\\rho=0$), higher digits are uncertain, allowing smooth gradient exploration across branches.
+  * As gradient descent steps proceed, $\\rho$ shrinks (e.g. $\\rho \\to -2$), sharpening parameters to exact $p$-adic coordinates.
+`;
+
+  ngOnInit(): void {
+    this.selectFunction(6); // Default: XOR
+  }
+
+  ngOnDestroy(): void {
+    this.stopAutoTrain();
+  }
+
+  selectFunction(index: number) {
+    this.selectedFunctionIndex.set(index);
+    const fn = this.all16Functions[index];
+    this.truthTable.set([...fn.truthTable]);
+    this.resetModel();
+  }
+
+  toggleTruthTableBit(index: number) {
+    this.truthTable.update((table) => {
+      const copy: [number, number, number, number] = [...table];
+      copy[index] = copy[index] === 1 ? 0 : 1;
+      return copy;
+    });
+
+    // Check if matching any of the 16 presets
+    const current = this.truthTable();
+    const matchIdx = this.all16Functions.findIndex(
+      (f) =>
+        f.truthTable[0] === current[0] &&
+        f.truthTable[1] === current[1] &&
+        f.truthTable[2] === current[2] &&
+        f.truthTable[3] === current[3]
+    );
+    if (matchIdx >= 0) {
+      this.selectedFunctionIndex.set(matchIdx);
+    }
+
+    this.resetModel();
+  }
+
+  resetModel() {
+    this.stopAutoTrain();
+    this.stepCount.set(0);
+    this.trainLossHistory.set([]);
+    this.trainAccHistory.set([]);
+
+    const model = new BBool2Learner(this.prime(), 'random');
+    this.learner.set(model);
+    this.trainTick.update((n) => n + 1);
+  }
+
+  // Systematic Parameter Initializations
+  initExactAlgebraic() {
+    this.stopAutoTrain();
+    const l = this.learner();
+    if (!l) return;
+    l.setExactSolutionForTruthTable(this.truthTable());
+    this.trainTick.update((n) => n + 1);
+  }
+
+  initZero() {
+    this.stopAutoTrain();
+    const l = this.learner();
+    if (!l) return;
+    l.setFromCoefficients(0, 0, 0, 0, -1.0);
+    this.trainTick.update((n) => n + 1);
+  }
+
+  initLinearOnly() {
+    this.stopAutoTrain();
+    const l = this.learner();
+    if (!l) return;
+    const coeffs = computeExactCoefficients(this.truthTable());
+    // Zero out the non-linear interaction term w3
+    l.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, 0, -1.0);
+    this.trainTick.update((n) => n + 1);
+  }
+
+  initPerturbed() {
+    this.stopAutoTrain();
+    const l = this.learner();
+    if (!l) return;
+    const coeffs = computeExactCoefficients(this.truthTable());
+    // Near the exact solution with slight perturbation
+    l.setFromCoefficients(
+      coeffs.b,
+      coeffs.w1,
+      coeffs.w2,
+      coeffs.w3,
+      0.0 // higher uncertainty radius
+    );
+    this.trainTick.update((n) => n + 1);
+  }
+
+  initRandom() {
+    this.stopAutoTrain();
+    const l = this.learner();
+    if (!l) return;
+    l.randomize(this.prime(), 3);
+    this.trainTick.update((n) => n + 1);
+  }
+
+  onParamEdit(event: { param: 'b' | 'w1' | 'w2' | 'w3'; center: Rational; rho: number }) {
+    const l = this.learner();
+    if (!l) return;
+    l[event.param] = { center: event.center, rho: event.rho };
+    this.trainTick.update((n) => n + 1);
+  }
+
+  onParamCenterDirectChange(param: 'b' | 'w1' | 'w2' | 'w3', valStr: string) {
+    const l = this.learner();
+    if (!l) return;
+    try {
+      const parsed = parsePadicOrRationalInput(valStr, BigInt(this.prime()));
+      l[param].center = parsed;
+      this.trainTick.update((n) => n + 1);
+    } catch {
+      // ignore
+    }
+  }
+
+  onParamRhoDirectChange(param: 'b' | 'w1' | 'w2' | 'w3', rhoVal: number) {
+    const l = this.learner();
+    if (!l) return;
+    l[param].rho = rhoVal;
+    this.trainTick.update((n) => n + 1);
+  }
+
+  stepTrain() {
+    const l = this.learner();
+    const data = this.dataset();
+    const cfg = this.modelConfig();
+    if (!l) return;
+
+    const res = l.trainBatch(data, cfg);
+    const nextStep = this.stepCount() + 1;
+    this.stepCount.set(nextStep);
+
+    this.trainLossHistory.update((h) => [...h, { x: nextStep, y: res.loss, name: 'Train Loss' }]);
+    this.trainAccHistory.update((h) => [...h, { x: nextStep, y: res.accuracy, name: 'Train Accuracy' }]);
+    this.trainTick.update((n) => n + 1);
+
+    if (res.accuracy >= 0.9999 && this.isAutoTraining()) {
+      this.stopAutoTrain();
+    }
+  }
+
+  trainSteps(count: number = 5) {
+    for (let i = 0; i < count; i++) {
+      this.stepTrain();
+      const lastAcc = this.trainAccHistory();
+      if (lastAcc.length > 0 && lastAcc[lastAcc.length - 1].y >= 0.9999) {
+        break;
+      }
+    }
+  }
+
+  toggleAutoTrain() {
+    if (this.isAutoTraining()) {
+      this.stopAutoTrain();
+    } else {
+      this.startAutoTrain();
+    }
+  }
+
+  startAutoTrain() {
+    this.isAutoTraining.set(true);
+    this.autoTrainInterval = setInterval(() => {
+      this.stepTrain();
+    }, 150);
+  }
+
+  stopAutoTrain() {
+    this.isAutoTraining.set(false);
+    if (this.autoTrainInterval) {
+      clearInterval(this.autoTrainInterval);
+      this.autoTrainInterval = null;
+    }
+  }
+
+  closePopup() {
+    this.activePopup.set(null);
+  }
+
+  togglePopup(id: string, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.activePopup() === id) {
+      this.activePopup.set(null);
+    } else {
+      this.activePopup.set(id);
+    }
+  }
+
+  parseNumberInput(val: string): number {
+    const normalized = (val || '').replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+}

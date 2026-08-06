@@ -1,0 +1,296 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="computation-tree-container">
+  <!-- Sample Selector Toolbar -->
+  <div class="tree-header-bar">
+    <div class="header-left">
+      <span class="bar-title">Interactive Computation DAG</span>
+      <span class="bar-formula"><markdown [inline]="true" [katex]="true" [data]="'$f(x_1, x_2) = b + w_1 x_1 + w_2 x_2 + w_3 x_1 x_2$'"></markdown></span>
+    </div>
+
+    <!-- Color Legend for Node Operations -->
+    <div class="tree-legend-row">
+      <span class="legend-chip chip-input"><span class="dot"></span> Input (xᵢ)</span>
+      <span class="legend-chip chip-param"><span class="dot"></span> Parameter (b, wᵢ)</span>
+      <span class="legend-chip chip-multiplication"><span class="dot"></span> Multiplication (·)</span>
+      <span class="legend-chip chip-addition"><span class="dot"></span> Addition (∑)</span>
+      <span class="legend-chip chip-loss"><span class="dot"></span> Loss</span>
+    </div>
+
+    <!-- Active Sample Selector Bar & Backprop Toggle -->
+    <div class="tree-controls-group">
+      <div class="sample-selector-bar">
+        <span class="sample-prompt">Sample $(x_1, x_2)$:</span>
+        <div class="sample-pill-group">
+          <button
+            mat-button
+            class="sample-pill-btn"
+            [class.active-sample]="activeSample()[0] === 0 && activeSample()[1] === 0"
+            (click)="selectSample(0, 0)"
+          >
+            (0, 0)
+          </button>
+          <button
+            mat-button
+            class="sample-pill-btn"
+            [class.active-sample]="activeSample()[0] === 0 && activeSample()[1] === 1"
+            (click)="selectSample(0, 1)"
+          >
+            (0, 1)
+          </button>
+          <button
+            mat-button
+            class="sample-pill-btn"
+            [class.active-sample]="activeSample()[0] === 1 && activeSample()[1] === 0"
+            (click)="selectSample(1, 0)"
+          >
+            (1, 0)
+          </button>
+          <button
+            mat-button
+            class="sample-pill-btn"
+            [class.active-sample]="activeSample()[0] === 1 && activeSample()[1] === 1"
+            (click)="selectSample(1, 1)"
+          >
+            (1, 1)
+          </button>
+        </div>
+      </div>
+
+      <!-- Backprop Flow Toggle Button -->
+      <button
+        mat-stroked-button
+        class="backprop-toggle-btn"
+        [class.active-toggle]="showBackprop()"
+        (click)="showBackprop.set(!showBackprop())"
+        matTooltip="Show gradient backpropagation paths (◄ ∇) and parameter update targets for the active sample"
+      >
+        <mat-icon>alt_route</mat-icon>
+        <span>{{ showBackprop() ? 'Gradient Flow: ON' : 'Gradient Flow: OFF' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Tree SVG Area -->
+  <div class="svg-viewport">
+    <svg viewBox="0 0 1120 720" class="tree-svg" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <!-- Gradients -->
+        <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#94a3b8" stop-opacity="0.6" />
+          <stop offset="100%" stop-color="#64748b" stop-opacity="0.9" />
+        </linearGradient>
+
+        <linearGradient id="backpropGrad" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#ec4899" />
+          <stop offset="100%" stop-color="#8b5cf6" />
+        </linearGradient>
+
+        <filter id="nodeGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.08" />
+        </filter>
+
+        <filter id="selectedGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#a855f7" flood-opacity="0.4" />
+        </filter>
+      </defs>
+
+      <!-- Connecting Edges -->
+      <g class="edges-layer">
+        @for (edge of edges; track edge.id) {
+          <path
+            [attr.d]="edge.pathD"
+            class="tree-edge-line"
+            [class.edge-selected]="selectedNodeId() === edge.from || selectedNodeId() === edge.to"
+            [class.edge-backprop-active]="isEdgeBackpropActive(edge.id)"
+          />
+
+          <!-- Backprop Gradient Marker on Active Edges -->
+          @if (isEdgeBackpropActive(edge.id)) {
+            <g class="backprop-marker-group" [attr.transform]="'translate(' + edge.badgeX + ',' + edge.badgeY + ')'">
+              <circle r="9" class="backprop-marker-bg" />
+              <text y="3" text-anchor="middle" class="backprop-marker-arrow">◄</text>
+            </g>
+          }
+        }
+      </g>
+
+      <!-- Tree Nodes with Embedded Interactive Berkovich Digit Displays -->
+      <g class="nodes-layer">
+        @for (node of nodes; track node.id) {
+          <foreignObject
+            [attr.x]="node.x - node.width/2"
+            [attr.y]="node.y - node.height/2"
+            [attr.width]="node.width"
+            [attr.height]="node.height"
+            class="tree-node-foreign"
+          >
+            <div
+              xmlns="http://www.w3.org/1999/xhtml"
+              class="tree-node-card"
+              [class.node-selected]="selectedNodeId() === node.id"
+              [class.node-input]="node.category === 'input'"
+              [class.node-param]="node.category === 'param'"
+              [class.node-multiplication]="node.category === 'multiplication'"
+              [class.node-addition]="node.category === 'addition'"
+              [class.node-loss]="node.category === 'loss'"
+              (click)="selectNode(node.id)"
+            >
+              <!-- Top Node Header Line -->
+              <div class="node-header-row">
+                <span class="node-title-lbl">{{ node.label }}</span>
+                <span class="node-cat-dot"></span>
+              </div>
+
+              <!-- Node Body: Digit Display or Loss Content -->
+              @if (node.id === 'target_loss') {
+                <div class="node-loss-content">
+                  <div class="loss-target-chip">Target $y = {{ target() }}$</div>
+                  <div class="loss-prob-stat">
+                    <span>$P(y=1)$: <strong>{{ ((currentForward()?.probs?.[1] ?? 0) * 100) | number:'1.0-0' }}%</strong></span>
+                  </div>
+                  <div class="loss-number-tag">
+                    Loss: <strong>{{ (currentForward()?.loss ?? 0) | number:'1.3-3' }}</strong>
+                  </div>
+                </div>
+              } @else if (getNodeDisk(node.id); as disk) {
+                <div class="node-embedded-digits">
+                  <app-berkovich-digit-display
+                    [center]="disk.center"
+                    [rho]="disk.rho"
+                    [prime]="config().prime"
+                    [digitsLeft]="config().digitsLeft"
+                    [digitsRight]="config().digitsRight"
+                    [scale]="0.72"
+                    rhoLabelPosition="above"
+                    [editableCenter]="isParamNode(node.id) || isInputNode(node.id)"
+                    [editableRho]="isParamNode(node.id)"
+                    (centerChange)="onNodeCenterChange(node.id, $event)"
+                    (rhoChange)="onNodeRhoChange(node.id, $event)"
+                  ></app-berkovich-digit-display>
+                </div>
+
+                <!-- Weight Gradient Backprop Indicator -->
+                @if (isParamNode(node.id) && showBackprop()) {
+                  @let grad = getWeightGradientInfo($any(node.id));
+                  <div class="node-grad-badge" [class.active-grad]="grad.active">
+                    @if (grad.active) {
+                      <span>∇ $y_{{ node.id }} \to {{ grad.targetStr }}$</span>
+                    } @else {
+                      <span class="inactive-text">∇ Inactive</span>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </foreignObject>
+        }
+      </g>
+    </svg>
+  </div>
+
+  <!-- Selected Node Detail Inspector Card -->
+  @if (selectedNodeId(); as selId) {
+    <div class="node-inspector-card">
+      <div class="inspector-header">
+        <div class="inspector-title-row">
+          <mat-icon class="inspector-icon">
+            @switch (selId) {
+              @case ('x1') { input }
+              @case ('x2') { input }
+              @case ('b') { tune }
+              @case ('w1') { tune }
+              @case ('w2') { tune }
+              @case ('w3') { tune }
+              @case ('p12') { close }
+              @case ('t1') { close }
+              @case ('t2') { close }
+              @case ('t3') { close }
+              @case ('f_out') { add_circle }
+              @case ('target_loss') { check_circle }
+            }
+          </mat-icon>
+          <div>
+            <h4>Node: {{ selId }}</h4>
+            <span class="inspector-sub">
+              @for (n of nodes; track n.id) {
+                @if (n.id === selId) {
+                  {{ n.sublabel }} — <markdown [inline]="true" [katex]="true" [data]="'$' + n.formula + '$'"></markdown>
+                }
+              }
+            </span>
+          </div>
+        </div>
+
+        @if (isParamNode(selId)) {
+          <span class="param-badge">Trainable Parameter (Edit in Graph)</span>
+        }
+      </div>
+
+      <div class="inspector-body">
+        <!-- Digit Display Preview -->
+        @if (getNodeDisk(selId); as disk) {
+          <div class="digit-display-wrapper">
+            <div class="digit-title-row">
+              <span class="seq-label">p-adic Digit Expansion &amp; Radius:</span>
+              <span class="rational-badge">{{ disk.center.num }}/{{ disk.center.den }}</span>
+            </div>
+            <app-berkovich-digit-display
+              [center]="disk.center"
+              [rho]="disk.rho"
+              [prime]="config().prime"
+              [digitsLeft]="config().digitsLeft"
+              [digitsRight]="config().digitsRight"
+              [scale]="0.95"
+              rhoLabelPosition="above"
+              [editableCenter]="isParamNode(selId) || isInputNode(selId)"
+              [editableRho]="isParamNode(selId)"
+              (centerChange)="onNodeCenterChange(selId, $event)"
+              (rhoChange)="onNodeRhoChange(selId, $event)"
+            ></app-berkovich-digit-display>
+          </div>
+        }
+
+        <!-- 4-Input Truth Table Trace for this node -->
+        <div class="node-truth-trace">
+          <span class="trace-title">Values across all 4 input combinations:</span>
+          <div class="trace-table">
+            <div class="trace-header">
+              <span>(x₁, x₂)</span>
+              <span>Center c</span>
+              <span>Radius ρ</span>
+              <span>Value in Q_p</span>
+            </div>
+            @for (fwdSample of allSamplesForward(); track fwdSample.inputs.join(',')) {
+              @if (getNodeDisk(selId, fwdSample); as sampleDisk) {
+                <div
+                  class="trace-row"
+                  [class.row-active]="activeSample()[0] === fwdSample.inputs[0] && activeSample()[1] === fwdSample.inputs[1]"
+                  (click)="selectSample(fwdSample.inputs[0], fwdSample.inputs[1])"
+                >
+                  <span class="col-inp">({{ fwdSample.inputs[0] }}, {{ fwdSample.inputs[1] }})</span>
+                  <span class="col-center">{{ sampleDisk.center.num }}/{{ sampleDisk.center.den }}</span>
+                  <span class="col-rho">{{ sampleDisk.rho | number:'1.1-1' }}</span>
+                  <span class="col-digits">{{ sampleDisk.center.num }}/{{ sampleDisk.center.den }} (ρ={{ sampleDisk.rho.toFixed(1) }})</span>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
