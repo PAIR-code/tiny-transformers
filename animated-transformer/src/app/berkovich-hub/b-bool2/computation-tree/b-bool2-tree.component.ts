@@ -465,16 +465,28 @@ export class BBool2TreeComponent {
     let targetParam: Rational = { num: 0n, den: 1n };
 
     if (param === 'b') {
-      active = (x1 === 0 && x2 === 0);
-      targetParam = targetRational;
+      active = true; // b always contributes to f(x1, x2) because d(f)/db = 1
+      let otherTerms: Rational = { num: 0n, den: 1n };
+      if (x1 === 1) otherTerms = add(otherTerms, l.w1.center);
+      if (x2 === 1) otherTerms = add(otherTerms, l.w2.center);
+      if (x1 === 1 && x2 === 1) otherTerms = add(otherTerms, l.w3.center);
+      targetParam = subtract(targetRational, otherTerms);
     } else if (param === 'w1') {
-      active = (x1 === 1 && x2 === 0);
-      targetParam = subtract(targetRational, l.b.center);
+      active = x1 === 1; // d(f)/dw1 = x1
+      let otherTerms: Rational = l.b.center;
+      if (x2 === 1) {
+        otherTerms = add(add(otherTerms, l.w2.center), l.w3.center);
+      }
+      targetParam = subtract(targetRational, otherTerms);
     } else if (param === 'w2') {
-      active = (x1 === 0 && x2 === 1);
-      targetParam = subtract(targetRational, l.b.center);
+      active = x2 === 1; // d(f)/dw2 = x2
+      let otherTerms: Rational = l.b.center;
+      if (x1 === 1) {
+        otherTerms = add(add(otherTerms, l.w1.center), l.w3.center);
+      }
+      targetParam = subtract(targetRational, otherTerms);
     } else if (param === 'w3') {
-      active = (x1 === 1 && x2 === 1);
+      active = x1 === 1 && x2 === 1; // d(f)/dw3 = x1*x2
       const sumLinear = add(add(l.b.center, l.w1.center), l.w2.center);
       targetParam = subtract(targetRational, sumLinear);
     }
@@ -484,8 +496,8 @@ export class BBool2TreeComponent {
 
     return {
       active,
-      nextCenter: (active && this.showBackprop()) ? details.nextCenter : undefined,
-      nextRho: (active && this.showBackprop()) ? details.nextLogRadius : undefined,
+      nextCenter: active && this.showBackprop() ? details.nextCenter : undefined,
+      nextRho: active && this.showBackprop() ? details.nextLogRadius : undefined,
       targetRational: targetParam,
       loss: details.loss,
       stepType: details.stepType
@@ -497,18 +509,16 @@ export class BBool2TreeComponent {
     const [x1, x2] = this.activeSample();
 
     if (edgeId === 'f_out->target_loss') return true;
+    if (edgeId === 'b->f_out') return true; // b always contributes to f_out
 
-    if (x1 === 0 && x2 === 0) {
-      return edgeId === 'b->f_out';
+    if (x1 === 1 && (edgeId === 't1->f_out' || edgeId === 'w1->t1')) {
+      return true;
     }
-    if (x1 === 1 && x2 === 0) {
-      return edgeId === 't1->f_out' || edgeId === 'w1->t1';
+    if (x2 === 1 && (edgeId === 't2->f_out' || edgeId === 'w2->t2')) {
+      return true;
     }
-    if (x1 === 0 && x2 === 1) {
-      return edgeId === 't2->f_out' || edgeId === 'w2->t2';
-    }
-    if (x1 === 1 && x2 === 1) {
-      return edgeId === 't3->f_out' || edgeId === 'w3->t3';
+    if (x1 === 1 && x2 === 1 && (edgeId === 't3->f_out' || edgeId === 'w3->t3')) {
+      return true;
     }
     return false;
   }

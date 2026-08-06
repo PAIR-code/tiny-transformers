@@ -496,42 +496,60 @@ export class BBool2Learner {
     if (stepScale > 1e-6) {
       const effLr = Math.max(0.25, lr * (target === 1 ? Math.abs(g1) : Math.abs(g0)));
 
-      // 1. When (0, 0): bias b target is y
-      if (x1_val < 0.5 && x2_val < 0.5) {
-        if (updateCenters || updateRadii) {
-          const targetB = targetRational;
-          const detailsB = computeGradientDetails(this.b.center, this.b.rho, targetB, -2, p, effLr);
-          if (updateCenters) this.b.center = detailsB.nextCenter;
-          if (updateRadii) this.b.rho = Math.max(-4, Math.min(2, detailsB.nextLogRadius - lr * reg));
-        }
+      // Count active contributing parameters for this sample to distribute step
+      const isX1 = x1_val > 0.5;
+      const isX2 = x2_val > 0.5;
+      const isX1X2 = isX1 && isX2;
+      const numActive = 1 + (isX1 ? 1 : 0) + (isX2 ? 1 : 0) + (isX1X2 ? 1 : 0);
+      const paramLr = effLr / numActive;
+
+      // 1. Bias b is active for ALL samples because d(f)/db = 1
+      if (updateCenters || updateRadii) {
+        let otherTerms: Rational = { num: 0n, den: 1n };
+        if (isX1) otherTerms = add(otherTerms, this.w1.center);
+        if (isX2) otherTerms = add(otherTerms, this.w2.center);
+        if (isX1X2) otherTerms = add(otherTerms, this.w3.center);
+        const targetB = subtract(targetRational, otherTerms);
+
+        const detailsB = computeGradientDetails(this.b.center, this.b.rho, targetB, -2, p, paramLr);
+        if (updateCenters) this.b.center = detailsB.nextCenter;
+        if (updateRadii) this.b.rho = Math.max(-4, Math.min(2, detailsB.nextLogRadius - lr * reg));
       }
 
-      // 2. When (1, 0): w1 target is y - b
-      if (x1_val > 0.5 && x2_val < 0.5) {
+      // 2. Weight w1 is active whenever x1 = 1 (d(f)/dw1 = x1)
+      if (isX1) {
         if (updateCenters || updateRadii) {
-          const targetW1 = subtract(targetRational, this.b.center);
-          const detailsW1 = computeGradientDetails(this.w1.center, this.w1.rho, targetW1, -2, p, effLr);
+          let otherTerms: Rational = this.b.center;
+          if (isX2) {
+            otherTerms = add(add(otherTerms, this.w2.center), this.w3.center);
+          }
+          const targetW1 = subtract(targetRational, otherTerms);
+          const detailsW1 = computeGradientDetails(this.w1.center, this.w1.rho, targetW1, -2, p, paramLr);
           if (updateCenters) this.w1.center = detailsW1.nextCenter;
           if (updateRadii) this.w1.rho = Math.max(-4, Math.min(2, detailsW1.nextLogRadius - lr * reg));
         }
       }
 
-      // 3. When (0, 1): w2 target is y - b
-      if (x1_val < 0.5 && x2_val > 0.5) {
+      // 3. Weight w2 is active whenever x2 = 1 (d(f)/dw2 = x2)
+      if (isX2) {
         if (updateCenters || updateRadii) {
-          const targetW2 = subtract(targetRational, this.b.center);
-          const detailsW2 = computeGradientDetails(this.w2.center, this.w2.rho, targetW2, -2, p, effLr);
+          let otherTerms: Rational = this.b.center;
+          if (isX1) {
+            otherTerms = add(add(otherTerms, this.w1.center), this.w3.center);
+          }
+          const targetW2 = subtract(targetRational, otherTerms);
+          const detailsW2 = computeGradientDetails(this.w2.center, this.w2.rho, targetW2, -2, p, paramLr);
           if (updateCenters) this.w2.center = detailsW2.nextCenter;
           if (updateRadii) this.w2.rho = Math.max(-4, Math.min(2, detailsW2.nextLogRadius - lr * reg));
         }
       }
 
-      // 4. When (1, 1): w3 target is y - (b + w1 + w2)
-      if (x1_val > 0.5 && x2_val > 0.5) {
+      // 4. Weight w3 is active whenever x1 = 1 AND x2 = 1 (d(f)/dw3 = x1*x2)
+      if (isX1X2) {
         if (updateCenters || updateRadii) {
           const sumLinear = add(add(this.b.center, this.w1.center), this.w2.center);
           const targetW3 = subtract(targetRational, sumLinear);
-          const detailsW3 = computeGradientDetails(this.w3.center, this.w3.rho, targetW3, -2, p, effLr);
+          const detailsW3 = computeGradientDetails(this.w3.center, this.w3.rho, targetW3, -2, p, paramLr);
           if (updateCenters) this.w3.center = detailsW3.nextCenter;
           if (updateRadii) this.w3.rho = Math.max(-4, Math.min(2, detailsW3.nextLogRadius - lr * reg));
         }
