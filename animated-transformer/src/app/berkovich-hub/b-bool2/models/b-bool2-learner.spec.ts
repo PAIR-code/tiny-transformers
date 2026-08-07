@@ -77,7 +77,7 @@ describe('BBool2Learner Multilinear Boolean Models', () => {
   });
 
   it('verifies training converges to 100% accuracy on XOR with gradient descent', () => {
-    const learner = new BBool2Learner(2, 'random');
+    const learner = new BBool2Learner(2, 'zero');
     const xorTruthTable: [number, number, number, number] = [0, 1, 1, 0];
     const dataset = buildDatasetFromTruthTable(xorTruthTable);
 

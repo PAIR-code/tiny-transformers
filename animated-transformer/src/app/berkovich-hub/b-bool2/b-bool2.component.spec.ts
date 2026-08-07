@@ -60,9 +60,10 @@ describe('BBool2Component', () => {
     expect(component.truthTable()).toEqual([0, 1, 1, 0]);
   });
 
-  it('should set exact algebraic solution for current circuit', () => {
+  it('should set exact algebraic solution for current circuit and update sticky preset', () => {
     component.selectFunction(6); // XOR
     component.initExactAlgebraic();
+    expect(component.selectedPreset()).toBe('exact');
 
     const learner = component.learner();
     expect(learner).toBeTruthy();

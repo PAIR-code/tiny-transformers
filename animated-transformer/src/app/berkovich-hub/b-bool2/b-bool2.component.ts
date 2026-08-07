@@ -79,6 +79,7 @@ export class BBool2Component implements OnInit, OnDestroy {
   readonly formatCenter = formatRational;
   readonly all16Functions = ALL_16_BOOLEAN_FUNCTIONS;
   readonly selectedFunctionIndex = signal<number>(6); // Default: XOR (index 6)
+  readonly selectedPreset = signal<'exact' | 'zero' | 'linear' | 'perturbed' | 'random' | null>('exact');
 
   readonly truthTable = signal<[number, number, number, number]>([0, 1, 1, 0]);
   readonly dataset = computed<BooleanSample[]>(() => buildDatasetFromTruthTable(this.truthTable()));
@@ -246,7 +247,7 @@ Evaluating the system of 4 linear equations at the corners yields unique integer
 
 ---
 
-#### 2. Why $p$-adic Digits & Berkovich Disks? (Addressing Q1)
+#### 2. Why $p$-adic Digits & Berkovich Disks?
 In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
 * Negative numbers have infinite digit representations:
   * $-1 = \\dots 111_2 = \\sum_{k=0}^\\infty 2^k$
@@ -258,6 +259,36 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
   * A Berkovich disk $(c, \\rho)$ represents a ball $\\bar{D}(c, p^\\rho)$.
   * When $\\rho$ is large (e.g. $\\rho=0$), higher digits are uncertain, allowing smooth gradient exploration across branches.
   * As gradient descent steps proceed, $\\rho$ shrinks (e.g. $\\rho \\to -2$), sharpening parameters to exact $p$-adic coordinates.
+
+---
+
+#### 3. How the % Probability Estimate ($P_1$) is Computed from Tree Path-Loss
+In the **Target & Path Loss** node, the model evaluates how close the computed disk $f(x_1, x_2)$ is to target outputs $0 \\in \\mathbb{Q}_p$ and $1 \\in \\mathbb{Q}_p$:
+1. **Tree Metric Distances:**
+   Let $d_{\\text{tree}}(f, 0)$ and $d_{\\text{tree}}(f, 1)$ denote the ultrametric tree path distances on the Berkovich projective tree $\\mathbf{P}^1_{\\text{Berk}}(\\mathbb{Q}_p)$.
+   If $f(x_1, x_2)$ and a target point share $k$ matching $p$-adic digits, their least common ancestor in the tree is at depth $k$, with geodesic path distance:
+   $$d_{\\text{tree}}(f, y) = (\\rho_f - (-k)) + (\\rho_y - (-k)) = \\rho_f + \\rho_y + 2k$$
+2. **Softmax Probabilities ($P_1$):**
+   Using temperature parameter $\\beta$, logit energies $\\ell_0 = -d_{\\text{tree}}(f, 0)$ and $\\ell_1 = -d_{\\text{tree}}(f, 1)$ are converted to classification probabilities:
+   $$P(y=1 \\mid x_1, x_2) = \\frac{e^{-\\beta \\cdot d_{\\text{tree}}(f, 1)}}{e^{-\\beta \\cdot d_{\\text{tree}}(f, 0)} + e^{-\\beta \\cdot d_{\\text{tree}}(f, 1)}} = \\frac{1}{1 + e^{\\beta (d_{\\text{tree}}(f, 1) - d_{\\text{tree}}(f, 0))}}$$
+   * When $f(x_1, x_2)$ is closer to $1$ than $0$ in the tree ($d_{\\text{tree}}(f, 1) < d_{\\text{tree}}(f, 0)$), the probability $P(y=1)$ exceeds $50\\%$.
+   * As parameter optimization aligns additional $p$-adic digits, $P(y=1)$ rapidly saturates to $100\\%$ (e.g. $95\\% - 99\\%$).
+
+---
+
+#### 4. Parameter Initializations & Why to Use Each
+
+The **Parameter Presets & Actions** panel provides 5 canonical starting configurations:
+* **Exact Target:** Calculates the exact Fourier/multilinear coefficients ($b, w_1, w_2, w_3$) directly from the truth table.
+  * *Why use it:* Instantly test the ground-truth global optimum (100% accuracy, near-zero loss) and inspect the canonical $p$-adic digit expansions for this circuit.
+* **Zero Init ($b=w_i=0$):** Sets all 4 parameters to $0 \\in \\mathbb{Q}_p$.
+  * *Why use it:* Tests if gradient descent can discover the non-linear interaction term $w_3$ and linear weights starting from a completely blank baseline without prior bias.
+* **Linear Only ($w_3 = 0$):** Sets linear weights ($b, w_1, w_2$) to their best linear values while freezing the interaction term $w_3 = 0$.
+  * *Why use it:* Demonstrates the classical Minsky-Papert linear separability barrier on non-linear gates (e.g. XOR achieves at most 75% accuracy) and proves why the interaction term $w_3 x_1 x_2$ is mathematically required.
+* **Perturbed:** Sets parameter centers to the exact algebraic solution but assigns a broad uncertainty radius ($\\rho = 0.0$).
+  * *Why use it:* Visualizes how Berkovich disk radii soften the 2D decision boundary and observes how optimization contracts radii ($\\rho \\to -2$) into sharp discrete points.
+* **Randomize:** Generates pseudo-random $p$-adic disks in $\\mathcal{B}(\\mathbb{Q}_p)$ across all parameters.
+  * *Why use it:* Validates general optimization robustness, testing whether gradient descent reliably converges to 100% accuracy from arbitrary initial configurations.
 `;
 
   ngOnInit(): void {
@@ -272,6 +303,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     this.selectedFunctionIndex.set(index);
     const fn = this.all16Functions[index];
     this.truthTable.set([...fn.truthTable]);
+    this.selectedPreset.set('random');
     this.resetModel();
   }
 
@@ -295,6 +327,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
       this.selectedFunctionIndex.set(matchIdx);
     }
 
+    this.selectedPreset.set('random');
     this.resetModel();
   }
 
@@ -315,6 +348,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     const l = this.learner();
     if (!l) return;
     l.setExactSolutionForTruthTable(this.truthTable());
+    this.selectedPreset.set('exact');
     this.trainTick.update((n) => n + 1);
   }
 
@@ -323,6 +357,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     const l = this.learner();
     if (!l) return;
     l.setFromCoefficients(0, 0, 0, 0, -1.0);
+    this.selectedPreset.set('zero');
     this.trainTick.update((n) => n + 1);
   }
 
@@ -333,6 +368,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     const coeffs = computeExactCoefficients(this.truthTable());
     // Zero out the non-linear interaction term w3
     l.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, 0, -1.0);
+    this.selectedPreset.set('linear');
     this.trainTick.update((n) => n + 1);
   }
 
@@ -349,6 +385,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
       coeffs.w3,
       0.0 // higher uncertainty radius
     );
+    this.selectedPreset.set('perturbed');
     this.trainTick.update((n) => n + 1);
   }
 
@@ -357,6 +394,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     const l = this.learner();
     if (!l) return;
     l.randomize(this.prime(), 3);
+    this.selectedPreset.set('random');
     this.trainTick.update((n) => n + 1);
   }
 
@@ -364,6 +402,7 @@ In $p$-adic fields $\\mathbb{Q}_p$ (e.g. $p=2$):
     const l = this.learner();
     if (!l) return;
     l[event.param] = { center: event.center, rho: event.rho };
+    this.selectedPreset.set(null);
     this.trainTick.update((n) => n + 1);
   }
 

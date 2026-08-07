@@ -233,10 +233,14 @@ limitations under the License.
 
     &.btn-exact {
       grid-column: span 2;
-      border-color: #8b5cf6;
-      color: #7c3aed;
-      background: #faf5ff;
-      font-weight: 700;
+    }
+
+    &.active-preset {
+      background: #ede9fe !important;
+      border-color: #7c3aed !important;
+      color: #6d28d9 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35) !important;
     }
   }
 }

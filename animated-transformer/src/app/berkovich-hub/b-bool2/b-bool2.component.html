@@ -86,6 +86,7 @@ limitations under the License.
           <button
             mat-stroked-button
             class="init-btn btn-exact"
+            [class.active-preset]="selectedPreset() === 'exact'"
             (click)="initExactAlgebraic()"
             matTooltip="Set exact algebraic Fourier coefficients for current truth table"
           >
@@ -95,6 +96,7 @@ limitations under the License.
           <button
             mat-stroked-button
             class="init-btn"
+            [class.active-preset]="selectedPreset() === 'zero'"
             (click)="initZero()"
             matTooltip="Set all parameters to 0"
           >
@@ -104,6 +106,7 @@ limitations under the License.
           <button
             mat-stroked-button
             class="init-btn"
+            [class.active-preset]="selectedPreset() === 'linear'"
             (click)="initLinearOnly()"
             matTooltip="Set w3=0 (linear only) to test non-linear separability"
           >
@@ -113,6 +116,7 @@ limitations under the License.
           <button
             mat-stroked-button
             class="init-btn"
+            [class.active-preset]="selectedPreset() === 'perturbed'"
             (click)="initPerturbed()"
             matTooltip="Initialize near the exact solution with uncertainty radius"
           >
@@ -122,6 +126,7 @@ limitations under the License.
           <button
             mat-stroked-button
             class="init-btn"
+            [class.active-preset]="selectedPreset() === 'random'"
             (click)="initRandom()"
             matTooltip="Randomize all parameters in Q_p"
           >
