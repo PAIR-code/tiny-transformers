@@ -74,7 +74,7 @@ export interface EncodingTreeEdge {
             [digitsLeft]="0"
             [digitsRight]="depth() * 2"
             outerBoxColor="#2563eb"
-            [rhoLabelPosition]="useRhoNormalization() ? 'above' : 'none'"
+            [rhoLabelPosition]="useRhoNormalization() ? 'below' : 'none'"
             [editableCenter]="true"
             [editableRho]="useRhoNormalization()"
             (centerChange)="centerChange.emit($event)"
@@ -97,7 +97,7 @@ export interface EncodingTreeEdge {
       margin: 0 auto;
       position: relative;
       overflow-x: visible;
-      padding-bottom: 50px;
+      padding-bottom: 62px;
 
       .tree-svg {
         width: 100%;
@@ -109,7 +109,7 @@ export interface EncodingTreeEdge {
 
       .movable-digit-display {
         position: absolute;
-        bottom: 2px;
+        bottom: 0px;
         transform: translateX(-50%);
         transition: left 0.12s ease-out;
         z-index: 10;

@@ -23,10 +23,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MarkdownComponent } from 'ngx-markdown';
 
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
-import { BerkovichDigitDisplayComponent } from '../berkovich-digit-display/berkovich-digit-display.component';
 import { BerkovichEncodingTreeVisComponent } from './berkovich-encoding-tree-vis.component';
 import { Rational, formatRational } from '../../../lib/berkovich/berkovich';
 import {
@@ -45,6 +47,9 @@ export type { BinarySearchStep };
     FormsModule,
     MatButtonModule,
     MatIconModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatCheckboxModule,
     MarkdownComponent,
     BerkovichHeaderComponent,
     BerkovichEncodingTreeVisComponent

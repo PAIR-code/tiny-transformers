@@ -122,8 +122,8 @@ export class BerkovichHubComponent {
       themeClass: 'group-tools',
       cards: [
         {
-          title: '2-adic Binary Search Encoding',
-          description: 'Encode bounded real values in [0, 1] into Berkovich tree points using interval halving binary search.',
+          title: 'Berkovich Extended Monna Mapping',
+          description: 'Encode bounded real values in [0, 1] into Berkovich tree points using interval halving binary search and Monna decoding.',
           route: '/berkovich/encoding',
           icon: 'sync_alt',
         },

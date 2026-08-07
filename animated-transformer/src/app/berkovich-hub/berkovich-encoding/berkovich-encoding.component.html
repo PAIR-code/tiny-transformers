@@ -15,7 +15,7 @@ limitations under the License.
 
 <div class="berkovich-page-container">
   <app-berkovich-header
-    title="Berkovich Extended Monna Mapping & 2-adic Encoding"
+    title="Berkovich Extended Monna Mapping"
     subtitle="Encoding continuous real values $x \in [0, 1]$ into $p$-adic tree nodes ($\mathbb{R} \to \mathbb{Q}_p$) and decoding $p$-adic digits back to regularized real intervals ($\mathbb{Q}_p \to \mathbb{R}$)."
   ></app-berkovich-header>
 
@@ -29,28 +29,24 @@ limitations under the License.
         </div>
 
         <div class="header-actions">
-          <label class="checkbox-label">
-            <input
-              type="checkbox"
-              [checked]="useRhoNormalization()"
-              (change)="setUseRhoNormalization($any($event.target).checked)"
-            />
-            <span class="checkbox-text">use rho normalization</span>
-          </label>
+          <mat-checkbox
+            [checked]="useRhoNormalization()"
+            (change)="setUseRhoNormalization($event.checked)"
+            color="primary"
+          >
+            use rho normalization
+          </mat-checkbox>
 
-          <div class="precision-depth-controls">
-            <label for="depth-select">Depth (K):</label>
-            <select
-              id="depth-select"
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="depth-form-field">
+            <mat-label>Depth (k)</mat-label>
+            <mat-select
               [value]="depth()"
-              (change)="onDepthChange(+$any($event.target).value)"
+              (selectionChange)="onDepthChange($event.value)"
             >
-              <option [value]="1">K = 1 (2 Digits)</option>
-              <option [value]="2">K = 2 (4 Digits, Std)</option>
-              <option [value]="3">K = 3 (6 Digits)</option>
-              <option [value]="4">K = 4 (8 Digits)</option>
-            </select>
-          </div>
+              <mat-option [value]="2">k = 4 (4 Digits)</mat-option>
+              <mat-option [value]="1">k = 2 (2 Digits)</mat-option>
+            </mat-select>
+          </mat-form-field>
         </div>
       </div>
 
