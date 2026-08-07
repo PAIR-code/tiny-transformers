@@ -63,7 +63,8 @@ export class BerkovichHeaderComponent {
     return (
       url.includes('/berkovich/mnist') ||
       url.includes('/berkovich/shakespeare') ||
-      url.includes('/berkovich/boolean')
+      url.includes('/berkovich/boolean') ||
+      url.includes('/berkovich/bool2')
     );
   });
 

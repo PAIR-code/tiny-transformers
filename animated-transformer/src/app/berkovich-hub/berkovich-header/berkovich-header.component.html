@@ -77,6 +77,14 @@ limitations under the License.
       </button>
       <mat-menu #appsMenu="matMenu" class="berkovich-nav-menu">
         <div class="menu-header-label">Applications</div>
+        <button mat-menu-item routerLink="/berkovich/bool2" routerLinkActive="active-menu-item">
+          <mat-icon>account_tree</mat-icon>
+          <span>Boolean Multilinear</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
+          <mat-icon>alt_route</mat-icon>
+          <span>Boolean Affinoid</span>
+        </button>
         <button mat-menu-item routerLink="/berkovich/mnist" routerLinkActive="active-menu-item">
           <mat-icon>grid_on</mat-icon>
           <span>MNIST Classifier</span>
@@ -84,10 +92,6 @@ limitations under the License.
         <button mat-menu-item routerLink="/berkovich/shakespeare" routerLinkActive="active-menu-item">
           <mat-icon>explore</mat-icon>
           <span>Shakespeare Predictor</span>
-        </button>
-        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
-          <mat-icon>alt_route</mat-icon>
-          <span>Boolean Circuits</span>
         </button>
       </mat-menu>
 
@@ -196,17 +200,21 @@ limitations under the License.
           <mat-icon>sync_alt</mat-icon>
           <span>Encoding</span>
         </button>
-        <button mat-menu-item routerLink="/berkovich/shakespeare" routerLinkActive="active-menu-item">
-          <mat-icon>explore</mat-icon>
-          <span>Shakespeare Predictor</span>
+        <button mat-menu-item routerLink="/berkovich/bool2" routerLinkActive="active-menu-item">
+          <mat-icon>account_tree</mat-icon>
+          <span>Boolean Multilinear</span>
+        </button>
+        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
+          <mat-icon>alt_route</mat-icon>
+          <span>Boolean Affinoid</span>
         </button>
         <button mat-menu-item routerLink="/berkovich/mnist" routerLinkActive="active-menu-item">
           <mat-icon>grid_on</mat-icon>
           <span>MNIST Classifier</span>
         </button>
-        <button mat-menu-item routerLink="/berkovich/boolean" routerLinkActive="active-menu-item">
-          <mat-icon>alt_route</mat-icon>
-          <span>Boolean Circuits</span>
+        <button mat-menu-item routerLink="/berkovich/shakespeare" routerLinkActive="active-menu-item">
+          <mat-icon>explore</mat-icon>
+          <span>Shakespeare Predictor</span>
         </button>
         <button mat-menu-item routerLink="/berkovich/glossary" routerLinkActive="active-menu-item">
           <mat-icon>menu_book</mat-icon>

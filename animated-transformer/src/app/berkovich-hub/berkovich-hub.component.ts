@@ -89,10 +89,16 @@ export class BerkovichHubComponent {
       themeClass: 'group-apps',
       cards: [
         {
-          title: 'Shakespeare Predictor',
-          description: 'Train a character-level model on Shakespeare in the browser with learned Berkovich embeddings.',
-          route: '/berkovich/shakespeare',
-          icon: 'explore',
+          title: 'Boolean Multilinear',
+          description: 'Explore all 16 two-variable Boolean circuits using multilinear formulation f(x₁, x₂) = b + w₁x₁ + w₂x₂ + w₃x₁x₂ in Berkovich space.',
+          route: '/berkovich/bool2',
+          icon: 'account_tree',
+        },
+        {
+          title: 'Boolean Affinoid',
+          description: 'Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools.',
+          route: '/berkovich/boolean',
+          icon: 'alt_route',
         },
         {
           title: 'MNIST Digit Classifier',
@@ -101,16 +107,10 @@ export class BerkovichHubComponent {
           icon: 'grid_on',
         },
         {
-          title: 'Boolean & DNF Explorer',
-          description: 'Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools.',
-          route: '/berkovich/boolean',
-          icon: 'alt_route',
-        },
-        {
-          title: '16-Circuit Multilinear Explorer',
-          description: 'Explore all 16 two-variable Boolean circuits using multilinear formulation f(x₁, x₂) = b + w₁x₁ + w₂x₂ + w₃x₁x₂ in Berkovich space.',
-          route: '/berkovich/bool2',
-          icon: 'account_tree',
+          title: 'Shakespeare Predictor',
+          description: 'Train a character-level model on Shakespeare in the browser with learned Berkovich embeddings.',
+          route: '/berkovich/shakespeare',
+          icon: 'explore',
         },
       ]
     },
