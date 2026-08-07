@@ -303,26 +303,33 @@ export class BBool2Learner {
     this.w3 = { center: simplify({ num: BigInt(w3), den: 1n }), rho };
   }
 
-  setExactSolutionForTruthTable(truthTable: [number, number, number, number]) {
+  setExactSolutionForTruthTable(truthTable: [number, number, number, number], rho: number = -1.0) {
     const coeffs = computeExactCoefficients(truthTable);
-    this.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, coeffs.w3, -1.0);
+    this.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, coeffs.w3, rho);
   }
 
-  randomize(prime: number = 2, depth: number = 3) {
+  setAllRho(rho: number) {
+    this.b.rho = rho;
+    this.w1.rho = rho;
+    this.w2.rho = rho;
+    this.w3.rho = rho;
+  }
+
+  randomize(prime: number = 2, depth: number = 3, baseRho: number = -1.0) {
     this.prime = BigInt(prime);
-    this.b = this.randomDisk(depth);
-    this.w1 = this.randomDisk(depth);
-    this.w2 = this.randomDisk(depth);
-    this.w3 = this.randomDisk(depth);
+    this.b = this.randomDisk(depth, baseRho);
+    this.w1 = this.randomDisk(depth, baseRho);
+    this.w2 = this.randomDisk(depth, baseRho);
+    this.w3 = this.randomDisk(depth, baseRho);
   }
 
-  private randomDisk(depth: number = 3): BerkovichDisk {
+  private randomDisk(depth: number = 3, baseRho: number = -1.0): BerkovichDisk {
     const p = Number(this.prime);
     const maxVal = Math.pow(p, depth);
     // Random integer between -maxVal and maxVal
     const val = Math.floor(Math.random() * (2 * maxVal + 1)) - maxVal;
     const center = simplify({ num: BigInt(val), den: 1n });
-    const rho = -1.0 + (Math.random() - 0.5) * 1.2;
+    const rho = baseRho + (Math.random() - 0.5) * 0.4;
     return { center, rho };
   }
 

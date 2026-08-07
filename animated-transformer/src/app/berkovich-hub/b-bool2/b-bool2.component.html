@@ -134,6 +134,60 @@ limitations under the License.
             <span>Randomize</span>
           </button>
         </div>
+
+        <!-- Initial Radius (rho) Actions -->
+        <div class="rho-init-section">
+          <div class="rho-header-row">
+            <span class="rho-section-title"><markdown [inline]="true" [katex]="true" [data]="'Set Parameter Radii $(\\rho)$:'"></markdown></span>
+            <span class="rho-current-chip"><markdown [inline]="true" [katex]="true" [data]="'Avg $\\rho = ' + (currentAverageRho() | number:'1.1-1') + '$'"></markdown></span>
+          </div>
+          <div class="rho-btn-grid">
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="isAllRhoNear(-2.0)"
+              (click)="setAllRho(-2.0)"
+              matTooltip="Sharp point-like disks (radius p⁻² = 1/4 for p=2)"
+            >
+              <mat-icon>lens</mat-icon>
+              <span>ρ = -2 (Sharp)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="isAllRhoNear(-1.0)"
+              (click)="setAllRho(-1.0)"
+              matTooltip="Standard initialization radius (radius p⁻¹ = 1/2 for p=2)"
+            >
+              <mat-icon>radio_button_checked</mat-icon>
+              <span>ρ = -1 (Std)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="isAllRhoNear(0.0)"
+              (click)="setAllRho(0.0)"
+              matTooltip="Unit disk uncertainty (radius p⁰ = 1)"
+            >
+              <mat-icon>radio_button_unchecked</mat-icon>
+              <span>ρ = 0 (Unit)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="isAllRhoNear(1.0)"
+              (click)="setAllRho(1.0)"
+              matTooltip="Broad neighborhood uncertainty (radius p¹ = 2)"
+            >
+              <mat-icon>blur_on</mat-icon>
+              <span>ρ = +1 (Diffuse)</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Hyper-Parameters Card -->

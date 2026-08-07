@@ -88,14 +88,17 @@ describe('BBool2Component', () => {
     expect(grid.length).toBe(256);
   });
 
-  it('should execute a training step and record loss and accuracy metrics', () => {
+  it('should set all parameter rho values via radius presets', () => {
     component.selectFunction(6); // XOR
-    component.initRandom();
-    const initialSteps = component.stepCount();
+    component.setAllRho(-2.0);
+    expect(component.initialRho()).toBe(-2.0);
+    expect(component.isAllRhoNear(-2.0)).toBe(true);
 
-    component.stepTrain();
-    expect(component.stepCount()).toBe(initialSteps + 1);
-    expect(component.trainLossHistory().length).toBe(1);
-    expect(component.trainAccHistory().length).toBe(1);
+    const learner = component.learner();
+    expect(learner?.b.rho).toBe(-2.0);
+    expect(learner?.w1.rho).toBe(-2.0);
+    expect(learner?.w2.rho).toBe(-2.0);
+    expect(learner?.w3.rho).toBe(-2.0);
+    expect(component.currentAverageRho()).toBe(-2.0);
   });
 });

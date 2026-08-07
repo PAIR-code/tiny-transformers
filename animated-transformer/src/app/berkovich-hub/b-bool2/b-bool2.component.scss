@@ -245,6 +245,49 @@ limitations under the License.
   }
 }
 
+.rho-init-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .rho-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .rho-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .rho-current-chip {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 10px;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+  }
+
+  .rho-btn-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+
+    .rho-btn {
+      font-size: 11px;
+      height: 28px;
+      line-height: 28px;
+      padding: 0 6px;
+    }
+  }
+}
+
 .params-editor-list {
   display: flex;
   flex-direction: column;

@@ -87,8 +87,9 @@ export class BBool2Component implements OnInit, OnDestroy {
   // Active popup for hyper-parameter info
   readonly activePopup = signal<string | null>(null);
 
-  // Hyper-parameters
+  // Hyper-parameters & Presets
   readonly prime = signal<number>(2);
+  readonly initialRho = signal<number>(-1.0);
   readonly learningRate = signal<number>(0.1);
   readonly regularization = signal<number>(0.01);
   readonly beta = signal<number>(2.5);
@@ -97,6 +98,34 @@ export class BBool2Component implements OnInit, OnDestroy {
   readonly trainingMode = signal<'berkovich' | 'padic'>('berkovich');
   readonly updateCenters = signal<boolean>(true);
   readonly updateRadii = signal<boolean>(true);
+
+  readonly currentAverageRho = computed<number>(() => {
+    this.trainTick();
+    const l = this.learner();
+    if (!l) return this.initialRho();
+    return (l.b.rho + l.w1.rho + l.w2.rho + l.w3.rho) / 4;
+  });
+
+  isAllRhoNear(targetRho: number): boolean {
+    this.trainTick();
+    const l = this.learner();
+    if (!l) return Math.abs(this.initialRho() - targetRho) < 0.05;
+    return (
+      Math.abs(l.b.rho - targetRho) < 0.05 &&
+      Math.abs(l.w1.rho - targetRho) < 0.05 &&
+      Math.abs(l.w2.rho - targetRho) < 0.05 &&
+      Math.abs(l.w3.rho - targetRho) < 0.05
+    );
+  }
+
+  setAllRho(rho: number) {
+    this.initialRho.set(rho);
+    const l = this.learner();
+    if (l) {
+      l.setAllRho(rho);
+      this.trainTick.update((n) => n + 1);
+    }
+  }
 
   // Selected sample for DAG walkthrough
   readonly activeSample = signal<[number, number]>([1, 1]);
@@ -347,7 +376,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     this.stopAutoTrain();
     const l = this.learner();
     if (!l) return;
-    l.setExactSolutionForTruthTable(this.truthTable());
+    l.setExactSolutionForTruthTable(this.truthTable(), this.initialRho());
     this.selectedPreset.set('exact');
     this.trainTick.update((n) => n + 1);
   }
@@ -356,7 +385,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     this.stopAutoTrain();
     const l = this.learner();
     if (!l) return;
-    l.setFromCoefficients(0, 0, 0, 0, -1.0);
+    l.setFromCoefficients(0, 0, 0, 0, this.initialRho());
     this.selectedPreset.set('zero');
     this.trainTick.update((n) => n + 1);
   }
@@ -367,7 +396,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     if (!l) return;
     const coeffs = computeExactCoefficients(this.truthTable());
     // Zero out the non-linear interaction term w3
-    l.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, 0, -1.0);
+    l.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, 0, this.initialRho());
     this.selectedPreset.set('linear');
     this.trainTick.update((n) => n + 1);
   }
@@ -385,6 +414,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
       coeffs.w3,
       0.0 // higher uncertainty radius
     );
+    this.initialRho.set(0.0);
     this.selectedPreset.set('perturbed');
     this.trainTick.update((n) => n + 1);
   }
@@ -393,7 +423,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     this.stopAutoTrain();
     const l = this.learner();
     if (!l) return;
-    l.randomize(this.prime(), 3);
+    l.randomize(this.prime(), 3, this.initialRho());
     this.selectedPreset.set('random');
     this.trainTick.update((n) => n + 1);
   }
