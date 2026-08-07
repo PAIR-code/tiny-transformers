@@ -210,38 +210,39 @@ limitations under the License.
 }
 
 /* Presets & Actions Card */
+.init-btn {
+  font-size: 11.5px;
+  padding: 0 8px;
+  height: 30px;
+  line-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.15s ease;
+
+  mat-icon {
+    font-size: 15px;
+    height: 15px;
+    width: 15px;
+    margin-right: 4px;
+  }
+
+  &.active-preset {
+    background: #ede9fe !important;
+    border-color: #7c3aed !important;
+    color: #6d28d9 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35) !important;
+  }
+}
+
 .init-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 
-  .init-btn {
-    font-size: 11.5px;
-    padding: 0 8px;
-    height: 30px;
-    line-height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-
-    mat-icon {
-      font-size: 15px;
-      height: 15px;
-      width: 15px;
-      margin-right: 4px;
-    }
-
-    &.btn-exact {
-      grid-column: span 2;
-    }
-
-    &.active-preset {
-      background: #ede9fe !important;
-      border-color: #7c3aed !important;
-      color: #6d28d9 !important;
-      font-weight: 700 !important;
-      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35) !important;
-    }
+  .btn-exact {
+    grid-column: span 2;
   }
 }
 
@@ -284,6 +285,10 @@ limitations under the License.
       height: 28px;
       line-height: 28px;
       padding: 0 6px;
+
+      &.btn-random-rho {
+        grid-column: span 2;
+      }
     }
   }
 }

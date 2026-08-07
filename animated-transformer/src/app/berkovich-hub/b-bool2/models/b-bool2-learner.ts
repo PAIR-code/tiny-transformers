@@ -315,6 +315,13 @@ export class BBool2Learner {
     this.w3.rho = rho;
   }
 
+  randomizeAllRho(minRho: number = -2.0, maxRho: number = 1.0) {
+    this.b.rho = Number((minRho + Math.random() * (maxRho - minRho)).toFixed(2));
+    this.w1.rho = Number((minRho + Math.random() * (maxRho - minRho)).toFixed(2));
+    this.w2.rho = Number((minRho + Math.random() * (maxRho - minRho)).toFixed(2));
+    this.w3.rho = Number((minRho + Math.random() * (maxRho - minRho)).toFixed(2));
+  }
+
   randomize(prime: number = 2, depth: number = 3, baseRho: number = -1.0) {
     this.prime = BigInt(prime);
     this.b = this.randomDisk(depth, baseRho);

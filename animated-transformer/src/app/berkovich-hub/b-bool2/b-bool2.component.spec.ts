@@ -92,6 +92,7 @@ describe('BBool2Component', () => {
     component.selectFunction(6); // XOR
     component.setAllRho(-2.0);
     expect(component.initialRho()).toBe(-2.0);
+    expect(component.selectedRhoPreset()).toBe('-2');
     expect(component.isAllRhoNear(-2.0)).toBe(true);
 
     const learner = component.learner();
@@ -100,5 +101,37 @@ describe('BBool2Component', () => {
     expect(learner?.w2.rho).toBe(-2.0);
     expect(learner?.w3.rho).toBe(-2.0);
     expect(component.currentAverageRho()).toBe(-2.0);
+  });
+
+  it('should randomize parameter rho values with setRandomRho', () => {
+    component.selectFunction(6); // XOR
+    component.setRandomRho();
+    expect(component.selectedRhoPreset()).toBe('random');
+    const learner = component.learner();
+    expect(learner).toBeTruthy();
+    if (learner) {
+      expect(learner.b.rho).toBeGreaterThanOrEqual(-2.0);
+      expect(learner.b.rho).toBeLessThanOrEqual(1.0);
+      expect(learner.w1.rho).toBeGreaterThanOrEqual(-2.0);
+      expect(learner.w1.rho).toBeLessThanOrEqual(1.0);
+    }
+  });
+
+  it('should preserve sticky parameter preset and rho preset when switching circuits', () => {
+    component.initZero();
+    component.setAllRho(-2.0);
+    expect(component.selectedPreset()).toBe('zero');
+    expect(component.selectedRhoPreset()).toBe('-2');
+
+    // Switch to AND gate
+    component.selectFunction(8);
+    expect(component.selectedPreset()).toBe('zero');
+    expect(component.selectedRhoPreset()).toBe('-2');
+    expect(component.truthTable()).toEqual([0, 0, 0, 1]);
+
+    const learner = component.learner();
+    expect(learner?.b.center.num).toBe(0n);
+    expect(learner?.w1.center.num).toBe(0n);
+    expect(learner?.b.rho).toBe(-2.0);
   });
 });

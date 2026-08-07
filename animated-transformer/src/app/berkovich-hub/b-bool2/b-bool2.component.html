@@ -78,7 +78,7 @@ limitations under the License.
         </div>
 
         <p class="section-desc">
-          Set algebraic starting points. Edit parameter disks ($b, w_1, w_2, w_3$) directly in the computation graph.
+          <markdown [inline]="true" [katex]="true" [data]="'Set algebraic starting points. Edit parameter disks $(b, w_1, w_2, w_3)$ directly in the computation graph.'"></markdown>
         </p>
 
         <!-- Quick Initializer Actions -->
@@ -146,7 +146,7 @@ limitations under the License.
               mat-stroked-button
               type="button"
               class="init-btn rho-btn"
-              [class.active-preset]="isAllRhoNear(-2.0)"
+              [class.active-preset]="selectedRhoPreset() === '-2'"
               (click)="setAllRho(-2.0)"
               matTooltip="Sharp point-like disks (radius p⁻² = 1/4 for p=2)"
             >
@@ -157,7 +157,7 @@ limitations under the License.
               mat-stroked-button
               type="button"
               class="init-btn rho-btn"
-              [class.active-preset]="isAllRhoNear(-1.0)"
+              [class.active-preset]="selectedRhoPreset() === '-1'"
               (click)="setAllRho(-1.0)"
               matTooltip="Standard initialization radius (radius p⁻¹ = 1/2 for p=2)"
             >
@@ -168,7 +168,7 @@ limitations under the License.
               mat-stroked-button
               type="button"
               class="init-btn rho-btn"
-              [class.active-preset]="isAllRhoNear(0.0)"
+              [class.active-preset]="selectedRhoPreset() === '0'"
               (click)="setAllRho(0.0)"
               matTooltip="Unit disk uncertainty (radius p⁰ = 1)"
             >
@@ -179,12 +179,23 @@ limitations under the License.
               mat-stroked-button
               type="button"
               class="init-btn rho-btn"
-              [class.active-preset]="isAllRhoNear(1.0)"
+              [class.active-preset]="selectedRhoPreset() === '1'"
               (click)="setAllRho(1.0)"
               matTooltip="Broad neighborhood uncertainty (radius p¹ = 2)"
             >
               <mat-icon>blur_on</mat-icon>
               <span>ρ = +1 (Diffuse)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn btn-random-rho"
+              [class.active-preset]="selectedRhoPreset() === 'random'"
+              (click)="setRandomRho()"
+              matTooltip="Randomize all parameter radii uniformly in [-2.0, 1.0]"
+            >
+              <mat-icon>shuffle</mat-icon>
+              <span>Random ρ (Uniform)</span>
             </button>
           </div>
         </div>

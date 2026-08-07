@@ -23,8 +23,8 @@ limitations under the License.
 
     <!-- Color Legend for Node Operations -->
     <div class="tree-legend-row">
-      <span class="legend-chip chip-input"><span class="dot"></span> Input (xᵢ)</span>
-      <span class="legend-chip chip-param"><span class="dot"></span> Parameter (b, wᵢ)</span>
+      <span class="legend-chip chip-input"><span class="dot"></span> Input <markdown [inline]="true" [katex]="true" [data]="'$(x_i)$'"></markdown></span>
+      <span class="legend-chip chip-param"><span class="dot"></span> Parameter <markdown [inline]="true" [katex]="true" [data]="'$(b, w_i)$'"></markdown></span>
       <span class="legend-chip chip-multiplication"><span class="dot"></span> Multiplication (·)</span>
       <span class="legend-chip chip-addition"><span class="dot"></span> Addition (∑)</span>
       <span class="legend-chip chip-loss"><span class="dot"></span> Loss</span>
@@ -33,7 +33,7 @@ limitations under the License.
     <!-- Active Sample Selector Bar & Backprop Toggle -->
     <div class="tree-controls-group">
       <div class="sample-selector-bar">
-        <span class="sample-prompt">Sample $(x_1, x_2)$:</span>
+        <span class="sample-prompt"><markdown [inline]="true" [katex]="true" [data]="'Sample $(x_1, x_2)$:'"></markdown></span>
         <div class="sample-pill-group">
           <button
             mat-button

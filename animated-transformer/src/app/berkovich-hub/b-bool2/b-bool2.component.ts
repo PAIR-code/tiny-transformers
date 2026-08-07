@@ -19,6 +19,9 @@ import {
   OnDestroy,
   signal,
   computed,
+  effect,
+  inject,
+  untracked,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -26,7 +29,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MarkdownComponent } from 'ngx-markdown';
 
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
@@ -76,10 +79,15 @@ export interface HeatmapPoint {
   host: { '(document:click)': 'closePopup()' }
 })
 export class BBool2Component implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private isInitialized = false;
+
   readonly formatCenter = formatRational;
   readonly all16Functions = ALL_16_BOOLEAN_FUNCTIONS;
   readonly selectedFunctionIndex = signal<number>(6); // Default: XOR (index 6)
   readonly selectedPreset = signal<'exact' | 'zero' | 'linear' | 'perturbed' | 'random' | null>('exact');
+  readonly selectedRhoPreset = signal<'-2' | '-1' | '0' | '1' | 'random' | null>('-1');
 
   readonly truthTable = signal<[number, number, number, number]>([0, 1, 1, 0]);
   readonly dataset = computed<BooleanSample[]>(() => buildDatasetFromTruthTable(this.truthTable()));
@@ -98,6 +106,49 @@ export class BBool2Component implements OnInit, OnDestroy {
   readonly trainingMode = signal<'berkovich' | 'padic'>('berkovich');
   readonly updateCenters = signal<boolean>(true);
   readonly updateRadii = signal<boolean>(true);
+
+  // Selected sample for DAG walkthrough
+  readonly activeSample = signal<[number, number]>([1, 1]);
+
+  private readonly urlSyncEffect = effect(() => {
+    if (!this.isInitialized) return;
+    const fn = this.selectedFunctionIndex();
+    const tt = this.truthTable();
+    const p = this.prime();
+    const mode = this.trainingMode();
+    const lr = this.learningRate();
+    const beta = this.beta();
+    const dl = this.digitsLeft();
+    const dr = this.digitsRight();
+    const rho = this.initialRho();
+    const preset = this.selectedPreset();
+    const rhoPreset = this.selectedRhoPreset();
+    const sample = this.activeSample();
+
+    untracked(() => {
+      const queryParams: Record<string, any> = {
+        fn: fn === 6 ? null : fn,
+        tt: tt.join('') === '0110' ? null : tt.join(''),
+        p: p === 2 ? null : p,
+        mode: mode === 'berkovich' ? null : mode,
+        lr: lr === 0.1 ? null : lr,
+        beta: beta === 2.5 ? null : beta,
+        dl: dl === 3 ? null : dl,
+        dr: dr === 2 ? null : dr,
+        rho: rho === -1.0 ? null : rho,
+        preset: preset === 'exact' ? null : preset,
+        rhopreset: rhoPreset === '-1' ? null : rhoPreset,
+        sample: sample[0] === 1 && sample[1] === 1 ? null : sample.join(',')
+      };
+
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams,
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    });
+  });
 
   readonly currentAverageRho = computed<number>(() => {
     this.trainTick();
@@ -120,15 +171,29 @@ export class BBool2Component implements OnInit, OnDestroy {
 
   setAllRho(rho: number) {
     this.initialRho.set(rho);
-    const l = this.learner();
-    if (l) {
-      l.setAllRho(rho);
-      this.trainTick.update((n) => n + 1);
-    }
+    const presetKey =
+      Math.abs(rho - (-2)) < 0.05
+        ? '-2'
+        : Math.abs(rho - (-1)) < 0.05
+        ? '-1'
+        : Math.abs(rho - 0) < 0.05
+        ? '0'
+        : Math.abs(rho - 1) < 0.05
+        ? '1'
+        : null;
+    this.selectedRhoPreset.set(presetKey);
+    const l = this.ensureLearner();
+    l.setAllRho(rho);
+    this.trainTick.update((n) => n + 1);
   }
 
-  // Selected sample for DAG walkthrough
-  readonly activeSample = signal<[number, number]>([1, 1]);
+  setRandomRho() {
+    this.stopAutoTrain();
+    const l = this.ensureLearner();
+    l.randomizeAllRho(-2.0, 1.0);
+    this.selectedRhoPreset.set('random');
+    this.trainTick.update((n) => n + 1);
+  }
 
   // Model & State
   readonly learner = signal<BBool2Learner | null>(null);
@@ -321,7 +386,100 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
 `;
 
   ngOnInit(): void {
-    this.selectFunction(6); // Default: XOR
+    const params = this.route.snapshot.queryParams;
+    if (params['p']) {
+      const p = +params['p'];
+      if (!isNaN(p)) this.prime.set(p);
+    }
+    if (params['mode'] === 'padic' || params['mode'] === 'berkovich') {
+      this.trainingMode.set(params['mode']);
+    }
+    if (params['lr']) {
+      const lr = +params['lr'];
+      if (!isNaN(lr)) this.learningRate.set(lr);
+    }
+    if (params['beta']) {
+      const b = +params['beta'];
+      if (!isNaN(b)) this.beta.set(b);
+    }
+    if (params['dl']) {
+      const dl = +params['dl'];
+      if (!isNaN(dl)) this.digitsLeft.set(dl);
+    }
+    if (params['dr']) {
+      const dr = +params['dr'];
+      if (!isNaN(dr)) this.digitsRight.set(dr);
+    }
+    if (params['rho']) {
+      const rho = +params['rho'];
+      if (!isNaN(rho)) this.initialRho.set(rho);
+    }
+    if (params['sample']) {
+      const parts = String(params['sample']).split(',').map(Number);
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        this.activeSample.set([parts[0], parts[1]]);
+      }
+    }
+
+    let fnIdx = 6; // Default: XOR
+    if (params['fn'] !== undefined) {
+      const idx = +params['fn'];
+      if (!isNaN(idx) && idx >= 0 && idx < this.all16Functions.length) {
+        fnIdx = idx;
+      }
+    }
+
+    this.selectedFunctionIndex.set(fnIdx);
+    const fn = this.all16Functions[fnIdx];
+    this.truthTable.set([...fn.truthTable]);
+
+    if (params['tt']) {
+      const ttStr = String(params['tt']);
+      if (ttStr.length === 4) {
+        const bits = ttStr.split('').map(Number);
+        if (bits.every((b) => b === 0 || b === 1)) {
+          this.truthTable.set(bits as [number, number, number, number]);
+          const matchIdx = this.all16Functions.findIndex(
+            (f) =>
+              f.truthTable[0] === bits[0] &&
+              f.truthTable[1] === bits[1] &&
+              f.truthTable[2] === bits[2] &&
+              f.truthTable[3] === bits[3]
+          );
+          if (matchIdx >= 0) this.selectedFunctionIndex.set(matchIdx);
+        }
+      }
+    }
+
+    const preset = params['preset'] as 'exact' | 'zero' | 'linear' | 'perturbed' | 'random' | undefined;
+    if (preset === 'zero') {
+      this.initZero();
+    } else if (preset === 'linear') {
+      this.initLinearOnly();
+    } else if (preset === 'perturbed') {
+      this.initPerturbed();
+    } else if (preset === 'random') {
+      this.initRandom();
+    } else {
+      this.initExactAlgebraic();
+    }
+
+    if (params['rhopreset']) {
+      const rp = params['rhopreset'] as '-2' | '-1' | '0' | '1' | 'random';
+      if (rp === 'random') {
+        this.setRandomRho();
+      } else if (rp === '-2') {
+        this.setAllRho(-2.0);
+      } else if (rp === '-1') {
+        this.setAllRho(-1.0);
+      } else if (rp === '0') {
+        this.setAllRho(0.0);
+      } else if (rp === '1') {
+        this.setAllRho(1.0);
+      }
+    }
+
+    this.isInitialized = true;
   }
 
   ngOnDestroy(): void {
@@ -332,8 +490,11 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     this.selectedFunctionIndex.set(index);
     const fn = this.all16Functions[index];
     this.truthTable.set([...fn.truthTable]);
-    this.selectedPreset.set('random');
-    this.resetModel();
+    this.stopAutoTrain();
+    this.stepCount.set(0);
+    this.trainLossHistory.set([]);
+    this.trainAccHistory.set([]);
+    this.applyCurrentPreset();
   }
 
   toggleTruthTableBit(index: number) {
@@ -356,8 +517,39 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
       this.selectedFunctionIndex.set(matchIdx);
     }
 
-    this.selectedPreset.set('random');
-    this.resetModel();
+    this.stopAutoTrain();
+    this.stepCount.set(0);
+    this.trainLossHistory.set([]);
+    this.trainAccHistory.set([]);
+    this.applyCurrentPreset();
+  }
+
+  applyCurrentPreset() {
+    const preset = this.selectedPreset();
+    if (preset === 'zero') {
+      this.initZero();
+    } else if (preset === 'linear') {
+      this.initLinearOnly();
+    } else if (preset === 'perturbed') {
+      this.initPerturbed();
+    } else if (preset === 'random') {
+      this.initRandom();
+    } else {
+      this.initExactAlgebraic();
+    }
+
+    const rhoPreset = this.selectedRhoPreset();
+    if (rhoPreset === 'random') {
+      this.setRandomRho();
+    } else if (rhoPreset === '-2') {
+      this.setAllRho(-2.0);
+    } else if (rhoPreset === '-1') {
+      this.setAllRho(-1.0);
+    } else if (rhoPreset === '0') {
+      this.setAllRho(0.0);
+    } else if (rhoPreset === '1') {
+      this.setAllRho(1.0);
+    }
   }
 
   resetModel() {
@@ -365,17 +557,22 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     this.stepCount.set(0);
     this.trainLossHistory.set([]);
     this.trainAccHistory.set([]);
+    this.applyCurrentPreset();
+  }
 
-    const model = new BBool2Learner(this.prime(), 'random');
-    this.learner.set(model);
-    this.trainTick.update((n) => n + 1);
+  private ensureLearner(): BBool2Learner {
+    let l = this.learner();
+    if (!l) {
+      l = new BBool2Learner(this.prime(), 'zero');
+      this.learner.set(l);
+    }
+    return l;
   }
 
   // Systematic Parameter Initializations
   initExactAlgebraic() {
     this.stopAutoTrain();
-    const l = this.learner();
-    if (!l) return;
+    const l = this.ensureLearner();
     l.setExactSolutionForTruthTable(this.truthTable(), this.initialRho());
     this.selectedPreset.set('exact');
     this.trainTick.update((n) => n + 1);
@@ -383,8 +580,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
 
   initZero() {
     this.stopAutoTrain();
-    const l = this.learner();
-    if (!l) return;
+    const l = this.ensureLearner();
     l.setFromCoefficients(0, 0, 0, 0, this.initialRho());
     this.selectedPreset.set('zero');
     this.trainTick.update((n) => n + 1);
@@ -392,8 +588,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
 
   initLinearOnly() {
     this.stopAutoTrain();
-    const l = this.learner();
-    if (!l) return;
+    const l = this.ensureLearner();
     const coeffs = computeExactCoefficients(this.truthTable());
     // Zero out the non-linear interaction term w3
     l.setFromCoefficients(coeffs.b, coeffs.w1, coeffs.w2, 0, this.initialRho());
@@ -403,8 +598,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
 
   initPerturbed() {
     this.stopAutoTrain();
-    const l = this.learner();
-    if (!l) return;
+    const l = this.ensureLearner();
     const coeffs = computeExactCoefficients(this.truthTable());
     // Near the exact solution with slight perturbation
     l.setFromCoefficients(
@@ -415,14 +609,14 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
       0.0 // higher uncertainty radius
     );
     this.initialRho.set(0.0);
+    this.selectedRhoPreset.set('0');
     this.selectedPreset.set('perturbed');
     this.trainTick.update((n) => n + 1);
   }
 
   initRandom() {
     this.stopAutoTrain();
-    const l = this.learner();
-    if (!l) return;
+    const l = this.ensureLearner();
     l.randomize(this.prime(), 3, this.initialRho());
     this.selectedPreset.set('random');
     this.trainTick.update((n) => n + 1);
@@ -433,6 +627,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     if (!l) return;
     l[event.param] = { center: event.center, rho: event.rho };
     this.selectedPreset.set(null);
+    this.selectedRhoPreset.set(null);
     this.trainTick.update((n) => n + 1);
   }
 
@@ -442,6 +637,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     try {
       const parsed = parsePadicOrRationalInput(valStr, BigInt(this.prime()));
       l[param].center = parsed;
+      this.selectedPreset.set(null);
       this.trainTick.update((n) => n + 1);
     } catch {
       // ignore
@@ -452,6 +648,7 @@ The **Parameter Presets & Actions** panel provides 5 canonical starting configur
     const l = this.learner();
     if (!l) return;
     l[param].rho = rhoVal;
+    this.selectedRhoPreset.set(null);
     this.trainTick.update((n) => n + 1);
   }
 
