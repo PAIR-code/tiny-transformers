@@ -167,16 +167,33 @@ limitations under the License.
                 <span class="node-cat-dot"></span>
               </div>
 
-              <!-- Node Body: Digit Display or Loss Content -->
+              <!-- Node Body: Digit Display or Loss Dual Display -->
               @if (node.id === 'target_loss') {
-                <div class="node-loss-content">
-                  <div class="loss-target-chip">Target $y = {{ target() }}</div>
-                  <div class="loss-prob-stat">
-                    <span>$P(y=1)$: <strong>{{ ((currentForward()?.probs?.[1] ?? 0) * 100) | number:'1.0-0' }}%</strong></span>
-                  </div>
-                  <div class="loss-number-tag">
-                    Loss: <strong>{{ (currentForward()?.loss ?? 0) | number:'1.3-3' }}</strong>
-                  </div>
+                <div class="node-loss-dual-wrapper">
+                  @if (currentForward(); as fwd) {
+                    <app-berkovich-dual-digit-display
+                      [prime]="config().prime"
+                      [xCenter]="fwd.f_out.center"
+                      [xRho]="fwd.f_out.rho"
+                      [yCenter]="targetRational()"
+                      [yRho]="-2"
+                      [digitsLeft]="config().digitsLeft"
+                      [digitsRight]="config().digitsRight"
+                      [scale]="0.65"
+                      rhoLabelPosition="above-below"
+                      [editable]="false"
+                      [xEditableCenter]="false"
+                      [xEditableRho]="false"
+                      [yEditableCenter]="false"
+                      [yEditableRho]="false"
+                      xOuterBoxColor="#10b981"
+                      yOuterBoxColor="#6366f1"
+                    ></app-berkovich-dual-digit-display>
+                    <div class="dual-loss-stats-row">
+                      <span class="loss-pill">Loss: <strong>{{ fwd.loss | number:'1.3-3' }}</strong></span>
+                      <span class="target-pill">Target: <strong>y={{ target() }}</strong></span>
+                    </div>
+                  }
                 </div>
               } @else if (getNodeDisk(node.id); as disk) {
                 @let gradDetails = getWeightGradientDetails($any(node.id));
@@ -207,100 +224,4 @@ limitations under the License.
       </g>
     </svg>
   </div>
-
-  <!-- Selected Node Detail Inspector Card -->
-  @if (selectedNodeId(); as selId) {
-    <div class="node-inspector-card">
-      <div class="inspector-header">
-        <div class="inspector-title-row">
-          <mat-icon class="inspector-icon">
-            @switch (selId) {
-              @case ('x1') { input }
-              @case ('x2') { input }
-              @case ('b') { tune }
-              @case ('w1') { tune }
-              @case ('w2') { tune }
-              @case ('w3') { tune }
-              @case ('t1') { close }
-              @case ('t2') { close }
-              @case ('t3') { close }
-              @case ('f_out') { add_circle }
-              @case ('target_loss') { check_circle }
-            }
-          </mat-icon>
-          <div>
-            <h4>Node: {{ selId }}</h4>
-            <span class="inspector-sub">
-              @for (n of nodes; track n.id) {
-                @if (n.id === selId) {
-                  {{ n.sublabel }} — <markdown [inline]="true" [katex]="true" [data]="'$' + n.formula + '$'"></markdown>
-                }
-              }
-            </span>
-          </div>
-        </div>
-
-        @if (isParamNode(selId)) {
-          <span class="param-badge">Trainable Parameter (Edit in Graph)</span>
-        }
-      </div>
-
-      <div class="inspector-body">
-        <!-- Digit Display Preview -->
-        @if (getNodeDisk(selId); as disk) {
-          <div class="digit-display-wrapper">
-            <div class="digit-title-row">
-              <span class="seq-label">p-adic Digit Expansion &amp; Radius:</span>
-              <span class="rational-badge">{{ disk.center.num }}/{{ disk.center.den }}</span>
-            </div>
-            <app-berkovich-digit-display
-              [center]="disk.center"
-              [rho]="disk.rho"
-              [prime]="config().prime"
-              [digitsLeft]="config().digitsLeft"
-              [digitsRight]="config().digitsRight"
-              [scale]="0.95"
-              rhoLabelPosition="above"
-              [editableCenter]="isParamNode(selId) || isInputNode(selId)"
-              [editableRho]="isParamNode(selId)"
-              [showUpdatedLocation]="isParamNode(selId) && showBackprop() && getWeightGradientDetails($any(selId)).active"
-              [updatedCenter]="isParamNode(selId) ? getWeightGradientDetails($any(selId)).nextCenter : undefined"
-              [updatedRho]="isParamNode(selId) ? getWeightGradientDetails($any(selId)).nextRho : undefined"
-              updatedLineColor="#ec4899"
-              updatedLineStyle="dashed"
-              (centerChange)="onNodeCenterChange(selId, $event)"
-              (rhoChange)="onNodeRhoChange(selId, $event)"
-            ></app-berkovich-digit-display>
-          </div>
-        }
-
-        <!-- 4-Input Truth Table Trace for this node -->
-        <div class="node-truth-trace">
-          <span class="trace-title">Values across all 4 input combinations:</span>
-          <div class="trace-table">
-            <div class="trace-header">
-              <span>(x₁, x₂)</span>
-              <span>Center c</span>
-              <span>Radius ρ</span>
-              <span>Value in Q_p</span>
-            </div>
-            @for (fwdSample of allSamplesForward(); track fwdSample.inputs.join(',')) {
-              @if (getNodeDisk(selId, fwdSample); as sampleDisk) {
-                <div
-                  class="trace-row"
-                  [class.row-active]="activeSample()[0] === fwdSample.inputs[0] && activeSample()[1] === fwdSample.inputs[1]"
-                  (click)="selectSample(fwdSample.inputs[0], fwdSample.inputs[1])"
-                >
-                  <span class="col-inp">({{ fwdSample.inputs[0] }}, {{ fwdSample.inputs[1] }})</span>
-                  <span class="col-center">{{ sampleDisk.center.num }}/{{ sampleDisk.center.den }}</span>
-                  <span class="col-rho">{{ sampleDisk.rho | number:'1.1-1' }}</span>
-                  <span class="col-digits">{{ sampleDisk.center.num }}/{{ sampleDisk.center.den }} (ρ={{ sampleDisk.rho.toFixed(1) }})</span>
-                </div>
-              }
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  }
 </div>

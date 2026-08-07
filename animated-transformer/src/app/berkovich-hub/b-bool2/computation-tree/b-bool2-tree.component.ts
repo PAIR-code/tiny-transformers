@@ -35,6 +35,7 @@ import {
 } from '../models/b-bool2-learner';
 import { BerkovichDisk } from '../../berkovich-mnist/models/berkovich-mnist-learner';
 import { BerkovichDigitDisplayComponent } from '../../berkovich-digit-display/berkovich-digit-display.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
 import {
   Rational,
   formatDigitSequence,
@@ -100,7 +101,8 @@ function rationalsEqual(a?: Rational, b?: Rational): boolean {
     MatButtonModule,
     MatTooltipModule,
     MarkdownComponent,
-    BerkovichDigitDisplayComponent
+    BerkovichDigitDisplayComponent,
+    BerkovichDualDigitDisplayComponent
   ],
   templateUrl: './b-bool2-tree.component.html',
   styleUrls: ['./b-bool2-tree.component.scss'],
@@ -119,6 +121,10 @@ export class BBool2TreeComponent {
 
   readonly selectedNodeId = signal<TreeNodeId>('f_out');
   readonly showBackprop = signal<boolean>(true);
+
+  readonly targetRational = computed<Rational>(() => {
+    return this.target() === 1 ? { num: 1n, den: 1n } : { num: 0n, den: 1n };
+  });
 
   readonly nodes: TreeNode[] = [
     // Column 1: Inputs & Multiplier Weights (x = 95, width = 150, height = 92)
@@ -224,30 +230,30 @@ export class BBool2TreeComponent {
       height: 92
     },
 
-    // Column 3: Single Addition Node (b + T1 + T2 + T3) (x = 710, width = 165, height = 96)
+    // Column 3: Single Addition Node (b + T1 + T2 + T3) (x = 670, width = 160, height = 96)
     {
       id: 'f_out',
       label: '∑ f(x₁, x₂)',
       sublabel: 'Single sum of all terms',
       formula: 'f(x_1, x_2) = b + T_1 + T_2 + T_3',
       category: 'addition',
-      x: 710,
+      x: 670,
       y: 300,
-      width: 165,
+      width: 160,
       height: 96
     },
 
-    // Column 4: Loss & Target Evaluation (x = 900, width = 140, height = 92)
+    // Column 4: Loss & Target Evaluation (x = 885, width = 185, height = 135)
     {
       id: 'target_loss',
-      label: 'Target & Loss',
-      sublabel: 'Cross-entropy evaluation',
-      formula: '\\mathcal{L}(f, y)',
+      label: 'Target & Path Loss',
+      sublabel: 'f(x₁, x₂) vs Target y in ℚ_p',
+      formula: '\\mathcal{L}_{\\text{path}}(f, y)',
       category: 'loss',
-      x: 900,
+      x: 885,
       y: 300,
-      width: 140,
-      height: 92
+      width: 185,
+      height: 135
     }
   ];
 
@@ -265,13 +271,13 @@ export class BBool2TreeComponent {
     this.createEdge('w3', 't3', 170, 520, 332, 540),
 
     // Column 2 Terms (b, T1, T2, T3) directly entering Single Addition Node f_out
-    this.createEdge('b', 'f_out', 487, 80, 627, 260),
-    this.createEdge('t1', 'f_out', 487, 190, 627, 285),
-    this.createEdge('t2', 'f_out', 487, 355, 627, 315),
-    this.createEdge('t3', 'f_out', 487, 520, 627, 340),
+    this.createEdge('b', 'f_out', 487, 80, 590, 260),
+    this.createEdge('t1', 'f_out', 487, 190, 590, 285),
+    this.createEdge('t2', 'f_out', 487, 355, 590, 315),
+    this.createEdge('t3', 'f_out', 487, 520, 590, 340),
 
     // Addition Output to Target & Loss
-    this.createEdge('f_out', 'target_loss', 792, 300, 830, 300)
+    this.createEdge('f_out', 'target_loss', 750, 300, 792, 300)
   ];
 
   private createEdge(
