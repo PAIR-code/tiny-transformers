@@ -86,7 +86,7 @@ limitations under the License.
 
   <!-- Main Tree SVG Area -->
   <div class="svg-viewport">
-    <svg viewBox="0 0 980 670" class="tree-svg" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="0 0 980 590" class="tree-svg" preserveAspectRatio="xMidYMid meet">
       <defs>
         <!-- Gradients -->
         <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -94,9 +94,14 @@ limitations under the License.
           <stop offset="100%" stop-color="#64748b" stop-opacity="0.9" />
         </linearGradient>
 
-        <linearGradient id="backpropGrad" x1="100%" y1="0%" x2="0%" y2="0%">
-          <stop offset="0%" stop-color="#ec4899" />
-          <stop offset="100%" stop-color="#8b5cf6" />
+        <linearGradient id="backpropGradChanging" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#e11d48" />
+          <stop offset="100%" stop-color="#be185d" />
+        </linearGradient>
+
+        <linearGradient id="backpropGradUnchanging" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#f472b6" stop-opacity="0.5" />
+          <stop offset="100%" stop-color="#fda4af" stop-opacity="0.3" />
         </linearGradient>
 
         <filter id="nodeGlow" x="-20%" y="-20%" width="140%" height="140%">
@@ -111,16 +116,23 @@ limitations under the License.
       <!-- Connecting Edges -->
       <g class="edges-layer">
         @for (edge of edges; track edge.id) {
+          @let edgeState = getEdgeBackpropState(edge.id);
           <path
             [attr.d]="edge.pathD"
             class="tree-edge-line"
             [class.edge-selected]="selectedNodeId() === edge.from || selectedNodeId() === edge.to"
-            [class.edge-backprop-active]="isEdgeBackpropActive(edge.id)"
+            [class.edge-backprop-changing]="edgeState === 'changing'"
+            [class.edge-backprop-unchanging]="edgeState === 'unchanging'"
           />
 
           <!-- Backprop Gradient Marker on Active Edges -->
-          @if (isEdgeBackpropActive(edge.id)) {
-            <g class="backprop-marker-group" [attr.transform]="'translate(' + edge.badgeX + ',' + edge.badgeY + ')'">
+          @if (edgeState !== 'none') {
+            <g
+              class="backprop-marker-group"
+              [class.marker-changing]="edgeState === 'changing'"
+              [class.marker-unchanging]="edgeState === 'unchanging'"
+              [attr.transform]="'translate(' + edge.badgeX + ',' + edge.badgeY + ')'"
+            >
               <circle r="9" class="backprop-marker-bg" />
               <text y="3" text-anchor="middle" class="backprop-marker-arrow">◄</text>
             </g>
@@ -167,6 +179,7 @@ limitations under the License.
                   </div>
                 </div>
               } @else if (getNodeDisk(node.id); as disk) {
+                @let gradDetails = getWeightGradientDetails($any(node.id));
                 <div class="node-embedded-digits">
                   <app-berkovich-digit-display
                     [center]="disk.center"
@@ -178,11 +191,11 @@ limitations under the License.
                     rhoLabelPosition="above"
                     [editableCenter]="isParamNode(node.id) || isInputNode(node.id)"
                     [editableRho]="isParamNode(node.id)"
-                    [showUpdatedLocation]="isParamNode(node.id) && showBackprop() && getWeightGradientDetails($any(node.id)).active"
-                    [updatedCenter]="isParamNode(node.id) ? getWeightGradientDetails($any(node.id)).nextCenter : undefined"
-                    [updatedRho]="isParamNode(node.id) ? getWeightGradientDetails($any(node.id)).nextRho : undefined"
-                    updatedLineColor="#ec4899"
-                    updatedLineStyle="dashed"
+                    [showUpdatedLocation]="isParamNode(node.id) && showBackprop() && gradDetails.active"
+                    [updatedCenter]="isParamNode(node.id) ? gradDetails.nextCenter : undefined"
+                    [updatedRho]="isParamNode(node.id) ? gradDetails.nextRho : undefined"
+                    [updatedLineColor]="gradDetails.willChange ? '#e11d48' : '#f472b6'"
+                    [updatedLineStyle]="gradDetails.willChange ? 'dashed' : 'dotted'"
                     (centerChange)="onNodeCenterChange(node.id, $event)"
                     (rhoChange)="onNodeRhoChange(node.id, $event)"
                   ></app-berkovich-digit-display>

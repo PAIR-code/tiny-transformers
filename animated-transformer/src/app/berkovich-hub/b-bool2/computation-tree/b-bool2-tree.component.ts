@@ -86,6 +86,11 @@ export interface TreeEdge {
   badgeY: number;
 }
 
+function rationalsEqual(a?: Rational, b?: Rational): boolean {
+  if (!a || !b) return a === b;
+  return a.num * b.den === b.num * a.den;
+}
+
 @Component({
   selector: 'app-b-bool2-tree',
   imports: [
@@ -116,18 +121,7 @@ export class BBool2TreeComponent {
   readonly showBackprop = signal<boolean>(true);
 
   readonly nodes: TreeNode[] = [
-    // Column 1: Trainable Bias & Inputs & Weights (x = 95, width = 150, height = 92)
-    {
-      id: 'b',
-      label: 'Bias b',
-      sublabel: 'Trainable bias',
-      formula: 'b \\in \\mathcal{B}(\\mathbb{Q}_p)',
-      category: 'param',
-      x: 95,
-      y: 55,
-      width: 150,
-      height: 92
-    },
+    // Column 1: Inputs & Multiplier Weights (x = 95, width = 150, height = 92)
     {
       id: 'x1',
       label: 'Input x₁',
@@ -135,7 +129,7 @@ export class BBool2TreeComponent {
       formula: 'x_1 \\in \\{0, 1\\}',
       category: 'input',
       x: 95,
-      y: 165,
+      y: 80,
       width: 150,
       height: 92
     },
@@ -146,7 +140,7 @@ export class BBool2TreeComponent {
       formula: 'w_1 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 275,
+      y: 190,
       width: 150,
       height: 92
     },
@@ -157,7 +151,7 @@ export class BBool2TreeComponent {
       formula: 'x_2 \\in \\{0, 1\\}',
       category: 'input',
       x: 95,
-      y: 385,
+      y: 300,
       width: 150,
       height: 92
     },
@@ -168,7 +162,7 @@ export class BBool2TreeComponent {
       formula: 'w_2 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 495,
+      y: 410,
       width: 150,
       height: 92
     },
@@ -179,12 +173,23 @@ export class BBool2TreeComponent {
       formula: 'w_3 \\in \\mathcal{B}(\\mathbb{Q}_p)',
       category: 'param',
       x: 95,
-      y: 605,
+      y: 520,
       width: 150,
       height: 92
     },
 
-    // Column 2: 3 Multiplication Terms (x = 410, width = 155, height = 92)
+    // Column 2: 4 Terms Entering Addition (Bias b + Multiplications T1, T2, T3) (x = 410, width = 155, height = 92)
+    {
+      id: 'b',
+      label: 'Bias b',
+      sublabel: 'Trainable constant term',
+      formula: 'b \\in \\mathcal{B}(\\mathbb{Q}_p)',
+      category: 'param',
+      x: 410,
+      y: 80,
+      width: 155,
+      height: 92
+    },
     {
       id: 't1',
       label: 'T₁ = w₁·x₁',
@@ -192,7 +197,7 @@ export class BBool2TreeComponent {
       formula: 'T_1 = w_1 \\cdot x_1',
       category: 'multiplication',
       x: 410,
-      y: 220,
+      y: 190,
       width: 155,
       height: 92
     },
@@ -203,7 +208,7 @@ export class BBool2TreeComponent {
       formula: 'T_2 = w_2 \\cdot x_2',
       category: 'multiplication',
       x: 410,
-      y: 440,
+      y: 355,
       width: 155,
       height: 92
     },
@@ -214,7 +219,7 @@ export class BBool2TreeComponent {
       formula: 'T_3 = w_3 \\cdot x_1 \\cdot x_2',
       category: 'multiplication',
       x: 410,
-      y: 605,
+      y: 520,
       width: 155,
       height: 92
     },
@@ -227,7 +232,7 @@ export class BBool2TreeComponent {
       formula: 'f(x_1, x_2) = b + T_1 + T_2 + T_3',
       category: 'addition',
       x: 710,
-      y: 330,
+      y: 300,
       width: 165,
       height: 96
     },
@@ -240,33 +245,33 @@ export class BBool2TreeComponent {
       formula: '\\mathcal{L}(f, y)',
       category: 'loss',
       x: 900,
-      y: 330,
+      y: 300,
       width: 140,
       height: 92
     }
   ];
 
   readonly edges: TreeEdge[] = [
-    // Inputs & Weights to Multiplications
-    this.createEdge('x1', 't1', 170, 165, 332, 206),
-    this.createEdge('w1', 't1', 170, 275, 332, 234),
+    // Column 1 to Column 2 Multiplications
+    this.createEdge('x1', 't1', 170, 80, 332, 175),
+    this.createEdge('w1', 't1', 170, 190, 332, 205),
 
-    this.createEdge('x2', 't2', 170, 385, 332, 426),
-    this.createEdge('w2', 't2', 170, 495, 332, 454),
+    this.createEdge('x2', 't2', 170, 300, 332, 340),
+    this.createEdge('w2', 't2', 170, 410, 332, 370),
 
     // 3 Inputs directly to T3: x1, x2, w3
-    this.createEdge('x1', 't3', 170, 175, 332, 585),
-    this.createEdge('x2', 't3', 170, 395, 332, 605),
-    this.createEdge('w3', 't3', 170, 605, 332, 625),
+    this.createEdge('x1', 't3', 170, 90, 332, 500),
+    this.createEdge('x2', 't3', 170, 310, 332, 520),
+    this.createEdge('w3', 't3', 170, 520, 332, 540),
 
-    // Terms directly entering Single Addition Node: b, T1, T2, T3 -> f_out
-    this.createEdge('b', 'f_out', 170, 55, 627, 300),
-    this.createEdge('t1', 'f_out', 487, 220, 627, 320),
-    this.createEdge('t2', 'f_out', 487, 440, 627, 340),
-    this.createEdge('t3', 'f_out', 487, 605, 627, 360),
+    // Column 2 Terms (b, T1, T2, T3) directly entering Single Addition Node f_out
+    this.createEdge('b', 'f_out', 487, 80, 627, 260),
+    this.createEdge('t1', 'f_out', 487, 190, 627, 285),
+    this.createEdge('t2', 'f_out', 487, 355, 627, 315),
+    this.createEdge('t3', 'f_out', 487, 520, 627, 340),
 
     // Addition Output to Target & Loss
-    this.createEdge('f_out', 'target_loss', 792, 330, 830, 330)
+    this.createEdge('f_out', 'target_loss', 792, 300, 830, 300)
   ];
 
   private createEdge(
@@ -442,8 +447,9 @@ export class BBool2TreeComponent {
     }
   }
 
-  getWeightGradientDetails(param: 'b' | 'w1' | 'w2' | 'w3'): {
+  getWeightGradientDetails(param: string): {
     active: boolean;
+    willChange: boolean;
     nextCenter?: Rational;
     nextRho?: number;
     targetRational: Rational;
@@ -451,8 +457,8 @@ export class BBool2TreeComponent {
     stepType: string;
   } {
     const l = this.learner();
-    if (!l) {
-      return { active: false, targetRational: { num: 0n, den: 1n }, loss: 0, stepType: '' };
+    if (!l || (param !== 'b' && param !== 'w1' && param !== 'w2' && param !== 'w3')) {
+      return { active: false, willChange: false, targetRational: { num: 0n, den: 1n }, loss: 0, stepType: '' };
     }
 
     const [x1, x2] = this.activeSample();
@@ -493,9 +499,11 @@ export class BBool2TreeComponent {
 
     const disk = l[param];
     const details = computeGradientDetails(disk.center, disk.rho, targetParam, -2, p, lr);
+    const willChange = active && (!rationalsEqual(disk.center, details.nextCenter) || Math.abs(disk.rho - details.nextLogRadius) > 1e-4);
 
     return {
       active,
+      willChange,
       nextCenter: active && this.showBackprop() ? details.nextCenter : undefined,
       nextRho: active && this.showBackprop() ? details.nextLogRadius : undefined,
       targetRational: targetParam,
@@ -504,22 +512,33 @@ export class BBool2TreeComponent {
     };
   }
 
-  isEdgeBackpropActive(edgeId: string): boolean {
-    if (!this.showBackprop()) return false;
+  getEdgeBackpropState(edgeId: string): 'none' | 'changing' | 'unchanging' {
+    if (!this.showBackprop()) return 'none';
     const [x1, x2] = this.activeSample();
 
-    if (edgeId === 'f_out->target_loss') return true;
-    if (edgeId === 'b->f_out') return true; // b always contributes to f_out
+    const gradB = this.getWeightGradientDetails('b');
+    const gradW1 = this.getWeightGradientDetails('w1');
+    const gradW2 = this.getWeightGradientDetails('w2');
+    const gradW3 = this.getWeightGradientDetails('w3');
+
+    const anyChanging = gradB.willChange || gradW1.willChange || gradW2.willChange || gradW3.willChange;
+
+    if (edgeId === 'f_out->target_loss') {
+      return anyChanging ? 'changing' : 'unchanging';
+    }
+    if (edgeId === 'b->f_out') {
+      return gradB.willChange ? 'changing' : 'unchanging';
+    }
 
     if (x1 === 1 && (edgeId === 't1->f_out' || edgeId === 'w1->t1')) {
-      return true;
+      return gradW1.willChange ? 'changing' : 'unchanging';
     }
     if (x2 === 1 && (edgeId === 't2->f_out' || edgeId === 'w2->t2')) {
-      return true;
+      return gradW2.willChange ? 'changing' : 'unchanging';
     }
     if (x1 === 1 && x2 === 1 && (edgeId === 't3->f_out' || edgeId === 'w3->t3')) {
-      return true;
+      return gradW3.willChange ? 'changing' : 'unchanging';
     }
-    return false;
+    return 'none';
   }
 }

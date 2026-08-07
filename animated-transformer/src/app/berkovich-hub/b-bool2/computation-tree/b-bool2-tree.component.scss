@@ -221,11 +221,20 @@ limitations under the License.
     animation: dashPulse 1.5s linear infinite;
   }
 
-  &.edge-backprop-active {
-    stroke: #ec4899 !important;
-    stroke-width: 2.5px !important;
-    stroke-dasharray: 6, 4;
-    animation: backpropDash 1.2s linear infinite;
+  &.edge-backprop-changing {
+    stroke: #e11d48 !important; /* dark vivid rose/red */
+    stroke-width: 3px !important;
+    stroke-dasharray: 6, 3;
+    animation: backpropDash 0.9s linear infinite;
+    opacity: 0.95;
+  }
+
+  &.edge-backprop-unchanging {
+    stroke: #f472b6 !important; /* light subtle pink */
+    stroke-width: 1.5px !important;
+    stroke-dasharray: 4, 4;
+    animation: backpropDash 2.0s linear infinite;
+    opacity: 0.45;
   }
 }
 
@@ -243,18 +252,38 @@ limitations under the License.
 
 .backprop-marker-group {
   pointer-events: none;
+  transition: all 0.2s ease;
 
-  .backprop-marker-bg {
-    fill: #ec4899;
-    stroke: #ffffff;
-    stroke-width: 1.5px;
+  &.marker-changing {
+    .backprop-marker-bg {
+      fill: #e11d48;
+      stroke: #ffffff;
+      stroke-width: 1.5px;
+    }
+
+    .backprop-marker-arrow {
+      font-size: 8px;
+      font-weight: 700;
+      fill: #ffffff;
+      font-family: system-ui, sans-serif;
+    }
   }
 
-  .backprop-marker-arrow {
-    font-size: 8px;
-    font-weight: 700;
-    fill: #ffffff;
-    font-family: system-ui, sans-serif;
+  &.marker-unchanging {
+    opacity: 0.5;
+
+    .backprop-marker-bg {
+      fill: #fbcfe8;
+      stroke: #f472b6;
+      stroke-width: 1px;
+    }
+
+    .backprop-marker-arrow {
+      font-size: 7px;
+      font-weight: 600;
+      fill: #9d174d;
+      font-family: system-ui, sans-serif;
+    }
   }
 }
 
