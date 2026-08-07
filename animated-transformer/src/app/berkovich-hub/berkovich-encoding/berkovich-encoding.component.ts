@@ -47,7 +47,6 @@ export type { BinarySearchStep };
     MatIconModule,
     MarkdownComponent,
     BerkovichHeaderComponent,
-    BerkovichDigitDisplayComponent,
     BerkovichEncodingTreeVisComponent
   ],
   templateUrl: './berkovich-encoding.component.html',

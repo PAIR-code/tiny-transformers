@@ -15,30 +15,47 @@ limitations under the License.
 
 <div class="berkovich-page-container">
   <app-berkovich-header
-    title="Bi-Directional 2-adic Real Encoding & Berkovich Disk Bias"
-    subtitle="Encoding continuous real values $x \in [0, 1]$ into $p$-adic tree nodes ($\mathbb{R} \to \mathbb{Q}_p$) and decoding $p$-adic digits back to real intervals ($\mathbb{Q}_p \to \mathbb{R}$)."
+    title="Berkovich Extended Monna Mapping & 2-adic Encoding"
+    subtitle="Encoding continuous real values $x \in [0, 1]$ into $p$-adic tree nodes ($\mathbb{R} \to \mathbb{Q}_p$) and decoding $p$-adic digits back to regularized real intervals ($\mathbb{Q}_p \to \mathbb{R}$)."
   ></app-berkovich-header>
 
-  <div class="encoding-layout">
-    <!-- Left Column: Controls & Result Details -->
-    <div class="left-panel">
-      <!-- Input Controls Card for R -> Q_p -->
-      <div class="card controls-card">
-        <h3>Forward Encoding: Real Target Input (x &in; [0, 1])</h3>
-
-        <div class="slider-row">
-          <label>Target Real x = <strong>{{ realTarget() | number:'1.4-4' }}</strong></label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.001"
-            [value]="realTarget()"
-            (input)="setRealTarget(+$any($event.target).value)"
-            class="range-slider"
-          />
+  <div class="encoding-layout-single">
+    <!-- Main Card: Berkovich Extended Monna Mapping -->
+    <div class="card main-mapping-card">
+      <div class="card-header">
+        <div class="header-titles">
+          <h3>Berkovich Extended Monna Mapping</h3>
+          <span class="subtitle">2-adic Tree Traversal Map &amp; 1D Sub-Interval Halving</span>
         </div>
 
+        <div class="header-actions">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="useRhoNormalization()"
+              (change)="setUseRhoNormalization($any($event.target).checked)"
+            />
+            <span class="checkbox-text">use rho normalization</span>
+          </label>
+
+          <div class="precision-depth-controls">
+            <label for="depth-select">Depth (K):</label>
+            <select
+              id="depth-select"
+              [value]="depth()"
+              (change)="onDepthChange(+$any($event.target).value)"
+            >
+              <option [value]="1">K = 1 (2 Digits)</option>
+              <option [value]="2">K = 2 (4 Digits, Std)</option>
+              <option [value]="3">K = 3 (6 Digits)</option>
+              <option [value]="4">K = 4 (8 Digits)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets & Drag Instruction Bar -->
+      <div class="presets-toolbar">
         <div class="presets-row">
           <span class="preset-label">Quick Presets:</span>
           <div class="preset-buttons">
@@ -53,76 +70,33 @@ limitations under the License.
             }
           </div>
         </div>
-      </div>
 
-
-
-      <!-- Reverse Decoding Controls & Digit Display Card -->
-      <div class="card reverse-card">
-        <h3>Reverse Decoding & Berkovich Disk Regularization</h3>
-        <p class="reverse-desc">
-          Click digits or the &rho; label below to edit digits or log-radius directly:
-        </p>
-
-        <div class="checkbox-row">
-          <label class="checkbox-label">
-            <input
-              type="checkbox"
-              [checked]="useRhoNormalization()"
-              (change)="setUseRhoNormalization($any($event.target).checked)"
-            />
-            <span>use rho normalization</span>
-          </label>
-        </div>
-
-        <!-- Interactive Berkovich Digit Display with Inline Editable Rho -->
-        <div class="digit-editor-box">
-          <app-berkovich-digit-display
-            [center]="currentRationalCenter()"
-            [rho]="padicRho()"
-            [prime]="prime()"
-            [digitsLeft]="0"
-            [digitsRight]="depth() * 2"
-            [rhoLabelPosition]="useRhoNormalization() ? 'above' : 'none'"
-            [editableCenter]="true"
-            [editableRho]="useRhoNormalization()"
-            (centerChange)="onDigitDisplayCenterChange($event)"
-            (rhoChange)="onDigitDisplayRhoChange($event)"
-          ></app-berkovich-digit-display>
-        </div>
-
-        <div class="bias-results-grid">
-          <div class="bias-item">
-            <span class="item-title">Exact Leaf Midpoint (x<sub>exact</sub>):</span>
-            <span class="item-val">{{ decodedExactReal() | number:'1.6-6' }}</span>
-          </div>
-          @if (useRhoNormalization()) {
-            <div class="bias-item highlight-bias">
-              <span class="item-title">Parent Center Biased Value (&rho; = {{ padicRho() }}, r = {{ diskRadius() | number:'1.4-4' }}):</span>
-              <span class="item-val">{{ decodedBiasedReal() | number:'1.6-6' }}</span>
-            </div>
-          }
+        <div class="drag-hint">
+          <mat-icon>touch_app</mat-icon>
+          <span>Drag <strong class="exact-hint">x_exact</strong> pin or click number line. Click digits or &rho; to edit:</span>
         </div>
       </div>
-    </div>
 
-    <!-- Right Column: Combined Tree & 1D Sub-Interval Map + Explanation -->
-    <div class="right-panel">
-      <!-- D3 2-adic Tree Traversal Map with Integrated 1D Number Line Underneath -->
+      <!-- D3 2-adic Tree Traversal Map & Movable Blue-Outlined Digit Display -->
       <app-berkovich-encoding-tree-vis
         [steps]="steps()"
         [targetValue]="realTarget()"
         [biasedValue]="decodedBiasedReal()"
+        [currentRationalCenter]="currentRationalCenter()"
         [depth]="depth()"
+        [prime]="prime()"
         [useRhoNormalization]="useRhoNormalization()"
         [padicRho]="padicRho()"
+        (targetChange)="setRealTarget($event)"
+        (centerChange)="onDigitDisplayCenterChange($event)"
+        (rhoChange)="onDigitDisplayRhoChange($event)"
       ></app-berkovich-encoding-tree-vis>
+    </div>
 
-      <!-- Explanation Card -->
-      <div class="card explanation-card">
-        <h3>Reverse Decoding & Berkovich Disk Regularization</h3>
-        <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
-      </div>
+    <!-- Mathematical Explainer Card -->
+    <div class="card explanation-card">
+      <h3>Reverse Decoding &amp; Berkovich Disk Regularization</h3>
+      <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
     </div>
   </div>
 </div>

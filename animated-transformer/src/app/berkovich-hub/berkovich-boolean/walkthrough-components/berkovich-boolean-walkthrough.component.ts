@@ -97,20 +97,20 @@ export class BerkovichBooleanWalkthroughComponent {
 
     let targetExpl = '';
     if (mode === 'fixed') {
-      targetExpl = '**Fixed Target Centers**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ stay fixed at canonical leaves ($c_0=0, c_1=1/p$). Gradient descent updates pool weight shifts $PW_{m,d}$ so $X_d \\oplus PW_{m,d} \\to W_{1,m,d}$.';
+      targetExpl = '**Fixed Target Centers**: Target constraint centers $W_0$ and $W_1$ stay fixed at canonical leaves ($c_0 = 0, c_1 = 1/p$). Gradient descent updates pool weight shifts $PW$ so $X \\oplus PW \\to W_1$.';
     } else if (mode === 'gradient' || mode === 'dynamic') {
-      targetExpl = '**Dynamic Gradient Updates**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ update dynamically toward active pooled disks $H_{m,d}$ during training.';
+      targetExpl = '**Dynamic Gradient Updates**: Target constraint centers $W_0$ and $W_1$ update dynamically toward active pooled disks during training.';
     } else if (mode === 'repulsion') {
-      targetExpl = '**Softmax Repulsion Only**: Target constraint centers $W_{0,m}$ and $W_{1,m}$ move purely via softmax-normalized repulsion forces pushing pool/class target centers apart across distinct branches of the 2-adic tree.';
+      targetExpl = '**Softmax Repulsion Only**: Target constraint centers $W_0$ and $W_1$ move purely via softmax-normalized repulsion forces pushing pool/class target centers apart across distinct branches of the 2-adic tree.';
     } else {
-      targetExpl = '**Combined (Gradient + Repulsion)**: Target centers update via gradient descent toward pooled centers $H_{m,d}$ AND apply a weighted softmax repulsion force ($\\lambda_{\\text{repulsion}} = ' + cfg.repulsionReg + ') pushing target centers apart simultaneously.';
+      targetExpl = '**Combined (Gradient + Repulsion)**: Target centers update via gradient descent toward pooled centers AND apply a weighted softmax repulsion force ($\\lambda_{\\text{repulsion}} = ' + cfg.repulsionReg + '$) pushing target centers apart simultaneously.';
     }
 
     let initExpl = '';
     if (initMode === 'random') {
       initExpl = 'Target centers $W$ are **randomly initialized** across 2-adic tree depth 4.';
     } else {
-      initExpl = 'Target centers $W$ are initialized at **canonical $p$-adic leaves** ($c_0=0, c_1=1/p$).';
+      initExpl = 'Target centers $W$ are initialized at **canonical $p$-adic leaves** ($c_0 = 0, c_1 = 1/p$).';
     }
 
     let poolExpl = '';

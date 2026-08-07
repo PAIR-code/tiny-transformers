@@ -41,6 +41,7 @@ describe('BerkovichEncodingTreeVisComponent', () => {
       }
     ]);
     fixture.componentRef.setInput('targetValue', 0.6875);
+    fixture.componentRef.setInput('currentRationalCenter', { num: 11n, den: 16n });
     fixture.componentRef.setInput('depth', 4);
     fixture.detectChanges();
   });
@@ -61,5 +62,58 @@ describe('BerkovichEncodingTreeVisComponent', () => {
     const svgEl: SVGSVGElement = fixture.nativeElement.querySelector('svg');
     expect(svgEl.querySelector('.rho-cutoff-line')).toBeTruthy();
     expect(svgEl.querySelector('.rho-grey-overlay')).toBeTruthy();
+  });
+
+  it('should render darker and thicker dotted lines for inactive tree edges', () => {
+    const svgEl: SVGSVGElement = fixture.nativeElement.querySelector('svg');
+    const edges = Array.from(svgEl.querySelectorAll<SVGLineElement>('.tree-edge'));
+    expect(edges.length).toBeGreaterThan(0);
+
+    const inactiveEdges = edges.filter((e) => e.getAttribute('stroke-dasharray') === '3 3');
+    expect(inactiveEdges.length).toBeGreaterThan(0);
+    inactiveEdges.forEach((edge) => {
+      expect(edge.getAttribute('stroke')).toBe('#64748b');
+      expect(edge.getAttribute('stroke-width')).toBe('1.8');
+    });
+  });
+
+  it('should render draggable x_exact pin and number line drag area', () => {
+    const svgEl: SVGSVGElement = fixture.nativeElement.querySelector('svg');
+    const exactPinGroup = svgEl.querySelector('.exact-pin-group');
+    expect(exactPinGroup).toBeTruthy();
+    expect(exactPinGroup?.querySelector('circle')).toBeTruthy();
+    expect(exactPinGroup?.querySelector('text')?.textContent).toContain('x_exact = 0.6875');
+
+    const dragArea = svgEl.querySelector('.number-line-drag-area');
+    expect(dragArea).toBeTruthy();
+  });
+
+  it('should render blue pin labeled x_{ρ-norm} when rho-norm is enabled, and x_padic when disabled', () => {
+    // When rho normalization is enabled
+    fixture.componentRef.setInput('useRhoNormalization', true);
+    fixture.componentRef.setInput('biasedValue', 0.625);
+    fixture.detectChanges();
+
+    const svgEl: SVGSVGElement = fixture.nativeElement.querySelector('svg');
+    let bluePinGroup = svgEl.querySelector('.blue-pin-group');
+    expect(bluePinGroup).toBeTruthy();
+    expect(bluePinGroup?.querySelector('text')?.textContent).toContain('x_{ρ-norm} = 0.6250');
+
+    // When rho normalization is disabled
+    fixture.componentRef.setInput('useRhoNormalization', false);
+    fixture.detectChanges();
+
+    bluePinGroup = svgEl.querySelector('.blue-pin-group');
+    expect(bluePinGroup).toBeTruthy();
+    expect(bluePinGroup?.querySelector('text')?.textContent).toContain('x_padic = 0.6875');
+  });
+
+  it('should render movable digit-display with blue outline placed underneath the blue pin', () => {
+    const hostEl: HTMLElement = fixture.nativeElement;
+    const digitDisplayWrapper = hostEl.querySelector('.movable-digit-display');
+    expect(digitDisplayWrapper).toBeTruthy();
+
+    const digitDisplayComponent = hostEl.querySelector('app-berkovich-digit-display');
+    expect(digitDisplayComponent).toBeTruthy();
   });
 });
