@@ -142,9 +142,7 @@ export class BerkovichEncodingTreeVisComponent {
     if (useRho) {
       return this.biasedValue() ?? this.targetValue();
     }
-    const r = this.currentRationalCenter();
-    const den = Number(r.den);
-    return den > 0 ? Number(r.num) / den : 0.5;
+    return this.targetValue();
   });
 
   readonly bluePinPercentX = computed<number>(() => {
