@@ -101,6 +101,7 @@ describe('BerkovichEncodingTreeVisComponent', () => {
 
     // When rho normalization is disabled
     fixture.componentRef.setInput('useRhoNormalization', false);
+    fixture.componentRef.setInput('biasedValue', 0.6875);
     fixture.detectChanges();
 
     bluePinGroup = svgEl.querySelector('.blue-pin-group');

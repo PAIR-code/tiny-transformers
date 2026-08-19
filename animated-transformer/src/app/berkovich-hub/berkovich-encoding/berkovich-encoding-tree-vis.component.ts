@@ -135,11 +135,7 @@ export class BerkovichEncodingTreeVisComponent {
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
 
   readonly bluePinVal = computed<number>(() => {
-    const useRho = this.useRhoNormalization();
-    if (useRho) {
-      return this.biasedValue() ?? this.targetValue();
-    }
-    return this.targetValue();
+    return this.biasedValue() ?? this.targetValue();
   });
 
   constructor() {
