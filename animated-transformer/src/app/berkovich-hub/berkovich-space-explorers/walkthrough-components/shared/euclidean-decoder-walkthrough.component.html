@@ -1,0 +1,39 @@
+<details class="walkthrough-details">
+  <summary class="walkthrough-summary">
+    Show Step 3 logit calculations & dot products
+  </summary>
+  <div class="walkthrough-content">
+    <div class="table-wrapper">
+      <table class="walkthrough-table">
+        <thead>
+          <tr>
+            <th>Class Character (k)</th>
+            <th>Dot Product & Bias Details</th>
+            <th class="right-align">Final Logit Score (S)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of scores(); track s.classIdx) {
+            <tr>
+              <td>
+                <div class="char-display">
+                  {{ wrapInQuotes(formatDisplayString(s.char)) }}
+                </div>
+                <div class="char-idx">Idx: {{ s.classIdx }}</div>
+              </td>
+              <td>
+                <div class="euclidean-details-wrapper">
+                  <div>H &middot; W<sub>k</sub> = {{ (s.finalScore - (s.bias ?? 0)).toFixed(4) }}</div>
+                  <div>Bias b<sub>k</sub> = {{ s.bias?.toFixed(4) ?? '0.0000' }}</div>
+                </div>
+              </td>
+              <td class="right-align">
+                {{ s.finalScore.toFixed(3) }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>

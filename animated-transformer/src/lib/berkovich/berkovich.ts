@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* Copyright 2026 Google LLC. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +40,16 @@ limitations under the License.
 // ============================================================================
 // P-ADIC ARITHMETIC INTERFACE & HELPERS
 // ============================================================================
+
+export interface PrecisionBounds {
+  minPower: number;
+  maxPower: number;
+}
+
+export const DEFAULT_PRECISION: PrecisionBounds = {
+  minPower: -2,
+  maxPower: 1,
+};
 
 export interface Rational {
   num: bigint;
@@ -86,8 +113,38 @@ export function formatRational(r: Rational): string {
   return `${simplified.num}/${simplified.den}`;
 }
 
-export function getValuation(r: Rational, p: bigint): number {
-  if (r.num === 0n) return 30; // represents infinity in practice for local visualization
+export type ExtendedNumber =
+  | { type: 'finite'; value: number }
+  | { type: 'pos-infinity' }
+  | { type: 'neg-infinity' };
+
+export function extNegate(x: ExtendedNumber): ExtendedNumber {
+  if (x.type === 'pos-infinity') return { type: 'neg-infinity' };
+  if (x.type === 'neg-infinity') return { type: 'pos-infinity' };
+  const val = -x.value;
+  return { type: 'finite', value: val === 0 ? 0 : val };
+}
+
+export function extCompare(x: ExtendedNumber, y: ExtendedNumber): number {
+  if (x.type === y.type) {
+    if (x.type === 'finite') {
+      return x.value - (y as { value: number }).value;
+    }
+    return 0;
+  }
+  if (x.type === 'neg-infinity' || y.type === 'pos-infinity') return -1;
+  if (x.type === 'pos-infinity' || y.type === 'neg-infinity') return 1;
+  return 0;
+}
+
+export function extValuationGe(val: ExtendedNumber, limit: number): boolean {
+  if (val.type === 'pos-infinity') return true;
+  if (val.type === 'neg-infinity') return false;
+  return val.value >= limit;
+}
+
+export function getValuation(r: Rational, p: bigint): ExtendedNumber {
+  if (r.num === 0n) return { type: 'pos-infinity' };
   let numVal = 0;
   let num = abs(r.num);
   while (num % p === 0n) {
@@ -100,7 +157,13 @@ export function getValuation(r: Rational, p: bigint): number {
     denVal++;
     den /= p;
   }
-  return numVal - denVal;
+  return { type: 'finite', value: numVal - denVal };
+}
+
+export function computePathLoss(rho: number, d: ExtendedNumber, y_rho: number): number {
+  if (d.type === 'neg-infinity') return rho - y_rho;
+  if (d.type === 'pos-infinity') return Infinity;
+  return Math.abs(rho - d.value) + d.value - y_rho;
 }
 
 export function parseToRational(input: string): Rational {
@@ -130,7 +193,11 @@ export function getPadicDigits(r: Rational, p: bigint, count: number): { startPo
   if (rSim.num === 0n) {
     return { startPower: 0, digits: Array(count).fill(0) };
   }
-  const v = getValuation(rSim, p);
+  const valResult = getValuation(rSim, p);
+  if (valResult.type !== 'finite') {
+    return { startPower: 0, digits: Array(count).fill(0) };
+  }
+  const v = valResult.value;
   
   let r0: Rational;
   if (v >= 0) {
@@ -155,10 +222,9 @@ export function getPadicDigits(r: Rational, p: bigint, count: number): { startPo
     const digit = (nMod * dInv) % Number(p);
     digits.push(digit);
     
-    curr = simplify({
-      num: curr.num - BigInt(digit) * curr.den,
-      den: curr.den * p
-    });
+    // next term: (curr - digit)/p
+    const diff = subtract(curr, simplify({ num: BigInt(digit), den: 1n }));
+    curr = simplify({ num: diff.num, den: diff.den * p });
   }
   
   return { startPower: v, digits };
@@ -182,16 +248,21 @@ export function getAlignedDigits(
     
     const val = getValuation(rShift, p);
     let digit = 0;
-    if (val > 0) {
-      digit = 0;
-    } else if (val < 0) {
-      const startV = val;
-      const count = -startV + 1;
-      const { startPower, digits } = getPadicDigits(rShift, p, count);
-      digit = digits[-startPower] || 0;
+    if (val.type === 'finite') {
+      const v = val.value;
+      if (v > 0) {
+        digit = 0;
+      } else if (v < 0) {
+        const startV = v;
+        const count = -startV + 1;
+        const { startPower, digits } = getPadicDigits(rShift, p, count);
+        digit = digits[-startPower] || 0;
+      } else {
+        const { digits } = getPadicDigits(rShift, p, 1);
+        digit = digits[0] || 0;
+      }
     } else {
-      const { digits } = getPadicDigits(rShift, p, 1);
-      digit = digits[0] || 0;
+      digit = 0;
     }
     
     result.push({ power: k, digit });
@@ -200,90 +271,8 @@ export function getAlignedDigits(
   return result;
 }
 
-// ============================================================================
-// BERKOVICH GRADIENT DESCENT & OPTIMIZATION CORE
-// ============================================================================
-
-export interface VertexCandidate {
-  branch: string;
-  center: Rational;
-  logRadius: number;
-  lossVal: number;
-}
-
-export interface ContinuousStepResult {
-  proposedRho: number;
-  crossesInteger: boolean;
-  snappedRho: number;
-  gRho: number;
-}
-
 export function isVertex(rho: number): boolean {
   return Math.abs(rho - Math.round(rho)) < 1e-7;
-}
-
-export function computeVertexCandidates(
-  c: Rational,
-  rho: number,
-  y: Rational,
-  p: bigint
-): VertexCandidate[] {
-  const k = Math.round(rho);
-  const candidates: VertexCandidate[] = [];
-  const d = -getValuation(subtract(c, y), p);
-  
-  // Parent candidate
-  candidates.push({
-    branch: 'parent',
-    center: c,
-    logRadius: k + 1,
-    lossVal: Math.abs((k + 1) - d) + d
-  });
-  
-  // Children candidates
-  for (let g = 0; g < Number(p); g++) {
-    let shift: Rational;
-    const power = -k + 1;
-    if (power <= 0) {
-      shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-    } else {
-      shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-    }
-    const childCenter = add(c, shift);
-    const childDiff = subtract(childCenter, y);
-    const childVal = getValuation(childDiff, p);
-    const childD = -childVal;
-    const childLoss = Math.abs((k - 1) - childD) + childD;
-    
-    candidates.push({
-      branch: g.toString(),
-      center: childCenter,
-      logRadius: k - 1,
-      lossVal: childLoss
-    });
-  }
-  return candidates;
-}
-
-export function computeContinuousStep(
-  rho: number,
-  d: number,
-  eta: number
-): ContinuousStepResult {
-  const gRho = rho >= d ? 1 : -1;
-  const proposedRho = rho - eta * gRho;
-  
-  const kUpper = Math.ceil(rho);
-  const kLower = Math.floor(rho);
-  const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
-  const snappedRho = gRho > 0 ? kLower : kUpper;
-  
-  return {
-    proposedRho,
-    crossesInteger,
-    snappedRho,
-    gRho
-  };
 }
 
 export function truncateToTreeRange(
@@ -306,208 +295,105 @@ export function truncateToTreeRange(
   return sum;
 }
 
-// ============================================================================
-// NEW GRADIENT & DIGIT SEQUENCE CONVERSION INTERFACES & FUNCTIONS
-// ============================================================================
-
-export interface GradientDetails {
-  isVertex: boolean;
-  rho: number;
-  d: number;
-  loss: number;
-  nextCenter: Rational;
-  nextLogRadius: number;
-  stepType: string;
-  explanation: string;
-  candidates?: {
-    branch: string;
-    branchLabel: string;
-    center: Rational;
-    centerStr: string;
-    logRadius: number;
-    distVal: number;
-    lossVal: number;
-  }[];
-  bestBranch?: string;
-  bestBranchLabel?: string;
-  gRho?: number;
-  proposedRho?: number;
-  crossesInteger?: boolean;
-  snappedRho?: number;
-}
-
-export function formatDigitSequence(r: Rational, p: bigint): string {
-  const aligned = getAlignedDigits(r, p, -2, 1);
-  const d_minus2 = aligned.find(item => item.power === -2)?.digit ?? 0;
-  const d_minus1 = aligned.find(item => item.power === -1)?.digit ?? 0;
-  const d_0 = aligned.find(item => item.power === 0)?.digit ?? 0;
-  const d_1 = aligned.find(item => item.power === 1)?.digit ?? 0;
-  return `${d_1}${d_0}.${d_minus1}${d_minus2}`;
-}
-
-export function parseDigitSequence(seq: string, p: bigint): Rational {
-  const match = seq.trim().match(/^([0-9])([0-9])\.([0-9])([0-9])$/);
-  if (!match) {
-    throw new Error(`Invalid digit sequence format: ${seq}`);
+export function formatDigitSequence(
+  r: Rational,
+  p: bigint,
+  precision: PrecisionBounds = DEFAULT_PRECISION
+): string {
+  const aligned = getAlignedDigits(r, p, precision.minPower, precision.maxPower);
+  
+  let left = '';
+  for (let pow = precision.maxPower; pow >= 0; pow--) {
+    const digit = aligned.find(item => item.power === pow)?.digit ?? 0;
+    left += digit.toString();
   }
-  const d1 = Number(match[1]);
-  const d0 = Number(match[2]);
-  const d_minus1 = Number(match[3]);
-  const d_minus2 = Number(match[4]);
+  
+  let right = '';
+  for (let pow = -1; pow >= precision.minPower; pow--) {
+    const digit = aligned.find(item => item.power === pow)?.digit ?? 0;
+    right += digit.toString();
+  }
+  
+  return right.length > 0 ? `${left}.${right}` : left;
+}
+
+export function parseDigitSequence(
+  seq: string,
+  p: bigint,
+  precision: PrecisionBounds = DEFAULT_PRECISION
+): Rational {
+  const parts = seq.trim().split('.');
+  const leftStr = parts[0] || '';
+  const rightStr = parts[1] || '';
+  
+  const expectedLeftLen = precision.maxPower + 1;
+  const expectedRightLen = -precision.minPower;
+  
+  const paddedLeft = leftStr.length > expectedLeftLen 
+    ? leftStr.slice(leftStr.length - expectedLeftLen)
+    : leftStr.padStart(expectedLeftLen, '0');
+    
+  const paddedRight = rightStr.length > expectedRightLen
+    ? rightStr.slice(0, expectedRightLen)
+    : rightStr.padEnd(expectedRightLen, '0');
   
   const pNum = Number(p);
-  if (d1 >= pNum || d0 >= pNum || d_minus1 >= pNum || d_minus2 >= pNum) {
-    throw new Error(`Digits in sequence ${seq} exceed base ${p}`);
+  let sum = simplify({ num: 0n, den: 1n });
+  
+  // Left of decimal: powers from maxPower down to 0
+  for (let i = 0; i < paddedLeft.length; i++) {
+    const digit = Number(paddedLeft[i]);
+    if (isNaN(digit) || digit >= pNum) {
+      throw new Error(`Digit ${digit} exceeds base ${p}`);
+    }
+    const power = precision.maxPower - i;
+    const term = simplify({ num: BigInt(digit) * (p ** BigInt(power)), den: 1n });
+    sum = add(sum, term);
   }
   
-  const term1 = simplify({ num: BigInt(d1) * p, den: 1n });
-  const term2 = simplify({ num: BigInt(d0), den: 1n });
-  const term3 = simplify({ num: BigInt(d_minus1), den: p });
-  const term4 = simplify({ num: BigInt(d_minus2), den: p ** 2n });
+  // Right of decimal: powers from -1 down to minPower
+  for (let i = 0; i < paddedRight.length; i++) {
+    const digit = Number(paddedRight[i]);
+    if (isNaN(digit) || digit >= pNum) {
+      throw new Error(`Digit ${digit} exceeds base ${p}`);
+    }
+    const power = -1 - i;
+    const term = simplify({ num: BigInt(digit), den: p ** BigInt(-power) });
+    sum = add(sum, term);
+  }
   
-  return simplify(add(add(add(term1, term2), term3), term4));
+  return simplify(sum);
 }
 
-export function computeGradientDetails(
-  c: Rational,
-  rho: number,
-  y: Rational,
+/**
+ * Helper to parse either a p-adic digit sequence (e.g. '101.00', '00.30') or a standard rational input (e.g. '3/5', '-1.25').
+ */
+export function parsePadicOrRationalInput(
+  input: string,
   p: bigint,
-  eta: number
-): GradientDetails {
-  const rhoMin = -2;
-  const rhoMax = 2;
+  precision?: PrecisionBounds
+): Rational {
+  const cleaned = input.trim();
+  if (cleaned.includes('/') || cleaned.startsWith('-')) {
+    return parseToRational(cleaned);
+  }
 
-  const diff = subtract(c, y);
-  const val = getValuation(diff, p);
-  const d = -val;
-  const loss = Math.abs(rho - d) + d;
-  
-  const isVertex = Math.abs(rho - Math.round(rho)) < 1e-7;
-  
-  if (isVertex) {
-    const k = Math.round(rho);
-    const candidates: {
-      branch: string;
-      branchLabel: string;
-      center: Rational;
-      centerStr: string;
-      logRadius: number;
-      distVal: number;
-      lossVal: number;
-    }[] = [];
-    
-    // Parent candidate
-    candidates.push({
-      branch: 'parent',
-      branchLabel: 'Parent (∞)',
-      center: c,
-      centerStr: formatRational(c),
-      logRadius: k + 1,
-      distVal: d,
-      lossVal: Math.abs((k + 1) - d) + d
-    });
-    
-    // Children candidates
-    for (let g = 0; g < Number(p); g++) {
-      let shift: Rational;
-      const power = -k;
-      if (power <= 0) {
-        shift = simplify({ num: BigInt(g), den: p ** BigInt(-power) });
-      } else {
-        shift = simplify({ num: BigInt(g) * (p ** BigInt(power)), den: 1n });
-      }
-      const childCenter = add(c, shift);
-      const childDiff = subtract(childCenter, y);
-      const childVal = getValuation(childDiff, p);
-      const childD = -childVal;
-      const childLoss = Math.abs((k - 1) - childD) + childD;
-      
-      candidates.push({
-        branch: g.toString(),
-        branchLabel: `Child ${g}`,
-        center: childCenter,
-        centerStr: formatRational(childCenter),
-        logRadius: k - 1,
-        distVal: childD,
-        lossVal: childLoss
-      });
-    }
-    
-    // Find candidate that minimizes loss, breaking ties by maximizing p-adic valuation to target y
-    let minLoss = Infinity;
-    let maxValuation = -Infinity;
-    let bestCand = candidates[0];
-    for (const cand of candidates) {
-      const valShift = getValuation(subtract(y, cand.center), p);
-      if (cand.lossVal < minLoss) {
-        minLoss = cand.lossVal;
-        maxValuation = valShift;
-        bestCand = cand;
-      } else if (Math.abs(cand.lossVal - minLoss) < 1e-7) {
-        if (valShift > maxValuation) {
-          maxValuation = valShift;
-          bestCand = cand;
-        }
-      }
-    }
-    
-    const nextCenter = bestCand.center;
-    const nextLogRadiusUnclamped = bestCand.branch === 'parent' ? k + eta : k - eta;
-    const nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadiusUnclamped));
-    const stepType = bestCand.branch === 'parent' ? 'Vertex (Move to Parent)' : `Vertex (Move to Child ${bestCand.branch})`;
-    
-    const explanation = `At Type II vertex ($\\rho = ${k}$), the tangent space has ${Number(p) + 1} branches (parent and ${Number(p)} children). We evaluate the path-metric loss for each branch and choose the one with the smallest loss: **${bestCand.branchLabel}**.`;
-    
-    return {
-      isVertex: true,
-      rho,
-      d,
-      loss,
-      nextCenter,
-      nextLogRadius,
-      stepType,
-      explanation,
-      candidates,
-      bestBranch: bestCand.branch,
-      bestBranchLabel: bestCand.branchLabel
-    };
+  let effectivePrecision: PrecisionBounds;
+  if (precision) {
+    effectivePrecision = precision;
   } else {
-    const gRho = rho >= d ? 1 : -1;
-    const proposedRho = rho - eta * gRho;
-    
-    const kUpper = Math.ceil(rho);
-    const kLower = Math.floor(rho);
-    const crossesInteger = (proposedRho < kLower && rho >= kLower) || (proposedRho > kUpper && rho <= kUpper);
-    
-    let nextLogRadius: number;
-    let stepType: string;
-    if (crossesInteger) {
-      nextLogRadius = gRho > 0 ? kLower : kUpper;
-      stepType = `Edge (Continuous snap to ρ=${nextLogRadius})`;
-    } else {
-      nextLogRadius = proposedRho;
-      stepType = `Edge (Continuous descent dL/dρ=${gRho > 0 ? '+1' : '-1'})`;
-    }
-    nextLogRadius = Math.max(rhoMin, Math.min(rhoMax, nextLogRadius));
-    
-    const snappedRho = crossesInteger ? (gRho > 0 ? kLower : kUpper) : proposedRho;
-    const explanation = `On Type III edge ($\\rho = ${rho.toFixed(4)}$), the gradient of the loss with respect to $\\rho$ is $\\frac{dL}{d\\rho} = \\text{sgn}(\\rho - d) = ${gRho > 0 ? '+1.0' : '-1.0'}$ (since $\\rho ${rho >= d ? '\\ge' : '<'} d$). Under gradient descent, the proposed update is $\\rho_{\\text{new}} = \\rho - \\eta \\cdot \\frac{dL}{d\\rho} = ${proposedRho.toFixed(4)}$.${crossesInteger ? ` This crosses the integer boundary ${snappedRho}, so the step is intercepted and snapped to $\\rho = ${snappedRho}$ to land exactly on a Type II vertex.` : ''}`;
-    
-    return {
-      isVertex: false,
-      rho,
-      d,
-      loss,
-      nextCenter: c,
-      nextLogRadius,
-      stepType,
-      explanation,
-      gRho,
-      proposedRho,
-      crossesInteger,
-      snappedRho
+    const parts = cleaned.split('.');
+    const leftLen = parts[0] ? parts[0].length : 1;
+    const rightLen = parts[1] ? parts[1].length : 0;
+    effectivePrecision = {
+      minPower: -Math.max(2, rightLen),
+      maxPower: Math.max(1, leftLen - 1)
     };
   }
-}
 
+  try {
+    return parseDigitSequence(cleaned, p, effectivePrecision);
+  } catch {
+    return parseToRational(cleaned);
+  }
+}

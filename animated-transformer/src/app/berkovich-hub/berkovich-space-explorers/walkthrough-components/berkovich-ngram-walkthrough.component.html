@@ -1,0 +1,202 @@
+<h4 class="walkthrough-title">
+  Berkovich p-adic N-Gram Predictor (Adjustable N)
+</h4>
+<markdown class="walkthrough-description" [katex]="true" [data]="descriptionMarkdown"></markdown>
+
+@if (details(); as walkthrough) {
+  <app-walkthrough-context
+    [inputId]="'walkthrough-input-field-ngram'"
+    [contextLength]="contextLength()"
+    [preText]="walkthrough.preText"
+    [contextText]="walkthrough.contextText"
+    [walkthroughInput]="walkthroughInput()"
+    [walkthroughInputError]="walkthroughInputError()"
+    (inputChanged)="walkthroughInputChange.emit($event)">
+  </app-walkthrough-context>
+
+  <div class="walkthrough-container">
+    <!-- Step 1 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step1"></markdown>
+      <app-berkovich-lookup-walkthrough
+        [embeddings]="walkthrough.embeddings"
+        [contextText]="walkthrough.contextText"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-lookup-walkthrough>
+
+      <!-- Dynamic Unfoldable E Table -->
+      @if (model()) {
+        <details #eDetails [open]="showE()" (toggle)="showEChange.emit(eDetails.open)"
+                 style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px; margin-bottom: 16px;">
+          <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #0f766e; cursor: pointer; background: #f0fdfa; user-select: none;">
+            Show Model Parameters: Character Embeddings (E) Overview
+          </summary>
+          <div style="padding: 12px;">
+            <app-berkovich-model-inspector
+              [model]="model()!"
+              [vocab]="vocab()"
+              [dimensions]="dimensions()"
+              [prime]="prime()"
+              [digitsLeft]="digitsLeft()"
+              [digitsRight]="digitsRight()"
+              [mode]="'E'">
+            </app-berkovich-model-inspector>
+          </div>
+        </details>
+      }
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step2"></markdown>
+
+      <details #hDetails class="aggregation-details" [open]="showH()" (toggle)="showHChange.emit(hDetails.open)">
+        <summary class="aggregation-summary">
+          Show Step 2 Hidden aggregated disk values (H)
+        </summary>
+        <div class="aggregation-content">
+          <div class="aggregation-header">
+            Aggregated Hidden Disk in each dimension:
+          </div>
+          <div class="dimensions-wrapper">
+            @for (h of walkthrough.aggregated; track h.dim) {
+              <div class="dimension-card">
+                <div class="dimension-title">Dimension {{ h.dim }}</div>
+
+                <div class="dimension-grid">
+                  <div class="grid-col">
+                    <span class="col-label">Center c_H (Rational)</span>
+                    <span class="col-value">{{ formatRationalVal(h.center) }}</span>
+                  </div>
+                  <div class="grid-col min-w-140">
+                    <span class="col-label">Center c_H (p-adic digits)</span>
+                    @if (h.center && h.rho !== undefined) {
+                      <app-berkovich-digit-display
+                        [center]="h.center"
+                        [rho]="h.rho"
+                        [prime]="prime()"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()"
+                        [scale]="0.7">
+                      </app-berkovich-digit-display>
+                    }
+                  </div>
+                  <div class="grid-col">
+                    <span class="col-label">Log-radius &rho;_H</span>
+                    <span class="col-value blue-val">{{ h.rho?.toFixed(4) }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Step 3 -->
+    <div>
+      <markdown [katex]="true" [data]="stepData().step3"></markdown>
+      <app-berkovich-decoder-walkthrough
+        [scores]="walkthrough.scores"
+        [aggMode]="aggMode()"
+        [prime]="prime()"
+        [digitsLeft]="digitsLeft()"
+        [digitsRight]="digitsRight()">
+      </app-berkovich-decoder-walkthrough>
+
+      <!-- Dynamic Unfoldable W Table -->
+      @if (model()) {
+        <details #wDetails [open]="showW()" (toggle)="showWChange.emit(wDetails.open)"
+                 style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px; margin-bottom: 16px;">
+          <summary style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #0f766e; cursor: pointer; background: #f0fdfa; user-select: none;">
+            Show Model Parameters: Class Targets / Representations (W) Overview
+          </summary>
+          <div style="padding: 12px;">
+            <app-berkovich-model-inspector
+              [model]="model()!"
+              [vocab]="vocab()"
+              [dimensions]="dimensions()"
+              [prime]="prime()"
+              [digitsLeft]="digitsLeft()"
+              [digitsRight]="digitsRight()"
+              [mode]="'W'">
+            </app-berkovich-model-inspector>
+          </div>
+        </details>
+      }
+    </div>
+
+    <!-- Step 4 -->
+    <app-softmax-walkthrough-table
+      [stepTitle]="'Show Step 4 output probabilities'"
+      [predictions]="walkthrough.predictions"
+      [denominatorSum]="walkthrough.sumExp"
+      [beta]="beta()"
+      [guideData]="softmaxGuide"
+      [open]="showSoftmax()"
+      (openChange)="showSoftmaxChange.emit($event)">
+    </app-softmax-walkthrough-table>
+
+    <!-- NEW SECTION: Live Gradient tracker -->
+    @if (gradients() && gradients()!.length > 0) {
+      <div style="margin-top: 24px;">
+        <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+          <mat-icon style="color: #ea580c; font-size: 18px; width: 18px; height: 18px;">gradient</mat-icon>
+          <span>Live Parameter Gradients &amp; Backpropagation Update Tracker</span>
+        </h4>
+        
+        <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #475569; background: #faf5ff; border: 1px solid #e9d5ff; padding: 10px; border-radius: 6px; width: fit-content; flex-wrap: wrap;">
+          <span style="font-weight: 600; color: #6b21a8;">Target next character for gradient analysis:</span>
+          <select [value]="targetChar()" (change)="onTargetCharChange($event)" style="padding: 3px 6px; border-radius: 4px; border: 1px solid #c084fc; font-size: 12.5px; font-weight: bold; color: #581c87; background: #ffffff;">
+            <option *ngFor="let char of vocab()" [value]="char">'{{ char }}'</option>
+          </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          @for (g of gradients(); track g.name) {
+            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 12.5px; margin-bottom: 8px;">
+                <span style="color: #0f172a;">{{ g.name }}</span>
+                <span [style.color]="g.gk < 0 ? '#16a34a' : '#dc2626'">
+                  dLoss/dp = {{ g.gk.toFixed(4) }} ({{ g.gk < 0 ? 'Attraction' : 'Repulsion' }})
+                </span>
+              </div>
+              
+              <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                <div>
+                  <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">p-adic alignment: [x=Before, y=Attraction Target]</div>
+                  <app-berkovich-dual-digit-display
+                    [prime]="prime()"
+                    [xCenter]="g.centerBefore"
+                    [xRho]="g.rhoBefore"
+                    [yCenter]="g.targetCenter!"
+                    [yRho]="g.targetRho!"
+                    [scale]="0.7"
+                    [digitsLeft]="digitsLeft()"
+                    [digitsRight]="digitsRight()">
+                  </app-berkovich-dual-digit-display>
+                </div>
+                
+                <div style="flex: 1; min-width: 250px; font-size: 12px; color: #334155; line-height: 1.45;">
+                  <div><strong>Resulting Step:</strong> <span style="font-family: monospace; font-weight: 700; background: #f1f5f9; padding: 2px 4px; border-radius: 3px;">{{ g.stepType }}</span></div>
+                  <div style="margin-top: 6px; color: #64748b; font-size: 11.5px; line-height: 1.4;">{{ g.explanation }}</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Explanatory note -->
+    <div class="explanatory-note">
+      <markdown [katex]="true" [data]="explanationMarkdown"></markdown>
+    </div>
+  </div>
+} @else {
+  <div class="unactivated-message">
+    Type a valid context string above to activate the live walkthrough.
+  </div>
+}

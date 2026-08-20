@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* Copyright 2023 Google LLC. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,10 +29,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
+import { ApplicationConfig, provideZonelessChangeDetection, SecurityContext } from '@angular/core';
 
-import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions } from 'ngx-markdown';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { provideMarkdown, KATEX_OPTIONS, MarkedKatexOptions, SANITIZE } from 'ngx-markdown';
 
 import { provideRouter, Routes, withComponentInputBinding, withHashLocation } from '@angular/router';
 
@@ -31,7 +47,17 @@ import { LogicDocsComponent } from './logic-explorer/logic-docs.component';
 import { LogicAdvancedDocsComponent } from './logic-explorer/logic-advanced-docs.component';
 import { LogicSimDocsComponent } from './logic-explorer/logic-sim-docs.component';
 import { provideHttpClient } from '@angular/common/http';
-import { BerkovichVisComponent } from './berkovich-vis/berkovich-vis.component';
+import { BerkovichPointVisComponent } from './berkovich-hub/berkovich-point-vis/berkovich-point-vis.component';
+import { BerkovichDiskVisComponent } from './berkovich-hub/berkovich-disk-vis/berkovich-disk-vis.component';
+import { BerkovichOperatorGradientsVisComponent } from './berkovich-hub/berkovich-operator-gradients-vis/berkovich-operator-gradients-vis.component';
+import { BerkovichUnaryGradientsVisComponent } from './berkovich-hub/berkovich-unary-gradients-vis/berkovich-unary-gradients-vis.component';
+import { BerkovichHubComponent } from './berkovich-hub/berkovich-hub.component';
+import { BerkovichGlossaryComponent } from './berkovich-hub/berkovich-glossary.component';
+import { BerkovichSpaceExplorersComponent } from './berkovich-hub/berkovich-space-explorers/berkovich-space-explorers.component';
+import { BerkovichMnistComponent } from './berkovich-hub/berkovich-mnist/berkovich-mnist.component';
+import { BerkovichBooleanComponent } from './berkovich-hub/berkovich-boolean/berkovich-boolean.component';
+import { BBool2Component } from './berkovich-hub/b-bool2/b-bool2.component';
+import { BerkovichEncodingComponent } from './berkovich-hub/berkovich-encoding/berkovich-encoding.component';
 
 import { LogicLayoutComponent } from './logic-explorer/logic-layout.component';
 
@@ -66,23 +92,72 @@ export const routes: Routes = [
       },
     ]
   },
-  { path: 'berkovich', component: BerkovichVisComponent },
-  { path: '**', component: ErrorPageComponent, pathMatch: 'full' },
+  {
+    path: 'berkovich',
+    children: [
+      { path: '', component: BerkovichHubComponent, pathMatch: 'full' },
+      { path: 'point', component: BerkovichPointVisComponent },
+      { path: 'disk', component: BerkovichDiskVisComponent },
+      { path: 'operator-gradients', component: BerkovichOperatorGradientsVisComponent },
+      { path: 'unary-gradients', component: BerkovichUnaryGradientsVisComponent },
+      { path: 'encoding', component: BerkovichEncodingComponent },
+      { path: 'shakespeare', component: BerkovichSpaceExplorersComponent },
+      { path: 'space-explorers', redirectTo: 'shakespeare', pathMatch: 'full' },
+      { path: 'mnist', component: BerkovichMnistComponent },
+      { path: 'boolean', component: BerkovichBooleanComponent },
+      { path: 'bool2', component: BBool2Component },
+      { path: 'b-bool2', redirectTo: 'bool2', pathMatch: 'full' },
+      { path: 'glossary', component: BerkovichGlossaryComponent },
+    ]
+  },
+  {
+    path: 'vis-tools',
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/berkovich-vis-tools-hub.component').then(m => m.BerkovichVisToolsHubComponent)
+      },
+      {
+        path: 'digit-display',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/digit-display-tool.component').then(m => m.DigitDisplayToolComponent)
+      },
+      {
+        path: 'dual-digit-display',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/dual-digit-display-tool.component').then(m => m.DualDigitDisplayToolComponent)
+      },
+      {
+        path: 'tree-vis',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/tree-vis-tool.component').then(m => m.TreeVisToolComponent)
+      },
+      {
+        path: 'operator-tree-vis',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/operator-tree-vis-tool.component').then(m => m.OperatorTreeVisToolComponent)
+      },
+      {
+        path: 'model-inspector',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/model-inspector-tool.component').then(m => m.ModelInspectorToolComponent)
+      },
+      {
+        path: 'padic-linear-model-inspector',
+        loadComponent: () => import('./berkovich-hub/berkovich-vis-tools/padic-linear-model-inspector-tool.component').then(m => m.PadicLinearModelInspectorToolComponent)
+      }
+    ]
+  },
 ];
-
-
-// @NgModule({
-//   imports: [RouterModule.forRoot(routes, { useHash: true }), RouterLink, RouterOutlet],
-//   exports: [RouterModule],
-// })
-// export class AppRoutingModule {}
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding(), withHashLocation()),
-    provideAnimationsAsync(),
-    provideMarkdown(),
+    provideMarkdown({
+      sanitize: {
+        provide: SANITIZE,
+        // SecurityContext.NONE is required to prevent Angular from stripping
+        // inline style attributes (like vertical-align and top) generated by
+        // KaTeX to position subscripts and superscripts.
+        useValue: SecurityContext.NONE,
+      },
+    }),
     {
       provide: KATEX_OPTIONS,
       useValue: {
@@ -94,11 +169,3 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
   ],
 };
-
-// export const testConfig: ApplicationConfig = {
-//   providers: [
-//     provideRouter(routes, withComponentInputBinding()),
-//     provideNoopAnimations(),
-//     provideMarkdown(),
-//   ],
-// };

@@ -1,0 +1,60 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+@use '../berkovich-point-vis/berkovich-point-vis.component' as point-vis;
+
+:host {
+  display: block;
+}
+
+.label-with-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.info-icon-btn {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #64748b;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: help;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  &:hover, &:focus-visible {
+    color: #2563eb;
+    background-color: #eff6ff;
+    outline: none;
+  }
+
+  .mat-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+  }
+}
+

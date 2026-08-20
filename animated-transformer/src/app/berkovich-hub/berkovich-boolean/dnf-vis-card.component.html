@@ -1,0 +1,539 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="dnf-vis-container">
+  <div class="card-header">
+    <h3>DNF Affinoid Domain Structure</h3>
+    <span class="pool-badge">{{ numPools() }} Berkovich Pools</span>
+  </div>
+
+  <div class="description-markdown">
+    <markdown [katex]="true" [data]="descriptionMarkdown()"></markdown>
+  </div>
+
+  <!-- Symbolic DNF Logic Formula Box -->
+  <div class="formula-box">
+    <div class="formula-title">Symbolic Affinoid Formula:</div>
+    <div class="formula-markdown">
+      <markdown [katex]="true" [data]="formulaMarkdown()"></markdown>
+    </div>
+  </div>
+
+  <!-- DNF Circuit Expressiveness & Pool Count Note -->
+  <div class="circuit-note-box">
+    <div class="note-title">⚡ Boolean Circuit Expressiveness &amp; Pool Complexity</div>
+    <div class="note-markdown">
+      <markdown [katex]="true" [data]="circuitNoteMarkdown()"></markdown>
+    </div>
+  </div>
+
+  <!-- INTERACTIVE DNF AFFINOID DOMAIN CALCULATION WALKTHROUGH -->
+  <div class="dnf-walkthrough-section">
+    <div class="walkthrough-header-row">
+      <div class="walkthrough-title">
+        <mat-icon class="title-icon">science</mat-icon>
+        <span>Live Calculation Walkthrough: DNF Affinoid Domain Structure</span>
+      </div>
+      <span class="latex-ref-badge">p-adic Affinoid Geometry</span>
+    </div>
+    <p class="walkthrough-subtitle">
+      Trace how the Disjunctive Normal Form (DNF) affinoid formula evaluates step-by-step for a selected preset sample or an edited custom input vector (<b>x</b>):
+    </p>
+
+    <!-- Worked Example Interactive Input Editor -->
+    <div class="input-editor-box">
+      <div class="editor-top-row">
+        <span class="editor-title">1. Select Preset Sample or Toggle Individual Input Bits (<b>x</b>):</span>
+        @if (matchedTarget() !== null) {
+          <span class="target-chip" [class.tgt-one]="matchedTarget() === 1">
+            Expected Target: <strong>{{ matchedTarget() === 1 ? 'True (1)' : 'False (0)' }}</strong>
+          </span>
+        } @else {
+          <span class="target-chip tgt-custom">Custom Input (No Dataset Target)</span>
+        }
+      </div>
+
+      <!-- Preset Sample Pills -->
+      <div class="sample-pills">
+        @for (sample of samples(); track sample.label; let idx = $index) {
+          <button
+            mat-stroked-button
+            class="sample-pill-btn"
+            [class.active-sample]="isSelectedSample(sample)"
+            (click)="selectSample(sample)"
+          >
+            ({{ sample.inputs.join(', ') }}) &rarr; Target: {{ sample.target }}
+          </button>
+        }
+      </div>
+
+      <!-- Interactive Bit Toggle Row -->
+      <div class="bit-editor-row">
+        <span class="bit-editor-label">Input Bit Vector:</span>
+        <div class="bit-toggles">
+          @for (bit of currentInputVector(); track $index; let d = $index) {
+            <div class="bit-toggle-group">
+              <span class="var-name">x<sub>{{ d + 1 }}</sub></span>
+              <button
+                class="bit-toggle-btn"
+                [class.bit-one]="bit === 1"
+                (click)="toggleInputBit(d)"
+                [attr.aria-label]="'Toggle input bit x' + (d + 1) + ' between 0 and 1'"
+                matTooltip="Click to toggle bit value"
+              >
+                {{ bit }}
+              </button>
+            </div>
+          }
+        </div>
+        <button
+          mat-button
+          class="reset-input-btn"
+          (click)="resetInputVector()"
+          matTooltip="Reset input to first truth table sample"
+        >
+          <mat-icon>restart_alt</mat-icon>
+          <span>Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- INTERACTIVE D3/SVG DNF AFFINOID CIRCUIT COMPUTATION GRAPH -->
+    <app-dnf-computation-graph
+      [learner]="learner()"
+      [inputs]="currentInputVector()"
+      [numVars]="numVars()"
+      [numPools]="numPools()"
+      [prime]="prime()"
+      [config]="config()"
+      [tick]="tick()"
+      (toggleBit)="toggleInputBit($event)"
+    ></app-dnf-computation-graph>
+
+    @if (currentFwdResult(); as res) {
+      <!-- STEP A: 2-adic Input Encoding & Pool Translation -->
+      <div class="calc-step-card">
+        <div class="calc-step-header">
+          <span class="step-num">Step A</span>
+          <span class="step-name">Input Encoding (<markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown>) &amp; Pool Translation (<markdown [inline]="true" [katex]="true" [data]="'$H_{m,d} = X_d \\oplus PW_{m,d}$'"></markdown>)</span>
+        </div>
+        <p class="calc-step-desc">
+          In non-Archimedean spectral geometry, input bits <markdown [inline]="true" [katex]="true" [data]="'$x_d \\in \\{0, 1\\}$'"></markdown> embed into the Berkovich line as 2-adic leaf disks <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown>. Each DNF pool <markdown [inline]="true" [katex]="true" [data]="'$m$'"></markdown> translates <markdown [inline]="true" [katex]="true" [data]="'$X_d$'"></markdown> via Berkovich Hsia addition in <markdown [inline]="true" [katex]="true" [data]="'$\\mathbb{Q}_p$'"></markdown>, shifting to pooled hidden disk <markdown [inline]="true" [katex]="true" [data]="'$c_{H} = c_X + c_{PW}, \\rho_H = \\max(\\rho_X, \\rho_{PW})$'"></markdown>:
+        </p>
+
+        <div class="matrix-table-wrapper">
+          <table class="dnf-calc-table">
+            <thead>
+              <tr>
+                <th>Pool (m)</th>
+                <th>Dim (d)</th>
+                <th>Input Bit (x<sub>d</sub>)</th>
+                <th>Encoded Leaf Disk (X<sub>d</sub>)</th>
+                <th>Pool Weight (PW<sub>m,d</sub>)</th>
+                <th>Pooled Hidden Disk (H<sub>m,d</sub> = X<sub>d</sub> &oplus; PW<sub>m,d</sub>)</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of getPoolIndices(); track m) {
+                @for (d of getVarIndices(); track d; let firstVar = $first) {
+                  <tr>
+                    @if (firstVar) {
+                      <td [attr.rowspan]="numVars()" class="pool-cell">
+                        <strong>Pool {{ m + 1 }}</strong>
+                      </td>
+                    }
+                    <td>Dim {{ d + 1 }}</td>
+                    <td>
+                      <span class="bit-badge" [class.bit-one]="res.inputs[d] === 1">{{ res.inputs[d] }}</span>
+                    </td>
+                    <td>
+                      <app-berkovich-digit-display
+                        [center]="res.inputDisks[d].center"
+                        [rho]="res.inputDisks[d].rho"
+                        [prime]="prime()"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()"
+                        [scale]="0.75"
+                        rhoLabelPosition="above"
+                      ></app-berkovich-digit-display>
+                    </td>
+                    <td>
+                      @if (getPWDisk(m, d); as pw) {
+                        <app-berkovich-digit-display
+                          [center]="pw.center"
+                          [rho]="pw.rho"
+                          [prime]="prime()"
+                          [digitsLeft]="digitsLeft()"
+                          [digitsRight]="digitsRight()"
+                          [scale]="0.75"
+                          rhoLabelPosition="above"
+                        ></app-berkovich-digit-display>
+                      }
+                    </td>
+                    <td>
+                      @if (res.pools[m][d]; as h) {
+                        <app-berkovich-digit-display
+                          [center]="h.center"
+                          [rho]="h.rho"
+                          [prime]="prime()"
+                          [digitsLeft]="digitsLeft()"
+                          [digitsRight]="digitsRight()"
+                          [scale]="0.75"
+                          rhoLabelPosition="above"
+                        ></app-berkovich-digit-display>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STEP B: Affinoid Domain AND Clause per Pool (Supremum Norm max across Dims) -->
+      <div class="calc-step-card">
+        <div class="calc-step-header">
+          <span class="step-num">Step B</span>
+          <span class="step-name">Affinoid Domain AND Clauses (<markdown [inline]="true" [katex]="true" [data]="'$\\bigwedge_{d=1}^D X_d \\oplus PW_{m,d} \\in W_{1,m,d}$'"></markdown> via Supremum Norm <markdown [inline]="true" [katex]="true" [data]="'$\\max_d$'"></markdown>)</span>
+        </div>
+        <p class="calc-step-desc">
+          An affinoid domain is a poly-disk formed by the intersection of <markdown [inline]="true" [katex]="true" [data]="'$D$'"></markdown> constraints via the supremum norm <markdown [inline]="true" [katex]="true" [data]="'$\\|\\mathbf{W}_k \\mathbf{x} + \\mathbf{B}_k\\|_\\infty \\le 1$'"></markdown>. In our Hsia kernel path metric, logical AND (<markdown [inline]="true" [katex]="true" [data]="'$\\bigwedge_{d=1}^D$'"></markdown>) evaluates as the <strong>maximum</strong> loss across dimensions:
+          <markdown [inline]="true" [katex]="true" [data]="'$$\\text{AND Clause Loss for Pool } m = \\max_{d=1}^D \\text{Loss}(H_{m,d}, W_{1,m,d})$$'"></markdown>
+        </p>
+
+        <div class="pools-grid">
+          @for (m of getPoolIndices(); track m) {
+            <div class="pool-clause-card" [class.is-winner-pool]="res.activeConstraints[1] === m">
+              <div class="pool-clause-header">
+                <span class="pool-name">Pool {{ m + 1 }} Affinoid Clause</span>
+                @if (res.activeConstraints[1] === m) {
+                  <span class="winner-badge">★ ACTIVE WINNING DNF CLAUSE</span>
+                }
+              </div>
+
+              <div class="pool-literals-list">
+                @for (d of getVarIndices(); track d) {
+                  @if (getWDisk(1, m, d); as w1) {
+                    <div class="literal-row">
+                      <span class="literal-dim">Literal d={{ d + 1 }} (x<sub>{{ d + 1 }}</sub>={{ res.inputs[d] }}):</span>
+                      <app-berkovich-dimension-calculation
+                        [dim]="d + 1"
+                        [contextCenter]="res.pools[m][d].center"
+                        [contextRho]="res.pools[m][d].rho"
+                        [constraintCenter]="w1.center"
+                        [constraintRho]="w1.rho"
+                        [dist]="0"
+                        [loss]="res.pathLosses[1][m][d]"
+                        [prime]="prime()"
+                        [digitsLeft]="digitsLeft()"
+                        [digitsRight]="digitsRight()"
+                      ></app-berkovich-dimension-calculation>
+                    </div>
+                  }
+                }
+              </div>
+
+              <div class="pool-and-result">
+                <span>Affinoid AND Clause Loss (<markdown [inline]="true" [katex]="true" [data]="'$\\max_d$'"></markdown>):</span>
+                <strong class="and-loss-val">{{ getMaxLoss(res.pathLosses[1][m]).toFixed(4) }}</strong>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- STEP C: DNF Union OR Clause (min across Pools) & Affinoid Softmax -->
+      <div class="calc-step-card">
+        <div class="calc-step-header">
+          <span class="step-num">Step C</span>
+          <span class="step-name">DNF Union OR Clause (<markdown [inline]="true" [katex]="true" [data]="'$\\bigvee_{m=1}^M$'"></markdown> via Minimum Loss <markdown [inline]="true" [katex]="true" [data]="'$\\min_m$'"></markdown>) &amp; Affinoid Softmax (<markdown [inline]="true" [katex]="true" [data]="'$\\pi_k$'"></markdown>)</span>
+        </div>
+        <p class="calc-step-desc">
+          To combine the <markdown [inline]="true" [katex]="true" [data]="'$M$'"></markdown> affinoid pools into a Disjunctive Normal Form (DNF) union, logical OR (<markdown [inline]="true" [katex]="true" [data]="'$\\bigvee_{m=1}^M$'"></markdown>) requires at least one pool clause to hold. In our min-max logic, this evaluates as the <strong>minimum</strong> loss across pools:
+          <markdown [inline]="true" [katex]="true" [data]="'$$D_k = \\min_{m} (-M_{k,m}), \\quad \\pi_k = \\frac{\\exp(\\beta D_k)}{\\sum_{j=0}^1 \\exp(\\beta D_j)}$$'"></markdown>
+        </p>
+
+        <div class="class-summary-grid">
+          @for (classK of [0, 1]; track classK) {
+            <div class="class-summary-card" [class.is-predicted-class]="(res.logits[1] >= res.logits[0] ? 1 : 0) === classK">
+              <div class="class-title-row">
+                <span class="class-label">Class {{ classK }} ({{ classK === 1 ? 'True / 1' : 'False / 0' }})</span>
+                @if ((res.logits[1] >= res.logits[0] ? 1 : 0) === classK) {
+                  <span class="pred-badge">PREDICTED CLASS</span>
+                }
+              </div>
+              <ul class="class-stats">
+                <li>
+                  <span>Active Winning Pool (<markdown [inline]="true" [katex]="true" [data]="'$m^*$'"></markdown>):</span>
+                  <strong>Pool {{ res.activeConstraints[classK] + 1 }}</strong>
+                </li>
+                <li>
+                  <span>DNF Minimum Loss (<markdown [inline]="true" [katex]="true" [data]="'$\\min_m \\text{Loss}$'"></markdown>):</span>
+                  <code>{{ getMinLoss(res.pathLosses[classK]).toFixed(4) }}</code>
+                </li>
+                <li>
+                  <span>Affinoid Logit Score (<markdown [inline]="true" [katex]="true" [data]="'$D_k = -\\text{Loss}_k$'"></markdown>):</span>
+                  <code>{{ res.logits[classK].toFixed(4) }}</code>
+                </li>
+                <li>
+                  <span>Softmax Probability (<markdown [inline]="true" [katex]="true" [data]="'$\\pi_k$'"></markdown>):</span>
+                  <strong class="prob-val">{{ (res.probs[classK] * 100).toFixed(1) }}%</strong>
+                </li>
+              </ul>
+            </div>
+          }
+        </div>
+
+        <!-- Final Decision Banner -->
+        <div class="final-decision-banner" [class.is-correct-decision]="isCurrentPredictionCorrect(res)">
+          <div class="decision-main">
+            <span class="decision-label">Model Prediction:</span>
+            <strong class="decision-val">f(x) = {{ res.logits[1] >= res.logits[0] ? 1 : 0 }} ({{ res.logits[1] >= res.logits[0] ? 'True' : 'False' }})</strong>
+            <span class="decision-prob">with probability {{ (Math.max(res.probs[0], res.probs[1]) * 100).toFixed(1) }}%</span>
+          </div>
+          <div class="decision-target">
+            @if (matchedTarget() !== null) {
+              <span>Truth Table Target: <strong>{{ matchedTarget() }}</strong></span>
+              <span class="match-status-badge">
+                {{ isCurrentPredictionCorrect(res) ? '✅ CORRECT MATCH' : '❌ MISMATCH' }}
+              </span>
+            } @else {
+              <span>Custom Input Vector (No dataset target)</span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- 2D 2-adic Unit Square Map for 2-variable functions -->
+  @if (numVars() === 2) {
+    <div class="map-section">
+      <div class="map-header-row">
+        <div class="map-title">2-adic Unit Square Embedding Map ([0, 1] &times; [0, 1]):</div>
+        <div class="map-toggles">
+          <button
+            mat-stroked-button
+            class="toggle-btn"
+            [class.active-toggle]="showHeatmap()"
+            (click)="showHeatmap.set(!showHeatmap())"
+          >
+            {{ showHeatmap() ? 'Heatmap On' : 'Heatmap Off' }}
+          </button>
+          <button
+            mat-stroked-button
+            class="toggle-btn"
+            [class.active-toggle]="showPoolLines()"
+            (click)="showPoolLines.set(!showPoolLines())"
+          >
+            {{ showPoolLines() ? 'Vectors On' : 'Vectors Off' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-2d-wrapper">
+        <svg class="map-svg" viewBox="0 0 300 300">
+          <!-- Grid background -->
+          <rect x="30" y="30" width="240" height="240" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+          <!-- Decision Boundary Heatmap Shading Grid -->
+          @if (showHeatmap()) {
+            @for (cell of heatmapGrid(); track cell.x + '-' + cell.y) {
+              <rect
+                [attr.x]="cell.x"
+                [attr.y]="cell.y"
+                [attr.width]="cell.width"
+                [attr.height]="cell.height"
+                [attr.fill]="cell.fill"
+                [attr.opacity]="cell.opacity"
+              />
+            }
+          }
+
+          <!-- Grid Axis Subdivisions -->
+          <line x1="150" y1="30" x2="150" y2="270" stroke="#cbd5e1" stroke-dasharray="4"/>
+          <line x1="30" y1="150" x2="270" y2="150" stroke="#cbd5e1" stroke-dasharray="4"/>
+
+          <!-- Axis Labels -->
+          <text x="150" y="295" text-anchor="middle" font-size="11" fill="#64748b">x₁ (2-adic position)</text>
+          <text x="10" y="150" text-anchor="middle" font-size="11" fill="#64748b" transform="rotate(-90 10 150)">x₂ (2-adic position)</text>
+
+          @if (learner(); as l) {
+            <!-- Translation Vectors from Target Disks W1 to Active Pool Coverage H_m -->
+            @if (showPoolLines()) {
+              @for (m of getPoolIndices(); track 'line-' + m) {
+                <line
+                  [attr.x1]="getTargetCx(l, 1, m)"
+                  [attr.y1]="getTargetCy(l, 1, m)"
+                  [attr.x2]="getPoolCx(l, m)"
+                  [attr.y2]="getPoolCy(l, m)"
+                  stroke="#0284c7"
+                  stroke-width="1.5"
+                  stroke-dasharray="3 3"
+                  opacity="0.75"
+                />
+              }
+            }
+
+            <!-- Class 0 Target Disks W0 -->
+            @for (m of getPoolIndices(); track 'w0-' + m) {
+              <g class="target-w0-group">
+                <circle
+                  [attr.cx]="getTargetCx(l, 0, m)"
+                  [attr.cy]="getTargetCy(l, 0, m)"
+                  [attr.r]="getTargetRadius(l, 0, m)"
+                  fill="rgba(239, 68, 68, 0.08)"
+                  stroke="#ef4444"
+                  stroke-width="1"
+                  stroke-dasharray="2 2"
+                />
+                <circle
+                  [attr.cx]="getTargetCx(l, 0, m)"
+                  [attr.cy]="getTargetCy(l, 0, m)"
+                  r="4"
+                  fill="#ef4444"
+                />
+                <text
+                  [attr.x]="getTargetCx(l, 0, m)"
+                  [attr.y]="getTargetCy(l, 0, m) - 8"
+                  text-anchor="middle"
+                  font-size="9"
+                  font-weight="bold"
+                  fill="#dc2626"
+                >
+                  W₀,{{ m + 1 }}
+                </text>
+              </g>
+            }
+
+            <!-- Class 1 Target Disks W1 -->
+            @for (m of getPoolIndices(); track 'w1-' + m) {
+              <g class="target-w1-group">
+                <circle
+                  [attr.cx]="getTargetCx(l, 1, m)"
+                  [attr.cy]="getTargetCy(l, 1, m)"
+                  [attr.r]="getTargetRadius(l, 1, m)"
+                  fill="rgba(37, 99, 235, 0.12)"
+                  stroke="#2563eb"
+                  stroke-width="1"
+                  stroke-dasharray="2 2"
+                />
+                <circle
+                  [attr.cx]="getTargetCx(l, 1, m)"
+                  [attr.cy]="getTargetCy(l, 1, m)"
+                  r="4"
+                  fill="#2563eb"
+                />
+                <text
+                  [attr.x]="getTargetCx(l, 1, m)"
+                  [attr.y]="getTargetCy(l, 1, m) + 14"
+                  text-anchor="middle"
+                  font-size="9"
+                  font-weight="bold"
+                  fill="#1d4ed8"
+                >
+                  W₁,{{ m + 1 }}
+                </text>
+              </g>
+            }
+
+            <!-- Affinoid Pool Disks Overlay (Pool H_m) -->
+            @for (m of getPoolIndices(); track 'pool-' + m) {
+              <circle
+                [attr.cx]="getPoolCx(l, m)"
+                [attr.cy]="getPoolCy(l, m)"
+                [attr.r]="getPoolRadius(l, m)"
+                fill="rgba(2, 132, 199, 0.08)"
+                stroke="#0284c7"
+                stroke-width="2"
+                stroke-dasharray="4 2"
+              />
+            }
+          }
+
+          <!-- Truth Table Sample Points -->
+          @for (sample of samples(); track sample.label) {
+            <g [attr.transform]="getSampleTransform(sample)">
+              <circle
+                r="14"
+                [attr.fill]="sample.target === 1 ? '#22c55e' : '#ef4444'"
+                [attr.stroke]="isSampleCorrect(sample) ? '#ffffff' : '#f59e0b'"
+                [attr.stroke-width]="isSampleCorrect(sample) ? '2' : '3.5'"
+              />
+              <text
+                text-anchor="middle"
+                dominant-baseline="central"
+                font-size="10"
+                font-weight="bold"
+                fill="#ffffff"
+              >
+                {{ sample.target }}
+              </text>
+              <text
+                y="-18"
+                text-anchor="middle"
+                font-size="10"
+                font-weight="600"
+                fill="#0f172a"
+              >
+                ({{ sample.inputs[0] }}, {{ sample.inputs[1] }})
+              </text>
+            </g>
+          }
+
+          <!-- Current Input Vector Marker -->
+          <g class="current-input-marker" [attr.transform]="getCurrentInputTransform()">
+            <circle
+              r="19"
+              fill="none"
+              stroke="#0284c7"
+              stroke-width="2"
+              stroke-dasharray="3 3"
+            />
+            <circle
+              r="7"
+              fill="#0284c7"
+              stroke="#ffffff"
+              stroke-width="2"
+            />
+          </g>
+        </svg>
+      </div>
+
+      <!-- 2D Map Legend -->
+      <div class="map-legend">
+        <span class="legend-item">
+          <span class="legend-box" style="background: rgba(37, 99, 235, 0.3); border: 1px solid #2563eb;"></span> Class 1 Region
+        </span>
+        <span class="legend-item">
+          <span class="legend-box" style="background: rgba(239, 68, 68, 0.3); border: 1px solid #ef4444;"></span> Class 0 Region
+        </span>
+        <span class="legend-item">
+          <span class="legend-circle" style="background: #2563eb;"></span> W₁ Target Center
+        </span>
+        <span class="legend-item">
+          <span class="legend-circle" style="background: #ef4444;"></span> W₀ Target Center
+        </span>
+        <span class="legend-item">
+          <span class="legend-dashed" style="border-top: 2px dashed #0284c7;"></span> Pool H Coverage
+        </span>
+        <span class="legend-item">
+          <span class="legend-circle" style="background: #0284c7; border: 2px solid #ffffff;"></span> Current Input Vector
+        </span>
+      </div>
+    </div>
+  }
+</div>

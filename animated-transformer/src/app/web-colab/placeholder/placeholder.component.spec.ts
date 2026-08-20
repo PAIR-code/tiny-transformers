@@ -1,8 +1,24 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { PlaceholderComponent } from './placeholder.component';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { SignalSpace } from 'src/lib/signalspace/signalspace';
 import { LabEnv } from 'src/lib/distr-signals/lab-env';
 import { SecDefKind, SecDefOfPlaceholder, SecDefOfSecList } from 'src/lib/weblab/section';
@@ -41,7 +57,7 @@ describe('PlaceholderComponent', () => {
     const section = [...experiment.sectionMap.values()][0];
 
     await TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideNoopAnimations()],
+      providers: [provideZonelessChangeDetection()],
       imports: [PlaceholderComponent],
     }).compileComponents();
 

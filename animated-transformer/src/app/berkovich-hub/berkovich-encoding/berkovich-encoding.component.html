@@ -1,0 +1,98 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Berkovich Extended Monna Mapping"
+    subtitle="Encoding continuous real values $x \in [0, 1]$ into $p$-adic tree nodes ($\mathbb{R} \to \mathbb{Q}_p$) and decoding $p$-adic digits back to regularized real intervals ($\mathbb{Q}_p \to \mathbb{R}$)."
+  ></app-berkovich-header>
+
+  <div class="encoding-layout-single">
+    <!-- Main Card: Berkovich Extended Monna Mapping -->
+    <div class="card main-mapping-card">
+      <div class="card-header">
+        <div class="header-titles">
+          <h3>Berkovich Extended Monna Mapping</h3>
+          <span class="subtitle">2-adic Tree Traversal Map &amp; 1D Sub-Interval Halving</span>
+        </div>
+
+        <div class="header-actions">
+          <mat-checkbox
+            [checked]="useRhoNormalization()"
+            (change)="setUseRhoNormalization($event.checked)"
+            color="primary"
+          >
+            use rho normalization
+          </mat-checkbox>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="depth-form-field">
+            <mat-label>Depth (k)</mat-label>
+            <mat-select
+              [value]="depth()"
+              (selectionChange)="onDepthChange($event.value)"
+            >
+              <mat-option [value]="2">k = 4 (4 Digits)</mat-option>
+              <mat-option [value]="1">k = 2 (2 Digits)</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Presets & Drag Instruction Bar -->
+      <div class="presets-toolbar">
+        <div class="presets-row">
+          <span class="preset-label">Quick Presets:</span>
+          <div class="preset-buttons">
+            @for (preset of presets; track preset.label) {
+              <button
+                mat-stroked-button
+                [class.active-preset]="Math.abs(realTarget() - preset.value) < 1e-4"
+                (click)="setRealTarget(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="drag-hint">
+          <mat-icon>touch_app</mat-icon>
+          <span>Drag <strong class="exact-hint">x_exact</strong> pin or click number line. Click digits or &rho; to edit:</span>
+        </div>
+      </div>
+
+      <!-- D3 2-adic Tree Traversal Map & Movable Blue-Outlined Digit Display -->
+      <app-berkovich-encoding-tree-vis
+        [steps]="steps()"
+        [targetValue]="realTarget()"
+        [biasedValue]="decodedBiasedReal()"
+        [currentRationalCenter]="currentRationalCenter()"
+        [depth]="depth()"
+        [prime]="prime()"
+        [useRhoNormalization]="useRhoNormalization()"
+        [padicRho]="padicRho()"
+        (targetChange)="setRealTarget($event)"
+        (centerChange)="onDigitDisplayCenterChange($event)"
+        (rhoChange)="onDigitDisplayRhoChange($event)"
+      ></app-berkovich-encoding-tree-vis>
+    </div>
+
+    <!-- Mathematical Explainer Card -->
+    <div class="card explanation-card">
+      <h3>Reverse Decoding &amp; Berkovich Disk Regularization</h3>
+      <markdown [data]="reverseExplanationMarkdown" [katex]="true"></markdown>
+    </div>
+  </div>
+</div>

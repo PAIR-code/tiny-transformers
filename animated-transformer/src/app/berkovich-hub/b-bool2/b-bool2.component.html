@@ -1,0 +1,428 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Berkovich Multilinear Boolean Circuit Explorer"
+    subtitle="Learn all 16 two-variable Boolean functions with $f(x_1, x_2) = b + w_1 x_1 + w_2 x_2 + w_3 x_1 x_2$ using $p$-adic arithmetic and continuous tree optimization."
+  ></app-berkovich-header>
+
+  <div class="boolean-layout">
+    <!-- Left Column: 16 Gates Selector, Truth Table, Parameters & Hyper-params -->
+    <div class="left-panel">
+      <!-- 16 Boolean Circuits Selector Card -->
+      <div class="card preset-card">
+        <div class="card-header-row">
+          <h3>The 16 Two-Variable Boolean Circuits</h3>
+          <span class="count-badge">16 Circuits</span>
+        </div>
+        <p class="section-desc">Select any of the 16 canonical gates or configure a custom truth table below:</p>
+
+        <div class="circuit-grid">
+          @for (fn of all16Functions; track fn.index) {
+            <button
+              type="button"
+              class="circuit-btn"
+              [class.active-circuit]="selectedFunctionIndex() === fn.index"
+              (click)="selectFunction(fn.index)"
+            >
+              <div class="circuit-top">
+                <span class="circuit-name">{{ fn.name }}</span>
+                <span class="truth-code">[{{ fn.truthTable.join('') }}]</span>
+              </div>
+              <span class="circuit-expr">{{ fn.expression }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Interactive Truth Table Editor Card -->
+      <div class="card truth-table-card">
+        <h3>Interactive Truth Table Editor</h3>
+        <p class="section-desc">Click any output bit to toggle between 0 and 1:</p>
+
+        <div class="truth-table-grid">
+          @for (sample of dataset(); track sample.label; let i = $index) {
+            <div class="truth-row">
+              <span class="input-label"><markdown [inline]="true" [katex]="true" [data]="'$(x_1=' + sample.inputs[0] + ', x_2=' + sample.inputs[1] + ')$:'"></markdown></span>
+              <button
+                type="button"
+                class="bit-toggle-btn"
+                [class.bit-one]="truthTable()[i] === 1"
+                (click)="toggleTruthTableBit(i)"
+              >
+                {{ truthTable()[i] }}
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Quick Initializers & Presets Card -->
+      <div class="card init-presets-card">
+        <div class="card-header-row">
+          <h3><markdown [inline]="true" [katex]="true" [data]="'Parameter Presets &amp; Actions'"></markdown></h3>
+          <span class="active-fn-chip">{{ currentFunctionInfo().symbol }}</span>
+        </div>
+
+        <p class="section-desc">
+          <markdown [inline]="true" [katex]="true" [data]="'Set algebraic starting points. Edit parameter disks $(b, w_1, w_2, w_3)$ directly in the computation graph.'"></markdown>
+        </p>
+
+        <!-- Quick Initializer Actions -->
+        <div class="init-actions-grid">
+          <button
+            mat-stroked-button
+            class="init-btn btn-exact"
+            [class.active-preset]="selectedPreset() === 'exact'"
+            (click)="initExactAlgebraic()"
+            matTooltip="Set exact algebraic Fourier coefficients for current truth table"
+          >
+            <mat-icon>calculate</mat-icon>
+            <span>Exact Target</span>
+          </button>
+          <button
+            mat-stroked-button
+            class="init-btn"
+            [class.active-preset]="selectedPreset() === 'zero'"
+            (click)="initZero()"
+            matTooltip="Set all parameters to 0"
+          >
+            <mat-icon>exposure_zero</mat-icon>
+            <span>Zero Init</span>
+          </button>
+          <button
+            mat-stroked-button
+            class="init-btn"
+            [class.active-preset]="selectedPreset() === 'linear'"
+            (click)="initLinearOnly()"
+            matTooltip="Set w3=0 (linear only) to test non-linear separability"
+          >
+            <mat-icon>linear_scale</mat-icon>
+            <span>Linear (w₃=0)</span>
+          </button>
+          <button
+            mat-stroked-button
+            class="init-btn"
+            [class.active-preset]="selectedPreset() === 'perturbed'"
+            (click)="initPerturbed()"
+            matTooltip="Initialize near the exact solution with uncertainty radius"
+          >
+            <mat-icon>scatter_plot</mat-icon>
+            <span>Perturbed</span>
+          </button>
+          <button
+            mat-stroked-button
+            class="init-btn"
+            [class.active-preset]="selectedPreset() === 'random'"
+            (click)="initRandom()"
+            matTooltip="Randomize all parameters in Q_p"
+          >
+            <mat-icon>shuffle</mat-icon>
+            <span>Randomize</span>
+          </button>
+        </div>
+
+        <!-- Initial Radius (rho) Actions -->
+        <div class="rho-init-section">
+          <div class="rho-header-row">
+            <span class="rho-section-title"><markdown [inline]="true" [katex]="true" [data]="'Set Parameter Radii $(\\rho)$:'"></markdown></span>
+            <span class="rho-current-chip"><markdown [inline]="true" [katex]="true" [data]="'Avg $\\rho = ' + (currentAverageRho() | number:'1.1-1') + '$'"></markdown></span>
+          </div>
+          <div class="rho-btn-grid">
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="selectedRhoPreset() === '-2'"
+              (click)="setAllRho(-2.0)"
+              matTooltip="Sharp point-like disks (radius p⁻² = 1/4 for p=2)"
+            >
+              <mat-icon>lens</mat-icon>
+              <span>ρ = -2 (Sharp)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="selectedRhoPreset() === '-1'"
+              (click)="setAllRho(-1.0)"
+              matTooltip="Standard initialization radius (radius p⁻¹ = 1/2 for p=2)"
+            >
+              <mat-icon>radio_button_checked</mat-icon>
+              <span>ρ = -1 (Std)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="selectedRhoPreset() === '0'"
+              (click)="setAllRho(0.0)"
+              matTooltip="Unit disk uncertainty (radius p⁰ = 1)"
+            >
+              <mat-icon>radio_button_unchecked</mat-icon>
+              <span>ρ = 0 (Unit)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn"
+              [class.active-preset]="selectedRhoPreset() === '1'"
+              (click)="setAllRho(1.0)"
+              matTooltip="Broad neighborhood uncertainty (radius p¹ = 2)"
+            >
+              <mat-icon>blur_on</mat-icon>
+              <span>ρ = +1 (Diffuse)</span>
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="init-btn rho-btn btn-random-rho"
+              [class.active-preset]="selectedRhoPreset() === 'random'"
+              (click)="setRandomRho()"
+              matTooltip="Randomize all parameter radii uniformly in [-2.0, 1.0]"
+            >
+              <mat-icon>shuffle</mat-icon>
+              <span>Random ρ (Uniform)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hyper-Parameters Card -->
+      <div class="card config-card">
+        <h3>Hyper-parameters &amp; Representation</h3>
+
+        <div class="param-grid">
+          <!-- Base Prime -->
+          <div class="param-row">
+            <label for="prime-p">Base Prime (p):</label>
+            <select id="prime-p" [value]="prime()" (change)="prime.set(+$any($event.target).value); resetModel()">
+              <option [value]="2" [selected]="prime() === 2">p = 2 (2-adic Binary)</option>
+              <option [value]="3" [selected]="prime() === 3">p = 3 (3-adic)</option>
+              <option [value]="5" [selected]="prime() === 5">p = 5 (5-adic)</option>
+            </select>
+          </div>
+
+          <!-- Training Mode -->
+          <div class="param-row">
+            <label for="training-mode">Model Mode:</label>
+            <select id="training-mode" [value]="trainingMode()" (change)="trainingMode.set($any($event.target).value)">
+              <option value="berkovich" [selected]="trainingMode() === 'berkovich'">Berkovich Disks (c, ρ)</option>
+              <option value="padic" [selected]="trainingMode() === 'padic'">Pure p-adics (Fixed ρ = -2)</option>
+            </select>
+          </div>
+
+          <!-- Digits Left -->
+          <div class="param-row">
+            <label for="digits-left">Digits Left (Integer):</label>
+            <select id="digits-left" [value]="digitsLeft()" (change)="digitsLeft.set(+$any($event.target).value)">
+              <option [value]="1" [selected]="digitsLeft() === 1">1 Digit (mod p)</option>
+              <option [value]="2" [selected]="digitsLeft() === 2">2 Digits (mod p²)</option>
+              <option [value]="3" [selected]="digitsLeft() === 3">3 Digits (mod p³)</option>
+              <option [value]="4" [selected]="digitsLeft() === 4">4 Digits (mod p⁴)</option>
+            </select>
+          </div>
+
+          <!-- Digits Right -->
+          <div class="param-row">
+            <label for="digits-right">Digits Right (Fractions):</label>
+            <select id="digits-right" [value]="digitsRight()" (change)="digitsRight.set(+$any($event.target).value)">
+              <option [value]="0" [selected]="digitsRight() === 0">0 (Integer Only)</option>
+              <option [value]="1" [selected]="digitsRight() === 1">1 Power (p⁻¹)</option>
+              <option [value]="2" [selected]="digitsRight() === 2">2 Powers (p⁻²)</option>
+            </select>
+          </div>
+
+          <!-- Learning Rate -->
+          <div class="param-row">
+            <label for="lr">Learning Rate (η):</label>
+            <input
+              id="lr"
+              type="text"
+              [value]="learningRate()"
+              (change)="learningRate.set(parseNumberInput($any($event.target).value))"
+            />
+          </div>
+
+          <!-- Softmax Beta -->
+          <div class="param-row">
+            <label for="beta">Softmax Temp (β):</label>
+            <input
+              id="beta"
+              type="text"
+              [value]="beta()"
+              (change)="beta.set(parseNumberInput($any($event.target).value))"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Predictions Table Card -->
+      <div class="card predictions-card">
+        <h3>Live Truth Table Evaluation</h3>
+        <div class="pred-rows">
+          @for (pred of currentPredictions(); track pred.label) {
+            <div
+              class="pred-row"
+              [class.is-correct]="pred.isCorrect"
+              [class.row-selected]="activeSample()[0] === pred.inputs[0] && activeSample()[1] === pred.inputs[1]"
+              (click)="activeSample.set(pred.inputs)"
+            >
+              <span class="row-inputs"><markdown [inline]="true" [katex]="true" [data]="'$(x_1=' + pred.inputs[0] + ', x_2=' + pred.inputs[1] + ')$'"></markdown></span>
+              <span class="row-arrow">&rarr;</span>
+              <span class="row-target">Target: <strong>{{ pred.target }}</strong></span>
+              <span class="row-pred">Pred: <strong>{{ pred.pred }}</strong></span>
+              <span class="row-prob">({{ (pred.prob1 * 100) | number:'1.0-0' }}% P₁)</span>
+              <mat-icon class="status-icon">{{ pred.isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Training Progress, Controls, DAG Tree, 2D Map & Explainer -->
+    <div class="right-panel">
+      <!-- Training Progress Chart -->
+      <div class="card chart-card">
+        <div class="chart-header">
+          <h3><mat-icon>show_chart</mat-icon> Training Progress (Loss &amp; Accuracy)</h3>
+          <div class="step-metrics">
+            <span>Steps: <strong>{{ stepCount() }}</strong></span>
+            <span>Loss: <strong>{{ currentLoss() | number:'1.3-3' }}</strong></span>
+            <span>Accuracy: <strong>{{ (currentAccuracy() * 100) | number:'1.0-0' }}%</strong></span>
+            @if (currentAccuracy() >= 0.9999) {
+              <span class="converged-badge">🎉 100% Correct</span>
+            }
+          </div>
+        </div>
+
+        <div class="chart-container" style="display: flex; justify-content: center; align-items: center; min-height: 200px;">
+          @if (chartPoints().length > 0) {
+            <app-d3-line-chart
+              [dataPoints]="chartPoints()"
+              [inChartConfig]="chartConfig()"
+            ></app-d3-line-chart>
+          } @else {
+            <div class="empty-chart-state">
+              <mat-icon>insights</mat-icon>
+              <span>Click <strong>Step Train</strong> or <strong>Auto Train</strong> to learn the boolean function with gradient descent.</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Training Controls Toolbar -->
+      <div class="card training-card">
+        <div class="training-actions">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="stepActiveSample()"
+            [disabled]="isAutoTraining()"
+            matTooltip="Take 1 gradient descent step specifically on active sample (x1, x2)"
+          >
+            <mat-icon>play_arrow</mat-icon>
+            <span>Step Active ({{ activeSample()[0] }}, {{ activeSample()[1] }})</span>
+          </button>
+          <button
+            mat-stroked-button
+            (click)="stepTrain()"
+            [disabled]="isAutoTraining()"
+            matTooltip="Take 1 epoch step across all 4 truth table samples"
+          >
+            <mat-icon>fast_forward</mat-icon>
+            <span>Step Epoch (All 4)</span>
+          </button>
+          <button
+            mat-stroked-button
+            (click)="toggleAutoTrain()"
+          >
+            <mat-icon>{{ isAutoTraining() ? 'pause' : 'autorenew' }}</mat-icon>
+            <span>{{ isAutoTraining() ? 'Pause' : 'Auto Train' }}</span>
+          </button>
+          <button
+            mat-button
+            (click)="resetModel()"
+          >
+            <mat-icon>refresh</mat-icon>
+            <span>Reset</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Computation DAG Tree Card -->
+      <div class="card tree-card">
+        <app-b-bool2-tree
+          [learner]="learner()"
+          [config]="modelConfig()"
+          [activeSample]="activeSample()"
+          [target]="truthTable()[(activeSample()[0] * 2 + activeSample()[1])]"
+          [tick]="trainTick()"
+          (sampleChange)="activeSample.set($event)"
+          (paramEdit)="onParamEdit($event)"
+        ></app-b-bool2-tree>
+      </div>
+
+      <!-- 2D Continuous Activation Heatmap & Decision Boundary (Black & White, Compact) -->
+      <div class="card heatmap-card">
+        <div class="heatmap-header">
+          <h3>2D Unit Square Activation Map &amp; Decision Boundary</h3>
+          <span class="heatmap-sub"><markdown [inline]="true" [katex]="true" [data]="'Evaluates $f(x_1, x_2)$ continuously across $[0, 1] \\times [0, 1]$'"></markdown></span>
+        </div>
+
+        <div class="heatmap-wrapper">
+          <div class="heatmap-grid-container">
+            @for (pt of heatmapGrid(); track (pt.x + ',' + pt.y)) {
+              <div
+                class="heatmap-cell"
+                [style.background]="getHeatmapCellColor(pt.prob1)"
+                [matTooltip]="'(' + pt.x.toFixed(2) + ', ' + pt.y.toFixed(2) + ') -> P(1) = ' + (pt.prob1 * 100).toFixed(0) + '%'"
+              ></div>
+            }
+
+            <!-- 4 Corner Target Overlays -->
+            <div class="corner-overlay corner-00" [class.target-one]="truthTable()[0] === 1">
+              <span>(0,0): {{ truthTable()[0] }}</span>
+            </div>
+            <div class="corner-overlay corner-01" [class.target-one]="truthTable()[1] === 1">
+              <span>(0,1): {{ truthTable()[1] }}</span>
+            </div>
+            <div class="corner-overlay corner-10" [class.target-one]="truthTable()[2] === 1">
+              <span>(1,0): {{ truthTable()[2] }}</span>
+            </div>
+            <div class="corner-overlay corner-11" [class.target-one]="truthTable()[3] === 1">
+              <span>(1,1): {{ truthTable()[3] }}</span>
+            </div>
+          </div>
+
+          <div class="heatmap-legend">
+            <span class="leg-label">P(True):</span>
+            <div class="leg-gradient">
+              <span>0 (Black)</span>
+              <span>0.5</span>
+              <span>1 (White)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mathematical Explainer & Walkthrough Card -->
+      <div class="card explainer-card">
+        <markdown [katex]="true" [data]="explainerMarkdown"></markdown>
+      </div>
+    </div>
+  </div>
+</div>

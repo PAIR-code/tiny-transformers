@@ -1,0 +1,603 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+.berkovich-page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px 48px;
+  max-width: 1680px;
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+.boolean-layout {
+  display: grid;
+  grid-template-columns: 390px 1fr;
+  gap: 20px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.left-panel,
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0 0 10px;
+  }
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+
+  .count-badge {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+
+  .active-fn-chip {
+    background: #e0e7ff;
+    color: #3730a3;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+}
+
+/* Circuit 16 Grid */
+.circuit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  .circuit-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    &.active-circuit {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6;
+
+      .circuit-name {
+        color: #1d4ed8;
+      }
+    }
+
+    .circuit-top {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      align-items: center;
+
+      .circuit-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      .truth-code {
+        font-size: 10px;
+        font-family: 'Roboto Mono', monospace;
+        color: #64748b;
+        background: #e2e8f0;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+    }
+
+    .circuit-expr {
+      font-size: 10px;
+      font-family: 'Roboto Mono', monospace;
+      color: #64748b;
+    }
+  }
+}
+
+/* Truth Table Editor */
+.truth-table-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+
+  .truth-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 6px 12px;
+    border-radius: 6px;
+
+    .input-label {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .bit-toggle-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #ef4444;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+
+      &.bit-one {
+        background: #3b82f6;
+        color: #ffffff;
+        border-color: #2563eb;
+      }
+
+      &:hover {
+        transform: scale(1.08);
+      }
+    }
+  }
+}
+
+/* Presets & Actions Card */
+.init-btn {
+  font-size: 11.5px;
+  padding: 0 8px;
+  height: 30px;
+  line-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.15s ease;
+
+  mat-icon {
+    font-size: 15px;
+    height: 15px;
+    width: 15px;
+    margin-right: 4px;
+  }
+
+  &.active-preset {
+    background: #ede9fe !important;
+    border-color: #7c3aed !important;
+    color: #6d28d9 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35) !important;
+  }
+}
+
+.init-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+
+  .btn-exact {
+    grid-column: span 2;
+  }
+}
+
+.rho-init-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .rho-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .rho-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .rho-current-chip {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 10px;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+  }
+
+  .rho-btn-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+
+    .rho-btn {
+      font-size: 11px;
+      height: 28px;
+      line-height: 28px;
+      padding: 0 6px;
+
+      &.btn-random-rho {
+        grid-column: span 2;
+      }
+    }
+  }
+}
+
+.params-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .param-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .param-header-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .param-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      .exact-hint {
+        font-size: 10px;
+        color: #7c3aed;
+        font-weight: 600;
+      }
+    }
+
+    .param-inputs-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .center-input {
+        width: 80px;
+        padding: 3px 6px;
+        font-size: 12px;
+        font-family: 'Roboto Mono', monospace;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        background: #ffffff;
+      }
+
+      .rho-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+
+        .rho-val {
+          font-size: 11px;
+          font-family: 'Roboto Mono', monospace;
+          color: #64748b;
+          min-width: 55px;
+        }
+
+        .rho-slider {
+          flex: 1;
+          accent-color: #8b5cf6;
+        }
+      }
+    }
+  }
+}
+
+/* Hyper-Parameters */
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+
+  .param-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    select,
+    input {
+      padding: 4px 6px;
+      font-size: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+  }
+}
+
+/* Live Truth Table Predictions */
+.pred-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .pred-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &.is-correct {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+
+    &.row-selected {
+      box-shadow: 0 0 0 2px #3b82f6;
+    }
+
+    .row-inputs {
+      font-family: 'Roboto Mono', monospace;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .row-arrow {
+      color: #94a3b8;
+    }
+
+    .row-target,
+    .row-pred {
+      font-size: 11px;
+    }
+
+    .row-prob {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 11px;
+      color: #64748b;
+      margin-left: auto;
+    }
+
+    .status-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      color: #ef4444;
+
+      .is-correct & {
+        color: #22c55e;
+      }
+    }
+  }
+}
+
+/* Training Header & Actions */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .step-metrics {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #475569;
+
+    .converged-badge {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+    }
+  }
+}
+
+.empty-chart-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+  padding: 32px;
+
+  mat-icon {
+    font-size: 32px;
+    height: 32px;
+    width: 32px;
+    color: #cbd5e1;
+  }
+}
+
+.training-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 2D Continuous Activation Heatmap (Black & White, Compact) */
+.heatmap-card {
+  .heatmap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+
+    .heatmap-sub {
+      font-size: 11px;
+      color: #64748b;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+  }
+
+  .heatmap-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+
+    .heatmap-grid-container {
+      position: relative;
+      width: 128px;
+      height: 128px;
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      grid-template-rows: repeat(16, 1fr);
+      border: 1.5px solid #0f172a;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #000000;
+
+      .heatmap-cell {
+        width: 100%;
+        height: 100%;
+      }
+
+      .corner-overlay {
+        position: absolute;
+        padding: 1px 3px;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 7.5px;
+        font-weight: 700;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #ffffff;
+        border: 1px solid #ffffff;
+        pointer-events: none;
+        line-height: 1;
+
+        &.target-one {
+          background: rgba(255, 255, 255, 0.92);
+          color: #000000;
+          border-color: #000000;
+        }
+
+        &.corner-00 { bottom: 2px; left: 2px; }
+        &.corner-01 { top: 2px; left: 2px; }
+        &.corner-10 { bottom: 2px; right: 2px; }
+        &.corner-11 { top: 2px; right: 2px; }
+      }
+    }
+
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+
+      .leg-label {
+        font-weight: 600;
+        color: #475569;
+        font-size: 10px;
+      }
+
+      .leg-gradient {
+        display: flex;
+        justify-content: space-between;
+        width: 128px;
+        font-size: 8.5px;
+        color: #1e293b;
+        background: linear-gradient(to right, #000000, #808080, #ffffff);
+        padding: 1px 4px;
+        border-radius: 3px;
+        border: 1px solid #cbd5e1;
+        font-weight: 600;
+
+        span {
+          background: rgba(255, 255, 255, 0.9);
+          padding: 0 2px;
+          border-radius: 2px;
+        }
+      }
+    }
+  }
+}

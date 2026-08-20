@@ -1,0 +1,90 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Matrix & Addition Parameter Grid Sandbox"
+    subtitle="Inspect and configure weight matrix (M) and bias vector (B) parameters for p-adic linear transformations."
+    [isVisTool]="true"
+  ></app-berkovich-header>
+
+  <div class="dashboard-grid">
+    <!-- Preview Panel -->
+    <section class="visualizer-card-container" style="display: flex; flex-direction: column; gap: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #3b82f6;">visibility</mat-icon>
+        Linear Transformation Matrix (M) & Bias (B) Grid
+      </h2>
+
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 400px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; overflow: auto;">
+        <app-padic-linear-model-inspector
+          [model]="mockModel()"
+          [dimensions]="dimensions()"
+          [prime]="prime()"
+          [digitsLeft]="digitsLeft()"
+          [digitsRight]="digitsRight()"
+        />
+      </div>
+
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 13px; color: #334155;">
+        <div><strong>Component Tag:</strong></div>
+        <pre style="margin: 4px 0 0 0; white-space: pre-wrap; font-size: 12px; color: #0f766e;">&lt;app-padic-linear-model-inspector
+  [model]="model"
+  [vocab]="['a', 'b', 'c']"
+  [dim]="{{ dim() }}"
+  [prime]="{{ prime() }}"
+/&gt;</pre>
+      </div>
+    </section>
+
+    <!-- Controls Sidepanel -->
+    <aside class="control-panel" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #6366f1;">settings</mat-icon>
+        Vocabulary & Dimension Settings
+      </h2>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Prime -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Base Prime (p)</mat-label>
+          <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+            <mat-option [value]="2">2</mat-option>
+            <mat-option [value]="3">3</mat-option>
+            <mat-option [value]="5">5</mat-option>
+            <mat-option [value]="7">7</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Dimension -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Embedding Dimension (dim)</mat-label>
+          <mat-select [value]="dim()" (selectionChange)="dim.set($event.value)">
+            <mat-option [value]="1">1D</mat-option>
+            <mat-option [value]="2">2D</mat-option>
+            <mat-option [value]="3">3D</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Vocabulary String -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Vocabulary Characters</mat-label>
+          <input matInput [ngModel]="vocabStr()" (ngModelChange)="vocabStr.set($event)">
+        </mat-form-field>
+      </div>
+    </aside>
+  </div>
+</div>

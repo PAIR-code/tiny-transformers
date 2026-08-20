@@ -1,0 +1,382 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-page-container">
+  <app-berkovich-header
+    title="Berkovich Boolean Function & DNF Affinoid Explorer"
+    subtitle="Learn arbitrary boolean functions (XOR, AND, OR, Parity) using DNF Affinoid Domain pools and 2-adic binary search encodings."
+  ></app-berkovich-header>
+
+  <div class="boolean-layout">
+    <!-- Left Panel: Preset Function Selectors, Custom Truth Table & Controls -->
+    <div class="left-panel">
+      <!-- Preset Function Selector Card -->
+      <div class="card preset-card">
+        <h3>Preset Boolean Functions</h3>
+        <div class="preset-buttons">
+          @for (preset of presets; track preset.name; let idx = $index) {
+            <button
+              mat-stroked-button
+              [class.active-preset]="selectedPresetIndex() === idx"
+              (click)="selectPreset(idx)"
+            >
+              {{ preset.name }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Custom Truth Table Editor Card -->
+      <div class="card truth-table-card">
+        <h3>Interactive Truth Table Editor</h3>
+        <p class="table-desc">Click any output bit to toggle target between 0 and 1:</p>
+
+        <div class="truth-table-grid">
+          @for (sample of dataset(); track sample.label; let i = $index) {
+            <div class="truth-row">
+              <span class="input-label">({{ sample.inputs.join(', ') }}):</span>
+              <button
+                class="bit-toggle-btn"
+                [class.bit-one]="truthTable()[i] === 1"
+                (click)="toggleTruthTableBit(i)"
+              >
+                {{ truthTable()[i] }}
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Model Architecture & Hyper-Parameters Card -->
+      <div class="card config-card">
+        <h3>Dynamic Berkovich Pools & Options</h3>
+
+        <div class="param-grid">
+          <!-- Number of Pools -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="num-pools">Number of Pools (M):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('numpools', $event)"
+                [class.icon-pressed]="activePopup() === 'numpools'"
+              >{{ activePopup() === 'numpools' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'numpools') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Number of DNF affinoid pools (M). Any D-variable Boolean function requires at most M = 2^(D-1) pools in the worst case (M=2 for 2-input XOR, M=4 for 3-input Parity).
+                </div>
+              }
+            </div>
+            <select id="num-pools" [value]="numPools()" (change)="numPools.set(+$any($event.target).value); resetModel()">
+              <option [value]="1" [selected]="numPools() === 1">1 Pool (Single AND Clause)</option>
+              <option [value]="2" [selected]="numPools() === 2">2 Pools (Universal for 2-var XOR)</option>
+              <option [value]="3" [selected]="numPools() === 3">3 Pools</option>
+              <option [value]="4" [selected]="numPools() === 4">4 Pools (Universal for 3-var Parity)</option>
+              <option [value]="6" [selected]="numPools() === 6">6 Pools</option>
+              <option [value]="8" [selected]="numPools() === 8">8 Pools</option>
+            </select>
+          </div>
+
+          <!-- Base Prime -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="prime-p">Base Prime (p):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('primep', $event)"
+                [class.icon-pressed]="activePopup() === 'primep'"
+              >{{ activePopup() === 'primep' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'primep') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  The base prime p used for p-adic tree valuation and binary search leaf encodings (p=2 for standard 2-adic binary search).
+                </div>
+              }
+            </div>
+            <select id="prime-p" [value]="prime()" (change)="prime.set(+$any($event.target).value); resetModel()">
+              <option [value]="2" [selected]="prime() === 2">p = 2 (2-adic Binary)</option>
+              <option [value]="3" [selected]="prime() === 3">p = 3 (3-adic)</option>
+              <option [value]="5" [selected]="prime() === 5">p = 5 (5-adic)</option>
+            </select>
+          </div>
+
+          <!-- Target Init Mode -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="target-init">Target Init Mode:</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('targetinit', $event)"
+                [class.icon-pressed]="activePopup() === 'targetinit'"
+              >{{ activePopup() === 'targetinit' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'targetinit') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Initialization pattern for class 0 (False) and class 1 (True) target constraint disks on the p-adic tree.
+                </div>
+              }
+            </div>
+            <select id="target-init" [value]="targetInitMode()" (change)="targetInitMode.set($any($event.target).value); resetModel()">
+              <option value="pre-fixed-leaves" [selected]="targetInitMode() === 'pre-fixed-leaves'">Pre-fixed p-adic Leaves</option>
+              <option value="random" [selected]="targetInitMode() === 'random'">Random Learned Disks</option>
+            </select>
+          </div>
+
+          <!-- Target Center Update Mode (Multi-Choice Select Menu) -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="target-center-mode">Target Center Update:</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('updatetargets', $event)"
+                [class.icon-pressed]="activePopup() === 'updatetargets'"
+              >{{ activePopup() === 'updatetargets' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'updatetargets') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Controls how target constraint centers (W.center) update during training: Fixed at leaves, Dynamic via gradient descent, or Softmax Repulsion Normalized to push target centers apart.
+                </div>
+              }
+            </div>
+            <select id="target-center-mode" [value]="targetCenterMode()" (change)="targetCenterMode.set($any($event.target).value)">
+              <option value="fixed" [selected]="targetCenterMode() === 'fixed'">Fixed Target Centers (Canonical Leaves)</option>
+              <option value="gradient" [selected]="targetCenterMode() === 'gradient'">Dynamic Gradient Updates (W.center &rarr; H.center)</option>
+              <option value="repulsion" [selected]="targetCenterMode() === 'repulsion'">Softmax Repulsion Only</option>
+              <option value="combined" [selected]="targetCenterMode() === 'combined'">Combined: Gradient + Softmax Repulsion</option>
+            </select>
+          </div>
+
+          <!-- Pool Initialization -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="pool-init">Pool Initialization:</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('poolinit', $event)"
+                [class.icon-pressed]="activePopup() === 'poolinit'"
+              >{{ activePopup() === 'poolinit' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'poolinit') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Pre-separated tree branches vs random centers for pool weight disks (PW).
+                </div>
+              }
+            </div>
+            <select id="pool-init" [value]="poolInitMode()" (change)="poolInitMode.set($any($event.target).value); resetModel()">
+              <option value="separated-branches" [selected]="poolInitMode() === 'separated-branches'">Pre-separated Tree Branches</option>
+              <option value="random" [selected]="poolInitMode() === 'random'">Random Centers</option>
+            </select>
+          </div>
+
+          <!-- Learning Rate -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="learning-rate">Learning Rate (&eta;):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('lr', $event)"
+                [class.icon-pressed]="activePopup() === 'lr'"
+              >{{ activePopup() === 'lr' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'lr') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Step size used during gradient descent updates on Berkovich disk centers and radii.
+                </div>
+              }
+            </div>
+            <input
+              id="learning-rate"
+              type="text"
+              inputmode="decimal"
+              [value]="learningRate()"
+              (change)="learningRate.set(parseNumberInput($any($event.target).value))"
+            />
+          </div>
+
+          <!-- Radius Regularization -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="radius-reg">Radius Reg (&lambda;<sub>reg</sub>):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('reg', $event)"
+                [class.icon-pressed]="activePopup() === 'reg'"
+              >{{ activePopup() === 'reg' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'reg') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Regularization weight shrinking disk radii to prevent overlapping constraint boundaries.
+                </div>
+              }
+            </div>
+            <input
+              id="radius-reg"
+              type="text"
+              inputmode="decimal"
+              [value]="regularization()"
+              (change)="regularization.set(parseNumberInput($any($event.target).value))"
+            />
+          </div>
+
+          <!-- Softmax Beta -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="softmax-beta">Softmax Temp (&beta;):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('beta', $event)"
+                [class.icon-pressed]="activePopup() === 'beta'"
+              >{{ activePopup() === 'beta' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'beta') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Inverse temperature multiplier scaling logit path loss scores in softmax probability calculation.
+                </div>
+              }
+            </div>
+            <input
+              id="softmax-beta"
+              type="text"
+              inputmode="decimal"
+              [value]="beta()"
+              (change)="beta.set(parseNumberInput($any($event.target).value))"
+            />
+          </div>
+
+          <!-- Pool Repulsion -->
+          <div class="param-row">
+            <div class="param-label-row">
+              <label for="pool-repulsion">Pool Repulsion (&lambda;<sub>rep</sub>):</label>
+              <mat-icon
+                class="info-icon"
+                (click)="togglePopup('repulsion', $event)"
+                [class.icon-pressed]="activePopup() === 'repulsion'"
+              >{{ activePopup() === 'repulsion' ? 'info' : 'info_outline' }}</mat-icon>
+              @if (activePopup() === 'repulsion') {
+                <div class="custom-popup" (click)="$event.stopPropagation()">
+                  Repulsion penalty forcing different pools to remain separated on distinct p-adic tree branches.
+                </div>
+              }
+            </div>
+            <select id="pool-repulsion" [value]="repulsionReg()" (change)="repulsionReg.set(+$any($event.target).value)">
+              <option [value]="0.00" [selected]="repulsionReg() === 0.00">0.00 (Off)</option>
+              <option [value]="0.02" [selected]="repulsionReg() === 0.02">0.02 (Standard)</option>
+              <option [value]="0.05" [selected]="repulsionReg() === 0.05">0.05 (High)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Predictions Table Card -->
+      <div class="card predictions-card">
+        <h3>Live Truth Table Evaluation</h3>
+        <div class="pred-rows">
+          @for (pred of currentPredictions(); track pred.label) {
+            <div class="pred-row" [class.is-correct]="pred.pred === pred.target">
+              <span class="row-inputs">({{ pred.inputs.join(', ') }})</span>
+              <span class="row-arrow">&rarr;</span>
+              <span class="row-target">Target: {{ pred.target }}</span>
+              <span class="row-pred">Pred: {{ pred.pred }}</span>
+              <span class="row-prob">({{ (pred.prob1 * 100) | number:'1.0-0' }}%)</span>
+              <mat-icon class="status-icon">{{ pred.pred === pred.target ? 'check_circle' : 'cancel' }}</mat-icon>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Training Progress Chart, Training Controls, DNF Affinoid Map & Inference Walkthrough Explainer -->
+    <div class="right-panel">
+      <!-- Training Progress Chart (Loss & Accuracy Dual-Axis Graph) -->
+      <div class="card chart-card">
+        <h3><mat-icon>show_chart</mat-icon> Training Progress (Loss &amp; Accuracy)</h3>
+        <div class="chart-container" style="display: flex; justify-content: center; align-items: center; min-height: 220px;">
+          @if (chartPoints().length > 0) {
+            <app-d3-line-chart
+              [dataPoints]="chartPoints()"
+              [inChartConfig]="chartConfig()"
+            ></app-d3-line-chart>
+          } @else {
+            <div class="empty-chart-state" style="color: #64748b; font-size: 13px; text-align: center; padding: 24px;">
+              <mat-icon style="font-size: 32px; height: 32px; width: 32px; color: #cbd5e1; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">insights</mat-icon>
+              No training data yet. Click <strong>Step Train</strong> or <strong>Auto Train</strong> to start learning.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Training Controls Toolbar -->
+      <div class="card training-card">
+        <div class="training-header">
+          <h3>Training Controls</h3>
+          <div class="step-metrics">
+            <span>Steps: <strong>{{ stepCount() }}</strong></span>
+            <span>Epochs: <strong>{{ epochCount() }}</strong></span>
+            @if (currentAccuracy() >= 0.9999) {
+              <span class="converged-chip" style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid #86efac; margin-left: 8px;">
+                🎉 100% Target Met (Stopped)
+              </span>
+            }
+          </div>
+        </div>
+
+        <div class="training-actions">
+          <button mat-raised-button color="primary" (click)="stepTrain()" [disabled]="isAutoTraining()">
+            <mat-icon>play_arrow</mat-icon>
+            <span>Step Train</span>
+          </button>
+          <button mat-raised-button color="accent" (click)="trainSteps(5)" [disabled]="isAutoTraining()">
+            <mat-icon>fast_forward</mat-icon>
+            <span>Train 5 Steps</span>
+          </button>
+          <button mat-stroked-button (click)="toggleAutoTrain()">
+            <mat-icon>{{ isAutoTraining() ? 'pause' : 'autorenew' }}</mat-icon>
+            <span>{{ isAutoTraining() ? 'Pause' : 'Auto Train' }}</span>
+          </button>
+          <button mat-button (click)="resetModel()">
+            <mat-icon>refresh</mat-icon>
+            <span>Reset Model</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- DNF Structure & 2D Embedding Map -->
+      <app-dnf-vis-card
+        [learner]="learner()"
+        [samples]="dataset()"
+        [numPools]="numPools()"
+        [numVars]="numVars()"
+        [prime]="prime()"
+        [config]="modelConfig()"
+        [tick]="trainTick()"
+      ></app-dnf-vis-card>
+
+      <!-- How Model Inference & Berkovich Matrix Operations Work Walkthrough Card -->
+      <div class="card explainer-card">
+        <app-berkovich-boolean-walkthrough
+          [learner]="learner()"
+          [dataset]="dataset()"
+          [numPools]="numPools()"
+          [numVars]="numVars()"
+          [prime]="prime()"
+          [config]="modelConfig()"
+          [tick]="trainTick()"
+          (targetInitModeChange)="targetInitMode.set($event); resetModel()"
+          (poolInitModeChange)="poolInitMode.set($event); resetModel()"
+          (targetCenterModeChange)="targetCenterMode.set($event)"
+          (numPoolsChange)="numPools.set($event); resetModel()"
+          (learningRateChange)="learningRate.set($event)"
+          (regularizationChange)="regularization.set($event)"
+          (repulsionRegChange)="repulsionReg.set($event)"
+          (betaChange)="beta.set($event)"
+        ></app-berkovich-boolean-walkthrough>
+      </div>
+    </div>
+  </div>
+</div>
+

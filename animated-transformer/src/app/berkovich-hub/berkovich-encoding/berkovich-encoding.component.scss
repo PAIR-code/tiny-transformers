@@ -1,0 +1,168 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+:host {
+  display: block;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.berkovich-page-container {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: #1e293b;
+}
+
+.encoding-layout-single {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+}
+
+.main-mapping-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+
+    .header-titles {
+      h3 {
+        margin: 0 0 4px 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+        color: #64748b;
+        font-weight: 500;
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+
+      mat-checkbox {
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .depth-form-field {
+        width: 165px;
+      }
+    }
+  }
+
+  .presets-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+
+    .presets-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .preset-label {
+        font-size: 0.82rem;
+        color: #64748b;
+        font-weight: 600;
+      }
+
+      .preset-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+
+        button {
+          padding: 2px 8px;
+          font-size: 0.78rem;
+          border-color: #cbd5e1;
+          color: #1e293b;
+
+          &.active-preset {
+            background-color: #eff6ff;
+            border-color: #2563eb;
+            color: #1d4ed8;
+            font-weight: bold;
+          }
+        }
+      }
+    }
+
+    .drag-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: #475569;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: #2563eb;
+      }
+
+      .exact-hint {
+        color: #dc2626;
+      }
+    }
+  }
+}
+
+.explanation-card {
+  h3 {
+    margin: 0 0 12px 0;
+  }
+}

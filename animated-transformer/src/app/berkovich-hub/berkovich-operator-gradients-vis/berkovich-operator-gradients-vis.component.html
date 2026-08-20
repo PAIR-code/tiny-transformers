@@ -1,0 +1,69 @@
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Berkovich Binary Operator Gradients Explorer"
+    subtitle="Visualizing backward pass and continuous gradient flow through binary operations"
+  ></app-berkovich-header>
+
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Interactive Tree & Point Visualizer -->
+    <section class="visualizer-card-container">
+      <app-berkovich-multi-tree-vis
+        [visMode]="visMode()"
+        [targetLabel]="targetLabel()"
+        [operator]="operator()"
+        [prime]="prime()"
+        [learningRateInput]="learningRateInput()"
+        [vertexMethod]="vertexMethod()"
+        [trackedNodes]="trackedNodes()"
+        [editableInputs]="editableInputs()"
+        [isPlaying]="isPlaying()"
+        [canUndo]="canUndo()"
+        [stepDetails]="stepDetails()"
+        (operatorChange)="onOperatorChange($event)"
+        (primeChange)="onPrimeChange($event)"
+        (vertexMethodChange)="vertexMethod.set($event)"
+        (inputChange)="onInputChange($event)"
+        (inputBlur)="onInputBlur($event)"
+        (step)="onStep()"
+        (randomize)="onRandomize()"
+        (togglePlay)="onTogglePlay()"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (learningRateBlur)="onLearningRateBlur()"
+        [playStepMs]="playStepMs()"
+        (playStepMsChange)="playStepMs.set($event)"
+        (undo)="onUndo()"
+      ></app-berkovich-multi-tree-vis>
+    </section>
+
+    <!-- Right Column: Calculus -->
+    <aside class="control-panel">
+      <app-berkovich-operator-calculus
+        [operator]="operator()"
+        [rhoX1]="rhoX1()"
+        [rhoX2]="rhoX2()"
+        [stepDetails]="stepDetails()"
+      />
+    </aside>
+  </div>
+
+  <!-- Explainer Section -->
+  <mat-card class="explainer-card collapsible-card">
+    <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" style="cursor: pointer; width: 100%;">
+      <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <mat-icon>info</mat-icon>
+          <span>Understanding Gradients & Optimization of {{ operator() | titlecase }}</span>
+        </div>
+        <mat-icon class="collapse-chevron" style="color: #64748b;">{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </mat-card-title>
+    </mat-card-header>
+    @if (isExplainerExpanded()) {
+      <mat-card-content class="explainer-content" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 12px;">
+        <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
+      </mat-card-content>
+    }
+  </mat-card>
+
+</div>

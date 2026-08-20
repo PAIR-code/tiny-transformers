@@ -1,0 +1,728 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=============================================================================*/
+
+@use '../../tree_vis_common';
+
+:host {
+  display: block;
+}
+
+/* Visualizer Card & SVG */
+.visualizer-card {
+  position: relative;
+  height: 100%;
+
+  mat-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    
+    mat-icon {
+      color: #0f766e;
+    }
+  }
+
+  .vis-mode-select {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+
+    &:hover {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+    }
+
+    &:focus {
+      border-color: #8b5cf6;
+      background: #ffffff;
+    }
+  }
+
+  .green-text {
+    color: #16a34a;
+  }
+
+  .visualizer-card-content {
+    position: relative;
+  }
+}
+
+.tree-edge.target-path {
+  stroke: #eab308;
+  stroke-width: 3.5;
+}
+
+.tree-edge.parameter-path {
+  stroke: #8b5cf6; /* purple for parameter */
+  stroke-width: 3.5;
+}
+
+.tree-edge.overlap-path {
+  stroke: #10b981;
+  stroke-width: 5;
+}
+
+/* Candidate evaluation styles for junction points */
+@keyframes branchPulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 4.5px;
+    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.8));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.5));
+  }
+}
+
+@keyframes nodePulse {
+  0% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+  50% {
+    stroke: #22d3ee;
+    stroke-width: 3px;
+    fill: #cffafe;
+    filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.7));
+  }
+  100% {
+    stroke: #06b6d4;
+    stroke-width: 2px;
+    fill: #ecfeff;
+    filter: drop-shadow(0 0 1px rgba(6, 182, 212, 0.4));
+  }
+}
+
+.tree-edge.candidate-branch {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: branchPulse 1.5s ease-in-out infinite !important;
+}
+
+.tree-node.candidate-node {
+  stroke-dasharray: none !important;
+  opacity: 1 !important;
+  animation: nodePulse 1.5s ease-in-out infinite !important;
+}
+
+.candidate-edge-group {
+  .digit-bg {
+    stroke: #06b6d4 !important;
+    stroke-width: 1.5px !important;
+    fill: #ecfeff !important;
+  }
+  .digit-label {
+    fill: #0891b2 !important;
+    font-weight: bold !important;
+  }
+}
+
+/* Target marker flag */
+.target-marker {
+  .target-outer {
+    fill: none;
+    stroke: #eab308;
+    stroke-width: 1.5;
+    stroke-dasharray: 2 1;
+    animation: spin 8s linear infinite;
+  }
+  .target-inner {
+    fill: #eab308;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Glowing fixed-position halo around active parameter vertex */
+.parameter-halo {
+  fill: none;
+  stroke: #8b5cf6; /* purple parameter accent */
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
+  animation: halo-pulse 1.8s infinite ease-in-out;
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1), r 0.3s;
+}
+
+@keyframes halo-pulse {
+  0% {
+    stroke-width: 1.5;
+    opacity: 0.6;
+  }
+  50% {
+    stroke-width: 3.5;
+    opacity: 1.0;
+  }
+  100% {
+    stroke-width: 1.5;
+    opacity: 0.6;
+  }
+}
+
+.history-dot {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 1.5px;
+  stroke-dasharray: 2 2;
+  opacity: 0.6;
+}
+
+/* Continuous Log-Radius level line indicator */
+.rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rho-drag-handle {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  cursor: ns-resize;
+}
+
+.rho-label-bg {
+  fill: #ffffff;
+  stroke: #8b5cf6;
+  stroke-width: 1px;
+  stroke-dasharray: 3 2;
+  opacity: 0.5;
+  cursor: ns-resize;
+  transition: opacity 0.2s, stroke-width 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+    stroke-width: 1.5px;
+  }
+}
+
+
+
+.rho-gradient-arrow {
+  font-size: 14px;
+  font-weight: bold;
+  dominant-baseline: central;
+  pointer-events: none;
+  &.gradient-down {
+    fill: #10b981; /* green for going down/shrinking */
+  }
+  &.gradient-up {
+    fill: #ef4444; /* red for going up/expanding */
+  }
+}
+
+
+
+.lca-path-line {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+  transition: y1 0.4s ease-out, y2 0.4s ease-out, x1 0.4s ease-out;
+}
+
+.lca-path-group {
+  transition: transform 0.4s ease-out;
+}
+
+.lca-distance-explainer-anchor {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  pointer-events: auto;
+  transition: top 0.4s ease-out;
+}
+
+.lca-distance-text {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: bold;
+  color: #64748b;
+}
+
+/* Target Disk Level Line Indicator */
+.target-rho-level-group {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-rho-level-line {
+  fill: none;
+  stroke: #eab308; /* yellow target accent */
+  stroke-width: 4;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+.target-rho-level-text {
+  fill: #eab308;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.target-rho-level-cap {
+  fill: none;
+  stroke: #eab308;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.lca-path-label {
+  fill: #64748b;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+  text-anchor: middle;
+}
+
+@keyframes lossBgIntroNormal {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #fee2e2;
+    stroke: #fca5a5;
+  }
+}
+
+@keyframes lossBgIntroBest {
+  0% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  30% {
+    fill: #f1f5f9;
+    stroke: #cbd5e1;
+  }
+  100% {
+    fill: #d1fae5;
+    stroke: #10b981;
+  }
+}
+
+@keyframes lossTextIntroNormal {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #b91c1c;
+  }
+}
+
+@keyframes lossTextIntroBest {
+  0% {
+    fill: #64748b;
+  }
+  30% {
+    fill: #64748b;
+  }
+  100% {
+    fill: #047857;
+  }
+}
+
+.candidate-loss-group {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  pointer-events: none;
+
+  &.best-candidate-group {
+    // Best candidate fades out slightly later so non-optimal vanish first
+    transition: opacity 0.35s ease-out 0.15s;
+  }
+
+  // Non-optimal candidates being faded out during the animation 'fadeout' phase
+  &.fading-out {
+    opacity: 0;
+    transition: opacity 0.4s ease-out;
+  }
+
+  &.visible {
+    opacity: 1;
+    transition: opacity 0.15s ease-in;
+
+    // When fading out, override to hide while keeping fills intact
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.4s ease-out;
+    }
+
+    .candidate-loss-bg {
+      animation: lossBgIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate-bg {
+        animation: lossBgIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+
+    .candidate-loss-label {
+      animation: lossTextIntroNormal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      &.best-candidate {
+        animation: lossTextIntroBest 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+    }
+  }
+}
+
+.candidate-loss-bg {
+  // Explicit default fill/stroke prevents "going black" when the group
+  // transitions to opacity:0 (the animation 'forwards' fill mode keeps
+  // the final keyframe colors, but only while the animation is active).
+  fill: #f1f5f9;
+  stroke: #cbd5e1;
+  stroke-width: 1px;
+  opacity: 0.95;
+}
+
+.candidate-loss-label {
+  fill: #64748b;
+  font-size: 9px;
+  font-weight: bold;
+  font-family: monospace;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* Parameter center label next to the active node */
+.parameter-node-label {
+  fill: #8b5cf6; /* purple parameter accent */
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  text-anchor: start;
+  dominant-baseline: central;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8));
+  transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rho-disk-shading {
+  fill: #8b5cf6;
+  opacity: 0.04;
+  pointer-events: none;
+  transition: 
+    x 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-disk-shading {
+  fill: #d97706; /* amber-600 */
+  opacity: 0.04;
+  pointer-events: none;
+  transition: 
+    x 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.target-rho-guide-line {
+  stroke: #d97706;
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  transition: 
+    x1 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    x2 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    y2 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable transitions during active pointer dragging to maintain zero-latency snappiness */
+.dragging-active {
+  .tree-node-group,
+  .digit-label-group,
+  .parameter-overlay,
+  .tree-edge,
+  .rho-level-group,
+  .rho-disk-shading,
+  .target-rho-level-group,
+  .target-disk-shading,
+  .target-rho-guide-line {
+    transition: none !important;
+  }
+}
+
+/* Digit Editor Overlay */
+.digit-editor-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.yellow-text {
+  color: #d97706;
+}
+
+.purple-text {
+  color: #7c3aed;
+}
+
+.mini-digit-input {
+  width: 55px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: #f8fafc;
+  color: #1e293b;
+  text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    background: #ffffff;
+  }
+}
+
+.mini-rho-input {
+  width: 50px;
+  -appearance: textfield;
+  -moz-appearance: textfield;
+  
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -appearance: none;
+    margin: 0;
+  }
+}
+
+.visualizer-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.footer-control-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  user-select: none;
+  cursor: pointer;
+  
+  input {
+    cursor: pointer;
+    margin: 0;
+  }
+
+  label {
+    cursor: pointer;
+  }
+}
+
+.prime-selector-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: #1e293b;
+
+  label {
+    cursor: default;
+  }
+
+  .prime-select {
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 1px 4px;
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:hover {
+      border-color: #94a3b8;
+    }
+
+    &:focus {
+      border-color: #8b5cf6;
+    }
+  }
+}
+
+.overlay-divider {
+  width: 1px;
+  height: 14px;
+  background-color: #cbd5e1;
+  margin: 0 4px;
+}
+
+.learning-rate-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+
+  label {
+    cursor: default;
+  }
+
+  .mini-lr-input {
+    width: 42px !important;
+  }
+}
+
+.footer-control-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  --mat-icon-button-icon-size: 16px !important;
+  --mat-icon-button-state-layer-size: 24px !important;
+}
+
+.diagram-action-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  border-radius: 4px !important;
+  background: transparent !important;
+  
+  &::ng-deep {
+    .mat-mdc-button-touch-target {
+      height: unset !important;
+      width: unset !important;
+    }
+    
+    .mat-icon {
+      width: 16px !important;
+      height: 16px !important;
+      font-size: 16px !important;
+      line-height: 16px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      
+      svg {
+        width: 16px !important;
+        height: 16px !important;
+      }
+    }
+  }
+  
+  &[disabled] {
+    opacity: 0.38 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    background-color: transparent !important;
+  }
+
+  &:hover:not([disabled]) {
+    background-color: #f1f5f9 !important;
+    color: #0f172a;
+  }
+  
+  &.play-btn {
+    background-color: #8b5cf6 !important;
+    color: white;
+    
+    &:hover:not([disabled]) {
+      background-color: #7c3aed !important;
+      color: white;
+    }
+    
+    &.playing {
+      background-color: #ef4444 !important;
+      
+      &:hover:not([disabled]) {
+        background-color: #dc2626 !important;
+      }
+    }
+  }
+}

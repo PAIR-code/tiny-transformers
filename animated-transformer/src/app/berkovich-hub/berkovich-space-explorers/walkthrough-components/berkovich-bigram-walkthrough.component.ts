@@ -1,0 +1,111 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
+import { MarkdownComponent } from 'ngx-markdown';
+import { WalkthroughDetails } from './shared/walkthrough-types';
+import { WalkthroughContextComponent } from './shared/walkthrough-context.component';
+import { SoftmaxWalkthroughTableComponent } from './shared/softmax-walkthrough-table.component';
+import { BerkovichLookupWalkthroughComponent } from './shared/berkovich-lookup-walkthrough.component';
+import { BerkovichDecoderWalkthroughComponent } from './shared/berkovich-decoder-walkthrough.component';
+import { BerkovichModelInspectorComponent } from '../inspector-components/berkovich-model-inspector.component';
+import { BerkovichDualDigitDisplayComponent } from '../../berkovich-dual-digit-display/berkovich-dual-digit-display.component';
+import { BerkovichCharLearnerBase } from '../models/berkovich-char-learner';
+
+@Component({
+  selector: 'app-berkovich-bigram-walkthrough',
+  imports: [
+    CommonModule, 
+    MatIconModule, 
+    MarkdownComponent, 
+    WalkthroughContextComponent, 
+    SoftmaxWalkthroughTableComponent,
+    BerkovichLookupWalkthroughComponent,
+    BerkovichDecoderWalkthroughComponent,
+    BerkovichModelInspectorComponent,
+    BerkovichDualDigitDisplayComponent
+  ],
+  templateUrl: './berkovich-bigram-walkthrough.component.html',
+  styleUrl: './berkovich-bigram-walkthrough.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class BerkovichBigramWalkthroughComponent {
+  readonly descriptionMarkdown = 'This model predicts the next character based on a single preceding character ($N=1$) using Berkovich spaces.';
+
+  readonly explanationMarkdown = `- **Values vs. Parameters**: Values are exact Type I leaf points ($c \\in \\mathbb{Q}_p$) with a fixed log-radius of $-2.0$. Parameters (Embeddings & Constraints) are dynamic Berkovich disks ($E_c, W_{k,\\rho}$).
+- **Why Radius Regularization?**: Training with cross-entropy alone encourages classification disks to expand ($W_{k,\\rho} \\to \\infty$), leading to complete overlap and ties. A regularizer ($\\lambda \\sum p^{\\rho_{W,k,d}}$) shrinks disks, forcing them to remain tight and disjoint around their classes.`;
+
+  readonly softmaxGuide = `- **Logit Score (D)**: The negated projection path loss from Step 2.
+- **$e^{\\beta \\cdot D}$ (Numerator)**: Exponentiates the score scaled by temperature $\\beta$.
+- **Denominator Sum**: Sum of $e^{\\beta \\cdot D}$ across all vocabulary characters.
+- **Probability (Ratio)**: Final probability $\\frac{\\text{Numerator}}{\\text{Denominator Sum}}.$`;
+
+  details = input.required<WalkthroughDetails | null>();
+  walkthroughInput = input.required<string>();
+  walkthroughInputError = input.required<string | null>();
+  beta = input.required<number>();
+  prime = input.required<number>();
+  vocab = input.required<string[]>();
+  aggMode = input.required<'min' | 'average'>();
+  
+  digitsLeft = input<number>(2);
+  digitsRight = input<number>(2);
+  
+  stepData = input.required<{
+    step1: string;
+    step2: string;
+  }>();
+
+  // New inputs/outputs for parameters and gradients
+  model = input.required<BerkovichCharLearnerBase | null>();
+  dimensions = input.required<number[]>();
+  showE = input<boolean>(false);
+  showW = input<boolean>(false);
+  showSoftmax = input<boolean>(false);
+
+  showEChange = output<boolean>();
+  showWChange = output<boolean>();
+  showSoftmaxChange = output<boolean>();
+
+  gradients = input<any[] | null>(null);
+  targetChar = input<string>('');
+  targetCharChange = output<string>();
+
+  walkthroughInputChange = output<string>();
+
+  onTargetCharChange(event: Event) {
+    const val = (event.target as HTMLSelectElement).value;
+    this.targetCharChange.emit(val);
+  }
+}

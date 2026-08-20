@@ -1,0 +1,49 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="landing-container">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Berkovich Visualization Sandbox"
+    subtitle="Play with individual p-adic and Berkovich space visualizers with customized inputs and configurations."
+    [isVisTool]="true"
+    backRoute="/berkovich"
+  ></app-berkovich-header>
+
+  <main class="landing-main">
+    <section class="section-group">
+      <div class="cards-grid">
+        @for (card of tools; track card.route) {
+          <div class="card" [class]="card.colorClass" [routerLink]="card.route">
+            <div class="card-glow"></div>
+            <div class="card-content">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+              </div>
+              <h3>{{ card.title }}</h3>
+              <p>{{ card.description }}</p>
+              <div class="card-actions">
+                <span class="explore-btn">
+                  Open Sandbox
+                  <mat-icon>arrow_forward</mat-icon>
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+</div>

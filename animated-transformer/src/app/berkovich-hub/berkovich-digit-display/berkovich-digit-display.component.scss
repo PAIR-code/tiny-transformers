@@ -1,0 +1,248 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+:host {
+  display: inline-block;
+  vertical-align: middle;
+  cursor: default;
+  outline: none;
+
+  &:focus,
+  &:focus-visible,
+  &:focus-within {
+    outline: none;
+  }
+
+  &.clickable {
+    cursor: pointer;
+  }
+
+  &.editable-center {
+    cursor: text;
+  }
+
+  &.dragging-rho {
+    cursor: ew-resize !important;
+    cursor: col-resize !important;
+
+    .rho-shading,
+    .rho-guide-line,
+    clipPath rect {
+      transition: none !important;
+    }
+  }
+}
+
+.digit-display-svg {
+  display: block;
+  overflow: visible;
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+/* Clip path rectangle smooth coordinate transitions */
+clipPath rect {
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+/* Base style for row background container box */
+.row-bg-box {
+  stroke: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+/* Background shading regions (clipped to beveled row box) */
+.rho-shading {
+  pointer-events: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+.digit-box-group {
+  transition: transform 0.3s ease;
+}
+
+.decimal-dot-group {
+  transition: transform 0.3s ease;
+}
+
+.digit-text {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  fill: #334155;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: font-size 0.3s ease, fill 0.3s ease;
+
+  &.changed-digit {
+    fill: #059669;
+    font-weight: 800;
+  }
+}
+
+/* Decimal dot representation (placed at baseline height) */
+.decimal-dot-mark {
+  fill: #334155;
+  transition: cx 0.3s ease, cy 0.3s ease;
+}
+
+/* Outer boundary border boxes */
+.row-outer-box {
+  fill: none;
+  stroke-width: 1.5px;
+  pointer-events: none;
+  transition: x 0.3s ease, y 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+/* Dotted guide lines for rho values */
+.rho-dotted-line {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+  transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease;
+}
+
+/* Solid guide lines for rho values */
+.rho-guide-line {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1px;
+  transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease;
+}
+
+.rho-vertical-line.editable-rho {
+  cursor: ew-resize;
+  cursor: col-resize;
+  &:hover {
+    stroke: #2563eb;
+    stroke-width: 2.5px;
+  }
+}
+
+.rho-drag-hit-target {
+  cursor: ew-resize;
+  cursor: col-resize;
+  pointer-events: stroke;
+}
+
+/* Text labels for rho values */
+.rho-label-text {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: bold;
+  dominant-baseline: central;
+  fill: #64748b;
+  transition: x 0.3s ease, y 0.3s ease;
+
+  &.centered-rho {
+    text-anchor: middle;
+  }
+}
+
+/* Updated location vertical line (gradient update) */
+.updated-rho-line {
+  transition: x1 0.3s ease, x2 0.3s ease, y1 0.3s ease, y2 0.3s ease, stroke 0.3s ease;
+}
+
+.gradient-arrow-group {
+  line, polygon {
+    transition: all 0.3s ease;
+  }
+}
+
+.updated-rho-label {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  dominant-baseline: central;
+  transition: x 0.3s ease, y 0.3s ease, fill 0.3s ease;
+}
+
+/* Digit change circular bubble styling */
+.digit-bubble-group {
+  transition: transform 0.3s ease;
+
+  .bubble-circle {
+    fill: #eff6ff;
+    stroke: #3b82f6;
+    stroke-width: 1.5px;
+    transition: r 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+  }
+
+  .bubble-text {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    fill: #1d4ed8;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .bubble-guide-line {
+    stroke: #93c5fd;
+    stroke-width: 1px;
+    stroke-dasharray: 2 2;
+  }
+}
+
+.row-bg-box.editable-row,
+.row-outer-box.editable-row,
+.digit-box-group.editable-digit {
+  cursor: text;
+
+  &:hover .digit-text {
+    fill: #1d4ed8;
+  }
+}
+
+.active-digit-box {
+  fill: #3b82f6;
+  fill-opacity: 0.15;
+  stroke: #2563eb;
+  stroke-width: 1.5px;
+}
+
+.cursor-marker-line {
+  stroke: #2563eb;
+  stroke-width: 2px;
+  animation: cursor-marker-blink 1s ease-in-out infinite;
+}
+
+@keyframes cursor-marker-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.editable-rho {
+  cursor: pointer;
+  &:hover {
+    fill: #2563eb;
+    text-decoration: underline;
+  }
+}
+
+.rho-inline-editor {
+  width: 55px;
+  height: 20px;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 0 4px;
+  border: 1px solid #3b82f6;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1e293b;
+  box-sizing: border-box;
+  outline: none;
+}

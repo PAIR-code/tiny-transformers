@@ -1,0 +1,171 @@
+/* Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+.walkthrough-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.step-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .step-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #eff6ff;
+    color: #2563eb;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid #dbeafe;
+  }
+
+  h3 {
+    margin: 0 0 8px 0;
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .step-desc {
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+}
+
+.overview-card {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border-left: 4px solid #2563eb;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+
+    .icon-berkovich {
+      color: #2563eb;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: #0f172a;
+    }
+  }
+
+  .explanation-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #334155;
+  }
+}
+
+.patch-grid-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .grid-header {
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .patch-cells {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    max-width: 280px;
+
+    .patch-cell {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ffffff;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+  }
+}
+
+.aggregated-disks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .disk-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .dim-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #2563eb;
+      min-width: 60px;
+    }
+  }
+}
+
+.class-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+
+  .class-score-card {
+    padding: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    text-align: center;
+
+    .score-digit {
+      font-weight: bold;
+      font-size: 0.95rem;
+      color: #0f172a;
+    }
+
+    .score-value {
+      font-size: 0.8rem;
+      color: #2563eb;
+      margin-top: 4px;
+      font-family: monospace;
+    }
+
+    &.selected-digit {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+  }
+}

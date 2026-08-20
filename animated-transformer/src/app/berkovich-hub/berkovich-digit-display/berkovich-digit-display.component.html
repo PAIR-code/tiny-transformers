@@ -1,0 +1,260 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<svg
+  [attr.width]="layout().totalWidth"
+  [attr.height]="svgHeight()"
+  [style.width.px]="layout().totalWidth"
+  [style.height.px]="svgHeight()"
+  class="digit-display-svg"
+>
+  <defs>
+    <!-- Clip path for Row to match the beveled outer border box -->
+    <clipPath [attr.id]="clipPathId">
+      <rect
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+        [attr.y]="rowY() - derivedDimensions().boxPadding"
+        [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+        [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+        [attr.rx]="derivedDimensions().boxBorderRadius"
+        [attr.ry]="derivedDimensions().boxBorderRadius"
+      />
+    </clipPath>
+  </defs>
+
+  <!-- Row Base Background Box (White) -->
+  <rect
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="rowY() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
+    [style.fill]="COLOR_ROW_BG"
+    class="row-bg-box"
+    [class.editable-row]="isCenterEditable()"
+    (click)="onRowClick($event)"
+  />
+
+  <!-- Grey background representing rho (clipped to Row Clip) -->
+  @if (rhoBackgroundWidth() > 0) {
+    <rect
+      [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+      [attr.y]="rowY() - derivedDimensions().boxPadding"
+      [attr.width]="rhoBackgroundWidth()"
+      [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+      [style.fill]="COLOR_RHO_SHADING"
+      [style.opacity]="OPACITY_RHO_SHADING"
+      [attr.clip-path]="'url(#' + clipPathId + ')'"
+      class="rho-shading"
+    />
+  }
+
+  <!-- Decimal dot between 1 and 1/p (represented in layout by dotX) -->
+  @if (layout().dotX !== null) {
+    <g
+      [style.transform]="'translate(' + layout().dotX + 'px, ' + (rowY() + derivedDimensions().cellHeight - derivedDimensions().dotYOffsetFromBottom) + 'px)'"
+      class="decimal-dot-group"
+    >
+      <circle
+        cx="0"
+        cy="0"
+        [attr.r]="DOT_RADIUS"
+        [style.fill]="COLOR_DOT"
+        class="decimal-dot-mark"
+      />
+    </g>
+  }
+
+  <!-- Digit boxes for Row -->
+  @for (col of layout().cellPositions; track col.power) {
+    <g
+      [style.transform]="'translate(' + col.center + 'px, ' + (rowY() + derivedDimensions().cellHeight / 2) + 'px)'"
+      class="digit-box-group"
+      [class.editable-digit]="isCenterEditable()"
+      [class.active-digit]="isFocused() && activeDigitPower() === col.power"
+      (click)="onDigitClick($event, col)"
+    >
+      <text
+        x="0"
+        y="0"
+        class="digit-text"
+        [style.font-size.px]="derivedDimensions().digitFontSize"
+      >
+        {{ getDigitAtPower(col.power) }}
+      </text>
+
+      @if (isFocused() && activeDigitPower() === col.power) {
+        <line
+          [attr.x1]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y1]="-derivedDimensions().cellHeight / 2 + 2"
+          [attr.x2]="cursorSide() === 'before' ? -derivedDimensions().cellWidth / 2 + 1.5 : derivedDimensions().cellWidth / 2 - 1.5"
+          [attr.y2]="derivedDimensions().cellHeight / 2 - 2"
+          class="cursor-marker-line"
+        />
+      }
+    </g>
+  }
+
+  <!-- Border box around Row - customizable border color -->
+  <rect
+    [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding"
+    [attr.y]="rowY() - derivedDimensions().boxPadding"
+    [attr.width]="layout().rowWidth + 2 * derivedDimensions().boxPadding"
+    [attr.height]="derivedDimensions().cellHeight + 2 * derivedDimensions().boxPadding"
+    [attr.rx]="derivedDimensions().boxBorderRadius"
+    [attr.ry]="derivedDimensions().boxBorderRadius"
+    [style.stroke]="outerBoxColor()"
+    class="row-outer-box"
+    [class.editable-row]="isCenterEditable()"
+    (click)="onRowClick($event)"
+  />
+
+  <!-- Circular bubbles for changed digits when rho is unchanged -->
+  @for (bubble of digitBubbles(); track bubble.power) {
+    <g class="digit-bubble-group">
+      <circle
+        [attr.cx]="bubble.cx"
+        [attr.cy]="bubbleCy()"
+        r="9"
+        class="bubble-circle"
+      />
+      <text
+        [attr.x]="bubble.cx"
+        [attr.y]="bubbleCy()"
+        class="bubble-text"
+      >
+        {{ bubble.newDigit }}
+      </text>
+    </g>
+  }
+
+  <!-- Vertical dotted/dashed line for updated location (gradient update when rho changed or line specified) -->
+  @if (updatedRhoBoundaryX() !== null) {
+    <line
+      [attr.x1]="updatedRhoBoundaryX()"
+      [attr.y1]="updatedRhoLineY1()"
+      [attr.x2]="updatedRhoBoundaryX()"
+      [attr.y2]="updatedRhoLineY2()"
+      [style.stroke]="updatedLineColor()"
+      [style.stroke-dasharray]="updatedLineStyle() === 'dotted' ? '2 2' : updatedLineStyle() === 'dashed' ? '5 3' : 'none'"
+      stroke-width="2"
+      class="updated-rho-line"
+    />
+  }
+
+  <!-- Guide lines and labels for rho value -->
+  @if (rhoBoundaryX() !== null && (displayPosition() === 'above' || displayPosition() === 'below')) {
+    <!-- Horizontal guide line -->
+    <line
+      [attr.x1]="derivedDimensions().marginLeft"
+      [attr.y1]="rhoLineY()"
+      [attr.x2]="rhoBoundaryX()"
+      [attr.y2]="rhoLineY()"
+      class="rho-guide-line"
+    />
+    <!-- Vertical guide line connecting to border box -->
+    <line
+      [attr.x1]="rhoBoundaryX()"
+      [attr.y1]="rhoLineY()"
+      [attr.x2]="rhoBoundaryX()"
+      [attr.y2]="rhoVerticalLineStartY()"
+      class="rho-guide-line rho-vertical-line"
+      [class.editable-rho]="isRhoEditable()"
+    />
+
+    <!-- Wide invisible hit target line over vertical line for easy mouse dragging (only on bit above/below main outline) -->
+    @if (isRhoEditable()) {
+      <line
+        [attr.x1]="rhoBoundaryX()"
+        [attr.y1]="rhoLineY()"
+        [attr.x2]="rhoBoundaryX()"
+        [attr.y2]="rhoVerticalLineStartY()"
+        stroke="transparent"
+        stroke-width="16"
+        style="cursor: col-resize; pointer-events: stroke;"
+        class="rho-drag-hit-target"
+        (mousedown)="startRhoDrag($event)"
+      />
+    }
+
+    <!-- Left-aligned rho text label -->
+    @if (!isEditingRho()) {
+      <text
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="rhoTextY()"
+        class="rho-label-text"
+        [class.editable-rho]="isRhoEditable()"
+        (click)="onRhoLabelClick($event)"
+        style="text-anchor: start;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ rho().toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft"
+        [attr.y]="rhoTextY() - derivedDimensions().rhoFontSize - 2"
+        width="65"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInp
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="onRhoInputChange($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
+  }
+
+  <!-- Left-aligned rho number when position is 'left' -->
+  @if (displayPosition() === 'left') {
+    @if (!isEditingRho()) {
+      <text
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 8"
+        [attr.y]="rowY() + derivedDimensions().cellHeight / 2"
+        class="rho-label-text centered-rho"
+        [class.editable-rho]="isRhoEditable()"
+        (click)="onRhoLabelClick($event)"
+        style="text-anchor: end;"
+        [style.font-size.px]="derivedDimensions().rhoFontSize"
+      >
+        {{ rho().toFixed(2) }}
+      </text>
+    } @else {
+      <foreignObject
+        [attr.x]="derivedDimensions().marginLeft - derivedDimensions().boxPadding - 65"
+        [attr.y]="rowY() + derivedDimensions().cellHeight / 2 - 12"
+        width="55"
+        height="24"
+      >
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <input
+            #rhoInpLeft
+            type="text"
+            class="rho-inline-editor"
+            [value]="rhoInputString()"
+            (input)="onRhoInputChange($any($event.target).value)"
+            (blur)="commitRhoEdit()"
+          />
+        </div>
+      </foreignObject>
+    }
+  }
+</svg>

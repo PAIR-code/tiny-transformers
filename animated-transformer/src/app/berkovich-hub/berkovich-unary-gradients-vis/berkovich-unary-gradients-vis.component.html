@@ -1,0 +1,82 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Unary Operator Gradients Explorer"
+    subtitle="Visualizing backward pass and continuous gradient flow through Berkovich unary operations"
+  ></app-berkovich-header>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Interactive Tree & Point Visualizer -->
+    <section class="visualizer-card-container">
+      <app-berkovich-unary-tree-vis
+        [visMode]="visMode()"
+        [constantLabel]="constantLabel()"
+        [operator]="operator()"
+        [prime]="prime()"
+        [learningRateInput]="learningRateInput()"
+        [vertexMethod]="vertexMethod()"
+        [trackedNodes]="trackedNodes()"
+        [editableInputs]="editableInputs()"
+        [isPlaying]="isPlaying()"
+        [canUndo]="canUndo()"
+        [stepDetails]="stepDetails()"
+        (operatorChange)="onOperatorChange($event)"
+        (primeChange)="onPrimeChange($event)"
+        (vertexMethodChange)="vertexMethod.set($event)"
+        (inputChange)="onInputChange($event)"
+        (inputBlur)="onInputBlur($event)"
+        (step)="onStep()"
+        (randomize)="onRandomize()"
+        (togglePlay)="onRunToggle()"
+        (learningRateInputChange)="learningRateInput.set($event)"
+        (learningRateBlur)="onLearningRateBlur()"
+        [playStepMs]="playStepMs()"
+        (playStepMsChange)="playStepMs.set($event)"
+        (undo)="onUndo()"
+      ></app-berkovich-unary-tree-vis>
+    </section>
+ 
+    <!-- Right Column: Calculus -->
+    <aside class="control-panel">
+      <app-berkovich-unary-calculus
+        [operator]="operator()"
+        [constantLabel]="constantLabel()"
+        [rhoX]="rhoX()"
+        [stepDetails]="stepDetails()"
+      />
+    </aside>
+  </div>
+
+  <!-- Explainer Section -->
+  <mat-card class="explainer-card collapsible-card">
+    <mat-card-header (click)="isExplainerExpanded.set(!isExplainerExpanded())" style="cursor: pointer; width: 100%;">
+      <mat-card-title style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <mat-icon>info</mat-icon>
+          <span>Understanding Gradients & Optimization of {{ operator() | titlecase }}</span>
+        </div>
+        <mat-icon class="collapse-chevron" style="color: #64748b;">{{ isExplainerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </mat-card-title>
+    </mat-card-header>
+    @if (isExplainerExpanded()) {
+      <mat-card-content class="explainer-content" style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 12px;">
+        <markdown [katex]="true" [data]="explainerMarkdown()"></markdown>
+      </mat-card-content>
+    }
+  </mat-card>
+
+</div>

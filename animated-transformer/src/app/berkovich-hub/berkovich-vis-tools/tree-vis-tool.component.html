@@ -1,0 +1,157 @@
+<!-- Copyright 2026 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<div class="berkovich-explorer">
+  <!-- Header Banner -->
+  <app-berkovich-header
+    title="Berkovich Tree Vis Sandbox"
+    subtitle="Configure tree visualizers to inspect $p$-adic branching structures, distance valuations, and target trajectories."
+    [isVisTool]="true"
+  ></app-berkovich-header>
+
+  <div class="dashboard-grid">
+    <!-- Preview Panel -->
+    <section class="visualizer-card-container" style="display: flex; flex-direction: column; gap: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #3b82f6;">account_tree</mat-icon>
+        Single Tree Visualizer Preview
+      </h2>
+
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 450px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; overflow: auto;">
+        @if (parsedError()) {
+          <div style="color: #ef4444; font-size: 14px; text-align: center;">
+            <mat-icon style="font-size: 48px; width: 48px; height: 48px; margin-bottom: 8px;">error_outline</mat-icon>
+            <div>{{ parsedError() }}</div>
+          </div>
+        } @else {
+          <app-berkovich-tree-vis
+            [prime]="prime()"
+            [currentCenter]="parsedCenter1()"
+            [centerDigitsInput]="center1Digits()"
+            [currentLogRadius]="rho1()"
+            [targetRational]="parsedTargetCenter()"
+            [targetDigitsInput]="targetCenterDigits()"
+            [targetLogRadius]="targetType() === 'Disk SGD' ? targetRho() : undefined"
+            [isDraggingRho]="false"
+          />
+        }
+      </div>
+
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 13px; color: #334155;">
+        <div><strong>Component Tag:</strong></div>
+        <pre style="margin: 4px 0 0 0; white-space: pre-wrap; font-size: 12px; color: #0f766e;">&lt;app-berkovich-tree-vis
+  [center1]="&#123; num: {{ parsedCenter1().num }}n, den: {{ parsedCenter1().den }}n &#125;"
+  [rho1]="{{ rho1() }}"
+  [prime]="{{ prime() }}"
+  [targetType]="'{{ targetType() }}'"
+  [width]="{{ width() }}"
+  [height]="{{ height() }}"
+/&gt;</pre>
+      </div>
+    </section>
+
+    <!-- Controls Sidepanel -->
+    <aside class="control-panel" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <mat-icon style="color: #6366f1;">settings</mat-icon>
+        Tree Configuration
+      </h2>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Presets -->
+        <div>
+          <label style="font-weight: 600; font-size: 12px; color: #475569; display: block; margin-bottom: 6px;">Presets</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            @for (preset of presets; track preset.name) {
+              <button mat-stroked-button (click)="applyPreset(preset)" style="font-size: 12px; height: 32px; padding: 0 10px;">
+                {{ preset.name }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Prime -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Base Prime (p)</mat-label>
+          <mat-select [value]="prime()" (selectionChange)="prime.set($event.value)">
+            <mat-option [value]="2">2</mat-option>
+            <mat-option [value]="3">3</mat-option>
+            <mat-option [value]="5">5</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Center & Rho -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Center x1 Digit Sequence</mat-label>
+          <input matInput [ngModel]="center1Digits()" (ngModelChange)="center1Digits.set($event)">
+        </mat-form-field>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+            <span>Log-Radius rho1</span>
+            <span style="font-weight: 700; color: #3b82f6;">{{ rho1().toFixed(2) }}</span>
+          </div>
+          <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+            <input matSliderThumb [ngModel]="rho1()" (ngModelChange)="rho1.set($event)">
+          </mat-slider>
+        </div>
+
+        <!-- Target Type -->
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Target Type</mat-label>
+          <mat-select [value]="targetType()" (selectionChange)="targetType.set($event.value)">
+            <mat-option value="Point SGD">Point SGD (Single Point)</mat-option>
+            <mat-option value="Disk SGD">Disk SGD (Joined Disks)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        @if (targetType() === 'Point SGD') {
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Target Center Digits</mat-label>
+            <input matInput [ngModel]="targetCenterDigits()" (ngModelChange)="targetCenterDigits.set($event)">
+          </mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Target Disk Center Digits</mat-label>
+            <input matInput [ngModel]="targetCenterDigits()" (ngModelChange)="targetCenterDigits.set($event)">
+          </mat-form-field>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 2px;">
+              <span>Target Disk Rho</span>
+              <span style="font-weight: 700; color: #10b981;">{{ targetRho().toFixed(2) }}</span>
+            </div>
+            <mat-slider min="-3" max="3" step="0.1" style="width: 100%;">
+              <input matSliderThumb [ngModel]="targetRho()" (ngModelChange)="targetRho.set($event)">
+            </mat-slider>
+          </div>
+        }
+
+        <!-- Canvas Dimensions -->
+        <div style="display: flex; gap: 12px;">
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>SVG Width (px)</mat-label>
+            <input matInput type="number" [ngModel]="width()" (ngModelChange)="width.set($event)">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>SVG Height (px)</mat-label>
+            <input matInput type="number" [ngModel]="height()" (ngModelChange)="height.set($event)">
+          </mat-form-field>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
