@@ -82,7 +82,8 @@ describe('BerkovichEncodingComponent', () => {
   });
 
   it('should update both realTarget and reverseReal when digit-display center is edited', () => {
-    component.onDigitDisplayCenterChange({ num: 3n, den: 4n }); // 0.75
+    // 0.75 in real is 1100_2. In reversed p-adic digit display, the digits are 0011_2 = 3/16.
+    component.onDigitDisplayCenterChange({ num: 3n, den: 16n }); // 0.75
     expect(component.realTarget()).toBe(0.75);
     expect(component.reverseReal()).toBe(0.75);
     expect(component.binaryString()).toBe('1100');
@@ -180,7 +181,7 @@ describe('BerkovichEncodingComponent', () => {
   it('should correctly encode x = 0.4160 to 0110 binary digits and 13/32 rational center', () => {
     component.setRealTarget(0.4160);
     expect(component.binaryString()).toBe('0110');
-    expect(component.currentRationalCenter()).toEqual({ num: 13n, den: 32n });
+    expect(component.currentRationalCenter()).toEqual({ num: 3n, den: 8n });
     const steps = component.steps();
     expect(steps.length).toBe(4);
     expect(steps[0].bit).toBe(0);

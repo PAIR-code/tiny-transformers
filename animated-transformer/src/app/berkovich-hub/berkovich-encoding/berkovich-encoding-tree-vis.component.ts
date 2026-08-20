@@ -80,10 +80,7 @@ export interface EncodingTreeEdge {
     <div class="tree-vis-wrapper">
       <div class="svg-container" #svgContainer>
         <svg #svgRef class="tree-svg"></svg>
-        <div
-          class="movable-digit-display"
-          [style.left.%]="bluePinPercentX()"
-        >
+        <div class="centered-digit-display">
           <app-berkovich-digit-display
             [center]="currentRationalCenter()"
             [rho]="padicRho()"
@@ -124,11 +121,11 @@ export interface EncodingTreeEdge {
         user-select: none;
       }
 
-      .movable-digit-display {
+      .centered-digit-display {
         position: absolute;
         bottom: 0px;
+        left: 50%;
         transform: translateX(-50%);
-        transition: left 0.12s ease-out;
         z-index: 10;
         display: flex;
         justify-content: center;
@@ -155,19 +152,7 @@ export class BerkovichEncodingTreeVisComponent {
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
 
   readonly bluePinVal = computed<number>(() => {
-    const useRho = this.useRhoNormalization();
-    if (useRho) {
-      return this.biasedValue() ?? this.targetValue();
-    }
-    const r = this.currentRationalCenter();
-    const den = Number(r.den);
-    return den > 0 ? Number(r.num) / den : 0.5;
-  });
-
-  readonly bluePinPercentX = computed<number>(() => {
-    const val = Math.max(0, Math.min(1, this.bluePinVal()));
-    const svgX = 65 + val * 640;
-    return (svgX / 770) * 100;
+    return this.biasedValue() ?? this.targetValue();
   });
 
   constructor() {

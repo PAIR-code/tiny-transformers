@@ -47,7 +47,7 @@ import { MarkdownComponent } from 'ngx-markdown';
 
 import { BerkovichHeaderComponent } from '../berkovich-header/berkovich-header.component';
 import { BerkovichEncodingTreeVisComponent } from './berkovich-encoding-tree-vis.component';
-import { Rational, formatRational } from '../../../lib/berkovich/berkovich';
+import { Rational, formatRational, getAlignedDigits, simplify } from '../../../lib/berkovich/berkovich';
 import {
   BkBinarySearchStep as BinarySearchStep,
   computeBkBinarySearchSteps,
@@ -113,10 +113,21 @@ export class BerkovichEncodingComponent {
     return list.length > 0 ? list[list.length - 1] : null;
   });
 
-  // Current Rational Center at selected precision depth K
+  // Current Rational Center in p-adic digit order for digit display
   readonly currentRationalCenter = computed<Rational>(() => {
-    const final = this.finalStep();
-    return final ? final.rationalCenter : { num: 11n, den: 16n };
+    const stepList = this.steps();
+    const N = this.depth() * 2;
+    const p = BigInt(this.prime());
+    if (!stepList || stepList.length === 0) {
+      return { num: 13n, den: 16n };
+    }
+    let num = 0n;
+    const den = p ** BigInt(N);
+    for (let i = 0; i < stepList.length && i < N; i++) {
+      const bit = BigInt(stepList[i].bit);
+      num += bit * (p ** BigInt(i));
+    }
+    return simplify({ num, den });
   });
 
   readonly binaryString = computed<string>(() => {
@@ -178,12 +189,18 @@ When **use rho normalization** is enabled, the Berkovich radius parameter $\\rho
 
   // Reactive updates when user edits digits directly in BerkovichDigitDisplayComponent
   onDigitDisplayCenterChange(newRational: Rational) {
-    const den = Number(newRational.den);
-    if (den > 0) {
-      const newX = Math.max(0, Math.min(1, Number(newRational.num) / den));
-      this.reverseReal.set(newX);
-      this.realTarget.set(newX);
+    const N = this.depth() * 2;
+    const p = BigInt(this.prime());
+    const aligned = getAlignedDigits(newRational, p, -N, -1);
+    let realX = 0;
+    for (let i = 0; i < N; i++) {
+      const d = aligned.find((item) => item.power === -(i + 1))?.digit ?? 0;
+      const realPower = N - i;
+      realX += d * Math.pow(this.prime(), -realPower);
     }
+    const clamped = Math.max(0, Math.min(1, realX));
+    this.reverseReal.set(clamped);
+    this.realTarget.set(clamped);
   }
 
   onDigitDisplayRhoChange(newRho: number) {

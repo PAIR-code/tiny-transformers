@@ -118,6 +118,7 @@ describe('BerkovichEncodingTreeVisComponent', () => {
 
     // When rho normalization is disabled
     fixture.componentRef.setInput('useRhoNormalization', false);
+    fixture.componentRef.setInput('biasedValue', 0.6875);
     fixture.detectChanges();
 
     bluePinGroup = svgEl.querySelector('.blue-pin-group');
@@ -125,9 +126,9 @@ describe('BerkovichEncodingTreeVisComponent', () => {
     expect(bluePinGroup?.querySelector('text')?.textContent).toContain('x_padic = 0.6875');
   });
 
-  it('should render movable digit-display with blue outline placed underneath the blue pin', () => {
+  it('should render centered digit-display with blue outline placed underneath the tree vis', () => {
     const hostEl: HTMLElement = fixture.nativeElement;
-    const digitDisplayWrapper = hostEl.querySelector('.movable-digit-display');
+    const digitDisplayWrapper = hostEl.querySelector('.centered-digit-display');
     expect(digitDisplayWrapper).toBeTruthy();
 
     const digitDisplayComponent = hostEl.querySelector('app-berkovich-digit-display');
