@@ -23,7 +23,7 @@
     "@angular/material": "^22.0.0",
     "@angular/platform-browser": "^22.0.0",
     "@angular/platform-browser-dynamic": "^22.0.0",
-    "@angular/router": "^22.0.0",
+    "@angular/router": "^22.2.1",
     "@material-design-icons/svg": "^0.14.13",
     "@tensorflow/tfjs": "^4.20.0",
     "@tensorflow/tfjs-layers": "^4.22.0",
